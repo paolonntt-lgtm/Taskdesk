@@ -5,17 +5,25 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
 import { useListTickets } from '@workspace/api-client-react';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 
+const VALID_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
+const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
 export default function TicketList() {
   const { t, lang } = useLanguage();
+  const searchStr = useSearch();
+  const params = new URLSearchParams(searchStr);
+  const initialStatus = VALID_STATUSES.includes(params.get('status') ?? '') ? params.get('status')! : 'all';
+  const initialPriority = VALID_PRIORITIES.includes(params.get('priority') ?? '') ? params.get('priority')! : 'all';
+
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const [status, setStatus] = useState('all');
-  const [priority, setPriority] = useState('all');
+  const [status, setStatus] = useState(initialStatus);
+  const [priority, setPriority] = useState(initialPriority);
 
   const { data: tickets, isLoading } = useListTickets({
     search: debouncedSearch || undefined,

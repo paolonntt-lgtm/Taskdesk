@@ -28,19 +28,51 @@ export function getPriorityColor(priority: string) {
   }
 }
 
-function StatCard({ title, value, color = 'primary.main' }: { title: string; value: number; color?: string }) {
-  return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap>
-          {title}
-        </Typography>
-        <Typography component="div" sx={{ color, fontWeight: 'bold', fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}>
-          {value}
-        </Typography>
-      </CardContent>
-    </Card>
+function StatCard({
+  title,
+  value,
+  color = 'primary.main',
+  href,
+}: {
+  title: string;
+  value: number;
+  color?: string;
+  href?: string;
+}) {
+  const inner = (
+    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap>
+        {title}
+      </Typography>
+      <Typography
+        component="div"
+        sx={{ color, fontWeight: 'bold', fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
+      >
+        {value}
+      </Typography>
+    </CardContent>
   );
+
+  if (href) {
+    return (
+      <Card
+        component={Link}
+        href={href}
+        sx={{
+          height: '100%',
+          display: 'block',
+          textDecoration: 'none',
+          transition: 'box-shadow 0.15s, transform 0.15s',
+          cursor: 'pointer',
+          '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+        }}
+      >
+        {inner}
+      </Card>
+    );
+  }
+
+  return <Card sx={{ height: '100%' }}>{inner}</Card>;
 }
 
 interface TicketItem {
@@ -51,11 +83,12 @@ interface TicketItem {
   category?: string;
 }
 
-function TicketListCard({ title, tickets, emptyMsg, viewAllLabel }: {
+function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }: {
   title: string;
   tickets: TicketItem[];
   emptyMsg: string;
   viewAllLabel: string;
+  viewAllHref?: string;
 }) {
   const { t } = useLanguage();
 
@@ -64,7 +97,7 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel }: {
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1}>
           <Typography variant="h6" fontWeight="bold">{title}</Typography>
-          <Button component={Link} href="/tickets" size="small">{viewAllLabel}</Button>
+          <Button component={Link} href={viewAllHref || '/tickets'} size="small">{viewAllLabel}</Button>
         </Box>
 
         {tickets.length === 0 ? (
@@ -162,16 +195,36 @@ export default function Dashboard() {
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={6} md={3}>
-          <StatCard title={t.dashboard.openTickets} value={stats?.openTickets || 0} color="primary.main" />
+          <StatCard
+            title={t.dashboard.openTickets}
+            value={stats?.openTickets || 0}
+            color="primary.main"
+            href="/tickets?status=open"
+          />
         </Grid>
         <Grid item xs={6} md={3}>
-          <StatCard title={t.dashboard.inProgress} value={stats?.inProgressTickets || 0} color="warning.main" />
+          <StatCard
+            title={t.dashboard.inProgress}
+            value={stats?.inProgressTickets || 0}
+            color="warning.main"
+            href="/tickets?status=in_progress"
+          />
         </Grid>
         <Grid item xs={6} md={3}>
-          <StatCard title={t.dashboard.urgent} value={stats?.urgentTickets || 0} color="error.main" />
+          <StatCard
+            title={t.dashboard.urgent}
+            value={stats?.urgentTickets || 0}
+            color="error.main"
+            href="/tickets?priority=urgent"
+          />
         </Grid>
         <Grid item xs={6} md={3}>
-          <StatCard title={t.dashboard.closed} value={stats?.closedTickets || 0} color="text.secondary" />
+          <StatCard
+            title={t.dashboard.closed}
+            value={stats?.closedTickets || 0}
+            color="text.secondary"
+            href="/tickets?status=closed"
+          />
         </Grid>
       </Grid>
 
