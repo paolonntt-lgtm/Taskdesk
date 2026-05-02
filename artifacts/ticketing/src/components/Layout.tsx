@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AppBar,
   Box,
@@ -39,6 +39,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useListNotifications, useMarkAllNotificationsRead } from '@workspace/api-client-react';
 import type { Lang } from '../i18n/translations';
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 
 const drawerWidth = 260;
 
@@ -60,10 +61,27 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
 
   const { data: notifications = [] } = useListNotifications({
-    query: { enabled: !!user, refetchInterval: 30_000, staleTime: 20_000 },
+    query: { enabled: !!user, refetchInterval: 15_000, staleTime: 10_000 },
   });
 
   const markAllRead = useMarkAllNotificationsRead();
+
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  );
+
+  const { requestPermission: requestBrowserPermission } = useBrowserNotifications(notifications as any[], !!user);
+
+  const handleRequestPermission = useCallback(async () => {
+    const result = await requestBrowserPermission();
+    setNotifPermission(result as NotificationPermission);
+  }, [requestBrowserPermission]);
+
+  useEffect(() => {
+    if (typeof Notification !== 'undefined') {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -199,6 +217,27 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
                 </Typography>
               )}
             </Box>
+            {notifPermission === 'default' && (
+              <Box sx={{ px: 2, pb: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<Notifications fontSize="small" />}
+                  onClick={handleRequestPermission}
+                  sx={{ fontSize: '0.75rem', textTransform: 'none', borderStyle: 'dashed' }}
+                >
+                  Abilita notifiche browser
+                </Button>
+              </Box>
+            )}
+            {notifPermission === 'granted' && (
+              <Box sx={{ px: 2, pb: 0.5 }}>
+                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  ✓ Notifiche browser attive
+                </Typography>
+              </Box>
+            )}
             <Divider />
             {notifications.length === 0 ? (
               <MenuItem disabled>{t.nav.noNotifications}</MenuItem>
