@@ -31,7 +31,6 @@ export default function ProfileScreen() {
   const infoItems = [
     { icon: "mail" as const, label: "Email", value: user?.email ?? "" },
     { icon: "shield" as const, label: "Ruolo", value: user?.role === "admin" ? "Amministratore" : "Utente" },
-    { icon: "map-pin" as const, label: "Sede", value: user?.mainLocation ?? "Non impostata" },
   ];
 
   return (
