@@ -53,10 +53,10 @@ export default function DashboardScreen() {
   };
 
   const statCards = [
-    { label: "Aperti", value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const },
-    { label: "In corso", value: stats?.inProgressTickets ?? 0, color: "#f1c21b", icon: "clock" as const },
-    { label: "Urgenti", value: stats?.urgentTickets ?? 0, color: colors.destructive, icon: "alert-triangle" as const },
-    { label: "Chiusi", value: stats?.closedTickets ?? 0, color: colors.success, icon: "check-circle" as const },
+    { label: "Aperti", value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
+    { label: "In corso", value: stats?.inProgressTickets ?? 0, color: "#f1c21b", icon: "clock" as const, filter: "status=in_progress" },
+    { label: "Urgenti", value: stats?.urgentTickets ?? 0, color: colors.destructive, icon: "alert-triangle" as const, filter: "priority=urgent" },
+    { label: "Chiusi", value: stats?.closedTickets ?? 0, color: colors.success, icon: "check-circle" as const, filter: "status=closed" },
   ];
 
   return (
@@ -83,11 +83,16 @@ export default function DashboardScreen() {
       ) : (
         <View style={s.statsGrid}>
           {statCards.map((c) => (
-            <View key={c.label} style={[s.statCard, { borderLeftColor: c.color }]}>
+            <TouchableOpacity
+              key={c.label}
+              style={[s.statCard, { borderLeftColor: c.color }]}
+              onPress={() => router.push(`/(tabs)/tickets?${c.filter}` as any)}
+              activeOpacity={0.75}
+            >
               <Feather name={c.icon} size={20} color={c.color} />
               <Text style={s.statValue}>{c.value}</Text>
               <Text style={s.statLabel}>{c.label}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}

@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/utils/api";
 
@@ -30,12 +30,22 @@ const STATUS_DISPLAY: Record<string, string> = {
 export default function TicketsScreen() {
   const colors = useColors();
   const s = styles(colors);
+  const params = useLocalSearchParams<{ status?: string; priority?: string }>();
+
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(params.status ?? "");
+  const [priorityFilter, setPriorityFilter] = useState(params.priority ?? "");
+
+  const buildQuery = () => {
+    const parts: string[] = [];
+    if (statusFilter) parts.push(`status=${statusFilter}`);
+    if (priorityFilter) parts.push(`priority=${priorityFilter}`);
+    return parts.length > 0 ? `?${parts.join("&")}` : "";
+  };
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets", statusFilter],
-    queryFn: () => apiGet<Ticket[]>(`/tickets${statusFilter ? `?status=${statusFilter}` : ""}`),
+    queryKey: ["tickets", statusFilter, priorityFilter],
+    queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
   });
 
   const filtered = tickets.filter((t) =>
@@ -64,10 +74,12 @@ export default function TicketsScreen() {
           <Feather name="tag" size={11} color={colors.mutedForeground} />
           <Text style={s.metaText}>{item.category}</Text>
         </View>
-        <View style={s.metaItem}>
-          <Feather name="map-pin" size={11} color={colors.mutedForeground} />
-          <Text style={s.metaText}>{item.location}</Text>
-        </View>
+        {item.location ? (
+          <View style={s.metaItem}>
+            <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+            <Text style={s.metaText}>{item.location}</Text>
+          </View>
+        ) : null}
       </View>
       <View style={s.cardBottom}>
         <View style={s.statusBadge}>
@@ -98,18 +110,27 @@ export default function TicketsScreen() {
         )}
       </View>
 
-      <View style={s.filters}>
+      {/* Status filters */}
+      <View style={s.filtersRow}>
         {STATUS_OPTIONS.map((s_) => (
           <TouchableOpacity
             key={s_}
-            style={[s.filterBtn, statusFilter === s_ && s.filterBtnActive]}
-            onPress={() => setStatusFilter(s_)}
+            style={[s.filterBtn, statusFilter === s_ && !priorityFilter && s.filterBtnActive]}
+            onPress={() => { setStatusFilter(s_); setPriorityFilter(""); }}
           >
-            <Text style={[s.filterText, statusFilter === s_ && s.filterTextActive]}>
+            <Text style={[s.filterText, statusFilter === s_ && !priorityFilter && s.filterTextActive]}>
               {STATUS_DISPLAY[s_]}
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={[s.filterBtn, priorityFilter === "urgent" && s.filterBtnUrgent]}
+          onPress={() => { setPriorityFilter(priorityFilter === "urgent" ? "" : "urgent"); setStatusFilter(""); }}
+        >
+          <Text style={[s.filterText, priorityFilter === "urgent" && s.filterTextUrgent]}>
+            Urgenti
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -145,14 +166,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       borderWidth: 1, borderColor: colors.border,
     },
     searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular" },
-    filters: { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 8 },
+    filtersRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 8, flexWrap: "wrap" },
     filterBtn: {
       paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     },
     filterBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    filterBtnUrgent: { backgroundColor: colors.destructive, borderColor: colors.destructive },
     filterText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     filterTextActive: { color: colors.primaryForeground },
+    filterTextUrgent: { color: "#fff" },
     list: { padding: 16, paddingTop: 8 },
     card: {
       backgroundColor: colors.card, borderRadius: 12, padding: 16,
