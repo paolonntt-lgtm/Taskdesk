@@ -61,6 +61,7 @@ export interface CreateUserBody {
   password: string;
   role: CreateUserBodyRole;
   mainLocation?: string | null;
+  group?: string | null;
 }
 
 export type UpdateUserBodyRole =
@@ -78,6 +79,7 @@ export interface UpdateUserBody {
   password?: string;
   role?: UpdateUserBodyRole;
   mainLocation?: string | null;
+  group?: string | null;
   isActive?: boolean;
 }
 

@@ -722,6 +722,9 @@ components:
         mainLocation:
           type: string
           nullable: true
+        group:
+          type: string
+          nullable: true
       required:
         - name
         - email
@@ -743,6 +746,9 @@ components:
           type: string
           enum: [admin, user]
         mainLocation:
+          type: string
+          nullable: true
+        group:
           type: string
           nullable: true
         isActive:

@@ -13,6 +13,7 @@ const userFields = {
   email: usersTable.email,
   role: usersTable.role,
   mainLocation: usersTable.mainLocation,
+  group: usersTable.group,
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
 };
@@ -35,7 +36,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     return;
   }
 
-  const { name, email, password, role, mainLocation } = parsed.data;
+  const { name, email, password, role, mainLocation, group } = parsed.data;
 
   const [existing] = await db
     .select({ id: usersTable.id })
@@ -53,6 +54,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     passwordHash: hashPassword(password),
     role,
     mainLocation: mainLocation ?? null,
+    group: group ?? null,
     isActive: true,
   }).returning(userFields);
 

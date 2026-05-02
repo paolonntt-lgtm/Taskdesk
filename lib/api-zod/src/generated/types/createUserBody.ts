@@ -14,4 +14,5 @@ export interface CreateUserBody {
   password: string;
   role: CreateUserBodyRole;
   mainLocation?: string | null;
+  group?: string | null;
 }

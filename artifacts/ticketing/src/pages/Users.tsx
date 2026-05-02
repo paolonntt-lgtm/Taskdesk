@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -50,6 +50,7 @@ interface UserFormData {
   email: string;
   password: string;
   role: 'admin' | 'user';
+  group: string;
 }
 
 const emptyForm: UserFormData = {
@@ -57,12 +58,15 @@ const emptyForm: UserFormData = {
   email: '',
   password: '',
   role: 'user',
+  group: '',
 };
 
 export default function Users() {
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const ut = t.users;
+
+  const [groups, setGroups] = useState<string[]>([]);
 
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
@@ -80,6 +84,13 @@ export default function Users() {
 
   const activeCount = users.filter((u) => u.isActive !== false).length;
 
+  useEffect(() => {
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setGroups(d.value ?? []))
+      .catch(() => {});
+  }, []);
+
   const openCreate = () => {
     setEditTarget(null);
     setForm(emptyForm);
@@ -94,6 +105,7 @@ export default function Users() {
       email: u.email,
       password: '',
       role: u.role as 'admin' | 'user',
+      group: (u as any).group ?? '',
     });
     setFormError(null);
     setDialogOpen(true);
@@ -138,6 +150,7 @@ export default function Users() {
           name: form.name,
           email: form.email,
           role: form.role,
+          group: form.group || null,
         };
         if (form.password) body.password = form.password;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
@@ -147,6 +160,7 @@ export default function Users() {
           email: form.email,
           password: form.password,
           role: form.role,
+          group: form.group || null,
         };
         await createUser.mutateAsync({ data: body });
       }
@@ -220,6 +234,7 @@ export default function Users() {
               <TableCell><strong>{ut.name}</strong></TableCell>
               <TableCell><strong>{ut.email}</strong></TableCell>
               <TableCell><strong>{ut.role}</strong></TableCell>
+              <TableCell><strong>{ut.group}</strong></TableCell>
               <TableCell><strong>{ut.status}</strong></TableCell>
               <TableCell><strong>{ut.createdAt}</strong></TableCell>
               <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
@@ -228,7 +243,7 @@ export default function Users() {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   {ut.noUsers}
                 </TableCell>
               </TableRow>
@@ -254,6 +269,11 @@ export default function Users() {
                         color={u.role === 'admin' ? 'secondary' : 'default'}
                         variant="outlined"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {(u as any).group || '—'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -343,6 +363,19 @@ export default function Users() {
               >
                 <MenuItem value="user">{t.role.user}</MenuItem>
                 <MenuItem value="admin">{t.role.admin}</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>{ut.group}</InputLabel>
+              <Select
+                value={form.group}
+                label={ut.group}
+                onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
+              >
+                <MenuItem value=""><em>— {ut.groupPlaceholder} —</em></MenuItem>
+                {groups.map((g) => (
+                  <MenuItem key={g} value={g}>{g}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>

@@ -81,6 +81,7 @@ export const CreateUserBody = zod.object({
   password: zod.string().min(createUserBodyPasswordMin),
   role: zod.enum(["admin", "user"]),
   mainLocation: zod.string().nullish(),
+  group: zod.string().nullish(),
 });
 
 /**
@@ -115,6 +116,7 @@ export const UpdateUserBody = zod.object({
   password: zod.string().min(updateUserBodyPasswordMin).optional(),
   role: zod.enum(["admin", "user"]).optional(),
   mainLocation: zod.string().nullish(),
+  group: zod.string().nullish(),
   isActive: zod.boolean().optional(),
 });
 

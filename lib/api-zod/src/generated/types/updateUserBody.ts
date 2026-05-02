@@ -14,5 +14,6 @@ export interface UpdateUserBody {
   password?: string;
   role?: UpdateUserBodyRole;
   mainLocation?: string | null;
+  group?: string | null;
   isActive?: boolean;
 }
