@@ -199,10 +199,10 @@ export default function Landing() {
               <h3 className="text-3xl font-bold tracking-tight">{t.features.items.stats.title}</h3>
               <p className="text-lg text-muted-foreground">{t.features.items.stats.desc}</p>
               <ul className="space-y-4 mt-6">
-                {[1,2,3].map(i => (
+                {t.features.items.stats.bullets.map((bullet, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    <span className="text-muted-foreground">{bullet}</span>
                   </li>
                 ))}
               </ul>

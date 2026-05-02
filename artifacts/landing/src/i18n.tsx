@@ -28,7 +28,7 @@ interface Translations {
       creation: { title: string; desc: string };
       priority: { title: string; desc: string };
       history: { title: string; desc: string };
-      stats: { title: string; desc: string };
+      stats: { title: string; desc: string; bullets: string[] };
       multi: { title: string; desc: string };
       roles: { title: string; desc: string };
       fast: { title: string; desc: string };
@@ -90,7 +90,12 @@ const translations: Record<Language, Translations> = {
         },
         stats: {
           title: "Report e Statistiche",
-          desc: "Dati chiari e leggibili per capire come sta performando il tuo team."
+          desc: "Dati chiari e leggibili per capire come sta performando il tuo team.",
+          bullets: [
+            "Grafici per stato, priorità e categoria",
+            "Trend ticket degli ultimi 30 giorni",
+            "Statistiche per sede e operatore"
+          ]
         },
         multi: {
           title: "Supporto Multi-Sede",
@@ -171,7 +176,12 @@ const translations: Record<Language, Translations> = {
         },
         stats: {
           title: "Reports & Statistics",
-          desc: "Clear and readable data to understand how your team is performing."
+          desc: "Clear and readable data to understand how your team is performing.",
+          bullets: [
+            "Charts by status, priority and category",
+            "Ticket trend over the last 30 days",
+            "Statistics by location and assignee"
+          ]
         },
         multi: {
           title: "Multi-Location Support",
