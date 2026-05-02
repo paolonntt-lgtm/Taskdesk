@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { ticketsTable } from "./tickets";
@@ -10,7 +10,9 @@ export const ticketCommentsTable = pgTable("ticket_comments", {
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   commentText: text("comment_text").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("ticket_comments_ticket_id_idx").on(t.ticketId),
+]);
 
 export const insertTicketCommentSchema = createInsertSchema(ticketCommentsTable).omit({ id: true, createdAt: true });
 export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;

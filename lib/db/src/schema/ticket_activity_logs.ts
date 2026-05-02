@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { ticketsTable } from "./tickets";
@@ -11,7 +11,9 @@ export const ticketActivityLogsTable = pgTable("ticket_activity_logs", {
   actionType: text("action_type").notNull(),
   actionDescription: text("action_description").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("ticket_activity_logs_ticket_id_idx").on(t.ticketId),
+]);
 
 export const insertTicketActivityLogSchema = createInsertSchema(ticketActivityLogsTable).omit({ id: true, createdAt: true });
 export type InsertTicketActivityLog = z.infer<typeof insertTicketActivityLogSchema>;

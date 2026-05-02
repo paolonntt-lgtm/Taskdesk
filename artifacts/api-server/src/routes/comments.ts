@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody } from "@workspace/api-zod";
@@ -18,18 +18,13 @@ router.get("/tickets/:id/comments", requireAuth, async (req, res): Promise<void>
     .orderBy(ticketCommentsTable.createdAt);
 
   const authorIds = [...new Set(comments.map((c) => c.authorId))];
-  const authors = authorIds.length > 0
-    ? await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt }).from(usersTable).where(eq(usersTable.id, authorIds[0]))
+  const usersResult = authorIds.length > 0
+    ? await db
+        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt })
+        .from(usersTable)
+        .where(inArray(usersTable.id, authorIds))
     : [];
-
-  const usersResult = await Promise.all(
-    authorIds.map((aid) =>
-      db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt })
-        .from(usersTable).where(eq(usersTable.id, aid))
-        .then(([u]) => u)
-    )
-  );
-  const userMap = new Map(usersResult.filter(Boolean).map((u) => [u.id, u]));
+  const userMap = new Map(usersResult.map((u) => [u.id, u]));
 
   res.json(comments.map((c) => ({ ...c, author: userMap.get(c.authorId)! })));
 });

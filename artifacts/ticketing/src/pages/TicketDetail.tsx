@@ -43,7 +43,7 @@ export default function TicketDetail() {
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } });
-  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin' } });
+  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60 * 1000 } });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
@@ -55,25 +55,25 @@ export default function TicketDetail() {
   }
 
   const handleStatusChange = async (newStatus: string) => {
-    await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
   };
 
   const handlePriorityChange = async (newPriority: string) => {
-    await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
   };
 
   const handleAssigneeChange = async (newAssignee: string) => {
-    await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
   };
 
   const submitComment = async () => {
     if (!newComment.trim()) return;
-    await addComment.mutateAsync({ id: ticketId, data: { commentText: newComment } });
+    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText: newComment } });
     setNewComment('');
-    queryClient.invalidateQueries({ queryKey: getListTicketCommentsQueryKey(ticketId) });
+    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
   };
 
   const isAdmin = currentUser?.role === 'admin';

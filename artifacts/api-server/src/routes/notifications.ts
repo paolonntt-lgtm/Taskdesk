@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, notificationsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
@@ -12,9 +12,9 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     .select()
     .from(notificationsTable)
     .where(eq(notificationsTable.userId, currentUser.id))
-    .orderBy(notificationsTable.createdAt);
+    .orderBy(desc(notificationsTable.createdAt));
 
-  res.json(notifications.reverse());
+  res.json(notifications);
 });
 
 router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<void> => {
