@@ -42,6 +42,47 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({ user: safeUser, message: "Login effettuato" });
 });
 
+router.post("/auth/register", async (req, res): Promise<void> => {
+  const { name, email, password } = req.body ?? {};
+
+  if (!name || !email || !password) {
+    res.status(400).json({ message: "Tutti i campi sono obbligatori" });
+    return;
+  }
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ message: "Indirizzo email non valido" });
+    return;
+  }
+  if (typeof password !== "string" || password.length < 6) {
+    res.status(400).json({ message: "La password deve essere di almeno 6 caratteri" });
+    return;
+  }
+
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (existing) {
+    res.status(409).json({ message: "Email già in uso" });
+    return;
+  }
+
+  const passwordHash = hashPassword(password);
+  const [user] = await db.insert(usersTable).values({
+    name: String(name).trim(),
+    email: String(email).toLowerCase().trim(),
+    passwordHash,
+    role: "user",
+    isActive: true,
+  }).returning();
+
+  const sessionId = createSession(user.id);
+  res.setHeader(
+    "Set-Cookie",
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+  );
+
+  const { passwordHash: _, ...safeUser } = user;
+  res.status(201).json({ user: safeUser, message: "Registrazione completata" });
+});
+
 router.post("/auth/logout", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req);
   if (sessionId) {
