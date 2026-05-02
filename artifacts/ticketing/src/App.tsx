@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, CircularProgress, Box } from "@mui/material";
 import { lightTheme, darkTheme } from "./theme";
-import { AuthContext } from "./contexts/AuthContext";
+import { AuthContext, useAuth } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -16,6 +16,16 @@ import Users from "./pages/Users";
 import Billing from "./pages/Billing";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
+
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (user && user.role !== "admin") setLocation("/");
+  }, [user, setLocation]);
+  if (!user || user.role !== "admin") return null;
+  return <Component />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,8 +93,8 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
             <Route path="/tickets/:id" component={TicketDetail} />
             <Route path="/tickets" component={TicketList} />
             <Route path="/reports" component={Reports} />
-            <Route path="/users" component={Users} />
-            <Route path="/billing" component={Billing} />
+            <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+            <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
           </Switch>
         </Layout>
       )}
