@@ -134,6 +134,9 @@ const it = {
     billingNote: 'La fatturazione mensile si basa sul numero di utenti attivi.',
     errorEmailExists: "L'email è già in uso da un altro utente.",
     errorRequired: 'Tutti i campi obbligatori devono essere compilati.',
+    errorInvalidEmail: "Inserire un indirizzo email valido.",
+    errorPasswordTooShort: 'La password deve essere di almeno 6 caratteri.',
+    errorSaving: 'Errore durante il salvataggio. Riprova.',
   },
   status: {
     open: 'Aperto',
@@ -284,6 +287,9 @@ const en: typeof it = {
     billingNote: 'Monthly billing is based on the number of active users.',
     errorEmailExists: 'This email is already in use by another user.',
     errorRequired: 'All required fields must be filled in.',
+    errorInvalidEmail: 'Please enter a valid email address.',
+    errorPasswordTooShort: 'Password must be at least 6 characters long.',
+    errorSaving: 'An error occurred while saving. Please try again.',
   },
   status: {
     open: 'Open',

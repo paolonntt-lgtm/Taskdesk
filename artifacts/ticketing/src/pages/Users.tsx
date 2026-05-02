@@ -109,8 +109,29 @@ export default function Users() {
 
   const handleSave = async () => {
     setFormError(null);
+
     if (!form.name.trim() || !form.email.trim()) {
       setFormError(ut.errorRequired);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      setFormError(ut.errorInvalidEmail);
+      return;
+    }
+
+    if (!editTarget) {
+      if (!form.password) {
+        setFormError(ut.errorRequired);
+        return;
+      }
+      if (form.password.length < 6) {
+        setFormError(ut.errorPasswordTooShort);
+        return;
+      }
+    } else if (form.password && form.password.length < 6) {
+      setFormError(ut.errorPasswordTooShort);
       return;
     }
 
@@ -125,10 +146,6 @@ export default function Users() {
         if (form.password) body.password = form.password;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
       } else {
-        if (!form.password) {
-          setFormError(ut.errorRequired);
-          return;
-        }
         const body: CreateUserBody = {
           name: form.name,
           email: form.email,
@@ -140,11 +157,14 @@ export default function Users() {
       }
       setDialogOpen(false);
     } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg.includes('409') || msg.toLowerCase().includes('email')) {
+      const status: number | undefined = err?.status;
+      const serverMsg: string =
+        err?.data?.message || err?.data?.error || err?.message || '';
+
+      if (status === 409 || serverMsg.toLowerCase().includes('email')) {
         setFormError(ut.errorEmailExists);
       } else {
-        setFormError(msg || 'Errore durante il salvataggio.');
+        setFormError(serverMsg || ut.errorSaving);
       }
     }
   };
