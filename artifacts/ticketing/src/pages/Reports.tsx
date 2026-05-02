@@ -28,7 +28,7 @@ export default function Reports() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight="bold" mb={4}>
+      <Typography variant="h5" fontWeight="bold" mb={3}>
         Report e Statistiche
       </Typography>
 
@@ -39,7 +39,7 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Volume Ticket (ultimi 30 giorni)
               </Typography>
-              <Box height={300}>
+              <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendStats}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -67,7 +67,7 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Ticket per Stato
               </Typography>
-              <Box height={300}>
+              <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -97,9 +97,9 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Ticket per Categoria
               </Typography>
-              <Box height={300}>
+              <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryStats} layout="vertical" margin={{ left: 50 }}>
+                  <BarChart data={categoryStats} layout="vertical" margin={{ left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
@@ -118,7 +118,7 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Ticket per Priorità
               </Typography>
-              <Box height={300}>
+              <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={priorityStats}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -139,7 +139,7 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Ticket per Sede
               </Typography>
-              <Box height={300}>
+              <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={locationStats}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -160,9 +160,9 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 Ticket per Operatore
               </Typography>
-              <Box height={280}>
+              <Box sx={{ height: { xs: 220, sm: 280 } }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={assigneeStats} layout="vertical" margin={{ left: 40 }}>
+                  <BarChart data={assigneeStats} layout="vertical" margin={{ left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 12 }} />

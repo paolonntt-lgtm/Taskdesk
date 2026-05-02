@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell, TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid } from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
+import {
+  Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
+  TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
+} from '@mui/material';
+import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
 import { useListTickets } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { getStatusColor, getPriorityColor, getStatusLabel, getPriorityLabel } from './Dashboard';
@@ -21,9 +24,16 @@ export default function TicketList() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">Tutti i Ticket</Typography>
-        <Button component={Link} href="/tickets/new" variant="contained" color="primary">
-          Nuovo Ticket
+        <Typography variant="h5" fontWeight="bold">Tutti i Ticket</Typography>
+        <Button
+          component={Link}
+          href="/tickets/new"
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          size="small"
+        >
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Nuovo Ticket</Box>
         </Button>
       </Box>
 
@@ -33,7 +43,7 @@ export default function TicketList() {
             <TextField
               fullWidth
               size="small"
-              placeholder="Cerca ticket per titolo, descrizione, commenti..."
+              placeholder="Cerca ticket..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
@@ -41,7 +51,7 @@ export default function TicketList() {
               }}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} md={3}>
             <TextField
               select
               fullWidth
@@ -50,7 +60,7 @@ export default function TicketList() {
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <MenuItem value="all">Tutti gli stati</MenuItem>
+              <MenuItem value="all">Tutti</MenuItem>
               <MenuItem value="open">Aperto</MenuItem>
               <MenuItem value="in_progress">In lavorazione</MenuItem>
               <MenuItem value="waiting">In attesa</MenuItem>
@@ -58,7 +68,7 @@ export default function TicketList() {
               <MenuItem value="closed">Chiuso</MenuItem>
             </TextField>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={6} md={3}>
             <TextField
               select
               fullWidth
@@ -67,7 +77,7 @@ export default function TicketList() {
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
             >
-              <MenuItem value="all">Tutte le priorità</MenuItem>
+              <MenuItem value="all">Tutte</MenuItem>
               <MenuItem value="low">Bassa</MenuItem>
               <MenuItem value="medium">Media</MenuItem>
               <MenuItem value="high">Alta</MenuItem>
@@ -79,28 +89,28 @@ export default function TicketList() {
 
       <Card>
         <Box sx={{ overflowX: 'auto' }}>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>ID</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Titolo</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Categoria</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Stato</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Priorità</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Assegnato a</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Creato il</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>Categoria</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Stato</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>Priorità</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', lg: 'table-cell' } }}>Assegnato a</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>Creato il</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
-                    <CircularProgress />
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <CircularProgress size={32} />
                   </TableCell>
                 </TableRow>
               ) : tickets?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     Nessun ticket trovato con i filtri selezionati.
                   </TableCell>
                 </TableRow>
@@ -113,19 +123,19 @@ export default function TicketList() {
                     component={Link}
                     href={`/tickets/${ticket.id}`}
                   >
-                    <TableCell sx={{ fontWeight: 'bold' }}>#{ticket.id}</TableCell>
-                    <TableCell sx={{ maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
+                    <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {ticket.title}
                     </TableCell>
-                    <TableCell>{ticket.category}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       <Chip
                         label={getStatusLabel(ticket.status)}
                         size="small"
                         color={getStatusColor(ticket.status) as any}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       <Chip
                         label={getPriorityLabel(ticket.priority)}
                         size="small"
@@ -133,8 +143,12 @@ export default function TicketList() {
                         color={getPriorityColor(ticket.priority) as any}
                       />
                     </TableCell>
-                    <TableCell>{ticket.assignee?.name || 'Non assegnato'}</TableCell>
-                    <TableCell>{new Date(ticket.createdAt).toLocaleDateString('it-IT')}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                      {ticket.assignee?.name || 'Non assegnato'}
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                      {new Date(ticket.createdAt).toLocaleDateString('it-IT')}
+                    </TableCell>
                   </TableRow>
                 ))
               )}

@@ -48,11 +48,11 @@ export function getPriorityLabel(priority: string) {
 function StatCard({ title, value, color = 'primary.main' }: { title: string; value: number; color?: string }) {
   return (
     <Card>
-      <CardContent>
-        <Typography color="text.secondary" gutterBottom variant="subtitle2">
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap>
           {title}
         </Typography>
-        <Typography variant="h3" component="div" sx={{ color, fontWeight: 'bold' }}>
+        <Typography component="div" sx={{ color, fontWeight: 'bold', fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' } }}>
           {value}
         </Typography>
       </CardContent>
@@ -75,7 +75,7 @@ export default function Dashboard() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight="bold" gutterBottom mb={3}>
+      <Typography variant="h5" fontWeight="bold" gutterBottom mb={3}>
         Dashboard
       </Typography>
 

@@ -53,12 +53,12 @@ export default function NewTicket() {
 
   return (
     <Box maxWidth={800} mx="auto">
-      <Typography variant="h4" fontWeight="bold" mb={3}>
+      <Typography variant="h5" fontWeight="bold" mb={3}>
         Apri Nuovo Ticket
       </Typography>
 
       <Card>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid item xs={12}>

@@ -81,13 +81,13 @@ export default function Login() {
               <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
                 Credenziali Demo:
               </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">Admin:</Typography>
-                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>admin@example.com / admin123</Typography>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="body2" color="text.secondary">Admin:</Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>admin@example.com / admin123</Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2">Utente:</Typography>
-                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>utente@example.com / user123</Typography>
+              <Box>
+                <Typography variant="body2" color="text.secondary">Utente:</Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>utente@example.com / user123</Typography>
               </Box>
             </Paper>
           </CardContent>

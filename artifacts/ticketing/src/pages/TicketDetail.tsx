@@ -95,18 +95,16 @@ export default function TicketDetail() {
         Tutti i ticket
       </Button>
 
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            #{ticket.id} — {ticket.title}
+      <Box mb={3}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ wordBreak: 'break-word' }}>
+          #{ticket.id} — {ticket.title}
+        </Typography>
+        <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+          <Chip label={getStatusLabel(ticket.status)} color={getStatusColor(ticket.status) as any} size="small" />
+          <Chip label={getPriorityLabel(ticket.priority)} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+          <Typography variant="caption" color="text.secondary">
+            Aperto il {new Date(ticket.createdAt).toLocaleString('it-IT')}
           </Typography>
-          <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-            <Chip label={getStatusLabel(ticket.status)} color={getStatusColor(ticket.status) as any} />
-            <Chip label={getPriorityLabel(ticket.priority)} variant="outlined" color={getPriorityColor(ticket.priority) as any} />
-            <Typography variant="body2" color="text.secondary" ml={1}>
-              Aperto il {new Date(ticket.createdAt).toLocaleString('it-IT')}
-            </Typography>
-          </Box>
         </Box>
       </Box>
 
@@ -123,7 +121,7 @@ export default function TicketDetail() {
 
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2 }}>
+              <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: { xs: 0, sm: 2 } }} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
                 <Tab label={`Commenti (${comments?.length ?? 0})`} />
                 {isAdmin && <Tab label={`Note interne (${notes?.length ?? 0})`} />}
                 <Tab label="Cronologia" />
