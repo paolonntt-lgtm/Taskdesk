@@ -25,6 +25,11 @@ export default function TicketList() {
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
+  const uniqueLocations = new Set(
+    (tickets ?? []).map((t) => t.location).filter(Boolean)
+  );
+  const showLocation = uniqueLocations.size > 1;
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -102,19 +107,22 @@ export default function TicketList() {
                 <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{t.ticketList.colStatus}</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>{t.ticketList.colPriority}</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', lg: 'table-cell' } }}>{t.ticketList.colAssignee}</TableCell>
+                {showLocation && (
+                  <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>{t.ticketList.colLocation}</TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>{t.ticketList.colCreated}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={showLocation ? 8 : 7} align="center" sx={{ py: 4 }}>
                     <CircularProgress size={32} />
                   </TableCell>
                 </TableRow>
               ) : tickets?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={showLocation ? 8 : 7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {t.ticketList.noResults}
                   </TableCell>
                 </TableRow>
@@ -141,6 +149,11 @@ export default function TicketList() {
                     <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
                       {ticket.assignee?.name || t.ticketList.unassigned}
                     </TableCell>
+                    {showLocation && (
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        {ticket.location || '—'}
+                      </TableCell>
+                    )}
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
                       {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
                     </TableCell>
