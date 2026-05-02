@@ -22,7 +22,7 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const BASE = import.meta.env.BASE_URL;
-const APP_URL = "/";
+const APP_URL = "/app/";
 
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
