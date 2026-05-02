@@ -12,6 +12,7 @@ import { apiGet, STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/utils
 interface Ticket {
   id: number;
   title: string;
+  description: string;
   status: string;
   priority: string;
   category: string;
@@ -48,8 +49,11 @@ export default function TicketsScreen() {
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
   });
 
+  const q = search.toLowerCase();
   const filtered = tickets.filter((t) =>
-    !search || t.title.toLowerCase().includes(search.toLowerCase()) ||
+    !search ||
+    t.title.toLowerCase().includes(q) ||
+    t.description?.toLowerCase().includes(q) ||
     String(t.id).includes(search)
   );
 
