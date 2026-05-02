@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLanguage } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
 import { 
   ArrowRight, 
   CheckCircle2, 
@@ -11,7 +10,8 @@ import {
   ShieldCheck, 
   Zap, 
   Ticket,
-  ChevronDown
+  ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,14 +21,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
+const BASE = import.meta.env.BASE_URL;
+const APP_URL = "/";
+
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -68,10 +69,14 @@ export default function Landing() {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Button variant="ghost" className="hidden sm:inline-flex">{t.nav.login}</Button>
-            <Button asChild className="rounded-sm font-medium shadow-sm hover:shadow-md transition-all">
-              <Link href="/">{t.hero.cta}</Link>
-            </Button>
+            <a href={APP_URL}>
+              <Button variant="ghost" className="hidden sm:inline-flex">{t.nav.login}</Button>
+            </a>
+            <a href={APP_URL}>
+              <Button className="rounded-sm font-medium shadow-sm hover:shadow-md transition-all">
+                {t.hero.trialBadge} <ArrowRight className="ml-1.5 w-4 h-4" />
+              </Button>
+            </a>
           </div>
         </div>
       </header>
@@ -81,6 +86,12 @@ export default function Landing() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
             <div className="max-w-2xl animate-in slide-in-from-bottom-8 duration-700 fade-in">
+              {/* Trial badge */}
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-semibold mb-6 border border-primary/20">
+                <Sparkles className="w-3.5 h-3.5" />
+                {t.hero.trialBadge} — {t.hero.trialNote}
+              </div>
+
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[1.1] mb-6">
                 {t.hero.title}
               </h1>
@@ -88,15 +99,20 @@ export default function Landing() {
                 {t.hero.subtitle}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" asChild className="rounded-sm text-base h-14 px-8 shadow-md hover:shadow-lg transition-all">
-                  <Link href="/">{t.hero.cta} <ArrowRight className="ml-2 w-5 h-5" /></Link>
-                </Button>
-                <Button size="lg" variant="outline" className="rounded-sm text-base h-14 px-8">
-                  {t.hero.secondaryCta}
-                </Button>
+                <a href={APP_URL}>
+                  <Button size="lg" className="rounded-sm text-base h-14 px-8 shadow-md hover:shadow-lg transition-all w-full sm:w-auto">
+                    {t.hero.cta} <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </a>
+                <a href="#features">
+                  <Button size="lg" variant="outline" className="rounded-sm text-base h-14 px-8 w-full sm:w-auto">
+                    {t.hero.secondaryCta}
+                  </Button>
+                </a>
               </div>
               <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground font-medium">
-                <CheckCircle2 className="w-4 h-4 text-primary" /> {t.pricing.subtitle.split('.')[0]}
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                {t.hero.trialNote}
                 <span className="mx-2 opacity-30">•</span>
                 {t.pricing.price}{t.pricing.unit}
               </div>
@@ -104,7 +120,7 @@ export default function Landing() {
             <div className="relative animate-in slide-in-from-right-8 duration-1000 fade-in delay-200">
               <div className="absolute inset-0 bg-primary/5 rounded-[2rem] transform rotate-3 scale-105 -z-10"></div>
               <img 
-                src="/images/hero.png" 
+                src={`${BASE}images/hero.png`}
                 alt="TaskDesk Dashboard" 
                 className="w-full h-auto rounded-xl shadow-2xl border border-border object-cover aspect-video bg-muted"
               />
@@ -154,7 +170,7 @@ export default function Landing() {
           <div className="grid lg:grid-cols-2 gap-16 items-center mb-32">
             <div>
               <img 
-                src="/images/feature-1.png" 
+                src={`${BASE}images/feature-1.png`}
                 alt="Feature illustration" 
                 className="w-full rounded-xl shadow-lg border border-border object-cover aspect-4/3 bg-muted"
               />
@@ -178,7 +194,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-16 items-center flex-row-reverse">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1 space-y-8">
               <h3 className="text-3xl font-bold tracking-tight">{t.features.items.stats.title}</h3>
               <p className="text-lg text-muted-foreground">{t.features.items.stats.desc}</p>
@@ -193,7 +209,7 @@ export default function Landing() {
             </div>
             <div className="order-1 lg:order-2">
               <img 
-                src="/images/feature-2.png" 
+                src={`${BASE}images/feature-2.png`}
                 alt="Statistics illustration" 
                 className="w-full rounded-xl shadow-lg border border-border object-cover aspect-4/3 bg-muted"
               />
@@ -218,6 +234,12 @@ export default function Landing() {
             <div className="bg-card rounded-2xl border border-border shadow-xl p-8 md:p-12 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10" />
               
+              {/* Trial highlight */}
+              <div className="flex items-center gap-2 bg-primary/10 text-primary rounded-lg px-4 py-2.5 text-sm font-semibold mb-6 border border-primary/20">
+                <Sparkles className="w-4 h-4 shrink-0" />
+                {t.pricing.trialLabel}
+              </div>
+
               <div className="flex items-baseline gap-2 mb-8">
                 <span className="text-6xl font-bold tracking-tighter">{t.pricing.price}</span>
                 <span className="text-lg text-muted-foreground font-medium">{t.pricing.unit}</span>
@@ -226,15 +248,19 @@ export default function Landing() {
               <ul className="space-y-4 mb-10">
                 {t.pricing.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-card-foreground/80 font-medium">{feature}</span>
+                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${i === 0 ? 'text-primary font-semibold' : 'text-primary'}`} />
+                    <span className={`font-medium ${i === 0 ? 'text-foreground font-semibold' : 'text-card-foreground/80'}`}>
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
               
-              <Button size="lg" className="w-full h-14 rounded-sm text-base shadow-md" asChild>
-                <Link href="/">{t.pricing.cta}</Link>
-              </Button>
+              <a href={APP_URL} className="block">
+                <Button size="lg" className="w-full h-14 rounded-sm text-base shadow-md">
+                  {t.pricing.cta}
+                </Button>
+              </a>
             </div>
           </div>
         </div>
@@ -265,12 +291,18 @@ export default function Landing() {
       {/* CTA Footer */}
       <section className="py-24 bg-primary text-primary-foreground text-center px-6">
         <div className="container mx-auto max-w-3xl">
+          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 text-sm font-semibold mb-6 border border-white/20">
+            <Sparkles className="w-3.5 h-3.5" />
+            {t.hero.trialBadge} — {t.hero.trialNote}
+          </div>
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-10">
             {t.hero.title}
           </h2>
-          <Button size="lg" variant="secondary" className="rounded-sm text-base h-14 px-10 shadow-lg text-primary" asChild>
-            <Link href="/">{t.hero.cta}</Link>
-          </Button>
+          <a href={APP_URL}>
+            <Button size="lg" variant="secondary" className="rounded-sm text-base h-14 px-10 shadow-lg text-primary">
+              {t.pricing.cta} <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </a>
         </div>
       </section>
 

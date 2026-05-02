@@ -14,6 +14,8 @@ interface Translations {
     subtitle: string;
     cta: string;
     secondaryCta: string;
+    trialBadge: string;
+    trialNote: string;
   };
   problem: {
     title: string;
@@ -37,6 +39,7 @@ interface Translations {
     price: string;
     unit: string;
     subtitle: string;
+    trialLabel: string;
     features: string[];
     cta: string;
   };
@@ -60,8 +63,10 @@ const translations: Record<Language, Translations> = {
     hero: {
       title: "Il supporto tecnico non deve essere complicato.",
       subtitle: "TaskDesk è l'alternativa chiara, diretta e ultra-accessibile ai complessi help desk aziendali. Pensato per le PMI italiane che vogliono far funzionare le cose, senza leggere manuali.",
-      cta: "Inizia subito",
+      cta: "Inizia la prova gratuita",
       secondaryCta: "Scopri come funziona",
+      trialBadge: "7 giorni gratis",
+      trialNote: "Nessuna carta di credito richiesta",
     },
     problem: {
       title: "I software enterprise sono gonfiati, costosi e lenti.",
@@ -106,24 +111,27 @@ const translations: Record<Language, Translations> = {
       price: "€1",
       unit: "/utente/mese",
       subtitle: "Nessun costo nascosto. Nessun contratto a lungo termine. Disdici quando vuoi.",
+      trialLabel: "7 giorni di prova gratuita inclusi — nessuna carta di credito",
       features: [
+        "7 giorni di prova gratuita, senza vincoli",
         "Utenti illimitati (paghi solo per chi lo usa)",
         "Ticket e storage illimitati",
         "Tutte le funzionalità incluse",
         "Supporto via email"
       ],
-      cta: "Crea il tuo account"
+      cta: "Inizia la prova gratuita"
     },
     faq: {
       title: "Domande Frequenti",
       items: [
-        { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso." },
-        { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione." },
+        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine del periodo di prova puoi decidere se continuare al costo di €1 per utente attivo al mese." },
+        { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti." },
+        { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
         { q: "È adatto alla mia azienda?", a: "Se sei una PMI italiana che ha bisogno di mettere ordine nelle richieste interne o dei clienti senza spendere una fortuna, sì." }
       ]
     },
     footer: {
-      text: "© 2024 TaskDesk. Il design essenziale per il business italiano."
+      text: "© 2025 TaskDesk. Il design essenziale per il business italiano."
     }
   },
   en: {
@@ -136,8 +144,10 @@ const translations: Record<Language, Translations> = {
     hero: {
       title: "IT support doesn't have to be complicated.",
       subtitle: "TaskDesk is the clear, direct, and ultra-affordable alternative to bloated enterprise help desks. Designed for businesses that want things to just work, without reading manuals.",
-      cta: "Get started now",
+      cta: "Start free trial",
       secondaryCta: "See how it works",
+      trialBadge: "7 days free",
+      trialNote: "No credit card required",
     },
     problem: {
       title: "Enterprise software is bloated, expensive, and slow.",
@@ -182,24 +192,27 @@ const translations: Record<Language, Translations> = {
       price: "€1",
       unit: "/user/month",
       subtitle: "No hidden costs. No long-term contracts. Cancel anytime.",
+      trialLabel: "7-day free trial included — no credit card required",
       features: [
+        "7-day free trial, no strings attached",
         "Unlimited users (pay only for active ones)",
         "Unlimited tickets and storage",
         "All features included",
         "Email support"
       ],
-      cta: "Create your account"
+      cta: "Start free trial"
     },
     faq: {
       title: "Frequently Asked Questions",
       items: [
-        { q: "Is there a setup fee?", a: "Absolutely not. The software is ready to use from the first login." },
-        { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After the trial you can decide whether to continue at €1 per active user per month." },
+        { q: "Is there a setup fee?", a: "Absolutely not. The software is ready to use from the first login. You are up and running in minutes." },
+        { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties. You can cancel at any time from your account area." },
         { q: "Is it suitable for my company?", a: "If you are an SME that needs to bring order to internal or customer requests without spending a fortune, yes." }
       ]
     },
     footer: {
-      text: "© 2024 TaskDesk. Essential design for business."
+      text: "© 2025 TaskDesk. Essential design for business."
     }
   }
 };
