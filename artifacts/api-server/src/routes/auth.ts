@@ -69,7 +69,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
     passwordHash,
-    role: "user",
+    role: "admin",
     isActive: true,
   }).returning();
 
