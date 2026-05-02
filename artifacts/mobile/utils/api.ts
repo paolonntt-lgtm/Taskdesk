@@ -48,6 +48,16 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+export async function apiDelete<T = void>(path: string): Promise<T> {
+  const res = await apiFetch(path, { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
 export const PRIORITY_COLORS: Record<string, string> = {
   low: "#24a148",
   medium: "#f1c21b",
