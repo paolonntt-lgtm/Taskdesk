@@ -64,6 +64,16 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 ### Codegen Note (zod duplicate export fix)
 The `lib/api-spec/package.json` codegen script runs orval and then immediately overwrites `lib/api-zod/src/index.ts` with only `export * from './generated/api'` to avoid TS2308 ambiguity errors caused by orval generating both zod schemas (`generated/api.ts`) and TypeScript types (`generated/types/`) with the same exported names.
 
+### TaskDesk Mobile (`artifacts/mobile`)
+- **Type**: Expo (React Native) — iOS, Android, Web
+- **Port**: 18115 (Expo Dev Server)
+- **Auth**: Cookie-based sessions, stessa API del backend `/api/auth/*`
+- **Screens**: Login/Register, Dashboard, Lista Ticket, Nuovo Ticket, Profilo
+- **Stack screens**: Dettaglio ticket (`/ticket/[id]`)
+- **Design**: IBM Blue (#0f62fe), Inter font — sincronizzato con il tema del ticketing web
+- **API**: fetch diretto con `credentials: "include"`, base URL da `EXPO_PUBLIC_DOMAIN`
+- **Scan QR**: Disponibile dal menu URL bar per testare su device fisico via Expo Go
+
 ## Features Implemented
 - ✅ Login / Logout con ruoli (admin / utente)
 - ✅ Dashboard con statistiche e ticket recenti

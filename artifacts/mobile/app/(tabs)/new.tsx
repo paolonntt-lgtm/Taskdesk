@@ -1,0 +1,209 @@
+import React, { useState } from "react";
+import {
+  View, Text, TextInput, TouchableOpacity,
+  ScrollView, StyleSheet, ActivityIndicator,
+  Platform, Alert,
+} from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useColors } from "@/hooks/useColors";
+import { apiPost, CATEGORIES, PRIORITIES, PRIORITY_LABELS, LOCATIONS } from "@/utils/api";
+import * as Haptics from "expo-haptics";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
+const PRIORITY_ICONS: Record<string, string> = {
+  low: "arrow-down", medium: "minus", high: "arrow-up", urgent: "alert-triangle",
+};
+
+export default function NewTicketScreen() {
+  const colors = useColors();
+  const qc = useQueryClient();
+  const s = styles(colors);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [location, setLocation] = useState(LOCATIONS[0]);
+  const [priority, setPriority] = useState("medium");
+  const [resource, setResource] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!title.trim()) {
+      Alert.alert("Titolo mancante", "Inserisci un titolo per il ticket.");
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert("Descrizione mancante", "Inserisci una descrizione.");
+      return;
+    }
+    setLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await apiPost("/tickets", { title: title.trim(), description: description.trim(), category, location, priority, resource: resource.trim() || undefined });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      qc.invalidateQueries({ queryKey: ["recent-tickets"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTitle(""); setDescription(""); setResource(""); setPriority("medium");
+      router.push("/(tabs)/tickets");
+    } catch (e: any) {
+      Alert.alert("Errore", e.message || "Impossibile creare il ticket.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAwareScrollView
+      style={s.root}
+      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 0 }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      bottomOffset={16}
+    >
+      <View style={s.field}>
+        <Text style={s.label}>Titolo *</Text>
+        <TextInput
+          style={s.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Descrivi brevemente il problema..."
+          placeholderTextColor={colors.mutedForeground}
+          maxLength={120}
+        />
+      </View>
+
+      <View style={s.field}>
+        <Text style={s.label}>Descrizione *</Text>
+        <TextInput
+          style={[s.input, s.textarea]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Descrivi il problema in dettaglio..."
+          placeholderTextColor={colors.mutedForeground}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+      </View>
+
+      <View style={s.field}>
+        <Text style={s.label}>Categoria</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+          <View style={s.chips}>
+            {CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[s.chip, category === c && s.chipActive]}
+                onPress={() => setCategory(c)}
+              >
+                <Text style={[s.chipText, category === c && s.chipTextActive]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      <View style={s.field}>
+        <Text style={s.label}>Priorità</Text>
+        <View style={s.priorityRow}>
+          {PRIORITIES.map((p) => (
+            <TouchableOpacity
+              key={p}
+              style={[s.priorityBtn, priority === p && s.priorityBtnActive]}
+              onPress={() => setPriority(p)}
+            >
+              <Feather name={PRIORITY_ICONS[p] as any} size={14} color={priority === p ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[s.priorityText, priority === p && s.priorityTextActive]}>
+                {PRIORITY_LABELS[p]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={s.field}>
+        <Text style={s.label}>Sede</Text>
+        <View style={s.chips}>
+          {LOCATIONS.map((l) => (
+            <TouchableOpacity
+              key={l}
+              style={[s.chip, location === l && s.chipActive]}
+              onPress={() => setLocation(l)}
+            >
+              <Text style={[s.chipText, location === l && s.chipTextActive]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={s.field}>
+        <Text style={s.label}>Risorsa (opzionale)</Text>
+        <TextInput
+          style={s.input}
+          value={resource}
+          onChangeText={setResource}
+          placeholder="Es: stampante reception, PC cassa..."
+          placeholderTextColor={colors.mutedForeground}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[s.btn, loading && s.btnDisabled]}
+        onPress={handleCreate}
+        disabled={loading}
+        activeOpacity={0.85}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.primaryForeground} size="small" />
+        ) : (
+          <>
+            <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
+            <Text style={s.btnText}>Crea Ticket</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </KeyboardAwareScrollView>
+  );
+}
+
+const styles = (colors: ReturnType<typeof useColors>) =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 20, gap: 4 },
+    field: { marginBottom: 20 },
+    label: { fontSize: 13, fontWeight: "600" as const, color: colors.foreground, marginBottom: 8, fontFamily: "Inter_600SemiBold" },
+    input: {
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular",
+    },
+    textarea: { minHeight: 100, paddingTop: 12 },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: {
+      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    chipTextActive: { color: colors.primaryForeground },
+    priorityRow: { flexDirection: "row", gap: 8 },
+    priorityBtn: {
+      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 5, paddingVertical: 10, borderRadius: 10,
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    priorityBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    priorityText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    priorityTextActive: { color: colors.primaryForeground },
+    btn: {
+      backgroundColor: colors.primary, borderRadius: 12,
+      paddingVertical: 16, flexDirection: "row",
+      alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8,
+    },
+    btnDisabled: { opacity: 0.7 },
+    btnText: { color: colors.primaryForeground, fontSize: 16, fontWeight: "600" as const, fontFamily: "Inter_600SemiBold" },
+  });
