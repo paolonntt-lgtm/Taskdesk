@@ -23,7 +23,7 @@ interface Ticket {
   commentCount: number;
 }
 interface Comment {
-  id: number; content: string; isInternal: boolean;
+  id: number; commentText: string; isInternal: boolean;
   author: { name: string }; createdAt: string;
 }
 
@@ -185,7 +185,7 @@ export default function TicketDetailScreen() {
                 <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
               </View>
             </View>
-            <Text style={s.commentText}>{c.content}</Text>
+            <Text style={s.commentText}>{c.commentText}</Text>
           </View>
         ))}
 

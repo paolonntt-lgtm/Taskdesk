@@ -127,7 +127,7 @@ export default function TicketsScreen() {
               <Text style={s.emptyText}>Nessun ticket trovato</Text>
             </View>
           }
-          scrollEnabled={filtered.length > 0}
+          scrollEnabled
           showsVerticalScrollIndicator={false}
         />
       )}
