@@ -51,6 +51,7 @@ interface UserFormData {
   password: string;
   role: 'admin' | 'user';
   group: string;
+  mainLocation: string;
 }
 
 const emptyForm: UserFormData = {
@@ -59,6 +60,7 @@ const emptyForm: UserFormData = {
   password: '',
   role: 'user',
   group: '',
+  mainLocation: '',
 };
 
 export default function Users() {
@@ -67,6 +69,7 @@ export default function Users() {
   const ut = t.users;
 
   const [groups, setGroups] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
 
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
@@ -89,6 +92,10 @@ export default function Users() {
       .then((r) => r.json())
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
+    fetch('/api/settings/locations', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setLocations(d.value ?? []))
+      .catch(() => {});
   }, []);
 
   const openCreate = () => {
@@ -106,6 +113,7 @@ export default function Users() {
       password: '',
       role: u.role as 'admin' | 'user',
       group: (u as any).group ?? '',
+      mainLocation: (u as any).mainLocation ?? '',
     });
     setFormError(null);
     setDialogOpen(true);
@@ -151,8 +159,9 @@ export default function Users() {
           email: form.email,
           role: form.role,
           group: form.group || null,
-        };
-        if (form.password) body.password = form.password;
+          mainLocation: form.mainLocation || null,
+        } as any;
+        if (form.password) (body as any).password = form.password;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
       } else {
         const body: CreateUserBody = {
@@ -161,7 +170,8 @@ export default function Users() {
           password: form.password,
           role: form.role,
           group: form.group || null,
-        };
+          mainLocation: form.mainLocation || null,
+        } as any;
         await createUser.mutateAsync({ data: body });
       }
       setDialogOpen(false);
@@ -235,6 +245,7 @@ export default function Users() {
               <TableCell><strong>{ut.email}</strong></TableCell>
               <TableCell><strong>{ut.role}</strong></TableCell>
               <TableCell><strong>{ut.group}</strong></TableCell>
+              <TableCell><strong>{ut.location}</strong></TableCell>
               <TableCell><strong>{ut.status}</strong></TableCell>
               <TableCell><strong>{ut.createdAt}</strong></TableCell>
               <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
@@ -273,6 +284,11 @@ export default function Users() {
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
                         {(u as any).group || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {(u as any).mainLocation || '—'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -378,6 +394,21 @@ export default function Users() {
                 ))}
               </Select>
             </FormControl>
+            {locations.length > 0 && (
+              <FormControl fullWidth>
+                <InputLabel>{ut.location}</InputLabel>
+                <Select
+                  value={form.mainLocation}
+                  label={ut.location}
+                  onChange={(e) => setForm((f) => ({ ...f, mainLocation: e.target.value }))}
+                >
+                  <MenuItem value=""><em>— {ut.locationPlaceholder} —</em></MenuItem>
+                  {locations.map((loc) => (
+                    <MenuItem key={loc} value={loc}>{loc}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
