@@ -45,13 +45,21 @@ export default function NewTicket() {
       .catch(() => {});
     fetch('/api/settings/locations', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => setLocations(d.value ?? []))
+      .then((d) => {
+        const locs = d.value ?? [];
+        setLocations(locs);
+        if (locs.length === 1) {
+          setFormData((f) => ({ ...f, location: locs[0] }));
+        }
+      })
       .catch(() => {});
     fetch('/api/settings/groups', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
   }, []);
+
+  const singleLocation = locations.length === 1;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +69,7 @@ export default function NewTicket() {
           title: formData.title,
           description: formData.description,
           category: formData.category,
-          location: formData.location,
+          location: formData.location || undefined,
           resource: formData.resource || undefined,
           priority: formData.priority as any,
           assignedTo: assignMode === 'user' && formData.assignedTo ? parseInt(formData.assignedTo) : null,
@@ -109,7 +117,7 @@ export default function NewTicket() {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={singleLocation ? 12 : 6}>
                 <TextField
                   select
                   fullWidth
@@ -122,18 +130,20 @@ export default function NewTicket() {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label={t.newTicket.locationField}
-                  required
-                  value={formData.location}
-                  onChange={e => setFormData({ ...formData, location: e.target.value })}
-                >
-                  {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
-                </TextField>
-              </Grid>
+              {!singleLocation && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label={t.newTicket.locationField}
+                    value={formData.location}
+                    onChange={e => setFormData({ ...formData, location: e.target.value })}
+                  >
+                    <MenuItem value=""><em>— Nessuna sede —</em></MenuItem>
+                    {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                  </TextField>
+                </Grid>
+              )}
 
               <Grid item xs={12} sm={6}>
                 <TextField

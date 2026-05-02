@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
@@ -24,6 +24,14 @@ export default function TicketList() {
   const debouncedSearch = useDebounce(search, 300);
   const [status, setStatus] = useState(initialStatus);
   const [priority, setPriority] = useState(initialPriority);
+  const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/settings/locations', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setConfiguredLocations(d.value ?? []))
+      .catch(() => {});
+  }, []);
 
   const { data: tickets, isLoading } = useListTickets({
     search: debouncedSearch || undefined,
@@ -33,10 +41,7 @@ export default function TicketList() {
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
-  const uniqueLocations = new Set(
-    (tickets ?? []).map((t) => t.location).filter(Boolean)
-  );
-  const showLocation = uniqueLocations.size > 1;
+  const showLocation = configuredLocations.length !== 1;
 
   return (
     <Box>

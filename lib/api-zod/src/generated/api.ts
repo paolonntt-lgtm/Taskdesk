@@ -209,7 +209,7 @@ export const CreateTicketBody = zod.object({
   title: zod.string(),
   description: zod.string(),
   category: zod.string(),
-  location: zod.string(),
+  location: zod.string().nullish(),
   resource: zod.string().optional(),
   priority: zod.enum(["low", "medium", "high", "urgent"]),
   assignedTo: zod.number().nullish(),

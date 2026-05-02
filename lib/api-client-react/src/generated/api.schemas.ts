@@ -140,7 +140,7 @@ export interface CreateTicketBody {
   title: string;
   description: string;
   category: string;
-  location: string;
+  location?: string | null;
   resource?: string;
   priority: CreateTicketBodyPriority;
   assignedTo?: number | null;

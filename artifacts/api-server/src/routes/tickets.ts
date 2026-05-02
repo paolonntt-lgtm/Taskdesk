@@ -113,7 +113,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     title,
     description,
     category,
-    location,
+    location: location ?? "",
     resource: resource ?? null,
     priority,
     status: "open",

@@ -833,6 +833,7 @@ components:
           type: string
         location:
           type: string
+          nullable: true
         resource:
           type: string
         priority:
@@ -848,7 +849,6 @@ components:
         - title
         - description
         - category
-        - location
         - priority
 
     UpdateTicketBody:
