@@ -4,6 +4,7 @@ import { useCreateTicket, useListUsers, getListTicketsQueryKey } from '@workspac
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const CATEGORIES = [
   'PC',
@@ -19,6 +20,7 @@ const LOCATIONS = ['Sede A', 'Sede B', 'Sede C'];
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const createTicket = useCreateTicket();
   const { data: users } = useListUsers();
@@ -54,7 +56,7 @@ export default function NewTicket() {
   return (
     <Box maxWidth={800} mx="auto">
       <Typography variant="h5" fontWeight="bold" mb={3}>
-        Apri Nuovo Ticket
+        {t.newTicket.title}
       </Typography>
 
       <Card>
@@ -64,24 +66,24 @@ export default function NewTicket() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Titolo"
+                  label={t.newTicket.titleField}
                   required
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Descrivi brevemente il problema..."
+                  placeholder={t.newTicket.titlePlaceholder}
                 />
               </Grid>
 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Descrizione dettagliata"
+                  label={t.newTicket.descriptionField}
                   required
                   multiline
                   rows={4}
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descrivi il problema nel dettaglio, quando è iniziato, cosa hai già provato..."
+                  placeholder={t.newTicket.descriptionPlaceholder}
                 />
               </Grid>
 
@@ -89,7 +91,7 @@ export default function NewTicket() {
                 <TextField
                   select
                   fullWidth
-                  label="Categoria"
+                  label={t.newTicket.categoryField}
                   required
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
@@ -102,7 +104,7 @@ export default function NewTicket() {
                 <TextField
                   select
                   fullWidth
-                  label="Sede"
+                  label={t.newTicket.locationField}
                   required
                   value={formData.location}
                   onChange={e => setFormData({ ...formData, location: e.target.value })}
@@ -114,10 +116,10 @@ export default function NewTicket() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Risorsa (dispositivo, software, ecc.)"
+                  label={t.newTicket.resourceField}
                   value={formData.resource}
                   onChange={e => setFormData({ ...formData, resource: e.target.value })}
-                  placeholder="Es: stampante reception, PC banco cassa..."
+                  placeholder={t.newTicket.resourcePlaceholder}
                 />
               </Grid>
 
@@ -125,15 +127,15 @@ export default function NewTicket() {
                 <TextField
                   select
                   fullWidth
-                  label="Priorità"
+                  label={t.newTicket.priorityField}
                   required
                   value={formData.priority}
                   onChange={e => setFormData({ ...formData, priority: e.target.value })}
                 >
-                  <MenuItem value="low">Bassa</MenuItem>
-                  <MenuItem value="medium">Media</MenuItem>
-                  <MenuItem value="high">Alta</MenuItem>
-                  <MenuItem value="urgent">Urgente</MenuItem>
+                  <MenuItem value="low">{t.priority.low}</MenuItem>
+                  <MenuItem value="medium">{t.priority.medium}</MenuItem>
+                  <MenuItem value="high">{t.priority.high}</MenuItem>
+                  <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
                 </TextField>
               </Grid>
 
@@ -142,11 +144,11 @@ export default function NewTicket() {
                   <TextField
                     select
                     fullWidth
-                    label="Assegna a"
+                    label={t.newTicket.assignField}
                     value={formData.assignedTo}
                     onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
                   >
-                    <MenuItem value=""><em>Non assegnato</em></MenuItem>
+                    <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
                     {users?.map(u => (
                       <MenuItem key={u.id} value={u.id.toString()}>{u.name}</MenuItem>
                     ))}
@@ -156,7 +158,7 @@ export default function NewTicket() {
 
               <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2} mt={2}>
                 <Button variant="outlined" onClick={() => setLocation('/tickets')}>
-                  Annulla
+                  {t.newTicket.cancel}
                 </Button>
                 <Button
                   type="submit"
@@ -164,7 +166,7 @@ export default function NewTicket() {
                   color="primary"
                   disabled={createTicket.isPending}
                 >
-                  {createTicket.isPending ? 'Creazione...' : 'Crea Ticket'}
+                  {createTicket.isPending ? t.newTicket.creating : t.newTicket.create}
                 </Button>
               </Grid>
             </Grid>

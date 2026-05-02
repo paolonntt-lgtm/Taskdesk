@@ -5,12 +5,13 @@ import {
 } from '@mui/material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
-  useListTicketNotes, useAddTicketNote, useListTicketActivity, useListUsers,
-  getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketNotesQueryKey,
+  useListTicketActivity, useListUsers,
+  getGetTicketQueryKey, getListTicketCommentsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
-import { getStatusColor, getPriorityColor, getStatusLabel, getPriorityLabel } from './Dashboard';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowBack } from '@mui/icons-material';
 
@@ -32,22 +33,22 @@ export default function TicketDetail() {
   const { id } = useParams();
   const ticketId = parseInt(id || '0');
   const { user: currentUser } = useAuth();
+  const { t, lang } = useLanguage();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   const [tabValue, setTabValue] = useState(0);
   const [newComment, setNewComment] = useState('');
-  const [newNote, setNewNote] = useState('');
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } });
-  const { data: notes } = useListTicketNotes(ticketId, { query: { enabled: !!ticketId && currentUser?.role === 'admin' } });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin' } });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
-  const addNote = useAddTicketNote();
+
+  const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
   if (isLoading || !ticket) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
@@ -75,13 +76,6 @@ export default function TicketDetail() {
     queryClient.invalidateQueries({ queryKey: getListTicketCommentsQueryKey(ticketId) });
   };
 
-  const submitNote = async () => {
-    if (!newNote.trim()) return;
-    await addNote.mutateAsync({ id: ticketId, data: { noteText: newNote } });
-    setNewNote('');
-    queryClient.invalidateQueries({ queryKey: getListTicketNotesQueryKey(ticketId) });
-  };
-
   const isAdmin = currentUser?.role === 'admin';
 
   return (
@@ -92,7 +86,7 @@ export default function TicketDetail() {
         sx={{ mb: 2 }}
         color="inherit"
       >
-        Tutti i ticket
+        {t.ticketDetail.backToList}
       </Button>
 
       <Box mb={3}>
@@ -100,10 +94,10 @@ export default function TicketDetail() {
           #{ticket.id} — {ticket.title}
         </Typography>
         <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-          <Chip label={getStatusLabel(ticket.status)} color={getStatusColor(ticket.status) as any} size="small" />
-          <Chip label={getPriorityLabel(ticket.priority)} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+          <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
+          <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
           <Typography variant="caption" color="text.secondary">
-            Aperto il {new Date(ticket.createdAt).toLocaleString('it-IT')}
+            {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
           </Typography>
         </Box>
       </Box>
@@ -112,7 +106,7 @@ export default function TicketDetail() {
         <Grid item xs={12} md={8}>
           <Card sx={{ mb: 3 }}>
             <Box p={3}>
-              <Typography variant="overline" color="text.secondary">Descrizione</Typography>
+              <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
               <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
                 {ticket.description}
               </Typography>
@@ -121,10 +115,16 @@ export default function TicketDetail() {
 
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: { xs: 0, sm: 2 } }} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-                <Tab label={`Commenti (${comments?.length ?? 0})`} />
-                {isAdmin && <Tab label={`Note interne (${notes?.length ?? 0})`} />}
-                <Tab label="Cronologia" />
+              <Tabs
+                value={tabValue}
+                onChange={(_, v) => setTabValue(v)}
+                sx={{ px: { xs: 0, sm: 2 } }}
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+              >
+                <Tab label={`${t.ticketDetail.tabComments} (${comments?.length ?? 0})`} />
+                <Tab label={t.ticketDetail.tabActivity} />
               </Tabs>
             </Box>
             <Box p={3}>
@@ -132,17 +132,17 @@ export default function TicketDetail() {
                 <Box display="flex" flexDirection="column" gap={3}>
                   {comments?.length === 0 && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                      Nessun commento ancora. Scrivi il primo!
+                      {t.ticketDetail.noComments}
                     </Typography>
                   )}
                   {comments?.map((c) => (
                     <Box key={c.id} display="flex" gap={2}>
                       <Avatar sx={{ bgcolor: 'primary.main' }}>{c.author?.name?.charAt(0)}</Avatar>
                       <Box flex={1} bgcolor="background.default" p={2} borderRadius={1}>
-                        <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5}>
                           <Typography variant="subtitle2" fontWeight="bold">{c.author?.name}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {new Date(c.createdAt).toLocaleString('it-IT')}
+                            {new Date(c.createdAt).toLocaleString(dateLocale)}
                           </Typography>
                         </Box>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.commentText}</Typography>
@@ -156,7 +156,7 @@ export default function TicketDetail() {
                         fullWidth
                         multiline
                         rows={3}
-                        placeholder="Aggiungi un commento..."
+                        placeholder={t.ticketDetail.addCommentPlaceholder}
                         value={newComment}
                         onChange={e => setNewComment(e.target.value)}
                       />
@@ -166,69 +166,18 @@ export default function TicketDetail() {
                         onClick={submitComment}
                         disabled={!newComment.trim() || addComment.isPending}
                       >
-                        {addComment.isPending ? 'Invio...' : 'Invia Commento'}
+                        {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
                       </Button>
                     </Box>
                   </Box>
                 </Box>
               </TabPanel>
 
-              {isAdmin && (
-                <TabPanel value={tabValue} index={1}>
-                  <Box display="flex" flexDirection="column" gap={3}>
-                    <Typography variant="body2" color="warning.main" fontWeight="bold">
-                      🔒 Note visibili solo agli amministratori
-                    </Typography>
-                    {notes?.length === 0 && (
-                      <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                        Nessuna nota interna.
-                      </Typography>
-                    )}
-                    {notes?.map((n) => (
-                      <Box key={n.id} display="flex" gap={2}>
-                        <Avatar sx={{ bgcolor: 'warning.main' }}>{n.author?.name?.charAt(0)}</Avatar>
-                        <Box flex={1} bgcolor="warning.light" color="warning.contrastText" p={2} borderRadius={1}>
-                          <Box display="flex" justifyContent="space-between" mb={1}>
-                            <Typography variant="subtitle2" fontWeight="bold">{n.author?.name}</Typography>
-                            <Typography variant="caption">
-                              {new Date(n.createdAt).toLocaleString('it-IT')}
-                            </Typography>
-                          </Box>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{n.noteText}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                    <Box display="flex" gap={2} mt={2}>
-                      <Avatar sx={{ bgcolor: 'warning.main' }}>{currentUser?.name?.charAt(0)}</Avatar>
-                      <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                        <TextField
-                          fullWidth
-                          multiline
-                          rows={3}
-                          placeholder="Aggiungi una nota interna (visibile solo agli admin)..."
-                          value={newNote}
-                          onChange={e => setNewNote(e.target.value)}
-                        />
-                        <Button
-                          variant="contained"
-                          color="warning"
-                          sx={{ alignSelf: 'flex-end' }}
-                          onClick={submitNote}
-                          disabled={!newNote.trim() || addNote.isPending}
-                        >
-                          {addNote.isPending ? 'Invio...' : 'Salva Nota'}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                </TabPanel>
-              )}
-
-              <TabPanel value={tabValue} index={isAdmin ? 2 : 1}>
+              <TabPanel value={tabValue} index={1}>
                 <Box display="flex" flexDirection="column" gap={2}>
                   {activities?.length === 0 && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                      Nessuna attività registrata.
+                      {t.ticketDetail.noActivity}
                     </Typography>
                   )}
                   {activities?.map((a) => (
@@ -239,7 +188,7 @@ export default function TicketDetail() {
                           <strong>{a.user?.name}</strong> — {a.actionDescription}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(a.createdAt).toLocaleString('it-IT')}
+                          {new Date(a.createdAt).toLocaleString(dateLocale)}
                         </Typography>
                       </Box>
                     </Box>
@@ -253,11 +202,11 @@ export default function TicketDetail() {
         <Grid item xs={12} md={4}>
           <Card>
             <Box p={3} display="flex" flexDirection="column" gap={3}>
-              <Typography variant="h6" fontWeight="bold">Dettagli</Typography>
+              <Typography variant="h6" fontWeight="bold">{t.ticketDetail.detailsTitle}</Typography>
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Assegnato a
+                  {t.ticketDetail.assignedTo}
                 </Typography>
                 {isAdmin ? (
                   <TextField
@@ -268,17 +217,17 @@ export default function TicketDetail() {
                     onChange={(e) => handleAssigneeChange(e.target.value)}
                     disabled={updateTicket.isPending}
                   >
-                    <MenuItem value=""><em>Non assegnato</em></MenuItem>
+                    <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
                     {users?.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
                   </TextField>
                 ) : (
-                  <Typography variant="body1">{ticket.assignee?.name || 'Non assegnato'}</Typography>
+                  <Typography variant="body1">{ticket.assignee?.name || t.ticketDetail.unassigned}</Typography>
                 )}
               </Box>
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Stato
+                  {t.ticketDetail.statusLabel}
                 </Typography>
                 {isAdmin ? (
                   <TextField
@@ -289,20 +238,20 @@ export default function TicketDetail() {
                     onChange={(e) => handleStatusChange(e.target.value)}
                     disabled={updateTicket.isPending}
                   >
-                    <MenuItem value="open">Aperto</MenuItem>
-                    <MenuItem value="in_progress">In lavorazione</MenuItem>
-                    <MenuItem value="waiting">In attesa</MenuItem>
-                    <MenuItem value="resolved">Risolto</MenuItem>
-                    <MenuItem value="closed">Chiuso</MenuItem>
+                    <MenuItem value="open">{t.status.open}</MenuItem>
+                    <MenuItem value="in_progress">{t.status.in_progress}</MenuItem>
+                    <MenuItem value="waiting">{t.status.waiting}</MenuItem>
+                    <MenuItem value="resolved">{t.status.resolved}</MenuItem>
+                    <MenuItem value="closed">{t.status.closed}</MenuItem>
                   </TextField>
                 ) : (
-                  <Chip label={getStatusLabel(ticket.status)} color={getStatusColor(ticket.status) as any} size="small" />
+                  <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
                 )}
               </Box>
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Priorità
+                  {t.ticketDetail.priorityLabel}
                 </Typography>
                 {isAdmin ? (
                   <TextField
@@ -313,44 +262,44 @@ export default function TicketDetail() {
                     onChange={(e) => handlePriorityChange(e.target.value)}
                     disabled={updateTicket.isPending}
                   >
-                    <MenuItem value="low">Bassa</MenuItem>
-                    <MenuItem value="medium">Media</MenuItem>
-                    <MenuItem value="high">Alta</MenuItem>
-                    <MenuItem value="urgent">Urgente</MenuItem>
+                    <MenuItem value="low">{t.priority.low}</MenuItem>
+                    <MenuItem value="medium">{t.priority.medium}</MenuItem>
+                    <MenuItem value="high">{t.priority.high}</MenuItem>
+                    <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
                   </TextField>
                 ) : (
-                  <Chip label={getPriorityLabel(ticket.priority)} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+                  <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
                 )}
               </Box>
 
               <Divider />
 
               <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Categoria</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.categoryLabel}</Typography>
                 <Typography variant="body1">{ticket.category}</Typography>
               </Box>
 
               <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Sede</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.locationLabel}</Typography>
                 <Typography variant="body1">{ticket.location}</Typography>
               </Box>
 
               {ticket.resource && (
                 <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Risorsa</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.resourceLabel}</Typography>
                   <Typography variant="body1">{ticket.resource}</Typography>
                 </Box>
               )}
 
               <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Creato da</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.createdBy}</Typography>
                 <Typography variant="body1">{ticket.creator?.name}</Typography>
               </Box>
 
               {ticket.closedAt && (
                 <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Chiuso il</Typography>
-                  <Typography variant="body1">{new Date(ticket.closedAt).toLocaleDateString('it-IT')}</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.closedOn}</Typography>
+                  <Typography variant="body1">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
                 </Box>
               )}
             </Box>

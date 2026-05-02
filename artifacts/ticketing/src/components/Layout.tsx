@@ -19,6 +19,7 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -33,7 +34,9 @@ import {
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useListNotifications, useMarkAllNotificationsRead } from '@workspace/api-client-react';
+import type { Lang } from '../i18n/translations';
 
 const drawerWidth = 260;
 
@@ -45,6 +48,7 @@ interface LayoutProps {
 
 export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const { user, logout } = useAuth();
+  const { t, lang, setLang } = useLanguage();
   const [location, setLocation] = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -60,40 +64,23 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const markAllRead = useMarkAllNotificationsRead();
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotifAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setNotifAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    handleMenuClose();
-    logout();
-  };
-
-  const handleMarkAllRead = () => {
-    markAllRead.mutate();
-    handleMenuClose();
-  };
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => setNotifAnchorEl(event.currentTarget);
+  const handleMenuClose = () => { setAnchorEl(null); setNotifAnchorEl(null); };
+  const handleLogout = () => { handleMenuClose(); logout(); };
+  const handleMarkAllRead = () => { markAllRead.mutate(); handleMenuClose(); };
+  const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/' },
-    { text: 'Tutti i Ticket', icon: <ConfirmationNumber />, path: '/tickets' },
-    { text: 'Nuovo Ticket', icon: <AddBox />, path: '/tickets/new' },
-    { text: 'Report', icon: <BarChart />, path: '/reports' },
+    { text: t.nav.dashboard, icon: <Dashboard />, path: '/' },
+    { text: t.nav.allTickets, icon: <ConfirmationNumber />, path: '/tickets' },
+    { text: t.nav.newTicket, icon: <AddBox />, path: '/tickets/new' },
+    { text: t.nav.reports, icon: <BarChart />, path: '/reports' },
   ];
 
-  const roleLabel = user?.role === 'admin' ? 'Amministratore' : 'Utente';
+  const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
 
   const drawer = (
     <div>
@@ -125,10 +112,8 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
               <ListItemIcon
                 sx={{
                   minWidth: 40,
-                  color:
-                    location === item.path || (item.path !== '/' && location.startsWith(item.path))
-                      ? 'inherit'
-                      : 'text.secondary',
+                  color: location === item.path || (item.path !== '/' && location.startsWith(item.path))
+                    ? 'inherit' : 'text.secondary',
                 }}
               >
                 {item.icon}
@@ -161,11 +146,34 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
 
           <Box sx={{ flexGrow: 1 }} />
 
-          <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 1 }} title={mode === 'light' ? 'Modalità scura' : 'Modalità chiara'}>
+          <Button
+            onClick={toggleLang}
+            color="inherit"
+            size="small"
+            sx={{
+              mr: 1,
+              minWidth: 0,
+              px: 1.5,
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              border: '1px solid rgba(255,255,255,0.4)',
+              borderRadius: 1,
+              letterSpacing: 1,
+            }}
+          >
+            {lang === 'it' ? 'EN' : 'IT'}
+          </Button>
+
+          <IconButton
+            color="inherit"
+            onClick={toggleTheme}
+            sx={{ mr: 1 }}
+            title={mode === 'light' ? t.nav.darkMode : t.nav.lightMode}
+          >
             {mode === 'light' ? <DarkMode /> : <LightMode />}
           </IconButton>
 
-          <IconButton color="inherit" onClick={handleNotifMenuOpen} sx={{ mr: 2 }} title="Notifiche">
+          <IconButton color="inherit" onClick={handleNotifMenuOpen} sx={{ mr: 1 }} title={t.nav.notifications}>
             <Badge badgeContent={unreadCount} color="error">
               <Notifications />
             </Badge>
@@ -180,16 +188,16 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
             PaperProps={{ sx: { width: 340, maxHeight: 420 } }}
           >
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1" fontWeight="bold">Notifiche</Typography>
+              <Typography variant="subtitle1" fontWeight="bold">{t.nav.notifications}</Typography>
               {unreadCount > 0 && (
                 <Typography variant="body2" color="primary" sx={{ cursor: 'pointer' }} onClick={handleMarkAllRead}>
-                  Segna tutto come letto
+                  {t.nav.markAllRead}
                 </Typography>
               )}
             </Box>
             <Divider />
             {notifications.length === 0 ? (
-              <MenuItem disabled>Nessuna notifica</MenuItem>
+              <MenuItem disabled>{t.nav.noNotifications}</MenuItem>
             ) : (
               notifications.map((n: any) => (
                 <MenuItem
@@ -214,9 +222,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleProfileMenuOpen}>
             <Box sx={{ mr: 1.5, textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
               <Typography variant="body2" fontWeight="bold">{user?.name}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {roleLabel}
-              </Typography>
+              <Typography variant="caption" color="text.secondary">{roleLabel}</Typography>
             </Box>
             <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
               {user?.name?.charAt(0) || <AccountCircle />}
@@ -237,7 +243,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
               </Box>
             </MenuItem>
             <Divider />
-            <MenuItem onClick={handleLogout}>Esci</MenuItem>
+            <MenuItem onClick={handleLogout}>{t.nav.logout}</MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

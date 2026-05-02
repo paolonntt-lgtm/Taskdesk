@@ -5,6 +5,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, CircularProgress, Box } from "@mui/material";
 import { lightTheme, darkTheme } from "./theme";
 import { AuthContext } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TicketList from "./pages/TicketList";
@@ -117,7 +118,9 @@ function AppContent() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

@@ -1,35 +1,41 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography, Grid, CircularProgress, useTheme } from '@mui/material';
-import { useGetStatsByStatus, useGetStatsByCategory, useGetStatsByLocation, useGetStatsByPriority, useGetTicketTrend, useGetStatsByAssignee } from '@workspace/api-client-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Box, Grid, Card, CardContent, Typography, CircularProgress } from '@mui/material';
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import { useTheme } from '@mui/material/styles';
+import {
+  useGetStatsByStatus, useGetStatsByCategory, useGetStatsByLocation,
+  useGetStatsByPriority, useGetStatsByAssignee, useGetTicketTrend,
+} from '@workspace/api-client-react';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 
 export default function Reports() {
   const theme = useTheme();
+  const { t } = useLanguage();
 
-  const { data: statusStats, isLoading: statusLoading } = useGetStatsByStatus();
-  const { data: categoryStats, isLoading: categoryLoading } = useGetStatsByCategory();
-  const { data: locationStats } = useGetStatsByLocation();
-  const { data: priorityStats, isLoading: priorityLoading } = useGetStatsByPriority();
-  const { data: trendStats, isLoading: trendLoading } = useGetTicketTrend();
-  const { data: assigneeStats } = useGetStatsByAssignee();
+  const { data: statusStats, isLoading: s1 } = useGetStatsByStatus();
+  const { data: categoryStats, isLoading: s2 } = useGetStatsByCategory();
+  const { data: locationStats, isLoading: s3 } = useGetStatsByLocation();
+  const { data: priorityStats, isLoading: s4 } = useGetStatsByPriority();
+  const { data: assigneeStats, isLoading: s5 } = useGetStatsByAssignee();
+  const { data: trendStats, isLoading: s6 } = useGetTicketTrend();
 
-  const COLORS = [
-    theme.palette.primary.main,
-    theme.palette.secondary.main,
-    theme.palette.warning.main,
-    theme.palette.success.main,
-    theme.palette.error.main,
-    theme.palette.info.main,
-  ];
-
-  if (statusLoading || categoryLoading || priorityLoading || trendLoading) {
-    return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
+  if (s1 || s2 || s3 || s4 || s5 || s6) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight="bold" mb={3}>
-        Report e Statistiche
+      <Typography variant="h5" fontWeight="bold" gutterBottom mb={3}>
+        {t.reports.title}
       </Typography>
 
       <Grid container spacing={3}>
@@ -37,7 +43,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Volume Ticket (ultimi 30 giorni)
+                {t.reports.volume}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -45,14 +51,14 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
                     <Line
                       type="monotone"
                       dataKey="count"
                       stroke={theme.palette.primary.main}
                       strokeWidth={3}
                       dot={{ r: 4 }}
-                      name="Ticket"
+                      name={t.reports.ticketCount}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -65,7 +71,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Ticket per Stato
+                {t.reports.byStatus}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -83,7 +89,7 @@ export default function Reports() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
                   </PieChart>
                 </ResponsiveContainer>
               </Box>
@@ -95,7 +101,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Ticket per Categoria
+                {t.reports.byCategory}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -103,8 +109,8 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
-                    <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} name="Ticket" />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
+                    <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} name={t.reports.ticketCount} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -116,7 +122,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Ticket per Priorità
+                {t.reports.byPriority}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -124,8 +130,8 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis allowDecimals={false} />
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
-                    <Bar dataKey="count" fill={theme.palette.warning.main} radius={[4, 4, 0, 0]} name="Ticket" />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
+                    <Bar dataKey="count" fill={theme.palette.warning.main} radius={[4, 4, 0, 0]} name={t.reports.ticketCount} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -137,7 +143,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Ticket per Sede
+                {t.reports.byLocation}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 300 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -145,8 +151,8 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis allowDecimals={false} />
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
-                    <Bar dataKey="count" fill={theme.palette.info.main} radius={[4, 4, 0, 0]} name="Ticket" />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
+                    <Bar dataKey="count" fill={theme.palette.info.main} radius={[4, 4, 0, 0]} name={t.reports.ticketCount} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -158,7 +164,7 @@ export default function Reports() {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Ticket per Operatore
+                {t.reports.byAssignee}
               </Typography>
               <Box sx={{ height: { xs: 220, sm: 280 } }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -166,8 +172,8 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v) => [v, 'Ticket']} />
-                    <Bar dataKey="count" fill={theme.palette.success.main} radius={[0, 4, 4, 0]} name="Ticket" />
+                    <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
+                    <Bar dataKey="count" fill={theme.palette.success.main} radius={[0, 4, 4, 0]} name={t.reports.ticketCount} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
