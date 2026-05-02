@@ -12,6 +12,7 @@ import TicketList from "./pages/TicketList";
 import TicketDetail from "./pages/TicketDetail";
 import NewTicket from "./pages/NewTicket";
 import Reports from "./pages/Reports";
+import Users from "./pages/Users";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -81,6 +82,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
             <Route path="/tickets/:id" component={TicketDetail} />
             <Route path="/tickets" component={TicketList} />
             <Route path="/reports" component={Reports} />
+            <Route path="/users" component={Users} />
           </Switch>
         </Layout>
       )}

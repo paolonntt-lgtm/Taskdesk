@@ -13,5 +13,6 @@ export interface User {
   email: string;
   role: UserRole;
   mainLocation?: string | null;
+  isActive: boolean;
   createdAt: Date;
 }

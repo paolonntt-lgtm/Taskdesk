@@ -1,53 +1,143 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
+import { createHash } from "crypto";
 
 const router: IRouter = Router();
 
+const userFields = {
+  id: usersTable.id,
+  name: usersTable.name,
+  email: usersTable.email,
+  role: usersTable.role,
+  mainLocation: usersTable.mainLocation,
+  isActive: usersTable.isActive,
+  createdAt: usersTable.createdAt,
+};
+
+const hashPassword = (password: string) =>
+  createHash("sha256").update(`${password}ticketing_salt`).digest("hex");
+
 router.get("/users", requireAuth, async (_req, res): Promise<void> => {
   const users = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      role: usersTable.role,
-      mainLocation: usersTable.mainLocation,
-      createdAt: usersTable.createdAt,
-    })
+    .select(userFields)
     .from(usersTable)
     .orderBy(usersTable.name);
-
   res.json(users);
 });
 
+router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = CreateUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const { name, email, password, role, mainLocation } = parsed.data;
+
+  const [existing] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+
+  if (existing) {
+    res.status(409).json({ error: "Email already in use", message: "L'email è già in uso da un altro utente." });
+    return;
+  }
+
+  const [user] = await db.insert(usersTable).values({
+    name,
+    email,
+    passwordHash: hashPassword(password),
+    role,
+    mainLocation: mainLocation ?? null,
+    isActive: true,
+  }).returning(userFields);
+
+  res.status(201).json(user);
+});
+
 router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const [user] = await db.select(userFields).from(usersTable).where(eq(usersTable.id, id));
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.json(user);
+});
+
+router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const parsed = UpdateUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const { password, ...rest } = parsed.data;
+  const updates: Record<string, unknown> = { ...rest };
+  if (password) {
+    updates.passwordHash = hashPassword(password);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set(updates)
+    .where(eq(usersTable.id, id))
+    .returning(userFields);
+
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  res.json(updated);
+});
+
+router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  const currentUser = (req as any).currentUser;
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid user ID" });
     return;
   }
 
-  const [user] = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      role: usersTable.role,
-      mainLocation: usersTable.mainLocation,
-      createdAt: usersTable.createdAt,
-    })
-    .from(usersTable)
-    .where(eq(usersTable.id, id));
+  if (id === currentUser?.id) {
+    res.status(400).json({ error: "Cannot deactivate yourself" });
+    return;
+  }
 
-  if (!user) {
+  const [updated] = await db
+    .update(usersTable)
+    .set({ isActive: false })
+    .where(eq(usersTable.id, id))
+    .returning(userFields);
+
+  if (!updated) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
-  res.json(user);
+  res.json({ success: true, message: "Utente disattivato" });
 });
 
 export default router;

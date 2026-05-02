@@ -31,6 +31,7 @@ import {
   AccountCircle,
   LightMode,
   DarkMode,
+  People,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,11 +75,12 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const menuItems = [
-    { text: t.nav.dashboard, icon: <Dashboard />, path: '/' },
-    { text: t.nav.allTickets, icon: <ConfirmationNumber />, path: '/tickets' },
-    { text: t.nav.newTicket, icon: <AddBox />, path: '/tickets/new' },
-    { text: t.nav.reports, icon: <BarChart />, path: '/reports' },
-  ];
+    { text: t.nav.dashboard, icon: <Dashboard />, path: '/', adminOnly: false },
+    { text: t.nav.allTickets, icon: <ConfirmationNumber />, path: '/tickets', adminOnly: false },
+    { text: t.nav.newTicket, icon: <AddBox />, path: '/tickets/new', adminOnly: false },
+    { text: t.nav.reports, icon: <BarChart />, path: '/reports', adminOnly: false },
+    { text: t.nav.users, icon: <People />, path: '/users', adminOnly: true },
+  ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
 

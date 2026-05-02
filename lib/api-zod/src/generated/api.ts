@@ -29,6 +29,7 @@ export const LoginResponse = zod.object({
     email: zod.string(),
     role: zod.enum(["admin", "user"]),
     mainLocation: zod.string().nullish(),
+    isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
   message: zod.string().optional(),
@@ -51,6 +52,7 @@ export const GetCurrentUserResponse = zod.object({
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
   mainLocation: zod.string().nullish(),
+  isActive: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 
@@ -63,9 +65,23 @@ export const ListUsersResponseItem = zod.object({
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
   mainLocation: zod.string().nullish(),
+  isActive: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary Create a new user (admin only)
+ */
+export const createUserBodyPasswordMin = 6;
+
+export const CreateUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string().min(createUserBodyPasswordMin),
+  role: zod.enum(["admin", "user"]),
+  mainLocation: zod.string().nullish(),
+});
 
 /**
  * @summary Get user by ID
@@ -80,7 +96,48 @@ export const GetUserResponse = zod.object({
   email: zod.string(),
   role: zod.enum(["admin", "user"]),
   mainLocation: zod.string().nullish(),
+  isActive: zod.boolean(),
   createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a user (admin only)
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const updateUserBodyPasswordMin = 6;
+
+export const UpdateUserBody = zod.object({
+  name: zod.string().optional(),
+  email: zod.string().email().optional(),
+  password: zod.string().min(updateUserBodyPasswordMin).optional(),
+  role: zod.enum(["admin", "user"]).optional(),
+  mainLocation: zod.string().nullish(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "user"]),
+  mainLocation: zod.string().nullish(),
+  isActive: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Deactivate a user (admin only)
+ */
+export const DeleteUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteUserResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
 });
 
 /**
@@ -123,6 +180,7 @@ export const ListTicketsResponseItem = zod
         email: zod.string(),
         role: zod.enum(["admin", "user"]),
         mainLocation: zod.string().nullish(),
+        isActive: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -132,6 +190,7 @@ export const ListTicketsResponseItem = zod
           email: zod.string(),
           role: zod.enum(["admin", "user"]),
           mainLocation: zod.string().nullish(),
+          isActive: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -185,6 +244,7 @@ export const GetTicketResponse = zod
         email: zod.string(),
         role: zod.enum(["admin", "user"]),
         mainLocation: zod.string().nullish(),
+        isActive: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -194,6 +254,7 @@ export const GetTicketResponse = zod
           email: zod.string(),
           role: zod.enum(["admin", "user"]),
           mainLocation: zod.string().nullish(),
+          isActive: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -246,6 +307,7 @@ export const UpdateTicketResponse = zod
         email: zod.string(),
         role: zod.enum(["admin", "user"]),
         mainLocation: zod.string().nullish(),
+        isActive: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -255,6 +317,7 @@ export const UpdateTicketResponse = zod
           email: zod.string(),
           role: zod.enum(["admin", "user"]),
           mainLocation: zod.string().nullish(),
+          isActive: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -282,6 +345,7 @@ export const ListTicketCommentsResponseItem = zod.object({
     email: zod.string(),
     role: zod.enum(["admin", "user"]),
     mainLocation: zod.string().nullish(),
+    isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -319,6 +383,7 @@ export const ListTicketNotesResponseItem = zod.object({
     email: zod.string(),
     role: zod.enum(["admin", "user"]),
     mainLocation: zod.string().nullish(),
+    isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -355,6 +420,7 @@ export const ListTicketActivityResponseItem = zod.object({
     email: zod.string(),
     role: zod.enum(["admin", "user"]),
     mainLocation: zod.string().nullish(),
+    isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -507,6 +573,7 @@ export const GetRecentTicketsResponseItem = zod
         email: zod.string(),
         role: zod.enum(["admin", "user"]),
         mainLocation: zod.string().nullish(),
+        isActive: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -516,6 +583,7 @@ export const GetRecentTicketsResponseItem = zod
           email: zod.string(),
           role: zod.enum(["admin", "user"]),
           mainLocation: zod.string().nullish(),
+          isActive: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -552,6 +620,7 @@ export const GetMyTicketsResponseItem = zod
         email: zod.string(),
         role: zod.enum(["admin", "user"]),
         mainLocation: zod.string().nullish(),
+        isActive: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -561,6 +630,7 @@ export const GetMyTicketsResponseItem = zod
           email: zod.string(),
           role: zod.enum(["admin", "user"]),
           mainLocation: zod.string().nullish(),
+          isActive: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),

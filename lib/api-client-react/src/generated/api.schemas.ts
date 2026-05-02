@@ -37,12 +37,48 @@ export interface User {
   email: string;
   role: UserRole;
   mainLocation?: string | null;
+  isActive: boolean;
   createdAt: string;
 }
 
 export interface LoginResponse {
   user: User;
   message?: string;
+}
+
+export type CreateUserBodyRole =
+  (typeof CreateUserBodyRole)[keyof typeof CreateUserBodyRole];
+
+export const CreateUserBodyRole = {
+  admin: "admin",
+  user: "user",
+} as const;
+
+export interface CreateUserBody {
+  name: string;
+  email: string;
+  /** @minLength 6 */
+  password: string;
+  role: CreateUserBodyRole;
+  mainLocation?: string | null;
+}
+
+export type UpdateUserBodyRole =
+  (typeof UpdateUserBodyRole)[keyof typeof UpdateUserBodyRole];
+
+export const UpdateUserBodyRole = {
+  admin: "admin",
+  user: "user",
+} as const;
+
+export interface UpdateUserBody {
+  name?: string;
+  email?: string;
+  /** @minLength 6 */
+  password?: string;
+  role?: UpdateUserBodyRole;
+  mainLocation?: string | null;
+  isActive?: boolean;
 }
 
 export type TicketPriority =

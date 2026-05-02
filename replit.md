@@ -58,7 +58,11 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 ### Generated API Client
 - Located in `lib/api-client-react/src/generated/api.ts`
 - Regenerate with: `pnpm --filter @workspace/api-spec run codegen`
-- All hooks: `useListTickets`, `useGetTicket`, `useCreateTicket`, `useUpdateTicket`, `useListTicketComments`, `useAddTicketComment`, `useListTicketNotes`, `useAddTicketNote`, `useListTicketActivity`, `useListNotifications`, `useMarkAllNotificationsRead`, `useGetDashboardStats`, `useGetRecentTickets`, `useGetMyTickets`, `useGetStatsByStatus/Category/Location/Priority/Assignee`, `useGetTicketTrend`
+- Post-codegen fix: script overwrites `lib/api-zod/src/index.ts` to remove duplicate exports from `./generated/types` (orval generates both zod schemas and TS types with same names)
+- All hooks: `useListTickets`, `useGetTicket`, `useCreateTicket`, `useUpdateTicket`, `useListTicketComments`, `useAddTicketComment`, `useListTicketNotes`, `useAddTicketNote`, `useListTicketActivity`, `useListNotifications`, `useMarkAllNotificationsRead`, `useGetDashboardStats`, `useGetRecentTickets`, `useGetMyTickets`, `useGetStatsByStatus/Category/Location/Priority/Assignee`, `useGetTicketTrend`, `useListUsers`, `useCreateUser`, `useUpdateUser`, `useDeleteUser`
+
+### Codegen Note (zod duplicate export fix)
+The `lib/api-spec/package.json` codegen script runs orval and then immediately overwrites `lib/api-zod/src/index.ts` with only `export * from './generated/api'` to avoid TS2308 ambiguity errors caused by orval generating both zod schemas (`generated/api.ts`) and TypeScript types (`generated/types/`) with the same exported names.
 
 ## Features Implemented
 - ✅ Login / Logout con ruoli (admin / utente)
@@ -72,3 +76,4 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - ✅ Tema chiaro/scuro con persistenza localStorage
 - ✅ UI completamente in italiano
 - ✅ Dati demo pre-caricati (11 ticket, commenti, note, attività)
+- ✅ Gestione Utenti (solo admin): crea, modifica, disattiva utenti con tabella MUI + dialog + conferma disattivazione
