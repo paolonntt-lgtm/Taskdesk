@@ -50,7 +50,6 @@ interface UserFormData {
   email: string;
   password: string;
   role: 'admin' | 'user';
-  mainLocation: string;
 }
 
 const emptyForm: UserFormData = {
@@ -58,7 +57,6 @@ const emptyForm: UserFormData = {
   email: '',
   password: '',
   role: 'user',
-  mainLocation: '',
 };
 
 export default function Users() {
@@ -96,7 +94,6 @@ export default function Users() {
       email: u.email,
       password: '',
       role: u.role as 'admin' | 'user',
-      mainLocation: u.mainLocation ?? '',
     });
     setFormError(null);
     setDialogOpen(true);
@@ -141,7 +138,6 @@ export default function Users() {
           name: form.name,
           email: form.email,
           role: form.role,
-          mainLocation: form.mainLocation || null,
         };
         if (form.password) body.password = form.password;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
@@ -151,7 +147,6 @@ export default function Users() {
           email: form.email,
           password: form.password,
           role: form.role,
-          mainLocation: form.mainLocation || null,
         };
         await createUser.mutateAsync({ data: body });
       }
@@ -225,7 +220,6 @@ export default function Users() {
               <TableCell><strong>{ut.name}</strong></TableCell>
               <TableCell><strong>{ut.email}</strong></TableCell>
               <TableCell><strong>{ut.role}</strong></TableCell>
-              <TableCell><strong>{ut.location}</strong></TableCell>
               <TableCell><strong>{ut.status}</strong></TableCell>
               <TableCell><strong>{ut.createdAt}</strong></TableCell>
               <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
@@ -234,7 +228,7 @@ export default function Users() {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   {ut.noUsers}
                 </TableCell>
               </TableRow>
@@ -260,11 +254,6 @@ export default function Users() {
                         color={u.role === 'admin' ? 'secondary' : 'default'}
                         variant="outlined"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {u.mainLocation || '—'}
-                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -356,13 +345,6 @@ export default function Users() {
                 <MenuItem value="admin">{t.role.admin}</MenuItem>
               </Select>
             </FormControl>
-            <TextField
-              label={ut.location}
-              value={form.mainLocation}
-              onChange={(e) => setForm((f) => ({ ...f, mainLocation: e.target.value }))}
-              fullWidth
-              placeholder={ut.locationPlaceholder}
-            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
