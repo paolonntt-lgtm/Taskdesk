@@ -4,6 +4,7 @@ import {
   ScrollView, Alert, Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import * as Haptics from "expo-haptics";
@@ -81,6 +82,23 @@ export default function ProfileScreen() {
           <Text style={s.infoValue}>Sistema di ticketing</Text>
         </View>
       </View>
+
+      {user?.role === "admin" && (
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Amministrazione</Text>
+          <TouchableOpacity
+            style={s.infoRow}
+            onPress={() => router.push("/users" as any)}
+            activeOpacity={0.7}
+          >
+            <View style={s.infoLeft}>
+              <Feather name="users" size={16} color={colors.primary} />
+              <Text style={[s.infoLabel, { color: colors.primary }]}>Gestione utenti</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
         <Feather name="log-out" size={18} color={colors.destructive} />

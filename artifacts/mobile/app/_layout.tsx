@@ -51,6 +51,13 @@ function RootLayoutNav() {
           headerStyle: { backgroundColor: "transparent" },
         }}
       />
+      <Stack.Screen
+        name="users"
+        options={{
+          title: "Gestione utenti",
+          headerBackTitle: "Indietro",
+        }}
+      />
     </Stack>
   );
 }
