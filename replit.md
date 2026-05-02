@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Sistema di ticketing aziendale interno con React + MUI frontend, Express backend, PostgreSQL. Supporto multi-lingua IT/EN tramite LanguageContext + translations.ts. Note interne rimosse. Dashboard responsive con stat card 2×2 su mobile e lista ticket al posto delle tabelle.
+pnpm workspace monorepo using TypeScript. TaskDesk — sistema di ticketing aziendale interno con React + MUI frontend, Express backend, PostgreSQL. Supporto multi-lingua IT/EN tramite LanguageContext + translations.ts. Note interne rimosse. Dashboard responsive con stat card 2×2 su mobile e lista ticket al posto delle tabelle.
 
 ## Stack
 

@@ -86,7 +86,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
     <div>
       <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2 }}>
         <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: 'primary.main', letterSpacing: 1 }}>
-          Ticket Manager
+          TaskDesk
         </Typography>
       </Toolbar>
       <Divider />

@@ -42,7 +42,7 @@ export default function Landing() {
             <div className="w-8 h-8 bg-primary text-primary-foreground rounded-sm flex items-center justify-center font-bold text-xl">
               T
             </div>
-            <span className="font-bold text-xl tracking-tight">Ticket Manager</span>
+            <span className="font-bold text-xl tracking-tight">TaskDesk</span>
           </div>
           
           <nav className="hidden md:flex items-center gap-8">
@@ -105,7 +105,7 @@ export default function Landing() {
               <div className="absolute inset-0 bg-primary/5 rounded-[2rem] transform rotate-3 scale-105 -z-10"></div>
               <img 
                 src="/images/hero.png" 
-                alt="Ticket Manager Dashboard" 
+                alt="TaskDesk Dashboard" 
                 className="w-full h-auto rounded-xl shadow-2xl border border-border object-cover aspect-video bg-muted"
               />
             </div>
@@ -281,7 +281,7 @@ export default function Landing() {
             <div className="w-6 h-6 bg-foreground text-background rounded-sm flex items-center justify-center font-bold text-xs">
               T
             </div>
-            <span className="font-bold text-sm tracking-tight">Ticket Manager</span>
+            <span className="font-bold text-sm tracking-tight">TaskDesk</span>
           </div>
           <p className="text-sm text-muted-foreground">
             {t.footer.text}

@@ -40,7 +40,7 @@ export default function Login() {
           <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
             <Box sx={{ mb: 4, textAlign: 'center' }}>
               <Typography variant="h4" component="h1" fontWeight="bold" color="primary" gutterBottom>
-                Ticket Manager
+                TaskDesk
               </Typography>
               <Typography variant="body1" color="text.secondary">
                 {t.login.subtitle}

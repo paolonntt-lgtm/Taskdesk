@@ -59,7 +59,7 @@ const translations: Record<Language, Translations> = {
     },
     hero: {
       title: "Il supporto tecnico non deve essere complicato.",
-      subtitle: "Ticket Manager è l'alternativa chiara, diretta e ultra-accessibile ai complessi help desk aziendali. Pensato per le PMI italiane che vogliono far funzionare le cose, senza leggere manuali.",
+      subtitle: "TaskDesk è l'alternativa chiara, diretta e ultra-accessibile ai complessi help desk aziendali. Pensato per le PMI italiane che vogliono far funzionare le cose, senza leggere manuali.",
       cta: "Inizia subito",
       secondaryCta: "Scopri come funziona",
     },
@@ -123,7 +123,7 @@ const translations: Record<Language, Translations> = {
       ]
     },
     footer: {
-      text: "© 2024 Ticket Manager. Il design essenziale per il business italiano."
+      text: "© 2024 TaskDesk. Il design essenziale per il business italiano."
     }
   },
   en: {
@@ -135,7 +135,7 @@ const translations: Record<Language, Translations> = {
     },
     hero: {
       title: "IT support doesn't have to be complicated.",
-      subtitle: "Ticket Manager is the clear, direct, and ultra-affordable alternative to bloated enterprise help desks. Designed for businesses that want things to just work, without reading manuals.",
+      subtitle: "TaskDesk is the clear, direct, and ultra-affordable alternative to bloated enterprise help desks. Designed for businesses that want things to just work, without reading manuals.",
       cta: "Get started now",
       secondaryCta: "See how it works",
     },
@@ -199,7 +199,7 @@ const translations: Record<Language, Translations> = {
       ]
     },
     footer: {
-      text: "© 2024 Ticket Manager. Essential design for business."
+      text: "© 2024 TaskDesk. Essential design for business."
     }
   }
 };
