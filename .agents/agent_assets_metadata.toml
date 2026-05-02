@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "idlCJwq8qoVkXeYMyZWBI"
+uri = "file://artifacts/landing/public/images/hero.png"
+type = "image"
+title = "Hero desk illustration"
+
+[[generated]]
+id = "yFsBKSLzRYJsYqIokIKIc"
+uri = "file://artifacts/landing/public/images/feature-1.png"
+type = "image"
+title = "Organize documents illustration"
+
+[[generated]]
+id = "VnaZCjUlAWMl_3xf6OZYy"
+uri = "file://artifacts/landing/public/images/feature-2.png"
+type = "image"
+title = "Charts and stats illustration"
