@@ -8,6 +8,7 @@ import notesRouter from "./notes";
 import activityRouter from "./activity";
 import notificationsRouter from "./notifications";
 import statsRouter from "./stats";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(notesRouter);
 router.use(activityRouter);
 router.use(notificationsRouter);
 router.use(statsRouter);
+router.use(stripeRouter);
 
 export default router;

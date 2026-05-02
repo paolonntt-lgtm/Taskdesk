@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import { WebhookHandlers } from "./webhookHandlers";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -26,6 +27,29 @@ app.use(
     },
   }),
 );
+
+// Stripe webhook MUST be registered BEFORE express.json()
+// The webhook needs the raw Buffer body, not parsed JSON
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const signature = req.headers['stripe-signature'];
+    if (!signature) {
+      res.status(400).json({ error: 'Missing stripe-signature header' });
+      return;
+    }
+    try {
+      const sig = Array.isArray(signature) ? signature[0] : signature;
+      await WebhookHandlers.processWebhook(req.body as Buffer, sig);
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      logger.error({ err: error }, 'Stripe webhook error');
+      res.status(400).json({ error: 'Webhook processing error' });
+    }
+  }
+);
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());

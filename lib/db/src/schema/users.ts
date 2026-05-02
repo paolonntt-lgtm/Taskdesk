@@ -10,6 +10,9 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("user"),
   mainLocation: text("main_location"),
   isActive: boolean("is_active").notNull().default(true),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
