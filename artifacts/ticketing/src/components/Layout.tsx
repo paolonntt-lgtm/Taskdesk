@@ -32,6 +32,7 @@ import {
   LightMode,
   DarkMode,
   People,
+  CreditCard,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -80,6 +81,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
     { text: t.nav.newTicket, icon: <AddBox />, path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports, icon: <BarChart />, path: '/reports', adminOnly: false },
     { text: t.nav.users, icon: <People />, path: '/users', adminOnly: true },
+    { text: t.nav.billing, icon: <CreditCard />, path: '/billing', adminOnly: true },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
