@@ -791,6 +791,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
       required:
         - id
         - title
@@ -875,6 +878,9 @@ components:
           type: integer
           nullable: true
         assignedToGroup:
+          type: string
+          nullable: true
+        resolutionNote:
           type: string
           nullable: true
 

@@ -173,6 +173,7 @@ export const ListTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
   })
   .and(
     zod.object({
@@ -238,6 +239,7 @@ export const GetTicketResponse = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
   })
   .and(
     zod.object({
@@ -285,6 +287,7 @@ export const UpdateTicketBody = zod.object({
     .optional(),
   assignedTo: zod.number().nullish(),
   assignedToGroup: zod.string().nullish(),
+  resolutionNote: zod.string().nullish(),
 });
 
 export const UpdateTicketResponse = zod
@@ -302,6 +305,7 @@ export const UpdateTicketResponse = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
   })
   .and(
     zod.object({
@@ -568,6 +572,7 @@ export const GetRecentTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
   })
   .and(
     zod.object({
@@ -615,6 +620,7 @@ export const GetMyTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
   })
   .and(
     zod.object({

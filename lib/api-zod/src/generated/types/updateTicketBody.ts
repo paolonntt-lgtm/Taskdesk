@@ -18,4 +18,5 @@ export interface UpdateTicketBody {
   status?: UpdateTicketBodyStatus;
   assignedTo?: number | null;
   assignedToGroup?: string | null;
+  resolutionNote?: string | null;
 }

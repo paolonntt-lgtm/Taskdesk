@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, Tabs, Tab, Divider, Grid, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
+  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
 } from '@mui/material';
+import { CheckCircleOutline } from '@mui/icons-material';
 import { Person, Group } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
@@ -44,6 +46,9 @@ export default function TicketDetail() {
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
 
+  const [resolutionDialog, setResolutionDialog] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState('');
+
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } as any });
@@ -73,8 +78,23 @@ export default function TicketDetail() {
   }
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'resolved') {
+      setResolutionNote('');
+      setResolutionDialog(true);
+      return;
+    }
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+  };
+
+  const confirmResolved = async (note: string) => {
+    const updated = await updateTicket.mutateAsync({
+      id: ticketId,
+      data: { status: 'resolved' as any, resolutionNote: note || null } as any,
+    });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    setResolutionDialog(false);
+    setResolutionNote('');
   };
 
   const handlePriorityChange = async (newPriority: string) => {
@@ -361,10 +381,52 @@ export default function TicketDetail() {
                   <Typography variant="body1">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
                 </Box>
               )}
+
+              {(ticket as any).resolutionNote && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.resolutionNoteLabel}</Typography>
+                  <Alert severity="success" icon={<CheckCircleOutline fontSize="small" />} sx={{ fontSize: '0.85rem' }}>
+                    {(ticket as any).resolutionNote}
+                  </Alert>
+                </Box>
+              )}
             </Box>
           </Card>
         </Grid>
       </Grid>
+
+      {/* Resolution note dialog */}
+      <Dialog open={resolutionDialog} onClose={() => setResolutionDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t.ticketDetail.resolutionNoteTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {t.ticketDetail.resolutionNoteSubtitle}
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder={t.ticketDetail.resolutionNotePlaceholder}
+            value={resolutionNote}
+            onChange={(e) => setResolutionNote(e.target.value)}
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">
+            {t.ticketDetail.resolutionNoteSkip}
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => confirmResolved(resolutionNote)}
+            disabled={updateTicket.isPending}
+            startIcon={<CheckCircleOutline />}
+          >
+            {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

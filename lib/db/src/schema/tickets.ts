@@ -15,6 +15,7 @@ export const ticketsTable = pgTable("tickets", {
   createdBy: integer("created_by").notNull().references(() => usersTable.id),
   assignedTo: integer("assigned_to").references(() => usersTable.id),
   assignedToGroup: text("assigned_to_group"),
+  resolutionNote: text("resolution_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   closedAt: timestamp("closed_at", { withTimezone: true }),

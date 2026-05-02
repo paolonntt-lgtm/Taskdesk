@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, TextInput, ActivityIndicator,
-  Alert, Platform,
+  Alert, Platform, Modal, KeyboardAvoidingView,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -18,6 +18,7 @@ interface Ticket {
   category: string; location: string; resource?: string;
   priority: string; status: string;
   createdAt: string; closedAt?: string;
+  resolutionNote?: string | null;
   creator: { name: string }; assignee?: { name: string } | null;
   assignedToGroup?: string | null;
   commentCount: number;
@@ -39,7 +40,12 @@ export default function TicketDetailScreen() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: ticket, isLoading } = useQuery({
+  // Resolution note modal state
+  const [resolutionModal, setResolutionModal] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [resolving, setResolving] = useState(false);
+
+  const { data: ticket, isLoading, refetch: refetchTicket } = useQuery({
     queryKey: ["ticket", id],
     queryFn: () => apiGet<Ticket>(`/tickets/${id}`),
     enabled: !!id,
@@ -53,6 +59,11 @@ export default function TicketDetailScreen() {
 
   const handleStatusChange = async (status: string) => {
     if (!ticket || ticket.status === status) return;
+    if (status === "resolved") {
+      setResolutionNote("");
+      setResolutionModal(true);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await apiPatch(`/tickets/${id}`, { status });
@@ -61,6 +72,25 @@ export default function TicketDetailScreen() {
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     } catch (e: any) {
       Alert.alert("Errore", e.message);
+    }
+  };
+
+  const confirmResolved = async (note: string) => {
+    setResolving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await apiPatch(`/tickets/${id}`, {
+        status: "resolved",
+        resolutionNote: note || null,
+      });
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      setResolutionModal(false);
+    } catch (e: any) {
+      Alert.alert("Errore", e.message);
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -106,113 +136,190 @@ export default function TicketDetailScreen() {
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
 
   return (
-    <KeyboardAwareScrollView
-      style={s.root}
-      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 24 }]}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      bottomOffset={16}
-    >
-      <View style={s.titleRow}>
-        <View style={[s.priorityBar, { backgroundColor: priorityColor }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.ticketId}>Ticket #{ticket.id}</Text>
-          <Text style={s.title}>{ticket.title}</Text>
-        </View>
-      </View>
-
-      <View style={s.metaCard}>
-        {[
-          { label: "Stato", value: STATUS_LABELS[ticket.status] ?? ticket.status },
-          { label: "Priorità", value: PRIORITY_LABELS[ticket.priority] ?? ticket.priority },
-          { label: "Categoria", value: ticket.category },
-          { label: "Sede", value: ticket.location },
-          { label: "Creato da", value: ticket.creator?.name ?? "–" },
-          {
-            label: "Assegnato a",
-            value: ticket.assignedToGroup
-              ? `Gruppo: ${ticket.assignedToGroup}`
-              : ticket.assignee?.name ?? "Non assegnato",
-          },
-          { label: "Data", value: formatDate(ticket.createdAt) },
-          ...(ticket.resource ? [{ label: "Risorsa", value: ticket.resource }] : []),
-        ].map((item, i, arr) => (
-          <View key={item.label} style={[s.metaRow, i < arr.length - 1 && s.metaRowBorder]}>
-            <Text style={s.metaLabel}>{item.label}</Text>
-            <Text style={s.metaValue}>{item.value}</Text>
+    <>
+      <KeyboardAwareScrollView
+        style={s.root}
+        contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 24 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bottomOffset={16}
+      >
+        <View style={s.titleRow}>
+          <View style={[s.priorityBar, { backgroundColor: priorityColor }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.ticketId}>Ticket #{ticket.id}</Text>
+            <Text style={s.title}>{ticket.title}</Text>
           </View>
-        ))}
-      </View>
-
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>Descrizione</Text>
-        <View style={s.descBox}>
-          <Text style={s.desc}>{ticket.description}</Text>
         </View>
-      </View>
 
-      {isAdmin && (
+        <View style={s.metaCard}>
+          {[
+            { label: "Stato", value: STATUS_LABELS[ticket.status] ?? ticket.status },
+            { label: "Priorità", value: PRIORITY_LABELS[ticket.priority] ?? ticket.priority },
+            { label: "Categoria", value: ticket.category },
+            ...(ticket.location ? [{ label: "Sede", value: ticket.location }] : []),
+            { label: "Creato da", value: ticket.creator?.name ?? "–" },
+            {
+              label: "Assegnato a",
+              value: ticket.assignedToGroup
+                ? `Gruppo: ${ticket.assignedToGroup}`
+                : ticket.assignee?.name ?? "Non assegnato",
+            },
+            { label: "Data", value: formatDate(ticket.createdAt) },
+            ...(ticket.resource ? [{ label: "Risorsa", value: ticket.resource }] : []),
+          ].map((item, i, arr) => (
+            <View key={item.label} style={[s.metaRow, i < arr.length - 1 && s.metaRowBorder]}>
+              <Text style={s.metaLabel}>{item.label}</Text>
+              <Text style={s.metaValue}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Aggiorna stato</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={s.statusRow}>
-              {STATUSES.map((st) => (
-                <TouchableOpacity
-                  key={st}
-                  style={[s.statusBtn, ticket.status === st && s.statusBtnActive]}
-                  onPress={() => handleStatusChange(st)}
-                >
-                  <Text style={[s.statusBtnText, ticket.status === st && s.statusBtnTextActive]}>
-                    {STATUS_LABELS[st]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      )}
-
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>Commenti ({comments.length})</Text>
-        {comments.map((c) => (
-          <View key={c.id} style={s.commentCard}>
-            <View style={s.commentHeader}>
-              <View style={s.commentAvatar}>
-                <Text style={s.commentInitial}>{c.author?.name?.charAt(0).toUpperCase()}</Text>
-              </View>
-              <View>
-                <Text style={s.commentAuthor}>{c.author?.name}</Text>
-                <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
-              </View>
-            </View>
-            <Text style={s.commentText}>{c.commentText}</Text>
+          <Text style={s.sectionTitle}>Descrizione</Text>
+          <View style={s.descBox}>
+            <Text style={s.desc}>{ticket.description}</Text>
           </View>
-        ))}
-
-        <View style={s.commentInputWrap}>
-          <TextInput
-            style={s.commentInput}
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Aggiungi un commento..."
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            textAlignVertical="top"
-          />
-          <TouchableOpacity
-            style={[s.sendBtn, (!comment.trim() || submitting) && s.sendBtnDisabled]}
-            onPress={handleComment}
-            disabled={!comment.trim() || submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.primaryForeground} size="small" />
-            ) : (
-              <Feather name="send" size={18} color={colors.primaryForeground} />
-            )}
-          </TouchableOpacity>
         </View>
-      </View>
-    </KeyboardAwareScrollView>
+
+        {/* Resolution note (shown when resolved/closed) */}
+        {ticket.resolutionNote ? (
+          <View style={s.resolutionCard}>
+            <View style={s.resolutionHeader}>
+              <Feather name="check-circle" size={16} color={colors.success} />
+              <Text style={s.resolutionTitle}>Come è stato risolto</Text>
+            </View>
+            <Text style={s.resolutionText}>{ticket.resolutionNote}</Text>
+          </View>
+        ) : null}
+
+        {isAdmin && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Aggiorna stato</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={s.statusRow}>
+                {STATUSES.map((st) => (
+                  <TouchableOpacity
+                    key={st}
+                    style={[s.statusBtn, ticket.status === st && s.statusBtnActive]}
+                    onPress={() => handleStatusChange(st)}
+                  >
+                    <Text style={[s.statusBtnText, ticket.status === st && s.statusBtnTextActive]}>
+                      {STATUS_LABELS[st]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Commenti ({comments.length})</Text>
+          {comments.map((c) => (
+            <View key={c.id} style={s.commentCard}>
+              <View style={s.commentHeader}>
+                <View style={s.commentAvatar}>
+                  <Text style={s.commentInitial}>{c.author?.name?.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View>
+                  <Text style={s.commentAuthor}>{c.author?.name}</Text>
+                  <Text style={s.commentDate}>{formatDate(c.createdAt)}</Text>
+                </View>
+              </View>
+              <Text style={s.commentText}>{c.commentText}</Text>
+            </View>
+          ))}
+
+          <View style={s.commentInputWrap}>
+            <TextInput
+              style={s.commentInput}
+              value={comment}
+              onChangeText={setComment}
+              placeholder="Aggiungi un commento..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!comment.trim() || submitting) && s.sendBtnDisabled]}
+              onPress={handleComment}
+              disabled={!comment.trim() || submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color={colors.primaryForeground} size="small" />
+              ) : (
+                <Feather name="send" size={18} color={colors.primaryForeground} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAwareScrollView>
+
+      {/* Resolution note modal */}
+      <Modal
+        visible={resolutionModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setResolutionModal(false)}
+      >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={s.modalRoot}>
+            <View style={s.modalHeader}>
+              <TouchableOpacity onPress={() => setResolutionModal(false)} style={s.modalCancel}>
+                <Text style={s.modalCancelText}>Annulla</Text>
+              </TouchableOpacity>
+              <Text style={s.modalTitle}>Come è stato risolto?</Text>
+              <View style={{ width: 60 }} />
+            </View>
+
+            <View style={s.modalContent}>
+              <View style={s.modalIconRow}>
+                <Feather name="check-circle" size={40} color={colors.success} />
+              </View>
+              <Text style={s.modalSubtitle}>
+                Aggiungi una nota che descriva la soluzione adottata (opzionale).
+              </Text>
+              <TextInput
+                style={s.modalInput}
+                value={resolutionNote}
+                onChangeText={setResolutionNote}
+                placeholder="Es: Sostituito il cavo di alimentazione, aggiornato il driver..."
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                textAlignVertical="top"
+                autoFocus
+              />
+            </View>
+
+            <View style={s.modalFooter}>
+              <TouchableOpacity
+                style={s.skipBtn}
+                onPress={() => confirmResolved("")}
+                disabled={resolving}
+              >
+                <Text style={s.skipBtnText}>Salta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.confirmBtn, resolving && { opacity: 0.6 }]}
+                onPress={() => confirmResolved(resolutionNote)}
+                disabled={resolving}
+              >
+                {resolving
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : (
+                    <>
+                      <Feather name="check" size={16} color="#fff" />
+                      <Text style={s.confirmBtnText}>Segna come risolto</Text>
+                    </>
+                  )
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -237,6 +344,15 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     sectionTitle: { fontSize: 15, fontWeight: "600" as const, color: colors.foreground, marginBottom: 10, fontFamily: "Inter_600SemiBold" },
     descBox: { backgroundColor: colors.card, borderRadius: 10, padding: 14, borderWidth: 1, borderColor: colors.border },
     desc: { fontSize: 14, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
+    // Resolution note
+    resolutionCard: {
+      backgroundColor: colors.success + "18",
+      borderRadius: 12, padding: 14,
+      borderWidth: 1, borderColor: colors.success + "40",
+    },
+    resolutionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+    resolutionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.success, fontFamily: "Inter_600SemiBold" },
+    resolutionText: { fontSize: 14, color: colors.foreground, lineHeight: 20, fontFamily: "Inter_400Regular" },
     statusRow: { flexDirection: "row", gap: 8 },
     statusBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     statusBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -257,4 +373,36 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     sendBtn: { backgroundColor: colors.primary, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
     sendBtnDisabled: { opacity: 0.5 },
+    // Modal
+    modalRoot: { flex: 1, backgroundColor: colors.background },
+    modalHeader: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    modalTitle: { fontSize: 16, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    modalCancel: { paddingVertical: 4 },
+    modalCancelText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    modalContent: { flex: 1, padding: 24, gap: 16 },
+    modalIconRow: { alignItems: "center", paddingVertical: 8 },
+    modalSubtitle: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20, textAlign: "center" },
+    modalInput: {
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, color: colors.foreground, minHeight: 120, fontFamily: "Inter_400Regular",
+    },
+    modalFooter: {
+      flexDirection: "row", gap: 12, padding: 20,
+      borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    skipBtn: {
+      flex: 1, paddingVertical: 14, borderRadius: 12,
+      backgroundColor: colors.muted, alignItems: "center",
+    },
+    skipBtnText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
+    confirmBtn: {
+      flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.success,
+    },
+    confirmBtnText: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
   });

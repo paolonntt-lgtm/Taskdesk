@@ -117,6 +117,7 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
+  resolutionNote?: string | null;
 }
 
 export type TicketWithDetails = Ticket & {
@@ -178,6 +179,7 @@ export interface UpdateTicketBody {
   status?: UpdateTicketBodyStatus;
   assignedTo?: number | null;
   assignedToGroup?: string | null;
+  resolutionNote?: string | null;
 }
 
 export interface CommentWithAuthor {

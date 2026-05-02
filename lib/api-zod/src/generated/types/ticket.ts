@@ -22,4 +22,5 @@ export interface Ticket {
   createdAt: Date;
   updatedAt: Date;
   closedAt?: Date | null;
+  resolutionNote?: string | null;
 }
