@@ -107,7 +107,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
-  const { title, description, category, location, resource, priority, assignedTo } = parsed.data;
+  const { title, description, category, location, resource, priority, assignedTo, assignedToGroup } = parsed.data;
 
   const [ticket] = await db.insert(ticketsTable).values({
     title,
@@ -119,6 +119,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     status: "open",
     createdBy: currentUser.id,
     assignedTo: assignedTo ?? null,
+    assignedToGroup: assignedToGroup ?? null,
   }).returning();
 
   await db.insert(ticketActivityLogsTable).values({
@@ -240,6 +241,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       });
     } else {
       activityLogs.push({ actionType: "unassigned", actionDescription: "Assegnazione rimossa" });
+    }
+  }
+
+  if ("assignedToGroup" in updates && updates.assignedToGroup !== existing.assignedToGroup) {
+    if (updates.assignedToGroup) {
+      activityLogs.push({
+        actionType: "assigned",
+        actionDescription: `Ticket assegnato al gruppo "${updates.assignedToGroup}"`,
+      });
+    } else {
+      activityLogs.push({ actionType: "unassigned", actionDescription: "Assegnazione gruppo rimossa" });
     }
   }
 

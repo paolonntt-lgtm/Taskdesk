@@ -1,22 +1,14 @@
-import React, { useState } from 'react';
-import { Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import {
+  Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
+  ToggleButton, ToggleButtonGroup,
+} from '@mui/material';
+import { Person, Group } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-
-const CATEGORIES = [
-  'PC',
-  'Stampante',
-  'Internet / Rete',
-  'Software',
-  'Telefonia',
-  'Cassa / Gestionale',
-  'Altro',
-];
-
-const LOCATIONS = ['Sede A', 'Sede B', 'Sede C'];
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
@@ -26,24 +18,54 @@ export default function NewTicket() {
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
 
+  const [categories, setCategories] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
+  const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'PC',
+    category: '',
     location: currentUser?.mainLocation || '',
     resource: '',
     priority: 'medium',
     assignedTo: '',
+    assignedToGroup: '',
   });
+
+  useEffect(() => {
+    fetch('/api/settings/categories', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const cats = d.value ?? [];
+        setCategories(cats);
+        if (!formData.category && cats.length > 0) setFormData((f) => ({ ...f, category: cats[0] }));
+      })
+      .catch(() => {});
+    fetch('/api/settings/locations', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setLocations(d.value ?? []))
+      .catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setGroups(d.value ?? []))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const result = await createTicket.mutateAsync({
         data: {
-          ...formData,
-          assignedTo: formData.assignedTo ? parseInt(formData.assignedTo) : undefined,
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          location: formData.location,
+          resource: formData.resource || undefined,
           priority: formData.priority as any,
+          assignedTo: assignMode === 'user' && formData.assignedTo ? parseInt(formData.assignedTo) : null,
+          assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
         },
       });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
@@ -96,7 +118,7 @@ export default function NewTicket() {
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                 >
-                  {CATEGORIES.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                  {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                 </TextField>
               </Grid>
 
@@ -109,7 +131,7 @@ export default function NewTicket() {
                   value={formData.location}
                   onChange={e => setFormData({ ...formData, location: e.target.value })}
                 >
-                  {LOCATIONS.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                  {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
                 </TextField>
               </Grid>
 
@@ -140,19 +162,51 @@ export default function NewTicket() {
               </Grid>
 
               {currentUser?.role === 'admin' && (
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label={t.newTicket.assignField}
-                    value={formData.assignedTo}
-                    onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
-                  >
-                    <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
-                    {users?.map(u => (
-                      <MenuItem key={u.id} value={u.id.toString()}>{u.name}</MenuItem>
-                    ))}
-                  </TextField>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                    {t.newTicket.assignField}
+                  </Typography>
+                  <Box display="flex" gap={2} alignItems="flex-start" flexWrap="wrap">
+                    <ToggleButtonGroup
+                      value={assignMode}
+                      exclusive
+                      onChange={(_, v) => { if (v) setAssignMode(v); }}
+                      size="small"
+                    >
+                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
+                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                    </ToggleButtonGroup>
+
+                    {assignMode === 'user' ? (
+                      <TextField
+                        select
+                        size="small"
+                        label="Utente"
+                        value={formData.assignedTo}
+                        onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
+                        sx={{ minWidth: 200 }}
+                      >
+                        <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
+                        {users?.map(u => (
+                          <MenuItem key={u.id} value={u.id.toString()}>{u.name}</MenuItem>
+                        ))}
+                      </TextField>
+                    ) : (
+                      <TextField
+                        select
+                        size="small"
+                        label="Gruppo"
+                        value={formData.assignedToGroup}
+                        onChange={e => setFormData({ ...formData, assignedToGroup: e.target.value })}
+                        sx={{ minWidth: 200 }}
+                      >
+                        <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
+                        {groups.map(g => (
+                          <MenuItem key={g} value={g}>{g}</MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  </Box>
                 </Grid>
               )}
 

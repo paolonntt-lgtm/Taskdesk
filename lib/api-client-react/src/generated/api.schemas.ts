@@ -142,6 +142,7 @@ export interface CreateTicketBody {
   resource?: string;
   priority: CreateTicketBodyPriority;
   assignedTo?: number | null;
+  assignedToGroup?: string | null;
 }
 
 export type UpdateTicketBodyPriority =
@@ -174,6 +175,7 @@ export interface UpdateTicketBody {
   priority?: UpdateTicketBodyPriority;
   status?: UpdateTicketBodyStatus;
   assignedTo?: number | null;
+  assignedToGroup?: string | null;
 }
 
 export interface CommentWithAuthor {

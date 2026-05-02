@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, Tabs, Tab, Divider, Grid, Chip, Button,
-  TextField, MenuItem, CircularProgress, Avatar,
+  TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
+import { Person, Group } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers,
@@ -40,15 +41,32 @@ export default function TicketDetail() {
   const [tabValue, setTabValue] = useState(0);
   const [newComment, setNewComment] = useState('');
 
-  const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } });
-  const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } });
-  const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } });
-  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60 * 1000 } });
+  const [groups, setGroups] = useState<string[]>([]);
+  const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
+
+  const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
+  const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } as any });
+  const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } as any });
+  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60 * 1000 } as any });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
+
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') return;
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setGroups(d.value ?? []))
+      .catch(() => {});
+  }, [currentUser?.role]);
+
+  useEffect(() => {
+    if (ticket) {
+      setAssignMode((ticket as any).assignedToGroup ? 'group' : 'user');
+    }
+  }, [ticket]);
 
   if (isLoading || !ticket) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
@@ -209,19 +227,60 @@ export default function TicketDetail() {
                   {t.ticketDetail.assignedTo}
                 </Typography>
                 {isAdmin ? (
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    value={ticket.assignedTo ?? ''}
-                    onChange={(e) => handleAssigneeChange(e.target.value)}
-                    disabled={updateTicket.isPending}
-                  >
-                    <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
-                    {users?.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
-                  </TextField>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    <ToggleButtonGroup
+                      value={assignMode}
+                      exclusive
+                      size="small"
+                      onChange={(_, v) => {
+                        if (!v) return;
+                        setAssignMode(v);
+                        if (v === 'user') {
+                          updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: null } as any });
+                        } else {
+                          updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: null } });
+                        }
+                      }}
+                    >
+                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
+                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                    </ToggleButtonGroup>
+                    {assignMode === 'user' ? (
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        value={ticket.assignedTo ?? ''}
+                        onChange={(e) => handleAssigneeChange(e.target.value)}
+                        disabled={updateTicket.isPending}
+                      >
+                        <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
+                        {users?.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
+                      </TextField>
+                    ) : (
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        value={(ticket as any).assignedToGroup ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any })
+                            .then((updated) => queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated));
+                        }}
+                        disabled={updateTicket.isPending}
+                      >
+                        <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
+                        {groups.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+                      </TextField>
+                    )}
+                  </Box>
                 ) : (
-                  <Typography variant="body1">{ticket.assignee?.name || t.ticketDetail.unassigned}</Typography>
+                  <Typography variant="body1">
+                    {(ticket as any).assignedToGroup
+                      ? `Gruppo: ${(ticket as any).assignedToGroup}`
+                      : ticket.assignee?.name || t.ticketDetail.unassigned}
+                  </Typography>
                 )}
               </Box>
 

@@ -835,6 +835,9 @@ components:
         assignedTo:
           type: integer
           nullable: true
+        assignedToGroup:
+          type: string
+          nullable: true
       required:
         - title
         - description
@@ -864,6 +867,9 @@ components:
           enum: [open, in_progress, waiting, resolved, closed]
         assignedTo:
           type: integer
+          nullable: true
+        assignedToGroup:
+          type: string
           nullable: true
 
     CommentWithAuthor:

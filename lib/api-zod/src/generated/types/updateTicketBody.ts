@@ -17,4 +17,5 @@ export interface UpdateTicketBody {
   priority?: UpdateTicketBodyPriority;
   status?: UpdateTicketBodyStatus;
   assignedTo?: number | null;
+  assignedToGroup?: string | null;
 }

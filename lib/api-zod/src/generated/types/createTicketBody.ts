@@ -15,4 +15,5 @@ export interface CreateTicketBody {
   resource?: string;
   priority: CreateTicketBodyPriority;
   assignedTo?: number | null;
+  assignedToGroup?: string | null;
 }

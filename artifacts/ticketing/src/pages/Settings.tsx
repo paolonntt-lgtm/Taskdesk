@@ -4,7 +4,7 @@ import {
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
   ListItemSecondaryAction, CircularProgress,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -132,8 +132,10 @@ export default function Settings() {
   // Admin settings state
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
   const [locSaving, setLocSaving] = useState(false);
   const [catSaving, setCatSaving] = useState(false);
+  const [grpSaving, setGrpSaving] = useState(false);
   const [adminMsg, setAdminMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -142,6 +144,8 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setLocations(d.value ?? [])).catch(() => {});
     fetch('/api/settings/categories', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setCategories(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
   }, [isAdmin]);
 
   const saveProfile = async () => {
@@ -232,6 +236,27 @@ export default function Settings() {
       setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
       setCatSaving(false);
+    }
+  };
+
+  const saveGroups = async (list: string[]) => {
+    setGrpSaving(true);
+    setAdminMsg(null);
+    try {
+      const res = await fetch('/api/settings/groups', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: list }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      setGroups(data.value);
+      setAdminMsg({ type: 'success', text: 'Gruppi aggiornati.' });
+    } catch {
+      setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
+    } finally {
+      setGrpSaving(false);
     }
   };
 
@@ -377,6 +402,18 @@ export default function Settings() {
               items={categories}
               onSave={saveCategories}
               saving={catSaving}
+            />
+          </Section>
+
+          <Section title={t.settings.manageGroups} icon={<Group color="primary" />}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              {t.settings.groupsNote}
+            </Typography>
+            <ListEditor
+              label="gruppo"
+              items={groups}
+              onSave={saveGroups}
+              saving={grpSaving}
             />
           </Section>
         </TabPanel>

@@ -211,6 +211,7 @@ export const CreateTicketBody = zod.object({
   resource: zod.string().optional(),
   priority: zod.enum(["low", "medium", "high", "urgent"]),
   assignedTo: zod.number().nullish(),
+  assignedToGroup: zod.string().nullish(),
 });
 
 /**
@@ -281,6 +282,7 @@ export const UpdateTicketBody = zod.object({
     .enum(["open", "in_progress", "waiting", "resolved", "closed"])
     .optional(),
   assignedTo: zod.number().nullish(),
+  assignedToGroup: zod.string().nullish(),
 });
 
 export const UpdateTicketResponse = zod

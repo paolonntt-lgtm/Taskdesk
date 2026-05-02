@@ -19,6 +19,7 @@ interface Ticket {
   priority: string; status: string;
   createdAt: string; closedAt?: string;
   creator: { name: string }; assignee?: { name: string } | null;
+  assignedToGroup?: string | null;
   commentCount: number;
 }
 interface Comment {
@@ -68,7 +69,7 @@ export default function TicketDetailScreen() {
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await apiPost(`/tickets/${id}/comments`, { content: comment.trim() });
+      await apiPost(`/tickets/${id}/comments`, { commentText: comment.trim() });
       setComment("");
       refetchComments();
       qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -127,7 +128,12 @@ export default function TicketDetailScreen() {
           { label: "Categoria", value: ticket.category },
           { label: "Sede", value: ticket.location },
           { label: "Creato da", value: ticket.creator?.name ?? "–" },
-          { label: "Assegnato a", value: ticket.assignee?.name ?? "Non assegnato" },
+          {
+            label: "Assegnato a",
+            value: ticket.assignedToGroup
+              ? `Gruppo: ${ticket.assignedToGroup}`
+              : ticket.assignee?.name ?? "Non assegnato",
+          },
           { label: "Data", value: formatDate(ticket.createdAt) },
           ...(ticket.resource ? [{ label: "Risorsa", value: ticket.resource }] : []),
         ].map((item, i, arr) => (

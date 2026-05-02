@@ -62,7 +62,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
 
   const { data: notifications = [] } = useListNotifications({
-    query: { enabled: !!user, refetchInterval: 15_000, staleTime: 10_000 },
+    query: { enabled: !!user, refetchInterval: 15_000, staleTime: 10_000 } as any,
   });
 
   const markAllRead = useMarkAllNotificationsRead();

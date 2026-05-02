@@ -202,6 +202,8 @@ const it = {
     locationsNote: 'Le sedi qui definite saranno disponibili come opzioni nel form di apertura ticket.',
     manageCategories: 'Gestione Categorie',
     categoriesNote: 'Le categorie qui definite saranno disponibili come opzioni nel form di apertura ticket.',
+    manageGroups: 'Gestione Gruppi',
+    groupsNote: 'I gruppi definiti qui possono essere assegnati ai ticket come alternativa all\'assegnazione individuale.',
   },
   status: {
     open: 'Aperto',
@@ -420,6 +422,8 @@ const en: typeof it = {
     locationsNote: 'Locations defined here will be available as options in the ticket creation form.',
     manageCategories: 'Manage Categories',
     categoriesNote: 'Categories defined here will be available as options in the ticket creation form.',
+    manageGroups: 'Manage Groups',
+    groupsNote: 'Groups defined here can be assigned to tickets as an alternative to individual user assignment.',
   },
   status: {
     open: 'Open',
