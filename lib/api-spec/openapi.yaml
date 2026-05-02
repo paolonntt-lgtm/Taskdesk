@@ -1,22 +1,37 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Internal Ticketing System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: tickets
+    description: Ticket management
+  - name: comments
+    description: Ticket comments
+  - name: notes
+    description: Internal notes
+  - name: activity
+    description: Activity logs
+  - name: users
+    description: User management
+  - name: notifications
+    description: Notifications
+  - name: stats
+    description: Statistics and reports
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +39,512 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: List tickets with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: assignedTo
+          in: query
+          schema:
+            type: integer
+        - name: createdBy
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: resource
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketWithDetails"
+
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      summary: Create a new ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTicketBody"
+      responses:
+        "201":
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
+
+  /tickets/{id}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      summary: Get ticket by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateTicket
+      tags: [tickets]
+      summary: Update ticket fields
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTicketBody"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
+
+  /tickets/{id}/comments:
+    get:
+      operationId: listTicketComments
+      tags: [comments]
+      summary: List comments for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommentWithAuthor"
+
+    post:
+      operationId: addTicketComment
+      tags: [comments]
+      summary: Add a comment to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentBody"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentWithAuthor"
+
+  /tickets/{id}/notes:
+    get:
+      operationId: listTicketNotes
+      tags: [notes]
+      summary: List internal notes for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of internal notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoteWithAuthor"
+
+    post:
+      operationId: addTicketNote
+      tags: [notes]
+      summary: Add an internal note to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNoteBody"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoteWithAuthor"
+
+  /tickets/{id}/activity:
+    get:
+      operationId: listTicketActivity
+      tags: [activity]
+      summary: List activity log for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activity log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityLogWithUser"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/by-status:
+    get:
+      operationId: getStatsByStatus
+      tags: [stats]
+      summary: Get ticket counts grouped by status
+      responses:
+        "200":
+          description: Stats by status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatGroup"
+
+  /stats/by-category:
+    get:
+      operationId: getStatsByCategory
+      tags: [stats]
+      summary: Get ticket counts grouped by category
+      responses:
+        "200":
+          description: Stats by category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatGroup"
+
+  /stats/by-location:
+    get:
+      operationId: getStatsByLocation
+      tags: [stats]
+      summary: Get ticket counts grouped by location
+      responses:
+        "200":
+          description: Stats by location
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatGroup"
+
+  /stats/by-priority:
+    get:
+      operationId: getStatsByPriority
+      tags: [stats]
+      summary: Get ticket counts grouped by priority
+      responses:
+        "200":
+          description: Stats by priority
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatGroup"
+
+  /stats/by-assignee:
+    get:
+      operationId: getStatsByAssignee
+      tags: [stats]
+      summary: Get ticket counts grouped by assignee
+      responses:
+        "200":
+          description: Stats by assignee
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatGroupWithName"
+
+  /stats/trend:
+    get:
+      operationId: getTicketTrend
+      tags: [stats]
+      summary: Get ticket creation trend over last 30 days
+      responses:
+        "200":
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrendPoint"
+
+  /stats/recent-tickets:
+    get:
+      operationId: getRecentTickets
+      tags: [stats]
+      summary: Get recently created or updated tickets
+      responses:
+        "200":
+          description: Recent tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketWithDetails"
+
+  /stats/my-tickets:
+    get:
+      operationId: getMyTickets
+      tags: [stats]
+      summary: Get tickets assigned to or created by current user
+      responses:
+        "200":
+          description: My tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketWithDetails"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +555,372 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        message:
+          type: string
+      required:
+        - user
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        mainLocation:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        location:
+          type: string
+        resource:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, waiting, resolved, closed]
+        createdBy:
+          type: integer
+        assignedTo:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - title
+        - description
+        - category
+        - location
+        - priority
+        - status
+        - createdBy
+        - createdAt
+        - updatedAt
+
+    TicketWithDetails:
+      allOf:
+        - $ref: "#/components/schemas/Ticket"
+        - type: object
+          properties:
+            creator:
+              $ref: "#/components/schemas/User"
+            assignee:
+              $ref: "#/components/schemas/User"
+              nullable: true
+            commentCount:
+              type: integer
+            noteCount:
+              type: integer
+          required:
+            - creator
+            - commentCount
+            - noteCount
+
+    CreateTicketBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        location:
+          type: string
+        resource:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assignedTo:
+          type: integer
+          nullable: true
+      required:
+        - title
+        - description
+        - category
+        - location
+        - priority
+
+    UpdateTicketBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        location:
+          type: string
+        resource:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, waiting, resolved, closed]
+        assignedTo:
+          type: integer
+          nullable: true
+
+    CommentWithAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        authorId:
+          type: integer
+        commentText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        author:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - ticketId
+        - authorId
+        - commentText
+        - createdAt
+        - author
+
+    CreateCommentBody:
+      type: object
+      properties:
+        commentText:
+          type: string
+      required:
+        - commentText
+
+    NoteWithAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        authorId:
+          type: integer
+        noteText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        author:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - ticketId
+        - authorId
+        - noteText
+        - createdAt
+        - author
+
+    CreateNoteBody:
+      type: object
+      properties:
+        noteText:
+          type: string
+      required:
+        - noteText
+
+    ActivityLogWithUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        userId:
+          type: integer
+        actionType:
+          type: string
+        actionDescription:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - ticketId
+        - userId
+        - actionType
+        - actionDescription
+        - createdAt
+        - user
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        ticketId:
+          type: integer
+          nullable: true
+        notificationText:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - notificationText
+        - isRead
+        - createdAt
+
+    DashboardStats:
+      type: object
+      properties:
+        totalTickets:
+          type: integer
+        openTickets:
+          type: integer
+        inProgressTickets:
+          type: integer
+        waitingTickets:
+          type: integer
+        resolvedTickets:
+          type: integer
+        closedTickets:
+          type: integer
+        urgentTickets:
+          type: integer
+        last7Days:
+          type: integer
+        last30Days:
+          type: integer
+        avgResolutionHours:
+          type: number
+          nullable: true
+      required:
+        - totalTickets
+        - openTickets
+        - inProgressTickets
+        - waitingTickets
+        - resolvedTickets
+        - closedTickets
+        - urgentTickets
+        - last7Days
+        - last30Days
+
+    StatGroup:
+      type: object
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+      required:
+        - name
+        - count
+
+    StatGroupWithName:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        count:
+          type: integer
+      required:
+        - name
+        - count
+
+    TrendPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        count:
+          type: integer
+      required:
+        - date
+        - count

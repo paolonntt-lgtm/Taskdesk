@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript. Sistema di ticketing aziendale interno in italiano, con React + MUI frontend, Express backend, PostgreSQL.
 
 ## Stack
 
@@ -15,6 +15,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Material UI (MUI) + TanStack Query v5
+- **Charts**: Recharts
 
 ## Key Commands
 
@@ -25,3 +27,48 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Artifacts
+
+### Sistema Ticketing Aziendale (`artifacts/ticketing`)
+- **Type**: React SPA (Vite)
+- **Language**: Italian UI
+- **Auth**: Cookie-based sessions (SHA-256 hashed passwords, salt "ticketing_salt")
+- **Demo users**:
+  - Admin: `admin@example.com` / `admin123`
+  - User: `utente@example.com` / `user123`
+
+### API Server (`artifacts/api-server`)
+- **Port**: 8080 (proxied via `/api`)
+- **Sessions**: In-memory Map in `src/lib/session.ts`
+- **Seed**: Auto-seeds demo data on first start via `src/lib/seed.ts`
+- **Routes**: `/api/auth/*`, `/api/tickets/*`, `/api/users/*`, `/api/stats/*`, `/api/notifications/*`
+
+## Architecture Notes
+
+### Auth Flow
+- `AppShell` in `artifacts/ticketing/src/App.tsx` manages auth state via plain `fetch("/api/auth/me")`
+- `AuthContext` (contexts/AuthContext.tsx) exports `AuthContext` and `useAuth` hook
+- No route-based auth gate — `AppShell` renders either `<Login>` or `<Layout>` based on user state
+
+### Backend SQL
+- Use `inArray()` from `drizzle-orm` for `WHERE id IN (...)` queries — NOT `sql\`id = ANY(...)\``
+- Array params in raw `sql\`\`` template tags do NOT work in Drizzle
+
+### Generated API Client
+- Located in `lib/api-client-react/src/generated/api.ts`
+- Regenerate with: `pnpm --filter @workspace/api-spec run codegen`
+- All hooks: `useListTickets`, `useGetTicket`, `useCreateTicket`, `useUpdateTicket`, `useListTicketComments`, `useAddTicketComment`, `useListTicketNotes`, `useAddTicketNote`, `useListTicketActivity`, `useListNotifications`, `useMarkAllNotificationsRead`, `useGetDashboardStats`, `useGetRecentTickets`, `useGetMyTickets`, `useGetStatsByStatus/Category/Location/Priority/Assignee`, `useGetTicketTrend`
+
+## Features Implemented
+- ✅ Login / Logout con ruoli (admin / utente)
+- ✅ Dashboard con statistiche e ticket recenti
+- ✅ Lista ticket con ricerca full-text e filtri (stato, priorità)
+- ✅ Dettaglio ticket con commenti, note interne (solo admin), cronologia attività
+- ✅ Creazione nuovo ticket
+- ✅ Modifica stato/priorità/assegnatario (solo admin)
+- ✅ Notifiche in-app (badge + menu)
+- ✅ Report con grafici (Recharts): trend, per stato, categoria, priorità, sede, operatore
+- ✅ Tema chiaro/scuro con persistenza localStorage
+- ✅ UI completamente in italiano
+- ✅ Dati demo pre-caricati (11 ticket, commenti, note, attività)
