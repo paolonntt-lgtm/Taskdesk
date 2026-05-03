@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Nuovo</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="reports">
+        <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
+        <Label>Report</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>Profilo</Label>
@@ -109,6 +113,18 @@ function ClassicTabLayout() {
               <SymbolView name="plus.circle" tintColor={color} size={22} />
             ) : (
               <Feather name="plus-circle" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: "Report",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="trophy" tintColor={color} size={22} />
+            ) : (
+              <Feather name="award" size={22} color={color} />
             ),
         }}
       />

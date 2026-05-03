@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and, gte, isNotNull, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -143,6 +143,50 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
     commentCount: 0,
     noteCount: 0,
   })));
+});
+
+router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> => {
+  const [openers, commenters, resolvers] = await Promise.all([
+    db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      count: sql<number>`count(${ticketsTable.id})`,
+    })
+      .from(usersTable)
+      .innerJoin(ticketsTable, eq(ticketsTable.createdBy, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketsTable.id}) desc`)
+      .limit(5),
+
+    db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      count: sql<number>`count(${ticketCommentsTable.id})`,
+    })
+      .from(usersTable)
+      .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
+      .limit(5),
+
+    db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      count: sql<number>`count(${ticketsTable.id})`,
+    })
+      .from(usersTable)
+      .innerJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
+      .where(isNotNull(ticketsTable.resolutionNote))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketsTable.id}) desc`)
+      .limit(5),
+  ]);
+
+  res.json({
+    openers: openers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+    commenters: commenters.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+    resolvers: resolvers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+  });
 });
 
 export default router;

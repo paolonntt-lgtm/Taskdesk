@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Grid, Card, CardContent, Typography, CircularProgress } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Grid, Card, CardContent, Typography, CircularProgress, Avatar, Divider, List, ListItem, ListItemAvatar, ListItemText, Chip } from '@mui/material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -13,9 +13,58 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 const COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 
+interface LeaderEntry { id: number; name: string; count: number }
+interface Leaderboard { openers: LeaderEntry[]; commenters: LeaderEntry[]; resolvers: LeaderEntry[] }
+
+const MEDALS = ['🥇', '🥈', '🥉', '4.', '5.'];
+
+function LeaderboardCard({ title, entries, unit, color }: {
+  title: string; entries: LeaderEntry[]; unit: string; color: string
+}) {
+  const max = entries[0]?.count ?? 1;
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold" mb={2}>{title}</Typography>
+        {entries.length === 0 ? (
+          <Typography color="text.secondary" fontSize={13}>Nessun dato disponibile</Typography>
+        ) : (
+          <List disablePadding>
+            {entries.map((entry, i) => (
+              <React.Fragment key={entry.id}>
+                {i > 0 && <Divider component="li" />}
+                <ListItem disableGutters sx={{ gap: 1.5, py: 1 }}>
+                  <Typography fontSize={i === 0 ? 22 : 16} width={28} textAlign="center">{MEDALS[i]}</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" fontWeight={i === 0 ? 700 : 500}>{entry.name}</Typography>
+                      <Chip label={`${entry.count} ${unit}`} size="small" sx={{ bgcolor: color + '18', color, fontWeight: 700, fontSize: 11 }} />
+                    </Box>
+                    <Box sx={{ height: 4, bgcolor: 'action.hover', borderRadius: 1, overflow: 'hidden' }}>
+                      <Box sx={{ height: '100%', width: `${(entry.count / max) * 100}%`, bgcolor: i === 0 ? color : color + '66', borderRadius: 1, transition: 'width 0.6s' }} />
+                    </Box>
+                  </Box>
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Reports() {
   const theme = useTheme();
   const { t } = useLanguage();
+  const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
+
+  useEffect(() => {
+    fetch('/api/stats/leaderboard', { credentials: 'include' })
+      .then((r) => r.json())
+      .then(setLeaderboard)
+      .catch(() => {});
+  }, []);
 
   const { data: statusStats, isLoading: s1 } = useGetStatsByStatus();
   const { data: categoryStats, isLoading: s2 } = useGetStatsByCategory();
@@ -179,6 +228,40 @@ export default function Reports() {
               </Box>
             </CardContent>
           </Card>
+        </Grid>
+
+        {/* Leaderboards */}
+        <Grid item xs={12}>
+          <Typography variant="h5" fontWeight="bold" mt={1} mb={1}>
+            {t.reports.leaderboardTitle}
+          </Typography>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <LeaderboardCard
+            title={t.reports.leaderboardOpeners}
+            entries={leaderboard?.openers ?? []}
+            unit={t.reports.leaderboardTickets}
+            color={theme.palette.primary.main}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <LeaderboardCard
+            title={t.reports.leaderboardCommenters}
+            entries={leaderboard?.commenters ?? []}
+            unit={t.reports.leaderboardComments}
+            color={theme.palette.secondary.main}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <LeaderboardCard
+            title={t.reports.leaderboardResolvers}
+            entries={leaderboard?.resolvers ?? []}
+            unit={t.reports.leaderboardResolutions}
+            color={theme.palette.success.main}
+          />
         </Grid>
       </Grid>
     </Box>
