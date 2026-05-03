@@ -20,6 +20,7 @@ import {
   useTheme,
   useMediaQuery,
   Button,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -42,7 +43,7 @@ import { useListNotifications, useMarkAllNotificationsRead } from '@workspace/ap
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 
-const drawerWidth = 260;
+const drawerWidth = 264;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -95,111 +96,161 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const menuItems = [
-    { text: t.nav.dashboard, icon: <Dashboard />, path: '/', adminOnly: false },
-    { text: t.nav.allTickets, icon: <ConfirmationNumber />, path: '/tickets', adminOnly: false },
-    { text: t.nav.newTicket, icon: <AddBox />, path: '/tickets/new', adminOnly: false },
-    { text: t.nav.reports, icon: <BarChart />, path: '/reports', adminOnly: false },
-    { text: t.nav.users, icon: <People />, path: '/users', adminOnly: true },
-    { text: t.nav.billing, icon: <CreditCard />, path: '/billing', adminOnly: true },
-    { text: t.nav.settings, icon: <Settings />, path: '/settings', adminOnly: false },
+    { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',        adminOnly: false },
+    { text: t.nav.allTickets, icon: <ConfirmationNumber />,  path: '/tickets', adminOnly: false },
+    { text: t.nav.newTicket,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
+    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports', adminOnly: false },
+    { text: t.nav.users,      icon: <People />,              path: '/users',   adminOnly: true },
+    { text: t.nav.billing,    icon: <CreditCard />,          path: '/billing', adminOnly: true },
+    { text: t.nav.settings,   icon: <Settings />,            path: '/settings', adminOnly: false },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
 
+  const isActive = (path: string) =>
+    path === '/' ? location === '/' : location.startsWith(path);
+
   const drawer = (
-    <div>
-      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2 }}>
-        <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: 'primary.main', letterSpacing: 1 }}>
-          TaskDesk
-        </Typography>
-      </Toolbar>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Logo */}
+      <Box sx={{ px: 2.5, py: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{
+            width: 36, height: 36, borderRadius: '10px',
+            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+          }}>
+            <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: '1.1rem', lineHeight: 1 }}>T</Typography>
+          </Box>
+          <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.01em' }}>
+            TaskDesk
+          </Typography>
+        </Box>
+      </Box>
+
       <Divider />
-      <List sx={{ px: 2, pt: 2 }}>
+
+      {/* Nav items */}
+      <List sx={{ px: 1.5, pt: 1.5, flex: 1 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
-              onClick={() => {
-                setLocation(item.path);
-                if (isMobile) setMobileOpen(false);
-              }}
-              selected={location === item.path || (item.path !== '/' && location.startsWith(item.path))}
+              onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
+              selected={isActive(item.path)}
               sx={{
-                borderRadius: 1,
+                borderRadius: '10px',
+                py: 1,
                 '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+                  background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                  '& .MuiListItemIcon-root': { color: '#ffffff' },
+                  '&:hover': { background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)' },
                 },
-                '&.Mui-selected:hover': { backgroundColor: 'primary.dark' },
+                '&:not(.Mui-selected):hover': {
+                  bgcolor: mode === 'light' ? '#f3f4f6' : 'rgba(255,255,255,0.05)',
+                },
               }}
             >
-              <ListItemIcon
-                sx={{
-                  minWidth: 40,
-                  color: location === item.path || (item.path !== '/' && location.startsWith(item.path))
-                    ? 'inherit' : 'text.secondary',
-                }}
-              >
+              <ListItemIcon sx={{
+                minWidth: 38,
+                color: isActive(item.path) ? 'inherit' : 'text.secondary',
+              }}>
                 {item.icon}
               </ListItemIcon>
-              <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 500 }} />
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 500, fontSize: '0.9rem' }}
+              />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </div>
+
+      {/* User card at bottom */}
+      <Box sx={{ p: 2 }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center', gap: 1.5,
+          p: 1.5, borderRadius: '12px',
+          bgcolor: mode === 'light' ? '#f8faff' : 'rgba(255,255,255,0.04)',
+          border: '1px solid', borderColor: mode === 'light' ? '#f3f4f6' : 'rgba(255,255,255,0.07)',
+        }}>
+          <Avatar sx={{
+            width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
+            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+          }}>
+            {user?.name?.charAt(0) || <AccountCircle />}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" fontWeight={700} noWrap display="block" sx={{ lineHeight: 1.3 }}>
+              {user?.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.3 }}>
+              {roleLabel}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
+
       <AppBar
         position="fixed"
         sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}
       >
-        <Toolbar>
+        <Toolbar sx={{ gap: 1 }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            sx={{ mr: 1, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
 
+          {/* Language toggle */}
           <Button
             onClick={toggleLang}
-            color="inherit"
             size="small"
             sx={{
-              mr: 1,
-              minWidth: 0,
-              px: 1.5,
-              fontWeight: 'bold',
-              fontSize: '0.75rem',
-              border: '1px solid rgba(255,255,255,0.4)',
-              borderRadius: 1,
-              letterSpacing: 1,
+              minWidth: 0, px: 1.5,
+              fontWeight: 700, fontSize: '0.7rem',
+              border: '1.5px solid', borderColor: 'divider',
+              borderRadius: '8px', letterSpacing: '0.05em',
+              color: 'text.secondary',
+              '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
             }}
           >
             {lang === 'it' ? 'EN' : 'IT'}
           </Button>
 
+          {/* Dark/light toggle */}
           <IconButton
-            color="inherit"
             onClick={toggleTheme}
-            sx={{ mr: 1 }}
+            size="small"
             title={mode === 'light' ? t.nav.darkMode : t.nav.lightMode}
+            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
           >
-            {mode === 'light' ? <DarkMode /> : <LightMode />}
+            {mode === 'light' ? <DarkMode fontSize="small" /> : <LightMode fontSize="small" />}
           </IconButton>
 
-          <IconButton color="inherit" onClick={handleNotifMenuOpen} sx={{ mr: 1 }} title={t.nav.notifications}>
-            <Badge badgeContent={unreadCount} color="error">
-              <Notifications />
+          {/* Notifications */}
+          <IconButton
+            onClick={handleNotifMenuOpen}
+            size="small"
+            title={t.nav.notifications}
+            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+          >
+            <Badge badgeContent={unreadCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}>
+              <Notifications fontSize="small" />
             </Badge>
           </IconButton>
 
@@ -209,51 +260,49 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
             onClose={handleMenuClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            PaperProps={{ sx: { width: 340, maxHeight: 420 } }}
+            PaperProps={{ sx: { width: 340, maxHeight: 420, borderRadius: '16px', mt: 1 } }}
           >
-            <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1" fontWeight="bold">{t.nav.notifications}</Typography>
+            <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle2" fontWeight={700}>{t.nav.notifications}</Typography>
               {unreadCount > 0 && (
-                <Typography variant="body2" color="primary" sx={{ cursor: 'pointer' }} onClick={handleMarkAllRead}>
+                <Typography
+                  variant="caption" color="primary" fontWeight={700}
+                  sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                  onClick={handleMarkAllRead}
+                >
                   {t.nav.markAllRead}
                 </Typography>
               )}
             </Box>
             {notifPermission === 'default' && (
               <Box sx={{ px: 2, pb: 1 }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<Notifications fontSize="small" />}
+                <Button size="small" variant="outlined" fullWidth startIcon={<Notifications fontSize="small" />}
                   onClick={handleRequestPermission}
-                  sx={{ fontSize: '0.75rem', textTransform: 'none', borderStyle: 'dashed' }}
-                >
+                  sx={{ fontSize: '0.75rem', textTransform: 'none', borderStyle: 'dashed', borderRadius: '10px' }}>
                   Abilita notifiche browser
                 </Button>
               </Box>
             )}
             {notifPermission === 'granted' && (
               <Box sx={{ px: 2, pb: 0.5 }}>
-                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}>
                   ✓ Notifiche browser attive
                 </Typography>
               </Box>
             )}
             <Divider />
             {notifications.length === 0 ? (
-              <MenuItem disabled>{t.nav.noNotifications}</MenuItem>
+              <MenuItem disabled sx={{ justifyContent: 'center', py: 3 }}>
+                <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
+              </MenuItem>
             ) : (
               notifications.map((n: any) => (
                 <MenuItem
                   key={n.id}
-                  onClick={() => {
-                    handleMenuClose();
-                    if (n.ticketId) setLocation(`/tickets/${n.ticketId}`);
-                  }}
+                  onClick={() => { handleMenuClose(); if (n.ticketId) setLocation(`/tickets/${n.ticketId}`); }}
                   sx={{
-                    whiteSpace: 'normal',
-                    bgcolor: n.isRead ? 'transparent' : 'action.hover',
+                    whiteSpace: 'normal', py: 1.5,
+                    bgcolor: n.isRead ? 'transparent' : 'primary.50',
                     borderLeft: n.isRead ? 'none' : '3px solid',
                     borderLeftColor: 'primary.main',
                   }}
@@ -264,12 +313,16 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
             )}
           </Menu>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleProfileMenuOpen}>
-            <Box sx={{ mr: 1.5, textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
-              <Typography variant="body2" fontWeight="bold">{user?.name}</Typography>
-              <Typography variant="caption" color="text.secondary">{roleLabel}</Typography>
+          {/* Profile */}
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', ml: 0.5, p: 0.5, borderRadius: '10px', '&:hover': { bgcolor: 'action.hover' } }}
+            onClick={handleProfileMenuOpen}
+          >
+            <Box sx={{ mr: 0.5, textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
+              <Typography variant="caption" fontWeight={700} display="block" lineHeight={1.3}>{user?.name}</Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.3 }}>{roleLabel}</Typography>
             </Box>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
+            <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700, background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}>
               {user?.name?.charAt(0) || <AccountCircle />}
             </Avatar>
           </Box>
@@ -280,15 +333,16 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
             onClose={handleMenuClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            PaperProps={{ sx: { borderRadius: '14px', mt: 1, minWidth: 200 } }}
           >
-            <MenuItem disabled>
-              <Box>
-                <Typography variant="body2" fontWeight="bold">{user?.name}</Typography>
-                <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
-              </Box>
-            </MenuItem>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="body2" fontWeight={700}>{user?.name}</Typography>
+              <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
+            </Box>
             <Divider />
-            <MenuItem onClick={handleLogout}>{t.nav.logout}</MenuItem>
+            <MenuItem onClick={handleLogout} sx={{ color: 'error.main', fontWeight: 600, mt: 0.5 }}>
+              {t.nav.logout}
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
@@ -299,19 +353,13 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
+          sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
         >
           {drawer}
         </Drawer>
         <Drawer
           variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
+          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
           open
         >
           {drawer}
@@ -326,6 +374,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px',
           bgcolor: 'background.default',
+          minHeight: 'calc(100vh - 64px)',
         }}
       >
         {children}
