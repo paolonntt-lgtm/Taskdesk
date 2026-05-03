@@ -158,7 +158,7 @@ export default function TicketDetailScreen() {
     <>
       <KeyboardAwareScrollView
         style={s.root}
-        contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 24 }]}
+        contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bottomOffset={16}

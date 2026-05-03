@@ -61,7 +61,7 @@ export default function NewTicketScreen() {
   return (
     <KeyboardAwareScrollView
       style={s.root}
-      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 0 }]}
+      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 0 }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       bottomOffset={16}

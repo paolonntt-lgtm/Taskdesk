@@ -169,7 +169,7 @@ export default function ReportsScreen() {
   return (
     <ScrollView
       style={s.root}
-      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 24 }]}
+      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 24 }]}
       refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >

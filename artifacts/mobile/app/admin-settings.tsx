@@ -176,7 +176,7 @@ export default function AdminSettingsScreen() {
   return (
     <View style={s.root}>
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 40 : 32 }]}
+        contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 32 }]}
         showsVerticalScrollIndicator={false}
       >
         {SECTIONS.map((section) => {

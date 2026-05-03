@@ -65,7 +65,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       style={s.root}
-      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 0 }]}
+      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 0 }]}
       refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >

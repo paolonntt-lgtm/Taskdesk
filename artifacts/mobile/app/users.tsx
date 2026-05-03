@@ -241,7 +241,7 @@ export default function UsersScreen() {
           data={users}
           keyExtractor={(u) => String(u.id)}
           renderItem={renderUser}
-          contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 34 : 20 }]}
+          contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 20 }]}
           refreshing={false}
           onRefresh={refetch}
           showsVerticalScrollIndicator={false}

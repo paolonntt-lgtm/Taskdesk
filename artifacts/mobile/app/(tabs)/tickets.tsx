@@ -156,7 +156,7 @@ export default function TicketsScreen() {
           data={filtered}
           keyExtractor={(ticket) => String(ticket.id)}
           renderItem={renderTicket}
-          contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 34 : 0 }]}
+          contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 0 }]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={s.empty}>

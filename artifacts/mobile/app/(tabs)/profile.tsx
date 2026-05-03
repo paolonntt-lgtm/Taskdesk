@@ -70,7 +70,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={s.root}
-      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 34 : 24 }]}
+      contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 24 }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={s.avatarSection}>
