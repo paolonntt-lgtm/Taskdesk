@@ -2,7 +2,8 @@ import { Router, type IRouter } from 'express';
 import { stripeStorage } from '../stripeStorage';
 import { stripeService } from '../stripeService';
 import { getUncachableStripeClient } from '../stripeClient';
-import { requireAuth } from '../middlewares/auth';
+import { requireAuth, requireAdmin } from '../middlewares/auth';
+import { getSeatUsage } from '../seatService';
 
 const router: IRouter = Router();
 
@@ -14,11 +15,22 @@ router.get('/stripe/products', async (_req, res) => {
     const result = await Promise.all(
       products.data.map(async (product) => {
         const prices = await stripe.prices.list({ product: product.id, active: true });
+        const seatsMeta = product.metadata?.seats;
+        let seats: number | null = null;
+        let unlimited = false;
+        if (seatsMeta === 'unlimited') unlimited = true;
+        else if (seatsMeta) {
+          const n = parseInt(String(seatsMeta), 10);
+          if (!isNaN(n) && n > 0) seats = n;
+        }
         return {
           id: product.id,
           name: product.name,
           description: product.description ?? '',
           active: product.active,
+          metadata: product.metadata ?? {},
+          seats,
+          unlimited,
           prices: prices.data.map((p) => ({
             id: p.id,
             unit_amount: p.unit_amount,
@@ -58,6 +70,15 @@ router.get('/stripe/subscription', requireAuth, async (req: any, res): Promise<v
   }
 });
 
+router.get('/stripe/seat-usage', requireAuth, async (req: any, res): Promise<void> => {
+  try {
+    const usage = await getSeatUsage(req.currentUser.id);
+    res.json(usage);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const { priceId } = req.body;
@@ -78,11 +99,67 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
     const session = await stripeService.createCheckoutSession(
       customerId,
       priceId,
-      `${baseUrl}/billing?success=1`,
-      `${baseUrl}/billing`
+      `${baseUrl}/app/billing?success=1`,
+      `${baseUrl}/app/billing`
     );
 
     res.json({ url: session.url });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+  try {
+    const { priceId } = req.body;
+    if (!priceId) { res.status(400).json({ error: 'priceId is required' }); return; }
+
+    const usage = await getSeatUsage(req.currentUser.id);
+    if (!usage.subscriptionId || !usage.subscriptionItemId) {
+      res.status(400).json({ error: 'NO_ACTIVE_SUBSCRIPTION', message: 'Nessun abbonamento attivo da modificare.' });
+      return;
+    }
+    if (priceId === usage.currentPriceId) {
+      res.status(400).json({ error: 'SAME_PLAN', message: 'È già il piano attuale.' });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const newPrice = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    const newProduct = newPrice.product as any;
+    const newSeatsMeta = newProduct?.metadata?.seats;
+    let newSeats: number | null = null;
+    let newUnlimited = false;
+    if (newSeatsMeta === 'unlimited' || !newSeatsMeta) newUnlimited = true;
+    else {
+      const n = parseInt(String(newSeatsMeta), 10);
+      if (!isNaN(n) && n > 0) newSeats = n;
+      else newUnlimited = true;
+    }
+
+    if (!newUnlimited && newSeats !== null && newSeats < usage.usedSeats) {
+      res.status(400).json({
+        error: 'CANNOT_DOWNGRADE_BELOW_USAGE',
+        message: `Il piano scelto offre ${newSeats} posti ma stai usando ${usage.usedSeats} utenti attivi. Disattiva alcuni utenti prima di passare a questo piano.`,
+        usedSeats: usage.usedSeats,
+        newSeats,
+        newPlanName: newProduct?.name,
+      });
+      return;
+    }
+
+    const updated = await stripe.subscriptions.update(usage.subscriptionId, {
+      items: [{ id: usage.subscriptionItemId, price: priceId }],
+      proration_behavior: 'create_prorations',
+      payment_behavior: 'pending_if_incomplete',
+    });
+
+    res.json({
+      subscription: { id: updated.id, status: updated.status },
+      newPlanName: newProduct?.name,
+      newSeats: newUnlimited ? null : newSeats,
+      unlimited: newUnlimited,
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -100,7 +177,7 @@ router.post('/stripe/portal', requireAuth, async (req: any, res): Promise<void> 
     const baseUrl = domains[0] ? `https://${domains[0]}` : 'http://localhost:80';
     const session = await stripeService.createCustomerPortalSession(
       user.stripeCustomerId,
-      `${baseUrl}/billing`
+      `${baseUrl}/app/billing`
     );
 
     res.json({ url: session.url });

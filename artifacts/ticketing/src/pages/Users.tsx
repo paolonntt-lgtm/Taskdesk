@@ -32,7 +32,12 @@ import {
   PersonOff,
   PersonAdd,
   InfoOutlined,
+  TrendingUp,
+  Group,
+  AllInclusive,
 } from '@mui/icons-material';
+import { Link as WLink } from 'wouter';
+import { LinearProgress } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,6 +75,15 @@ export default function Users() {
 
   const [groups, setGroups] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
+  const [seatUsage, setSeatUsage] = useState<{
+    usedSeats: number;
+    planSeats: number | null;
+    planName: string;
+    unlimited: boolean;
+    available: number | null;
+    limitReached: boolean;
+    hasActiveSubscription: boolean;
+  } | null>(null);
 
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
@@ -87,6 +101,13 @@ export default function Users() {
 
   const activeCount = users.filter((u) => u.isActive !== false).length;
 
+  const refreshSeatUsage = () => {
+    fetch('/api/stripe/seat-usage', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setSeatUsage(d); })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetch('/api/settings/groups', { credentials: 'include' })
       .then((r) => r.json())
@@ -96,7 +117,12 @@ export default function Users() {
       .then((r) => r.json())
       .then((d) => setLocations(d.value ?? []))
       .catch(() => {});
+    refreshSeatUsage();
   }, []);
+
+  useEffect(() => {
+    refreshSeatUsage();
+  }, [users.length]);
 
   const openCreate = () => {
     setEditTarget(null);
@@ -180,7 +206,10 @@ export default function Users() {
       const serverMsg: string =
         err?.data?.message || err?.data?.error || err?.message || '';
 
-      if (status === 409 || serverMsg.toLowerCase().includes('email')) {
+      if (status === 402 || err?.data?.error === 'SEAT_LIMIT_REACHED') {
+        setFormError(ut.errorSeatLimit);
+        refreshSeatUsage();
+      } else if (status === 409 || serverMsg.toLowerCase().includes('email')) {
         setFormError(ut.errorEmailExists);
       } else {
         setFormError(serverMsg || ut.errorSaving);
@@ -212,30 +241,99 @@ export default function Users() {
     );
   }
 
+  const seatPct = seatUsage && !seatUsage.unlimited && seatUsage.planSeats
+    ? Math.min(100, (seatUsage.usedSeats / seatUsage.planSeats) * 100) : 0;
+  const seatColor: 'primary' | 'warning' | 'error' = seatPct >= 100 ? 'error' : seatPct >= 80 ? 'warning' : 'primary';
+  const isFull = seatUsage?.limitReached ?? false;
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
+          <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em">
             {ut.title}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip label={`${activeCount} ${ut.subtitle}`} color="primary" size="small" />
-            <Tooltip title={ut.billingNote}>
-              <InfoOutlined fontSize="small" sx={{ color: 'text.secondary', cursor: 'help' }} />
-            </Tooltip>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {seatUsage ? (
+              seatUsage.unlimited ? (
+                <Chip icon={<AllInclusive sx={{ fontSize: 14 }} />} label={ut.seatsUnlimited} color="success" size="small" variant="outlined" />
+              ) : (
+                <Chip
+                  icon={<Group sx={{ fontSize: 14 }} />}
+                  label={`${seatUsage.usedSeats} / ${seatUsage.planSeats} ${ut.seatsUsedLabel}`}
+                  color={seatColor}
+                  size="small"
+                />
+              )
+            ) : (
+              <Chip label={`${activeCount} ${ut.subtitle}`} color="primary" size="small" />
+            )}
+            {seatUsage?.hasActiveSubscription && (
+              <Chip label={seatUsage.planName} size="small" variant="outlined" />
+            )}
+            {seatPct >= 80 && seatPct < 100 && (
+              <Chip label={ut.seatsAlmostFull} color="warning" size="small" />
+            )}
+            {isFull && (
+              <Chip label={ut.seatsFull} color="error" size="small" />
+            )}
           </Box>
         </Box>
         {currentUser?.role === 'admin' && (
-          <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
-            {ut.addUser}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {isFull && (
+              <Button variant="outlined" color="primary" component={WLink as any} href="/billing" startIcon={<TrendingUp />}>
+                {ut.upgradeCta}
+              </Button>
+            )}
+            <Tooltip title={isFull ? ut.errorSeatLimit : ''}>
+              <span>
+                <Button variant="contained" startIcon={<Add />} onClick={openCreate} disabled={isFull}>
+                  {ut.addUser}
+                </Button>
+              </span>
+            </Tooltip>
+          </Box>
         )}
       </Box>
 
-      <Alert severity="info" sx={{ mb: 3 }} icon={<InfoOutlined />}>
-        {ut.billingNote}
-      </Alert>
+      {/* Seat usage progress bar */}
+      {seatUsage && !seatUsage.unlimited && seatUsage.planSeats && (
+        <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+          <LinearProgress
+            variant="determinate"
+            value={seatPct}
+            color={seatColor}
+            sx={{ height: 8, borderRadius: 4, bgcolor: 'action.hover' }}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              {seatUsage.usedSeats} / {seatUsage.planSeats} {ut.seatsUsedLabel}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {seatUsage.available ?? 0} disponibili
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {isFull ? (
+        <Alert
+          severity="error"
+          sx={{ mb: 3, borderRadius: '12px' }}
+          action={
+            <Button color="inherit" size="small" component={WLink as any} href="/billing" startIcon={<TrendingUp />}>
+              {ut.upgradeCta}
+            </Button>
+          }
+        >
+          {ut.errorSeatLimit}
+        </Alert>
+      ) : (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: '12px' }} icon={<InfoOutlined />}>
+          {ut.billingNote}
+        </Alert>
+      )}
 
       <TableContainer component={Paper} elevation={1}>
         <Table>

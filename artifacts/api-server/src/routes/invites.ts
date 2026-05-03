@@ -4,6 +4,7 @@ import { db, usersTable, inviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { createSession } from "../lib/session";
 import { createHash, randomUUID } from "crypto";
+import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
 
@@ -13,6 +14,13 @@ function hashPassword(password: string): string {
 
 router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const admin = (req as any).currentUser;
+
+  const usage = await getSeatUsage(admin.id);
+  if (usage.limitReached) {
+    res.status(402).json(buildSeatLimitError(usage));
+    return;
+  }
+
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -79,6 +87,16 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     .where(eq(usersTable.email, String(email).toLowerCase().trim()));
   if (existing) {
     res.status(409).json({ message: "Email già in uso" });
+    return;
+  }
+
+  // Re-check seat limit at registration time (admin's plan)
+  const usage = await getSeatUsage(invite.adminId);
+  if (usage.limitReached) {
+    res.status(402).json({
+      ...buildSeatLimitError(usage),
+      message: "L'organizzazione ha raggiunto il limite di utenti del proprio piano. Contatta l'amministratore.",
+    });
     return;
   }
 

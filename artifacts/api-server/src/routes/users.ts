@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
 import { createHash } from "crypto";
+import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,13 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
 
   if (existing) {
     res.status(409).json({ error: "Email already in use", message: "L'email è già in uso da un altro utente." });
+    return;
+  }
+
+  const currentUser = (req as any).currentUser;
+  const usage = await getSeatUsage(currentUser.id);
+  if (usage.limitReached) {
+    res.status(402).json(buildSeatLimitError(usage));
     return;
   }
 
@@ -98,6 +106,19 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });
     return;
+  }
+
+  // Enforce seat limit when reactivating a deactivated user
+  if (updates.isActive === true) {
+    const [target] = await db.select({ isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, id));
+    if (target && target.isActive === false) {
+      const currentUser = (req as any).currentUser;
+      const usage = await getSeatUsage(currentUser.id);
+      if (usage.limitReached) {
+        res.status(402).json(buildSeatLimitError(usage));
+        return;
+      }
+    }
   }
 
   const [updated] = await db
