@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatRow { name: string; count: number }
+type AssigneeEntry = StatRow;
 interface TrendRow { date: string; count: number }
 interface LeaderEntry { id: number; name: string; count: number }
 interface ReportsAll {

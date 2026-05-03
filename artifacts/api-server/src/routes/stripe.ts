@@ -36,11 +36,12 @@ router.get('/stripe/products', async (_req, res) => {
   }
 });
 
-router.get('/stripe/subscription', requireAuth, async (req: any, res) => {
+router.get('/stripe/subscription', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
-      return res.json({ subscription: null });
+      res.json({ subscription: null });
+      return;
     }
 
     const stripe = await getUncachableStripeClient();
@@ -57,13 +58,13 @@ router.get('/stripe/subscription', requireAuth, async (req: any, res) => {
   }
 });
 
-router.post('/stripe/checkout', requireAuth, async (req: any, res) => {
+router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const { priceId } = req.body;
-    if (!priceId) return res.status(400).json({ error: 'priceId is required' });
+    if (!priceId) { res.status(400).json({ error: 'priceId is required' }); return; }
 
     const user = await stripeStorage.getUser(req.currentUser.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
     let customerId = user.stripeCustomerId;
     if (!customerId) {
@@ -87,11 +88,12 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res) => {
   }
 });
 
-router.post('/stripe/portal', requireAuth, async (req: any, res) => {
+router.post('/stripe/portal', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
-      return res.status(400).json({ error: 'Nessun cliente Stripe trovato per questo utente' });
+      res.status(400).json({ error: 'Nessun cliente Stripe trovato per questo utente' });
+      return;
     }
 
     const domains = process.env.REPLIT_DOMAINS?.split(',') ?? [];

@@ -1,11 +1,4 @@
 import { Request } from "express";
-import { User } from "@workspace/db";
-
-declare module "express-serve-static-core" {
-  interface Request {
-    session: SessionData;
-  }
-}
 
 export interface SessionData {
   userId?: number;

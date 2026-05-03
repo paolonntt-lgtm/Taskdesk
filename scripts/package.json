@@ -9,6 +9,9 @@
     "seed-stripe": "tsx ./src/seed-stripe.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@workspace/db": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"

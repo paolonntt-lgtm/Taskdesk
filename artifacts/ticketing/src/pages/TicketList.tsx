@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
 import { useListTickets } from '@workspace/api-client-react';
-import { Link, useSearch } from 'wouter';
+import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -15,6 +15,7 @@ const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 export default function TicketList() {
   const { t, lang } = useLanguage();
+  const [, navigate] = useLocation();
   const searchStr = useSearch();
   const params = new URLSearchParams(searchStr);
   const initialStatus = VALID_STATUSES.includes(params.get('status') ?? '') ? params.get('status')! : 'all';
@@ -144,9 +145,8 @@ export default function TicketList() {
                   <TableRow
                     key={ticket.id}
                     hover
-                    sx={{ cursor: 'pointer', textDecoration: 'none' }}
-                    component={Link}
-                    href={`/tickets/${ticket.id}`}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
                     <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
