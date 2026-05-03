@@ -66,6 +66,13 @@ function RootLayoutNav() {
           headerBackTitle: "Indietro",
         }}
       />
+      <Stack.Screen
+        name="admin-settings"
+        options={{
+          title: "Impostazioni sistema",
+          headerBackTitle: "Indietro",
+        }}
+      />
     </Stack>
   );
 }

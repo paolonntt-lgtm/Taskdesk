@@ -133,6 +133,19 @@ export default function ProfileScreen() {
             </View>
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
+          <View style={[s.infoRow, s.infoRowBorder]}>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}
+              onPress={() => router.push("/admin-settings" as any)}
+              activeOpacity={0.7}
+            >
+              <View style={s.infoLeft}>
+                <Feather name="settings" size={16} color={colors.primary} />
+                <Text style={[s.infoLabel, { color: colors.primary }]}>{t.profile.manageSettings}</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
