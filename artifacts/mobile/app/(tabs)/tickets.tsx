@@ -18,6 +18,7 @@ interface Ticket {
   category: string;
   location: string;
   createdAt: string;
+  resolutionNote?: string | null;
   creator?: { name: string };
   assignee?: { name: string } | null;
 }
@@ -57,44 +58,55 @@ export default function TicketsScreen() {
     String(t.id).includes(search)
   );
 
-  const renderTicket = ({ item }: { item: Ticket }) => (
-    <TouchableOpacity
-      style={s.card}
-      onPress={() => router.push(`/ticket/${item.id}` as any)}
-      activeOpacity={0.75}
-    >
-      <View style={s.cardTop}>
-        <View style={[s.priorityBadge, { backgroundColor: PRIORITY_COLORS[item.priority] + "22" }]}>
-          <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[item.priority] }]} />
-          <Text style={[s.priorityText, { color: PRIORITY_COLORS[item.priority] }]}>
-            {PRIORITY_LABELS[item.priority]}
-          </Text>
-        </View>
-        <Text style={s.ticketId}>#{item.id}</Text>
-      </View>
-      <Text style={s.title} numberOfLines={2}>{item.title}</Text>
-      <View style={s.meta}>
-        <View style={s.metaItem}>
-          <Feather name="tag" size={11} color={colors.mutedForeground} />
-          <Text style={s.metaText}>{item.category}</Text>
-        </View>
-        {item.location ? (
-          <View style={s.metaItem}>
-            <Feather name="map-pin" size={11} color={colors.mutedForeground} />
-            <Text style={s.metaText}>{item.location}</Text>
+  const renderTicket = ({ item }: { item: Ticket }) => {
+    const hasNote = !!(item.resolutionNote && (item.status === "resolved" || item.status === "closed"));
+    return (
+      <TouchableOpacity
+        style={[s.card, hasNote && s.cardResolved]}
+        onPress={() => router.push(`/ticket/${item.id}` as any)}
+        activeOpacity={0.75}
+      >
+        <View style={s.cardTop}>
+          <View style={[s.priorityBadge, { backgroundColor: PRIORITY_COLORS[item.priority] + "22" }]}>
+            <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[item.priority] }]} />
+            <Text style={[s.priorityText, { color: PRIORITY_COLORS[item.priority] }]}>
+              {PRIORITY_LABELS[item.priority]}
+            </Text>
           </View>
-        ) : null}
-      </View>
-      <View style={s.cardBottom}>
-        <View style={s.statusBadge}>
-          <Text style={s.statusText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+          <Text style={s.ticketId}>#{item.id}</Text>
         </View>
-        <Text style={s.assignee}>
-          {item.assignee ? item.assignee.name : "Non assegnato"}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+        <View style={s.meta}>
+          <View style={s.metaItem}>
+            <Feather name="tag" size={11} color={colors.mutedForeground} />
+            <Text style={s.metaText}>{item.category}</Text>
+          </View>
+          {item.location ? (
+            <View style={s.metaItem}>
+              <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+              <Text style={s.metaText}>{item.location}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={s.cardBottom}>
+          <View style={s.statusBadge}>
+            <Text style={s.statusText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+          </View>
+          <View style={s.cardBottomRight}>
+            {hasNote && (
+              <View style={s.noteChip}>
+                <Feather name="check-circle" size={11} color={colors.success} />
+                <Text style={s.noteChipText}>Soluzione documentata</Text>
+              </View>
+            )}
+            <Text style={s.assignee}>
+              {item.assignee ? item.assignee.name : "Non assegnato"}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[s.root, { paddingTop: Platform.OS === "web" ? 67 : 0 }]}>
@@ -194,12 +206,23 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     meta: { flexDirection: "row", gap: 14 },
     metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    cardResolved: {
+      borderLeftWidth: 3,
+      borderLeftColor: colors.success,
+    },
     cardBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    cardBottomRight: { flexDirection: "column", alignItems: "flex-end", gap: 4 },
     statusBadge: {
       paddingHorizontal: 8, paddingVertical: 3,
       backgroundColor: colors.muted, borderRadius: 6,
     },
     statusText: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    noteChip: {
+      flexDirection: "row", alignItems: "center", gap: 4,
+      backgroundColor: colors.success + "18",
+      paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10,
+    },
+    noteChipText: { fontSize: 10, color: colors.success, fontFamily: "Inter_600SemiBold" },
     assignee: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     empty: { alignItems: "center", paddingTop: 80, gap: 12 },
     emptyText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
