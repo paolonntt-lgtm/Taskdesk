@@ -24,7 +24,7 @@ const NOTIF_TYPES = [
 ] as const;
 type NotifType = typeof NOTIF_TYPES[number];
 
-interface NotifPref { type: NotifType; inApp: boolean; browser: boolean; sound: boolean }
+interface NotifPref { type: NotifType; inApp: boolean; browser: boolean; sound: boolean; email: boolean }
 
 function NotificationPreferences() {
   const { t } = useLanguage();
@@ -42,8 +42,8 @@ function NotificationPreferences() {
         const merged: NotifPref[] = NOTIF_TYPES.map((type) => {
           const found = (data.preferences ?? []).find((p: any) => p.type === type);
           return found
-            ? { type, inApp: !!found.inApp, browser: !!found.browser, sound: !!found.sound }
-            : { type, inApp: true, browser: true, sound: true };
+            ? { type, inApp: !!found.inApp, browser: !!found.browser, sound: !!found.sound, email: found.email !== false }
+            : { type, inApp: true, browser: true, sound: true, email: true };
         });
         setPrefs(merged);
       })
@@ -52,12 +52,12 @@ function NotificationPreferences() {
     return () => { mounted = false; };
   }, [t]);
 
-  const toggle = (type: NotifType, channel: 'inApp' | 'browser' | 'sound') => {
+  const toggle = (type: NotifType, channel: 'inApp' | 'browser' | 'sound' | 'email') => {
     setPrefs((cur) => cur && cur.map((p) => p.type === type ? { ...p, [channel]: !p[channel] } : p));
   };
 
   const setAll = (value: boolean) => {
-    setPrefs((cur) => cur && cur.map((p) => ({ ...p, inApp: value, browser: value, sound: value })));
+    setPrefs((cur) => cur && cur.map((p) => ({ ...p, inApp: value, browser: value, sound: value, email: value })));
   };
 
   const save = async () => {
@@ -109,6 +109,9 @@ function NotificationPreferences() {
                 <TableCell align="center" sx={{ fontWeight: 700 }}>
                   <Tooltip title={t.settings.notifSoundHint}><span>{t.settings.notifColSound}</span></Tooltip>
                 </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <Tooltip title={t.settings.notifEmailHint}><span>{t.settings.notifColEmail}</span></Tooltip>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -118,6 +121,7 @@ function NotificationPreferences() {
                   <TableCell align="center"><Switch size="small" checked={p.inApp} onChange={() => toggle(p.type, 'inApp')} /></TableCell>
                   <TableCell align="center"><Switch size="small" checked={p.browser} onChange={() => toggle(p.type, 'browser')} disabled={!p.inApp} /></TableCell>
                   <TableCell align="center"><Switch size="small" checked={p.sound} onChange={() => toggle(p.type, 'sound')} disabled={!p.inApp} /></TableCell>
+                  <TableCell align="center"><Switch size="small" checked={p.email} onChange={() => toggle(p.type, 'email')} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>

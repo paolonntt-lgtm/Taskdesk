@@ -40,7 +40,19 @@ interface Translations {
     unit: string;
     subtitle: string;
     trialLabel: string;
-    features: string[];
+    perMonth: string;
+    mostPopular: string;
+    seatsSuffix: string;
+    seatsUnlimited: string;
+    plans: Array<{
+      name: string;
+      price: string;
+      seats: number | null;
+      desc: string;
+      highlight?: boolean;
+      features: string[];
+      cta: string;
+    }>;
     cta: string;
   };
   faq: {
@@ -190,7 +202,7 @@ const translations: Record<Language, Translations> = {
     faq: {
       title: "Domande Frequenti",
       items: [
-        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine del periodo di prova puoi decidere se continuare al costo di €1 per utente attivo al mese." },
+        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €19/mese." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
         { q: "È adatto alla mia azienda?", a: "Se sei una PMI italiana che ha bisogno di mettere ordine nelle richieste interne o dei clienti senza spendere una fortuna, sì." }
@@ -337,7 +349,7 @@ const translations: Record<Language, Translations> = {
     faq: {
       title: "Frequently Asked Questions",
       items: [
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After the trial you can decide whether to continue at €1 per active user per month." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After that you can pick the plan that fits your team, starting at €19/month." },
         { q: "Is there a setup fee?", a: "Absolutely not. The software is ready to use from the first login. You are up and running in minutes." },
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties. You can cancel at any time from your account area." },
         { q: "Is it suitable for my company?", a: "If you are an SME that needs to bring order to internal or customer requests without spending a fortune, yes." }

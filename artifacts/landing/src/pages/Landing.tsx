@@ -176,9 +176,9 @@ export default function Landing() {
 
   const tickerItems = [
     t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media", "🏢 500+ aziende italiane",
-    "🚀 Setup in 5 minuti", `💶 Solo ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
+    "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
     t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media", "🏢 500+ aziende italiane",
-    "🚀 Setup in 5 minuti", `💶 Solo ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
+    "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
   ];
 
   const featureCards = [
@@ -302,7 +302,7 @@ export default function Landing() {
               <div className="ld-fade-up-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
                 <span><span className="text-green-500 font-bold">✓</span> {t.hero.trialNote}</span>
                 <span className="text-gray-200 hidden sm:inline">•</span>
-                <span><span className="text-green-500 font-bold">✓</span> {t.pricing.price}{t.pricing.unit}</span>
+                <span><span className="text-green-500 font-bold">✓</span> {lang === "it" ? "Da" : "From"} {t.pricing.price}{t.pricing.unit}</span>
               </div>
             </div>
 
@@ -362,7 +362,7 @@ export default function Landing() {
               { to: 500, s: "+",  label: lang === "it" ? "Aziende attive"           : "Active companies" },
               { to: 98,  s: "%",  label: lang === "it" ? "Soddisfazione clienti"    : "Client satisfaction" },
               { to: 4,   s: "h",  label: lang === "it" ? "Tempo medio risoluzione"  : "Avg. resolution time" },
-              { to: 1,   s: "",   label: lang === "it" ? "€/utente/mese"            : "€/user/month", p: true },
+              { to: 19,  s: "",   label: lang === "it" ? "€/mese, piano Starter"     : "€/month, Starter plan", p: true },
             ].map(({ to, s, label, p }) => (
               <div key={label}>
                 <div className="text-4xl md:text-5xl font-black ld-gradient-text">
@@ -407,47 +407,71 @@ export default function Landing() {
 
       {/* Pricing */}
       <section id="pricing" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <ScrollReveal>
-            <div className="grid md:grid-cols-2 gap-16 items-center">
-              <div>
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5 leading-tight">
-                  {t.pricing.title}
-                </h2>
-                <p className="text-lg text-gray-400 mb-6">{t.pricing.subtitle}</p>
+            <div className="text-center mb-14 max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold mb-6">
+                {t.pricing.trialLabel}
               </div>
-
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-xl p-8 md:p-10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none" style={{ background: "radial-gradient(circle at top right, #eff6ff, transparent 70%)" }} />
-
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold mb-6">
-                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75" />
-                  {t.pricing.trialLabel}
-                </div>
-
-                <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-6xl font-black text-gray-900">{t.pricing.price}</span>
-                  <span className="text-lg text-gray-400 font-medium">{t.pricing.unit}</span>
-                </div>
-
-                <ul className="space-y-3.5 mb-8">
-                  {t.pricing.features.map((feat, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <span className="text-blue-500 font-bold mt-0.5 shrink-0">✓</span>
-                      <span className={`text-sm ${i === 0 ? "font-bold text-gray-900" : "text-gray-500"}`}>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={handleCta}
-                  className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
-                >
-                  {isMobile ? <><Smartphone className="w-4 h-4" />{t.appBanner.downloadCta}</> : <>{t.pricing.cta} →</>}
-                </button>
-              </div>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5 leading-tight">
+                {t.pricing.title}
+              </h2>
+              <p className="text-lg text-gray-400">{t.pricing.subtitle}</p>
             </div>
           </ScrollReveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {t.pricing.plans.map((plan, idx) => (
+              <ScrollReveal key={plan.name} delay={idx * 0.06}>
+                <div
+                  className={`relative h-full bg-white rounded-2xl p-7 flex flex-col ld-card-hover ${
+                    plan.highlight
+                      ? "border-2 border-blue-600 shadow-xl shadow-blue-100"
+                      : "border border-gray-100 shadow-sm"
+                  }`}
+                >
+                  {plan.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold tracking-wide uppercase shadow-md">
+                      {t.pricing.mostPopular}
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <div className="text-sm font-bold text-gray-400 tracking-wider uppercase mb-1">{plan.name}</div>
+                    <p className="text-sm text-gray-500 leading-relaxed min-h-[40px]">{plan.desc}</p>
+                  </div>
+
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span className="text-5xl font-black text-gray-900">{plan.price}</span>
+                    <span className="text-sm text-gray-400 font-medium">{t.pricing.perMonth}</span>
+                  </div>
+                  <div className="text-xs font-semibold text-gray-500 mb-6">
+                    {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}
+                  </div>
+
+                  <ul className="space-y-2.5 mb-7 flex-1">
+                    {plan.features.map((feat, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <span className={`font-bold mt-0.5 shrink-0 ${plan.highlight ? "text-blue-600" : "text-blue-500"}`}>✓</span>
+                        <span className="text-sm text-gray-600 leading-snug">{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={handleCta}
+                    className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                      plan.highlight
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100"
+                        : "bg-gray-900 hover:bg-gray-800 text-white"
+                    }`}
+                  >
+                    {isMobile ? <><Smartphone className="w-4 h-4" />{t.appBanner.downloadCta}</> : <>{plan.cta} →</>}
+                  </button>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
         </div>
       </section>
 

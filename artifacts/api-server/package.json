@@ -18,6 +18,7 @@
     "express": "^5",
     "pino": "^9",
     "pino-http": "^10",
+    "resend": "4.0.0",
     "stripe": "catalog:",
     "stripe-replit-sync": "catalog:"
   },

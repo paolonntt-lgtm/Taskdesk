@@ -15,6 +15,7 @@ interface PrefRow {
   inApp: boolean;
   browser: boolean;
   sound: boolean;
+  email: boolean;
 }
 
 function defaults(): PrefRow[] {
@@ -23,6 +24,7 @@ function defaults(): PrefRow[] {
     inApp: true,
     browser: true,
     sound: true,
+    email: true,
   }));
 }
 
@@ -35,7 +37,13 @@ router.get("/notification-preferences", requireAuth, async (req, res): Promise<v
 
   const map = new Map<string, PrefRow>();
   for (const r of rows) {
-    map.set(r.type, { type: r.type as NotificationType, inApp: r.inApp, browser: r.browser, sound: r.sound });
+    map.set(r.type, {
+      type: r.type as NotificationType,
+      inApp: r.inApp,
+      browser: r.browser,
+      sound: r.sound,
+      email: r.email,
+    });
   }
   const merged = defaults().map((d) => map.get(d.type) ?? d);
   res.json({ preferences: merged });
@@ -58,6 +66,7 @@ router.put("/notification-preferences", requireAuth, async (req, res): Promise<v
       inApp: p.inApp !== false,
       browser: p.browser !== false,
       sound: p.sound !== false,
+      email: p.email !== false,
     });
   }
 
@@ -71,6 +80,7 @@ router.put("/notification-preferences", requireAuth, async (req, res): Promise<v
           inApp: u.inApp,
           browser: u.browser,
           sound: u.sound,
+          email: u.email,
         }))
       )
       .onConflictDoUpdate({
@@ -79,6 +89,7 @@ router.put("/notification-preferences", requireAuth, async (req, res): Promise<v
           inApp: sql`EXCLUDED.in_app`,
           browser: sql`EXCLUDED.browser`,
           sound: sql`EXCLUDED.sound`,
+          email: sql`EXCLUDED.email`,
           updatedAt: new Date(),
         },
       });
