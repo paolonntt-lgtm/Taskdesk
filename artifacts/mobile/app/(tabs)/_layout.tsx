@@ -8,10 +8,9 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
-import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
+function NativeTabLayout() {
   const { t } = useLanguage();
   return (
     <NativeTabs>
@@ -27,12 +26,10 @@ function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>{t.tabs.new}</Label>
       </NativeTabs.Trigger>
-      {isAdmin && (
-        <NativeTabs.Trigger name="reports">
-          <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
-          <Label>{t.tabs.reports}</Label>
-        </NativeTabs.Trigger>
-      )}
+      <NativeTabs.Trigger name="reports">
+        <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
+        <Label>{t.tabs.reports}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>{t.tabs.profile}</Label>
@@ -41,7 +38,7 @@ function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
+function ClassicTabLayout() {
   const colors = useColors();
   const { t } = useLanguage();
   const colorScheme = useColorScheme();
@@ -126,7 +123,6 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
         name="reports"
         options={{
           title: t.tabs.reports,
-          href: isAdmin ? undefined : null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="trophy" tintColor={color} size={22} />
@@ -152,11 +148,8 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export default function TabLayout() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
-
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout isAdmin={isAdmin} />;
+    return <NativeTabLayout />;
   }
-  return <ClassicTabLayout isAdmin={isAdmin} />;
+  return <ClassicTabLayout />;
 }

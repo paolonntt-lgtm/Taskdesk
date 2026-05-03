@@ -196,18 +196,8 @@ export default function ReportsScreen() {
     queryKey: ["reports-all"],
     queryFn: () => apiGet("/stats/reports-all"),
     staleTime: 5 * 60_000,
-    enabled: !!user && user.role === "admin",
+    enabled: !!user,
   });
-
-  if (!user || user.role !== "admin") {
-    return (
-      <View style={s.center}>
-        <Feather name="lock" size={40} color={colors.mutedForeground} />
-        <Text style={s.accessDeniedTitle}>{t.reports.restricted}</Text>
-        <Text style={s.accessDeniedText}>{t.reports.restrictedMsg}</Text>
-      </View>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -299,8 +289,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 20 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
-    accessDeniedTitle: { fontSize: 20, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", marginTop: 8 },
-    accessDeniedText: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
     kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 },
     kpiCard: {
       flex: 1, minWidth: "45%",
