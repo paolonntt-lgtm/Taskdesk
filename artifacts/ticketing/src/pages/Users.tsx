@@ -41,6 +41,7 @@ import {
   TrendingUp,
   Group,
   AllInclusive,
+  DeleteForever,
 } from '@mui/icons-material';
 import { Link as WLink } from 'wouter';
 import { LinearProgress } from '@mui/material';
@@ -105,6 +106,7 @@ export default function Users() {
   const [form, setForm] = useState<UserFormData>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [deactivateConfirm, setDeactivateConfirm] = useState<User | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null);
 
   const activeCount = users.filter((u) => u.isActive !== false).length;
 
@@ -237,6 +239,12 @@ export default function Users() {
     if (!deactivateConfirm) return;
     await updateUser.mutateAsync({ id: deactivateConfirm.id, data: { isActive: false } as any });
     setDeactivateConfirm(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    await deleteUser.mutateAsync({ id: deleteConfirm.id });
+    setDeleteConfirm(null);
   };
 
   const isSaving = createUser.isPending || updateUser.isPending;
@@ -387,7 +395,7 @@ export default function Users() {
                     </Box>
                   </CardContent>
                   {currentUser?.role === 'admin' && (
-                    <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1 }}>
+                    <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1, flexWrap: 'wrap' }}>
                       <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => openEdit(u)}>
                         {ut.editUser}
                       </Button>
@@ -399,6 +407,17 @@ export default function Users() {
                           onClick={() => handleToggleActive(u)}
                         >
                           {isActive ? ut.deactivate : ut.activate}
+                        </Button>
+                      )}
+                      {!isCurrentUser && !isActive && (
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          startIcon={<DeleteForever fontSize="small" />}
+                          onClick={() => setDeleteConfirm(u)}
+                        >
+                          {ut.deleteUser}
                         </Button>
                       )}
                     </CardActions>
@@ -494,6 +513,17 @@ export default function Users() {
                                   onClick={() => handleToggleActive(u)}
                                 >
                                   {isActive ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {!isCurrentUser && !isActive && (
+                              <Tooltip title={ut.deleteUser}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => setDeleteConfirm(u)}
+                                >
+                                  <DeleteForever fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                             )}
@@ -593,9 +623,32 @@ export default function Users() {
             variant="contained"
             color="error"
             onClick={confirmDeactivate}
-            disabled={deleteUser.isPending}
+            disabled={updateUser.isPending}
           >
-            {deleteUser.isPending ? ut.saving : ut.deactivate}
+            {updateUser.isPending ? ut.saving : ut.deactivate}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ color: 'error.main' }}>{ut.deleteUser}</DialogTitle>
+        <DialogContent>
+          <Typography>{ut.deleteUserConfirm}</Typography>
+          {deleteConfirm && (
+            <Typography fontWeight="bold" sx={{ mt: 1 }}>{deleteConfirm.name}</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm(null)}>{ut.cancel}</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={confirmDelete}
+            disabled={deleteUser.isPending}
+            startIcon={<DeleteForever />}
+          >
+            {deleteUser.isPending ? ut.saving : ut.deleteUser}
           </Button>
         </DialogActions>
       </Dialog>
