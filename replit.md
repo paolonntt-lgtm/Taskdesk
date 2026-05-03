@@ -42,7 +42,12 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Port**: 8080 (proxied via `/api`)
 - **Sessions**: In-memory Map in `src/lib/session.ts`
 - **Seed**: Auto-seeds demo data on first start via `src/lib/seed.ts`
-- **Routes**: `/api/auth/*`, `/api/tickets/*`, `/api/users/*`, `/api/stats/*`, `/api/notifications/*`
+- **Routes**: `/api/auth/*`, `/api/tickets/*`, `/api/users/*`, `/api/stats/*`, `/api/notifications/*`, `/api/notification-preferences`, `/api/stripe/*`
+- **Email**: via Resend integration. Helper `src/lib/email.ts` legge le credenziali dal connector Replit (timeout 5s). `src/lib/notifications.ts` invia email in batch da 4 ogni 1.1s per rispettare il limite Resend di 5 req/sec; il dispatch è fire-and-forget rispetto alla risposta HTTP. Mittente configurato in Resend deve essere su un dominio verificato (es. `taskdesk.it`), altrimenti gli invii falliscono con 403.
+- **Base URL**: `src/lib/appUrl.ts` espone `appBaseUrl()` (REPLIT_DOMAINS → REPLIT_DEV_DOMAIN → localhost) usato sia per i link nelle email che per le redirect Stripe Checkout/Portal.
+
+### Stripe Plans
+- Starter €19/mese (5 utenti), Team €49/mese (15 utenti), Business €129/mese (50 utenti), Enterprise €299/mese (utenti illimitati). Metadata `seats` su ogni Product (`unlimited` per Enterprise).
 
 ## Architecture Notes
 

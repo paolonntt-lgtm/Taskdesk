@@ -20,7 +20,8 @@
     "pino-http": "^10",
     "resend": "4.0.0",
     "stripe": "catalog:",
-    "stripe-replit-sync": "catalog:"
+    "stripe-replit-sync": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

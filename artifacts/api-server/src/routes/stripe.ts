@@ -1,9 +1,13 @@
 import { Router, type IRouter } from 'express';
+import { z } from 'zod';
 import { stripeStorage } from '../stripeStorage';
 import { stripeService } from '../stripeService';
 import { getUncachableStripeClient } from '../stripeClient';
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
+import { appBaseUrl } from '../lib/appUrl';
+
+const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
 
@@ -81,8 +85,9 @@ router.get('/stripe/seat-usage', requireAuth, async (req: any, res): Promise<voi
 
 router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void> => {
   try {
-    const { priceId } = req.body;
-    if (!priceId) { res.status(400).json({ error: 'priceId is required' }); return; }
+    const parsed = priceIdBody.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
+    const { priceId } = parsed.data;
 
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
@@ -94,8 +99,7 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
       customerId = customer.id;
     }
 
-    const domains = process.env.REPLIT_DOMAINS?.split(',') ?? [];
-    const baseUrl = domains[0] ? `https://${domains[0]}` : 'http://localhost:80';
+    const baseUrl = appBaseUrl();
     const session = await stripeService.createCheckoutSession(
       customerId,
       priceId,
@@ -111,8 +115,9 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
 
 router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
-    const { priceId } = req.body;
-    if (!priceId) { res.status(400).json({ error: 'priceId is required' }); return; }
+    const parsed = priceIdBody.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
+    const { priceId } = parsed.data;
 
     const usage = await getSeatUsage(req.currentUser.id);
     if (!usage.subscriptionId || !usage.subscriptionItemId) {
@@ -173,8 +178,7 @@ router.post('/stripe/portal', requireAuth, async (req: any, res): Promise<void> 
       return;
     }
 
-    const domains = process.env.REPLIT_DOMAINS?.split(',') ?? [];
-    const baseUrl = domains[0] ? `https://${domains[0]}` : 'http://localhost:80';
+    const baseUrl = appBaseUrl();
     const session = await stripeService.createCustomerPortalSession(
       user.stripeCustomerId,
       `${baseUrl}/app/billing`

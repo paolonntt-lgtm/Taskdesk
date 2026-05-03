@@ -18,8 +18,14 @@ async function getCredentials(): Promise<{ apiKey: string; fromEmail: string | u
 
   const res = await fetch(
     `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=resend`,
-    { headers: { Accept: "application/json", "X-Replit-Token": xReplitToken } }
+    {
+      headers: { Accept: "application/json", "X-Replit-Token": xReplitToken },
+      signal: AbortSignal.timeout(5000),
+    }
   );
+  if (!res.ok) {
+    throw new Error(`Replit connector lookup failed: ${res.status}`);
+  }
   const data = (await res.json()) as { items?: Array<{ settings?: { api_key?: string; from_email?: string } }> };
   const settings = data.items?.[0]?.settings;
   if (!settings?.api_key) {

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import {
   db,
   notificationsTable,
@@ -7,6 +7,7 @@ import {
   type NotificationType,
 } from "@workspace/db";
 import { sendEmail, buildNotificationEmail } from "./email";
+import { appBaseUrl } from "./appUrl";
 import { logger } from "./logger";
 
 interface PrefForUser {
@@ -48,13 +49,6 @@ async function getChannelPrefs(
   return map;
 }
 
-function appBaseUrl(): string {
-  const domains = process.env.REPLIT_DOMAINS?.split(",").map((d) => d.trim()).filter(Boolean) ?? [];
-  if (domains.length > 0) return `https://${domains[0]}`;
-  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  return "http://localhost";
-}
-
 async function dispatchEmails(
   recipients: Array<{ id: number; name: string | null; email: string | null }>,
   prefs: Map<number, PrefForUser>,
@@ -68,19 +62,27 @@ async function dispatchEmails(
   });
   if (targets.length === 0) return;
 
-  await Promise.allSettled(
-    targets.map((u) => {
-      const { subject, html, text: body } = buildNotificationEmail({
-        recipientName: u.name ?? u.email ?? "",
-        text,
-        ticketId,
-        appBaseUrl: baseUrl,
-      });
-      return sendEmail({ to: u.email!, subject, html, text: body }).then((r) => {
-        if (!r.ok) logger.warn({ userId: u.id, err: r.error }, "notification email failed");
-      });
-    })
-  );
+  // Resend free tier limit is 5 req/sec — chunk to 4 per batch with a small gap.
+  const CHUNK = 4;
+  for (let i = 0; i < targets.length; i += CHUNK) {
+    const slice = targets.slice(i, i + CHUNK);
+    await Promise.allSettled(
+      slice.map((u) => {
+        const { subject, html, text: body } = buildNotificationEmail({
+          recipientName: u.name ?? u.email ?? "",
+          text,
+          ticketId,
+          appBaseUrl: baseUrl,
+        });
+        return sendEmail({ to: u.email!, subject, html, text: body }).then((r) => {
+          if (!r.ok) logger.warn({ userId: u.id, err: r.error }, "notification email failed");
+        });
+      })
+    );
+    if (i + CHUNK < targets.length) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+  }
 }
 
 export async function createNotificationsForTicket(
@@ -89,10 +91,10 @@ export async function createNotificationsForTicket(
   excludeUserId: number,
   type: NotificationType = "system"
 ): Promise<void> {
-  const users = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, isActive: usersTable.isActive })
-    .from(usersTable);
-  const candidates = users.filter((u) => u.id !== excludeUserId && u.isActive !== false);
+  const candidates = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .from(usersTable)
+    .where(and(ne(usersTable.id, excludeUserId), eq(usersTable.isActive, true)));
   if (candidates.length === 0) return;
 
   const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
