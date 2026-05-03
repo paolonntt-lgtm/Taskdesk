@@ -62,11 +62,6 @@ interface Translations {
   footer: {
     text: string;
   };
-  appBanner: {
-    subtitle: string;
-    open: string;
-    downloadCta: string;
-  };
 }
 
 const translations: Record<Language, Translations> = {
@@ -211,11 +206,6 @@ const translations: Record<Language, Translations> = {
     footer: {
       text: "© 2025 TaskDesk. Il design essenziale per il business italiano."
     },
-    appBanner: {
-      subtitle: "Apri l'app di ticketing aziendale",
-      open: "Apri",
-      downloadCta: "Scarica l'app",
-    },
   },
   en: {
     nav: {
@@ -357,11 +347,6 @@ const translations: Record<Language, Translations> = {
     },
     footer: {
       text: "© 2025 TaskDesk. Essential design for business."
-    },
-    appBanner: {
-      subtitle: "Open the company ticketing app",
-      open: "Open",
-      downloadCta: "Download app",
     },
   }
 };

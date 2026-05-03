@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ChevronDown, X, Smartphone } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 const APP_URL = "/app/";
 
@@ -65,17 +65,6 @@ const ANIMATIONS = `
 }
 `;
 
-function useDevicePlatform() {
-  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const isAndroid = /Android/i.test(ua);
-    setPlatform(isIOS ? "ios" : isAndroid ? "android" : "other");
-  }, []);
-  return platform;
-}
-
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -120,59 +109,8 @@ function ScrollReveal({ children, delay = 0 }: { children: React.ReactNode; dela
   );
 }
 
-function AppBanner() {
-  const { t } = useLanguage();
-  const platform = useDevicePlatform();
-  const [dismissed, setDismissed] = useState(true);
-
-  useEffect(() => {
-    const wasDismissed = localStorage.getItem("app-banner-dismissed") === "1";
-    if (!wasDismissed) setDismissed(false);
-  }, []);
-
-  const dismiss = () => {
-    localStorage.setItem("app-banner-dismissed", "1");
-    setDismissed(true);
-  };
-
-  const openApp = () => {
-    const host = window.location.host;
-    window.location.href = `exps://${host}/mobile`;
-    setTimeout(() => { window.location.href = "/mobile"; }, 600);
-  };
-
-  if (platform === "other" || dismissed) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-2xl px-4 py-3 flex items-center gap-3" style={{ animation: "ld-fadeUp 0.3s ease both" }}>
-      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-        <span className="text-white font-bold text-lg">T</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 leading-tight">TaskDesk</p>
-        <p className="text-xs text-gray-400 leading-tight truncate">{t.appBanner.subtitle}</p>
-      </div>
-      <button
-        onClick={openApp}
-        className="shrink-0 h-8 px-4 rounded-full text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-      >
-        {t.appBanner.open}
-      </button>
-      <button
-        onClick={dismiss}
-        className="shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors"
-        aria-label="Chiudi"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
-  );
-}
-
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
-  const platform = useDevicePlatform();
-  const isMobile = platform !== "other";
 
   const tickerItems = [
     t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media",
@@ -191,15 +129,12 @@ export default function Landing() {
   ];
 
   const handleCta = () => {
-    if (isMobile) { window.location.href = "/mobile"; } 
-    else { window.location.href = APP_URL; }
+    window.location.href = APP_URL;
   };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
       <style>{ANIMATIONS}</style>
-      <AppBanner />
-
       {/* Ticker */}
       <div className="bg-gradient-to-r from-blue-600 via-violet-600 to-pink-600 py-2.5 overflow-hidden">
         <div className="ld-ticker flex gap-10 whitespace-nowrap">
@@ -236,26 +171,16 @@ export default function Landing() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {isMobile ? (
-              <button
-                onClick={handleCta}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-colors"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                {t.appBanner.open}
-              </button>
-            ) : (
-              <>
-                <a href={APP_URL} className="hidden sm:block text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
-                  {t.nav.login}
+            <>
+              <a href={APP_URL} className="hidden sm:block text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
+                {t.nav.login}
+              </a>
+              <div className="ld-glow-border">
+                <a href={APP_URL} className="block px-4 py-1.5 rounded-[12px] bg-white text-sm font-bold ld-gradient-text hover:bg-gray-50 transition-colors">
+                  {t.hero.cta} →
                 </a>
-                <div className="ld-glow-border">
-                  <a href={APP_URL} className="block px-4 py-1.5 rounded-[12px] bg-white text-sm font-bold ld-gradient-text hover:bg-gray-50 transition-colors">
-                    {t.hero.cta} →
-                  </a>
-                </div>
-              </>
-            )}
+              </div>
+            </>
           </div>
         </div>
       </header>
@@ -292,7 +217,7 @@ export default function Landing() {
                   onClick={handleCta}
                   className="px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300 flex items-center justify-center gap-2"
                 >
-                  {isMobile ? <><Smartphone className="w-4 h-4" />{t.appBanner.downloadCta}</> : <>{t.hero.cta} →</>}
+                  {t.hero.cta} →
                 </button>
                 <a href="#features" className="px-8 py-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all text-center">
                   {t.hero.secondaryCta}
@@ -465,7 +390,7 @@ export default function Landing() {
                         : "bg-gray-900 hover:bg-gray-800 text-white"
                     }`}
                   >
-                    {isMobile ? <><Smartphone className="w-4 h-4" />{t.appBanner.downloadCta}</> : <>{plan.cta} →</>}
+                    {plan.cta} →
                   </button>
                 </div>
               </ScrollReveal>
@@ -518,7 +443,7 @@ export default function Landing() {
                 onClick={handleCta}
                 className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl flex items-center gap-2 mx-auto"
               >
-                {isMobile ? <><Smartphone className="w-5 h-5" />{t.appBanner.downloadCta}</> : <>{t.pricing.cta} →</>}
+                {t.pricing.cta} →
               </button>
             </div>
           </div>
