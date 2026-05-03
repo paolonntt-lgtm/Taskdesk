@@ -4,7 +4,6 @@ import {
   ActivityIndicator, Platform, RefreshControl,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,21 +11,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatRow { name: string; count: number }
 interface TrendRow { date: string; count: number }
-interface DashboardStats {
-  totalTickets: number; openTickets: number; inProgressTickets: number;
-  waitingTickets: number; resolvedTickets: number; closedTickets: number;
-  urgentTickets: number; last7Days: number; last30Days: number;
-  avgResolutionHours: number | null;
-}
 interface LeaderEntry { id: number; name: string; count: number }
-interface AssigneeEntry { id: number; name: string; count: number }
 interface ReportsAll {
-  dashboard: DashboardStats;
-  byStatus: StatRow[];
   byCategory: StatRow[];
   byLocation: StatRow[];
   byPriority: StatRow[];
-  byAssignee: AssigneeEntry[];
   trend: TrendRow[];
   leaderboard: { openers: LeaderEntry[]; commenters: LeaderEntry[]; resolvers: LeaderEntry[] };
 }
@@ -36,12 +25,6 @@ const MEDALS = ["🥇", "🥈", "🥉", "4.", "5."];
 const PRIORITY_COLORS_MAP: Record<string, string> = {
   Bassa: "#24a148", Media: "#f1c21b", Alta: "#ff832b", Urgente: "#da1e28",
   Low: "#24a148", Medium: "#f1c21b", High: "#ff832b", Urgent: "#da1e28",
-};
-const STATUS_COLORS_MAP: Record<string, string> = {
-  Aperto: "#0f62fe", "In lavorazione": "#8a3ffc", "In attesa": "#f1c21b",
-  Risolto: "#24a148", Chiuso: "#525252",
-  Open: "#0f62fe", "In Progress": "#8a3ffc", Waiting: "#f1c21b",
-  Resolved: "#24a148", Closed: "#525252",
 };
 
 function SectionTitle({ label }: { label: string }) {
@@ -120,31 +103,6 @@ function TrendChart({ data }: { data: TrendRow[] }) {
   );
 }
 
-function KpiGrid({ stats }: { stats: DashboardStats }) {
-  const colors = useColors();
-  const { t } = useLanguage();
-  const s = styles(colors);
-  const items = [
-    { label: t.reports.totalTickets, value: stats.totalTickets, color: colors.primary, icon: "layers" as const },
-    { label: t.reports.open, value: stats.openTickets, color: "#0f62fe", icon: "inbox" as const },
-    { label: t.reports.urgent, value: stats.urgentTickets, color: colors.destructive, icon: "alert-triangle" as const },
-    { label: t.reports.resolved, value: stats.resolvedTickets, color: colors.success, icon: "check-circle" as const },
-    { label: t.reports.last7, value: stats.last7Days, color: "#8a3ffc", icon: "calendar" as const },
-    { label: t.reports.last30, value: stats.last30Days, color: "#f1c21b", icon: "trending-up" as const },
-  ];
-  return (
-    <View style={s.kpiGrid}>
-      {items.map((item) => (
-        <View key={item.label} style={[s.kpiCard, { borderLeftColor: item.color }]}>
-          <Feather name={item.icon} size={18} color={item.color} />
-          <Text style={s.kpiValue}>{item.value}</Text>
-          <Text style={s.kpiLabel}>{item.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function LeaderBoard({ title, entries, unit, color }: {
   title: string; entries: LeaderEntry[]; unit: string; color: string;
 }) {
@@ -214,34 +172,15 @@ export default function ReportsScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      <SectionTitle label={t.reports.overview} />
-      {data?.dashboard && <KpiGrid stats={data.dashboard} />}
-
-      {data?.dashboard?.avgResolutionHours != null && (
-        <View style={s.avgCard}>
-          <Feather name="clock" size={16} color={colors.success} />
-          <Text style={s.avgText}>
-            {t.reports.avgResolution}:{" "}
-            <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>
-              {data.dashboard.avgResolutionHours < 24
-                ? `${Math.round(data.dashboard.avgResolutionHours)}h`
-                : `${(data.dashboard.avgResolutionHours / 24).toFixed(1)}gg`}
-            </Text>
-          </Text>
-        </View>
-      )}
+      <SectionTitle label={t.reports.leaderboards} />
+      <LeaderBoard title={t.reports.openers} entries={data?.leaderboard?.openers ?? []} unit={t.reports.tickets} color={colors.primary} />
+      <LeaderBoard title={t.reports.commenters} entries={data?.leaderboard?.commenters ?? []} unit={t.reports.comments} color="#8a3ffc" />
+      <LeaderBoard title={t.reports.resolvers} entries={data?.leaderboard?.resolvers ?? []} unit={t.reports.solutions} color={colors.success} />
 
       {(data?.trend?.length ?? 0) > 0 && (
         <View>
           <SectionTitle label={t.reports.trend} />
           <TrendChart data={data!.trend} />
-        </View>
-      )}
-
-      {(data?.byStatus?.length ?? 0) > 0 && (
-        <View>
-          <SectionTitle label={t.reports.byStatus} />
-          <BarList data={data!.byStatus} colorMap={STATUS_COLORS_MAP} defaultColor={colors.primary} />
         </View>
       )}
 
@@ -265,21 +204,6 @@ export default function ReportsScreen() {
           <BarList data={data!.byLocation} defaultColor="#0288d1" />
         </View>
       )}
-
-      {(data?.byAssignee?.length ?? 0) > 0 && (
-        <View>
-          <SectionTitle label={t.reports.byAssignee} />
-          <BarList
-            data={data!.byAssignee.map((a) => ({ name: a.name, count: a.count }))}
-            defaultColor={colors.success}
-          />
-        </View>
-      )}
-
-      <SectionTitle label={t.reports.leaderboards} />
-      <LeaderBoard title={t.reports.openers} entries={data?.leaderboard?.openers ?? []} unit={t.reports.tickets} color={colors.primary} />
-      <LeaderBoard title={t.reports.commenters} entries={data?.leaderboard?.commenters ?? []} unit={t.reports.comments} color="#8a3ffc" />
-      <LeaderBoard title={t.reports.resolvers} entries={data?.leaderboard?.resolvers ?? []} unit={t.reports.solutions} color={colors.success} />
     </ScrollView>
   );
 }
@@ -289,20 +213,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 20 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
-    kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 },
-    kpiCard: {
-      flex: 1, minWidth: "45%",
-      backgroundColor: colors.card, borderRadius: 12, padding: 14,
-      borderLeftWidth: 3, borderWidth: 1, borderColor: colors.border, gap: 6,
-    },
-    kpiValue: { fontSize: 26, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
-    kpiLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    avgCard: {
-      flexDirection: "row", alignItems: "center", gap: 8,
-      backgroundColor: colors.success + "12", borderRadius: 10, padding: 12,
-      borderWidth: 1, borderColor: colors.success + "40",
-    },
-    avgText: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular" },
     barCard: {
       backgroundColor: colors.card, borderRadius: 14,
       borderWidth: 1, borderColor: colors.border, overflow: "hidden",
