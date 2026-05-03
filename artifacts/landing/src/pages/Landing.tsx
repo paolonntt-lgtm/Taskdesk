@@ -12,6 +12,8 @@ import {
   Ticket,
   ChevronDown,
   Sparkles,
+  X,
+  Smartphone,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,9 +26,71 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 const BASE = import.meta.env.BASE_URL;
 const APP_URL = "/app/";
 
+function useDevicePlatform() {
+  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    setPlatform(isIOS ? "ios" : isAndroid ? "android" : "other");
+  }, []);
+  return platform;
+}
+
+function AppBanner() {
+  const { t } = useLanguage();
+  const platform = useDevicePlatform();
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    const wasDismissed = localStorage.getItem("app-banner-dismissed") === "1";
+    if (!wasDismissed) setDismissed(false);
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem("app-banner-dismissed", "1");
+    setDismissed(true);
+  };
+
+  const openApp = () => {
+    const host = window.location.host;
+    const deepLink = `exps://${host}/mobile`;
+    window.location.href = deepLink;
+    setTimeout(() => {
+      window.location.href = "/mobile";
+    }, 600);
+  };
+
+  if (platform === "other" || dismissed) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-2xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-300">
+      <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+        <span className="text-primary-foreground font-bold text-lg">T</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground leading-tight">TaskDesk</p>
+        <p className="text-xs text-muted-foreground leading-tight truncate">{t.appBanner.subtitle}</p>
+      </div>
+      <Button size="sm" onClick={openApp} className="shrink-0 h-8 px-4 rounded-full text-xs font-semibold">
+        {t.appBanner.open}
+      </Button>
+      <button
+        onClick={dismiss}
+        className="shrink-0 w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
+        aria-label="Chiudi"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
+  const platform = useDevicePlatform();
+  const isMobile = platform !== "other";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -36,6 +100,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <AppBanner />
+
       {/* Navigation */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'glass-panel py-3' : 'bg-transparent py-5'}`}>
         <div className="container mx-auto px-6 md:px-12 flex items-center justify-between">
@@ -69,14 +135,27 @@ export default function Landing() {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <a href={APP_URL}>
-              <Button variant="ghost" className="hidden sm:inline-flex">{t.nav.login}</Button>
-            </a>
-            <a href={APP_URL}>
-              <Button className="rounded-sm font-medium shadow-sm hover:shadow-md transition-all">
-                {t.hero.trialBadge} <ArrowRight className="ml-1.5 w-4 h-4" />
+            {isMobile ? (
+              <Button
+                size="sm"
+                className="rounded-sm font-medium shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
+                onClick={() => { window.location.href = "/mobile"; }}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                {t.appBanner.open}
               </Button>
-            </a>
+            ) : (
+              <>
+                <a href={APP_URL}>
+                  <Button variant="ghost" className="hidden sm:inline-flex">{t.nav.login}</Button>
+                </a>
+                <a href={APP_URL}>
+                  <Button className="rounded-sm font-medium shadow-sm hover:shadow-md transition-all">
+                    {t.hero.trialBadge} <ArrowRight className="ml-1.5 w-4 h-4" />
+                  </Button>
+                </a>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -99,16 +178,36 @@ export default function Landing() {
                 {t.hero.subtitle}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href={APP_URL}>
-                  <Button size="lg" className="rounded-sm text-base h-14 px-8 shadow-md hover:shadow-lg transition-all w-full sm:w-auto">
-                    {t.hero.cta} <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </a>
-                <a href="#features">
-                  <Button size="lg" variant="outline" className="rounded-sm text-base h-14 px-8 w-full sm:w-auto">
-                    {t.hero.secondaryCta}
-                  </Button>
-                </a>
+                {isMobile ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="rounded-sm text-base h-14 px-8 shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
+                      onClick={() => { window.location.href = "/mobile"; }}
+                    >
+                      <Smartphone className="mr-2 w-5 h-5" />
+                      {t.appBanner.downloadCta}
+                    </Button>
+                    <a href={APP_URL}>
+                      <Button size="lg" variant="outline" className="rounded-sm text-base h-14 px-8 w-full sm:w-auto">
+                        {t.nav.login}
+                      </Button>
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a href={APP_URL}>
+                      <Button size="lg" className="rounded-sm text-base h-14 px-8 shadow-md hover:shadow-lg transition-all w-full sm:w-auto">
+                        {t.hero.cta} <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                    </a>
+                    <a href="#features">
+                      <Button size="lg" variant="outline" className="rounded-sm text-base h-14 px-8 w-full sm:w-auto">
+                        {t.hero.secondaryCta}
+                      </Button>
+                    </a>
+                  </>
+                )}
               </div>
               <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground font-medium">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
@@ -234,7 +333,6 @@ export default function Landing() {
             <div className="bg-card rounded-2xl border border-border shadow-xl p-8 md:p-12 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10" />
               
-              {/* Trial highlight */}
               <div className="flex items-center gap-2 bg-primary/10 text-primary rounded-lg px-4 py-2.5 text-sm font-semibold mb-6 border border-primary/20">
                 <Sparkles className="w-4 h-4 shrink-0" />
                 {t.pricing.trialLabel}
@@ -256,11 +354,22 @@ export default function Landing() {
                 ))}
               </ul>
               
-              <a href={APP_URL} className="block">
-                <Button size="lg" className="w-full h-14 rounded-sm text-base shadow-md">
-                  {t.pricing.cta}
+              {isMobile ? (
+                <Button
+                  size="lg"
+                  className="w-full h-14 rounded-sm text-base shadow-md"
+                  onClick={() => { window.location.href = "/mobile"; }}
+                >
+                  <Smartphone className="mr-2 w-5 h-5" />
+                  {t.appBanner.downloadCta}
                 </Button>
-              </a>
+              ) : (
+                <a href={APP_URL} className="block">
+                  <Button size="lg" className="w-full h-14 rounded-sm text-base shadow-md">
+                    {t.pricing.cta}
+                  </Button>
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -298,16 +407,28 @@ export default function Landing() {
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-10">
             {t.hero.title}
           </h2>
-          <a href={APP_URL}>
-            <Button size="lg" variant="secondary" className="rounded-sm text-base h-14 px-10 shadow-lg text-primary">
-              {t.pricing.cta} <ArrowRight className="ml-2 w-5 h-5" />
+          {isMobile ? (
+            <Button
+              size="lg"
+              variant="secondary"
+              className="rounded-sm text-base h-14 px-10 shadow-lg text-primary"
+              onClick={() => { window.location.href = "/mobile"; }}
+            >
+              <Smartphone className="mr-2 w-5 h-5" />
+              {t.appBanner.downloadCta}
             </Button>
-          </a>
+          ) : (
+            <a href={APP_URL}>
+              <Button size="lg" variant="secondary" className="rounded-sm text-base h-14 px-10 shadow-lg text-primary">
+                {t.pricing.cta} <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </a>
+          )}
         </div>
       </section>
 
       {/* Simple Footer */}
-      <footer className="py-8 border-t border-border px-6">
+      <footer className="py-8 border-t border-border px-6 pb-24 md:pb-8">
         <div className="container mx-auto max-w-6xl flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2 opacity-50">
             <div className="w-6 h-6 bg-foreground text-background rounded-sm flex items-center justify-center font-bold text-xs">
