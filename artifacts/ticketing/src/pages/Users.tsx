@@ -82,7 +82,6 @@ export default function Users() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [groups, setGroups] = useState<string[]>([]);
-  const [locations, setLocations] = useState<string[]>([]);
   const [seatUsage, setSeatUsage] = useState<{
     usedSeats: number;
     planSeats: number | null;
@@ -117,14 +116,6 @@ export default function Users() {
   };
 
   useEffect(() => {
-    fetch('/api/settings/groups', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setGroups(d.value ?? []))
-      .catch(() => {});
-    fetch('/api/settings/locations', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setLocations(d.value ?? []))
-      .catch(() => {});
     refreshSeatUsage();
   }, []);
 
@@ -132,7 +123,15 @@ export default function Users() {
     refreshSeatUsage();
   }, [users.length]);
 
+  const refreshGroups = () => {
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setGroups(d.value ?? []))
+      .catch(() => {});
+  };
+
   const openCreate = () => {
+    refreshGroups();
     setEditTarget(null);
     setForm(emptyForm);
     setFormError(null);
@@ -140,6 +139,7 @@ export default function Users() {
   };
 
   const openEdit = (u: User) => {
+    refreshGroups();
     setEditTarget(u);
     setForm({
       name: u.name,
@@ -235,7 +235,7 @@ export default function Users() {
 
   const confirmDeactivate = async () => {
     if (!deactivateConfirm) return;
-    await deleteUser.mutateAsync({ id: deactivateConfirm.id });
+    await updateUser.mutateAsync({ id: deactivateConfirm.id, data: { isActive: false } as any });
     setDeactivateConfirm(null);
   };
 
@@ -568,21 +568,6 @@ export default function Users() {
                 ))}
               </Select>
             </FormControl>
-            {locations.length > 0 && (
-              <FormControl fullWidth>
-                <InputLabel>{ut.location}</InputLabel>
-                <Select
-                  value={form.mainLocation}
-                  label={ut.location}
-                  onChange={(e) => setForm((f) => ({ ...f, mainLocation: e.target.value }))}
-                >
-                  <MenuItem value=""><em>— {ut.locationPlaceholder} —</em></MenuItem>
-                  {locations.map((loc) => (
-                    <MenuItem key={loc} value={loc}>{loc}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
