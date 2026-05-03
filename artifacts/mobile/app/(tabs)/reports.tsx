@@ -10,6 +10,7 @@ import { apiGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface StatRow { name: string; count: number }
+interface TrendRow { date: string; count: number }
 interface DashboardStats {
   totalTickets: number; openTickets: number; inProgressTickets: number;
   waitingTickets: number; resolvedTickets: number; closedTickets: number;
@@ -17,13 +18,15 @@ interface DashboardStats {
   avgResolutionHours: number | null;
 }
 interface LeaderEntry { id: number; name: string; count: number }
+interface AssigneeEntry { id: number; name: string; count: number }
 interface ReportsAll {
   dashboard: DashboardStats;
   byStatus: StatRow[];
   byCategory: StatRow[];
   byLocation: StatRow[];
   byPriority: StatRow[];
-  byAssignee: StatRow[];
+  byAssignee: AssigneeEntry[];
+  trend: TrendRow[];
   leaderboard: { openers: LeaderEntry[]; commenters: LeaderEntry[]; resolvers: LeaderEntry[] };
 }
 
@@ -45,8 +48,8 @@ function SectionTitle({ label }: { label: string }) {
   );
 }
 
-function BarList({ data, colorMap, defaultColor }: {
-  data: StatRow[]; colorMap?: Record<string, string>; defaultColor: string;
+function BarList({ data, colorMap, defaultColor, horizontal }: {
+  data: (StatRow | AssigneeEntry)[]; colorMap?: Record<string, string>; defaultColor: string; horizontal?: boolean;
 }) {
   const colors = useColors();
   const s = styles(colors);
@@ -68,6 +71,46 @@ function BarList({ data, colorMap, defaultColor }: {
           </View>
         );
       })}
+    </View>
+  );
+}
+
+function TrendChart({ data }: { data: TrendRow[] }) {
+  const colors = useColors();
+  const s = styles(colors);
+  if (data.length === 0) return null;
+  const max = Math.max(...data.map((d) => d.count), 1);
+  const formatDate = (d: string) => {
+    const parts = d.split("-");
+    return `${parts[2]}/${parts[1]}`;
+  };
+  const showEveryN = Math.ceil(data.length / 8);
+
+  return (
+    <View style={s.barCard}>
+      <View style={s.trendContainer}>
+        <View style={s.trendBars}>
+          {data.map((row, i) => {
+            const heightPct = (row.count / max) * 100;
+            return (
+              <View key={row.date} style={s.trendBarCol}>
+                <Text style={s.trendCount}>{row.count > 0 ? row.count : ""}</Text>
+                <View style={s.trendBarTrack}>
+                  <View
+                    style={[
+                      s.trendBarFill,
+                      { height: `${Math.max(heightPct, row.count > 0 ? 4 : 0)}%` as any, backgroundColor: colors.primary },
+                    ]}
+                  />
+                </View>
+                {i % showEveryN === 0 && (
+                  <Text style={s.trendDate} numberOfLines={1}>{formatDate(row.date)}</Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
@@ -145,8 +188,18 @@ export default function ReportsScreen() {
     queryKey: ["reports-all"],
     queryFn: () => apiGet("/stats/reports-all"),
     staleTime: 5 * 60_000,
-    enabled: !!user,
+    enabled: !!user && user.role === "admin",
   });
+
+  if (!user || user.role !== "admin") {
+    return (
+      <View style={s.center}>
+        <Feather name="lock" size={40} color={colors.mutedForeground} />
+        <Text style={s.accessDeniedTitle}>Accesso riservato</Text>
+        <Text style={s.accessDeniedText}>I report sono disponibili solo per gli amministratori.</Text>
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -163,6 +216,7 @@ export default function ReportsScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
+      {/* Panoramica KPI */}
       <SectionTitle label="Panoramica" />
       {data?.dashboard && <KpiGrid stats={data.dashboard} />}
 
@@ -180,6 +234,15 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* Andamento ultimi 30 giorni */}
+      {(data?.trend?.length ?? 0) > 0 && (
+        <View>
+          <SectionTitle label="Andamento (ultimi 30 giorni)" />
+          <TrendChart data={data!.trend} />
+        </View>
+      )}
+
+      {/* Per stato */}
       {(data?.byStatus?.length ?? 0) > 0 && (
         <View>
           <SectionTitle label="Per stato" />
@@ -187,6 +250,7 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* Per priorità */}
       {(data?.byPriority?.length ?? 0) > 0 && (
         <View>
           <SectionTitle label="Per priorità" />
@@ -194,6 +258,7 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* Per categoria */}
       {(data?.byCategory?.length ?? 0) > 0 && (
         <View>
           <SectionTitle label="Per categoria" />
@@ -201,6 +266,7 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* Per sede */}
       {(data?.byLocation?.length ?? 0) > 0 && (
         <View>
           <SectionTitle label="Per sede" />
@@ -208,6 +274,18 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {/* Per assegnatario */}
+      {(data?.byAssignee?.length ?? 0) > 0 && (
+        <View>
+          <SectionTitle label="Per assegnatario" />
+          <BarList
+            data={data!.byAssignee.map((a) => ({ name: a.name, count: a.count }))}
+            defaultColor={colors.success}
+          />
+        </View>
+      )}
+
+      {/* Classifiche */}
       <SectionTitle label="Classifiche" />
       <LeaderBoard title="🎫 Chi apre più ticket" entries={data?.leaderboard?.openers ?? []} unit="ticket" color={colors.primary} />
       <LeaderBoard title="💬 Chi commenta di più" entries={data?.leaderboard?.commenters ?? []} unit="commenti" color="#8a3ffc" />
@@ -220,7 +298,9 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 20 },
-    center: { flex: 1, alignItems: "center", justifyContent: "center" },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
+    accessDeniedTitle: { fontSize: 20, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", marginTop: 8 },
+    accessDeniedText: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
     kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 },
     kpiCard: {
       flex: 1, minWidth: "45%",
@@ -251,4 +331,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     medal: { fontSize: 16, width: 26, textAlign: "center" },
     emptyRow: { padding: 20, alignItems: "center" },
     emptyText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    trendContainer: { padding: 14 },
+    trendBars: { flexDirection: "row", alignItems: "flex-end", gap: 3, height: 140 },
+    trendBarCol: { flex: 1, alignItems: "center", gap: 2 },
+    trendCount: { fontSize: 8, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
+    trendBarTrack: { flex: 1, width: "100%", justifyContent: "flex-end", backgroundColor: colors.muted, borderRadius: 2, overflow: "hidden" },
+    trendBarFill: { width: "100%", backgroundColor: colors.primary, borderRadius: 2 },
+    trendDate: { fontSize: 9, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 2 },
   });

@@ -154,6 +154,7 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
     byLocation,
     byPriority,
     byAssignee,
+    trend,
     openers,
     commenters,
     resolvers,
@@ -191,6 +192,14 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
       .leftJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
       .groupBy(usersTable.id, usersTable.name)
       .having(sql`count(${ticketsTable.id}) > 0`),
+
+    db.select({
+      date: sql<string>`date_trunc('day', created_at)::date::text`,
+      count: sql<number>`count(*)`,
+    }).from(ticketsTable)
+      .where(gte(ticketsTable.createdAt, sql`now() - interval '30 days'`))
+      .groupBy(sql`date_trunc('day', created_at)`)
+      .orderBy(sql`date_trunc('day', created_at)`),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
       .from(usersTable).innerJoin(ticketsTable, eq(ticketsTable.createdBy, usersTable.id))
@@ -233,6 +242,7 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
     byLocation: byLocation.map((r) => ({ name: r.name, count: Number(r.count) })),
     byPriority: byPriority.map((r) => ({ name: priorityLabels[r.name] ?? r.name, count: Number(r.count) })),
     byAssignee: byAssignee.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+    trend: trend.map((r) => ({ date: r.date, count: Number(r.count) })),
     leaderboard: {
       openers: openers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
       commenters: commenters.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),

@@ -8,8 +8,9 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/contexts/AuthContext";
 
-function NativeTabLayout() {
+function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -24,10 +25,12 @@ function NativeTabLayout() {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Nuovo</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
-        <Label>Report</Label>
-      </NativeTabs.Trigger>
+      {isAdmin && (
+        <NativeTabs.Trigger name="reports">
+          <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
+          <Label>Report</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>Profilo</Label>
@@ -36,7 +39,7 @@ function NativeTabLayout() {
   );
 }
 
-function ClassicTabLayout() {
+function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -120,6 +123,7 @@ function ClassicTabLayout() {
         name="reports"
         options={{
           title: "Report",
+          href: isAdmin ? undefined : null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="trophy" tintColor={color} size={22} />
@@ -145,8 +149,11 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
+    return <NativeTabLayout isAdmin={isAdmin} />;
   }
-  return <ClassicTabLayout />;
+  return <ClassicTabLayout isAdmin={isAdmin} />;
 }
