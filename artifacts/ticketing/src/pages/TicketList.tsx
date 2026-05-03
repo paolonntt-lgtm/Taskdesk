@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
-  TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
+  TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid, Tooltip,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle } from '@mui/icons-material';
 import { useListTickets } from '@workspace/api-client-react';
 import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
@@ -145,12 +145,26 @@ export default function TicketList() {
                   <TableRow
                     key={ticket.id}
                     hover
-                    sx={{ cursor: 'pointer' }}
+                    sx={{
+                      cursor: 'pointer',
+                      ...((ticket as any).resolutionNote ? {
+                        bgcolor: 'rgba(46,125,50,0.07)',
+                        '& td:first-of-type': { borderLeft: '3px solid', borderLeftColor: 'success.main' },
+                        '&:hover': { bgcolor: 'rgba(46,125,50,0.14) !important' },
+                      } : {}),
+                    }}
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
                     <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {ticket.title}
+                      <Box display="flex" alignItems="center" gap={0.75}>
+                        {(ticket as any).resolutionNote && (
+                          <Tooltip title={(ticket as any).resolutionNote} placement="top" arrow>
+                            <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
+                          </Tooltip>
+                        )}
+                        {ticket.title}
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
