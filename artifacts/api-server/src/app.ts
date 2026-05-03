@@ -50,7 +50,7 @@ app.post(
   }
 );
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: true, credentials: true, maxAge: 86400 }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

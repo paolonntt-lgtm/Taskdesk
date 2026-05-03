@@ -145,6 +145,102 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   })));
 });
 
+router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> => {
+  const [
+    dashRow,
+    avgResult,
+    byStatus,
+    byCategory,
+    byLocation,
+    byPriority,
+    byAssignee,
+    openers,
+    commenters,
+    resolvers,
+  ] = await Promise.all([
+    db.select({
+      total: sql<number>`count(*)`,
+      open: sql<number>`count(*) filter (where status = 'open')`,
+      inProgress: sql<number>`count(*) filter (where status = 'in_progress')`,
+      waiting: sql<number>`count(*) filter (where status = 'waiting')`,
+      resolved: sql<number>`count(*) filter (where status = 'resolved')`,
+      closed: sql<number>`count(*) filter (where status = 'closed')`,
+      urgent: sql<number>`count(*) filter (where priority = 'urgent')`,
+      last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
+      last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
+    }).from(ticketsTable),
+
+    db.select({
+      avg: sql<number>`avg(extract(epoch from (closed_at - created_at)) / 3600)`,
+    }).from(ticketsTable).where(isNotNull(ticketsTable.closedAt)),
+
+    db.select({ name: ticketsTable.status, count: sql<number>`count(*)` })
+      .from(ticketsTable).groupBy(ticketsTable.status),
+
+    db.select({ name: ticketsTable.category, count: sql<number>`count(*)` })
+      .from(ticketsTable).groupBy(ticketsTable.category),
+
+    db.select({ name: ticketsTable.location, count: sql<number>`count(*)` })
+      .from(ticketsTable).groupBy(ticketsTable.location),
+
+    db.select({ name: ticketsTable.priority, count: sql<number>`count(*)` })
+      .from(ticketsTable).groupBy(ticketsTable.priority),
+
+    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
+      .from(usersTable)
+      .leftJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name)
+      .having(sql`count(${ticketsTable.id}) > 0`),
+
+    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
+      .from(usersTable).innerJoin(ticketsTable, eq(ticketsTable.createdBy, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketsTable.id}) desc`).limit(5),
+
+    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
+      .from(usersTable).innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
+
+    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
+      .from(usersTable).innerJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
+      .where(isNotNull(ticketsTable.resolutionNote))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`count(${ticketsTable.id}) desc`).limit(5),
+  ]);
+
+  const statusLabels: Record<string, string> = {
+    open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+  };
+  const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
+
+  res.setHeader("Cache-Control", "private, max-age=60");
+  res.json({
+    dashboard: {
+      totalTickets: Number(dashRow[0].total),
+      openTickets: Number(dashRow[0].open),
+      inProgressTickets: Number(dashRow[0].inProgress),
+      waitingTickets: Number(dashRow[0].waiting),
+      resolvedTickets: Number(dashRow[0].resolved),
+      closedTickets: Number(dashRow[0].closed),
+      urgentTickets: Number(dashRow[0].urgent),
+      last7Days: Number(dashRow[0].last7),
+      last30Days: Number(dashRow[0].last30),
+      avgResolutionHours: avgResult[0].avg ? Number(avgResult[0].avg) : null,
+    },
+    byStatus: byStatus.map((r) => ({ name: statusLabels[r.name] ?? r.name, count: Number(r.count) })),
+    byCategory: byCategory.map((r) => ({ name: r.name, count: Number(r.count) })),
+    byLocation: byLocation.map((r) => ({ name: r.name, count: Number(r.count) })),
+    byPriority: byPriority.map((r) => ({ name: priorityLabels[r.name] ?? r.name, count: Number(r.count) })),
+    byAssignee: byAssignee.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+    leaderboard: {
+      openers: openers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+      commenters: commenters.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+      resolvers: resolvers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+    },
+  });
+});
+
 router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> => {
   const [openers, commenters, resolvers] = await Promise.all([
     db.select({

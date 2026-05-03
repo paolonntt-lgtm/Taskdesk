@@ -8,6 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/utils/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Ticket {
   id: number;
@@ -32,6 +33,7 @@ const STATUS_DISPLAY: Record<string, string> = {
 export default function TicketsScreen() {
   const colors = useColors();
   const s = styles(colors);
+  const { user } = useAuth();
   const params = useLocalSearchParams<{ status?: string; priority?: string }>();
 
   const [search, setSearch] = useState("");
@@ -48,6 +50,7 @@ export default function TicketsScreen() {
   const { data: tickets = [], isLoading, refetch } = useQuery({
     queryKey: ["tickets", statusFilter, priorityFilter],
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
+    enabled: !!user,
   });
 
   const q = search.toLowerCase();

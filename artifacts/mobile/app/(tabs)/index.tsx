@@ -35,11 +35,13 @@ export default function DashboardScreen() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => apiGet<DashboardStats>("/stats/dashboard"),
+    enabled: !!user,
   });
 
   const { data: recentTickets = [], isLoading: ticketsLoading, refetch: refetchTickets } = useQuery({
     queryKey: ["recent-tickets"],
     queryFn: () => apiGet<Ticket[]>("/stats/recent-tickets"),
+    enabled: !!user,
   });
 
   const isLoading = statsLoading || ticketsLoading;
