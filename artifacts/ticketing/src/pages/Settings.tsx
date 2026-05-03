@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Tabs, Tab, TextField, Button,
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
   ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
-  TableCell, TableHead, TableRow, Tooltip,
+  TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +28,8 @@ interface NotifPref { type: NotifType; inApp: boolean; browser: boolean; sound: 
 
 function NotificationPreferences() {
   const { t } = useLanguage();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [prefs, setPrefs] = useState<NotifPref[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,7 +75,6 @@ function NotificationPreferences() {
       });
       if (!res.ok) throw new Error('save failed');
       setMsg({ type: 'success', text: t.settings.notifSavedOk });
-      // ping the cache so other components pick up new prefs
       window.dispatchEvent(new CustomEvent('notif-prefs-updated'));
     } catch {
       setMsg({ type: 'error', text: t.settings.notifSaveError });
@@ -96,36 +97,75 @@ function NotificationPreferences() {
             <Button size="small" variant="outlined" onClick={() => setAll(true)}>{t.settings.notifEnableAll}</Button>
             <Button size="small" variant="outlined" color="inherit" onClick={() => setAll(false)}>{t.settings.notifDisableAll}</Button>
           </Box>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>{t.settings.notifColType}</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  <Tooltip title={t.settings.notifInAppHint}><span>{t.settings.notifColInApp}</span></Tooltip>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  <Tooltip title={t.settings.notifBrowserHint}><span>{t.settings.notifColBrowser}</span></Tooltip>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  <Tooltip title={t.settings.notifSoundHint}><span>{t.settings.notifColSound}</span></Tooltip>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  <Tooltip title={t.settings.notifEmailHint}><span>{t.settings.notifColEmail}</span></Tooltip>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+
+          {isMobile ? (
+            /* Mobile: card per notification type */
+            <Stack spacing={1.5}>
               {prefs.map((p) => (
-                <TableRow key={p.type} hover>
-                  <TableCell>{(t.nav.notifTypes as any)[p.type] ?? p.type}</TableCell>
-                  <TableCell align="center"><Switch size="small" checked={p.inApp} onChange={() => toggle(p.type, 'inApp')} /></TableCell>
-                  <TableCell align="center"><Switch size="small" checked={p.browser} onChange={() => toggle(p.type, 'browser')} disabled={!p.inApp} /></TableCell>
-                  <TableCell align="center"><Switch size="small" checked={p.sound} onChange={() => toggle(p.type, 'sound')} disabled={!p.inApp} /></TableCell>
-                  <TableCell align="center"><Switch size="small" checked={p.email} onChange={() => toggle(p.type, 'email')} /></TableCell>
-                </TableRow>
+                <Box
+                  key={p.type}
+                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '10px', p: 1.5 }}
+                >
+                  <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+                    {(t.nav.notifTypes as any)[p.type] ?? p.type}
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {([
+                      { key: 'inApp' as const, label: t.settings.notifColInApp, hint: t.settings.notifInAppHint, disabled: false },
+                      { key: 'browser' as const, label: t.settings.notifColBrowser, hint: t.settings.notifBrowserHint, disabled: !p.inApp },
+                      { key: 'sound' as const, label: t.settings.notifColSound, hint: t.settings.notifSoundHint, disabled: !p.inApp },
+                      { key: 'email' as const, label: t.settings.notifColEmail, hint: t.settings.notifEmailHint, disabled: false },
+                    ]).map(({ key, label, disabled }) => (
+                      <Box key={key} display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="body2" color={disabled ? 'text.disabled' : 'text.primary'}>
+                          {label}
+                        </Typography>
+                        <Switch
+                          size="small"
+                          checked={p[key]}
+                          onChange={() => toggle(p.type, key)}
+                          disabled={disabled}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
               ))}
-            </TableBody>
-          </Table>
+            </Stack>
+          ) : (
+            /* Desktop: table */
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>{t.settings.notifColType}</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    <Tooltip title={t.settings.notifInAppHint}><span>{t.settings.notifColInApp}</span></Tooltip>
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    <Tooltip title={t.settings.notifBrowserHint}><span>{t.settings.notifColBrowser}</span></Tooltip>
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    <Tooltip title={t.settings.notifSoundHint}><span>{t.settings.notifColSound}</span></Tooltip>
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    <Tooltip title={t.settings.notifEmailHint}><span>{t.settings.notifColEmail}</span></Tooltip>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {prefs.map((p) => (
+                  <TableRow key={p.type} hover>
+                    <TableCell>{(t.nav.notifTypes as any)[p.type] ?? p.type}</TableCell>
+                    <TableCell align="center"><Switch size="small" checked={p.inApp} onChange={() => toggle(p.type, 'inApp')} /></TableCell>
+                    <TableCell align="center"><Switch size="small" checked={p.browser} onChange={() => toggle(p.type, 'browser')} disabled={!p.inApp} /></TableCell>
+                    <TableCell align="center"><Switch size="small" checked={p.sound} onChange={() => toggle(p.type, 'sound')} disabled={!p.inApp} /></TableCell>
+                    <TableCell align="center"><Switch size="small" checked={p.email} onChange={() => toggle(p.type, 'email')} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
           <Box display="flex" justifyContent="flex-end" mt={3}>
             <Button
               variant="contained"

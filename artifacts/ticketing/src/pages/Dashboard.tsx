@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, CircularProgress,
-  Chip, Button, Avatar,
+  Chip, Button, Avatar, useMediaQuery, useTheme,
 } from '@mui/material';
 import { useGetDashboardStats, useGetRecentTickets, useGetMyTickets } from '@workspace/api-client-react';
 import { Link } from 'wouter';
@@ -40,13 +40,13 @@ function StatCard({
   href?: string;
 }) {
   const inner = (
-    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap>
+    <CardContent sx={{ p: { xs: 1.5, sm: 3 }, '&:last-child': { pb: { xs: 1.5, sm: 3 } } }}>
+      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap fontSize={{ xs: '0.7rem', sm: '0.875rem' }}>
         {title}
       </Typography>
       <Typography
         component="div"
-        sx={{ color, fontWeight: 'bold', fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
+        sx={{ color, fontWeight: 'bold', fontSize: { xs: '1.6rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
       >
         {value}
       </Typography>
@@ -91,12 +91,14 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
   viewAllHref?: string;
 }) {
   const { t } = useLanguage();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1}>
-          <Typography variant="h6" fontWeight="bold">{title}</Typography>
+          <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.95rem', sm: '1.25rem' }}>{title}</Typography>
           <Button component={Link} href={viewAllHref || '/tickets'} size="small">{viewAllLabel}</Button>
         </Box>
 
@@ -114,9 +116,9 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
               href={`/tickets/${ticket.id}`}
               sx={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                px: 2,
+                alignItems: 'flex-start',
+                gap: 1,
+                px: { xs: 1.5, sm: 2 },
                 py: 1.5,
                 textDecoration: 'none',
                 color: 'inherit',
@@ -126,23 +128,27 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
                 borderColor: 'divider',
                 '&:hover': { bgcolor: 'action.hover' },
                 '&:last-child': { borderBottom: 'none' },
+                overflow: 'hidden',
               }}
             >
-              <Avatar
-                sx={{
-                  width: 32,
-                  height: 32,
-                  fontSize: '0.75rem',
-                  bgcolor: 'primary.light',
-                  color: 'primary.contrastText',
-                  flexShrink: 0,
-                }}
-              >
-                #{ticket.id}
-              </Avatar>
+              {!isMobile && (
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    fontSize: '0.7rem',
+                    bgcolor: 'primary.light',
+                    color: 'primary.contrastText',
+                    flexShrink: 0,
+                  }}
+                >
+                  #{ticket.id}
+                </Avatar>
+              )}
 
               <Box flex={1} minWidth={0}>
-                <Typography variant="body2" fontWeight="medium" noWrap>
+                <Typography variant="body2" fontWeight="medium" noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
+                  {isMobile && <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>#{ticket.id}</Typography>}
                   {ticket.title}
                 </Typography>
                 {ticket.category && (
@@ -150,21 +156,40 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
                     {ticket.category}
                   </Typography>
                 )}
+                {isMobile && (
+                  <Box display="flex" gap={0.5} mt={0.5} flexWrap="wrap">
+                    <Chip
+                      label={t.status[ticket.status] || ticket.status}
+                      size="small"
+                      color={getStatusColor(ticket.status) as any}
+                      sx={{ fontSize: '0.65rem', height: 18 }}
+                    />
+                    <Chip
+                      label={t.priority[ticket.priority] || ticket.priority}
+                      size="small"
+                      variant="outlined"
+                      color={getPriorityColor(ticket.priority) as any}
+                      sx={{ fontSize: '0.65rem', height: 18 }}
+                    />
+                  </Box>
+                )}
               </Box>
 
-              <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5} flexShrink={0}>
-                <Chip
-                  label={t.status[ticket.status] || ticket.status}
-                  size="small"
-                  color={getStatusColor(ticket.status) as any}
-                />
-                <Chip
-                  label={t.priority[ticket.priority] || ticket.priority}
-                  size="small"
-                  variant="outlined"
-                  color={getPriorityColor(ticket.priority) as any}
-                />
-              </Box>
+              {!isMobile && (
+                <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5} flexShrink={0} maxWidth={120}>
+                  <Chip
+                    label={t.status[ticket.status] || ticket.status}
+                    size="small"
+                    color={getStatusColor(ticket.status) as any}
+                  />
+                  <Chip
+                    label={t.priority[ticket.priority] || ticket.priority}
+                    size="small"
+                    variant="outlined"
+                    color={getPriorityColor(ticket.priority) as any}
+                  />
+                </Box>
+              )}
             </Box>
           ))
         )}
@@ -188,12 +213,12 @@ export default function Dashboard() {
   }
 
   return (
-    <Box>
-      <Typography variant="h5" fontWeight="bold" gutterBottom mb={3}>
+    <Box sx={{ overflow: 'hidden' }}>
+      <Typography variant="h5" fontWeight="bold" gutterBottom mb={3} fontSize={{ xs: '1.1rem', sm: '1.5rem' }}>
         {t.dashboard.title}
       </Typography>
 
-      <Grid container spacing={2} mb={3}>
+      <Grid container spacing={{ xs: 1.5, sm: 2 }} mb={3}>
         <Grid item xs={6} md={3}>
           <StatCard
             title={t.dashboard.openTickets}
@@ -228,7 +253,7 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={{ xs: 1.5, sm: 2 }}>
         <Grid item xs={12} md={6}>
           <TicketListCard
             title={t.dashboard.myTickets}

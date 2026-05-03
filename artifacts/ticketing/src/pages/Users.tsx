@@ -25,6 +25,12 @@ import {
   Alert,
   Tooltip,
   Divider,
+  Card,
+  CardContent,
+  CardActions,
+  Stack,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Add,
@@ -72,6 +78,8 @@ export default function Users() {
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const ut = t.users;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [groups, setGroups] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -248,9 +256,10 @@ export default function Users() {
 
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em">
+          <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em" fontSize={{ xs: '1.4rem', sm: '2.125rem' }}>
             {ut.title}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -280,15 +289,15 @@ export default function Users() {
           </Box>
         </Box>
         {currentUser?.role === 'admin' && (
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             {isFull && (
-              <Button variant="outlined" color="primary" component={WLink as any} href="/billing" startIcon={<TrendingUp />}>
+              <Button variant="outlined" color="primary" component={WLink as any} href="/billing" startIcon={<TrendingUp />} size={isMobile ? 'small' : 'medium'}>
                 {ut.upgradeCta}
               </Button>
             )}
             <Tooltip title={isFull ? ut.errorSeatLimit : ''}>
               <span>
-                <Button variant="contained" startIcon={<Add />} onClick={openCreate} disabled={isFull}>
+                <Button variant="contained" startIcon={<Add />} onClick={openCreate} disabled={isFull} size={isMobile ? 'small' : 'medium'}>
                   {ut.addUser}
                 </Button>
               </span>
@@ -335,106 +344,173 @@ export default function Users() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} elevation={1}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><strong>{ut.name}</strong></TableCell>
-              <TableCell><strong>{ut.email}</strong></TableCell>
-              <TableCell><strong>{ut.role}</strong></TableCell>
-              <TableCell><strong>{ut.group}</strong></TableCell>
-              <TableCell><strong>{ut.location}</strong></TableCell>
-              <TableCell><strong>{ut.status}</strong></TableCell>
-              <TableCell><strong>{ut.createdAt}</strong></TableCell>
-              <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  {ut.noUsers}
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((u) => {
-                const isActive = u.isActive !== false;
-                const isCurrentUser = u.id === currentUser?.id;
-                return (
-                  <TableRow
-                    key={u.id}
-                    sx={{ opacity: isActive ? 1 : 0.55, '&:last-child td': { border: 0 } }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">{u.email}</Typography>
-                    </TableCell>
-                    <TableCell>
+      {/* Mobile: card layout */}
+      {isMobile ? (
+        <Stack spacing={1.5}>
+          {users.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
+              {ut.noUsers}
+            </Typography>
+          ) : (
+            users.map((u) => {
+              const isActive = u.isActive !== false;
+              const isCurrentUser = u.id === currentUser?.id;
+              return (
+                <Card key={u.id} elevation={1} sx={{ opacity: isActive ? 1 : 0.6 }}>
+                  <CardContent sx={{ pb: 1 }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={0.5}>
+                      <Typography variant="subtitle2" fontWeight={700} noWrap flex={1} mr={1}>
+                        {u.name}
+                      </Typography>
+                      <Chip
+                        label={isActive ? ut.active : ut.inactive}
+                        size="small"
+                        color={isActive ? 'success' : 'default'}
+                      />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" display="block" noWrap mb={1}>
+                      {u.email}
+                    </Typography>
+                    <Box display="flex" gap={0.5} flexWrap="wrap">
                       <Chip
                         label={u.role === 'admin' ? t.role.admin : t.role.user}
                         size="small"
                         color={u.role === 'admin' ? 'secondary' : 'default'}
                         variant="outlined"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {(u as any).group || '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {(u as any).mainLocation || '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={isActive ? ut.active : ut.inactive}
-                        size="small"
-                        color={isActive ? 'success' : 'default'}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {u.createdAt
-                          ? new Date(u.createdAt).toLocaleDateString('it-IT')
-                          : '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      {currentUser?.role === 'admin' && (
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                          <Tooltip title={ut.editUser}>
-                            <IconButton size="small" onClick={() => openEdit(u)}>
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          {!isCurrentUser && (
-                            <Tooltip title={isActive ? ut.deactivate : ut.activate}>
-                              <IconButton
-                                size="small"
-                                color={isActive ? 'error' : 'success'}
-                                onClick={() => handleToggleActive(u)}
-                              >
-                                {isActive ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                      {(u as any).group && (
+                        <Chip label={(u as any).group} size="small" variant="outlined" />
+                      )}
+                      {(u as any).mainLocation && (
+                        <Chip label={(u as any).mainLocation} size="small" variant="outlined" />
+                      )}
+                    </Box>
+                  </CardContent>
+                  {currentUser?.role === 'admin' && (
+                    <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1 }}>
+                      <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => openEdit(u)}>
+                        {ut.editUser}
+                      </Button>
+                      {!isCurrentUser && (
+                        <Button
+                          size="small"
+                          color={isActive ? 'error' : 'success'}
+                          startIcon={isActive ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                          onClick={() => handleToggleActive(u)}
+                        >
+                          {isActive ? ut.deactivate : ut.activate}
+                        </Button>
+                      )}
+                    </CardActions>
+                  )}
+                </Card>
+              );
+            })
+          )}
+        </Stack>
+      ) : (
+        /* Desktop: table layout */
+        <TableContainer component={Paper} elevation={1}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>{ut.name}</strong></TableCell>
+                <TableCell><strong>{ut.email}</strong></TableCell>
+                <TableCell><strong>{ut.role}</strong></TableCell>
+                <TableCell><strong>{ut.group}</strong></TableCell>
+                <TableCell><strong>{ut.location}</strong></TableCell>
+                <TableCell><strong>{ut.status}</strong></TableCell>
+                <TableCell><strong>{ut.createdAt}</strong></TableCell>
+                <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    {ut.noUsers}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((u) => {
+                  const isActive = u.isActive !== false;
+                  const isCurrentUser = u.id === currentUser?.id;
+                  return (
+                    <TableRow
+                      key={u.id}
+                      sx={{ opacity: isActive ? 1 : 0.55, '&:last-child td': { border: 0 } }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">{u.email}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={u.role === 'admin' ? t.role.admin : t.role.user}
+                          size="small"
+                          color={u.role === 'admin' ? 'secondary' : 'default'}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {(u as any).group || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {(u as any).mainLocation || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={isActive ? ut.active : ut.inactive}
+                          size="small"
+                          color={isActive ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {u.createdAt
+                            ? new Date(u.createdAt).toLocaleDateString('it-IT')
+                            : '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {currentUser?.role === 'admin' && (
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                            <Tooltip title={ut.editUser}>
+                              <IconButton size="small" onClick={() => openEdit(u)}>
+                                <Edit fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                          )}
-                        </Box>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                            {!isCurrentUser && (
+                              <Tooltip title={isActive ? ut.deactivate : ut.activate}>
+                                <IconButton
+                                  size="small"
+                                  color={isActive ? 'error' : 'success'}
+                                  onClick={() => handleToggleActive(u)}
+                                >
+                                  {isActive ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Box>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editTarget ? ut.editUser : ut.createUser}</DialogTitle>
         <Divider />
         <DialogContent sx={{ pt: 2 }}>
