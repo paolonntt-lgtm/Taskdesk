@@ -175,9 +175,9 @@ export default function Landing() {
   const isMobile = platform !== "other";
 
   const tickerItems = [
-    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media", "🏢 500+ aziende italiane",
+    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media",
     "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
-    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media", "🏢 500+ aziende italiane",
+    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media",
     "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
   ];
 
@@ -357,9 +357,8 @@ export default function Landing() {
       {/* Stats */}
       <section className="py-14 border-y border-gray-100 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6 md:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {[
-              { to: 500, s: "+",  label: lang === "it" ? "Aziende attive"           : "Active companies" },
               { to: 98,  s: "%",  label: lang === "it" ? "Soddisfazione clienti"    : "Client satisfaction" },
               { to: 4,   s: "h",  label: lang === "it" ? "Tempo medio risoluzione"  : "Avg. resolution time" },
               { to: 9,   s: "",   label: lang === "it" ? "€/mese, piano Starter"     : "€/month, Starter plan", p: true },
