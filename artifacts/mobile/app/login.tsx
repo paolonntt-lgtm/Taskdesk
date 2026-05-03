@@ -182,13 +182,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {mode === "login" && (
-            <View style={s.demo}>
-              <Text style={s.demoTitle}>{t.login.demoCredentials}</Text>
-              <Text style={s.demoText}>admin@example.com / admin123</Text>
-              <Text style={s.demoText}>utente@example.com / user123</Text>
-            </View>
-          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -245,10 +238,4 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     switchRow: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
     switchText: { color: colors.mutedForeground, fontSize: 14, fontFamily: "Inter_400Regular" },
     switchLink: { color: colors.primary, fontWeight: "600" as const, fontSize: 14, fontFamily: "Inter_600SemiBold" },
-    demo: {
-      marginTop: 20, padding: 12, backgroundColor: colors.muted,
-      borderRadius: 8, gap: 2,
-    },
-    demoTitle: { fontSize: 12, fontWeight: "600" as const, color: colors.mutedForeground, marginBottom: 4, fontFamily: "Inter_600SemiBold" },
-    demoText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
   });

@@ -251,25 +251,6 @@ export default function Login() {
               )}
             </Box>
 
-            {mode === 'login' && (
-              <Paper sx={{ mt: 3, p: 2, bgcolor: 'background.default', border: 1, borderColor: 'divider' }} elevation={0}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {t.login.demoCredentials}:
-                </Typography>
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">Admin:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                    admin@example.com / admin123
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">{t.login.userLabel}:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                    utente@example.com / user123
-                  </Typography>
-                </Box>
-              </Paper>
-            )}
           </CardContent>
         </Card>
       </Container>
