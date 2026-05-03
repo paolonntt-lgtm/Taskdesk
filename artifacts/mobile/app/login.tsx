@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import * as Haptics from "expo-haptics";
 
 type Mode = "login" | "register";
@@ -22,6 +23,7 @@ export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { login, register } = useAuth();
+  const { t } = useLanguage();
 
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
@@ -44,9 +46,9 @@ export default function LoginScreen() {
   const handleSubmit = async () => {
     setError(null);
     if (mode === "register") {
-      if (!name.trim()) { setError("Inserisci il tuo nome"); return; }
-      if (password.length < 6) { setError("Password minimo 6 caratteri"); return; }
-      if (password !== confirm) { setError("Le password non coincidono"); return; }
+      if (!name.trim()) { setError(t.login.errorName); return; }
+      if (password.length < 6) { setError(t.login.errorPasswordMin); return; }
+      if (password !== confirm) { setError(t.login.errorPasswordMatch); return; }
     }
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -57,7 +59,7 @@ export default function LoginScreen() {
         await register(name, email, password);
       }
     } catch (e: any) {
-      setError(e.message || "Errore. Riprova.");
+      setError(e.message || t.login.errorGeneric);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -82,7 +84,7 @@ export default function LoginScreen() {
           </View>
           <Text style={s.brand}>TaskDesk</Text>
           <Text style={s.subtitle}>
-            {mode === "login" ? "Accedi al tuo account" : "Crea un account gratuito"}
+            {mode === "login" ? t.login.signIn : t.login.register}
           </Text>
         </View>
 
@@ -96,7 +98,7 @@ export default function LoginScreen() {
 
           {mode === "register" && (
             <View style={s.field}>
-              <Text style={s.label}>Nome e Cognome</Text>
+              <Text style={s.label}>{t.login.name}</Text>
               <TextInput
                 style={s.input}
                 value={name}
@@ -110,7 +112,7 @@ export default function LoginScreen() {
           )}
 
           <View style={s.field}>
-            <Text style={s.label}>Email</Text>
+            <Text style={s.label}>{t.login.email}</Text>
             <TextInput
               style={s.input}
               value={email}
@@ -124,13 +126,13 @@ export default function LoginScreen() {
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>Password</Text>
+            <Text style={s.label}>{t.login.password}</Text>
             <View style={s.passWrap}>
               <TextInput
                 style={[s.input, { flex: 1, borderWidth: 0 }]}
                 value={password}
                 onChangeText={setPassword}
-                placeholder={mode === "register" ? "Min. 6 caratteri" : "••••••••"}
+                placeholder={mode === "register" ? t.login.passwordMin : "••••••••"}
                 placeholderTextColor={colors.mutedForeground}
                 secureTextEntry={!showPass}
                 autoComplete={mode === "register" ? "new-password" : "current-password"}
@@ -143,12 +145,12 @@ export default function LoginScreen() {
 
           {mode === "register" && (
             <View style={s.field}>
-              <Text style={s.label}>Conferma Password</Text>
+              <Text style={s.label}>{t.login.confirmPassword}</Text>
               <TextInput
                 style={[s.input, confirm.length > 0 && confirm !== password && { borderColor: colors.destructive }]}
                 value={confirm}
                 onChangeText={setConfirm}
-                placeholder="Ripeti la password"
+                placeholder={t.login.confirmPlaceholder}
                 placeholderTextColor={colors.mutedForeground}
                 secureTextEntry={!showPass}
                 autoComplete="new-password"
@@ -166,23 +168,23 @@ export default function LoginScreen() {
               <ActivityIndicator color={colors.primaryForeground} size="small" />
             ) : (
               <Text style={s.btnText}>
-                {mode === "login" ? "Accedi" : "Crea account"}
+                {mode === "login" ? t.login.submit : t.login.registerSubmit}
               </Text>
             )}
           </TouchableOpacity>
 
           <View style={s.switchRow}>
             <Text style={s.switchText}>
-              {mode === "login" ? "Non hai un account?" : "Hai già un account?"}
+              {mode === "login" ? t.login.noAccount : t.login.hasAccount}
             </Text>
             <TouchableOpacity onPress={() => switchMode(mode === "login" ? "register" : "login")}>
-              <Text style={s.switchLink}> {mode === "login" ? "Registrati" : "Accedi"}</Text>
+              <Text style={s.switchLink}> {mode === "login" ? t.login.registerLink : t.login.loginLink}</Text>
             </TouchableOpacity>
           </View>
 
           {mode === "login" && (
             <View style={s.demo}>
-              <Text style={s.demoTitle}>Credenziali demo</Text>
+              <Text style={s.demoTitle}>{t.login.demoCredentials}</Text>
               <Text style={s.demoText}>admin@example.com / admin123</Text>
               <Text style={s.demoText}>utente@example.com / user123</Text>
             </View>

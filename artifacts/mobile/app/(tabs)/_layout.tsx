@@ -9,31 +9,33 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
+  const { t } = useLanguage();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>Dashboard</Label>
+        <Label>{t.tabs.dashboard}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tickets">
         <Icon sf={{ default: "ticket", selected: "ticket.fill" }} />
-        <Label>Ticket</Label>
+        <Label>{t.tabs.tickets}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
-        <Label>Nuovo</Label>
+        <Label>{t.tabs.new}</Label>
       </NativeTabs.Trigger>
       {isAdmin && (
         <NativeTabs.Trigger name="reports">
           <Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
-          <Label>Report</Label>
+          <Label>{t.tabs.reports}</Label>
         </NativeTabs.Trigger>
       )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
-        <Label>Profilo</Label>
+        <Label>{t.tabs.profile}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -41,6 +43,7 @@ function NativeTabLayout({ isAdmin }: { isAdmin: boolean }) {
 
 function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
   const colors = useColors();
+  const { t } = useLanguage();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
@@ -85,7 +88,7 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: t.tabs.dashboard,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="chart.bar" tintColor={color} size={22} />
@@ -97,7 +100,7 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
       <Tabs.Screen
         name="tickets"
         options={{
-          title: "Ticket",
+          title: t.tabs.tickets,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="ticket" tintColor={color} size={22} />
@@ -109,8 +112,8 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
       <Tabs.Screen
         name="new"
         options={{
-          title: "Nuovo ticket",
-          tabBarLabel: "Nuovo",
+          title: t.tabs.newTicket,
+          tabBarLabel: t.tabs.new,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="plus.circle" tintColor={color} size={22} />
@@ -122,7 +125,7 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
       <Tabs.Screen
         name="reports"
         options={{
-          title: "Report",
+          title: t.tabs.reports,
           href: isAdmin ? undefined : null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
@@ -135,7 +138,7 @@ function ClassicTabLayout({ isAdmin }: { isAdmin: boolean }) {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profilo",
+          title: t.tabs.profile,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="person.circle" tintColor={color} size={22} />

@@ -8,6 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatRow { name: string; count: number }
 interface TrendRow { date: string; count: number }
@@ -31,12 +32,16 @@ interface ReportsAll {
 }
 
 const MEDALS = ["🥇", "🥈", "🥉", "4.", "5."];
-const PRIORITY_COLORS: Record<string, string> = {
+
+const PRIORITY_COLORS_MAP: Record<string, string> = {
   Bassa: "#24a148", Media: "#f1c21b", Alta: "#ff832b", Urgente: "#da1e28",
+  Low: "#24a148", Medium: "#f1c21b", High: "#ff832b", Urgent: "#da1e28",
 };
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS_MAP: Record<string, string> = {
   Aperto: "#0f62fe", "In lavorazione": "#8a3ffc", "In attesa": "#f1c21b",
   Risolto: "#24a148", Chiuso: "#525252",
+  Open: "#0f62fe", "In Progress": "#8a3ffc", Waiting: "#f1c21b",
+  Resolved: "#24a148", Closed: "#525252",
 };
 
 function SectionTitle({ label }: { label: string }) {
@@ -48,8 +53,8 @@ function SectionTitle({ label }: { label: string }) {
   );
 }
 
-function BarList({ data, colorMap, defaultColor, horizontal }: {
-  data: (StatRow | AssigneeEntry)[]; colorMap?: Record<string, string>; defaultColor: string; horizontal?: boolean;
+function BarList({ data, colorMap, defaultColor }: {
+  data: (StatRow | AssigneeEntry)[]; colorMap?: Record<string, string>; defaultColor: string;
 }) {
   const colors = useColors();
   const s = styles(colors);
@@ -117,14 +122,15 @@ function TrendChart({ data }: { data: TrendRow[] }) {
 
 function KpiGrid({ stats }: { stats: DashboardStats }) {
   const colors = useColors();
+  const { t } = useLanguage();
   const s = styles(colors);
   const items = [
-    { label: "Totale ticket", value: stats.totalTickets, color: colors.primary, icon: "layers" as const },
-    { label: "Aperti", value: stats.openTickets, color: "#0f62fe", icon: "inbox" as const },
-    { label: "Urgenti", value: stats.urgentTickets, color: colors.destructive, icon: "alert-triangle" as const },
-    { label: "Risolti", value: stats.resolvedTickets, color: colors.success, icon: "check-circle" as const },
-    { label: "Ultimi 7 giorni", value: stats.last7Days, color: "#8a3ffc", icon: "calendar" as const },
-    { label: "Ultimi 30 giorni", value: stats.last30Days, color: "#f1c21b", icon: "trending-up" as const },
+    { label: t.reports.totalTickets, value: stats.totalTickets, color: colors.primary, icon: "layers" as const },
+    { label: t.reports.open, value: stats.openTickets, color: "#0f62fe", icon: "inbox" as const },
+    { label: t.reports.urgent, value: stats.urgentTickets, color: colors.destructive, icon: "alert-triangle" as const },
+    { label: t.reports.resolved, value: stats.resolvedTickets, color: colors.success, icon: "check-circle" as const },
+    { label: t.reports.last7, value: stats.last7Days, color: "#8a3ffc", icon: "calendar" as const },
+    { label: t.reports.last30, value: stats.last30Days, color: "#f1c21b", icon: "trending-up" as const },
   ];
   return (
     <View style={s.kpiGrid}>
@@ -143,6 +149,7 @@ function LeaderBoard({ title, entries, unit, color }: {
   title: string; entries: LeaderEntry[]; unit: string; color: string;
 }) {
   const colors = useColors();
+  const { t } = useLanguage();
   const s = styles(colors);
   const max = entries[0]?.count ?? 1;
   return (
@@ -152,7 +159,7 @@ function LeaderBoard({ title, entries, unit, color }: {
       </View>
       {entries.length === 0 ? (
         <View style={s.emptyRow}>
-          <Text style={s.emptyText}>Nessun dato disponibile</Text>
+          <Text style={s.emptyText}>{t.reports.noData}</Text>
         </View>
       ) : (
         entries.map((entry, i) => {
@@ -183,6 +190,7 @@ export default function ReportsScreen() {
   const colors = useColors();
   const s = styles(colors);
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const { data, isLoading, refetch } = useQuery<ReportsAll>({
     queryKey: ["reports-all"],
@@ -195,8 +203,8 @@ export default function ReportsScreen() {
     return (
       <View style={s.center}>
         <Feather name="lock" size={40} color={colors.mutedForeground} />
-        <Text style={s.accessDeniedTitle}>Accesso riservato</Text>
-        <Text style={s.accessDeniedText}>I report sono disponibili solo per gli amministratori.</Text>
+        <Text style={s.accessDeniedTitle}>{t.reports.restricted}</Text>
+        <Text style={s.accessDeniedText}>{t.reports.restrictedMsg}</Text>
       </View>
     );
   }
@@ -216,15 +224,14 @@ export default function ReportsScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      {/* Panoramica KPI */}
-      <SectionTitle label="Panoramica" />
+      <SectionTitle label={t.reports.overview} />
       {data?.dashboard && <KpiGrid stats={data.dashboard} />}
 
       {data?.dashboard?.avgResolutionHours != null && (
         <View style={s.avgCard}>
           <Feather name="clock" size={16} color={colors.success} />
           <Text style={s.avgText}>
-            Tempo medio di risoluzione:{" "}
+            {t.reports.avgResolution}:{" "}
             <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>
               {data.dashboard.avgResolutionHours < 24
                 ? `${Math.round(data.dashboard.avgResolutionHours)}h`
@@ -234,50 +241,44 @@ export default function ReportsScreen() {
         </View>
       )}
 
-      {/* Andamento ultimi 30 giorni */}
       {(data?.trend?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Andamento (ultimi 30 giorni)" />
+          <SectionTitle label={t.reports.trend} />
           <TrendChart data={data!.trend} />
         </View>
       )}
 
-      {/* Per stato */}
       {(data?.byStatus?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Per stato" />
-          <BarList data={data!.byStatus} colorMap={STATUS_COLORS} defaultColor={colors.primary} />
+          <SectionTitle label={t.reports.byStatus} />
+          <BarList data={data!.byStatus} colorMap={STATUS_COLORS_MAP} defaultColor={colors.primary} />
         </View>
       )}
 
-      {/* Per priorità */}
       {(data?.byPriority?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Per priorità" />
-          <BarList data={data!.byPriority} colorMap={PRIORITY_COLORS} defaultColor="#f1c21b" />
+          <SectionTitle label={t.reports.byPriority} />
+          <BarList data={data!.byPriority} colorMap={PRIORITY_COLORS_MAP} defaultColor="#f1c21b" />
         </View>
       )}
 
-      {/* Per categoria */}
       {(data?.byCategory?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Per categoria" />
+          <SectionTitle label={t.reports.byCategory} />
           <BarList data={data!.byCategory} defaultColor="#8a3ffc" />
         </View>
       )}
 
-      {/* Per sede */}
       {(data?.byLocation?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Per sede" />
+          <SectionTitle label={t.reports.byLocation} />
           <BarList data={data!.byLocation} defaultColor="#0288d1" />
         </View>
       )}
 
-      {/* Per assegnatario */}
       {(data?.byAssignee?.length ?? 0) > 0 && (
         <View>
-          <SectionTitle label="Per assegnatario" />
+          <SectionTitle label={t.reports.byAssignee} />
           <BarList
             data={data!.byAssignee.map((a) => ({ name: a.name, count: a.count }))}
             defaultColor={colors.success}
@@ -285,11 +286,10 @@ export default function ReportsScreen() {
         </View>
       )}
 
-      {/* Classifiche */}
-      <SectionTitle label="Classifiche" />
-      <LeaderBoard title="🎫 Chi apre più ticket" entries={data?.leaderboard?.openers ?? []} unit="ticket" color={colors.primary} />
-      <LeaderBoard title="💬 Chi commenta di più" entries={data?.leaderboard?.commenters ?? []} unit="commenti" color="#8a3ffc" />
-      <LeaderBoard title="✅ Chi risolve di più" entries={data?.leaderboard?.resolvers ?? []} unit="soluzioni" color={colors.success} />
+      <SectionTitle label={t.reports.leaderboards} />
+      <LeaderBoard title={t.reports.openers} entries={data?.leaderboard?.openers ?? []} unit={t.reports.tickets} color={colors.primary} />
+      <LeaderBoard title={t.reports.commenters} entries={data?.leaderboard?.commenters ?? []} unit={t.reports.comments} color="#8a3ffc" />
+      <LeaderBoard title={t.reports.resolvers} entries={data?.leaderboard?.resolvers ?? []} unit={t.reports.solutions} color={colors.success} />
     </ScrollView>
   );
 }

@@ -8,7 +8,8 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiGet, STATUS_LABELS, PRIORITY_COLORS } from "@/utils/api";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { apiGet, PRIORITY_COLORS } from "@/utils/api";
 
 interface DashboardStats {
   openTickets: number;
@@ -30,6 +31,7 @@ interface Ticket {
 export default function DashboardScreen() {
   const colors = useColors();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const s = styles(colors);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -44,21 +46,20 @@ export default function DashboardScreen() {
     enabled: !!user,
   });
 
-  const isLoading = statsLoading || ticketsLoading;
   const onRefresh = () => { refetchStats(); refetchTickets(); };
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return "Buongiorno";
-    if (h < 18) return "Buon pomeriggio";
-    return "Buonasera";
+    if (h < 12) return t.dashboard.goodMorning;
+    if (h < 18) return t.dashboard.goodAfternoon;
+    return t.dashboard.goodEvening;
   };
 
   const statCards = [
-    { label: "Aperti", value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
-    { label: "In corso", value: stats?.inProgressTickets ?? 0, color: "#f1c21b", icon: "clock" as const, filter: "status=in_progress" },
-    { label: "Urgenti", value: stats?.urgentTickets ?? 0, color: colors.destructive, icon: "alert-triangle" as const, filter: "priority=urgent" },
-    { label: "Chiusi", value: stats?.closedTickets ?? 0, color: colors.success, icon: "check-circle" as const, filter: "status=closed" },
+    { label: t.dashboard.open, value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
+    { label: t.dashboard.inProgress, value: stats?.inProgressTickets ?? 0, color: "#f1c21b", icon: "clock" as const, filter: "status=in_progress" },
+    { label: t.dashboard.urgent, value: stats?.urgentTickets ?? 0, color: colors.destructive, icon: "alert-triangle" as const, filter: "priority=urgent" },
+    { label: t.dashboard.closed, value: stats?.closedTickets ?? 0, color: colors.success, icon: "check-circle" as const, filter: "status=closed" },
   ];
 
   return (
@@ -71,7 +72,7 @@ export default function DashboardScreen() {
       <View style={s.header}>
         <View>
           <Text style={s.greeting}>{greeting()},</Text>
-          <Text style={s.name}>{user?.name?.split(" ")[0] ?? "Utente"}</Text>
+          <Text style={s.name}>{user?.name?.split(" ")[0] ?? t.profile.user}</Text>
         </View>
         <TouchableOpacity style={s.newBtn} onPress={() => router.push("/(tabs)/new")}>
           <Feather name="plus" size={20} color={colors.primaryForeground} />
@@ -101,9 +102,9 @@ export default function DashboardScreen() {
 
       <View style={s.section}>
         <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Attività recente</Text>
+          <Text style={s.sectionTitle}>{t.dashboard.recentActivity}</Text>
           <TouchableOpacity onPress={() => router.push("/(tabs)/tickets")}>
-            <Text style={s.seeAll}>Vedi tutti</Text>
+            <Text style={s.seeAll}>{t.dashboard.seeAll}</Text>
           </TouchableOpacity>
         </View>
 
@@ -112,20 +113,20 @@ export default function DashboardScreen() {
         ) : recentTickets.length === 0 ? (
           <View style={s.empty}>
             <Feather name="inbox" size={32} color={colors.mutedForeground} />
-            <Text style={s.emptyText}>Nessun ticket recente</Text>
+            <Text style={s.emptyText}>{t.dashboard.noRecentTickets}</Text>
           </View>
         ) : (
-          recentTickets.slice(0, 5).map((t) => (
+          recentTickets.slice(0, 5).map((ticket) => (
             <TouchableOpacity
-              key={t.id}
+              key={ticket.id}
               style={s.ticketRow}
-              onPress={() => router.push(`/ticket/${t.id}` as any)}
+              onPress={() => router.push(`/ticket/${ticket.id}` as any)}
               activeOpacity={0.75}
             >
-              <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[t.priority] ?? colors.muted }]} />
+              <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[ticket.priority] ?? colors.muted }]} />
               <View style={s.ticketInfo}>
-                <Text style={s.ticketTitle} numberOfLines={1}>{t.title}</Text>
-                <Text style={s.ticketMeta}>#{t.id} · {STATUS_LABELS[t.status] ?? t.status}</Text>
+                <Text style={s.ticketTitle} numberOfLines={1}>{ticket.title}</Text>
+                <Text style={s.ticketMeta}>#{ticket.id} · {t.status[ticket.status] ?? ticket.status}</Text>
               </View>
               <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
             </TouchableOpacity>

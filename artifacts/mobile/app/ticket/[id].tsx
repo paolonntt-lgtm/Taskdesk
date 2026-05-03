@@ -9,7 +9,8 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiGet, apiPatch, apiPost, STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/utils/api";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { apiGet, apiPatch, apiPost, PRIORITY_COLORS } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -33,6 +34,7 @@ const STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"];
 export default function TicketDetailScreen() {
   const colors = useColors();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
   const s = styles(colors);
@@ -40,7 +42,6 @@ export default function TicketDetailScreen() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Resolution note modal state
   const [resolutionModal, setResolutionModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -71,7 +72,7 @@ export default function TicketDetailScreen() {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     } catch (e: any) {
-      Alert.alert("Errore", e.message);
+      Alert.alert(t.ticketDetail.error, e.message);
     }
   };
 
@@ -88,7 +89,7 @@ export default function TicketDetailScreen() {
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       setResolutionModal(false);
     } catch (e: any) {
-      Alert.alert("Errore", e.message);
+      Alert.alert(t.ticketDetail.error, e.message);
     } finally {
       setResolving(false);
     }
@@ -104,14 +105,16 @@ export default function TicketDetailScreen() {
       refetchComments();
       qc.invalidateQueries({ queryKey: ["ticket", id] });
     } catch (e: any) {
-      Alert.alert("Errore", e.message);
+      Alert.alert(t.ticketDetail.error, e.message);
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
+    new Date(d).toLocaleDateString(lang === "en" ? "en-GB" : "it-IT", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
 
   if (isLoading) {
     return (
@@ -124,9 +127,9 @@ export default function TicketDetailScreen() {
     return (
       <View style={s.center}>
         <Feather name="alert-circle" size={32} color={colors.destructive} />
-        <Text style={s.errorText}>Ticket non trovato</Text>
+        <Text style={s.errorText}>{t.ticketDetail.notFound}</Text>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>Torna indietro</Text>
+          <Text style={s.backBtnText}>{t.ticketDetail.goBack}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -134,6 +137,22 @@ export default function TicketDetailScreen() {
 
   const isAdmin = user?.role === "admin";
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
+
+  const metaRows = [
+    { label: t.ticketDetail.status, value: t.status[ticket.status] ?? ticket.status },
+    { label: t.ticketDetail.priority, value: t.priority[ticket.priority] ?? ticket.priority },
+    { label: t.ticketDetail.category, value: ticket.category },
+    ...(ticket.location ? [{ label: t.ticketDetail.location, value: ticket.location }] : []),
+    { label: t.ticketDetail.createdBy, value: ticket.creator?.name ?? "–" },
+    {
+      label: t.ticketDetail.assignedTo,
+      value: ticket.assignedToGroup
+        ? `${t.ticketDetail.group}: ${ticket.assignedToGroup}`
+        : ticket.assignee?.name ?? t.ticketDetail.unassigned,
+    },
+    { label: t.ticketDetail.date, value: formatDate(ticket.createdAt) },
+    ...(ticket.resource ? [{ label: t.ticketDetail.resource, value: ticket.resource }] : []),
+  ];
 
   return (
     <>
@@ -153,21 +172,7 @@ export default function TicketDetailScreen() {
         </View>
 
         <View style={s.metaCard}>
-          {[
-            { label: "Stato", value: STATUS_LABELS[ticket.status] ?? ticket.status },
-            { label: "Priorità", value: PRIORITY_LABELS[ticket.priority] ?? ticket.priority },
-            { label: "Categoria", value: ticket.category },
-            ...(ticket.location ? [{ label: "Sede", value: ticket.location }] : []),
-            { label: "Creato da", value: ticket.creator?.name ?? "–" },
-            {
-              label: "Assegnato a",
-              value: ticket.assignedToGroup
-                ? `Gruppo: ${ticket.assignedToGroup}`
-                : ticket.assignee?.name ?? "Non assegnato",
-            },
-            { label: "Data", value: formatDate(ticket.createdAt) },
-            ...(ticket.resource ? [{ label: "Risorsa", value: ticket.resource }] : []),
-          ].map((item, i, arr) => (
+          {metaRows.map((item, i, arr) => (
             <View key={item.label} style={[s.metaRow, i < arr.length - 1 && s.metaRowBorder]}>
               <Text style={s.metaLabel}>{item.label}</Text>
               <Text style={s.metaValue}>{item.value}</Text>
@@ -176,18 +181,17 @@ export default function TicketDetailScreen() {
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Descrizione</Text>
+          <Text style={s.sectionTitle}>{t.ticketDetail.description}</Text>
           <View style={s.descBox}>
             <Text style={s.desc}>{ticket.description}</Text>
           </View>
         </View>
 
-        {/* Resolution note (shown when resolved/closed) */}
         {ticket.resolutionNote ? (
           <View style={s.resolutionCard}>
             <View style={s.resolutionHeader}>
               <Feather name="check-circle" size={16} color={colors.success} />
-              <Text style={s.resolutionTitle}>Come è stato risolto</Text>
+              <Text style={s.resolutionTitle}>{t.ticketDetail.resolvedHow}</Text>
             </View>
             <Text style={s.resolutionText}>{ticket.resolutionNote}</Text>
           </View>
@@ -195,7 +199,7 @@ export default function TicketDetailScreen() {
 
         {isAdmin && (
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Aggiorna stato</Text>
+            <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={s.statusRow}>
                 {STATUSES.map((st) => (
@@ -205,7 +209,7 @@ export default function TicketDetailScreen() {
                     onPress={() => handleStatusChange(st)}
                   >
                     <Text style={[s.statusBtnText, ticket.status === st && s.statusBtnTextActive]}>
-                      {STATUS_LABELS[st]}
+                      {t.status[st] ?? st}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -215,7 +219,7 @@ export default function TicketDetailScreen() {
         )}
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Commenti ({comments.length})</Text>
+          <Text style={s.sectionTitle}>{t.ticketDetail.comments} ({comments.length})</Text>
           {comments.map((c) => (
             <View key={c.id} style={s.commentCard}>
               <View style={s.commentHeader}>
@@ -236,7 +240,7 @@ export default function TicketDetailScreen() {
               style={s.commentInput}
               value={comment}
               onChangeText={setComment}
-              placeholder="Aggiungi un commento..."
+              placeholder={t.ticketDetail.addComment}
               placeholderTextColor={colors.mutedForeground}
               multiline
               textAlignVertical="top"
@@ -256,7 +260,6 @@ export default function TicketDetailScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Resolution note modal */}
       <Modal
         visible={resolutionModal}
         animationType="slide"
@@ -267,9 +270,9 @@ export default function TicketDetailScreen() {
           <View style={s.modalRoot}>
             <View style={s.modalHeader}>
               <TouchableOpacity onPress={() => setResolutionModal(false)} style={s.modalCancel}>
-                <Text style={s.modalCancelText}>Annulla</Text>
+                <Text style={s.modalCancelText}>{t.ticketDetail.cancel}</Text>
               </TouchableOpacity>
-              <Text style={s.modalTitle}>Come è stato risolto?</Text>
+              <Text style={s.modalTitle}>{t.ticketDetail.resolutionModalTitle}</Text>
               <View style={{ width: 60 }} />
             </View>
 
@@ -277,14 +280,12 @@ export default function TicketDetailScreen() {
               <View style={s.modalIconRow}>
                 <Feather name="check-circle" size={40} color={colors.success} />
               </View>
-              <Text style={s.modalSubtitle}>
-                Aggiungi una nota che descriva la soluzione adottata (opzionale).
-              </Text>
+              <Text style={s.modalSubtitle}>{t.ticketDetail.resolutionSubtitle}</Text>
               <TextInput
                 style={s.modalInput}
                 value={resolutionNote}
                 onChangeText={setResolutionNote}
-                placeholder="Es: Sostituito il cavo di alimentazione, aggiornato il driver..."
+                placeholder={t.ticketDetail.resolutionPlaceholder}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 textAlignVertical="top"
@@ -298,7 +299,7 @@ export default function TicketDetailScreen() {
                 onPress={() => confirmResolved("")}
                 disabled={resolving}
               >
-                <Text style={s.skipBtnText}>Salta</Text>
+                <Text style={s.skipBtnText}>{t.ticketDetail.skip}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.confirmBtn, resolving && { opacity: 0.6 }]}
@@ -310,7 +311,7 @@ export default function TicketDetailScreen() {
                   : (
                     <>
                       <Feather name="check" size={16} color="#fff" />
-                      <Text style={s.confirmBtnText}>Segna come risolto</Text>
+                      <Text style={s.confirmBtnText}>{t.ticketDetail.markResolved}</Text>
                     </>
                   )
                 }
@@ -344,7 +345,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     sectionTitle: { fontSize: 15, fontWeight: "600" as const, color: colors.foreground, marginBottom: 10, fontFamily: "Inter_600SemiBold" },
     descBox: { backgroundColor: colors.card, borderRadius: 10, padding: 14, borderWidth: 1, borderColor: colors.border },
     desc: { fontSize: 14, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
-    // Resolution note
     resolutionCard: {
       backgroundColor: colors.success + "18",
       borderRadius: 12, padding: 14,
@@ -373,7 +373,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     sendBtn: { backgroundColor: colors.primary, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
     sendBtnDisabled: { opacity: 0.5 },
-    // Modal
     modalRoot: { flex: 1, backgroundColor: colors.background },
     modalHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",

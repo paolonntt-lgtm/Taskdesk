@@ -8,7 +8,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
-import { apiPost, CATEGORIES, PRIORITIES, PRIORITY_LABELS, LOCATIONS } from "@/utils/api";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { apiPost, CATEGORIES, PRIORITIES, LOCATIONS } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -19,6 +20,7 @@ const PRIORITY_ICONS: Record<string, string> = {
 export default function NewTicketScreen() {
   const colors = useColors();
   const qc = useQueryClient();
+  const { t } = useLanguage();
   const s = styles(colors);
 
   const [title, setTitle] = useState("");
@@ -31,11 +33,11 @@ export default function NewTicketScreen() {
 
   const handleCreate = async () => {
     if (!title.trim()) {
-      Alert.alert("Titolo mancante", "Inserisci un titolo per il ticket.");
+      Alert.alert(t.newTicket.errorTitle, t.newTicket.errorTitleMsg);
       return;
     }
     if (!description.trim()) {
-      Alert.alert("Descrizione mancante", "Inserisci una descrizione.");
+      Alert.alert(t.newTicket.errorDesc, t.newTicket.errorDescMsg);
       return;
     }
     setLoading(true);
@@ -49,7 +51,7 @@ export default function NewTicketScreen() {
       setTitle(""); setDescription(""); setResource(""); setPriority("medium");
       router.push("/(tabs)/tickets");
     } catch (e: any) {
-      Alert.alert("Errore", e.message || "Impossibile creare il ticket.");
+      Alert.alert(t.newTicket.errorCreate, e.message || t.newTicket.errorCreateMsg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -65,24 +67,24 @@ export default function NewTicketScreen() {
       bottomOffset={16}
     >
       <View style={s.field}>
-        <Text style={s.label}>Titolo *</Text>
+        <Text style={s.label}>{t.newTicket.titleField}</Text>
         <TextInput
           style={s.input}
           value={title}
           onChangeText={setTitle}
-          placeholder="Descrivi brevemente il problema..."
+          placeholder={t.newTicket.titlePlaceholder}
           placeholderTextColor={colors.mutedForeground}
           maxLength={120}
         />
       </View>
 
       <View style={s.field}>
-        <Text style={s.label}>Descrizione *</Text>
+        <Text style={s.label}>{t.newTicket.descriptionField}</Text>
         <TextInput
           style={[s.input, s.textarea]}
           value={description}
           onChangeText={setDescription}
-          placeholder="Descrivi il problema in dettaglio..."
+          placeholder={t.newTicket.descriptionPlaceholder}
           placeholderTextColor={colors.mutedForeground}
           multiline
           numberOfLines={4}
@@ -91,7 +93,7 @@ export default function NewTicketScreen() {
       </View>
 
       <View style={s.field}>
-        <Text style={s.label}>Categoria</Text>
+        <Text style={s.label}>{t.newTicket.category}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
           <View style={s.chips}>
             {CATEGORIES.map((c) => (
@@ -108,7 +110,7 @@ export default function NewTicketScreen() {
       </View>
 
       <View style={s.field}>
-        <Text style={s.label}>Priorità</Text>
+        <Text style={s.label}>{t.newTicket.priority}</Text>
         <View style={s.priorityRow}>
           {PRIORITIES.map((p) => (
             <TouchableOpacity
@@ -118,7 +120,7 @@ export default function NewTicketScreen() {
             >
               <Feather name={PRIORITY_ICONS[p] as any} size={14} color={priority === p ? colors.primaryForeground : colors.mutedForeground} />
               <Text style={[s.priorityText, priority === p && s.priorityTextActive]}>
-                {PRIORITY_LABELS[p]}
+                {t.priority[p] ?? p}
               </Text>
             </TouchableOpacity>
           ))}
@@ -126,7 +128,7 @@ export default function NewTicketScreen() {
       </View>
 
       <View style={s.field}>
-        <Text style={s.label}>Sede</Text>
+        <Text style={s.label}>{t.newTicket.location}</Text>
         <View style={s.chips}>
           {LOCATIONS.map((l) => (
             <TouchableOpacity
@@ -141,12 +143,12 @@ export default function NewTicketScreen() {
       </View>
 
       <View style={s.field}>
-        <Text style={s.label}>Risorsa (opzionale)</Text>
+        <Text style={s.label}>{t.newTicket.resource}</Text>
         <TextInput
           style={s.input}
           value={resource}
           onChangeText={setResource}
-          placeholder="Es: stampante reception, PC cassa..."
+          placeholder={t.newTicket.resourcePlaceholder}
           placeholderTextColor={colors.mutedForeground}
         />
       </View>
@@ -162,7 +164,7 @@ export default function NewTicketScreen() {
         ) : (
           <>
             <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
-            <Text style={s.btnText}>Crea Ticket</Text>
+            <Text style={s.btnText}>{t.newTicket.create}</Text>
           </>
         )}
       </TouchableOpacity>

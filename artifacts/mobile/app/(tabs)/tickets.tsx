@@ -7,8 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/utils/api";
+import { apiGet, PRIORITY_COLORS } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Ticket {
   id: number;
@@ -25,15 +26,12 @@ interface Ticket {
 }
 
 const STATUS_OPTIONS = ["", "open", "in_progress", "waiting", "resolved", "closed"];
-const STATUS_DISPLAY: Record<string, string> = {
-  "": "Tutti", open: "Aperti", in_progress: "In corso",
-  waiting: "In attesa", resolved: "Risolti", closed: "Chiusi",
-};
 
 export default function TicketsScreen() {
   const colors = useColors();
-  const s = styles(colors);
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const s = styles(colors);
   const params = useLocalSearchParams<{ status?: string; priority?: string }>();
 
   const [search, setSearch] = useState("");
@@ -54,11 +52,11 @@ export default function TicketsScreen() {
   });
 
   const q = search.toLowerCase();
-  const filtered = tickets.filter((t) =>
+  const filtered = tickets.filter((ticket) =>
     !search ||
-    t.title.toLowerCase().includes(q) ||
-    t.description?.toLowerCase().includes(q) ||
-    String(t.id).includes(search)
+    ticket.title.toLowerCase().includes(q) ||
+    ticket.description?.toLowerCase().includes(q) ||
+    String(ticket.id).includes(search)
   );
 
   const renderTicket = ({ item }: { item: Ticket }) => {
@@ -73,7 +71,7 @@ export default function TicketsScreen() {
           <View style={[s.priorityBadge, { backgroundColor: PRIORITY_COLORS[item.priority] + "22" }]}>
             <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLORS[item.priority] }]} />
             <Text style={[s.priorityText, { color: PRIORITY_COLORS[item.priority] }]}>
-              {PRIORITY_LABELS[item.priority]}
+              {t.priority[item.priority] ?? item.priority}
             </Text>
           </View>
           <Text style={s.ticketId}>#{item.id}</Text>
@@ -93,17 +91,17 @@ export default function TicketsScreen() {
         </View>
         <View style={s.cardBottom}>
           <View style={s.statusBadge}>
-            <Text style={s.statusText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+            <Text style={s.statusText}>{t.status[item.status] ?? item.status}</Text>
           </View>
           <View style={s.cardBottomRight}>
             {hasNote && (
               <View style={s.noteChip}>
                 <Feather name="check-circle" size={11} color={colors.success} />
-                <Text style={s.noteChipText}>Soluzione documentata</Text>
+                <Text style={s.noteChipText}>{t.tickets.resolvedNote}</Text>
               </View>
             )}
             <Text style={s.assignee}>
-              {item.assignee ? item.assignee.name : "Non assegnato"}
+              {item.assignee ? item.assignee.name : t.tickets.unassigned}
             </Text>
           </View>
         </View>
@@ -119,7 +117,7 @@ export default function TicketsScreen() {
           style={s.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Cerca ticket..."
+          placeholder={t.tickets.search}
           placeholderTextColor={colors.mutedForeground}
         />
         {search.length > 0 && (
@@ -129,16 +127,15 @@ export default function TicketsScreen() {
         )}
       </View>
 
-      {/* Status filters */}
       <View style={s.filtersRow}>
-        {STATUS_OPTIONS.map((s_) => (
+        {STATUS_OPTIONS.map((st) => (
           <TouchableOpacity
-            key={s_}
-            style={[s.filterBtn, statusFilter === s_ && !priorityFilter && s.filterBtnActive]}
-            onPress={() => { setStatusFilter(s_); setPriorityFilter(""); }}
+            key={st}
+            style={[s.filterBtn, statusFilter === st && !priorityFilter && s.filterBtnActive]}
+            onPress={() => { setStatusFilter(st); setPriorityFilter(""); }}
           >
-            <Text style={[s.filterText, statusFilter === s_ && !priorityFilter && s.filterTextActive]}>
-              {STATUS_DISPLAY[s_]}
+            <Text style={[s.filterText, statusFilter === st && !priorityFilter && s.filterTextActive]}>
+              {st === "" ? t.tickets.all : (t.status[st] ?? st)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -147,7 +144,7 @@ export default function TicketsScreen() {
           onPress={() => { setPriorityFilter(priorityFilter === "urgent" ? "" : "urgent"); setStatusFilter(""); }}
         >
           <Text style={[s.filterText, priorityFilter === "urgent" && s.filterTextUrgent]}>
-            Urgenti
+            {t.priority["urgent"]}
           </Text>
         </TouchableOpacity>
       </View>
@@ -157,14 +154,14 @@ export default function TicketsScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(t) => String(t.id)}
+          keyExtractor={(ticket) => String(ticket.id)}
           renderItem={renderTicket}
           contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 34 : 0 }]}
           refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="inbox" size={36} color={colors.mutedForeground} />
-              <Text style={s.emptyText}>Nessun ticket trovato</Text>
+              <Text style={s.emptyText}>{t.tickets.noTickets}</Text>
             </View>
           }
           scrollEnabled
@@ -209,16 +206,10 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     meta: { flexDirection: "row", gap: 14 },
     metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    cardResolved: {
-      borderLeftWidth: 3,
-      borderLeftColor: colors.success,
-    },
+    cardResolved: { borderLeftWidth: 3, borderLeftColor: colors.success },
     cardBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     cardBottomRight: { flexDirection: "column", alignItems: "flex-end", gap: 4 },
-    statusBadge: {
-      paddingHorizontal: 8, paddingVertical: 3,
-      backgroundColor: colors.muted, borderRadius: 6,
-    },
+    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.muted, borderRadius: 6 },
     statusText: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     noteChip: {
       flexDirection: "row", alignItems: "center", gap: 4,

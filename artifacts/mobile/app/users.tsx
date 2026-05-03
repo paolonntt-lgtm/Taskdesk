@@ -8,6 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPost, apiPatch, apiDelete, LOCATIONS } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
@@ -22,11 +23,6 @@ interface User {
   createdAt: string;
 }
 
-const ROLES = [
-  { value: "user", label: "Utente" },
-  { value: "admin", label: "Admin" },
-];
-
 type ModalMode = "create" | "edit";
 
 const EMPTY_FORM = {
@@ -36,9 +32,15 @@ const EMPTY_FORM = {
 
 export default function UsersScreen() {
   const colors = useColors();
+  const { t } = useLanguage();
   const s = styles(colors);
   const qc = useQueryClient();
   const { user: me } = useAuth();
+
+  const ROLES = [
+    { value: "user", label: t.users.userRole },
+    { value: "admin", label: t.users.adminRole },
+  ];
 
   const [mode, setMode] = useState<ModalMode>("create");
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -94,13 +96,13 @@ export default function UsersScreen() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Nome obbligatorio";
+    if (!form.name.trim()) e.name = t.users.name + " obbligatorio";
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      e.email = "Email non valida";
+      e.email = t.users.email + " non valida";
     if (mode === "create" && (!form.password || form.password.length < 6))
-      e.password = "Password minimo 6 caratteri";
+      e.password = t.login.errorPasswordMin;
     if (mode === "edit" && form.password && form.password.length < 6)
-      e.password = "Password minimo 6 caratteri";
+      e.password = t.login.errorPasswordMin;
     return e;
   };
 
@@ -139,7 +141,7 @@ export default function UsersScreen() {
       if (msg.toLowerCase().includes("email") || msg.includes("409")) {
         setErrors({ email: "Email già in uso" });
       } else {
-        Alert.alert("Errore", msg || "Impossibile salvare l'utente");
+        Alert.alert(t.users.error, msg || t.users.errorSave);
       }
     } finally {
       setSaving(false);
@@ -147,13 +149,12 @@ export default function UsersScreen() {
   };
 
   const handleDeactivate = (u: User) => {
-    const action = u.isActive ? "disattivare" : "riattivare";
-    const actionLabel = u.isActive ? "Disattiva" : "Riattiva";
+    const actionLabel = u.isActive ? t.users.deactivate : t.users.activate;
     Alert.alert(
-      `${actionLabel} utente`,
-      `Vuoi ${action} ${u.name}?`,
+      actionLabel,
+      `${u.isActive ? t.users.deactivateConfirm : t.users.activate + " " + u.name + "?"}`,
       [
-        { text: "Annulla", style: "cancel" },
+        { text: t.users.cancel, style: "cancel" },
         {
           text: actionLabel,
           style: u.isActive ? "destructive" : "default",
@@ -167,7 +168,7 @@ export default function UsersScreen() {
               }
               qc.invalidateQueries({ queryKey: ["users"] });
             } catch (err: any) {
-              Alert.alert("Errore", err.message);
+              Alert.alert(t.users.error, err.message);
             }
           },
         },
@@ -209,11 +210,11 @@ export default function UsersScreen() {
         <View style={s.userRight}>
           <View style={[s.roleBadge, item.role === "admin" && s.roleBadgeAdmin]}>
             <Text style={[s.roleText, item.role === "admin" && s.roleTextAdmin]}>
-              {item.role === "admin" ? "Admin" : "Utente"}
+              {item.role === "admin" ? t.users.adminRole : t.users.userRole}
             </Text>
           </View>
           {!isActive
-            ? <Text style={s.inactiveTag}>Disattivato</Text>
+            ? <Text style={s.inactiveTag}>{t.users.inactive}</Text>
             : <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
           }
         </View>
@@ -226,10 +227,10 @@ export default function UsersScreen() {
   return (
     <View style={s.root}>
       <View style={s.header}>
-        <Text style={s.subtitle}>{activeCount} utenti attivi · {users.length} totali</Text>
+        <Text style={s.subtitle}>{activeCount} {t.users.active.toLowerCase()} · {users.length} tot.</Text>
         <TouchableOpacity style={s.addBtn} onPress={openCreate} activeOpacity={0.8}>
           <Feather name="user-plus" size={16} color={colors.primaryForeground} />
-          <Text style={s.addBtnText}>Nuovo</Text>
+          <Text style={s.addBtnText}>{t.users.addUser}</Text>
         </TouchableOpacity>
       </View>
 
@@ -247,13 +248,12 @@ export default function UsersScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="users" size={36} color={colors.mutedForeground} />
-              <Text style={s.emptyText}>Nessun utente trovato</Text>
+              <Text style={s.emptyText}>{t.users.noUsers}</Text>
             </View>
           }
         />
       )}
 
-      {/* Create / Edit Modal */}
       <Modal
         visible={modalOpen}
         animationType="slide"
@@ -264,9 +264,9 @@ export default function UsersScreen() {
           <View style={s.modalRoot}>
             <View style={s.modalHeader}>
               <TouchableOpacity onPress={() => setModalOpen(false)} style={s.modalCancel}>
-                <Text style={s.modalCancelText}>Annulla</Text>
+                <Text style={s.modalCancelText}>{t.users.cancel}</Text>
               </TouchableOpacity>
-              <Text style={s.modalTitle}>{mode === "create" ? "Nuovo utente" : "Modifica utente"}</Text>
+              <Text style={s.modalTitle}>{mode === "create" ? t.users.createUser : t.users.editUser}</Text>
               <TouchableOpacity
                 onPress={handleSave}
                 style={[s.modalSaveBtn, saving && { opacity: 0.6 }]}
@@ -274,7 +274,7 @@ export default function UsersScreen() {
               >
                 {saving
                   ? <ActivityIndicator color={colors.primaryForeground} size="small" />
-                  : <Text style={s.modalSaveBtnText}>Salva</Text>
+                  : <Text style={s.modalSaveBtnText}>{t.users.save}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -285,23 +285,21 @@ export default function UsersScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Nome */}
               <View style={s.field}>
-                <Text style={s.fieldLabel}>Nome *</Text>
+                <Text style={s.fieldLabel}>{t.users.name} *</Text>
                 <TextInput
                   style={[s.input, errors.name ? s.inputError : null]}
                   value={form.name}
                   onChangeText={(v) => setField("name", v)}
-                  placeholder="Nome completo"
+                  placeholder={t.users.name}
                   placeholderTextColor={colors.mutedForeground}
                   autoCorrect={false}
                 />
                 {errors.name ? <Text style={s.errorText}>{errors.name}</Text> : null}
               </View>
 
-              {/* Email */}
               <View style={s.field}>
-                <Text style={s.fieldLabel}>Email *</Text>
+                <Text style={s.fieldLabel}>{t.users.email} *</Text>
                 <TextInput
                   style={[s.input, errors.email ? s.inputError : null]}
                   value={form.email}
@@ -315,23 +313,21 @@ export default function UsersScreen() {
                 {errors.email ? <Text style={s.errorText}>{errors.email}</Text> : null}
               </View>
 
-              {/* Password */}
               <View style={s.field}>
-                <Text style={s.fieldLabel}>{mode === "edit" ? "Nuova password (opzionale)" : "Password *"}</Text>
+                <Text style={s.fieldLabel}>{mode === "edit" ? `${t.users.password} (${t.users.passwordPlaceholder})` : `${t.users.password} *`}</Text>
                 <TextInput
                   style={[s.input, errors.password ? s.inputError : null]}
                   value={form.password}
                   onChangeText={(v) => setField("password", v)}
-                  placeholder={mode === "edit" ? "Lascia vuoto per non cambiare" : "Minimo 6 caratteri"}
+                  placeholder={mode === "edit" ? t.users.passwordPlaceholder : t.login.passwordMin}
                   placeholderTextColor={colors.mutedForeground}
                   secureTextEntry
                 />
                 {errors.password ? <Text style={s.errorText}>{errors.password}</Text> : null}
               </View>
 
-              {/* Ruolo */}
               <View style={s.field}>
-                <Text style={s.fieldLabel}>Ruolo</Text>
+                <Text style={s.fieldLabel}>{t.users.role}</Text>
                 <View style={s.segmentRow}>
                   {ROLES.map((r) => (
                     <TouchableOpacity
@@ -346,22 +342,18 @@ export default function UsersScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-                {isMe && (
-                  <Text style={s.hintText}>Non puoi cambiare il tuo ruolo</Text>
-                )}
               </View>
 
-              {/* Gruppo */}
               {groups.length > 0 && (
                 <View style={s.field}>
-                  <Text style={s.fieldLabel}>Gruppo</Text>
+                  <Text style={s.fieldLabel}>{t.users.group}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={s.segmentRow}>
                       <TouchableOpacity
                         style={[s.segmentBtn, !form.group && s.segmentBtnActive]}
                         onPress={() => setField("group", "")}
                       >
-                        <Text style={[s.segmentText, !form.group && s.segmentTextActive]}>Nessuno</Text>
+                        <Text style={[s.segmentText, !form.group && s.segmentTextActive]}>{t.users.noGroup}</Text>
                       </TouchableOpacity>
                       {groups.map((g) => (
                         <TouchableOpacity
@@ -377,17 +369,16 @@ export default function UsersScreen() {
                 </View>
               )}
 
-              {/* Sede principale */}
               {locations.length > 0 && (
                 <View style={s.field}>
-                  <Text style={s.fieldLabel}>Sede principale</Text>
+                  <Text style={s.fieldLabel}>{t.users.location}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={s.segmentRow}>
                       <TouchableOpacity
                         style={[s.segmentBtn, !form.mainLocation && s.segmentBtnActive]}
                         onPress={() => setField("mainLocation", "")}
                       >
-                        <Text style={[s.segmentText, !form.mainLocation && s.segmentTextActive]}>Nessuna</Text>
+                        <Text style={[s.segmentText, !form.mainLocation && s.segmentTextActive]}>{t.users.noLocation}</Text>
                       </TouchableOpacity>
                       {locations.map((loc) => (
                         <TouchableOpacity
@@ -403,12 +394,10 @@ export default function UsersScreen() {
                 </View>
               )}
 
-              {/* Stato account (solo in edit, e non su se stesso) */}
               {mode === "edit" && !isMe && (
                 <View style={s.switchRow}>
                   <View>
-                    <Text style={s.fieldLabel}>Account attivo</Text>
-                    <Text style={s.hintText}>Disattivando l'utente non potrà accedere</Text>
+                    <Text style={s.fieldLabel}>{t.users.status}</Text>
                   </View>
                   <Switch
                     value={form.isActive}
@@ -419,7 +408,6 @@ export default function UsersScreen() {
                 </View>
               )}
 
-              {/* Pulsante disattiva/riattiva rapido */}
               {mode === "edit" && !isMe && editingUser && (
                 <TouchableOpacity
                   style={[s.dangerBtn, !editingUser.isActive && s.successBtn]}
@@ -434,7 +422,7 @@ export default function UsersScreen() {
                     color={editingUser.isActive ? colors.destructive : colors.success}
                   />
                   <Text style={[s.dangerBtnText, !editingUser.isActive && { color: colors.success }]}>
-                    {editingUser.isActive ? "Disattiva account" : "Riattiva account"}
+                    {editingUser.isActive ? t.users.deactivate : t.users.activate}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -493,7 +481,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     inactiveTag: { fontSize: 10, color: colors.destructive, fontFamily: "Inter_400Regular" },
     empty: { alignItems: "center", paddingTop: 80, gap: 12 },
     emptyText: { fontSize: 15, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    // Modal
     modalRoot: { flex: 1, backgroundColor: colors.background },
     modalHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",

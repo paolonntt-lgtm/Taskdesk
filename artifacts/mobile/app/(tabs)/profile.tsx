@@ -7,18 +7,21 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
 
 export default function ProfileScreen() {
   const colors = useColors();
   const { user, logout } = useAuth();
+  const { t, lang, setLang } = useLanguage();
   const s = styles(colors);
 
   const handleLogout = () => {
-    Alert.alert("Esci", "Vuoi uscire dall'account?", [
-      { text: "Annulla", style: "cancel" },
+    Alert.alert(t.profile.logoutTitle, t.profile.logoutMessage, [
+      { text: t.profile.logoutCancel, style: "cancel" },
       {
-        text: "Esci", style: "destructive",
+        text: t.profile.logoutConfirm, style: "destructive",
         onPress: async () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           await logout();
@@ -30,8 +33,17 @@ export default function ProfileScreen() {
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
 
   const infoItems = [
-    { icon: "mail" as const, label: "Email", value: user?.email ?? "" },
-    { icon: "shield" as const, label: "Ruolo", value: user?.role === "admin" ? "Amministratore" : "Utente" },
+    { icon: "mail" as const, label: t.profile.email, value: user?.email ?? "" },
+    {
+      icon: "shield" as const,
+      label: t.profile.role,
+      value: user?.role === "admin" ? t.profile.admin : t.profile.user,
+    },
+  ];
+
+  const LANGS: { value: Lang; label: string; flag: string }[] = [
+    { value: "it", label: "Italiano", flag: "🇮🇹" },
+    { value: "en", label: "English", flag: "🇬🇧" },
   ];
 
   return (
@@ -47,13 +59,13 @@ export default function ProfileScreen() {
         <Text style={s.name}>{user?.name}</Text>
         <View style={[s.roleBadge, user?.role === "admin" && s.roleBadgeAdmin]}>
           <Text style={[s.roleText, user?.role === "admin" && s.roleTextAdmin]}>
-            {user?.role === "admin" ? "Amministratore" : "Utente"}
+            {user?.role === "admin" ? t.profile.admin : t.profile.user}
           </Text>
         </View>
       </View>
 
       <View style={s.card}>
-        <Text style={s.cardTitle}>Informazioni account</Text>
+        <Text style={s.cardTitle}>{t.profile.accountInfo}</Text>
         {infoItems.map((item, i) => (
           <View key={item.label} style={[s.infoRow, i < infoItems.length - 1 && s.infoRowBorder]}>
             <View style={s.infoLeft}>
@@ -65,12 +77,36 @@ export default function ProfileScreen() {
         ))}
       </View>
 
+      {/* Language selector */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>App</Text>
+        <Text style={s.cardTitle}>{t.profile.language}</Text>
+        <View style={[s.infoRow, { gap: 8 }]}>
+          <View style={s.infoLeft}>
+            <Feather name="globe" size={16} color={colors.mutedForeground} />
+            <Text style={s.infoLabel}>{t.profile.languageLabel}</Text>
+          </View>
+          <View style={s.langRow}>
+            {LANGS.map((l) => (
+              <TouchableOpacity
+                key={l.value}
+                style={[s.langBtn, lang === l.value && s.langBtnActive]}
+                onPress={() => setLang(l.value)}
+                activeOpacity={0.75}
+              >
+                <Text style={s.langFlag}>{l.flag}</Text>
+                <Text style={[s.langLabel, lang === l.value && s.langLabelActive]}>{l.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.cardTitle}>{t.profile.app}</Text>
         <View style={s.infoRow}>
           <View style={s.infoLeft}>
             <Feather name="info" size={16} color={colors.mutedForeground} />
-            <Text style={s.infoLabel}>Versione</Text>
+            <Text style={s.infoLabel}>{t.profile.version}</Text>
           </View>
           <Text style={s.infoValue}>1.0.0</Text>
         </View>
@@ -79,13 +115,13 @@ export default function ProfileScreen() {
             <Feather name="check-square" size={16} color={colors.primary} />
             <Text style={s.infoLabel}>TaskDesk</Text>
           </View>
-          <Text style={s.infoValue}>Sistema di ticketing</Text>
+          <Text style={s.infoValue}>{t.profile.ticketingSystem}</Text>
         </View>
       </View>
 
       {user?.role === "admin" && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>Amministrazione</Text>
+          <Text style={s.cardTitle}>{t.profile.administration}</Text>
           <TouchableOpacity
             style={s.infoRow}
             onPress={() => router.push("/users" as any)}
@@ -93,7 +129,7 @@ export default function ProfileScreen() {
           >
             <View style={s.infoLeft}>
               <Feather name="users" size={16} color={colors.primary} />
-              <Text style={[s.infoLabel, { color: colors.primary }]}>Gestione utenti</Text>
+              <Text style={[s.infoLabel, { color: colors.primary }]}>{t.profile.manageUsers}</Text>
             </View>
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
@@ -102,7 +138,7 @@ export default function ProfileScreen() {
 
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
         <Feather name="log-out" size={18} color={colors.destructive} />
-        <Text style={s.logoutText}>Esci dall'account</Text>
+        <Text style={s.logoutText}>{t.profile.logout}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -144,6 +180,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     infoLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
     infoLabel: { fontSize: 14, color: colors.foreground, fontFamily: "Inter_500Medium" },
     infoValue: { fontSize: 14, color: colors.mutedForeground, maxWidth: "55%", textAlign: "right", fontFamily: "Inter_400Regular" },
+    langRow: { flexDirection: "row", gap: 8 },
+    langBtn: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+      backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border,
+    },
+    langBtnActive: { backgroundColor: colors.primary + "18", borderColor: colors.primary },
+    langFlag: { fontSize: 16 },
+    langLabel: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    langLabelActive: { color: colors.primary, fontWeight: "600" as const },
     logoutBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
       backgroundColor: colors.destructive + "15",
