@@ -130,7 +130,7 @@ const translations: Record<Language, Translations> = {
     },
     pricing: {
       title: "Un piano per ogni team. Trasparente, senza sorprese.",
-      price: "€19",
+      price: "€9",
       unit: "/mese",
       subtitle: "Scegli il piano in base al numero di utenti. Cambi quando vuoi, paghi solo la differenza.",
       trialLabel: "7 giorni di prova gratuita inclusi — nessuna carta di credito",
@@ -141,7 +141,7 @@ const translations: Record<Language, Translations> = {
       plans: [
         {
           name: "Starter",
-          price: "€19",
+          price: "€9",
           seats: 5,
           desc: "Per piccoli team che iniziano con la gestione ticket.",
           features: [
@@ -155,7 +155,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Team",
-          price: "€49",
+          price: "€25",
           seats: 15,
           desc: "Per team in crescita che vogliono organizzazione e velocità.",
           highlight: true,
@@ -170,7 +170,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Business",
-          price: "€129",
+          price: "€69",
           seats: 50,
           desc: "Per aziende strutturate con più reparti e sedi.",
           features: [
@@ -184,7 +184,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Enterprise",
-          price: "€299",
+          price: "€149",
           seats: null as number | null,
           desc: "Per organizzazioni che hanno bisogno di scalabilità senza limiti.",
           features: [
@@ -202,7 +202,7 @@ const translations: Record<Language, Translations> = {
     faq: {
       title: "Domande Frequenti",
       items: [
-        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €19/mese." },
+        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €9/mese." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
         { q: "È adatto alla mia azienda?", a: "Se sei una PMI italiana che ha bisogno di mettere ordine nelle richieste interne o dei clienti senza spendere una fortuna, sì." }
@@ -277,7 +277,7 @@ const translations: Record<Language, Translations> = {
     },
     pricing: {
       title: "A plan for every team. Transparent, no surprises.",
-      price: "€19",
+      price: "€9",
       unit: "/month",
       subtitle: "Pick a plan based on how many users you have. Switch anytime — only pay the difference.",
       trialLabel: "7-day free trial included — no credit card required",
@@ -288,7 +288,7 @@ const translations: Record<Language, Translations> = {
       plans: [
         {
           name: "Starter",
-          price: "€19",
+          price: "€9",
           seats: 5,
           desc: "For small teams getting started with ticket management.",
           features: [
@@ -302,7 +302,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Team",
-          price: "€49",
+          price: "€25",
           seats: 15,
           desc: "For growing teams that need structure and speed.",
           highlight: true,
@@ -317,7 +317,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Business",
-          price: "€129",
+          price: "€69",
           seats: 50,
           desc: "For structured companies with multiple teams and sites.",
           features: [
@@ -331,7 +331,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           name: "Enterprise",
-          price: "€299",
+          price: "€149",
           seats: null as number | null,
           desc: "For organizations that need to scale without limits.",
           features: [
@@ -349,7 +349,7 @@ const translations: Record<Language, Translations> = {
     faq: {
       title: "Frequently Asked Questions",
       items: [
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After that you can pick the plan that fits your team, starting at €19/month." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After that you can pick the plan that fits your team, starting at €9/month." },
         { q: "Is there a setup fee?", a: "Absolutely not. The software is ready to use from the first login. You are up and running in minutes." },
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties. You can cancel at any time from your account area." },
         { q: "Is it suitable for my company?", a: "If you are an SME that needs to bring order to internal or customer requests without spending a fortune, yes." }

@@ -362,7 +362,7 @@ export default function Landing() {
               { to: 500, s: "+",  label: lang === "it" ? "Aziende attive"           : "Active companies" },
               { to: 98,  s: "%",  label: lang === "it" ? "Soddisfazione clienti"    : "Client satisfaction" },
               { to: 4,   s: "h",  label: lang === "it" ? "Tempo medio risoluzione"  : "Avg. resolution time" },
-              { to: 19,  s: "",   label: lang === "it" ? "€/mese, piano Starter"     : "€/month, Starter plan", p: true },
+              { to: 9,   s: "",   label: lang === "it" ? "€/mese, piano Starter"     : "€/month, Starter plan", p: true },
             ].map(({ to, s, label, p }) => (
               <div key={label}>
                 <div className="text-4xl md:text-5xl font-black ld-gradient-text">
