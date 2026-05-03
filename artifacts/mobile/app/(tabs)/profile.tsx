@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, Platform,
+  ScrollView, Alert, Platform, Share, ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -10,12 +10,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
+import { apiPost } from "@/utils/api";
 
 export default function ProfileScreen() {
   const colors = useColors();
   const { user, logout } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const s = styles(colors);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+
+  const handleGenerateInvite = async () => {
+    setGeneratingInvite(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const data = await apiPost<{ token: string }>("/invites", {});
+      const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+      const url = `https://${domain}/app/invite/${data.token}`;
+      await Share.share({
+        message: `${t.profile.inviteShareMsg}\n${url}`,
+        url,
+        title: "TaskDesk — Invita collaboratore",
+      });
+    } catch {
+      Alert.alert("Errore", t.profile.inviteError);
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(t.profile.logoutTitle, t.profile.logoutMessage, [
@@ -144,6 +165,23 @@ export default function ProfileScreen() {
                 <Text style={[s.infoLabel, { color: colors.primary }]}>{t.profile.manageSettings}</Text>
               </View>
               <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          <View style={[s.infoRow, s.infoRowBorder]}>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}
+              onPress={handleGenerateInvite}
+              activeOpacity={0.7}
+              disabled={generatingInvite}
+            >
+              <View style={s.infoLeft}>
+                <Feather name="user-plus" size={16} color={colors.primary} />
+                <Text style={[s.infoLabel, { color: colors.primary }]}>{t.profile.inviteCollab}</Text>
+              </View>
+              {generatingInvite
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Feather name="share-2" size={16} color={colors.mutedForeground} />
+              }
             </TouchableOpacity>
           </View>
         </View>

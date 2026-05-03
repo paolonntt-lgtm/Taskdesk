@@ -15,6 +15,7 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import InviteRegister from "./pages/InviteRegister";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -74,32 +75,35 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
     setLocation("/login");
   };
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout, error }}>
-      {!user ? (
-        <Login />
-      ) : (
-        <Layout toggleTheme={toggleTheme} mode={mode}>
-          <Switch>
-            <Route path="/" component={Dashboard} />
-            <Route path="/tickets/new" component={NewTicket} />
-            <Route path="/tickets/:id" component={TicketDetail} />
-            <Route path="/tickets" component={TicketList} />
-            <Route path="/reports" component={Reports} />
-            <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
-            <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
-            <Route path="/settings" component={Settings} />
-          </Switch>
-        </Layout>
-      )}
+      <Switch>
+        <Route path="/invite/:token">
+          {(params) => <InviteRegister token={params.token!} />}
+        </Route>
+        <Route>
+          {isLoading ? (
+            <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
+              <CircularProgress />
+            </Box>
+          ) : !user ? (
+            <Login />
+          ) : (
+            <Layout toggleTheme={toggleTheme} mode={mode}>
+              <Switch>
+                <Route path="/" component={Dashboard} />
+                <Route path="/tickets/new" component={NewTicket} />
+                <Route path="/tickets/:id" component={TicketDetail} />
+                <Route path="/tickets" component={TicketList} />
+                <Route path="/reports" component={Reports} />
+                <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+                <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
+                <Route path="/settings" component={Settings} />
+              </Switch>
+            </Layout>
+          )}
+        </Route>
+      </Switch>
     </AuthContext.Provider>
   );
 }
