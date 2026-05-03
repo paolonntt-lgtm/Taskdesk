@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
-  TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid, Tooltip,
+  TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
+  Tooltip, TableSortLabel,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle } from '@mui/icons-material';
 import { useListTickets } from '@workspace/api-client-react';
@@ -12,6 +13,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 const VALID_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+const STATUS_ORDER: Record<string, number> = { open: 0, in_progress: 1, waiting: 2, resolved: 3, closed: 4 };
+
+type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt';
+type SortDir = 'asc' | 'desc';
 
 export default function TicketList() {
   const { t, lang } = useLanguage();
@@ -26,6 +33,8 @@ export default function TicketList() {
   const [status, setStatus] = useState(initialStatus);
   const [priority, setPriority] = useState(initialPriority);
   const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
+  const [sortCol, setSortCol] = useState<SortCol>('id');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
     fetch('/api/settings/locations', { credentials: 'include' })
@@ -41,8 +50,46 @@ export default function TicketList() {
   });
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
-
   const showLocation = configuredLocations.length !== 1;
+
+  const handleSort = (col: SortCol) => {
+    if (sortCol === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedTickets = useMemo(() => {
+    if (!tickets) return [];
+    return [...tickets].sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case 'id': cmp = a.id - b.id; break;
+        case 'title': cmp = a.title.localeCompare(b.title); break;
+        case 'category': cmp = (a.category || '').localeCompare(b.category || ''); break;
+        case 'status': cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99); break;
+        case 'priority': cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99); break;
+        case 'assignee': cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || ''); break;
+        case 'location': cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
+        case 'createdAt': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [tickets, sortCol, sortDir]);
+
+  const col = (id: SortCol, label: string, sx?: object) => (
+    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', ...sx }}>
+      <TableSortLabel
+        active={sortCol === id}
+        direction={sortCol === id ? sortDir : 'asc'}
+        onClick={() => handleSort(id)}
+      >
+        {label}
+      </TableSortLabel>
+    </TableCell>
+  );
 
   return (
     <Box>
@@ -115,16 +162,14 @@ export default function TicketList() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{t.ticketList.colId}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>{t.ticketList.colTitle}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>{t.ticketList.colCategory}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{t.ticketList.colStatus}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>{t.ticketList.colPriority}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', lg: 'table-cell' } }}>{t.ticketList.colAssignee}</TableCell>
-                {showLocation && (
-                  <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>{t.ticketList.colLocation}</TableCell>
-                )}
-                <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>{t.ticketList.colCreated}</TableCell>
+                {col('id', t.ticketList.colId)}
+                {col('title', t.ticketList.colTitle)}
+                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
+                {col('status', t.ticketList.colStatus)}
+                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
+                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
+                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
+                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -134,25 +179,18 @@ export default function TicketList() {
                     <CircularProgress size={32} />
                   </TableCell>
                 </TableRow>
-              ) : tickets?.length === 0 ? (
+              ) : sortedTickets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={showLocation ? 8 : 7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {t.ticketList.noResults}
                   </TableCell>
                 </TableRow>
               ) : (
-                tickets?.map((ticket) => (
+                sortedTickets.map((ticket) => (
                   <TableRow
                     key={ticket.id}
                     hover
-                    sx={{
-                      cursor: 'pointer',
-                      ...((ticket as any).resolutionNote ? {
-                        bgcolor: 'rgba(46,125,50,0.07)',
-                        '& td:first-of-type': { borderLeft: '3px solid', borderLeftColor: 'success.main' },
-                        '&:hover': { bgcolor: 'rgba(46,125,50,0.14) !important' },
-                      } : {}),
-                    }}
+                    sx={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
@@ -178,7 +216,7 @@ export default function TicketList() {
                     </TableCell>
                     {showLocation && (
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                        {ticket.location || '—'}
+                        {(ticket as any).location || '—'}
                       </TableCell>
                     )}
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
