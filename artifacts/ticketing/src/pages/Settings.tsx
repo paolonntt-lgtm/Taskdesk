@@ -2,15 +2,140 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Card, CardContent, Tabs, Tab, TextField, Button,
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
-  ListItemSecondaryAction, CircularProgress,
+  ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
+  TableCell, TableHead, TableRow, Tooltip,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface TabPanelProps { children?: React.ReactNode; index: number; value: number; }
 function TabPanel({ children, value, index }: TabPanelProps) {
   return <div hidden={value !== index}>{value === index && <Box sx={{ pt: 3 }}>{children}</Box>}</div>;
+}
+
+const NOTIF_TYPES = [
+  'ticket_created',
+  'ticket_status_changed',
+  'ticket_commented',
+  'ticket_assigned',
+  'ticket_priority_changed',
+  'system',
+] as const;
+type NotifType = typeof NOTIF_TYPES[number];
+
+interface NotifPref { type: NotifType; inApp: boolean; browser: boolean; sound: boolean }
+
+function NotificationPreferences() {
+  const { t } = useLanguage();
+  const [prefs, setPrefs] = useState<NotifPref[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/notification-preferences', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        const merged: NotifPref[] = NOTIF_TYPES.map((type) => {
+          const found = (data.preferences ?? []).find((p: any) => p.type === type);
+          return found
+            ? { type, inApp: !!found.inApp, browser: !!found.browser, sound: !!found.sound }
+            : { type, inApp: true, browser: true, sound: true };
+        });
+        setPrefs(merged);
+      })
+      .catch(() => mounted && setMsg({ type: 'error', text: t.settings.notifSaveError }))
+      .finally(() => mounted && setLoading(false));
+    return () => { mounted = false; };
+  }, [t]);
+
+  const toggle = (type: NotifType, channel: 'inApp' | 'browser' | 'sound') => {
+    setPrefs((cur) => cur && cur.map((p) => p.type === type ? { ...p, [channel]: !p[channel] } : p));
+  };
+
+  const setAll = (value: boolean) => {
+    setPrefs((cur) => cur && cur.map((p) => ({ ...p, inApp: value, browser: value, sound: value })));
+  };
+
+  const save = async () => {
+    if (!prefs) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/notification-preferences', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferences: prefs }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setMsg({ type: 'success', text: t.settings.notifSavedOk });
+      // ping the cache so other components pick up new prefs
+      window.dispatchEvent(new CustomEvent('notif-prefs-updated'));
+    } catch {
+      setMsg({ type: 'error', text: t.settings.notifSaveError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Section title={t.settings.notifPrefsTitle} icon={<NotificationsActive color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.notifPrefsNote}</Typography>
+      {msg && (
+        <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+      )}
+      {loading || !prefs ? (
+        <Box display="flex" justifyContent="center" py={4}><CircularProgress size={28} /></Box>
+      ) : (
+        <>
+          <Box display="flex" gap={1} mb={2} flexWrap="wrap">
+            <Button size="small" variant="outlined" onClick={() => setAll(true)}>{t.settings.notifEnableAll}</Button>
+            <Button size="small" variant="outlined" color="inherit" onClick={() => setAll(false)}>{t.settings.notifDisableAll}</Button>
+          </Box>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>{t.settings.notifColType}</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <Tooltip title={t.settings.notifInAppHint}><span>{t.settings.notifColInApp}</span></Tooltip>
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <Tooltip title={t.settings.notifBrowserHint}><span>{t.settings.notifColBrowser}</span></Tooltip>
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <Tooltip title={t.settings.notifSoundHint}><span>{t.settings.notifColSound}</span></Tooltip>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {prefs.map((p) => (
+                <TableRow key={p.type} hover>
+                  <TableCell>{(t.nav.notifTypes as any)[p.type] ?? p.type}</TableCell>
+                  <TableCell align="center"><Switch size="small" checked={p.inApp} onChange={() => toggle(p.type, 'inApp')} /></TableCell>
+                  <TableCell align="center"><Switch size="small" checked={p.browser} onChange={() => toggle(p.type, 'browser')} disabled={!p.inApp} /></TableCell>
+                  <TableCell align="center"><Switch size="small" checked={p.sound} onChange={() => toggle(p.type, 'sound')} disabled={!p.inApp} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Box display="flex" justifyContent="flex-end" mt={3}>
+            <Button
+              variant="contained"
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+              onClick={save}
+              disabled={saving}
+            >
+              {saving ? t.settings.saving : t.settings.save}
+            </Button>
+          </Box>
+        </>
+      )}
+    </Section>
+  );
 }
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
@@ -269,6 +394,7 @@ export default function Settings() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)}>
           <Tab label={t.settings.tabProfile} />
+          <Tab label={t.settings.tabNotifications} />
           {isAdmin && <Tab label={t.settings.tabSystem} />}
         </Tabs>
       </Box>
@@ -372,9 +498,14 @@ export default function Settings() {
         </Section>
       </TabPanel>
 
+      {/* ── NOTIFICHE ── */}
+      <TabPanel value={tab} index={1}>
+        <NotificationPreferences />
+      </TabPanel>
+
       {/* ── SISTEMA (admin only) ── */}
       {isAdmin && (
-        <TabPanel value={tab} index={1}>
+        <TabPanel value={tab} index={2}>
           {adminMsg && (
             <Alert severity={adminMsg.type} sx={{ mb: 2 }} onClose={() => setAdminMsg(null)}>
               {adminMsg.text}

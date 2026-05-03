@@ -5,6 +5,11 @@ interface NotificationItem {
   isRead: boolean;
   notificationText: string;
   ticketId?: number | null;
+  type?: string | null;
+}
+
+export interface NotifPrefByType {
+  [type: string]: { inApp: boolean; browser: boolean; sound: boolean };
 }
 
 function playChime() {
@@ -12,25 +17,20 @@ function playChime() {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-
     const notes = [880, 1108.73, 1318.51];
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
-
       gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
       gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + i * 0.12 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.35);
-
       osc.start(ctx.currentTime + i * 0.12);
       osc.stop(ctx.currentTime + i * 0.12 + 0.4);
     });
-
     setTimeout(() => ctx.close(), 2000);
   } catch {
     // silently ignore if audio not available
@@ -40,9 +40,8 @@ function playChime() {
 function showBrowserNotification(text: string, ticketId?: number | null) {
   if (Notification.permission !== "granted") return;
   const title = "TaskDesk";
-  const body = text;
   const notif = new Notification(title, {
-    body,
+    body: text,
     icon: "/favicon.ico",
     badge: "/favicon.ico",
     tag: `taskdesk-ticket-${ticketId ?? "general"}`,
@@ -56,9 +55,18 @@ function showBrowserNotification(text: string, ticketId?: number | null) {
   }
 }
 
+function getPref(prefs: NotifPrefByType | undefined, type: string | null | undefined, channel: "browser" | "sound"): boolean {
+  if (!prefs) return true;
+  const t = type ?? "system";
+  const p = prefs[t];
+  if (!p) return true;
+  return p[channel] !== false;
+}
+
 export function useBrowserNotifications(
   notifications: NotificationItem[],
-  enabled: boolean
+  enabled: boolean,
+  prefs?: NotifPrefByType
 ) {
   const seenIds = useRef<Set<number>>(new Set());
   const initialized = useRef(false);
@@ -75,8 +83,6 @@ export function useBrowserNotifications(
     if (!enabled || notifications.length === 0) return;
 
     if (!initialized.current) {
-      // On first load, record all existing notifications as already seen
-      // so we don't spam the user with old ones
       notifications.forEach((n) => seenIds.current.add(n.id));
       initialized.current = true;
       return;
@@ -85,17 +91,21 @@ export function useBrowserNotifications(
     const newUnread = notifications.filter(
       (n) => !n.isRead && !seenIds.current.has(n.id)
     );
-
     if (newUnread.length === 0) return;
 
+    let anySound = false;
     newUnread.forEach((n) => {
       seenIds.current.add(n.id);
-      showBrowserNotification(n.notificationText, n.ticketId);
+      if (getPref(prefs, n.type, "browser")) {
+        showBrowserNotification(n.notificationText, n.ticketId);
+      }
+      if (getPref(prefs, n.type, "sound")) {
+        anySound = true;
+      }
     });
 
-    // Play chime once for all new notifications
-    playChime();
-  }, [notifications, enabled]);
+    if (anySound) playChime();
+  }, [notifications, enabled, prefs]);
 
   return { requestPermission };
 }

@@ -35,6 +35,12 @@ import {
   People,
   CreditCard,
   Settings,
+  FiberNew,
+  SwapHoriz,
+  Comment,
+  AssignmentInd,
+  PriorityHigh,
+  Info,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,7 +78,33 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
   );
 
-  const { requestPermission: requestBrowserPermission } = useBrowserNotifications(notifications as any[], !!user);
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, { inApp: boolean; browser: boolean; sound: boolean }> | undefined>(undefined);
+  const [activeTypeFilter, setActiveTypeFilter] = useState<string | null>(null);
+
+  const loadPrefs = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/notification-preferences', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, { inApp: boolean; browser: boolean; sound: boolean }> = {};
+      for (const p of data.preferences ?? []) {
+        map[p.type] = { inApp: !!p.inApp, browser: !!p.browser, sound: !!p.sound };
+      }
+      setNotifPrefs(map);
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  useEffect(() => { loadPrefs(); }, [loadPrefs]);
+  useEffect(() => {
+    const h = () => loadPrefs();
+    window.addEventListener('notif-prefs-updated', h);
+    return () => window.removeEventListener('notif-prefs-updated', h);
+  }, [loadPrefs]);
+
+  const { requestPermission: requestBrowserPermission } = useBrowserNotifications(notifications as any[], !!user, notifPrefs);
 
   const handleRequestPermission = useCallback(async () => {
     const result = await requestBrowserPermission();
@@ -94,6 +126,20 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+
+  const typeIconMap: Record<string, React.ReactNode> = {
+    ticket_created: <FiberNew fontSize="small" sx={{ color: 'primary.main' }} />,
+    ticket_status_changed: <SwapHoriz fontSize="small" sx={{ color: 'info.main' }} />,
+    ticket_commented: <Comment fontSize="small" sx={{ color: 'success.main' }} />,
+    ticket_assigned: <AssignmentInd fontSize="small" sx={{ color: 'secondary.main' }} />,
+    ticket_priority_changed: <PriorityHigh fontSize="small" sx={{ color: 'warning.main' }} />,
+    system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
+  };
+
+  const typesPresent = Array.from(new Set(notifications.map((n: any) => n.type ?? 'system')));
+  const filteredNotifications = activeTypeFilter
+    ? notifications.filter((n: any) => (n.type ?? 'system') === activeTypeFilter)
+    : notifications;
 
   const menuItems = [
     { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',        adminOnly: false },
@@ -290,26 +336,58 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
                 </Typography>
               </Box>
             )}
+            {typesPresent.length > 1 && (
+              <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Chip
+                  size="small"
+                  label={t.nav.notifFilterAll}
+                  color={activeTypeFilter === null ? 'primary' : 'default'}
+                  variant={activeTypeFilter === null ? 'filled' : 'outlined'}
+                  onClick={() => setActiveTypeFilter(null)}
+                  sx={{ fontSize: '0.7rem', height: 22 }}
+                />
+                {typesPresent.map((type) => (
+                  <Chip
+                    key={type as string}
+                    size="small"
+                    label={(t.nav.notifTypes as any)[type as string] ?? (type as string)}
+                    color={activeTypeFilter === type ? 'primary' : 'default'}
+                    variant={activeTypeFilter === type ? 'filled' : 'outlined'}
+                    onClick={() => setActiveTypeFilter(type as string)}
+                    sx={{ fontSize: '0.7rem', height: 22 }}
+                  />
+                ))}
+              </Box>
+            )}
             <Divider />
-            {notifications.length === 0 ? (
+            {filteredNotifications.length === 0 ? (
               <MenuItem disabled sx={{ justifyContent: 'center', py: 3 }}>
                 <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
               </MenuItem>
             ) : (
-              notifications.map((n: any) => (
-                <MenuItem
-                  key={n.id}
-                  onClick={() => { handleMenuClose(); if (n.ticketId) setLocation(`/tickets/${n.ticketId}`); }}
-                  sx={{
-                    whiteSpace: 'normal', py: 1.5,
-                    bgcolor: n.isRead ? 'transparent' : 'primary.50',
-                    borderLeft: n.isRead ? 'none' : '3px solid',
-                    borderLeftColor: 'primary.main',
-                  }}
-                >
-                  <Typography variant="body2">{n.notificationText}</Typography>
-                </MenuItem>
-              ))
+              filteredNotifications.map((n: any) => {
+                const ntype = (n.type ?? 'system') as string;
+                return (
+                  <MenuItem
+                    key={n.id}
+                    onClick={() => { handleMenuClose(); if (n.ticketId) setLocation(`/tickets/${n.ticketId}`); }}
+                    sx={{
+                      whiteSpace: 'normal', py: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.25,
+                      bgcolor: n.isRead ? 'transparent' : 'primary.50',
+                      borderLeft: n.isRead ? 'none' : '3px solid',
+                      borderLeftColor: 'primary.main',
+                    }}
+                  >
+                    <Box sx={{ mt: '2px', flexShrink: 0 }}>{typeIconMap[ntype] ?? typeIconMap.system}</Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem', mb: 0.25 }}>
+                        {(t.nav.notifTypes as any)[ntype] ?? ntype}
+                      </Typography>
+                      <Typography variant="body2">{n.notificationText}</Typography>
+                    </Box>
+                  </MenuItem>
+                );
+              })
             )}
           </Menu>
 

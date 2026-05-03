@@ -12,6 +12,7 @@ import statsRouter from "./stats";
 import stripeRouter from "./stripe";
 import settingsRouter from "./settings";
 import invitesRouter from "./invites";
+import notificationPreferencesRouter from "./notificationPreferences";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(statsRouter);
 router.use(stripeRouter);
 router.use(settingsRouter);
 router.use(invitesRouter);
+router.use(notificationPreferencesRouter);
 
 export default router;

@@ -3,7 +3,7 @@ import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
-import { createNotificationsForTicket } from "../lib/notifications";
+import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -138,7 +138,10 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     });
   }
 
-  await createNotificationsForTicket(ticket.id, `Nuovo ticket: "${title}"`, currentUser.id);
+  await createNotificationsForTicket(ticket.id, `Nuovo ticket: "${title}"`, currentUser.id, "ticket_created");
+  if (assignedTo && assignedTo !== currentUser.id) {
+    await createNotificationForUser(assignedTo, ticket.id, `Ti è stato assegnato il ticket: "${title}"`, "ticket_assigned");
+  }
 
   const creator = currentUser;
   let assigneeUser = null;
@@ -271,7 +274,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (activityLogs.some((l) => l.actionType === "status_changed")) {
-    await createNotificationsForTicket(id, `Ticket #${id} stato cambiato: ${updates.status}`, currentUser.id);
+    await createNotificationsForTicket(id, `Ticket #${id} stato cambiato: ${updates.status}`, currentUser.id, "ticket_status_changed");
+  }
+  if (activityLogs.some((l) => l.actionType === "priority_changed")) {
+    await createNotificationsForTicket(id, `Ticket #${id} priorità cambiata: ${updates.priority}`, currentUser.id, "ticket_priority_changed");
+  }
+  if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
+    await createNotificationForUser(updates.assignedTo, id, `Ti è stato assegnato il ticket #${id}`, "ticket_assigned");
   }
 
   const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, updated.createdBy));
