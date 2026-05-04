@@ -374,14 +374,7 @@ export default function Landing() {
                     {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}
                   </div>
 
-                  <ul className="space-y-2.5 mb-7 flex-1">
-                    {plan.features.map((feat, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <span className={`font-bold mt-0.5 shrink-0 ${plan.highlight ? "text-blue-600" : "text-blue-500"}`}>✓</span>
-                        <span className="text-sm text-gray-600 leading-snug">{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="flex-1" />
 
                   <button
                     onClick={handleCta}
@@ -397,6 +390,24 @@ export default function Landing() {
               </ScrollReveal>
             ))}
           </div>
+
+          {/* Shared "all included" panel */}
+          <ScrollReveal delay={0.2}>
+            <div className="mt-12 bg-white border border-gray-100 rounded-2xl p-8 md:p-10 shadow-sm">
+              <div className="text-center mb-7">
+                <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-2">{t.pricing.includedTitle}</h3>
+                <p className="text-gray-500">{t.pricing.includedSubtitle}</p>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 max-w-4xl mx-auto">
+                {t.pricing.included.map((feat, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className="font-bold mt-0.5 shrink-0 text-blue-600">✓</span>
+                    <span className="text-sm text-gray-700 leading-snug">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 

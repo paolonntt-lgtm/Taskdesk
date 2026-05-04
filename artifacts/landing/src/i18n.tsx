@@ -50,9 +50,11 @@ interface Translations {
       seats: number | null;
       desc: string;
       highlight?: boolean;
-      features: string[];
       cta: string;
     }>;
+    includedTitle: string;
+    includedSubtitle: string;
+    included: string[];
     cta: string;
   };
   faq: {
@@ -134,71 +136,20 @@ const translations: Record<Language, Translations> = {
       seatsSuffix: "utenti inclusi",
       seatsUnlimited: "Utenti illimitati",
       plans: [
-        {
-          name: "Starter",
-          price: "€9",
-          seats: 5,
-          desc: "Per piccoli team che iniziano con la gestione ticket.",
-          features: [
-            "Fino a 5 utenti",
-            "Ticket e storage illimitati",
-            "Dashboard e report dettagliati",
-            "Gruppi di lavoro e assegnazioni",
-            "Multi-sede e ruoli avanzati",
-            "Notifiche in-app ed email personalizzabili",
-            "Supporto via email",
-          ],
-          cta: "Inizia la prova",
-        },
-        {
-          name: "Team",
-          price: "€25",
-          seats: 15,
-          desc: "Per team in crescita che vogliono organizzazione e velocità.",
-          highlight: true,
-          features: [
-            "Fino a 15 utenti",
-            "Ticket e storage illimitati",
-            "Dashboard e report dettagliati",
-            "Gruppi di lavoro e assegnazioni",
-            "Multi-sede e ruoli avanzati",
-            "Notifiche in-app ed email personalizzabili",
-            "Supporto via email",
-          ],
-          cta: "Inizia la prova",
-        },
-        {
-          name: "Business",
-          price: "€69",
-          seats: 50,
-          desc: "Per aziende strutturate con più reparti e sedi.",
-          features: [
-            "Fino a 50 utenti",
-            "Ticket e storage illimitati",
-            "Dashboard e report dettagliati",
-            "Gruppi di lavoro e assegnazioni",
-            "Multi-sede e ruoli avanzati",
-            "Notifiche in-app ed email personalizzabili",
-            "Supporto via email",
-          ],
-          cta: "Inizia la prova",
-        },
-        {
-          name: "Enterprise",
-          price: "€149",
-          seats: null as number | null,
-          desc: "Per organizzazioni che hanno bisogno di scalabilità senza limiti.",
-          features: [
-            "Utenti illimitati",
-            "Ticket e storage illimitati",
-            "Dashboard e report dettagliati",
-            "Gruppi di lavoro e assegnazioni",
-            "Multi-sede e ruoli avanzati",
-            "Notifiche in-app ed email personalizzabili",
-            "Supporto via email",
-          ],
-          cta: "Contattaci",
-        },
+        { name: "Starter",    price: "€9",   seats: 5,                       desc: "Per piccoli team che iniziano con la gestione ticket.",                cta: "Inizia la prova" },
+        { name: "Team",       price: "€25",  seats: 15,                      desc: "Per team in crescita che vogliono organizzazione e velocità.",        highlight: true, cta: "Inizia la prova" },
+        { name: "Business",   price: "€69",  seats: 50,                      desc: "Per aziende strutturate con più reparti e sedi.",                     cta: "Inizia la prova" },
+        { name: "Enterprise", price: "€149", seats: null as number | null,   desc: "Per organizzazioni che hanno bisogno di scalabilità senza limiti.",   cta: "Contattaci" },
+      ],
+      includedTitle: "Tutto incluso in ogni piano",
+      includedSubtitle: "Stesse funzionalità per tutti. Cambia solo il numero di utenti.",
+      included: [
+        "Ticket e storage illimitati",
+        "Dashboard e report dettagliati",
+        "Gruppi di lavoro e assegnazioni",
+        "Multi-sede e ruoli avanzati",
+        "Notifiche in-app ed email personalizzabili",
+        "Supporto via email",
       ],
       cta: "Inizia la prova gratuita"
     },
@@ -284,71 +235,20 @@ const translations: Record<Language, Translations> = {
       seatsSuffix: "users included",
       seatsUnlimited: "Unlimited users",
       plans: [
-        {
-          name: "Starter",
-          price: "€9",
-          seats: 5,
-          desc: "For small teams getting started with ticket management.",
-          features: [
-            "Up to 5 users",
-            "Unlimited tickets and storage",
-            "Detailed dashboard and reports",
-            "Workgroups and assignments",
-            "Multi-location and advanced roles",
-            "Customizable in-app and email notifications",
-            "Email support",
-          ],
-          cta: "Start trial",
-        },
-        {
-          name: "Team",
-          price: "€25",
-          seats: 15,
-          desc: "For growing teams that need structure and speed.",
-          highlight: true,
-          features: [
-            "Up to 15 users",
-            "Unlimited tickets and storage",
-            "Detailed dashboard and reports",
-            "Workgroups and assignments",
-            "Multi-location and advanced roles",
-            "Customizable in-app and email notifications",
-            "Email support",
-          ],
-          cta: "Start trial",
-        },
-        {
-          name: "Business",
-          price: "€69",
-          seats: 50,
-          desc: "For structured companies with multiple teams and sites.",
-          features: [
-            "Up to 50 users",
-            "Unlimited tickets and storage",
-            "Detailed dashboard and reports",
-            "Workgroups and assignments",
-            "Multi-location and advanced roles",
-            "Customizable in-app and email notifications",
-            "Email support",
-          ],
-          cta: "Start trial",
-        },
-        {
-          name: "Enterprise",
-          price: "€149",
-          seats: null as number | null,
-          desc: "For organizations that need to scale without limits.",
-          features: [
-            "Unlimited users",
-            "Unlimited tickets and storage",
-            "Detailed dashboard and reports",
-            "Workgroups and assignments",
-            "Multi-location and advanced roles",
-            "Customizable in-app and email notifications",
-            "Email support",
-          ],
-          cta: "Contact us",
-        },
+        { name: "Starter",    price: "€9",   seats: 5,                       desc: "For small teams getting started with ticket management.",         cta: "Start trial" },
+        { name: "Team",       price: "€25",  seats: 15,                      desc: "For growing teams that need structure and speed.",                 highlight: true, cta: "Start trial" },
+        { name: "Business",   price: "€69",  seats: 50,                      desc: "For structured companies with multiple teams and sites.",         cta: "Start trial" },
+        { name: "Enterprise", price: "€149", seats: null as number | null,   desc: "For organizations that need to scale without limits.",            cta: "Contact us" },
+      ],
+      includedTitle: "Everything included in every plan",
+      includedSubtitle: "Same features across all plans. Only the user count changes.",
+      included: [
+        "Unlimited tickets and storage",
+        "Detailed dashboard and reports",
+        "Workgroups and assignments",
+        "Multi-location and advanced roles",
+        "Customizable in-app and email notifications",
+        "Email support",
       ],
       cta: "Start free trial"
     },
