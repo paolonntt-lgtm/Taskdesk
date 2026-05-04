@@ -484,11 +484,6 @@ export default function TicketDetail() {
                               · {closerActivity.user.name}
                             </Typography>
                           )}
-                          {ticket.closedAt && (
-                            <Typography variant="caption" color="success.dark" sx={{ opacity: 0.55, ml: 'auto', whiteSpace: 'nowrap' }}>
-                              {new Date(ticket.closedAt).toLocaleString(dateLocale)}
-                            </Typography>
-                          )}
                         </Box>
                         {/* Note text */}
                         <Box px={1.5} py={1} sx={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' }}>
