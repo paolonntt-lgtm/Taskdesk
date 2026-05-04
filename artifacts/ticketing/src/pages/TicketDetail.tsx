@@ -389,17 +389,6 @@ export default function TicketDetail() {
             )}
           </Box>
 
-          {/* Resolution note — full width */}
-          {(ticket as any).resolutionNote && (
-            <Box pt={1}>
-              <Alert severity="success" icon={<CheckCircleOutline fontSize="small" />} sx={{ fontSize: '0.85rem' }}>
-                <Typography variant="caption" color="success.dark" display="block" fontWeight="bold" mb={0.3}>
-                  {t.ticketDetail.resolutionNoteLabel}
-                </Typography>
-                {(ticket as any).resolutionNote}
-              </Alert>
-            </Box>
-          )}
         </Box>
       </Card>
 
@@ -454,6 +443,40 @@ export default function TicketDetail() {
                       </Box>
                     </Box>
                   ))}
+
+                  {/* Resolution note shown inline among comments */}
+                  {(ticket as any).resolutionNote && (
+                    <Box display="flex" gap={2}>
+                      <Avatar sx={{ bgcolor: 'success.main', width: 40, height: 40 }}>
+                        <CheckCircleOutline fontSize="small" />
+                      </Avatar>
+                      <Box
+                        flex={1}
+                        p={2}
+                        borderRadius={1}
+                        sx={{
+                          bgcolor: 'success.50',
+                          border: '1px solid',
+                          borderColor: 'success.200',
+                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                        }}
+                      >
+                        <Box display="flex" justifyContent="space-between" mb={0.5} flexWrap="wrap" gap={0.5}>
+                          <Typography variant="subtitle2" fontWeight="bold" color="success.dark">
+                            ✓ {t.ticketDetail.resolutionNoteLabel}
+                          </Typography>
+                          {ticket.closedAt && (
+                            <Typography variant="caption" color="success.dark" sx={{ opacity: 0.7 }}>
+                              {new Date(ticket.closedAt).toLocaleString(dateLocale)}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
+                          {(ticket as any).resolutionNote}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
                   <Box display="flex" gap={2} mt={2}>
                     <Avatar
                       src={(currentUser as any)?.avatarUrl ?? undefined}
