@@ -34,6 +34,7 @@ router.get("/users", requireAuth, async (_req, res): Promise<void> => {
     .from(usersTable)
     .where(notLike(usersTable.email, "deleted-%@deleted.local"))
     .orderBy(usersTable.name);
+  res.setHeader("Cache-Control", "private, max-age=60");
   res.json(users);
 });
 

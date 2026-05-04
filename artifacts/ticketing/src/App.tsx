@@ -31,7 +31,11 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false },
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+    },
   },
 });
 

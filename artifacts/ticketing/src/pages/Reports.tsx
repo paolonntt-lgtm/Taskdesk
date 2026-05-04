@@ -66,12 +66,13 @@ export default function Reports() {
       .catch(() => {});
   }, []);
 
-  const { data: statusStats, isLoading: s1 } = useGetStatsByStatus();
-  const { data: categoryStats, isLoading: s2 } = useGetStatsByCategory();
-  const { data: locationStats, isLoading: s3 } = useGetStatsByLocation();
-  const { data: priorityStats, isLoading: s4 } = useGetStatsByPriority();
-  const { data: assigneeStats, isLoading: s5 } = useGetStatsByAssignee();
-  const { data: trendStats, isLoading: s6 } = useGetTicketTrend();
+  const statsOpts = { query: { staleTime: 5 * 60_000 } as any };
+  const { data: statusStats, isLoading: s1 } = useGetStatsByStatus(statsOpts);
+  const { data: categoryStats, isLoading: s2 } = useGetStatsByCategory(statsOpts);
+  const { data: locationStats, isLoading: s3 } = useGetStatsByLocation(statsOpts);
+  const { data: priorityStats, isLoading: s4 } = useGetStatsByPriority(statsOpts);
+  const { data: assigneeStats, isLoading: s5 } = useGetStatsByAssignee(statsOpts);
+  const { data: trendStats, isLoading: s6 } = useGetTicketTrend(statsOpts);
 
   if (s1 || s2 || s3 || s4 || s5 || s6) {
     return (

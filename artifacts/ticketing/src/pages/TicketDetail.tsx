@@ -55,10 +55,10 @@ export default function TicketDetail() {
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
-  const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } as any });
-  const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } as any });
-  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60 * 1000 } as any });
-  const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId } as any });
+  const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000 } as any });
+  const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
+  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
+  const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
