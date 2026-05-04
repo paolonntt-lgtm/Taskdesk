@@ -171,16 +171,17 @@ export default function Landing() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <>
-              <a href={APP_URL} className="hidden sm:block text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
-                {t.nav.login}
+            <a
+              href={APP_URL}
+              className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 bg-white"
+            >
+              {t.nav.login}
+            </a>
+            <div className="hidden sm:block ld-glow-border">
+              <a href={APP_URL} className="block px-4 py-1.5 rounded-[12px] bg-white text-sm font-bold ld-gradient-text hover:bg-gray-50 transition-colors">
+                {t.hero.cta} →
               </a>
-              <div className="ld-glow-border">
-                <a href={APP_URL} className="block px-4 py-1.5 rounded-[12px] bg-white text-sm font-bold ld-gradient-text hover:bg-gray-50 transition-colors">
-                  {t.hero.cta} →
-                </a>
-              </div>
-            </>
+            </div>
           </div>
         </div>
       </header>

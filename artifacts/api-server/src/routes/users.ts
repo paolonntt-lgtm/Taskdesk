@@ -145,22 +145,28 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
   }
 
   if (id === currentUser?.id) {
-    res.status(400).json({ error: "Cannot deactivate yourself" });
+    res.status(400).json({ error: "Cannot delete yourself" });
     return;
   }
 
-  const [updated] = await db
-    .update(usersTable)
-    .set({ isActive: false })
-    .where(eq(usersTable.id, id))
-    .returning(userFields);
+  const [target] = await db
+    .select({ id: usersTable.id, isActive: usersTable.isActive })
+    .from(usersTable)
+    .where(eq(usersTable.id, id));
 
-  if (!updated) {
+  if (!target) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
-  res.json({ success: true, message: "Utente disattivato" });
+  if (target.isActive !== false) {
+    res.status(400).json({ error: "Cannot delete an active user. Deactivate them first." });
+    return;
+  }
+
+  await db.delete(usersTable).where(eq(usersTable.id, id));
+
+  res.json({ success: true, message: "Utente eliminato" });
 });
 
 export default router;
