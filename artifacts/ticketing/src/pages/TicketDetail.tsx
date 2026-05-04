@@ -31,7 +31,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   );
 }
 
-const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed'] as const;
+const STATUS_OPTIONS = ['open', 'waiting', 'resolved', 'closed'] as const;
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
 
 export default function TicketDetail() {
@@ -197,7 +197,7 @@ export default function TicketDetail() {
 
           {/* Row 4: priority chips */}
           {isAdmin ? (
-            <Box>
+            <Box mb={1}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                 {t.ticketDetail.priorityLabel}
               </Typography>
@@ -217,8 +217,149 @@ export default function TicketDetail() {
               </Box>
             </Box>
           ) : (
-            <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+            <Box mb={1}>
+              <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+            </Box>
           )}
+
+          <Divider sx={{ my: 1 }} />
+
+          {/* Row 5: assignee + category */}
+          <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-start" pt={0.5}>
+            {/* Assignee */}
+            <Box minWidth={140}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.ticketDetail.assignedTo}
+              </Typography>
+              {isAdmin ? (
+                <>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={1}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={(e) => setAssignAnchor(e.currentTarget)}
+                  >
+                    {assignedGroup ? (
+                      <Chip
+                        icon={<Group fontSize="small" />}
+                        label={assignedGroup}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }}
+                      />
+                    ) : assignee ? (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar
+                          src={assignee.avatarUrl ?? undefined}
+                          sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
+                        >
+                          {assignee.name?.charAt(0)}
+                        </Avatar>
+                        <Typography variant="body2">{assignee.name}</Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                    )}
+                    <IconButton size="small">
+                      <EditOutlined fontSize="small" />
+                    </IconButton>
+                  </Box>
+
+                  <Popover
+                    open={Boolean(assignAnchor)}
+                    anchorEl={assignAnchor}
+                    onClose={() => setAssignAnchor(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                  >
+                    <Box p={2} minWidth={220}>
+                      <ToggleButtonGroup
+                        value={assignMode}
+                        exclusive
+                        size="small"
+                        fullWidth
+                        onChange={(_, v) => { if (!v) return; setAssignMode(v); }}
+                        sx={{ mb: 1.5 }}
+                      >
+                        <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
+                        <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                      </ToggleButtonGroup>
+
+                      {assignMode === 'user' ? (
+                        <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
+                          <Box
+                            px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                            onClick={() => handleAssigneeChange('')}
+                          >
+                            <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                          </Box>
+                          {users?.map(u => (
+                            <Box
+                              key={u.id}
+                              px={1} py={0.5} borderRadius={1}
+                              display="flex" alignItems="center" gap={1}
+                              sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined }}
+                              onClick={() => handleAssigneeChange(String(u.id))}
+                            >
+                              <Avatar
+                                src={(u as any).avatarUrl ?? undefined}
+                                sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}
+                              >
+                                {u.name?.charAt(0)}
+                              </Avatar>
+                              <Typography variant="body2">{u.name}</Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
+                          <Box
+                            px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                            onClick={() => handleGroupChange('')}
+                          >
+                            <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                          </Box>
+                          {groups.map(g => (
+                            <Box
+                              key={g}
+                              px={1} py={0.5} borderRadius={1}
+                              sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }}
+                              onClick={() => handleGroupChange(g)}
+                            >
+                              <Typography variant="body2">{g}</Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  </Popover>
+                </>
+              ) : (
+                <Box display="flex" alignItems="center" gap={1}>
+                  {assignee && (
+                    <Avatar
+                      src={assignee.avatarUrl ?? undefined}
+                      sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
+                    >
+                      {assignee.name?.charAt(0)}
+                    </Avatar>
+                  )}
+                  <Typography variant="body2">
+                    {assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name || t.ticketDetail.unassigned}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Category */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.ticketDetail.categoryLabel}
+              </Typography>
+              <Typography variant="body2">{ticket.category}</Typography>
+            </Box>
+          </Box>
         </Box>
       </Card>
 
@@ -333,144 +474,6 @@ export default function TicketDetail() {
           <Card>
             <Box p={3} display="flex" flexDirection="column" gap={2.5}>
               <Typography variant="subtitle1" fontWeight="bold">{t.ticketDetail.detailsTitle}</Typography>
-
-              {/* Assignee */}
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  {t.ticketDetail.assignedTo}
-                </Typography>
-                {isAdmin ? (
-                  <>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      gap={1}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={(e) => setAssignAnchor(e.currentTarget)}
-                    >
-                      {assignedGroup ? (
-                        <Chip
-                          icon={<Group fontSize="small" />}
-                          label={assignedGroup}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                          onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }}
-                        />
-                      ) : assignee ? (
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar
-                            src={assignee.avatarUrl ?? undefined}
-                            sx={{ width: 28, height: 28, fontSize: 13, bgcolor: 'secondary.main' }}
-                          >
-                            {assignee.name?.charAt(0)}
-                          </Avatar>
-                          <Typography variant="body2">{assignee.name}</Typography>
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
-                      )}
-                      <IconButton size="small" sx={{ ml: 'auto' }}>
-                        <EditOutlined fontSize="small" />
-                      </IconButton>
-                    </Box>
-
-                    <Popover
-                      open={Boolean(assignAnchor)}
-                      anchorEl={assignAnchor}
-                      onClose={() => setAssignAnchor(null)}
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                    >
-                      <Box p={2} minWidth={220}>
-                        <ToggleButtonGroup
-                          value={assignMode}
-                          exclusive
-                          size="small"
-                          fullWidth
-                          onChange={(_, v) => {
-                            if (!v) return;
-                            setAssignMode(v);
-                          }}
-                          sx={{ mb: 1.5 }}
-                        >
-                          <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
-                          <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
-                        </ToggleButtonGroup>
-
-                        {assignMode === 'user' ? (
-                          <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                            <Box
-                              px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                              onClick={() => handleAssigneeChange('')}
-                            >
-                              <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
-                            </Box>
-                            {users?.map(u => (
-                              <Box
-                                key={u.id}
-                                px={1} py={0.5} borderRadius={1}
-                                display="flex" alignItems="center" gap={1}
-                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined }}
-                                onClick={() => handleAssigneeChange(String(u.id))}
-                              >
-                                <Avatar
-                                  src={(u as any).avatarUrl ?? undefined}
-                                  sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}
-                                >
-                                  {u.name?.charAt(0)}
-                                </Avatar>
-                                <Typography variant="body2">{u.name}</Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                            <Box
-                              px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                              onClick={() => handleGroupChange('')}
-                            >
-                              <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
-                            </Box>
-                            {groups.map(g => (
-                              <Box
-                                key={g}
-                                px={1} py={0.5} borderRadius={1}
-                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }}
-                                onClick={() => handleGroupChange(g)}
-                              >
-                                <Typography variant="body2">{g}</Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-                      </Box>
-                    </Popover>
-                  </>
-                ) : (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {assignee && (
-                      <Avatar
-                        src={assignee.avatarUrl ?? undefined}
-                        sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
-                      >
-                        {assignee.name?.charAt(0)}
-                      </Avatar>
-                    )}
-                    <Typography variant="body2">
-                      {assignedGroup
-                        ? `Gruppo: ${assignedGroup}`
-                        : assignee?.name || t.ticketDetail.unassigned}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.categoryLabel}</Typography>
-                <Typography variant="body2">{ticket.category}</Typography>
-              </Box>
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.locationLabel}</Typography>
