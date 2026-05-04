@@ -4,19 +4,23 @@ import {
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import { Person, Group } from '@mui/icons-material';
-import { useCreateTicket, useListUsers, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { useCreateTicket, useListUsers, useSaveTicketAttachment, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const createTicket = useCreateTicket();
+  const saveAttachment = useSaveTicketAttachment();
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
+
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -76,6 +80,9 @@ export default function NewTicket() {
           assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
         },
       });
+      for (const att of pendingAttachments) {
+        await saveAttachment.mutateAsync({ id: result.id, data: { ...att, commentId: null } });
+      }
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setLocation(`/tickets/${result.id}`);
     } catch (err) {
@@ -105,15 +112,16 @@ export default function NewTicket() {
               </Grid>
 
               <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t.newTicket.descriptionField}
-                  required
-                  multiline
-                  rows={4}
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.newTicket.descriptionField} *
+                </Typography>
+                <RichCommentEditor
                   value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  onChange={val => setFormData({ ...formData, description: val })}
                   placeholder={t.newTicket.descriptionPlaceholder}
+                  ticketId={0}
+                  onAttachmentsChange={setPendingAttachments}
+                  minRows={4}
                 />
               </Grid>
 

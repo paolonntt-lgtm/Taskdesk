@@ -421,9 +421,38 @@ export default function TicketDetail() {
           <Card sx={{ mb: 3 }}>
             <Box p={3}>
               <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
-                {ticket.description}
-              </Typography>
+              <Box mt={1}>
+                <MarkdownContent content={ticket.description} />
+              </Box>
+              {(() => {
+                const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
+                if (!ticketAttachments.length) return null;
+                return (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+                    {ticketAttachments.map((a: any) => {
+                      const isImg = (a.mimeType as string).startsWith('image/');
+                      const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                      return (
+                        <Chip
+                          key={a.id}
+                          icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
+                          label={a.fileName}
+                          size="small"
+                          variant="outlined"
+                          component="a"
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          clickable
+                          deleteIcon={<Download fontSize="small" />}
+                          onDelete={() => window.open(href, '_blank')}
+                          sx={{ maxWidth: 280 }}
+                        />
+                      );
+                    })}
+                  </Box>
+                );
+              })()}
             </Box>
           </Card>
 
