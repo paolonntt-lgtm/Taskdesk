@@ -313,19 +313,62 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
   }, [isAdmin]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const MAX_BYTES = 1.4 * 1024 * 1024;
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        // Scale down if too large
+        const MAX_DIM = 1024;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+        // Try decreasing quality until under threshold
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.1) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        if (dataUrl.length * 0.75 > MAX_BYTES) {
+          reject(new Error('Impossibile comprimere ulteriormente l\'immagine.'));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Errore caricamento immagine.')); };
+      img.src = objectUrl;
+    });
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 1.5 * 1024 * 1024) {
-      setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 1.5 MB.' });
+    // Hard cap at 10MB to avoid hanging the browser
+    if (file.size > 10 * 1024 * 1024) {
+      setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 10 MB.' });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      setAvatarUrl(result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file);
+      const wasCompressed = file.size > 1.5 * 1024 * 1024;
+      setAvatarUrl(compressed);
+      if (wasCompressed) {
+        setProfileMsg({ type: 'success', text: 'Immagine compressa automaticamente.' });
+      }
+    } catch (err: any) {
+      setProfileMsg({ type: 'error', text: err.message || 'Errore durante la compressione.' });
+    }
   };
 
   const saveProfile = async () => {
