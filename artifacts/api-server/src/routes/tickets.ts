@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 
