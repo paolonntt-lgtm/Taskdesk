@@ -10,6 +10,8 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("user"),
   mainLocation: text("main_location"),
   group: text("group"),
+  phone: text("phone"),
+  avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),

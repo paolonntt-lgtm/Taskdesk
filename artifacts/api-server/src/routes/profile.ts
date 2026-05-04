@@ -16,13 +16,15 @@ const safeFields = {
   email: usersTable.email,
   role: usersTable.role,
   mainLocation: usersTable.mainLocation,
+  phone: usersTable.phone,
+  avatarUrl: usersTable.avatarUrl,
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
 };
 
 router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   const current = (req as any).currentUser;
-  const { name, email, mainLocation, currentPassword, newPassword } = req.body ?? {};
+  const { name, email, mainLocation, phone, avatarUrl, currentPassword, newPassword } = req.body ?? {};
 
   const updates: Record<string, unknown> = {};
 
@@ -55,6 +57,18 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
 
   if (mainLocation !== undefined) {
     updates.mainLocation = mainLocation || null;
+  }
+
+  if (phone !== undefined) {
+    updates.phone = phone || null;
+  }
+
+  if (avatarUrl !== undefined) {
+    if (avatarUrl && typeof avatarUrl === "string" && avatarUrl.length > 2_000_000) {
+      res.status(400).json({ message: "Immagine troppo grande (max 1.5 MB)" });
+      return;
+    }
+    updates.avatarUrl = avatarUrl || null;
   }
 
   if (newPassword !== undefined) {

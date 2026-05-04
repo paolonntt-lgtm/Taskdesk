@@ -31,6 +31,7 @@ import {
   Stack,
   useMediaQuery,
   useTheme,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add,
@@ -42,6 +43,9 @@ import {
   Group,
   AllInclusive,
   DeleteForever,
+  PersonAddAlt1,
+  ContentCopy,
+  Check,
 } from '@mui/icons-material';
 import { Link as WLink } from 'wouter';
 import { LinearProgress } from '@mui/material';
@@ -107,6 +111,11 @@ export default function Users() {
   const [formError, setFormError] = useState<string | null>(null);
   const [deactivateConfirm, setDeactivateConfirm] = useState<User | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const activeCount = users.filter((u) => u.isActive !== false).length;
 
@@ -247,6 +256,41 @@ export default function Users() {
     setDeleteConfirm(null);
   };
 
+  const generateInviteLink = async () => {
+    setInviteLoading(true);
+    setInviteError('');
+    setInviteLink('');
+    setInviteCopied(false);
+    try {
+      const res = await fetch('/api/invites', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setInviteError(data.message || ut.inviteError);
+        return;
+      }
+      const { token } = await res.json();
+      const base = window.location.origin;
+      const appBase = (import.meta as any).env?.BASE_URL?.replace(/\/$/, '') ?? '/app';
+      setInviteLink(`${base}${appBase}/invite/${token}`);
+      setInviteOpen(true);
+    } catch {
+      setInviteError(ut.inviteError);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    });
+  };
+
   const isSaving = createUser.isPending || updateUser.isPending;
 
   if (isLoading) {
@@ -303,6 +347,19 @@ export default function Users() {
                 {ut.upgradeCta}
               </Button>
             )}
+            <Tooltip title={isFull ? ut.errorSeatLimit : ut.inviteUser}>
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={inviteLoading ? <CircularProgress size={16} /> : <PersonAddAlt1 />}
+                  onClick={generateInviteLink}
+                  disabled={isFull || inviteLoading}
+                  size={isMobile ? 'small' : 'medium'}
+                >
+                  {isMobile ? '' : ut.inviteUser}
+                </Button>
+              </span>
+            </Tooltip>
             <Tooltip title={isFull ? ut.errorSeatLimit : ''}>
               <span>
                 <Button variant="contained" startIcon={<Add />} onClick={openCreate} disabled={isFull} size={isMobile ? 'small' : 'medium'}>
@@ -626,6 +683,44 @@ export default function Users() {
             disabled={updateUser.isPending}
           >
             {updateUser.isPending ? ut.saving : ut.deactivate}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invite Link Dialog */}
+      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{ut.inviteLinkTitle}</DialogTitle>
+        <DialogContent>
+          {inviteError ? (
+            <Alert severity="error">{inviteError}</Alert>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" mb={2}>{ut.inviteLinkDesc}</Typography>
+              <TextField
+                fullWidth
+                value={inviteLink}
+                InputProps={{
+                  readOnly: true,
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Tooltip title={inviteCopied ? ut.inviteLinkCopied : ut.inviteLinkCopy}>
+                        <IconButton onClick={copyInviteLink} edge="end" color={inviteCopied ? 'success' : 'default'}>
+                          {inviteCopied ? <Check /> : <ContentCopy />}
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  ),
+                }}
+                size="small"
+                sx={{ fontFamily: 'monospace' }}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInviteOpen(false)}>{ut.cancel}</Button>
+          <Button variant="contained" startIcon={inviteCopied ? <Check /> : <ContentCopy />} onClick={copyInviteLink} color={inviteCopied ? 'success' : 'primary'}>
+            {inviteCopied ? ut.inviteLinkCopied : ut.inviteLinkCopy}
           </Button>
         </DialogActions>
       </Dialog>

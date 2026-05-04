@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box, Typography, Card, CardContent, Tabs, Tab, TextField, Button,
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
   ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
+  Avatar, Snackbar,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -99,7 +100,6 @@ function NotificationPreferences() {
           </Box>
 
           {isMobile ? (
-            /* Mobile: card per notification type */
             <Stack spacing={1.5}>
               {prefs.map((p) => (
                 <Box
@@ -133,7 +133,6 @@ function NotificationPreferences() {
               ))}
             </Stack>
           ) : (
-            /* Desktop: table */
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -210,21 +209,29 @@ function ListEditor({
 }) {
   const [list, setList] = useState<string[]>(items);
   const [newItem, setNewItem] = useState('');
-  const [dirty, setDirty] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
 
-  useEffect(() => { setList(items); setDirty(false); }, [items]);
+  useEffect(() => { setList(items); }, [items]);
 
-  const add = () => {
+  const triggerSave = useCallback(async (next: string[]) => {
+    await onSave(next);
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 1800);
+  }, [onSave]);
+
+  const add = async () => {
     const trimmed = newItem.trim();
     if (!trimmed || list.includes(trimmed)) return;
-    setList((l) => [...l, trimmed]);
+    const next = [...list, trimmed];
+    setList(next);
     setNewItem('');
-    setDirty(true);
+    await triggerSave(next);
   };
 
-  const remove = (idx: number) => {
-    setList((l) => l.filter((_, i) => i !== idx));
-    setDirty(true);
+  const remove = async (idx: number) => {
+    const next = list.filter((_, i) => i !== idx);
+    setList(next);
+    await triggerSave(next);
   };
 
   const handleKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
@@ -236,7 +243,7 @@ function ListEditor({
           <ListItem key={idx} disableGutters divider sx={{ py: 0.5 }}>
             <ListItemText primary={item} />
             <ListItemSecondaryAction>
-              <IconButton edge="end" size="small" onClick={() => remove(idx)} color="error">
+              <IconButton edge="end" size="small" onClick={() => remove(idx)} color="error" disabled={saving}>
                 <Delete fontSize="small" />
               </IconButton>
             </ListItemSecondaryAction>
@@ -247,7 +254,7 @@ function ListEditor({
         )}
       </List>
 
-      <Box display="flex" gap={1} mt={2}>
+      <Box display="flex" gap={1} mt={2} alignItems="center">
         <TextField
           size="small"
           fullWidth
@@ -255,24 +262,14 @@ function ListEditor({
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           onKeyDown={handleKey}
+          disabled={saving}
         />
-        <Button variant="outlined" startIcon={<Add />} onClick={add} disabled={!newItem.trim()}>
+        <Button variant="outlined" startIcon={<Add />} onClick={add} disabled={!newItem.trim() || saving}>
           Aggiungi
         </Button>
+        {saving && <CircularProgress size={18} />}
+        {!saving && savedFlash && <Check fontSize="small" color="success" />}
       </Box>
-
-      {dirty && (
-        <Box mt={2} display="flex" justifyContent="flex-end">
-          <Button
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-            onClick={() => onSave(list)}
-            disabled={saving}
-          >
-            {saving ? 'Salvataggio...' : 'Salva modifiche'}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }
@@ -284,21 +281,20 @@ export default function Settings() {
 
   const [tab, setTab] = useState(0);
 
-  // Profile state
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
-  const [mainLocation, setMainLocation] = useState(user?.mainLocation ?? '');
+  const [phone, setPhone] = useState((user as any)?.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string>((user as any)?.avatarUrl ?? '');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Password state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Admin settings state
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
@@ -317,6 +313,21 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
   }, [isAdmin]);
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 2 MB.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setAvatarUrl(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const saveProfile = async () => {
     setProfileSaving(true);
     setProfileMsg(null);
@@ -325,7 +336,7 @@ export default function Settings() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, mainLocation: mainLocation || null }),
+        body: JSON.stringify({ name, email, phone: phone || null, avatarUrl: avatarUrl || null }),
       });
       const data = await res.json();
       if (!res.ok) { setProfileMsg({ type: 'error', text: data.message || 'Errore' }); return; }
@@ -379,7 +390,6 @@ export default function Settings() {
       const data = await res.json();
       if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setLocations(data.value);
-      setAdminMsg({ type: 'success', text: 'Sedi aggiornate.' });
     } catch {
       setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
@@ -400,7 +410,6 @@ export default function Settings() {
       const data = await res.json();
       if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setCategories(data.value);
-      setAdminMsg({ type: 'success', text: 'Categorie aggiornate.' });
     } catch {
       setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
@@ -421,7 +430,6 @@ export default function Settings() {
       const data = await res.json();
       if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setGroups(data.value);
-      setAdminMsg({ type: 'success', text: 'Gruppi aggiornati.' });
     } catch {
       setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
@@ -451,6 +459,60 @@ export default function Settings() {
               {profileMsg.text}
             </Alert>
           )}
+
+          {/* Avatar */}
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            <Box position="relative">
+              <Avatar
+                src={avatarUrl || undefined}
+                sx={{ width: 72, height: 72, fontSize: 28 }}
+              >
+                {!avatarUrl && (user?.name?.[0] ?? '?').toUpperCase()}
+              </Avatar>
+              <IconButton
+                size="small"
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  position: 'absolute',
+                  bottom: -4,
+                  right: -4,
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  width: 26,
+                  height: 26,
+                  '&:hover': { bgcolor: 'primary.dark' },
+                }}
+              >
+                <PhotoCamera sx={{ fontSize: 14 }} />
+              </IconButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600}>{user?.name}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Clicca sull'icona per cambiare la foto
+              </Typography>
+              {avatarUrl && (
+                <Box mt={0.5}>
+                  <Button
+                    size="small"
+                    color="error"
+                    sx={{ p: 0, minWidth: 0, fontSize: '0.7rem' }}
+                    onClick={() => setAvatarUrl('')}
+                  >
+                    Rimuovi foto
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
               label={t.settings.name}
@@ -466,11 +528,13 @@ export default function Settings() {
               fullWidth
             />
             <TextField
-              label={t.settings.mainLocation}
-              value={mainLocation}
-              onChange={(e) => setMainLocation(e.target.value)}
+              label="Numero di cellulare"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               fullWidth
-              placeholder="Es: Sede A, Milano..."
+              placeholder="Es: +39 333 1234567"
+              InputProps={{ startAdornment: <Phone sx={{ mr: 1, color: 'text.secondary', fontSize: 18 }} /> }}
             />
             <Box display="flex" alignItems="center" gap={1}>
               <Chip

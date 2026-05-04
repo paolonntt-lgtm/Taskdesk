@@ -3,7 +3,7 @@ import { eq, and, isNull, gt } from "drizzle-orm";
 import { db, usersTable, inviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { createSession } from "../lib/session";
-import { createHash, randomUUID } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
@@ -21,7 +21,7 @@ router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<voi
     return;
   }
 
-  const token = randomUUID();
+  const token = randomBytes(9).toString("base64url").slice(0, 12);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   await db.insert(inviteTokensTable).values({
