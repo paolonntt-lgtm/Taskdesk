@@ -445,38 +445,49 @@ export default function TicketDetail() {
                   ))}
 
                   {/* Resolution note shown inline among comments */}
-                  {(ticket as any).resolutionNote && (
-                    <Box display="flex" gap={2}>
-                      <Avatar sx={{ bgcolor: 'success.main', width: 40, height: 40 }}>
-                        <CheckCircleOutline fontSize="small" />
-                      </Avatar>
-                      <Box
-                        flex={1}
-                        p={2}
-                        borderRadius={1}
-                        sx={{
-                          bgcolor: 'success.50',
-                          border: '1px solid',
-                          borderColor: 'success.200',
-                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                        }}
-                      >
-                        <Box display="flex" justifyContent="space-between" mb={0.5} flexWrap="wrap" gap={0.5}>
-                          <Typography variant="subtitle2" fontWeight="bold" color="success.dark">
-                            ✓ {t.ticketDetail.resolutionNoteLabel}
-                          </Typography>
-                          {ticket.closedAt && (
-                            <Typography variant="caption" color="success.dark" sx={{ opacity: 0.7 }}>
-                              {new Date(ticket.closedAt).toLocaleString(dateLocale)}
+                  {(ticket as any).resolutionNote && (() => {
+                    const closerActivity = [...(activities ?? [])]
+                      .reverse()
+                      .find((a: any) => a.actionType === 'status_changed' &&
+                        (a.actionDescription?.includes('Risolto') || a.actionDescription?.includes('Chiuso')));
+                    return (
+                      <Box display="flex" gap={1.5}>
+                        <Avatar sx={{ bgcolor: 'success.main', width: 32, height: 32, flexShrink: 0 }}>
+                          <CheckCircleOutline sx={{ fontSize: 16 }} />
+                        </Avatar>
+                        <Box
+                          flex={1}
+                          px={1.5}
+                          py={1}
+                          borderRadius={1}
+                          sx={{
+                            border: '1px solid',
+                            borderColor: 'success.200',
+                            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                          }}
+                        >
+                          <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.5} mb={0.3}>
+                            <Typography variant="caption" fontWeight="bold" color="success.dark">
+                              ✓ {t.ticketDetail.resolutionNoteLabel}
                             </Typography>
-                          )}
+                            {closerActivity?.user?.name && (
+                              <Typography variant="caption" color="success.dark" sx={{ opacity: 0.8 }}>
+                                · {closerActivity.user.name}
+                              </Typography>
+                            )}
+                            {ticket.closedAt && (
+                              <Typography variant="caption" color="success.dark" sx={{ opacity: 0.6, ml: 'auto' }}>
+                                {new Date(ticket.closedAt).toLocaleString(dateLocale)}
+                              </Typography>
+                            )}
+                          </Box>
+                          <Typography variant="caption" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
+                            {(ticket as any).resolutionNote}
+                          </Typography>
                         </Box>
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
-                          {(ticket as any).resolutionNote}
-                        </Typography>
                       </Box>
-                    </Box>
-                  )}
+                    );
+                  })()}
                   <Box display="flex" gap={2} mt={2}>
                     <Avatar
                       src={(currentUser as any)?.avatarUrl ?? undefined}
