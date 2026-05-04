@@ -335,6 +335,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/TicketWithDetails"
 
+    delete:
+      operationId: deleteTicket
+      tags: [tickets]
+      summary: Delete a ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Ticket deleted
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /tickets/{id}/comments:
     get:
       operationId: listTicketComments

@@ -5,10 +5,11 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download } from '@mui/icons-material';
+import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
+  useDeleteTicket,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
@@ -54,6 +55,9 @@ export default function TicketDetail() {
   const [resolutionNote, setResolutionNote] = useState('');
 
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+
+  const deleteTicket = useDeleteTicket();
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000 } as any });
@@ -124,6 +128,12 @@ export default function TicketDetail() {
     setAssignAnchor(null);
   };
 
+  const handleDeleteConfirm = async () => {
+    await deleteTicket.mutateAsync({ id: ticketId });
+    setDeleteDialog(false);
+    setLocation('/tickets');
+  };
+
   const submitComment = async () => {
     if (!newComment.trim() && pendingAttachments.length === 0) return;
     const commentText = newComment.trim() || '📎 Allegato';
@@ -151,15 +161,29 @@ export default function TicketDetail() {
 
   return (
     <Box>
-      <Button
-        startIcon={<ArrowBack />}
-        onClick={() => setLocation('/tickets')}
-        sx={{ mb: 2 }}
-        color="inherit"
-        size="small"
-      >
-        {t.ticketDetail.backToList}
-      </Button>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => setLocation('/tickets')}
+          color="inherit"
+          size="small"
+        >
+          {t.ticketDetail.backToList}
+        </Button>
+        {isAdmin && (
+          <Tooltip title="Elimina ticket">
+            <Button
+              startIcon={<DeleteOutline />}
+              color="error"
+              size="small"
+              variant="outlined"
+              onClick={() => setDeleteDialog(true)}
+            >
+              Elimina
+            </Button>
+          </Tooltip>
+        )}
+      </Box>
 
       {/* ── Compact header card ── */}
       <Card sx={{ mb: 3, overflow: 'visible' }}>
@@ -654,6 +678,35 @@ export default function TicketDetail() {
             startIcon={<CheckCircleOutline />}
           >
             {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Delete confirm dialog ── */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteOutline /> Elimina ticket
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Sei sicuro di voler eliminare il ticket <strong>#{ticket?.id} — {ticket?.title}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={1}>
+            Questa operazione è irreversibile: verranno eliminati anche tutti i commenti, allegati e lo storico attività.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setDeleteDialog(false)} color="inherit" disabled={deleteTicket.isPending}>
+            Annulla
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirm}
+            disabled={deleteTicket.isPending}
+            startIcon={<DeleteOutline />}
+          >
+            {deleteTicket.isPending ? 'Eliminazione...' : 'Elimina definitivamente'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -335,6 +335,13 @@ export const UpdateTicketResponse = zod
   );
 
 /**
+ * @summary Delete a ticket (admin only)
+ */
+export const DeleteTicketParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List comments for a ticket
  */
 export const ListTicketCommentsParams = zod.object({

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -299,6 +299,31 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
   res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc)));
+});
+
+router.delete("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).user;
+  if (currentUser.role !== "admin") {
+    res.status(403).json({ error: "Solo gli amministratori possono eliminare i ticket" });
+    return;
+  }
+
+  const id = parseInt(req.params.id, 10);
+  const [existing] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Ticket non trovato" });
+    return;
+  }
+
+  await db.delete(notificationsTable).where(eq(notificationsTable.ticketId, id));
+  await db.delete(ticketActivityLogsTable).where(eq(ticketActivityLogsTable.ticketId, id));
+  await db.delete(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
+  await db.delete(ticketAttachmentsTable).where(eq(ticketAttachmentsTable.ticketId, id));
+  await db.delete(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
+  await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
+
+  req.log.info({ ticketId: id }, "Ticket eliminato dall'admin");
+  res.status(204).send();
 });
 
 export default router;
