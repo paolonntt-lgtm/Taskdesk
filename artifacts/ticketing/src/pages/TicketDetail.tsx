@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Card, Typography, Tabs, Tab, Divider, Grid, Chip, Button,
+  Box, Card, Typography, Tabs, Tab, Divider, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
@@ -359,12 +359,51 @@ export default function TicketDetail() {
               </Typography>
               <Typography variant="body2">{ticket.category}</Typography>
             </Box>
+
+            {/* Location */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.ticketDetail.locationLabel}
+              </Typography>
+              <Typography variant="body2">{ticket.location}</Typography>
+            </Box>
+
+            {/* Resource */}
+            {ticket.resource && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.ticketDetail.resourceLabel}
+                </Typography>
+                <Typography variant="body2">{ticket.resource}</Typography>
+              </Box>
+            )}
+
+            {/* Closed on */}
+            {ticket.closedAt && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.ticketDetail.closedOn}
+                </Typography>
+                <Typography variant="body2">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
+              </Box>
+            )}
           </Box>
+
+          {/* Resolution note — full width */}
+          {(ticket as any).resolutionNote && (
+            <Box pt={1}>
+              <Alert severity="success" icon={<CheckCircleOutline fontSize="small" />} sx={{ fontSize: '0.85rem' }}>
+                <Typography variant="caption" color="success.dark" display="block" fontWeight="bold" mb={0.3}>
+                  {t.ticketDetail.resolutionNoteLabel}
+                </Typography>
+                {(ticket as any).resolutionNote}
+              </Alert>
+            </Box>
+          )}
         </Box>
       </Card>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+      <Box>
           <Card sx={{ mb: 3 }}>
             <Box p={3}>
               <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
@@ -468,44 +507,7 @@ export default function TicketDetail() {
               </TabPanel>
             </Box>
           </Card>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Card>
-            <Box p={3} display="flex" flexDirection="column" gap={2.5}>
-              <Typography variant="subtitle1" fontWeight="bold">{t.ticketDetail.detailsTitle}</Typography>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.locationLabel}</Typography>
-                <Typography variant="body2">{ticket.location}</Typography>
-              </Box>
-
-              {ticket.resource && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.resourceLabel}</Typography>
-                  <Typography variant="body2">{ticket.resource}</Typography>
-                </Box>
-              )}
-
-              {ticket.closedAt && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.closedOn}</Typography>
-                  <Typography variant="body2">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
-                </Box>
-              )}
-
-              {(ticket as any).resolutionNote && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.resolutionNoteLabel}</Typography>
-                  <Alert severity="success" icon={<CheckCircleOutline fontSize="small" />} sx={{ fontSize: '0.85rem' }}>
-                    {(ticket as any).resolutionNote}
-                  </Alert>
-                </Box>
-              )}
-            </Box>
-          </Card>
-        </Grid>
-      </Grid>
+      </Box>
 
       {/* Resolution note dialog */}
       <Dialog open={resolutionDialog} onClose={() => setResolutionDialog(false)} maxWidth="sm" fullWidth>
