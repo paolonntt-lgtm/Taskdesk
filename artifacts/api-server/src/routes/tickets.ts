@@ -301,12 +301,8 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc)));
 });
 
-router.delete("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
-  const currentUser = (req as any).user;
-  if (currentUser.role !== "admin") {
-    res.status(403).json({ error: "Solo gli amministratori possono eliminare i ticket" });
-    return;
-  }
+router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
 
   const id = parseInt(req.params.id, 10);
   const [existing] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
