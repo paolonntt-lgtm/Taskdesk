@@ -316,8 +316,8 @@ export default function Settings() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 2 MB.' });
+    if (file.size > 1.5 * 1024 * 1024) {
+      setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 1.5 MB.' });
       return;
     }
     const reader = new FileReader();
