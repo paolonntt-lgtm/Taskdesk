@@ -220,7 +220,14 @@ export default function TicketList() {
                       </TableCell>
                     )}
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                      {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
+                      <Box>
+                        <Typography variant="body2" component="span">
+                          {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
+                        </Typography>
+                        <Typography variant="caption" component="div" color="text.secondary">
+                          {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+                        </Typography>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))

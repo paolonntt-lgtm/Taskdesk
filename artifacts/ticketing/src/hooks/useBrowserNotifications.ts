@@ -37,15 +37,48 @@ function playChime() {
   }
 }
 
-function showBrowserNotification(text: string, ticketId?: number | null) {
+const isIT = () => (navigator.language || "").toLowerCase().startsWith("it");
+
+const TYPE_META: Record<string, { emoji: string; it: string; en: string; requireInteraction?: boolean }> = {
+  ticket_created:          { emoji: "🎫", it: "Nuovo ticket",      en: "New ticket",       requireInteraction: true },
+  ticket_status_changed:   { emoji: "🔄", it: "Cambio stato",       en: "Status changed" },
+  ticket_commented:        { emoji: "💬", it: "Nuovo commento",     en: "New comment" },
+  ticket_assigned:         { emoji: "👤", it: "Ticket assegnato",   en: "Ticket assigned",  requireInteraction: true },
+  ticket_priority_changed: { emoji: "⚠️", it: "Priorità aggiornata", en: "Priority changed" },
+  system:                  { emoji: "ℹ️", it: "TaskDesk",            en: "TaskDesk" },
+};
+
+function buildNotificationTitle(type: string | null | undefined, ticketId?: number | null): string {
+  const meta = TYPE_META[type ?? "system"] ?? TYPE_META.system;
+  const label = isIT() ? meta.it : meta.en;
+  const ticketPart = ticketId ? ` · #${ticketId}` : "";
+  return `${meta.emoji} ${label}${ticketPart}`;
+}
+
+function showBrowserNotification(item: NotificationItem) {
   if (Notification.permission !== "granted") return;
-  const title = "TaskDesk";
+  const { notificationText, ticketId, type } = item;
+
+  const title = buildNotificationTitle(type, ticketId);
+  const meta = TYPE_META[type ?? "system"] ?? TYPE_META.system;
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString(isIT() ? "it-IT" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const body = `${notificationText}\n${timeStr}`;
+
   const notif = new Notification(title, {
-    body: text,
+    body,
     icon: "/favicon.ico",
     badge: "/favicon.ico",
-    tag: `taskdesk-ticket-${ticketId ?? "general"}`,
+    tag: `taskdesk-${type ?? "system"}-${ticketId ?? item.id}`,
+    requireInteraction: meta.requireInteraction ?? false,
+    silent: false,
   });
+
   if (ticketId) {
     notif.onclick = () => {
       window.focus();
@@ -97,7 +130,7 @@ export function useBrowserNotifications(
     newUnread.forEach((n) => {
       seenIds.current.add(n.id);
       if (getPref(prefs, n.type, "browser")) {
-        showBrowserNotification(n.notificationText, n.ticketId);
+        showBrowserNotification(n);
       }
       if (getPref(prefs, n.type, "sound")) {
         anySound = true;
