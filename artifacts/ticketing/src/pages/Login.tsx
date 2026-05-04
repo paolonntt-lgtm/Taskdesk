@@ -97,18 +97,7 @@ export default function Login() {
           <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
             {/* Logo */}
             <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box sx={{
-                width: 52, height: 52, borderRadius: '14px',
-                background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                mx: 'auto', mb: 2,
-                boxShadow: '0 8px 24px rgba(37,99,235,0.30)',
-              }}>
-                <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', lineHeight: 1 }}>T</Typography>
-              </Box>
-              <Typography variant="h5" fontWeight={800} letterSpacing="-0.01em" gutterBottom>
-                TaskDesk
-              </Typography>
+              <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 48, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="body2" color="text.secondary">
                 {mode === 'login' ? t.login.subtitle : t.login.registerSubtitle}
               </Typography>

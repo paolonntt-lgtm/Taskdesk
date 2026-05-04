@@ -147,9 +147,8 @@ export default function Landing() {
       {/* Nav */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-lg">T</div>
-            <span className="font-bold text-lg tracking-tight">TaskDesk</span>
+          <div className="flex items-center">
+            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-9 w-auto" />
           </div>
 
           <nav className="hidden md:flex gap-8 text-sm text-gray-500">
@@ -466,9 +465,8 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-8 border-t border-gray-100 px-6 md:px-8 pb-24 md:pb-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 opacity-50">
-            <div className="w-6 h-6 bg-gray-900 text-white rounded-md flex items-center justify-center font-bold text-xs">T</div>
-            <span className="font-bold text-sm tracking-tight text-gray-900">TaskDesk</span>
+          <div className="flex items-center opacity-50">
+            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
           </div>
           <p className="text-sm text-gray-400">{t.footer.text}</p>
         </div>

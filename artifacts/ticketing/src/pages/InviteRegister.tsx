@@ -62,7 +62,7 @@ export default function InviteRegister({ token }: { token: string }) {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: 'background.default', py: 4 }}>
       <Container maxWidth="sm">
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>TaskDesk</Typography>
+          <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mb: 1 }} />
           <Typography color="text.secondary">Sistema di ticketing aziendale</Typography>
         </Box>
 
