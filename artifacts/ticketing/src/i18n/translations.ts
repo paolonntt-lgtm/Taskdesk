@@ -282,6 +282,14 @@ const it = {
     notifEnableAll: 'Abilita tutte',
     notifDisableAll: 'Disabilita tutte',
   },
+  userProfile: {
+    back: 'Indietro',
+    notFound: 'Utente non trovato.',
+    manageUser: 'Gestisci utente',
+    openTickets: 'Ticket aperti creati',
+    assignedTickets: 'Ticket assegnati aperti',
+    noTickets: 'Nessun ticket aperto per questo utente.',
+  },
   status: {
     open: 'Aperto',
     in_progress: 'In lavorazione',
@@ -578,6 +586,14 @@ const en: typeof it = {
     notifSaveError: 'Error saving. Please try again.',
     notifEnableAll: 'Enable all',
     notifDisableAll: 'Disable all',
+  },
+  userProfile: {
+    back: 'Back',
+    notFound: 'User not found.',
+    manageUser: 'Manage user',
+    openTickets: 'Open tickets created',
+    assignedTickets: 'Open assigned tickets',
+    noTickets: 'No open tickets for this user.',
   },
   status: {
     open: 'Open',

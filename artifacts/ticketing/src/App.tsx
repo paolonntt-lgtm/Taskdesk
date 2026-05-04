@@ -16,6 +16,7 @@ import Users from "./pages/Users";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
 import InviteRegister from "./pages/InviteRegister";
+import UserProfile from "./pages/UserProfile";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -100,6 +101,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
                 <Route path="/tickets/:id" component={TicketDetail} />
                 <Route path="/tickets" component={TicketList} />
                 <Route path="/reports" component={Reports} />
+                <Route path="/users/:id" component={UserProfile} />
                 <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
                 <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
                 <Route path="/settings" component={Settings} />

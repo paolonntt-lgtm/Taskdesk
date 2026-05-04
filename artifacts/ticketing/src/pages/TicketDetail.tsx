@@ -18,6 +18,7 @@ import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 import { MarkdownContent } from '../components/MarkdownContent';
+import { UserLink } from '../components/UserLink';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -172,9 +173,12 @@ export default function TicketDetail() {
               {creator?.name?.charAt(0)}
             </Avatar>
             <Box minWidth={0}>
-              <Typography variant="subtitle2" fontWeight="bold" noWrap>
-                {creator?.name}
-              </Typography>
+              <UserLink
+                userId={(creator as any)?.id}
+                name={creator?.name}
+                typographyProps={{ variant: 'subtitle2', fontWeight: 'bold', noWrap: true }}
+              />
+              
               <Typography variant="caption" color="text.secondary">
                 {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
               </Typography>
@@ -490,7 +494,11 @@ export default function TicketDetail() {
                       </Avatar>
                       <Box flex={1} bgcolor="background.default" p={2} borderRadius={1}>
                         <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5}>
-                          <Typography variant="subtitle2" fontWeight="bold">{c.author?.name}</Typography>
+                          <UserLink
+                            userId={c.authorId}
+                            name={c.author?.name}
+                            typographyProps={{ variant: 'subtitle2', fontWeight: 'bold' }}
+                          />
                           <Typography variant="caption" color="text.secondary">
                             {new Date(c.createdAt).toLocaleString(dateLocale)}
                           </Typography>
