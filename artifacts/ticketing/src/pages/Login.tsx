@@ -97,7 +97,7 @@ export default function Login() {
           <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
             {/* Logo */}
             <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 48, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
+              <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="body2" color="text.secondary">
                 {mode === 'login' ? t.login.subtitle : t.login.registerSubtitle}
               </Typography>

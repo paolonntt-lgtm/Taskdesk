@@ -148,7 +148,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-9 w-auto" />
+            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-8 w-auto" />
           </div>
 
           <nav className="hidden md:flex gap-8 text-sm text-gray-500">
