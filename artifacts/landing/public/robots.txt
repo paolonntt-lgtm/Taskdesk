@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://taskdesk.replit.app/landing/sitemap.xml
+# Blocca l'app autenticata dai crawler
+Disallow: /app/
+
+Sitemap: https://taskdesk.replit.app/sitemap.xml

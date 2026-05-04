@@ -148,10 +148,10 @@ export default function Landing() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-8 w-auto" />
+            <img src="/taskdesk-logo.png" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
 
-          <nav className="hidden md:flex gap-8 text-sm text-gray-500">
+          <nav aria-label="Menu principale" className="hidden md:flex gap-8 text-sm text-gray-500">
             <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing"  className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>
             <a href="#faq"      className="hover:text-gray-900 transition-colors font-medium">{t.nav.faq}</a>
@@ -186,8 +186,9 @@ export default function Landing() {
         </div>
       </header>
 
+      <main id="main-content">
       {/* Hero */}
-      <section className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 40%, #fdf2f8 100%)" }}>
+      <section aria-label="Hero" className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 40%, #fdf2f8 100%)" }}>
         <div className="absolute top-[-50px] right-[-50px] w-[400px] h-[400px] rounded-full border border-blue-100 opacity-60 pointer-events-none" />
         <div className="absolute top-[50px] right-[50px] w-[280px] h-[280px] rounded-full border border-violet-100 opacity-60 pointer-events-none" />
         <div className="absolute bottom-[-30px] left-[-30px] w-[250px] h-[250px] rounded-full border border-pink-100 opacity-50 pointer-events-none" />
@@ -281,7 +282,7 @@ export default function Landing() {
       </section>
 
       {/* Stats */}
-      <section className="py-14 border-y border-gray-100 bg-gray-50">
+      <section aria-label="Statistiche" className="py-14 border-y border-gray-100 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6 md:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {[
@@ -301,7 +302,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-28 px-6 md:px-8">
+      <section id="features" aria-label="Funzionalità" className="py-28 px-6 md:px-8">
         <div className="max-w-6xl mx-auto">
           <ScrollReveal>
             <div className="text-center mb-20">
@@ -331,7 +332,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
+      <section id="pricing" aria-label="Prezzi" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
         <div className="max-w-7xl mx-auto">
           <ScrollReveal>
             <div className="text-center mb-14 max-w-3xl mx-auto">
@@ -412,7 +413,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="py-28 px-6 md:px-8">
+      <section id="faq" aria-label="Domande frequenti" className="py-28 px-6 md:px-8">
         <div className="max-w-3xl mx-auto">
           <ScrollReveal>
             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-center mb-16">{t.faq.title}</h2>
@@ -433,7 +434,7 @@ export default function Landing() {
       </section>
 
       {/* CTA finale */}
-      <section className="py-28 px-6 md:px-8">
+      <section aria-label="Inizia ora" className="py-28 px-6 md:px-8">
         <ScrollReveal>
           <div
             className="max-w-4xl mx-auto rounded-3xl overflow-hidden relative"
@@ -463,10 +464,11 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
+      </main>
       <footer className="py-8 border-t border-gray-100 px-6 md:px-8 pb-24 md:pb-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center opacity-50">
-            <img src="/taskdesk-logo.png" alt="TaskDesk" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
+            <img src="/taskdesk-logo.png" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
           </div>
           <p className="text-sm text-gray-400">{t.footer.text}</p>
         </div>

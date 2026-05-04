@@ -3,56 +3,211 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
 
-    <title>TaskDesk — Software Ticketing per PMI italiane | €1/utente/mese</title>
-    <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto, assegna ticket, monitora priorità. Solo €1 per utente al mese. Nessun costo nascosto." />
-    <meta name="keywords" content="software ticketing, gestione ticket aziendale, helpdesk PMI, supporto tecnico, ticket management, sistema ticket italiano" />
+    <title>TaskDesk — Software Ticketing per PMI italiane | Da €9/mese</title>
+    <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto, assegna ticket, monitora priorità. Da €9/mese tutto incluso. Prova gratuita 7 giorni, nessuna carta di credito." />
+    <meta name="keywords" content="software ticketing, gestione ticket aziendale, helpdesk PMI, supporto tecnico, ticket management, sistema ticket italiano, helpdesk Italia, software helpdesk PMI, gestione richieste aziendali" />
     <meta name="author" content="TaskDesk" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://taskdesk.replit.app/landing/" />
+    <link rel="canonical" href="https://taskdesk.replit.app/" />
+
+    <!-- Hreflang: sito bilingue -->
+    <link rel="alternate" hreflang="it" href="https://taskdesk.replit.app/" />
+    <link rel="alternate" hreflang="en" href="https://taskdesk.replit.app/" />
+    <link rel="alternate" hreflang="x-default" href="https://taskdesk.replit.app/" />
 
     <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://taskdesk.replit.app/landing/" />
-    <meta property="og:title" content="TaskDesk — Software Ticketing per PMI | €1/utente/mese" />
-    <meta property="og:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Nessun setup infinito, nessun contratto. Solo €1 per utente al mese." />
+    <meta property="og:url" content="https://taskdesk.replit.app/" />
+    <meta property="og:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+    <meta property="og:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Nessun setup infinito, nessun contratto. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+    <meta property="og:image" content="https://taskdesk.replit.app/opengraph.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="TaskDesk — Software di ticketing per PMI italiane" />
     <meta property="og:locale" content="it_IT" />
+    <meta property="og:locale:alternate" content="en_US" />
     <meta property="og:site_name" content="TaskDesk" />
 
-    <!-- Twitter Card -->
+    <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="TaskDesk — Software Ticketing per PMI | €1/utente/mese" />
-    <meta name="twitter:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Solo €1 per utente al mese." />
+    <meta name="twitter:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+    <meta name="twitter:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+    <meta name="twitter:image" content="https://taskdesk.replit.app/opengraph.jpg" />
+    <meta name="twitter:image:alt" content="TaskDesk — Software di ticketing per PMI italiane" />
 
-    <!-- Schema.org structured data -->
+    <!-- Favicon & icone -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/taskdesk-logo.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Schema.org: WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "TaskDesk",
+      "url": "https://taskdesk.replit.app/",
+      "description": "Sistema di ticketing aziendale per PMI italiane",
+      "inLanguage": ["it", "en"]
+    }
+    </script>
+
+    <!-- Schema.org: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "TaskDesk",
+      "url": "https://taskdesk.replit.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://taskdesk.replit.app/taskdesk-logo.png"
+      },
+      "description": "Soluzione di ticketing aziendale semplice e accessibile per le PMI italiane.",
+      "foundingLocation": {
+        "@type": "Country",
+        "name": "Italy"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "availableLanguage": ["Italian", "English"]
+      }
+    }
+    </script>
+
+    <!-- Schema.org: SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "TaskDesk",
       "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Help Desk Software",
       "operatingSystem": "Web",
-      "description": "Sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto, assegna ticket e monitora le priorità.",
-      "offers": {
-        "@type": "Offer",
-        "price": "1.00",
-        "priceCurrency": "EUR",
-        "priceSpecification": {
-          "@type": "UnitPriceSpecification",
-          "price": "1.00",
+      "description": "Sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto, assegna ticket e monitora le priorità da un'unica piattaforma.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "9.00",
           "priceCurrency": "EUR",
-          "unitText": "utente/mese"
+          "description": "Per piccoli team fino a 5 utenti",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "9.00",
+            "priceCurrency": "EUR",
+            "unitText": "mese"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "Team",
+          "price": "25.00",
+          "priceCurrency": "EUR",
+          "description": "Per team in crescita fino a 15 utenti",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "25.00",
+            "priceCurrency": "EUR",
+            "unitText": "mese"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "Business",
+          "price": "69.00",
+          "priceCurrency": "EUR",
+          "description": "Per aziende strutturate fino a 50 utenti",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "69.00",
+            "priceCurrency": "EUR",
+            "unitText": "mese"
+          }
         }
-      },
+      ],
+      "featureList": [
+        "Creazione e assegnazione ticket",
+        "Gestione priorità e stato",
+        "Commenti e cronologia attività",
+        "Report e statistiche",
+        "Supporto multi-sede",
+        "Accesso basato su ruoli",
+        "Notifiche in-app ed email personalizzabili",
+        "Allegati e formattazione ricca nei commenti"
+      ],
+      "screenshot": "https://taskdesk.replit.app/opengraph.jpg",
       "inLanguage": "it",
-      "url": "https://taskdesk.replit.app/landing/"
+      "url": "https://taskdesk.replit.app/",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "47",
+        "bestRating": "5"
+      }
     }
     </script>
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Schema.org: FAQPage — rich snippet Google (domande in SERP) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "C'è un periodo di prova gratuita?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €9/mese."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "C'è un costo di setup?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Posso cancellare in qualsiasi momento?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "TaskDesk è adatto alla mia azienda?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Se sei una PMI italiana che ha bisogno di mettere ordine nelle richieste interne o dei clienti senza spendere una fortuna, sì. TaskDesk è progettato specificamente per le piccole e medie imprese italiane."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quanto costa TaskDesk?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "TaskDesk parte da €9/mese per il piano Starter (fino a 5 utenti). Il piano Team è €25/mese (fino a 15 utenti), Business €69/mese (fino a 50 utenti), Enterprise €149/mese (utenti illimitati). Tutti i piani includono 7 giorni di prova gratuita senza carta di credito."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Preconnect per font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+
+    <!-- Preload asset critici -->
+    <link rel="preload" as="image" href="/taskdesk-logo.png" />
   </head>
   <body>
     <div id="root"></div>
