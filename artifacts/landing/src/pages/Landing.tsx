@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const APP_URL = "/app/";
 
@@ -473,6 +474,7 @@ export default function Landing() {
           <p className="text-sm text-gray-400">{t.footer.text}</p>
         </div>
       </footer>
+      <InstallPrompt />
     </div>
   );
 }
