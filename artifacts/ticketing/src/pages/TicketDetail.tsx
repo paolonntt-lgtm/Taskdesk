@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Card, Typography, Tabs, Tab, Divider, Grid, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
-  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
+  IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline } from '@mui/icons-material';
-import { Person, Group } from '@mui/icons-material';
+import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers,
@@ -16,7 +16,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowBack } from '@mui/icons-material';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -32,6 +31,9 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   );
 }
 
+const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed'] as const;
+const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
+
 export default function TicketDetail() {
   const { id } = useParams();
   const ticketId = parseInt(id || '0');
@@ -42,12 +44,12 @@ export default function TicketDetail() {
 
   const [tabValue, setTabValue] = useState(0);
   const [newComment, setNewComment] = useState('');
-
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
-
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
+
+  const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } as any });
@@ -78,6 +80,7 @@ export default function TicketDetail() {
   }
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === ticket.status) return;
     if (newStatus === 'resolved') {
       setResolutionNote('');
       setResolutionDialog(true);
@@ -98,6 +101,7 @@ export default function TicketDetail() {
   };
 
   const handlePriorityChange = async (newPriority: string) => {
+    if (newPriority === ticket.priority) return;
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
   };
@@ -105,6 +109,13 @@ export default function TicketDetail() {
   const handleAssigneeChange = async (newAssignee: string) => {
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    setAssignAnchor(null);
+  };
+
+  const handleGroupChange = async (val: string) => {
+    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    setAssignAnchor(null);
   };
 
   const submitComment = async () => {
@@ -115,6 +126,9 @@ export default function TicketDetail() {
   };
 
   const isAdmin = currentUser?.role === 'admin';
+  const creator = (ticket as any).creator;
+  const assignee = (ticket as any).assignee;
+  const assignedGroup = (ticket as any).assignedToGroup;
 
   return (
     <Box>
@@ -123,22 +137,90 @@ export default function TicketDetail() {
         onClick={() => setLocation('/tickets')}
         sx={{ mb: 2 }}
         color="inherit"
+        size="small"
       >
         {t.ticketDetail.backToList}
       </Button>
 
-      <Box mb={3}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ wordBreak: 'break-word' }}>
-          #{ticket.id} — {ticket.title}
-        </Typography>
-        <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-          <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
-          <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
-          <Typography variant="caption" color="text.secondary">
-            {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
+      {/* ── Compact header card ── */}
+      <Card sx={{ mb: 3, overflow: 'visible' }}>
+        <Box px={3} pt={2.5} pb={2}>
+          {/* Row 1: author + date */}
+          <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
+            <Avatar
+              src={creator?.avatarUrl ?? undefined}
+              sx={{ width: 42, height: 42, bgcolor: 'primary.main', fontSize: 18, flexShrink: 0 }}
+            >
+              {creator?.name?.charAt(0)}
+            </Avatar>
+            <Box minWidth={0}>
+              <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                {creator?.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Row 2: ticket title */}
+          <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', mb: 1.5, lineHeight: 1.3 }}>
+            #{ticket.id} — {ticket.title}
           </Typography>
+
+          {/* Row 3: status chips */}
+          {isAdmin ? (
+            <Box mb={1}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.ticketDetail.statusLabel}
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={0.5}>
+                {STATUS_OPTIONS.map((s) => (
+                  <Chip
+                    key={s}
+                    label={t.status[s] || s}
+                    size="small"
+                    color={ticket.status === s ? (getStatusColor(s) as any) : 'default'}
+                    variant={ticket.status === s ? 'filled' : 'outlined'}
+                    onClick={() => handleStatusChange(s)}
+                    disabled={updateTicket.isPending}
+                    sx={{ cursor: 'pointer', fontWeight: ticket.status === s ? 700 : 400 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box display="flex" gap={1} mb={1}>
+              <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
+            </Box>
+          )}
+
+          {/* Row 4: priority chips */}
+          {isAdmin ? (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.ticketDetail.priorityLabel}
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={0.5}>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <Chip
+                    key={p}
+                    label={t.priority[p] || p}
+                    size="small"
+                    color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'}
+                    variant={ticket.priority === p ? 'filled' : 'outlined'}
+                    onClick={() => handlePriorityChange(p)}
+                    disabled={updateTicket.isPending}
+                    sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
+          )}
         </Box>
-      </Box>
+      </Card>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
@@ -175,7 +257,12 @@ export default function TicketDetail() {
                   )}
                   {comments?.map((c) => (
                     <Box key={c.id} display="flex" gap={2}>
-                      <Avatar sx={{ bgcolor: 'primary.main' }}>{c.author?.name?.charAt(0)}</Avatar>
+                      <Avatar
+                        src={(c.author as any)?.avatarUrl ?? undefined}
+                        sx={{ bgcolor: 'primary.main' }}
+                      >
+                        {c.author?.name?.charAt(0)}
+                      </Avatar>
                       <Box flex={1} bgcolor="background.default" p={2} borderRadius={1}>
                         <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5}>
                           <Typography variant="subtitle2" fontWeight="bold">{c.author?.name}</Typography>
@@ -188,7 +275,12 @@ export default function TicketDetail() {
                     </Box>
                   ))}
                   <Box display="flex" gap={2} mt={2}>
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>{currentUser?.name?.charAt(0)}</Avatar>
+                    <Avatar
+                      src={(currentUser as any)?.avatarUrl ?? undefined}
+                      sx={{ bgcolor: 'primary.main' }}
+                    >
+                      {currentUser?.name?.charAt(0)}
+                    </Avatar>
                     <Box flex={1} display="flex" flexDirection="column" gap={1}>
                       <TextField
                         fullWidth
@@ -239,115 +331,137 @@ export default function TicketDetail() {
 
         <Grid item xs={12} md={4}>
           <Card>
-            <Box p={3} display="flex" flexDirection="column" gap={3}>
-              <Typography variant="h6" fontWeight="bold">{t.ticketDetail.detailsTitle}</Typography>
+            <Box p={3} display="flex" flexDirection="column" gap={2.5}>
+              <Typography variant="subtitle1" fontWeight="bold">{t.ticketDetail.detailsTitle}</Typography>
 
+              {/* Assignee */}
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.ticketDetail.assignedTo}
                 </Typography>
                 {isAdmin ? (
-                  <Box display="flex" flexDirection="column" gap={1}>
-                    <ToggleButtonGroup
-                      value={assignMode}
-                      exclusive
-                      size="small"
-                      onChange={(_, v) => {
-                        if (!v) return;
-                        setAssignMode(v);
-                        if (v === 'user') {
-                          updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: null } as any });
-                        } else {
-                          updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: null } });
-                        }
-                      }}
+                  <>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      sx={{ cursor: 'pointer' }}
+                      onClick={(e) => setAssignAnchor(e.currentTarget)}
                     >
-                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
-                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
-                    </ToggleButtonGroup>
-                    {assignMode === 'user' ? (
-                      <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        value={ticket.assignedTo ?? ''}
-                        onChange={(e) => handleAssigneeChange(e.target.value)}
-                        disabled={updateTicket.isPending}
+                      {assignedGroup ? (
+                        <Chip
+                          icon={<Group fontSize="small" />}
+                          label={assignedGroup}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }}
+                        />
+                      ) : assignee ? (
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Avatar
+                            src={assignee.avatarUrl ?? undefined}
+                            sx={{ width: 28, height: 28, fontSize: 13, bgcolor: 'secondary.main' }}
+                          >
+                            {assignee.name?.charAt(0)}
+                          </Avatar>
+                          <Typography variant="body2">{assignee.name}</Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                      )}
+                      <IconButton size="small" sx={{ ml: 'auto' }}>
+                        <EditOutlined fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    <Popover
+                      open={Boolean(assignAnchor)}
+                      anchorEl={assignAnchor}
+                      onClose={() => setAssignAnchor(null)}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    >
+                      <Box p={2} minWidth={220}>
+                        <ToggleButtonGroup
+                          value={assignMode}
+                          exclusive
+                          size="small"
+                          fullWidth
+                          onChange={(_, v) => {
+                            if (!v) return;
+                            setAssignMode(v);
+                          }}
+                          sx={{ mb: 1.5 }}
+                        >
+                          <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
+                          <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                        </ToggleButtonGroup>
+
+                        {assignMode === 'user' ? (
+                          <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
+                            <Box
+                              px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                              onClick={() => handleAssigneeChange('')}
+                            >
+                              <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                            </Box>
+                            {users?.map(u => (
+                              <Box
+                                key={u.id}
+                                px={1} py={0.5} borderRadius={1}
+                                display="flex" alignItems="center" gap={1}
+                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined }}
+                                onClick={() => handleAssigneeChange(String(u.id))}
+                              >
+                                <Avatar
+                                  src={(u as any).avatarUrl ?? undefined}
+                                  sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}
+                                >
+                                  {u.name?.charAt(0)}
+                                </Avatar>
+                                <Typography variant="body2">{u.name}</Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
+                            <Box
+                              px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                              onClick={() => handleGroupChange('')}
+                            >
+                              <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                            </Box>
+                            {groups.map(g => (
+                              <Box
+                                key={g}
+                                px={1} py={0.5} borderRadius={1}
+                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }}
+                                onClick={() => handleGroupChange(g)}
+                              >
+                                <Typography variant="body2">{g}</Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    </Popover>
+                  </>
+                ) : (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {assignee && (
+                      <Avatar
+                        src={assignee.avatarUrl ?? undefined}
+                        sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
                       >
-                        <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
-                        {users?.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
-                      </TextField>
-                    ) : (
-                      <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        value={(ticket as any).assignedToGroup ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any })
-                            .then((updated) => queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated));
-                        }}
-                        disabled={updateTicket.isPending}
-                      >
-                        <MenuItem value=""><em>{t.ticketDetail.unassigned}</em></MenuItem>
-                        {groups.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
-                      </TextField>
+                        {assignee.name?.charAt(0)}
+                      </Avatar>
                     )}
+                    <Typography variant="body2">
+                      {assignedGroup
+                        ? `Gruppo: ${assignedGroup}`
+                        : assignee?.name || t.ticketDetail.unassigned}
+                    </Typography>
                   </Box>
-                ) : (
-                  <Typography variant="body1">
-                    {(ticket as any).assignedToGroup
-                      ? `Gruppo: ${(ticket as any).assignedToGroup}`
-                      : ticket.assignee?.name || t.ticketDetail.unassigned}
-                  </Typography>
-                )}
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  {t.ticketDetail.statusLabel}
-                </Typography>
-                {isAdmin ? (
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    value={ticket.status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    disabled={updateTicket.isPending}
-                  >
-                    <MenuItem value="open">{t.status.open}</MenuItem>
-                    <MenuItem value="in_progress">{t.status.in_progress}</MenuItem>
-                    <MenuItem value="waiting">{t.status.waiting}</MenuItem>
-                    <MenuItem value="resolved">{t.status.resolved}</MenuItem>
-                    <MenuItem value="closed">{t.status.closed}</MenuItem>
-                  </TextField>
-                ) : (
-                  <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
-                )}
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  {t.ticketDetail.priorityLabel}
-                </Typography>
-                {isAdmin ? (
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    value={ticket.priority}
-                    onChange={(e) => handlePriorityChange(e.target.value)}
-                    disabled={updateTicket.isPending}
-                  >
-                    <MenuItem value="low">{t.priority.low}</MenuItem>
-                    <MenuItem value="medium">{t.priority.medium}</MenuItem>
-                    <MenuItem value="high">{t.priority.high}</MenuItem>
-                    <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
-                  </TextField>
-                ) : (
-                  <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
                 )}
               </Box>
 
@@ -355,30 +469,25 @@ export default function TicketDetail() {
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.categoryLabel}</Typography>
-                <Typography variant="body1">{ticket.category}</Typography>
+                <Typography variant="body2">{ticket.category}</Typography>
               </Box>
 
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.locationLabel}</Typography>
-                <Typography variant="body1">{ticket.location}</Typography>
+                <Typography variant="body2">{ticket.location}</Typography>
               </Box>
 
               {ticket.resource && (
                 <Box>
                   <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.resourceLabel}</Typography>
-                  <Typography variant="body1">{ticket.resource}</Typography>
+                  <Typography variant="body2">{ticket.resource}</Typography>
                 </Box>
               )}
-
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.createdBy}</Typography>
-                <Typography variant="body1">{ticket.creator?.name}</Typography>
-              </Box>
 
               {ticket.closedAt && (
                 <Box>
                   <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{t.ticketDetail.closedOn}</Typography>
-                  <Typography variant="body1">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
+                  <Typography variant="body2">{new Date(ticket.closedAt).toLocaleDateString(dateLocale)}</Typography>
                 </Box>
               )}
 

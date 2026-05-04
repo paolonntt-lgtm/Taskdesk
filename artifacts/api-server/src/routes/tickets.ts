@@ -10,8 +10,8 @@ const router: IRouter = Router();
 function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number) {
   return {
     ...ticket,
-    creator: { id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, createdAt: creator.createdAt },
-    assignee: assignee ? { id: assignee.id, name: assignee.name, email: assignee.email, role: assignee.role, mainLocation: assignee.mainLocation, createdAt: assignee.createdAt } : null,
+    creator: { id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, avatarUrl: creator.avatarUrl ?? null, createdAt: creator.createdAt },
+    assignee: assignee ? { id: assignee.id, name: assignee.name, email: assignee.email, role: assignee.role, mainLocation: assignee.mainLocation, avatarUrl: assignee.avatarUrl ?? null, createdAt: assignee.createdAt } : null,
     commentCount,
     noteCount,
   };
