@@ -177,11 +177,12 @@ export default function Landing() {
             >
               {t.nav.login}
             </a>
-            <div className="hidden sm:block ld-glow-border">
-              <a href={APP_URL} className="block px-4 py-1.5 rounded-[12px] bg-white text-sm font-bold ld-gradient-text hover:bg-gray-50 transition-colors">
-                {t.hero.cta} →
-              </a>
-            </div>
+            <a
+              href={APP_URL}
+              className="hidden sm:inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-200 transition-colors"
+            >
+              {t.hero.cta} →
+            </a>
           </div>
         </div>
       </header>
