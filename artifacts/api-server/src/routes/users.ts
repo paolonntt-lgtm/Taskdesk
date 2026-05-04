@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, or } from "drizzle-orm";
+import { eq, or, notLike } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -32,6 +32,7 @@ router.get("/users", requireAuth, async (_req, res): Promise<void> => {
   const users = await db
     .select(userFields)
     .from(usersTable)
+    .where(notLike(usersTable.email, "deleted-%@deleted.local"))
     .orderBy(usersTable.name);
   res.json(users);
 });
