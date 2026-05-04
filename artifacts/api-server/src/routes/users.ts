@@ -1,9 +1,15 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { eq, or } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  ticketsTable,
+  notificationsTable,
+  inviteTokensTable,
+} from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
@@ -164,7 +170,32 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
     return;
   }
 
-  await db.delete(usersTable).where(eq(usersTable.id, id));
+  // Anonymize the user instead of hard-deleting, to preserve historical
+  // records (tickets, comments, activity logs) that have NOT NULL FKs.
+  await db.transaction(async (tx) => {
+    // Null out optional references that we can safely clear
+    await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, id));
+    // Clear users.invited_by_id refs (column exists in DB but not in Drizzle schema)
+    await tx.execute(`UPDATE users SET invited_by_id = NULL WHERE invited_by_id = ${id}` as any);
+
+    // Hard-delete rows that don't need to be preserved
+    await tx.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+    await tx.delete(inviteTokensTable).where(
+      or(eq(inviteTokensTable.adminId, id), eq(inviteTokensTable.usedById, id))!
+    );
+
+    // Anonymize the user row (PII removed, account permanently disabled)
+    await tx.update(usersTable).set({
+      name: "Utente eliminato",
+      email: `deleted-${id}-${Date.now()}@deleted.local`,
+      passwordHash: randomBytes(32).toString("hex"),
+      mainLocation: null,
+      group: null,
+      avatarUrl: null,
+      phone: null,
+      isActive: false,
+    } as any).where(eq(usersTable.id, id));
+  });
 
   res.json({ success: true, message: "Utente eliminato" });
 });
