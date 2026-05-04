@@ -96,6 +96,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     noteMap.get(t.id) ?? 0
   ));
 
+  res.setHeader("Cache-Control", "private, max-age=30");
   res.json(result);
 });
 
