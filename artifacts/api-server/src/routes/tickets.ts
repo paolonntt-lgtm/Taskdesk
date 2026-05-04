@@ -138,9 +138,9 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     });
   }
 
-  await createNotificationsForTicket(ticket.id, `Nuovo ticket: "${title}"`, currentUser.id, "ticket_created");
+  await createNotificationsForTicket(ticket.id, `${currentUser.name} ha aperto il ticket #${ticket.id}: "${title}"`, currentUser.id, "ticket_created");
   if (assignedTo && assignedTo !== currentUser.id) {
-    await createNotificationForUser(assignedTo, ticket.id, `Ti è stato assegnato il ticket: "${title}"`, "ticket_assigned");
+    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${ticket.id}: "${title}"`, "ticket_assigned");
   }
 
   const creator = currentUser;
@@ -274,13 +274,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (activityLogs.some((l) => l.actionType === "status_changed")) {
-    await createNotificationsForTicket(id, `Ticket #${id} stato cambiato: ${updates.status}`, currentUser.id, "ticket_status_changed");
+    const statusLabels: Record<string, string> = { open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso" };
+    const statusLabel = statusLabels[updates.status!] ?? updates.status!;
+    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${id} in "${statusLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed");
   }
   if (activityLogs.some((l) => l.actionType === "priority_changed")) {
-    await createNotificationsForTicket(id, `Ticket #${id} priorità cambiata: ${updates.priority}`, currentUser.id, "ticket_priority_changed");
+    const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
+    const priorityLabel = priorityLabels[updates.priority!] ?? updates.priority!;
+    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato la priorità del ticket #${id} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed");
   }
   if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
-    await createNotificationForUser(updates.assignedTo, id, `Ti è stato assegnato il ticket #${id}`, "ticket_assigned");
+    await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${id}: "${existing.title}"`, "ticket_assigned");
   }
 
   const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, updated.createdBy));

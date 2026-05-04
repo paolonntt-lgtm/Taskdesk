@@ -62,7 +62,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     actionDescription: `Commento aggiunto da ${currentUser.name}`,
   });
 
-  await createNotificationsForTicket(id, `Nuovo commento sul ticket #${id}`, currentUser.id, "ticket_commented");
+  await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented");
 
   const { passwordHash: _, ...safeUser } = currentUser;
   res.status(201).json({ ...comment, author: safeUser });
