@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import storageRouter from "./storage";
+import attachmentsRouter from "./attachments";
 import authRouter from "./auth";
 import profileRouter from "./profile";
 import usersRouter from "./users";
@@ -17,6 +19,8 @@ import notificationPreferencesRouter from "./notificationPreferences";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(storageRouter);
+router.use(attachmentsRouter);
 router.use(authRouter);
 router.use(profileRouter);
 router.use(usersRouter);

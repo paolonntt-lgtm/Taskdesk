@@ -5,17 +5,19 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined } from '@mui/icons-material';
+import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
-  useListTicketActivity, useListUsers,
-  getGetTicketQueryKey, getListTicketCommentsQueryKey,
+  useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
+  getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
+import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
+import { MarkdownContent } from '../components/MarkdownContent';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -44,6 +46,7 @@ export default function TicketDetail() {
 
   const [tabValue, setTabValue] = useState(0);
   const [newComment, setNewComment] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
@@ -55,9 +58,11 @@ export default function TicketDetail() {
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60 * 1000 } as any });
+  const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId } as any });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
+  const saveAttachment = useSaveTicketAttachment();
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
@@ -119,10 +124,19 @@ export default function TicketDetail() {
   };
 
   const submitComment = async () => {
-    if (!newComment.trim()) return;
-    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText: newComment } });
+    if (!newComment.trim() && pendingAttachments.length === 0) return;
+    const commentText = newComment.trim() || '📎 Allegato';
+    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText } });
     setNewComment('');
     queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+
+    for (const att of pendingAttachments) {
+      await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
+    }
+    if (pendingAttachments.length > 0) {
+      queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+      setPendingAttachments([]);
+    }
   };
 
   const isAdmin = currentUser?.role === 'admin';
@@ -435,7 +449,9 @@ export default function TicketDetail() {
                       {t.ticketDetail.noComments}
                     </Typography>
                   )}
-                  {comments?.map((c) => (
+                  {comments?.map((c) => {
+                    const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
+                    return (
                     <Box key={c.id} display="flex" gap={2}>
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
@@ -450,10 +466,34 @@ export default function TicketDetail() {
                             {new Date(c.createdAt).toLocaleString(dateLocale)}
                           </Typography>
                         </Box>
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.commentText}</Typography>
+                        <MarkdownContent content={c.commentText} />
+                        {commentAttachments.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                            {commentAttachments.map((a: any) => {
+                              const isImg = (a.mimeType as string).startsWith('image/');
+                              const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                              return (
+                                <Chip
+                                  key={a.id}
+                                  icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
+                                  label={a.fileName}
+                                  size="small"
+                                  variant="outlined"
+                                  component="a"
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  clickable
+                                  sx={{ maxWidth: 260 }}
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
                       </Box>
                     </Box>
-                  ))}
+                    );
+                  })}
 
                   {/* Resolution note shown inline among comments */}
                   {(ticket as any).resolutionNote && (
@@ -502,19 +542,18 @@ export default function TicketDetail() {
                       {currentUser?.name?.charAt(0)}
                     </Avatar>
                     <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                      <TextField
-                        fullWidth
-                        multiline
-                        rows={3}
-                        placeholder={t.ticketDetail.addCommentPlaceholder}
+                      <RichCommentEditor
                         value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
+                        onChange={setNewComment}
+                        placeholder={t.ticketDetail.addCommentPlaceholder}
+                        ticketId={ticketId}
+                        onAttachmentsChange={setPendingAttachments}
                       />
                       <Button
                         variant="contained"
                         sx={{ alignSelf: 'flex-end' }}
                         onClick={submitComment}
-                        disabled={!newComment.trim() || addComment.isPending}
+                        disabled={(!newComment.trim() && pendingAttachments.length === 0) || addComment.isPending}
                       >
                         {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
                       </Button>

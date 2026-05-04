@@ -191,6 +191,44 @@ export interface CommentWithAuthor {
   author: User;
 }
 
+export interface Attachment {
+  id: number;
+  ticketId: number;
+  commentId?: number | null;
+  uploadedBy: number;
+  objectPath: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string;
+}
+
+export interface SaveAttachmentBody {
+  objectPath: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  commentId?: number | null;
+}
+
+export interface RequestUploadUrlBody {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export type RequestUploadUrlResponseMetadata = {
+  name: string;
+  size: number;
+  contentType: string;
+};
+
+export interface RequestUploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata: RequestUploadUrlResponseMetadata;
+}
+
 export interface CreateCommentBody {
   commentText: string;
 }

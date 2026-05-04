@@ -7,6 +7,7 @@
  */
 
 export * from "./activityLogWithUser";
+export * from "./attachment";
 export * from "./commentWithAuthor";
 export * from "./createCommentBody";
 export * from "./createNoteBody";
@@ -22,6 +23,10 @@ export * from "./loginRequest";
 export * from "./loginResponse";
 export * from "./noteWithAuthor";
 export * from "./notification";
+export * from "./requestUploadUrlBody";
+export * from "./requestUploadUrlResponse";
+export * from "./requestUploadUrlResponseMetadata";
+export * from "./saveAttachmentBody";
 export * from "./statGroup";
 export * from "./statGroupWithName";
 export * from "./successResponse";

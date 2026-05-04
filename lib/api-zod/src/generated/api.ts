@@ -373,6 +373,62 @@ export const AddTicketCommentBody = zod.object({
 });
 
 /**
+ * @summary List attachments for a ticket
+ */
+export const ListTicketAttachmentsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTicketAttachmentsResponseItem = zod.object({
+  id: zod.number(),
+  ticketId: zod.number(),
+  commentId: zod.number().nullish(),
+  uploadedBy: zod.number(),
+  objectPath: zod.string(),
+  fileName: zod.string(),
+  fileSize: zod.number(),
+  mimeType: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListTicketAttachmentsResponse = zod.array(
+  ListTicketAttachmentsResponseItem,
+);
+
+/**
+ * @summary Save attachment metadata after upload
+ */
+export const SaveTicketAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SaveTicketAttachmentBody = zod.object({
+  objectPath: zod.string(),
+  fileName: zod.string(),
+  fileSize: zod.number(),
+  mimeType: zod.string(),
+  commentId: zod.number().nullish(),
+});
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+  metadata: zod.object({
+    name: zod.string(),
+    size: zod.number(),
+    contentType: zod.string(),
+  }),
+});
+
+/**
  * @summary List internal notes for a ticket
  */
 export const ListTicketNotesParams = zod.object({

@@ -380,6 +380,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommentWithAuthor"
 
+  /tickets/{id}/attachments:
+    get:
+      operationId: listTicketAttachments
+      tags: [comments]
+      summary: List attachments for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attachment"
+
+    post:
+      operationId: saveTicketAttachment
+      tags: [comments]
+      summary: Save attachment metadata after upload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveAttachmentBody"
+      responses:
+        "201":
+          description: Attachment saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [comments]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
   /tickets/{id}/notes:
     get:
       operationId: listTicketNotes
@@ -907,6 +971,98 @@ components:
         - commentText
         - createdAt
         - author
+
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        commentId:
+          type: integer
+          nullable: true
+        uploadedBy:
+          type: integer
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        mimeType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - ticketId
+        - uploadedBy
+        - objectPath
+        - fileName
+        - fileSize
+        - mimeType
+        - createdAt
+
+    SaveAttachmentBody:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        mimeType:
+          type: string
+        commentId:
+          type: integer
+          nullable: true
+      required:
+        - objectPath
+        - fileName
+        - fileSize
+        - mimeType
+
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          type: object
+          properties:
+            name:
+              type: string
+            size:
+              type: integer
+            contentType:
+              type: string
+          required:
+            - name
+            - size
+            - contentType
+      required:
+        - uploadURL
+        - objectPath
+        - metadata
 
     CreateCommentBody:
       type: object

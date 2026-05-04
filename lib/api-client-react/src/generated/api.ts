@@ -18,6 +18,7 @@ import type {
 
 import type {
   ActivityLogWithUser,
+  Attachment,
   CommentWithAuthor,
   CreateCommentBody,
   CreateNoteBody,
@@ -31,6 +32,9 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  RequestUploadUrlBody,
+  RequestUploadUrlResponse,
+  SaveAttachmentBody,
   StatGroup,
   StatGroupWithName,
   SuccessResponse,
@@ -1288,6 +1292,267 @@ export const useAddTicketComment = <
   TContext
 > => {
   return useMutation(getAddTicketCommentMutationOptions(options));
+};
+
+/**
+ * @summary List attachments for a ticket
+ */
+export const getListTicketAttachmentsUrl = (id: number) => {
+  return `/api/tickets/${id}/attachments`;
+};
+
+export const listTicketAttachments = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Attachment[]> => {
+  return customFetch<Attachment[]>(getListTicketAttachmentsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTicketAttachmentsQueryKey = (id: number) => {
+  return [`/api/tickets/${id}/attachments`] as const;
+};
+
+export const getListTicketAttachmentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTicketAttachments>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTicketAttachments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListTicketAttachmentsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listTicketAttachments>>
+  > = ({ signal }) => listTicketAttachments(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTicketAttachments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTicketAttachmentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTicketAttachments>>
+>;
+export type ListTicketAttachmentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List attachments for a ticket
+ */
+
+export function useListTicketAttachments<
+  TData = Awaited<ReturnType<typeof listTicketAttachments>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTicketAttachments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTicketAttachmentsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save attachment metadata after upload
+ */
+export const getSaveTicketAttachmentUrl = (id: number) => {
+  return `/api/tickets/${id}/attachments`;
+};
+
+export const saveTicketAttachment = async (
+  id: number,
+  saveAttachmentBody: SaveAttachmentBody,
+  options?: RequestInit,
+): Promise<Attachment> => {
+  return customFetch<Attachment>(getSaveTicketAttachmentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveAttachmentBody),
+  });
+};
+
+export const getSaveTicketAttachmentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveTicketAttachment>>,
+    TError,
+    { id: number; data: BodyType<SaveAttachmentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveTicketAttachment>>,
+  TError,
+  { id: number; data: BodyType<SaveAttachmentBody> },
+  TContext
+> => {
+  const mutationKey = ["saveTicketAttachment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveTicketAttachment>>,
+    { id: number; data: BodyType<SaveAttachmentBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return saveTicketAttachment(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveTicketAttachmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveTicketAttachment>>
+>;
+export type SaveTicketAttachmentMutationBody = BodyType<SaveAttachmentBody>;
+export type SaveTicketAttachmentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save attachment metadata after upload
+ */
+export const useSaveTicketAttachment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveTicketAttachment>>,
+    TError,
+    { id: number; data: BodyType<SaveAttachmentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveTicketAttachment>>,
+  TError,
+  { id: number; data: BodyType<SaveAttachmentBody> },
+  TContext
+> => {
+  return useMutation(getSaveTicketAttachmentMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  requestUploadUrlBody: RequestUploadUrlBody,
+  options?: RequestInit,
+): Promise<RequestUploadUrlResponse> => {
+  return customFetch<RequestUploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestUploadUrlBody),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<RequestUploadUrlBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
+export type RequestUploadUrlMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a presigned upload URL
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
 };
 
 /**
