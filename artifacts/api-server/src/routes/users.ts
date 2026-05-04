@@ -164,11 +164,6 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
     return;
   }
 
-  if (target.isActive !== false) {
-    res.status(400).json({ error: "Cannot delete an active user. Deactivate them first." });
-    return;
-  }
-
   // Anonymize the user instead of hard-deleting, to preserve historical
   // records (tickets, comments, activity logs) that have NOT NULL FKs.
   await db.transaction(async (tx) => {

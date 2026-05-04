@@ -246,10 +246,17 @@ export default function Users() {
     setDeactivateConfirm(null);
   };
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    await deleteUser.mutateAsync({ id: deleteConfirm.id });
-    setDeleteConfirm(null);
+    setDeleteError(null);
+    try {
+      await deleteUser.mutateAsync({ id: deleteConfirm.id });
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      setDeleteError(err?.data?.error || err?.data?.message || err?.message || 'Errore durante l\'eliminazione');
+    }
   };
 
   const generateInviteLink = async () => {
@@ -311,6 +318,13 @@ export default function Users() {
             {ut.title}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<Group sx={{ fontSize: 14 }} />}
+              label={`${activeCount} ${activeCount === 1 ? 'utente attivo' : 'utenti attivi'} · ${users.length} totali`}
+              color="default"
+              size="small"
+              variant="outlined"
+            />
             {seatUsage ? (
               seatUsage.unlimited ? (
                 <Chip icon={<AllInclusive sx={{ fontSize: 14 }} />} label={ut.seatsUnlimited} color="success" size="small" variant="outlined" />
@@ -322,9 +336,7 @@ export default function Users() {
                   size="small"
                 />
               )
-            ) : (
-              <Chip label={`${activeCount} ${ut.subtitle}`} color="primary" size="small" />
-            )}
+            ) : null}
             {seatUsage?.hasActiveSubscription && (
               <Chip label={seatUsage.planName} size="small" variant="outlined" />
             )}
@@ -462,13 +474,13 @@ export default function Users() {
                           {isActive ? ut.deactivate : ut.activate}
                         </Button>
                       )}
-                      {!isCurrentUser && !isActive && (
+                      {!isCurrentUser && (
                         <Button
                           size="small"
                           color="error"
                           variant="outlined"
                           startIcon={<DeleteForever fontSize="small" />}
-                          onClick={() => setDeleteConfirm(u)}
+                          onClick={() => { setDeleteError(null); setDeleteConfirm(u); }}
                         >
                           {ut.deleteUser}
                         </Button>
@@ -569,12 +581,12 @@ export default function Users() {
                                 </IconButton>
                               </Tooltip>
                             )}
-                            {!isCurrentUser && !isActive && (
+                            {!isCurrentUser && (
                               <Tooltip title={ut.deleteUser}>
                                 <IconButton
                                   size="small"
                                   color="error"
-                                  onClick={() => setDeleteConfirm(u)}
+                                  onClick={() => { setDeleteError(null); setDeleteConfirm(u); }}
                                 >
                                   <DeleteForever fontSize="small" />
                                 </IconButton>
@@ -728,6 +740,9 @@ export default function Users() {
           <Typography>{ut.deleteUserConfirm}</Typography>
           {deleteConfirm && (
             <Typography fontWeight="bold" sx={{ mt: 1 }}>{deleteConfirm.name}</Typography>
+          )}
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert>
           )}
         </DialogContent>
         <DialogActions>
