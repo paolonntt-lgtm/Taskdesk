@@ -103,11 +103,10 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
-  const { password, ...rest } = parsed.data;
+  // Admins are NOT allowed to change another user's password from the
+  // user-management panel. Strip password if present in the request body.
+  const { password: _ignoredPassword, ...rest } = parsed.data;
   const updates: Record<string, unknown> = { ...rest };
-  if (password) {
-    updates.passwordHash = hashPassword(password);
-  }
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });

@@ -192,9 +192,6 @@ export default function Users() {
         setFormError(ut.errorPasswordTooShort);
         return;
       }
-    } else if (form.password && form.password.length < 6) {
-      setFormError(ut.errorPasswordTooShort);
-      return;
     }
 
     try {
@@ -206,7 +203,6 @@ export default function Users() {
           group: form.group || null,
           mainLocation: form.mainLocation || null,
         } as any;
-        if (form.password) (body as any).password = form.password;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
       } else {
         const body: CreateUserBody = {
@@ -621,16 +617,16 @@ export default function Users() {
               required
               fullWidth
             />
-            <TextField
-              label={ut.password}
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              fullWidth
-              placeholder={editTarget ? ut.passwordPlaceholder : undefined}
-              required={!editTarget}
-              helperText={editTarget ? ut.passwordPlaceholder : undefined}
-            />
+            {!editTarget && (
+              <TextField
+                label={ut.password}
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                fullWidth
+                required
+              />
+            )}
             <FormControl fullWidth>
               <InputLabel>{ut.role}</InputLabel>
               <Select
