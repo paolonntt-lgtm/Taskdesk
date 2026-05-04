@@ -79,7 +79,6 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   );
 
   const [notifPrefs, setNotifPrefs] = useState<Record<string, { inApp: boolean; browser: boolean; sound: boolean }> | undefined>(undefined);
-  const [activeTypeFilter, setActiveTypeFilter] = useState<string | null>(null);
 
   const loadPrefs = useCallback(async () => {
     if (!user) return;
@@ -136,10 +135,6 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
     system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
   };
 
-  const typesPresent = Array.from(new Set(notifications.map((n: any) => n.type ?? 'system')));
-  const filteredNotifications = activeTypeFilter
-    ? notifications.filter((n: any) => (n.type ?? 'system') === activeTypeFilter)
-    : notifications;
 
   const menuItems = [
     { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',        adminOnly: false },
@@ -326,36 +321,13 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
                 </Typography>
               </Box>
             )}
-            {typesPresent.length > 1 && (
-              <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                <Chip
-                  size="small"
-                  label={t.nav.notifFilterAll}
-                  color={activeTypeFilter === null ? 'primary' : 'default'}
-                  variant={activeTypeFilter === null ? 'filled' : 'outlined'}
-                  onClick={() => setActiveTypeFilter(null)}
-                  sx={{ fontSize: '0.7rem', height: 22 }}
-                />
-                {typesPresent.map((type) => (
-                  <Chip
-                    key={type as string}
-                    size="small"
-                    label={(t.nav.notifTypes as any)[type as string] ?? (type as string)}
-                    color={activeTypeFilter === type ? 'primary' : 'default'}
-                    variant={activeTypeFilter === type ? 'filled' : 'outlined'}
-                    onClick={() => setActiveTypeFilter(type as string)}
-                    sx={{ fontSize: '0.7rem', height: 22 }}
-                  />
-                ))}
-              </Box>
-            )}
             <Divider />
-            {filteredNotifications.length === 0 ? (
+            {notifications.length === 0 ? (
               <MenuItem disabled sx={{ justifyContent: 'center', py: 3 }}>
                 <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
               </MenuItem>
             ) : (
-              filteredNotifications.map((n: any) => {
+              notifications.map((n: any) => {
                 const ntype = (n.type ?? 'system') as string;
                 return (
                   <MenuItem
