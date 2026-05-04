@@ -43,10 +43,6 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
     res.status(404).json({ valid: false, message: "Link non valido" });
     return;
   }
-  if (invite.usedAt) {
-    res.status(410).json({ valid: false, message: "Link già utilizzato" });
-    return;
-  }
   if (new Date() > invite.expiresAt) {
     res.status(410).json({ valid: false, message: "Link scaduto" });
     return;
@@ -78,7 +74,7 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
   const [invite] = await db.select().from(inviteTokensTable)
     .where(eq(inviteTokensTable.token, token));
 
-  if (!invite || invite.usedAt || new Date() > invite.expiresAt) {
+  if (!invite || new Date() > invite.expiresAt) {
     res.status(410).json({ message: "Link non valido o scaduto" });
     return;
   }
@@ -109,6 +105,8 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     isActive: true,
   }).returning();
 
+  // Track most recent usage but DO NOT consume the link — it's reusable
+  // until it expires or the org's seat limit is reached.
   await db.update(inviteTokensTable)
     .set({ usedAt: new Date(), usedById: user.id })
     .where(eq(inviteTokensTable.token, token));
