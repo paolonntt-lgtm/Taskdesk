@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -307,6 +307,14 @@ export default function Settings() {
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const [billing, setBilling] = useState({
+    ragioneSociale: '', piva: '', codiceFiscale: '',
+    indirizzo: '', cap: '', citta: '', provincia: '', paese: 'IT',
+    sdiCode: '', pec: '',
+  });
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [billingMsg, setBillingMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     if (!isAdmin) return;
     fetch('/api/settings/locations', { credentials: 'include' })
@@ -317,7 +325,42 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
     fetch('/api/settings/organization', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setOrgName(d.name ?? '')).catch(() => {});
+    fetch('/api/settings/billing', { credentials: 'include' })
+      .then((r) => r.json()).then((d) => {
+        if (d && !d.error) setBilling({
+          ragioneSociale: d.ragioneSociale ?? '',
+          piva: d.piva ?? '',
+          codiceFiscale: d.codiceFiscale ?? '',
+          indirizzo: d.indirizzo ?? '',
+          cap: d.cap ?? '',
+          citta: d.citta ?? '',
+          provincia: d.provincia ?? '',
+          paese: d.paese ?? 'IT',
+          sdiCode: d.sdiCode ?? '',
+          pec: d.pec ?? '',
+        });
+      }).catch(() => {});
   }, [isAdmin]);
+
+  const saveBilling = async () => {
+    setBillingSaving(true);
+    setBillingMsg(null);
+    try {
+      const res = await fetch('/api/settings/billing', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(billing),
+      });
+      const data = await res.json();
+      if (!res.ok) { setBillingMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      setBillingMsg({ type: 'success', text: 'Dati di fatturazione salvati e sincronizzati con Stripe.' });
+    } catch {
+      setBillingMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
+    } finally {
+      setBillingSaving(false);
+    }
+  };
 
   const saveOrgName = async () => {
     if (orgName.trim().length < 2) return;
@@ -711,6 +754,59 @@ export default function Settings() {
               >
                 {orgSaving ? t.settings.saving : t.settings.save}
               </Button>
+            </Box>
+          </Section>
+
+          <Section title="Dati di Fatturazione" icon={<Receipt color="primary" />}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Questi dati vengono sincronizzati automaticamente con Stripe e appariranno sulle fatture dell'abbonamento.
+            </Typography>
+            {billingMsg && (
+              <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>
+            )}
+            <Box display="flex" flexDirection="column" gap={2}>
+              <TextField size="small" fullWidth label="Ragione Sociale" value={billing.ragioneSociale}
+                onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
+              <Box display="flex" gap={2}>
+                <TextField size="small" fullWidth label="P.IVA" value={billing.piva}
+                  onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving}
+                  placeholder="IT12345678901" />
+                <TextField size="small" fullWidth label="Codice Fiscale" value={billing.codiceFiscale}
+                  onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
+              </Box>
+              <TextField size="small" fullWidth label="Indirizzo (via e numero civico)" value={billing.indirizzo}
+                onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
+              <Box display="flex" gap={2}>
+                <TextField size="small" label="CAP" value={billing.cap} sx={{ width: 120 }}
+                  onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
+                <TextField size="small" fullWidth label="Città" value={billing.citta}
+                  onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
+                <TextField size="small" label="Prov." value={billing.provincia} sx={{ width: 90 }}
+                  onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
+                  inputProps={{ maxLength: 2 }} placeholder="PE" />
+              </Box>
+              <Divider />
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Fatturazione elettronica (opzionale)
+              </Typography>
+              <Box display="flex" gap={2}>
+                <TextField size="small" fullWidth label="Codice SDI" value={billing.sdiCode}
+                  onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
+                  placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
+                <TextField size="small" fullWidth label="PEC" type="email" value={billing.pec}
+                  onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
+                  placeholder="azienda@pec.it" />
+              </Box>
+              <Box display="flex" justifyContent="flex-end">
+                <Button
+                  variant="contained"
+                  startIcon={billingSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                  onClick={saveBilling}
+                  disabled={billingSaving}
+                >
+                  {billingSaving ? t.settings.saving : 'Salva e sincronizza Stripe'}
+                </Button>
+              </Box>
             </Box>
           </Section>
 

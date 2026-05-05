@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, settingsTable, organizationsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, settingsTable, organizationsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { stripeService } from "../stripeService";
 
 const router: IRouter = Router();
 
@@ -98,6 +99,91 @@ router.put("/settings/groups", requireAuth, requireAdmin, async (req, res): Prom
     .values({ key, value: JSON.stringify(cleaned) })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(cleaned) } });
   res.json({ value: cleaned });
+});
+
+router.get("/settings/billing", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, currentUser.organizationId));
+  if (!org) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  res.json({
+    ragioneSociale: org.ragioneSociale,
+    piva: org.piva,
+    codiceFiscale: org.codiceFiscale,
+    indirizzo: org.indirizzo,
+    cap: org.cap,
+    citta: org.citta,
+    provincia: org.provincia,
+    paese: org.paese,
+    sdiCode: org.sdiCode,
+    pec: org.pec,
+  });
+});
+
+router.put("/settings/billing", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+
+  const { ragioneSociale, piva, codiceFiscale, indirizzo, cap, citta, provincia, paese, sdiCode, pec } = req.body ?? {};
+
+  const [updated] = await db
+    .update(organizationsTable)
+    .set({
+      ragioneSociale: ragioneSociale || null,
+      piva: piva || null,
+      codiceFiscale: codiceFiscale || null,
+      indirizzo: indirizzo || null,
+      cap: cap || null,
+      citta: citta || null,
+      provincia: provincia || null,
+      paese: paese || 'IT',
+      sdiCode: sdiCode || null,
+      pec: pec || null,
+    })
+    .where(eq(organizationsTable.id, currentUser.organizationId))
+    .returning();
+
+  // Sync to Stripe: find admin users of this org who have a Stripe customer
+  try {
+    const adminUsers = await db
+      .select({ stripeCustomerId: usersTable.stripeCustomerId })
+      .from(usersTable)
+      .where(and(eq(usersTable.organizationId, currentUser.organizationId), eq(usersTable.role, 'admin')));
+
+    const billingInfo = {
+      ragioneSociale: updated.ragioneSociale,
+      piva: updated.piva,
+      codiceFiscale: updated.codiceFiscale,
+      indirizzo: updated.indirizzo,
+      cap: updated.cap,
+      citta: updated.citta,
+      provincia: updated.provincia,
+      paese: updated.paese,
+      sdiCode: updated.sdiCode,
+      pec: updated.pec,
+    };
+
+    await Promise.allSettled(
+      adminUsers
+        .filter((u) => !!u.stripeCustomerId)
+        .map((u) => stripeService.updateCustomerBilling(u.stripeCustomerId!, billingInfo))
+    );
+  } catch {
+    // Stripe sync failure should not block saving
+  }
+
+  res.json({
+    ragioneSociale: updated.ragioneSociale,
+    piva: updated.piva,
+    codiceFiscale: updated.codiceFiscale,
+    indirizzo: updated.indirizzo,
+    cap: updated.cap,
+    citta: updated.citta,
+    provincia: updated.provincia,
+    paese: updated.paese,
+    sdiCode: updated.sdiCode,
+    pec: updated.pec,
+  });
 });
 
 router.get("/settings/organization", requireAuth, async (req, res): Promise<void> => {
