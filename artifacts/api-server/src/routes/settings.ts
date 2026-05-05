@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, settingsTable } from "@workspace/db";
+import { db, settingsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -98,6 +98,39 @@ router.put("/settings/groups", requireAuth, requireAdmin, async (req, res): Prom
     .values({ key, value: JSON.stringify(cleaned) })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(cleaned) } });
   res.json({ value: cleaned });
+});
+
+router.get("/settings/organization", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) {
+    res.status(404).json({ message: "Organizzazione non trovata" });
+    return;
+  }
+  const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, currentUser.organizationId));
+  if (!org) {
+    res.status(404).json({ message: "Organizzazione non trovata" });
+    return;
+  }
+  res.json({ name: org.name });
+});
+
+router.put("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { name } = req.body ?? {};
+  if (typeof name !== "string" || name.trim().length < 2) {
+    res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
+    return;
+  }
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) {
+    res.status(404).json({ message: "Organizzazione non trovata" });
+    return;
+  }
+  const [updated] = await db
+    .update(organizationsTable)
+    .set({ name: name.trim() })
+    .where(eq(organizationsTable.id, currentUser.organizationId))
+    .returning();
+  res.json({ name: updated.name });
 });
 
 export default router;

@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -303,6 +303,10 @@ export default function Settings() {
   const [grpSaving, setGrpSaving] = useState(false);
   const [adminMsg, setAdminMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const [orgName, setOrgName] = useState('');
+  const [orgSaving, setOrgSaving] = useState(false);
+  const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     if (!isAdmin) return;
     fetch('/api/settings/locations', { credentials: 'include' })
@@ -311,7 +315,31 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setCategories(d.value ?? [])).catch(() => {});
     fetch('/api/settings/groups', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/organization', { credentials: 'include' })
+      .then((r) => r.json()).then((d) => setOrgName(d.name ?? '')).catch(() => {});
   }, [isAdmin]);
+
+  const saveOrgName = async () => {
+    if (orgName.trim().length < 2) return;
+    setOrgSaving(true);
+    setOrgMsg(null);
+    try {
+      const res = await fetch('/api/settings/organization', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: orgName }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      setOrgName(data.name);
+      setOrgMsg({ type: 'success', text: 'Nome azienda aggiornato con successo.' });
+    } catch {
+      setOrgMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
+    } finally {
+      setOrgSaving(false);
+    }
+  };
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -657,6 +685,35 @@ export default function Settings() {
       {/* ── SISTEMA (admin only) ── */}
       {isAdmin && (
         <TabPanel value={tab} index={2}>
+          <Section title="Nome Azienda" icon={<Business color="primary" />}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Il nome dell'azienda viene mostrato nella barra laterale per tutti gli utenti dell'organizzazione.
+            </Typography>
+            {orgMsg && (
+              <Alert severity={orgMsg.type} sx={{ mb: 2 }} onClose={() => setOrgMsg(null)}>{orgMsg.text}</Alert>
+            )}
+            <Box display="flex" gap={2} alignItems="flex-start">
+              <TextField
+                size="small"
+                fullWidth
+                label="Nome azienda"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                disabled={orgSaving}
+                inputProps={{ maxLength: 100 }}
+              />
+              <Button
+                variant="contained"
+                startIcon={orgSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                onClick={saveOrgName}
+                disabled={orgSaving || orgName.trim().length < 2}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {orgSaving ? t.settings.saving : t.settings.save}
+              </Button>
+            </Box>
+          </Section>
+
           {adminMsg && (
             <Alert severity={adminMsg.type} sx={{ mb: 2 }} onClose={() => setAdminMsg(null)}>
               {adminMsg.text}

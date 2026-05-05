@@ -218,7 +218,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
               {user?.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.3 }}>
-              {roleLabel}
+              {(user as any)?.organizationName ?? roleLabel}
             </Typography>
           </Box>
         </Box>

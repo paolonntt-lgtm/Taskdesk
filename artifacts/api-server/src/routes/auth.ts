@@ -109,18 +109,29 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db
-    .select()
+  const [row] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      role: usersTable.role,
+      organizationId: usersTable.organizationId,
+      organizationName: organizationsTable.name,
+      isActive: usersTable.isActive,
+      phone: usersTable.phone,
+      avatarUrl: usersTable.avatarUrl,
+      createdAt: usersTable.createdAt,
+    })
     .from(usersTable)
+    .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
     .where(eq(usersTable.id, userId));
 
-  if (!user) {
+  if (!row) {
     res.status(401).json({ error: "User not found" });
     return;
   }
 
-  const { passwordHash: _, ...safeUser } = user;
-  res.json(safeUser);
+  res.json(row);
 });
 
 export default router;
