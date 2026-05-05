@@ -4,6 +4,7 @@ import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import { createHash } from "crypto";
+import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -83,6 +84,23 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     isActive: true,
   }).returning();
 
+  // Notify all superadmins by email
+  const superadmins = await db.select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.isSuperAdmin, true));
+  const appBaseUrl = `https://${(process.env.REPLIT_DOMAINS ?? "").split(",")[0]}`;
+  const registeredAt = new Date().toLocaleString("it-IT", { timeZone: "Europe/Rome" });
+  const { subject, html, text } = buildRegistrationNotificationEmail({
+    userName: String(name).trim(),
+    userEmail: String(email).toLowerCase().trim(),
+    organizationName: org.name,
+    registeredAt,
+    appBaseUrl,
+  });
+  for (const sa of superadmins) {
+    if (sa.email) sendEmail({ to: sa.email, subject, html, text });
+  }
+
   const sessionId = createSession(user.id);
   res.setHeader(
     "Set-Cookie",
@@ -121,6 +139,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       phone: usersTable.phone,
       avatarUrl: usersTable.avatarUrl,
       createdAt: usersTable.createdAt,
+      isSuperAdmin: usersTable.isSuperAdmin,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))

@@ -41,6 +41,7 @@ import {
   AssignmentInd,
   PriorityHigh,
   Info,
+  SupervisorAccount,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -136,15 +137,22 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
   };
 
 
+  const isSuperAdmin = !!(user as any)?.isSuperAdmin;
+
   const menuItems = [
-    { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',        adminOnly: false },
-    { text: t.nav.allTickets, icon: <ConfirmationNumber />,  path: '/tickets', adminOnly: false },
-    { text: t.nav.newTicket,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
-    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports', adminOnly: false },
-    { text: t.nav.users,      icon: <People />,              path: '/users',   adminOnly: true },
-    { text: t.nav.billing,    icon: <CreditCard />,          path: '/billing', adminOnly: true },
-    { text: t.nav.settings,   icon: <Settings />,            path: '/settings', adminOnly: false },
-  ].filter((item) => !item.adminOnly || user?.role === 'admin');
+    { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',        adminOnly: false, superAdminOnly: false },
+    { text: t.nav.allTickets, icon: <ConfirmationNumber />,  path: '/tickets', adminOnly: false, superAdminOnly: false },
+    { text: t.nav.newTicket,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false, superAdminOnly: false },
+    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports', adminOnly: false, superAdminOnly: false },
+    { text: t.nav.users,      icon: <People />,              path: '/users',   adminOnly: true,  superAdminOnly: false },
+    { text: t.nav.billing,    icon: <CreditCard />,          path: '/billing', adminOnly: true,  superAdminOnly: false },
+    { text: t.nav.settings,   icon: <Settings />,            path: '/settings', adminOnly: false, superAdminOnly: false },
+    { text: 'Iscritti',       icon: <SupervisorAccount />,   path: '/subscribers', adminOnly: false, superAdminOnly: true },
+  ].filter((item) => {
+    if (item.superAdminOnly) return isSuperAdmin;
+    if (item.adminOnly) return user?.role === 'admin';
+    return true;
+  });
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
 

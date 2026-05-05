@@ -69,6 +69,46 @@ export function buildNotificationEmail(args: {
   return { subject, html, text };
 }
 
+export function buildRegistrationNotificationEmail(args: {
+  userName: string;
+  userEmail: string;
+  organizationName: string;
+  registeredAt: string;
+  appBaseUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `TaskDesk — Nuova registrazione: ${args.organizationName}`;
+  const text = `Nuova registrazione su TaskDesk!\n\nAzienda: ${args.organizationName}\nNome: ${args.userName}\nEmail: ${args.userEmail}\nData: ${args.registeredAt}\n\nGestisci gli iscritti: ${args.appBaseUrl}/app/subscribers\n\n— TaskDesk`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 16px">🎉 Nuova registrazione</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:10px 0;color:#6b7280;width:120px">Azienda</td>
+          <td style="padding:10px 0;font-weight:600">${escapeHtml(args.organizationName)}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:10px 0;color:#6b7280">Nome</td>
+          <td style="padding:10px 0">${escapeHtml(args.userName)}</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb">
+          <td style="padding:10px 0;color:#6b7280">Email</td>
+          <td style="padding:10px 0">${escapeHtml(args.userEmail)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0;color:#6b7280">Data</td>
+          <td style="padding:10px 0">${escapeHtml(args.registeredAt)}</td>
+        </tr>
+      </table>
+      <a href="${args.appBaseUrl}/app/subscribers" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px">Vedi tutti gli iscritti →</a>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af">Email automatica inviata ai superadmin di TaskDesk.</p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

@@ -16,6 +16,7 @@ import settingsRouter from "./settings";
 import invitesRouter from "./invites";
 import notificationPreferencesRouter from "./notificationPreferences";
 import seedDemoRouter from "./seedDemo";
+import superadminRouter from "./superadmin";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(settingsRouter);
 router.use(invitesRouter);
 router.use(notificationPreferencesRouter);
 router.use(seedDemoRouter);
+router.use(superadminRouter);
 
 export default router;

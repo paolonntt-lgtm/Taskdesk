@@ -15,6 +15,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),
+  isSuperAdmin: boolean("is_superadmin").notNull().default(false),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),

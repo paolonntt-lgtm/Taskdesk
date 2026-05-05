@@ -17,6 +17,7 @@ import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
 import InviteRegister from "./pages/InviteRegister";
 import UserProfile from "./pages/UserProfile";
+import Subscribers from "./pages/Subscribers";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -27,6 +28,16 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
     if (user && user.role !== "admin") setLocation("/");
   }, [user, setLocation]);
   if (!user || user.role !== "admin") return null;
+  return <Component />;
+}
+
+function SuperAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (user && !(user as any).isSuperAdmin) setLocation("/");
+  }, [user, setLocation]);
+  if (!user || !(user as any).isSuperAdmin) return null;
   return <Component />;
 }
 
@@ -105,6 +116,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
                 <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
                 <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
                 <Route path="/settings" component={Settings} />
+                <Route path="/subscribers">{() => <SuperAdminRoute component={Subscribers} />}</Route>
               </Switch>
             </Layout>
           )}
