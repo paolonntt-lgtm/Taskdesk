@@ -225,7 +225,7 @@ export default function TicketDetail() {
                 typographyProps={{ variant: 'subtitle2', fontWeight: 'bold', noWrap: true }}
               />
               
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" display="block">
                 {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
               </Typography>
             </Box>
