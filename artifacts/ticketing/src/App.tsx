@@ -17,7 +17,7 @@ import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
 import InviteRegister from "./pages/InviteRegister";
 import UserProfile from "./pages/UserProfile";
-import Subscribers from "./pages/Subscribers";
+import SuperAdmin from "./pages/SuperAdmin";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -116,7 +116,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
                 <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
                 <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
                 <Route path="/settings" component={Settings} />
-                <Route path="/subscribers">{() => <SuperAdminRoute component={Subscribers} />}</Route>
+                <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
               </Switch>
             </Layout>
           )}

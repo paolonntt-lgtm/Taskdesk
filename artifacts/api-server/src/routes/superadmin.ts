@@ -1,30 +1,35 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, organizationsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth";
-import { requireSuperAdmin } from "../middlewares/auth";
+import { eq, desc, and } from "drizzle-orm";
+import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-router.get("/superadmin/subscribers", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const orgs = await db
+router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
+  const rows = await db
     .select({
       orgId: organizationsTable.id,
       orgName: organizationsTable.name,
-      createdAt: organizationsTable.createdAt,
+      orgCreatedAt: organizationsTable.createdAt,
       userId: usersTable.id,
       userName: usersTable.name,
       userEmail: usersTable.email,
       userRole: usersTable.role,
       userIsActive: usersTable.isActive,
       userCreatedAt: usersTable.createdAt,
+      lastLoginAt: usersTable.lastLoginAt,
       avatarUrl: usersTable.avatarUrl,
     })
     .from(organizationsTable)
-    .leftJoin(usersTable, eq(usersTable.organizationId, organizationsTable.id))
+    .leftJoin(
+      usersTable,
+      and(
+        eq(usersTable.organizationId, organizationsTable.id),
+        eq(usersTable.isActive, true),
+      )
+    )
     .orderBy(desc(organizationsTable.createdAt), desc(usersTable.createdAt));
 
-  // Group by organization
   const orgMap = new Map<number, {
     id: number;
     name: string;
@@ -34,29 +39,29 @@ router.get("/superadmin/subscribers", requireAuth, requireSuperAdmin, async (req
       name: string;
       email: string;
       role: string;
-      isActive: boolean;
       createdAt: string | null;
+      lastLoginAt: string | null;
       avatarUrl: string | null;
     }>;
   }>();
 
-  for (const row of orgs) {
+  for (const row of rows) {
     if (!orgMap.has(row.orgId)) {
       orgMap.set(row.orgId, {
         id: row.orgId,
         name: row.orgName,
-        createdAt: row.createdAt?.toISOString() ?? null,
+        createdAt: row.orgCreatedAt?.toISOString() ?? null,
         users: [],
       });
     }
-    if (row.userId) {
+    if (row.userId && row.userIsActive) {
       orgMap.get(row.orgId)!.users.push({
         id: row.userId,
         name: row.userName!,
         email: row.userEmail!,
         role: row.userRole!,
-        isActive: row.userIsActive!,
         createdAt: row.userCreatedAt?.toISOString() ?? null,
+        lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
         avatarUrl: row.avatarUrl ?? null,
       });
     }

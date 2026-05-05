@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Chip, Avatar, Divider,
   CircularProgress, Alert, TextField, InputAdornment, Tooltip,
 } from '@mui/material';
-import { Business, Search, Person, AdminPanelSettings } from '@mui/icons-material';
+import { Business, Search, AdminPanelSettings, Person, AccessTime } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface OrgUser {
@@ -11,8 +11,8 @@ interface OrgUser {
   name: string;
   email: string;
   role: string;
-  isActive: boolean;
   createdAt: string | null;
+  lastLoginAt: string | null;
   avatarUrl: string | null;
 }
 
@@ -23,7 +23,17 @@ interface Organization {
   users: OrgUser[];
 }
 
-export default function Subscribers() {
+function formatDate(iso: string | null, locale: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(locale);
+}
+
+function formatDateTime(iso: string | null, locale: string): string {
+  if (!iso) return 'Mai';
+  return new Date(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+export default function SuperAdmin() {
   const { lang } = useLanguage();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +43,7 @@ export default function Subscribers() {
   const dateLocale = lang === 'it' ? 'it-IT' : 'en-GB';
 
   useEffect(() => {
-    fetch('/api/superadmin/subscribers', { credentials: 'include' })
+    fetch('/api/superadmin', { credentials: 'include' })
       .then((r) => {
         if (!r.ok) throw new Error('Accesso negato');
         return r.json();
@@ -78,7 +88,7 @@ export default function Subscribers() {
         <Box>
           <Typography variant="h5" fontWeight={700}>Iscritti</Typography>
           <Typography variant="body2" color="text.secondary" mt={0.5}>
-            {orgs.length} organizzazioni · {totalUsers} utenti totali
+            {orgs.length} organizzazioni · {totalUsers} utenti attivi
           </Typography>
         </Box>
         <TextField
@@ -121,11 +131,8 @@ export default function Subscribers() {
                     {org.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {org.users.length} {org.users.length === 1 ? 'utente' : 'utenti'} ·{' '}
-                    Registrata il{' '}
-                    {org.createdAt
-                      ? new Date(org.createdAt).toLocaleDateString(dateLocale)
-                      : '—'}
+                    {org.users.length} {org.users.length === 1 ? 'utente' : 'utenti'} attivi ·{' '}
+                    Registrata il {formatDate(org.createdAt, dateLocale)}
                   </Typography>
                 </Box>
                 <Chip
@@ -146,10 +153,7 @@ export default function Subscribers() {
                     display="flex"
                     alignItems="center"
                     gap={1.5}
-                    sx={{
-                      py: 0.75, px: 1, borderRadius: 1.5,
-                      bgcolor: 'action.hover',
-                    }}
+                    sx={{ py: 0.75, px: 1, borderRadius: 1.5, bgcolor: 'action.hover' }}
                   >
                     <Avatar
                       src={u.avatarUrl ?? undefined}
@@ -167,25 +171,33 @@ export default function Subscribers() {
                             <AdminPanelSettings sx={{ fontSize: 15, color: 'primary.main' }} />
                           </Tooltip>
                         )}
-                        {!u.isActive && (
-                          <Chip label="Inattivo" size="small" color="default" sx={{ height: 18, fontSize: 10 }} />
-                        )}
                       </Box>
                       <Typography variant="caption" color="text.secondary" noWrap>
                         {u.email}
                       </Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                      {u.createdAt
-                        ? new Date(u.createdAt).toLocaleDateString(dateLocale)
-                        : '—'}
-                    </Typography>
+                    <Box textAlign="right" sx={{ flexShrink: 0 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Iscritto {formatDate(u.createdAt, dateLocale)}
+                      </Typography>
+                      <Tooltip title="Ultimo login">
+                        <Box display="flex" alignItems="center" gap={0.5} justifyContent="flex-end">
+                          <AccessTime sx={{ fontSize: 11, color: u.lastLoginAt ? 'success.main' : 'text.disabled' }} />
+                          <Typography
+                            variant="caption"
+                            sx={{ color: u.lastLoginAt ? 'success.main' : 'text.disabled' }}
+                          >
+                            {formatDateTime(u.lastLoginAt, dateLocale)}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+                    </Box>
                   </Box>
                 ))}
                 {org.users.length === 0 && (
                   <Box display="flex" alignItems="center" gap={1} sx={{ py: 0.5, px: 1, color: 'text.disabled' }}>
                     <Person fontSize="small" />
-                    <Typography variant="caption">Nessun utente</Typography>
+                    <Typography variant="caption">Nessun utente attivo</Typography>
                   </Box>
                 )}
               </Box>

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
@@ -31,6 +31,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Invalid credentials", message: "Email o password non corretti" });
     return;
   }
+
+  // Record last login timestamp
+  await db.update(usersTable)
+    .set({ lastLoginAt: sql`now()` })
+    .where(eq(usersTable.id, user.id));
 
   const sessionId = createSession(user.id);
 
