@@ -15,6 +15,7 @@ import stripeRouter from "./stripe";
 import settingsRouter from "./settings";
 import invitesRouter from "./invites";
 import notificationPreferencesRouter from "./notificationPreferences";
+import seedDemoRouter from "./seedDemo";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(stripeRouter);
 router.use(settingsRouter);
 router.use(invitesRouter);
 router.use(notificationPreferencesRouter);
+router.use(seedDemoRouter);
 
 export default router;
