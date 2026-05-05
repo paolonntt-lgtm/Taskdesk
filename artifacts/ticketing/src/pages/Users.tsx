@@ -31,7 +31,7 @@ import {
   Stack,
   useMediaQuery,
   useTheme,
-  InputAdornment,
+  Avatar,
 } from '@mui/material';
 import {
   Add,
@@ -46,6 +46,7 @@ import {
   PersonAddAlt1,
   ContentCopy,
   Check,
+  Close,
 } from '@mui/icons-material';
 import { Link as WLink } from 'wouter';
 import { LinearProgress } from '@mui/material';
@@ -79,6 +80,28 @@ const emptyForm: UserFormData = {
   mainLocation: '',
 };
 
+function UserAvatar({ user, size = 36, onClick }: { user: User; size?: number; onClick?: () => void }) {
+  const avatarUrl = (user as any).avatarUrl;
+  return (
+    <Avatar
+      src={avatarUrl ?? undefined}
+      sx={{
+        width: size,
+        height: size,
+        fontSize: size * 0.4,
+        bgcolor: 'primary.main',
+        cursor: onClick ? 'pointer' : 'default',
+        flexShrink: 0,
+        transition: 'transform 0.15s',
+        '&:hover': onClick ? { transform: 'scale(1.08)' } : {},
+      }}
+      onClick={onClick}
+    >
+      {!avatarUrl && (user.name?.charAt(0) ?? '?').toUpperCase()}
+    </Avatar>
+  );
+}
+
 export default function Users() {
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
@@ -96,6 +119,8 @@ export default function Users() {
     limitReached: boolean;
     hasActiveSubscription: boolean;
   } | null>(null);
+
+  const [zoomUser, setZoomUser] = useState<User | null>(null);
 
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
@@ -428,22 +453,32 @@ export default function Users() {
             users.map((u) => {
               const isActive = u.isActive !== false;
               const isCurrentUser = u.id === currentUser?.id;
+              const hasAvatar = !!(u as any).avatarUrl;
               return (
                 <Card key={u.id} elevation={1} sx={{ opacity: isActive ? 1 : 0.6 }}>
                   <CardContent sx={{ pb: 1 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={0.5}>
-                      <Typography variant="subtitle2" fontWeight={700} noWrap flex={1} mr={1}>
-                        {u.name}
-                      </Typography>
-                      <Chip
-                        label={isActive ? ut.active : ut.inactive}
-                        size="small"
-                        color={isActive ? 'success' : 'default'}
+                    <Box display="flex" alignItems="center" gap={1.5} mb={0.75}>
+                      <UserAvatar
+                        user={u}
+                        size={40}
+                        onClick={hasAvatar ? () => setZoomUser(u) : undefined}
                       />
+                      <Box flex={1} minWidth={0}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="subtitle2" fontWeight={700} noWrap>
+                            {u.name}
+                          </Typography>
+                          <Chip
+                            label={isActive ? ut.active : ut.inactive}
+                            size="small"
+                            color={isActive ? 'success' : 'default'}
+                          />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                          {u.email}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" display="block" noWrap mb={1}>
-                      {u.email}
-                    </Typography>
                     <Box display="flex" gap={0.5} flexWrap="wrap">
                       <Chip
                         label={u.role === 'admin' ? t.role.admin : t.role.user}
@@ -511,7 +546,7 @@ export default function Users() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {ut.noUsers}
                   </TableCell>
                 </TableRow>
@@ -519,13 +554,25 @@ export default function Users() {
                 users.map((u) => {
                   const isActive = u.isActive !== false;
                   const isCurrentUser = u.id === currentUser?.id;
+                  const hasAvatar = !!(u as any).avatarUrl;
                   return (
                     <TableRow
                       key={u.id}
                       sx={{ opacity: isActive ? 1 : 0.55, '&:last-child td': { border: 0 } }}
                     >
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <Tooltip title={hasAvatar ? 'Vedi foto' : ''} disableHoverListener={!hasAvatar}>
+                            <span>
+                              <UserAvatar
+                                user={u}
+                                size={32}
+                                onClick={hasAvatar ? () => setZoomUser(u) : undefined}
+                              />
+                            </span>
+                          </Tooltip>
+                          <Typography variant="body2" fontWeight={500}>{u.name}</Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">{u.email}</Typography>
@@ -604,6 +651,39 @@ export default function Users() {
         </TableContainer>
       )}
 
+      {/* Avatar zoom dialog */}
+      <Dialog
+        open={!!zoomUser}
+        onClose={() => setZoomUser(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden', bgcolor: '#000' } }}
+      >
+        <Box position="relative">
+          <IconButton
+            onClick={() => setZoomUser(null)}
+            size="small"
+            sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: '#fff', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' } }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+          {zoomUser && (
+            <Box>
+              <Box
+                component="img"
+                src={(zoomUser as any).avatarUrl}
+                alt={zoomUser.name}
+                sx={{ width: '100%', display: 'block', maxHeight: '70vh', objectFit: 'contain' }}
+              />
+              <Box px={2} py={1.5} bgcolor="background.paper">
+                <Typography variant="subtitle1" fontWeight={700}>{zoomUser.name}</Typography>
+                <Typography variant="body2" color="text.secondary">{zoomUser.email}</Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
+      </Dialog>
+
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editTarget ? ut.editUser : ut.createUser}</DialogTitle>
@@ -635,8 +715,8 @@ export default function Users() {
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                fullWidth
                 required
+                fullWidth
               />
             )}
             <FormControl fullWidth>
@@ -657,104 +737,83 @@ export default function Users() {
                 label={ut.group}
                 onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
               >
-                <MenuItem value=""><em>— {ut.groupPlaceholder} —</em></MenuItem>
+                <MenuItem value=""><em>—</em></MenuItem>
                 {groups.map((g) => (
                   <MenuItem key={g} value={g}>{g}</MenuItem>
                 ))}
               </Select>
             </FormControl>
+            <TextField
+              label={ut.location}
+              value={form.mainLocation}
+              onChange={(e) => setForm((f) => ({ ...f, mainLocation: e.target.value }))}
+              fullWidth
+            />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleClose} disabled={isSaving}>{ut.cancel}</Button>
-          <Button variant="contained" onClick={handleSave} disabled={isSaving}>
-            {isSaving ? ut.saving : ut.save}
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={handleClose}>{ut.cancel}</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={isSaving}
+            startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
+          >
+            {editTarget ? ut.save : ut.createUser}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Deactivate Confirm Dialog */}
+      {/* Deactivate confirm dialog */}
       <Dialog open={!!deactivateConfirm} onClose={() => setDeactivateConfirm(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{ut.deactivate}</DialogTitle>
         <DialogContent>
           <Typography>{ut.deactivateConfirm}</Typography>
-          {deactivateConfirm && (
-            <Typography fontWeight="bold" sx={{ mt: 1 }}>{deactivateConfirm.name}</Typography>
-          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeactivateConfirm(null)}>{ut.cancel}</Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={confirmDeactivate}
-            disabled={updateUser.isPending}
-          >
-            {updateUser.isPending ? ut.saving : ut.deactivate}
-          </Button>
+          <Button color="error" variant="contained" onClick={confirmDeactivate}>{ut.deactivate}</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Invite Link Dialog */}
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteConfirm} onClose={() => { setDeleteConfirm(null); setDeleteError(null); }} maxWidth="xs" fullWidth>
+        <DialogTitle>{ut.deleteUser}</DialogTitle>
+        <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 2 }}>{deleteError}</Alert>}
+          <Typography>{ut.deleteUserConfirm}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDeleteConfirm(null); setDeleteError(null); }}>{ut.cancel}</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete}>{ut.deleteUser}</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invite dialog */}
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{ut.inviteLinkTitle}</DialogTitle>
-        <DialogContent>
-          {inviteError ? (
-            <Alert severity="error">{inviteError}</Alert>
-          ) : (
-            <>
-              <Typography variant="body2" color="text.secondary" mb={2}>{ut.inviteLinkDesc}</Typography>
-              <TextField
-                fullWidth
-                value={inviteLink}
-                InputProps={{
-                  readOnly: true,
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Tooltip title={inviteCopied ? ut.inviteLinkCopied : ut.inviteLinkCopy}>
-                        <IconButton onClick={copyInviteLink} edge="end" color={inviteCopied ? 'success' : 'default'}>
-                          {inviteCopied ? <Check /> : <ContentCopy />}
-                        </IconButton>
-                      </Tooltip>
-                    </InputAdornment>
-                  ),
-                }}
-                size="small"
-                sx={{ fontFamily: 'monospace' }}
-              />
-            </>
-          )}
+        <Divider />
+        <DialogContent sx={{ pt: 2 }}>
+          {inviteError && <Alert severity="error" sx={{ mb: 2 }}>{inviteError}</Alert>}
+          <Typography variant="body2" color="text.secondary" mb={2}>{ut.inviteLinkDesc}</Typography>
+          <TextField
+            fullWidth
+            value={inviteLink}
+            InputProps={{
+              readOnly: true,
+              endAdornment: (
+                <IconButton onClick={copyInviteLink} edge="end">
+                  {inviteCopied ? <Check color="success" /> : <ContentCopy />}
+                </IconButton>
+              ),
+            }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteOpen(false)}>{ut.cancel}</Button>
-          <Button variant="contained" startIcon={inviteCopied ? <Check /> : <ContentCopy />} onClick={copyInviteLink} color={inviteCopied ? 'success' : 'primary'}>
+          <Button variant="contained" onClick={copyInviteLink} startIcon={inviteCopied ? <Check /> : <ContentCopy />}>
             {inviteCopied ? ut.inviteLinkCopied : ut.inviteLinkCopy}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirm Dialog */}
-      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ color: 'error.main' }}>{ut.deleteUser}</DialogTitle>
-        <DialogContent>
-          <Typography>{ut.deleteUserConfirm}</Typography>
-          {deleteConfirm && (
-            <Typography fontWeight="bold" sx={{ mt: 1 }}>{deleteConfirm.name}</Typography>
-          )}
-          {deleteError && (
-            <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirm(null)}>{ut.cancel}</Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={confirmDelete}
-            disabled={deleteUser.isPending}
-            startIcon={<DeleteForever />}
-          >
-            {deleteUser.isPending ? ut.saving : ut.deleteUser}
           </Button>
         </DialogActions>
       </Dialog>

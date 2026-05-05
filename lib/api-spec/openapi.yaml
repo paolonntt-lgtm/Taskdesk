@@ -782,6 +782,12 @@ components:
         mainLocation:
           type: string
           nullable: true
+        group:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
         isActive:
           type: boolean
         createdAt:

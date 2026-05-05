@@ -13,6 +13,8 @@ export interface User {
   email: string;
   role: UserRole;
   mainLocation?: string | null;
+  group?: string | null;
+  avatarUrl?: string | null;
   isActive: boolean;
   createdAt: Date;
 }

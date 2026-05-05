@@ -22,6 +22,7 @@ const userFields = {
   organizationId: usersTable.organizationId,
   mainLocation: usersTable.mainLocation,
   group: usersTable.group,
+  avatarUrl: usersTable.avatarUrl,
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
 };
