@@ -62,27 +62,19 @@ async function dispatchEmails(
   });
   if (targets.length === 0) return;
 
-  // Resend free tier limit is 5 req/sec — chunk to 4 per batch with a small gap.
-  const CHUNK = 4;
-  for (let i = 0; i < targets.length; i += CHUNK) {
-    const slice = targets.slice(i, i + CHUNK);
-    await Promise.allSettled(
-      slice.map((u) => {
-        const { subject, html, text: body } = buildNotificationEmail({
-          recipientName: u.name ?? u.email ?? "",
-          text,
-          ticketId,
-          appBaseUrl: baseUrl,
-        });
-        return sendEmail({ to: u.email!, subject, html, text: body }).then((r) => {
-          if (!r.ok) logger.warn({ userId: u.id, err: r.error }, "notification email failed");
-        });
-      })
-    );
-    if (i + CHUNK < targets.length) {
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-    }
-  }
+  await Promise.allSettled(
+    targets.map((u) => {
+      const { subject, html, text: body } = buildNotificationEmail({
+        recipientName: u.name ?? u.email ?? "",
+        text,
+        ticketId,
+        appBaseUrl: baseUrl,
+      });
+      return sendEmail({ to: u.email!, subject, html, text: body }).then((r) => {
+        if (!r.ok) logger.warn({ userId: u.id, err: r.error }, "notification email failed");
+      });
+    })
+  );
 }
 
 export async function createNotificationsForTicket(

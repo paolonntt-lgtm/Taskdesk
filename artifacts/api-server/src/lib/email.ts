@@ -1,43 +1,22 @@
-// Email sending via Resend (Replit integration: connection:conn_resend_*)
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { logger } from "./logger";
 
-let cachedFromEmail: string | null = null;
+function createTransport() {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
-async function getCredentials(): Promise<{ apiKey: string; fromEmail: string | undefined }> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? "repl " + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? "depl " + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!hostname || !xReplitToken) {
-    throw new Error("Replit connector credentials not available in this environment");
+  if (!host || !user || !pass) {
+    throw new Error("Credenziali SMTP mancanti (SMTP_HOST, SMTP_USER, SMTP_PASS)");
   }
 
-  const res = await fetch(
-    `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=resend`,
-    {
-      headers: { Accept: "application/json", "X-Replit-Token": xReplitToken },
-      signal: AbortSignal.timeout(5000),
-    }
-  );
-  if (!res.ok) {
-    throw new Error(`Replit connector lookup failed: ${res.status}`);
-  }
-  const data = (await res.json()) as { items?: Array<{ settings?: { api_key?: string; from_email?: string } }> };
-  const settings = data.items?.[0]?.settings;
-  if (!settings?.api_key) {
-    throw new Error("Resend integration not connected");
-  }
-  cachedFromEmail = settings.from_email ?? cachedFromEmail;
-  return { apiKey: settings.api_key, fromEmail: settings.from_email };
-}
-
-async function getResendClient() {
-  const { apiKey, fromEmail } = await getCredentials();
-  return { client: new Resend(apiKey), fromEmail };
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
 }
 
 interface SendEmailArgs {
@@ -49,19 +28,15 @@ interface SendEmailArgs {
 
 export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { client, fromEmail } = await getResendClient();
-    const from = fromEmail || "TaskDesk <onboarding@resend.dev>";
-    const result = await client.emails.send({
+    const transporter = createTransport();
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    await transporter.sendMail({
       from,
       to: args.to,
       subject: args.subject,
       html: args.html,
       text: args.text,
     });
-    if ((result as any).error) {
-      logger.warn({ to: args.to, err: (result as any).error }, "resend send returned error");
-      return { ok: false, error: String((result as any).error?.message ?? "send failed") };
-    }
     return { ok: true };
   } catch (err: any) {
     logger.warn({ to: args.to, err: err?.message }, "email send failed");
