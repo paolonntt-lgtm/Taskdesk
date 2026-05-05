@@ -81,12 +81,16 @@ export async function createNotificationsForTicket(
   ticketId: number,
   text: string,
   excludeUserId: number,
-  type: NotificationType = "system"
+  type: NotificationType = "system",
+  organizationId?: number | null
 ): Promise<void> {
+  const conditions = [ne(usersTable.id, excludeUserId), eq(usersTable.isActive, true)];
+  if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
+
   const candidates = await db
     .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
     .from(usersTable)
-    .where(and(ne(usersTable.id, excludeUserId), eq(usersTable.isActive, true)));
+    .where(and(...conditions));
   if (candidates.length === 0) return;
 
   const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);

@@ -67,7 +67,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     actionDescription: `Commento aggiunto da ${currentUser.name}`,
   });
 
-  await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented");
+  await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId);
 
   // Send targeted notifications to mentioned users
   const mentionedNames = extractMentionedNames(parsed.data.commentText);
