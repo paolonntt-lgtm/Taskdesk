@@ -467,14 +467,19 @@ export default function Landing() {
       {/* Footer */}
       </main>
       <footer className="py-8 border-t border-gray-100 px-6 md:px-8 pb-24 md:pb-8">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center opacity-50">
-            <img src="/taskdesk-logo.png" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
+        <div className="max-w-6xl mx-auto flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center opacity-50">
+              <img src="/taskdesk-logo.png" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
+            </div>
+            <p className="text-sm text-gray-400">{t.footer.text}</p>
           </div>
-          <p className="text-sm text-gray-400">{t.footer.text}</p>
-          <a href="/privacy-policy" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            Privacy Policy
-          </a>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-2 border-t border-gray-100">
+            <a href="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</a>
+            <a href="/cookie-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cookie Policy</a>
+            <a href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Termini di Servizio</a>
+            <a href="/dpa" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Data Processing Agreement</a>
+          </div>
         </div>
       </footer>
       <InstallPrompt />
