@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useLanguage } from "@/i18n";
 import {
   DropdownMenu,
@@ -135,6 +136,20 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
+      <Helmet>
+        <html lang={lang} />
+        <title>TaskDesk — Software Ticketing per PMI italiane | Da €9/mese</title>
+        <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto, assegna ticket, monitora priorità. Da €9/mese tutto incluso. Prova gratuita 7 giorni." />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://taskdesk.it/" />
+        <meta property="og:url" content="https://taskdesk.it/" />
+        <meta property="og:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+        <meta property="og:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Nessun setup infinito, nessun contratto. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta name="twitter:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+        <meta name="twitter:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+      </Helmet>
       <style>{ANIMATIONS}</style>
       {/* Ticker */}
       <div className="bg-gradient-to-r from-blue-600 via-violet-600 to-pink-600 py-2.5 overflow-hidden">

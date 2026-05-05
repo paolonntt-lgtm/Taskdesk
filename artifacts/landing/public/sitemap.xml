@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Homepage -->
   <url>
-    <loc>https://taskdesk.replit.app/</loc>
-    <lastmod>2026-05-04</lastmod>
+    <loc>https://taskdesk.it/</loc>
+    <lastmod>2026-05-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="it" href="https://taskdesk.replit.app/" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://taskdesk.replit.app/" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://taskdesk.it/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://taskdesk.it/" />
   </url>
+
+  <!-- Termini di Servizio -->
+  <url>
+    <loc>https://taskdesk.it/terms</loc>
+    <lastmod>2026-05-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://taskdesk.it/privacy-policy</loc>
+    <lastmod>2026-05-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Cookie Policy -->
+  <url>
+    <loc>https://taskdesk.it/cookie-policy</loc>
+    <lastmod>2026-05-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+
+  <!-- Data Processing Agreement -->
+  <url>
+    <loc>https://taskdesk.it/dpa</loc>
+    <lastmod>2026-05-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+
 </urlset>

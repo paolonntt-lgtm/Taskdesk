@@ -4,4 +4,4 @@ Allow: /
 # Blocca l'app autenticata dai crawler
 Disallow: /app/
 
-Sitemap: https://taskdesk.replit.app/sitemap.xml
+Sitemap: https://taskdesk.it/sitemap.xml

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
 
 export default function CookiePolicy() {
@@ -6,6 +7,12 @@ export default function CookiePolicy() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
+      <Helmet>
+        <title>Cookie Policy — TaskDesk</title>
+        <meta name="description" content="Informativa sull'uso dei cookie sul sito taskdesk.it ai sensi del D.Lgs. 196/2003 e della Direttiva ePrivacy." />
+        <meta name="robots" content="noindex, follow" />
+        <link rel="canonical" href="https://taskdesk.it/cookie-policy" />
+      </Helmet>
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/">
