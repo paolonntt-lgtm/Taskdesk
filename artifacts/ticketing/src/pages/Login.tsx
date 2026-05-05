@@ -261,7 +261,7 @@ export default function Login() {
                     {t.login.loginLink}
                   </Typography>
                 </Typography>
-              )}
+              ) : null}
             </Box>
           </CardContent>
         </Card>
