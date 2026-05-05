@@ -171,7 +171,7 @@ export default function TermsOfService() {
 
         <Section title="12. Legge Applicabile e Foro Competente">
           <p>
-            I presenti Termini sono regolati dalla legge italiana. Per qualsiasi controversia relativa all'interpretazione, validità o esecuzione dei presenti Termini, le parti concordano di ricorrere in prima istanza a una procedura di mediazione ai sensi del D.Lgs. 28/2010. In caso di mancato accordo in mediazione, sarà competente in via esclusiva il Foro di <strong>[INSERIRE CITTÀ]</strong>.
+            I presenti Termini sono regolati dalla legge italiana. Per qualsiasi controversia relativa all'interpretazione, validità o esecuzione dei presenti Termini, le parti concordano di ricorrere in prima istanza a una procedura di mediazione ai sensi del D.Lgs. 28/2010. In caso di mancato accordo in mediazione, sarà competente in via esclusiva il Foro di <strong>Pescara</strong>.
           </p>
         </Section>
 
