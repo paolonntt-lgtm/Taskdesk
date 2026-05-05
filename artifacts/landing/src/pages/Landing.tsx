@@ -472,6 +472,9 @@ export default function Landing() {
             <img src="/taskdesk-logo.png" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
           </div>
           <p className="text-sm text-gray-400">{t.footer.text}</p>
+          <a href="/privacy-policy" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            Privacy Policy
+          </a>
         </div>
       </footer>
       <InstallPrompt />
