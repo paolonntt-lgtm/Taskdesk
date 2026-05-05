@@ -207,11 +207,14 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
           bgcolor: mode === 'light' ? '#f8faff' : 'rgba(255,255,255,0.04)',
           border: '1px solid', borderColor: mode === 'light' ? '#f3f4f6' : 'rgba(255,255,255,0.07)',
         }}>
-          <Avatar sx={{
-            width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
-            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-          }}>
-            {user?.name?.charAt(0) || <AccountCircle />}
+          <Avatar
+            src={(user as any)?.avatarUrl ?? undefined}
+            sx={{
+              width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
+              background: (user as any)?.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+            }}
+          >
+            {!(user as any)?.avatarUrl && (user?.name?.charAt(0) || <AccountCircle />)}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="caption" fontWeight={700} noWrap display="block" sx={{ lineHeight: 1.3 }}>
@@ -362,8 +365,14 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
               <Typography variant="caption" fontWeight={700} display="block" lineHeight={1.3}>{user?.name}</Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem', lineHeight: 1.3 }}>{roleLabel}</Typography>
             </Box>
-            <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700, background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}>
-              {user?.name?.charAt(0) || <AccountCircle />}
+            <Avatar
+              src={(user as any)?.avatarUrl ?? undefined}
+              sx={{
+                width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
+                background: (user as any)?.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              }}
+            >
+              {!(user as any)?.avatarUrl && (user?.name?.charAt(0) || <AccountCircle />)}
             </Avatar>
           </Box>
 
