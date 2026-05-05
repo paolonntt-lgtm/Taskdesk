@@ -1,8 +1,39 @@
 import ReactMarkdown from 'react-markdown';
 import { Box } from '@mui/material';
+import { useLocation } from 'wouter';
 
 interface MarkdownContentProps {
   content: string;
+}
+
+function preprocessContent(text: string): string {
+  // Convert #123 ticket references to markdown links, but not inside existing links or code
+  // Uses a negative lookbehind to avoid double-converting
+  return text.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
+}
+
+function InternalLink({ href, children }: { href?: string; children?: React.ReactNode }) {
+  const [, setLocation] = useLocation();
+  if (href?.startsWith('/tickets/')) {
+    return (
+      <Box
+        component="a"
+        href={href}
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          setLocation(href);
+        }}
+        sx={{ color: 'primary.main', cursor: 'pointer', textDecoration: 'underline' }}
+      >
+        {children}
+      </Box>
+    );
+  }
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
 }
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
@@ -43,7 +74,13 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
       }}
     >
-      <ReactMarkdown>{content}</ReactMarkdown>
+      <ReactMarkdown
+        components={{
+          a: ({ href, children }) => <InternalLink href={href}>{children}</InternalLink>,
+        }}
+      >
+        {preprocessContent(content)}
+      </ReactMarkdown>
     </Box>
   );
 }

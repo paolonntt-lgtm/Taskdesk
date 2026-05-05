@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -56,6 +56,7 @@ export default function TicketDetail() {
 
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
+  const [markingSolution, setMarkingSolution] = useState<number | null>(null);
 
   const deleteTicket = useDeleteTicket();
 
@@ -126,6 +127,27 @@ export default function TicketDetail() {
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
     setAssignAnchor(null);
+  };
+
+  const handleMarkSolution = async (commentId: number, currentValue: boolean) => {
+    setMarkingSolution(commentId);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/comments/${commentId}/solution`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) =>
+          old.map((c: any) =>
+            c.id === commentId
+              ? { ...c, isSolution: !currentValue }
+              : { ...c, isSolution: false }
+          )
+        );
+      }
+    } finally {
+      setMarkingSolution(null);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -508,49 +530,92 @@ export default function TicketDetail() {
                   )}
                   {comments?.map((c) => {
                     const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
+                    const isSolution = (c as any).isSolution === true;
+                    const canMarkSolution = isAdmin || ticket.assignedTo === currentUser?.id || ticket.createdBy === currentUser?.id;
                     return (
                     <Box key={c.id} display="flex" gap={2}>
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
-                        sx={{ bgcolor: 'primary.main' }}
+                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main' }}
                       >
                         {c.author?.name?.charAt(0)}
                       </Avatar>
-                      <Box flex={1} bgcolor="background.default" p={2} borderRadius={1}>
-                        <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5}>
-                          <UserLink
-                            userId={c.authorId}
-                            name={c.author?.name}
-                            typographyProps={{ variant: 'subtitle2', fontWeight: 'bold' }}
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            {new Date(c.createdAt).toLocaleString(dateLocale)}
-                          </Typography>
-                        </Box>
-                        <MarkdownContent content={c.commentText} />
-                        {commentAttachments.length > 0 && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
-                            {commentAttachments.map((a: any) => {
-                              const isImg = (a.mimeType as string).startsWith('image/');
-                              const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                              return (
-                                <Chip
-                                  key={a.id}
-                                  icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
-                                  label={a.fileName}
-                                  size="small"
-                                  variant="outlined"
-                                  component="a"
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  clickable
-                                  sx={{ maxWidth: 260 }}
-                                />
-                              );
-                            })}
+                      <Box
+                        flex={1}
+                        borderRadius={1}
+                        overflow="hidden"
+                        sx={isSolution ? {
+                          border: '1px solid',
+                          borderColor: 'success.300',
+                        } : {
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        {isSolution && (
+                          <Box
+                            display="flex" alignItems="center" gap={1}
+                            px={1.5} py={0.5}
+                            sx={{ bgcolor: 'success.100', borderBottom: '1px solid', borderColor: 'success.200' }}
+                          >
+                            <CheckCircle sx={{ fontSize: 14, color: 'success.dark' }} />
+                            <Typography variant="caption" fontWeight="bold" color="success.dark">
+                              Soluzione
+                            </Typography>
                           </Box>
                         )}
+                        <Box
+                          p={2}
+                          sx={isSolution ? { background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' } : undefined}
+                        >
+                          <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5} alignItems="center">
+                            <UserLink
+                              userId={c.authorId}
+                              name={c.author?.name}
+                              typographyProps={{ variant: 'subtitle2', fontWeight: 'bold' }}
+                            />
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(c.createdAt).toLocaleString(dateLocale)}
+                              </Typography>
+                              {canMarkSolution && (
+                                <Tooltip title={isSolution ? 'Rimuovi soluzione' : 'Segna come soluzione'}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleMarkSolution(c.id, isSolution)}
+                                    disabled={markingSolution === c.id}
+                                    sx={{ color: isSolution ? 'success.main' : 'action.disabled', '&:hover': { color: 'success.main' } }}
+                                  >
+                                    {isSolution ? <CheckCircle fontSize="small" /> : <CheckCircleOutline fontSize="small" />}
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Box>
+                          </Box>
+                          <MarkdownContent content={c.commentText} />
+                          {commentAttachments.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                              {commentAttachments.map((a: any) => {
+                                const isImg = (a.mimeType as string).startsWith('image/');
+                                const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                                return (
+                                  <Chip
+                                    key={a.id}
+                                    icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
+                                    label={a.fileName}
+                                    size="small"
+                                    variant="outlined"
+                                    component="a"
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    clickable
+                                    sx={{ maxWidth: 260 }}
+                                  />
+                                );
+                              })}
+                            </Box>
+                          )}
+                        </Box>
                       </Box>
                     </Box>
                     );
