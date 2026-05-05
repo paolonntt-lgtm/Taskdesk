@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, or, notLike } from "drizzle-orm";
+import { eq, or, notLike, and } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -19,6 +19,7 @@ const userFields = {
   name: usersTable.name,
   email: usersTable.email,
   role: usersTable.role,
+  organizationId: usersTable.organizationId,
   mainLocation: usersTable.mainLocation,
   group: usersTable.group,
   isActive: usersTable.isActive,
@@ -28,11 +29,17 @@ const userFields = {
 const hashPassword = (password: string) =>
   createHash("sha256").update(`${password}ticketing_salt`).digest("hex");
 
-router.get("/users", requireAuth, async (_req, res): Promise<void> => {
+router.get("/users", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
   const users = await db
     .select(userFields)
     .from(usersTable)
-    .where(notLike(usersTable.email, "deleted-%@deleted.local"))
+    .where(and(
+      notLike(usersTable.email, "deleted-%@deleted.local"),
+      orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+    ))
     .orderBy(usersTable.name);
   res.setHeader("Cache-Control", "private, max-age=60");
   res.json(users);
@@ -69,6 +76,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     email,
     passwordHash: hashPassword(password),
     role,
+    organizationId: currentUser.organizationId,
     mainLocation: mainLocation ?? null,
     group: group ?? null,
     isActive: true,
@@ -84,7 +92,15 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select(userFields).from(usersTable).where(eq(usersTable.id, id));
+  const currentUser = (req as any).currentUser;
+  const [user] = await db.select(userFields).from(usersTable).where(
+    and(
+      eq(usersTable.id, id),
+      currentUser.organizationId != null
+        ? eq(usersTable.organizationId, currentUser.organizationId)
+        : undefined
+    )
+  );
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -105,8 +121,6 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
-  // Admins are NOT allowed to change another user's password from the
-  // user-management panel. Strip password if present in the request body.
   const { password: _ignoredPassword, ...rest } = parsed.data;
   const updates: Record<string, unknown> = { ...rest };
 
@@ -115,11 +129,12 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
+  const currentUser = (req as any).currentUser;
+
   // Enforce seat limit when reactivating a deactivated user
   if (updates.isActive === true) {
     const [target] = await db.select({ isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, id));
     if (target && target.isActive === false) {
-      const currentUser = (req as any).currentUser;
       const usage = await getSeatUsage(currentUser.id);
       if (usage.limitReached) {
         res.status(402).json(buildSeatLimitError(usage));
@@ -131,7 +146,12 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
   const [updated] = await db
     .update(usersTable)
     .set(updates)
-    .where(eq(usersTable.id, id))
+    .where(and(
+      eq(usersTable.id, id),
+      currentUser.organizationId != null
+        ? eq(usersTable.organizationId, currentUser.organizationId)
+        : undefined
+    ))
     .returning(userFields);
 
   if (!updated) {
@@ -157,30 +177,29 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
   }
 
   const [target] = await db
-    .select({ id: usersTable.id, isActive: usersTable.isActive })
+    .select({ id: usersTable.id, isActive: usersTable.isActive, organizationId: usersTable.organizationId })
     .from(usersTable)
-    .where(eq(usersTable.id, id));
+    .where(and(
+      eq(usersTable.id, id),
+      currentUser.organizationId != null
+        ? eq(usersTable.organizationId, currentUser.organizationId)
+        : undefined
+    ));
 
   if (!target) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
-  // Anonymize the user instead of hard-deleting, to preserve historical
-  // records (tickets, comments, activity logs) that have NOT NULL FKs.
   await db.transaction(async (tx) => {
-    // Null out optional references that we can safely clear
     await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, id));
-    // Clear users.invited_by_id refs (column exists in DB but not in Drizzle schema)
     await tx.execute(`UPDATE users SET invited_by_id = NULL WHERE invited_by_id = ${id}` as any);
 
-    // Hard-delete rows that don't need to be preserved
     await tx.delete(notificationsTable).where(eq(notificationsTable.userId, id));
     await tx.delete(inviteTokensTable).where(
       or(eq(inviteTokensTable.adminId, id), eq(inviteTokensTable.usedById, id))!
     );
 
-    // Anonymize the user row (PII removed, account permanently disabled)
     await tx.update(usersTable).set({
       name: "Utente eliminato",
       email: `deleted-${id}-${Date.now()}@deleted.local`,

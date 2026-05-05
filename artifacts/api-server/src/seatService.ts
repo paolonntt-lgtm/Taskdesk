@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db, usersTable } from '@workspace/db';
 import { getUncachableStripeClient } from './stripeClient';
 import { stripeStorage } from './stripeStorage';
@@ -20,10 +20,22 @@ export interface SeatUsage {
 export async function getSeatUsage(userId: number): Promise<SeatUsage> {
   const user = await stripeStorage.getUser(userId);
 
+  // Count active users only within the same organization
+  const [orgRow] = await db
+    .select({ organizationId: usersTable.organizationId })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  const orgId = orgRow?.organizationId;
+
   const activeUsers = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(eq(usersTable.isActive, true));
+    .where(
+      orgId != null
+        ? and(eq(usersTable.isActive, true), eq(usersTable.organizationId, orgId))
+        : eq(usersTable.isActive, true)
+    );
   const usedSeats = activeUsers.length;
 
   let planSeats: number | null = null;

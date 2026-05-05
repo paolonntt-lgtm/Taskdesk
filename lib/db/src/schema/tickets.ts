@@ -2,9 +2,11 @@ import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { organizationsTable } from "./organizations";
 
 export const ticketsTable = pgTable("tickets", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizationsTable.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),
@@ -27,6 +29,7 @@ export const ticketsTable = pgTable("tickets", {
   index("tickets_created_by_idx").on(t.createdBy),
   index("tickets_assigned_to_idx").on(t.assignedTo),
   index("tickets_updated_at_idx").on(t.updatedAt),
+  index("tickets_organization_id_idx").on(t.organizationId),
 ]);
 
 export const insertTicketSchema = createInsertSchema(ticketsTable).omit({ id: true, createdAt: true, updatedAt: true });

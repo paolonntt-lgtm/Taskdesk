@@ -5,7 +5,11 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-router.get("/stats/dashboard", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const [counts] = await db.select({
     total: sql<number>`count(*)`,
     open: sql<number>`count(*) filter (where status = 'open')`,
@@ -16,11 +20,11 @@ router.get("/stats/dashboard", requireAuth, async (_req, res): Promise<void> => 
     urgent: sql<number>`count(*) filter (where priority = 'urgent')`,
     last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
     last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
-  }).from(ticketsTable);
+  }).from(ticketsTable).where(orgFilter);
 
   const [avgResult] = await db.select({
     avg: sql<number>`avg(extract(epoch from (closed_at - created_at)) / 3600)`,
-  }).from(ticketsTable).where(isNotNull(ticketsTable.closedAt));
+  }).from(ticketsTable).where(orgFilter ? and(orgFilter, isNotNull(ticketsTable.closedAt)) : isNotNull(ticketsTable.closedAt));
 
   res.json({
     totalTickets: Number(counts.total),
@@ -36,11 +40,15 @@ router.get("/stats/dashboard", requireAuth, async (_req, res): Promise<void> => 
   });
 });
 
-router.get("/stats/by-status", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const rows = await db.select({
     name: ticketsTable.status,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).groupBy(ticketsTable.status);
+  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status);
 
   const labels: Record<string, string> = {
     open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
@@ -49,64 +57,99 @@ router.get("/stats/by-status", requireAuth, async (_req, res): Promise<void> => 
   res.json(rows.map((r) => ({ name: labels[r.name] ?? r.name, count: Number(r.count) })));
 });
 
-router.get("/stats/by-category", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const rows = await db.select({
     name: ticketsTable.category,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).groupBy(ticketsTable.category);
+  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.category);
 
   res.json(rows.map((r) => ({ name: r.name, count: Number(r.count) })));
 });
 
-router.get("/stats/by-location", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/by-location", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const rows = await db.select({
     name: ticketsTable.location,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).groupBy(ticketsTable.location);
+  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.location);
 
   res.json(rows.map((r) => ({ name: r.name, count: Number(r.count) })));
 });
 
-router.get("/stats/by-priority", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/by-priority", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const rows = await db.select({
     name: ticketsTable.priority,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).groupBy(ticketsTable.priority);
+  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.priority);
 
   const labels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
 
   res.json(rows.map((r) => ({ name: labels[r.name] ?? r.name, count: Number(r.count) })));
 });
 
-router.get("/stats/by-assignee", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
   const rows = await db.select({
     id: usersTable.id,
     name: usersTable.name,
     count: sql<number>`count(${ticketsTable.id})`,
   })
     .from(usersTable)
-    .leftJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
+    .leftJoin(
+      ticketsTable,
+      orgId != null
+        ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+        : eq(ticketsTable.assignedTo, usersTable.id)
+    )
+    .where(orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
     .groupBy(usersTable.id, usersTable.name)
     .having(sql`count(${ticketsTable.id}) > 0`);
 
   res.json(rows.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })));
 });
 
-router.get("/stats/trend", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/trend", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
   const rows = await db.select({
     date: sql<string>`date_trunc('day', created_at)::date::text`,
     count: sql<number>`count(*)`,
   })
     .from(ticketsTable)
-    .where(gte(ticketsTable.createdAt, sql`now() - interval '30 days'`))
+    .where(
+      orgFilter
+        ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '30 days'`))
+        : gte(ticketsTable.createdAt, sql`now() - interval '30 days'`)
+    )
     .groupBy(sql`date_trunc('day', created_at)`)
     .orderBy(sql`date_trunc('day', created_at)`);
 
   res.json(rows.map((r) => ({ date: r.date, count: Number(r.count) })));
 });
 
-router.get("/stats/recent-tickets", requireAuth, async (_req, res): Promise<void> => {
-  const tickets = await db.select().from(ticketsTable).orderBy(sql`updated_at DESC`).limit(10);
+router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+
+  const tickets = await db.select().from(ticketsTable)
+    .where(orgFilter)
+    .orderBy(sql`updated_at DESC`).limit(10);
 
   const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
   const users = (userIds as number[]).length > 0
@@ -125,9 +168,17 @@ router.get("/stats/recent-tickets", requireAuth, async (_req, res): Promise<void
 
 router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const orgAndUser = orgId != null
+    ? and(
+        eq(ticketsTable.organizationId, orgId),
+        sql`(created_by = ${currentUser.id} OR assigned_to = ${currentUser.id})`
+      )
+    : sql`(created_by = ${currentUser.id} OR assigned_to = ${currentUser.id})`;
 
   const tickets = await db.select().from(ticketsTable)
-    .where(sql`created_by = ${currentUser.id} OR assigned_to = ${currentUser.id}`)
+    .where(orgAndUser)
     .orderBy(sql`updated_at DESC`);
 
   const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
@@ -145,7 +196,12 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   })));
 });
 
-router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
+  const userOrgFilter = orgId != null ? eq(usersTable.organizationId, orgId) : undefined;
+
   const [
     dashRow,
     avgResult,
@@ -169,27 +225,35 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
       urgent: sql<number>`count(*) filter (where priority = 'urgent')`,
       last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
       last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
-    }).from(ticketsTable),
+    }).from(ticketsTable).where(orgFilter),
 
     db.select({
       avg: sql<number>`avg(extract(epoch from (closed_at - created_at)) / 3600)`,
-    }).from(ticketsTable).where(isNotNull(ticketsTable.closedAt)),
+    }).from(ticketsTable).where(
+      orgFilter ? and(orgFilter, isNotNull(ticketsTable.closedAt)) : isNotNull(ticketsTable.closedAt)
+    ),
 
     db.select({ name: ticketsTable.status, count: sql<number>`count(*)` })
-      .from(ticketsTable).groupBy(ticketsTable.status),
+      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status),
 
     db.select({ name: ticketsTable.category, count: sql<number>`count(*)` })
-      .from(ticketsTable).groupBy(ticketsTable.category),
+      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.category),
 
     db.select({ name: ticketsTable.location, count: sql<number>`count(*)` })
-      .from(ticketsTable).groupBy(ticketsTable.location),
+      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.location),
 
     db.select({ name: ticketsTable.priority, count: sql<number>`count(*)` })
-      .from(ticketsTable).groupBy(ticketsTable.priority),
+      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.priority),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
       .from(usersTable)
-      .leftJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
+      .leftJoin(
+        ticketsTable,
+        orgId != null
+          ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+          : eq(ticketsTable.assignedTo, usersTable.id)
+      )
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .having(sql`count(${ticketsTable.id}) > 0`),
 
@@ -197,23 +261,42 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
       date: sql<string>`date_trunc('day', created_at)::date::text`,
       count: sql<number>`count(*)`,
     }).from(ticketsTable)
-      .where(gte(ticketsTable.createdAt, sql`now() - interval '30 days'`))
+      .where(
+        orgFilter
+          ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '30 days'`))
+          : gte(ticketsTable.createdAt, sql`now() - interval '30 days'`)
+      )
       .groupBy(sql`date_trunc('day', created_at)`)
       .orderBy(sql`date_trunc('day', created_at)`),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
-      .from(usersTable).innerJoin(ticketsTable, eq(ticketsTable.createdBy, usersTable.id))
+      .from(usersTable)
+      .innerJoin(
+        ticketsTable,
+        orgId != null
+          ? and(eq(ticketsTable.createdBy, usersTable.id), eq(ticketsTable.organizationId, orgId))
+          : eq(ticketsTable.createdBy, usersTable.id)
+      )
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketsTable.id}) desc`).limit(5),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
-      .from(usersTable).innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .from(usersTable)
+      .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
-      .from(usersTable).innerJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
-      .where(isNotNull(ticketsTable.resolutionNote))
+      .from(usersTable)
+      .innerJoin(
+        ticketsTable,
+        orgId != null
+          ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+          : eq(ticketsTable.assignedTo, usersTable.id)
+      )
+      .where(orgId != null ? and(userOrgFilter, isNotNull(ticketsTable.resolutionNote)) : isNotNull(ticketsTable.resolutionNote))
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketsTable.id}) desc`).limit(5),
   ]);
@@ -251,7 +334,11 @@ router.get("/stats/reports-all", requireAuth, async (_req, res): Promise<void> =
   });
 });
 
-router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> => {
+router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const userOrgFilter = orgId != null ? eq(usersTable.organizationId, orgId) : undefined;
+
   const [openers, commenters, resolvers] = await Promise.all([
     db.select({
       id: usersTable.id,
@@ -259,7 +346,13 @@ router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> =
       count: sql<number>`count(${ticketsTable.id})`,
     })
       .from(usersTable)
-      .innerJoin(ticketsTable, eq(ticketsTable.createdBy, usersTable.id))
+      .innerJoin(
+        ticketsTable,
+        orgId != null
+          ? and(eq(ticketsTable.createdBy, usersTable.id), eq(ticketsTable.organizationId, orgId))
+          : eq(ticketsTable.createdBy, usersTable.id)
+      )
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketsTable.id}) desc`)
       .limit(5),
@@ -271,6 +364,7 @@ router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> =
     })
       .from(usersTable)
       .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
       .limit(5),
@@ -281,8 +375,13 @@ router.get("/stats/leaderboard", requireAuth, async (_req, res): Promise<void> =
       count: sql<number>`count(${ticketsTable.id})`,
     })
       .from(usersTable)
-      .innerJoin(ticketsTable, eq(ticketsTable.assignedTo, usersTable.id))
-      .where(isNotNull(ticketsTable.resolutionNote))
+      .innerJoin(
+        ticketsTable,
+        orgId != null
+          ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+          : eq(ticketsTable.assignedTo, usersTable.id)
+      )
+      .where(orgId != null ? and(userOrgFilter, isNotNull(ticketsTable.resolutionNote)) : isNotNull(ticketsTable.resolutionNote))
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketsTable.id}) desc`)
       .limit(5),

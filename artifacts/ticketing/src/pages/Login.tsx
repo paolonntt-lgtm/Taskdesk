@@ -19,6 +19,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { login, error } = useAuth();
   const { t, lang, setLang } = useLanguage();
@@ -27,7 +28,7 @@ export default function Login() {
 
   const switchMode = (m: 'login' | 'register') => {
     setMode(m); setLocalError(null);
-    setEmail(''); setPassword(''); setName(''); setConfirmPassword('');
+    setEmail(''); setPassword(''); setName(''); setConfirmPassword(''); setOrganizationName('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -44,12 +45,13 @@ export default function Login() {
     setLocalError(null);
     if (password.length < 6) { setLocalError(t.login.passwordTooShort); return; }
     if (password !== confirmPassword) { setLocalError(t.login.passwordMismatch); return; }
+    if (!organizationName.trim()) { setLocalError('Il nome azienda è obbligatorio'); return; }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, organizationName: organizationName.trim() }),
       });
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || 'Errore durante la registrazione'); return; }
@@ -133,9 +135,15 @@ export default function Login() {
             ) : (
               <form onSubmit={handleRegister}>
                 <TextField
+                  label="Nome azienda" type="text" fullWidth margin="normal"
+                  value={organizationName} onChange={(e) => setOrganizationName(e.target.value)}
+                  required variant="outlined" autoFocus
+                  helperText="Il nome della tua organizzazione o azienda"
+                />
+                <TextField
                   label={t.login.name} type="text" fullWidth margin="normal"
                   value={name} onChange={(e) => setName(e.target.value)}
-                  required variant="outlined" autoComplete="name" autoFocus
+                  required variant="outlined" autoComplete="name"
                 />
                 <TextField
                   label={t.login.email} type="email" fullWidth margin="normal"

@@ -18,9 +18,15 @@ function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commen
 }
 
 router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
   const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
+
+  // Always filter by organization
+  if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
 
   if (status) conditions.push(eq(ticketsTable.status, status));
   if (priority) conditions.push(eq(ticketsTable.priority, priority));
@@ -32,27 +38,28 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (dateFrom) conditions.push(gte(ticketsTable.createdAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
 
-  let tickets;
   if (search) {
     const searchPattern = `%${search}%`;
-    const searchTicketIds = await db
+    const searchBase = db
       .selectDistinct({ id: ticketsTable.id })
       .from(ticketsTable)
       .leftJoin(ticketCommentsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
       .leftJoin(ticketInternalNotesTable, eq(ticketInternalNotesTable.ticketId, ticketsTable.id))
-      .leftJoin(ticketActivityLogsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id))
-      .where(
-        or(
-          ilike(ticketsTable.title, searchPattern),
-          ilike(ticketsTable.description, searchPattern),
-          ilike(ticketsTable.category, searchPattern),
-          ilike(ticketsTable.location, searchPattern),
-          ilike(ticketsTable.resource, searchPattern),
-          ilike(ticketCommentsTable.commentText, searchPattern),
-          ilike(ticketInternalNotesTable.noteText, searchPattern),
-          ilike(ticketActivityLogsTable.actionDescription, searchPattern)
-        )
-      );
+      .leftJoin(ticketActivityLogsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id));
+
+    const searchWhere = or(
+      ilike(ticketsTable.title, searchPattern),
+      ilike(ticketsTable.description, searchPattern),
+      ilike(ticketsTable.category, searchPattern),
+      ilike(ticketsTable.location, searchPattern),
+      ilike(ticketsTable.resource, searchPattern),
+      ilike(ticketCommentsTable.commentText, searchPattern),
+      ilike(ticketInternalNotesTable.noteText, searchPattern),
+      ilike(ticketActivityLogsTable.actionDescription, searchPattern)
+    );
+
+    const orgWhere = orgId != null ? and(eq(ticketsTable.organizationId, orgId), searchWhere) : searchWhere;
+    const searchTicketIds = await searchBase.where(orgWhere);
     const ids = searchTicketIds.map((r) => r.id);
     if (ids.length === 0) {
       res.json([]);
@@ -61,7 +68,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     conditions.push(inArray(ticketsTable.id, ids));
   }
 
-  tickets = await db
+  const tickets = await db
     .select()
     .from(ticketsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -119,6 +126,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     priority,
     status: "open",
     createdBy: currentUser.id,
+    organizationId: currentUser.organizationId,
     assignedTo: assignedTo ?? null,
     assignedToGroup: assignedToGroup ?? null,
   }).returning();
@@ -157,13 +165,20 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
     return;
   }
 
-  const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
+  const [ticket] = await db.select().from(ticketsTable).where(
+    and(
+      eq(ticketsTable.id, id),
+      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+    )
+  );
   if (!ticket) {
     res.status(404).json({ error: "Ticket not found" });
     return;
@@ -185,6 +200,8 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -197,8 +214,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const currentUser = (req as any).currentUser;
-  const [existing] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(
+      eq(ticketsTable.id, id),
+      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+    )
+  );
   if (!existing) {
     res.status(404).json({ error: "Ticket not found" });
     return;
@@ -303,9 +324,15 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
 
   const id = parseInt(req.params.id, 10);
-  const [existing] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(
+      eq(ticketsTable.id, id),
+      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+    )
+  );
   if (!existing) {
     res.status(404).json({ error: "Ticket non trovato" });
     return;

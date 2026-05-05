@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNull, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, usersTable, inviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { createSession } from "../lib/session";
@@ -48,7 +48,7 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
     return;
   }
 
-  const [admin] = await db.select({ name: usersTable.name })
+  const [admin] = await db.select({ name: usersTable.name, organizationId: usersTable.organizationId })
     .from(usersTable).where(eq(usersTable.id, invite.adminId));
 
   res.json({ valid: true, adminName: admin?.name ?? "Admin", expiresAt: invite.expiresAt });
@@ -96,12 +96,17 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     return;
   }
 
+  // Look up admin's organization
+  const [admin] = await db.select({ organizationId: usersTable.organizationId })
+    .from(usersTable).where(eq(usersTable.id, invite.adminId));
+
   const passwordHash = hashPassword(password);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
     passwordHash,
     role: "user",
+    organizationId: admin?.organizationId ?? null,
     isActive: true,
   }).returning();
 

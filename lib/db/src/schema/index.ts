@@ -1,3 +1,4 @@
+export * from "./organizations";
 export * from "./users";
 export * from "./tickets";
 export * from "./ticket_comments";

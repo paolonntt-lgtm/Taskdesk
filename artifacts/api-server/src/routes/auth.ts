@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import { createHash } from "crypto";
@@ -43,9 +43,9 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/register", async (req, res): Promise<void> => {
-  const { name, email, password } = req.body ?? {};
+  const { name, email, password, organizationName } = req.body ?? {};
 
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !organizationName) {
     res.status(400).json({ message: "Tutti i campi sono obbligatori" });
     return;
   }
@@ -57,6 +57,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     res.status(400).json({ message: "La password deve essere di almeno 6 caratteri" });
     return;
   }
+  if (typeof organizationName !== "string" || organizationName.trim().length < 2) {
+    res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
+    return;
+  }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
@@ -64,12 +68,18 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
+  // Create organization first, then the admin user
+  const [org] = await db.insert(organizationsTable).values({
+    name: organizationName.trim(),
+  }).returning();
+
   const passwordHash = hashPassword(password);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
     passwordHash,
     role: "admin",
+    organizationId: org.id,
     isActive: true,
   }).returning();
 
