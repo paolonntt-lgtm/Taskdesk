@@ -94,8 +94,8 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
 });
 
 router.patch("/tickets/:id/comments/:commentId/solution", requireAuth, async (req, res): Promise<void> => {
-  const ticketId = parseInt(req.params.id, 10);
-  const commentId = parseInt(req.params.commentId, 10);
+  const ticketId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const commentId = parseInt(Array.isArray(req.params.commentId) ? req.params.commentId[0] : req.params.commentId, 10);
   const currentUser = (req as any).currentUser;
 
   const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId));

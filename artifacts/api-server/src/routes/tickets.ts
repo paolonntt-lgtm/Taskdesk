@@ -326,7 +326,7 @@ router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promi
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [existing] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),

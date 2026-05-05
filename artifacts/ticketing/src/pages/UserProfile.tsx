@@ -19,8 +19,8 @@ export default function UserProfile() {
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
   const { data: user, isLoading } = useGetUser(userId);
-  const { data: createdTickets } = useListTickets({ createdBy: String(userId) });
-  const { data: assignedTickets } = useListTickets({ assignedTo: String(userId) });
+  const { data: createdTickets } = useListTickets({ createdBy: userId });
+  const { data: assignedTickets } = useListTickets({ assignedTo: userId });
 
   if (isLoading) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
