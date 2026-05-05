@@ -5,7 +5,8 @@ import {
 } from '@mui/material';
 import {
   FormatBold, FormatItalic, FormatListBulleted, FormatListNumbered,
-  Code, AttachFile, InsertLink, Close, InsertDriveFile, Image as ImageIcon,
+  Code, AttachFile, Close, InsertDriveFile, Image as ImageIcon,
+  AlternateEmail, Tag,
 } from '@mui/icons-material';
 
 export interface PendingAttachment {
@@ -362,10 +363,40 @@ export function RichCommentEditor({
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
-          <Box sx={{ flex: 1 }} />
-          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', px: 1 }}>
-            @ menzione &nbsp;·&nbsp; # ticket
-          </Typography>
+        </Box>
+
+        {/* Tagging hint bar */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            px: 1.5,
+            py: 0.75,
+            bgcolor: 'primary.50',
+            borderBottom: '1px solid',
+            borderColor: 'primary.100',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <AlternateEmail sx={{ fontSize: 14, color: 'primary.600' }} />
+            <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
+              @Nome
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+              — menziona un collega
+            </Typography>
+          </Box>
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'primary.200' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <Tag sx={{ fontSize: 14, color: 'primary.600' }} />
+            <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
+              #42
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+              — collega un ticket
+            </Typography>
+          </Box>
         </Box>
 
         {/* Textarea */}
