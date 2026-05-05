@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import InviteRegister from "./pages/InviteRegister";
 import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
+import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
 import type { User } from "@workspace/api-client-react";
 
@@ -97,6 +98,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
         <Route path="/invite/:token">
           {(params) => <InviteRegister token={params.token!} />}
         </Route>
+        <Route path="/reset-password" component={ResetPassword} />
         <Route>
           {isLoading ? (
             <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>

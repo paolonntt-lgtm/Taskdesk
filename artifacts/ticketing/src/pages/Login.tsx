@@ -9,13 +9,15 @@ import {
   Alert,
   Container,
   Divider,
+  CircularProgress,
 } from '@mui/material';
+import { CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Lang } from '../i18n/translations';
 
 export default function Login() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -25,9 +27,10 @@ export default function Login() {
   const { t, lang, setLang } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
 
-  const switchMode = (m: 'login' | 'register') => {
-    setMode(m); setLocalError(null);
+  const switchMode = (m: 'login' | 'register' | 'forgot') => {
+    setMode(m); setLocalError(null); setForgotSent(false);
     setEmail(''); setPassword(''); setName(''); setConfirmPassword(''); setOrganizationName('');
   };
 
@@ -56,6 +59,21 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || 'Errore durante la registrazione'); return; }
       await login({ email, password });
+    } catch { setLocalError('Errore di rete. Riprova.'); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    setIsSubmitting(true);
+    try {
+      await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      setForgotSent(true);
     } catch { setLocalError('Errore di rete. Riprova.'); }
     finally { setIsSubmitting(false); }
   };
@@ -101,7 +119,7 @@ export default function Login() {
             <Box sx={{ mb: 4, textAlign: 'center' }}>
               <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="body2" color="text.secondary">
-                {mode === 'login' ? t.login.subtitle : t.login.registerSubtitle}
+                {mode === 'login' ? t.login.subtitle : mode === 'register' ? t.login.registerSubtitle : 'Inserisci la tua email per ricevere il link di reset'}
               </Typography>
             </Box>
 
@@ -118,12 +136,23 @@ export default function Login() {
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   required variant="outlined" autoComplete="email"
                 />
-                <TextField
-                  label={t.login.password} type="password" fullWidth margin="normal"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  required variant="outlined" autoComplete="current-password"
-                  sx={{ mb: 3 }}
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <TextField
+                    label={t.login.password} type="password" fullWidth margin="normal"
+                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    required variant="outlined" autoComplete="current-password"
+                    sx={{ mb: 1 }}
+                  />
+                </Box>
+                <Box sx={{ textAlign: 'right', mb: 2 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
+                    onClick={() => switchMode('forgot')}
+                  >
+                    Password dimenticata?
+                  </Typography>
+                </Box>
                 <Button
                   type="submit" variant="contained" color="primary"
                   fullWidth size="large" disabled={isSubmitting}
@@ -132,7 +161,7 @@ export default function Login() {
                   {isSubmitting ? t.login.submitting : t.login.submit}
                 </Button>
               </form>
-            ) : (
+            ) : mode === 'register' ? (
               <form onSubmit={handleRegister}>
                 <TextField
                   label="Nome azienda" type="text" fullWidth margin="normal"
@@ -172,9 +201,46 @@ export default function Login() {
                   {isSubmitting ? t.login.registering : t.login.registerSubmit}
                 </Button>
               </form>
+            ) : forgotSent ? (
+              <Box textAlign="center" py={1}>
+                <CheckCircle sx={{ fontSize: 52, color: 'success.main', mb: 2 }} />
+                <Typography variant="subtitle1" fontWeight={700} mb={1}>Email inviata!</Typography>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Se l'indirizzo <strong>{email}</strong> è registrato, riceverai un link per reimpostare la password entro pochi minuti.
+                </Typography>
+                <Button variant="outlined" fullWidth sx={{ borderRadius: '12px' }} onClick={() => switchMode('login')}>
+                  Torna al login
+                </Button>
+              </Box>
+            ) : (
+              <form onSubmit={handleForgot}>
+                <TextField
+                  label={t.login.email} type="email" fullWidth margin="normal"
+                  value={email} onChange={(e) => setEmail(e.target.value)}
+                  required variant="outlined" autoComplete="email" autoFocus
+                  sx={{ mb: 3 }}
+                />
+                <Button
+                  type="submit" variant="contained" color="primary"
+                  fullWidth size="large" disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : null}
+                  sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
+                >
+                  {isSubmitting ? 'Invio in corso…' : 'Invia link di reset'}
+                </Button>
+                <Box mt={2} textAlign="center">
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
+                    onClick={() => switchMode('login')}
+                  >
+                    ← Torna al login
+                  </Typography>
+                </Box>
+              </form>
             )}
 
-            <Divider sx={{ my: 3 }} />
+            {mode !== 'forgot' && <Divider sx={{ my: 3 }} />}
 
             <Box sx={{ textAlign: 'center' }}>
               {mode === 'login' ? (
@@ -186,7 +252,7 @@ export default function Login() {
                     {t.login.registerLink}
                   </Typography>
                 </Typography>
-              ) : (
+              ) : mode === 'register' ? (
                 <Typography variant="body2" color="text.secondary">
                   {t.login.hasAccount}{' '}
                   <Typography component="span" variant="body2"

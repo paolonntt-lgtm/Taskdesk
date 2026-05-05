@@ -8,3 +8,4 @@ export * from "./notifications";
 export * from "./settings";
 export * from "./invite_tokens";
 export * from "./ticket_attachments";
+export * from "./password_reset_tokens";

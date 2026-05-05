@@ -69,6 +69,28 @@ export function buildNotificationEmail(args: {
   return { subject, html, text };
 }
 
+export function buildPasswordResetEmail(args: {
+  recipientName: string;
+  resetUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "TaskDesk — Reimposta la tua password";
+  const text = `Ciao ${args.recipientName},\n\nHai richiesto il reset della password. Clicca sul link seguente per impostarne una nuova (valido per 1 ora):\n\n${args.resetUrl}\n\nSe non hai fatto questa richiesta, ignora questa email.\n\n— TaskDesk`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 8px">Reimposta la password</h2>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 8px">Ciao <strong>${escapeHtml(args.recipientName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 24px;color:#6b7280">Abbiamo ricevuto una richiesta di reset della password per il tuo account. Clicca sul pulsante qui sotto per impostarne una nuova. Il link è valido per <strong>1 ora</strong>.</p>
+      <a href="${args.resetUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Reimposta password →</a>
+      <p style="margin-top:24px;font-size:13px;color:#6b7280">Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${args.resetUrl}" style="color:#2563eb;word-break:break-all">${args.resetUrl}</a></p>
+      <p style="margin-top:24px;font-size:12px;color:#9ca3af">Se non hai richiesto il reset della password, ignora questa email. La tua password non verrà modificata.</p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 export function buildRegistrationNotificationEmail(args: {
   userName: string;
   userEmail: string;
