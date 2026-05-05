@@ -47,3 +47,5 @@ channel = "stable-25_05"
 
 [userenv.shared]
 SEED_SECRET = "TaskDeskSeed2024!"
+SMTP_HOST = "smtp.maileroo.com"
+SMTP_PORT = "587"
