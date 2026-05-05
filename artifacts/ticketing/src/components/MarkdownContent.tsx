@@ -7,13 +7,37 @@ interface MarkdownContentProps {
 }
 
 function preprocessContent(text: string): string {
+  // Convert @[Name Surname] mentions to links
+  let result = text.replace(/@\[([^\]]+)\]/g, '[@$1](#mention-$1)');
   // Convert #123 ticket references to markdown links, but not inside existing links or code
-  // Uses a negative lookbehind to avoid double-converting
-  return text.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
+  result = result.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
+  return result;
 }
 
 function InternalLink({ href, children }: { href?: string; children?: React.ReactNode }) {
   const [, setLocation] = useLocation();
+  if (href?.startsWith('#mention-')) {
+    return (
+      <Box
+        component="span"
+        sx={{
+          display: 'inline-block',
+          bgcolor: 'primary.50',
+          color: 'primary.700',
+          fontWeight: 600,
+          fontSize: '0.82rem',
+          px: 0.6,
+          py: 0.1,
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'primary.200',
+          lineHeight: 1.4,
+        }}
+      >
+        {children}
+      </Box>
+    );
+  }
   if (href?.startsWith('/tickets/')) {
     return (
       <Box

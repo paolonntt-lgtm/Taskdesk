@@ -3,7 +3,12 @@ import { eq, inArray, and } from "drizzle-orm";
 import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody } from "@workspace/api-zod";
-import { createNotificationsForTicket } from "../lib/notifications";
+import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
+
+function extractMentionedNames(text: string): string[] {
+  const matches = text.matchAll(/@\[([^\]]+)\]/g);
+  return [...matches].map((m) => m[1]);
+}
 
 const router: IRouter = Router();
 
@@ -63,6 +68,26 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
   });
 
   await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented");
+
+  // Send targeted notifications to mentioned users
+  const mentionedNames = extractMentionedNames(parsed.data.commentText);
+  if (mentionedNames.length > 0) {
+    const orgId = currentUser.organizationId;
+    const orgUsers = orgId != null
+      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.organizationId, orgId))
+      : [];
+    for (const mentionedName of mentionedNames) {
+      const mentioned = orgUsers.find((u) => u.name === mentionedName);
+      if (mentioned && mentioned.id !== currentUser.id) {
+        void createNotificationForUser(
+          mentioned.id,
+          id,
+          `${currentUser.name} ti ha menzionato nel ticket #${id}: "${ticket.title}"`,
+          "ticket_commented"
+        );
+      }
+    }
+  }
 
   const { passwordHash: _, ...safeUser } = currentUser;
   res.status(201).json({ ...comment, author: safeUser });

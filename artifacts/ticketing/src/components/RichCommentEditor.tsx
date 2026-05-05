@@ -1,7 +1,7 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   Box, IconButton, Tooltip, Divider, LinearProgress, Chip,
-  Typography, Paper,
+  Typography, Paper, List, ListItemButton, ListItemText, ListItemAvatar, Avatar,
 } from '@mui/material';
 import {
   FormatBold, FormatItalic, FormatListBulleted, FormatListNumbered,
@@ -23,6 +23,13 @@ interface RichCommentEditorProps {
   onAttachmentsChange?: (attachments: PendingAttachment[]) => void;
   minRows?: number;
 }
+
+interface AutocompleteUser { id: number; name: string; avatarUrl?: string | null; }
+interface AutocompleteTicket { id: number; title: string; }
+type AutocompleteState =
+  | { type: 'mention'; query: string; startIndex: number; results: AutocompleteUser[]; selectedIdx: number }
+  | { type: 'ticket'; query: string; startIndex: number; results: AutocompleteTicket[]; selectedIdx: number }
+  | null;
 
 function wrapSelection(
   textarea: HTMLTextAreaElement,
@@ -104,16 +111,144 @@ export function RichCommentEditor({
   placeholder,
   onAttachmentsChange,
   minRows = 3,
+  ticketId,
 }: RichCommentEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [autocomplete, setAutocomplete] = useState<AutocompleteState>(null);
+  const [allUsers, setAllUsers] = useState<AutocompleteUser[]>([]);
+
+  // Load users once
+  useEffect(() => {
+    fetch('/api/users', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((users: any[]) => setAllUsers(users.map((u) => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }))))
+      .catch(() => {});
+  }, []);
 
   const action = useCallback((fn: (ta: HTMLTextAreaElement) => void) => {
     if (textareaRef.current) fn(textareaRef.current);
   }, []);
+
+  const closeAutocomplete = useCallback(() => setAutocomplete(null), []);
+
+  const insertMention = useCallback((user: AutocompleteUser) => {
+    if (!autocomplete || autocomplete.type !== 'mention') return;
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const before = value.slice(0, autocomplete.startIndex);
+    const after = value.slice(ta.selectionStart);
+    const tag = `@[${user.name}]`;
+    const newVal = before + tag + ' ' + after;
+    onChange(newVal);
+    closeAutocomplete();
+    setTimeout(() => {
+      ta.focus();
+      const pos = autocomplete.startIndex + tag.length + 1;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  }, [autocomplete, value, onChange, closeAutocomplete]);
+
+  const insertTicketRef = useCallback((ticket: AutocompleteTicket) => {
+    if (!autocomplete || autocomplete.type !== 'ticket') return;
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const before = value.slice(0, autocomplete.startIndex);
+    const after = value.slice(ta.selectionStart);
+    const tag = `#${ticket.id}`;
+    const newVal = before + tag + ' ' + after;
+    onChange(newVal);
+    closeAutocomplete();
+    setTimeout(() => {
+      ta.focus();
+      const pos = autocomplete.startIndex + tag.length + 1;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  }, [autocomplete, value, onChange, closeAutocomplete]);
+
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    onChange(newVal);
+    const cursor = e.target.selectionStart;
+
+    // Find trigger character before cursor
+    const textBefore = newVal.slice(0, cursor);
+
+    // Check for @mention
+    const mentionMatch = textBefore.match(/@([^\s@#]*)$/);
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase();
+      const startIndex = cursor - mentionMatch[0].length;
+      const results = allUsers
+        .filter((u) => u.name.toLowerCase().includes(query))
+        .slice(0, 6);
+      setAutocomplete({ type: 'mention', query, startIndex, results, selectedIdx: 0 });
+      return;
+    }
+
+    // Check for #ticket
+    const ticketMatch = textBefore.match(/#(\d*)$/);
+    if (ticketMatch) {
+      const query = ticketMatch[1];
+      const startIndex = cursor - ticketMatch[0].length;
+      // Fetch ticket suggestions
+      fetch(`/api/tickets?search=${query}&limit=6`, { credentials: 'include' })
+        .then((r) => r.json())
+        .then((data: any) => {
+          const tickets: AutocompleteTicket[] = (data.tickets ?? data ?? [])
+            .slice(0, 6)
+            .map((t: any) => ({ id: t.id, title: t.title }));
+          setAutocomplete({ type: 'ticket', query, startIndex, results: tickets, selectedIdx: 0 });
+        })
+        .catch(() => closeAutocomplete());
+      return;
+    }
+
+    closeAutocomplete();
+  }, [onChange, allUsers, closeAutocomplete]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (autocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocomplete((a) => a ? { ...a, selectedIdx: Math.min(a.selectedIdx + 1, a.results.length - 1) } : null);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocomplete((a) => a ? { ...a, selectedIdx: Math.max(a.selectedIdx - 1, 0) } : null);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (autocomplete.type === 'mention') {
+          const user = (autocomplete.results as AutocompleteUser[])[autocomplete.selectedIdx];
+          if (user) insertMention(user);
+        } else {
+          const ticket = (autocomplete.results as AutocompleteTicket[])[autocomplete.selectedIdx];
+          if (ticket) insertTicketRef(ticket);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        closeAutocomplete();
+        return;
+      }
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      e.preventDefault();
+      action(ta => wrapSelection(ta, '**', '**', 'testo', onChange));
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      e.preventDefault();
+      action(ta => wrapSelection(ta, '*', '*', 'testo', onChange));
+    }
+  }, [autocomplete, insertMention, insertTicketRef, closeAutocomplete, action, onChange]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -168,8 +303,10 @@ export function RichCommentEditor({
 
   const isImage = (mime: string) => mime.startsWith('image/');
 
+  const hasResults = autocomplete && autocomplete.results.length > 0;
+
   return (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
       <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
         {/* Toolbar */}
         <Box
@@ -225,13 +362,18 @@ export function RichCommentEditor({
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+          <Box sx={{ flex: 1 }} />
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', px: 1 }}>
+            @ menzione &nbsp;·&nbsp; # ticket
+          </Typography>
         </Box>
 
         {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={handleTextChange}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={minRows}
           style={{
@@ -247,18 +389,67 @@ export function RichCommentEditor({
             background: 'transparent',
             minHeight: `${minRows * 1.6 * 14 + 24}px`,
           }}
-          onKeyDown={e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-              e.preventDefault();
-              action(ta => wrapSelection(ta, '**', '**', 'testo', onChange));
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-              e.preventDefault();
-              action(ta => wrapSelection(ta, '*', '*', 'testo', onChange));
-            }
-          }}
         />
       </Paper>
+
+      {/* Autocomplete dropdown */}
+      {hasResults && (
+        <Paper
+          ref={dropdownRef}
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            left: 0,
+            bottom: '100%',
+            mb: 0.5,
+            zIndex: 1400,
+            minWidth: 220,
+            maxWidth: 340,
+            borderRadius: 2,
+            overflow: 'hidden',
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              {autocomplete!.type === 'mention' ? '@ Menziona utente' : '# Riferimento ticket'}
+            </Typography>
+          </Box>
+          <List dense disablePadding>
+            {autocomplete!.type === 'mention'
+              ? (autocomplete!.results as AutocompleteUser[]).map((user, idx) => (
+                <ListItemButton
+                  key={user.id}
+                  selected={idx === autocomplete!.selectedIdx}
+                  onMouseDown={(e) => { e.preventDefault(); insertMention(user); }}
+                  sx={{ py: 0.75 }}
+                >
+                  <ListItemAvatar sx={{ minWidth: 36 }}>
+                    <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
+                      {user.name.charAt(0)}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText primary={user.name} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                </ListItemButton>
+              ))
+              : (autocomplete!.results as AutocompleteTicket[]).map((ticket, idx) => (
+                <ListItemButton
+                  key={ticket.id}
+                  selected={idx === autocomplete!.selectedIdx}
+                  onMouseDown={(e) => { e.preventDefault(); insertTicketRef(ticket); }}
+                  sx={{ py: 0.75 }}
+                >
+                  <ListItemText
+                    primary={<><Box component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>#{ticket.id}</Box> {ticket.title}</>}
+                    primaryTypographyProps={{ fontSize: '0.85rem', noWrap: true }}
+                  />
+                </ListItemButton>
+              ))
+            }
+          </List>
+        </Paper>
+      )}
 
       {uploading && <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />}
 
