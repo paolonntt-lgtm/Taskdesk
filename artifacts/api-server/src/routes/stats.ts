@@ -288,17 +288,16 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
 
-    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
+    db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
       .from(usersTable)
       .innerJoin(
-        ticketsTable,
-        orgId != null
-          ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
-          : eq(ticketsTable.assignedTo, usersTable.id)
+        ticketCommentsTable,
+        and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .where(orgId != null ? and(userOrgFilter, isNotNull(ticketsTable.resolutionNote)) : isNotNull(ticketsTable.resolutionNote))
+      .innerJoin(ticketsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
+      .where(orgId != null ? and(userOrgFilter, eq(ticketsTable.organizationId, orgId)) : undefined)
       .groupBy(usersTable.id, usersTable.name)
-      .orderBy(sql`count(${ticketsTable.id}) desc`).limit(5),
+      .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
   ]);
 
   const statusLabels: Record<string, string> = {
@@ -372,18 +371,17 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
     db.select({
       id: usersTable.id,
       name: usersTable.name,
-      count: sql<number>`count(${ticketsTable.id})`,
+      count: sql<number>`count(${ticketCommentsTable.id})`,
     })
       .from(usersTable)
       .innerJoin(
-        ticketsTable,
-        orgId != null
-          ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
-          : eq(ticketsTable.assignedTo, usersTable.id)
+        ticketCommentsTable,
+        and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .where(orgId != null ? and(userOrgFilter, isNotNull(ticketsTable.resolutionNote)) : isNotNull(ticketsTable.resolutionNote))
+      .innerJoin(ticketsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
+      .where(orgId != null ? and(userOrgFilter, eq(ticketsTable.organizationId, orgId)) : undefined)
       .groupBy(usersTable.id, usersTable.name)
-      .orderBy(sql`count(${ticketsTable.id}) desc`)
+      .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
       .limit(5),
   ]);
 
