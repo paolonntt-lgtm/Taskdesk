@@ -7,10 +7,11 @@ import { destroySessionsForUser } from "../lib/session";
 import { sendEmail, buildPasswordResetEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { logger } from "../lib/logger";
+import { forgotPasswordRateLimiter, resetPasswordRateLimiter } from "../lib/rateLimiter";
 
 const router: IRouter = Router();
 
-router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+router.post("/auth/forgot-password", forgotPasswordRateLimiter, async (req, res): Promise<void> => {
   const { email } = req.body ?? {};
   if (!email || typeof email !== "string") {
     res.status(400).json({ message: "Email obbligatoria" });
@@ -55,7 +56,7 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   })();
 });
 
-router.post("/auth/reset-password", async (req, res): Promise<void> => {
+router.post("/auth/reset-password", resetPasswordRateLimiter, async (req, res): Promise<void> => {
   const { token, password } = req.body ?? {};
 
   if (!token || typeof token !== "string") {

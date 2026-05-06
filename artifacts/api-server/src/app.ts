@@ -8,6 +8,10 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust the first hop of the reverse proxy so that express-rate-limit and
+// other IP-based middleware see the real client IP from X-Forwarded-For.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

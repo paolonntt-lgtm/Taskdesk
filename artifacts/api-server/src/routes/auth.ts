@@ -6,6 +6,7 @@ import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
+import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 
 const router: IRouter = Router();
 
@@ -36,7 +37,7 @@ export async function upgradePasswordHashIfNeeded(
   await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
 }
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: parsed.error.message });
@@ -76,7 +77,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({ user: safeUser, message: "Login effettuato" });
 });
 
-router.post("/auth/register", async (req, res): Promise<void> => {
+router.post("/auth/register", registerRateLimiter, async (req, res): Promise<void> => {
   const { name, email, password, organizationName } = req.body ?? {};
 
   if (!name || !email || !password || !organizationName) {
