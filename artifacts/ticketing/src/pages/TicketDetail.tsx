@@ -208,13 +208,13 @@ export default function TicketDetail() {
       </Box>
 
       {/* ── Compact header card ── */}
-      <Card sx={{ mb: 3, overflow: 'visible' }}>
-        <Box px={3} pt={2.5} pb={2}>
+      <Card sx={{ mb: { xs: 1.5, sm: 3 }, overflow: 'visible' }}>
+        <Box px={{ xs: 2, sm: 3 }} pt={{ xs: 1.5, sm: 2.5 }} pb={{ xs: 1.5, sm: 2 }}>
           {/* Row 1: author + date */}
-          <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
+          <Box display="flex" alignItems="center" gap={1.5} mb={{ xs: 1, sm: 1.5 }}>
             <Avatar
               src={creator?.avatarUrl ?? undefined}
-              sx={{ width: 42, height: 42, bgcolor: 'primary.main', fontSize: 18, flexShrink: 0 }}
+              sx={{ width: { xs: 32, sm: 42 }, height: { xs: 32, sm: 42 }, bgcolor: 'primary.main', fontSize: { xs: 14, sm: 18 }, flexShrink: 0 }}
             >
               {creator?.name?.charAt(0)}
             </Avatar>
@@ -232,7 +232,7 @@ export default function TicketDetail() {
           </Box>
 
           {/* Row 2: ticket title */}
-          <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', mb: 1.5, lineHeight: 1.3 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', mb: { xs: 1, sm: 1.5 }, lineHeight: 1.3, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
             #{ticket.id} — {ticket.title}
           </Typography>
 
@@ -468,8 +468,8 @@ export default function TicketDetail() {
       </Card>
 
       <Box>
-          <Card sx={{ mb: 3 }}>
-            <Box p={3}>
+          <Card sx={{ mb: { xs: 1.5, sm: 3 } }}>
+            <Box p={{ xs: 2, sm: 3 }}>
               <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
               <Box mt={1}>
                 <MarkdownContent content={ticket.description} />
@@ -520,9 +520,9 @@ export default function TicketDetail() {
                 <Tab label={t.ticketDetail.tabActivity} />
               </Tabs>
             </Box>
-            <Box p={3}>
+            <Box p={{ xs: 1.5, sm: 3 }}>
               <TabPanel value={tabValue} index={0}>
-                <Box display="flex" flexDirection="column" gap={3}>
+                <Box display="flex" flexDirection="column" gap={{ xs: 1.5, sm: 3 }}>
                   {comments?.length === 0 && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
                       {t.ticketDetail.noComments}
@@ -533,10 +533,10 @@ export default function TicketDetail() {
                     const isSolution = (c as any).isSolution === true;
                     const canMarkSolution = isAdmin || ticket.assignedTo === currentUser?.id || ticket.createdBy === currentUser?.id;
                     return (
-                    <Box key={c.id} display="flex" gap={2}>
+                    <Box key={c.id} display="flex" gap={{ xs: 1, sm: 2 }}>
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
-                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main' }}
+                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, fontSize: { xs: 14, sm: 20 } }}
                       >
                         {c.author?.name?.charAt(0)}
                       </Avatar>
@@ -564,7 +564,7 @@ export default function TicketDetail() {
                           </Box>
                         )}
                         <Box
-                          p={2}
+                          p={{ xs: 1.5, sm: 2 }}
                           sx={isSolution ? { background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' } : undefined}
                         >
                           <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5} alignItems="center">
