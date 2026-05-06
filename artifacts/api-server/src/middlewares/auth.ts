@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getCurrentUserId } from "../lib/session";
+import { getCurrentUserId, destroySession, getSessionId } from "../lib/session";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
@@ -12,6 +12,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) {
     res.status(401).json({ error: "User not found" });
+    return;
+  }
+  if (!user.isActive) {
+    const sessionId = getSessionId(req);
+    if (sessionId) destroySession(sessionId);
+    res.status(401).json({ error: "Account disabled" });
     return;
   }
   (req as any).currentUser = user;

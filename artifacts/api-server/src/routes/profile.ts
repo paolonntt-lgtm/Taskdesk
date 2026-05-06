@@ -2,13 +2,10 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { createHash } from "crypto";
+import { destroySessionsForUser } from "../lib/session";
+import { verifyPassword, hashPassword } from "./auth";
 
 const router: IRouter = Router();
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password + "ticketing_salt").digest("hex");
-}
 
 const safeFields = {
   id: usersTable.id,
@@ -76,7 +73,7 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
       res.status(400).json({ message: "Inserisci la password attuale per cambiarla" });
       return;
     }
-    if (hashPassword(currentPassword) !== current.passwordHash) {
+    if (!(await verifyPassword(currentPassword, current.passwordHash ?? ""))) {
       res.status(401).json({ message: "Password attuale non corretta" });
       return;
     }
@@ -84,7 +81,7 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
       res.status(400).json({ message: "La nuova password deve essere di almeno 6 caratteri" });
       return;
     }
-    updates.passwordHash = hashPassword(newPassword);
+    updates.passwordHash = await hashPassword(newPassword);
   }
 
   if (Object.keys(updates).length === 0) {
@@ -97,6 +94,13 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
     .set(updates)
     .where(eq(usersTable.id, current.id))
     .returning(safeFields);
+
+  if (updates.passwordHash !== undefined) {
+    destroySessionsForUser(current.id);
+    res.setHeader("Set-Cookie", "session_id=; Path=/; HttpOnly; Max-Age=0");
+    res.json({ user: updated, message: "Password aggiornata. Accedi di nuovo per continuare.", requiresReauth: true });
+    return;
+  }
 
   res.json({ user: updated, message: "Profilo aggiornato con successo" });
 });

@@ -33,10 +33,9 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 ### Sistema Ticketing Aziendale (`artifacts/ticketing`)
 - **Type**: React SPA (Vite)
 - **Language**: Italian UI
-- **Auth**: Cookie-based sessions (SHA-256 hashed passwords, salt "ticketing_salt")
-- **Demo users**:
-  - Admin: `admin@example.com` / `admin123`
-  - User: `utente@example.com` / `user123`
+- **Auth**: Cookie-based sessions (bcryptjs-hashed passwords, rounds=12, with legacy SHA-256 auto-upgrade on login)
+- **Demo users** (seed): `admin@example.com` / `admin123`, `utente@example.com` / `user123`
+- **Demo users** (seedDemo route): `demo.admin@taskdesk.it` / `Demo2024!`
 
 ### API Server (`artifacts/api-server`)
 - **Port**: 8080 (proxied via `/api`)

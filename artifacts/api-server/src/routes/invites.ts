@@ -3,14 +3,11 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, inviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { createSession } from "../lib/session";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
+import { hashPassword } from "./auth";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password + "ticketing_salt").digest("hex");
-}
 
 router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const admin = (req as any).currentUser;
@@ -86,7 +83,6 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     return;
   }
 
-  // Re-check seat limit at registration time (admin's plan)
   const usage = await getSeatUsage(invite.adminId);
   if (usage.limitReached) {
     res.status(402).json({
@@ -96,11 +92,10 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     return;
   }
 
-  // Look up admin's organization
   const [admin] = await db.select({ organizationId: usersTable.organizationId })
     .from(usersTable).where(eq(usersTable.id, invite.adminId));
 
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
@@ -110,8 +105,6 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     isActive: true,
   }).returning();
 
-  // Track most recent usage but DO NOT consume the link — it's reusable
-  // until it expires or the org's seat limit is reached.
   await db.update(inviteTokensTable)
     .set({ usedAt: new Date(), usedById: user.id })
     .where(eq(inviteTokensTable.token, token));

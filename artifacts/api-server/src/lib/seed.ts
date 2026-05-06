@@ -1,10 +1,6 @@
 import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable } from "@workspace/db";
-import { createHash } from "crypto";
+import { hashPassword } from "../routes/auth";
 import { logger } from "./logger";
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password + "ticketing_salt").digest("hex");
-}
 
 export async function seedIfEmpty(): Promise<void> {
   const existing = await db.select().from(usersTable);
@@ -15,10 +11,16 @@ export async function seedIfEmpty(): Promise<void> {
 
   logger.info("Seeding demo data...");
 
+  const [adminHash, user1Hash, user2Hash] = await Promise.all([
+    hashPassword("admin123"),
+    hashPassword("user123"),
+    hashPassword("user123"),
+  ]);
+
   const [admin, user1, user2] = await db.insert(usersTable).values([
-    { name: "Admin Sistema", email: "admin@example.com", passwordHash: hashPassword("admin123"), role: "admin", mainLocation: "Sede A" },
-    { name: "Marco Rossi", email: "utente@example.com", passwordHash: hashPassword("user123"), role: "user", mainLocation: "Sede B" },
-    { name: "Sara Bianchi", email: "sara@example.com", passwordHash: hashPassword("user123"), role: "user", mainLocation: "Sede C" },
+    { name: "Admin Sistema", email: "admin@example.com", passwordHash: adminHash, role: "admin", mainLocation: "Sede A" },
+    { name: "Marco Rossi", email: "utente@example.com", passwordHash: user1Hash, role: "user", mainLocation: "Sede B" },
+    { name: "Sara Bianchi", email: "sara@example.com", passwordHash: user2Hash, role: "user", mainLocation: "Sede C" },
   ]).returning();
 
   const now = new Date();

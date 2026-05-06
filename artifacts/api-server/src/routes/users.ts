@@ -9,7 +9,9 @@ import {
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
+import { hashPassword } from "./auth";
+import { destroySessionsForUser } from "../lib/session";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 
 const router: IRouter = Router();
@@ -26,9 +28,6 @@ const userFields = {
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
 };
-
-const hashPassword = (password: string) =>
-  createHash("sha256").update(`${password}ticketing_salt`).digest("hex");
 
 router.get("/users", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
@@ -75,7 +74,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   const [user] = await db.insert(usersTable).values({
     name,
     email,
-    passwordHash: hashPassword(password),
+    passwordHash: await hashPassword(password),
     role,
     organizationId: currentUser.organizationId,
     mainLocation: mainLocation ?? null,
@@ -132,7 +131,6 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
 
   const currentUser = (req as any).currentUser;
 
-  // Enforce seat limit when reactivating a deactivated user
   if (updates.isActive === true) {
     const [target] = await db.select({ isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, id));
     if (target && target.isActive === false) {
@@ -158,6 +156,10 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
   if (!updated) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (updates.isActive === false) {
+    destroySessionsForUser(id);
   }
 
   res.json(updated);
@@ -191,6 +193,8 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
     res.status(404).json({ error: "User not found" });
     return;
   }
+
+  destroySessionsForUser(id);
 
   await db.transaction(async (tx) => {
     await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, id));

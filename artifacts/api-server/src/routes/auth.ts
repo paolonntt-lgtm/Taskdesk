@@ -3,13 +3,37 @@ import { eq, sql } from "drizzle-orm";
 import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
+import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
-function hashPassword(password: string): string {
+const BCRYPT_ROUNDS = 12;
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+function legacySha256Hash(password: string): string {
   return createHash("sha256").update(password + "ticketing_salt").digest("hex");
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  if (hash.startsWith("$2b$") || hash.startsWith("$2a$")) {
+    return bcrypt.compare(password, hash);
+  }
+  return legacySha256Hash(password) === hash;
+}
+
+export async function upgradePasswordHashIfNeeded(
+  userId: number,
+  password: string,
+  currentHash: string
+): Promise<void> {
+  if (currentHash.startsWith("$2b$") || currentHash.startsWith("$2a$")) return;
+  const newHash = await hashPassword(password);
+  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
 }
 
 router.post("/auth/login", async (req, res): Promise<void> => {
@@ -20,22 +44,26 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   const { email, password } = parsed.data;
-  const passwordHash = hashPassword(password);
 
   const [user] = await db
     .select()
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
-  if (!user || user.passwordHash !== passwordHash) {
+  if (!user || !(await verifyPassword(password, user.passwordHash ?? ""))) {
     res.status(401).json({ error: "Invalid credentials", message: "Email o password non corretti" });
     return;
   }
 
-  // Record last login timestamp
-  await db.update(usersTable)
-    .set({ lastLoginAt: sql`now()` })
-    .where(eq(usersTable.id, user.id));
+  if (!user.isActive) {
+    res.status(401).json({ error: "Account disabled", message: "Il tuo account è stato disattivato. Contatta l'amministratore." });
+    return;
+  }
+
+  await Promise.all([
+    db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, user.id)),
+    upgradePasswordHashIfNeeded(user.id, password, user.passwordHash ?? ""),
+  ]);
 
   const sessionId = createSession(user.id);
 
@@ -74,12 +102,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  // Create organization first, then the admin user
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
   }).returning();
 
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
@@ -89,7 +116,6 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     isActive: true,
   }).returning();
 
-  // Notify all superadmins by email
   const superadmins = await db.select({ email: usersTable.email })
     .from(usersTable)
     .where(eq(usersTable.isSuperAdmin, true));
@@ -155,8 +181,14 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
+  if (!row.isActive) {
+    const sessionId = getSessionId(req);
+    if (sessionId) destroySession(sessionId);
+    res.status(401).json({ error: "Account disabled" });
+    return;
+  }
+
   res.json(row);
 });
 
 export default router;
-export { hashPassword };

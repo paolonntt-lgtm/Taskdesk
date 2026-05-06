@@ -1,13 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, usersTable, ticketsTable, ticketCommentsTable } from "@workspace/db";
+import { hashPassword } from "./auth";
 
 const router: IRouter = Router();
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password + "ticketing_salt").digest("hex");
-}
 
 function daysAgo(n: number): Date {
   const d = new Date();
@@ -32,7 +28,7 @@ router.post("/seed-demo", async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const pw = hashPassword("Demo2024!");
+  const pw = await hashPassword("Demo2024!");
 
   const [admin] = await db.insert(usersTable).values({
     name: "Marco Bianchi",

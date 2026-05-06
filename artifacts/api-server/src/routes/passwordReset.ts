@@ -3,13 +3,13 @@ import { eq, and, gt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
 import { hashPassword } from "./auth";
+import { destroySessionsForUser } from "../lib/session";
 import { sendEmail, buildPasswordResetEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-// POST /api/auth/forgot-password
 router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   const { email } = req.body ?? {};
   if (!email || typeof email !== "string") {
@@ -17,10 +17,8 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
     return;
   }
 
-  // Always return success to avoid user enumeration
   res.json({ message: "Se l'email è registrata, riceverai un link per reimpostare la password." });
 
-  // Fire-and-forget: look up user and send email
   (async () => {
     const [user] = await db
       .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, isActive: usersTable.isActive })
@@ -29,11 +27,9 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
 
     if (!user || !user.isActive) return;
 
-    // Generate a secure token
     const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Delete any existing unused tokens for this user
     await db.delete(passwordResetTokensTable)
       .where(and(
         eq(passwordResetTokensTable.userId, user.id),
@@ -59,7 +55,6 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   })();
 });
 
-// POST /api/auth/reset-password
 router.post("/auth/reset-password", async (req, res): Promise<void> => {
   const { token, password } = req.body ?? {};
 
@@ -88,7 +83,7 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
     return;
   }
 
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
 
   await db.update(usersTable)
     .set({ passwordHash })
@@ -97,6 +92,8 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
   await db.update(passwordResetTokensTable)
     .set({ usedAt: new Date() })
     .where(eq(passwordResetTokensTable.id, resetToken.id));
+
+  destroySessionsForUser(resetToken.userId);
 
   res.json({ message: "Password aggiornata con successo. Puoi ora accedere con la nuova password." });
 });

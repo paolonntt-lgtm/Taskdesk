@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { eq, sql } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { db, usersTable, organizationsTable } from "@workspace/db";
 import { createSession } from "../lib/session";
 import { appBaseUrl } from "../lib/appUrl";
@@ -7,6 +8,18 @@ import { logger } from "../lib/logger";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 
 const router = Router();
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const pendingOAuthStates = new Map<string, number>();
+
+function pruneExpiredStates(): void {
+  const now = Date.now();
+  for (const [state, createdAt] of pendingOAuthStates) {
+    if (now - createdAt > OAUTH_STATE_TTL_MS) {
+      pendingOAuthStates.delete(state);
+    }
+  }
+}
 
 function googleClientId(): string {
   return process.env.GOOGLE_CLIENT_ID ?? "";
@@ -23,6 +36,16 @@ router.get("/auth/google", (req, res) => {
     res.status(503).send("Google OAuth non configurato. Imposta GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.");
     return;
   }
+
+  pruneExpiredStates();
+  const state = randomBytes(24).toString("hex");
+  pendingOAuthStates.set(state, Date.now());
+
+  res.setHeader(
+    "Set-Cookie",
+    `oauth_state=${state}; Path=/api/auth/google/callback; HttpOnly; SameSite=Lax; Max-Age=600`
+  );
+
   const params = new URLSearchParams({
     client_id: googleClientId(),
     redirect_uri: getCallbackUrl(),
@@ -30,15 +53,45 @@ router.get("/auth/google", (req, res) => {
     scope: "openid email profile",
     access_type: "offline",
     prompt: "select_account",
+    state,
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 });
 
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
-  const { code, error } = req.query as { code?: string; error?: string };
+  const { code, error, state } = req.query as { code?: string; error?: string; state?: string };
+
+  const cookieHeader = req.headers.cookie ?? "";
+  const cookies = Object.fromEntries(
+    cookieHeader.split(";").map((c) => {
+      const [k, ...v] = c.trim().split("=");
+      return [k.trim(), v.join("=")];
+    })
+  );
+  const cookieState = cookies["oauth_state"];
+
+  res.setHeader(
+    "Set-Cookie",
+    "oauth_state=; Path=/api/auth/google/callback; HttpOnly; Max-Age=0"
+  );
 
   if (error || !code) {
     res.redirect("/app/?oauth_error=cancelled");
+    return;
+  }
+
+  if (!state || !cookieState || state !== cookieState || !pendingOAuthStates.has(state)) {
+    logger.warn({ state, hasCookieState: !!cookieState, stateMatch: state === cookieState }, "OAuth callback state validation failed");
+    res.redirect("/app/?oauth_error=invalid_state");
+    return;
+  }
+
+  const stateCreatedAt = pendingOAuthStates.get(state)!;
+  pendingOAuthStates.delete(state);
+
+  if (Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
+    logger.warn({ state }, "OAuth state expired");
+    res.redirect("/app/?oauth_error=invalid_state");
     return;
   }
 

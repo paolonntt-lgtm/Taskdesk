@@ -1,4 +1,5 @@
 import { Request } from "express";
+import { randomBytes } from "crypto";
 
 export interface SessionData {
   userId?: number;
@@ -7,7 +8,7 @@ export interface SessionData {
 const sessions = new Map<string, SessionData>();
 
 export function createSession(userId: number): string {
-  const sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const sessionId = randomBytes(32).toString("hex");
   sessions.set(sessionId, { userId });
   return sessionId;
 }
@@ -18,6 +19,14 @@ export function getSession(sessionId: string): SessionData | undefined {
 
 export function destroySession(sessionId: string): void {
   sessions.delete(sessionId);
+}
+
+export function destroySessionsForUser(userId: number, excludeSessionId?: string): void {
+  for (const [id, data] of sessions) {
+    if (data.userId === userId && id !== excludeSessionId) {
+      sessions.delete(id);
+    }
+  }
 }
 
 export function getSessionId(req: Request): string | undefined {
