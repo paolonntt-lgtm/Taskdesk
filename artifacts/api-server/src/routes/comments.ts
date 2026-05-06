@@ -134,6 +134,21 @@ router.patch("/tickets/:id/comments/:commentId/solution", requireAuth, async (re
       .update(ticketCommentsTable)
       .set({ isSolution: true })
       .where(eq(ticketCommentsTable.id, commentId));
+
+    // Auto-resolve ticket if not already resolved/closed
+    if (ticket.status !== "resolved" && ticket.status !== "closed") {
+      await db
+        .update(ticketsTable)
+        .set({ status: "resolved", updatedAt: new Date() })
+        .where(eq(ticketsTable.id, ticketId));
+
+      await db.insert(ticketActivityLogsTable).values({
+        ticketId,
+        userId: currentUser.id,
+        actionType: "status_changed",
+        actionDescription: `${currentUser.name} ha cambiato lo stato in Risolto (soluzione trovata)`,
+      });
+    }
   }
 
   await db.insert(ticketActivityLogsTable).values({
@@ -145,7 +160,7 @@ router.patch("/tickets/:id/comments/:commentId/solution", requireAuth, async (re
       : `${currentUser.name} ha rimosso il contrassegno di soluzione`,
   });
 
-  res.json({ commentId, isSolution: newValue });
+  res.json({ commentId, isSolution: newValue, autoResolved: newValue && ticket.status !== "resolved" && ticket.status !== "closed" });
 });
 
 export default router;

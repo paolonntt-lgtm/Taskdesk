@@ -95,13 +95,22 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     .groupBy(ticketInternalNotesTable.ticketId);
   const noteMap = new Map(noteCounts.map((n) => [n.ticketId, Number(n.count)]));
 
-  const result = tickets.map((t) => buildTicketWithDetails(
-    t,
-    userMap.get(t.createdBy)!,
-    t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
-    commentMap.get(t.id) ?? 0,
-    noteMap.get(t.id) ?? 0
-  ));
+  const solutionTickets = await db
+    .selectDistinct({ ticketId: ticketCommentsTable.ticketId })
+    .from(ticketCommentsTable)
+    .where(eq(ticketCommentsTable.isSolution, true));
+  const solutionSet = new Set(solutionTickets.map((s) => s.ticketId));
+
+  const result = tickets.map((t) => ({
+    ...buildTicketWithDetails(
+      t,
+      userMap.get(t.createdBy)!,
+      t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
+      commentMap.get(t.id) ?? 0,
+      noteMap.get(t.id) ?? 0
+    ),
+    hasSolution: solutionSet.has(t.id),
+  }));
 
   res.setHeader("Cache-Control", "private, max-age=30");
   res.json(result);
