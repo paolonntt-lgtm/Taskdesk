@@ -25,7 +25,7 @@ TaskDesk is an internal ticketing platform with a React web client, an Expo mobi
 ## Scan Anchors
 
 - **Production entry points**: `artifacts/api-server/src/index.ts`, `artifacts/api-server/src/app.ts`, route mounting in `artifacts/api-server/src/routes/index.ts`.
-- **Highest-risk server areas**: `artifacts/api-server/src/routes/{auth,oauth,passwordReset,invites,tickets,comments,notes,attachments,activity,storage,users,stripe}.ts`, `artifacts/api-server/src/lib/{session,objectStorage}.ts`.
+- **Highest-risk server areas**: `artifacts/api-server/src/routes/{auth,oauth,passwordReset,invites,tickets,comments,notes,attachments,activity,stats,storage,users,stripe}.ts`, `artifacts/api-server/src/lib/{session,objectStorage,notifications}.ts`.
 - **Public vs authenticated vs admin surfaces**: public/auth bootstrap routes include `/api/auth/login`, `/api/auth/register`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/google*`, `/api/stripe/products`, invite validation/registration, and storage object download routes; most ticket/user/settings surfaces are authenticated; admin boundaries should be enforced in `middlewares/auth.ts` and route handlers.
 - **Dev-only areas usually ignored**: `artifacts/mockup-sandbox/**`, `artifacts/mobile/scripts/**`, and workflow/dev server helpers unless they are reachable from production traffic.
 
@@ -37,11 +37,11 @@ TaskDesk uses opaque cookie sessions and Google OAuth login. The system must iss
 
 ### Tampering
 
-Authenticated users can create and update tickets, comments, attachments, profiles, and settings. The API must enforce which roles may mutate which fields, and it must validate that cross-entity references such as `ticketId`, `assignedTo`, attachment paths, and billing changes stay within the caller’s organization and privilege level.
+Authenticated users can create and update tickets, comments, attachments, profiles, and settings. The API must enforce which roles may mutate which fields, and it must validate that cross-entity references such as `ticketId`, `assignedTo`, attachment paths, and billing changes stay within the caller’s organization and privilege level. Client-side affordances such as hiding assignee pickers or internal-note tabs are not a security control.
 
 ### Information Disclosure
 
-Ticket details, internal notes, comments, attachments, billing details, user records, and object storage contents are all sensitive organization-scoped data. Every read path must verify both authentication and tenant/role authorization, and private object storage paths must never become a bearer secret that grants unrestricted download access.
+Ticket details, internal notes, comments, attachments, billing details, user records, and object storage contents are all sensitive organization-scoped data. Every read path must verify both authentication and tenant/role authorization, and private object storage paths must never become a bearer secret that grants unrestricted download access. Secondary convenience surfaces such as ticket search and dashboard stats must not reveal privileged internal-note text or raw `users` table rows.
 
 ### Denial of Service
 
