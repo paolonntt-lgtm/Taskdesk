@@ -206,7 +206,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc)));
 });
 
-router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
+router.patch("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
@@ -268,10 +268,16 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   if ("assignedTo" in updates && updates.assignedTo !== existing.assignedTo) {
     if (updates.assignedTo) {
-      const [assigneeUser] = await db.select().from(usersTable).where(eq(usersTable.id, updates.assignedTo));
+      const [assigneeUser] = await db.select().from(usersTable).where(
+        and(eq(usersTable.id, updates.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+      );
+      if (!assigneeUser) {
+        res.status(400).json({ error: "Assignee not found in organization" });
+        return;
+      }
       activityLogs.push({
         actionType: "assigned",
-        actionDescription: `Ticket assegnato a ${assigneeUser?.name ?? "utente"}`,
+        actionDescription: `Ticket assegnato a ${assigneeUser.name}`,
       });
     } else {
       activityLogs.push({ actionType: "unassigned", actionDescription: "Assegnazione rimossa" });

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, ticketInternalNotesTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketNoteBody } from "@workspace/api-zod";
@@ -9,6 +9,16 @@ const router: IRouter = Router();
 router.get("/tickets/:id/notes", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
 
   const notes = await db
     .select()
@@ -40,8 +50,11 @@ router.post("/tickets/:id/notes", requireAuth, async (req, res): Promise<void> =
   }
 
   const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
 
-  const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id));
+  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
   if (!ticket) {
     res.status(404).json({ error: "Ticket not found" });
     return;

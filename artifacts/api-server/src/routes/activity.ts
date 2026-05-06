@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, inArray } from "drizzle-orm";
-import { db, ticketActivityLogsTable, usersTable } from "@workspace/db";
+import { eq, inArray, and } from "drizzle-orm";
+import { db, ticketActivityLogsTable, ticketsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -8,6 +8,16 @@ const router: IRouter = Router();
 router.get("/tickets/:id/activity", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
 
   const logs = await db
     .select()
