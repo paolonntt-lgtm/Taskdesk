@@ -56,7 +56,7 @@ function RootLayoutNav() {
         options={{
           title: "Dettaglio ticket",
           headerBackTitle: "Indietro",
-          headerStyle: { backgroundColor: "transparent" },
+          animation: "slide_from_right",
         }}
       />
       <Stack.Screen
