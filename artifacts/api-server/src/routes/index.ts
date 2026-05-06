@@ -18,6 +18,7 @@ import notificationPreferencesRouter from "./notificationPreferences";
 import seedDemoRouter from "./seedDemo";
 import superadminRouter from "./superadmin";
 import passwordResetRouter from "./passwordReset";
+import oauthRouter from "./oauth";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(notificationPreferencesRouter);
 router.use(seedDemoRouter);
 router.use(superadminRouter);
 router.use(passwordResetRouter);
+router.use(oauthRouter);
 
 export default router;
