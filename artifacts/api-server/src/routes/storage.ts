@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
+import { eq, and } from "drizzle-orm";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
+import { db, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -82,30 +83,46 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
  * GET /storage/objects/*
  *
  * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
+ * Requires authentication and validates that the requested path corresponds
+ * to a recorded attachment in the database (prevents unauthenticated access
+ * and path traversal to arbitrary private objects).
  */
-router.get("/storage/objects/*path", async (req: Request, res: Response) => {
+router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
+    const currentUser = (req as any).currentUser;
+    const orgId: number | null = currentUser.organizationId ?? null;
+
+    // Non-superadmin users without an org cannot access any attachment.
+    if (!currentUser.isSuperAdmin && orgId === null) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const attachmentQuery = db
+      .select({ id: ticketAttachmentsTable.id })
+      .from(ticketAttachmentsTable)
+      .innerJoin(ticketsTable, eq(ticketsTable.id, ticketAttachmentsTable.ticketId));
+
+    const orgCondition = eq(ticketAttachmentsTable.objectPath, objectPath);
+
+    // Superadmins can access attachments across all organizations.
+    // Regular users must belong to the same organization as the ticket.
+    const whereClause = currentUser.isSuperAdmin
+      ? orgCondition
+      : and(orgCondition, eq(ticketsTable.organizationId, orgId!));
+
+    const [attachment] = await attachmentQuery.where(whereClause).limit(1);
+
+    if (!attachment) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
     const response = await objectStorageService.downloadObject(objectFile);
 
