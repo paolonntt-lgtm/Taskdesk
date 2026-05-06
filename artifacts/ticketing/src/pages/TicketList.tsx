@@ -93,7 +93,7 @@ export default function TicketList() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, sm: 3 }}>
         <Typography variant="h5" fontWeight="bold">{t.ticketList.title}</Typography>
         <Button
           component={Link}
@@ -107,7 +107,7 @@ export default function TicketList() {
         </Button>
       </Box>
 
-      <Card sx={{ mb: 3, p: 2 }}>
+      <Card sx={{ mb: { xs: 1.5, sm: 3 }, p: { xs: 1.5, sm: 2 } }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextField

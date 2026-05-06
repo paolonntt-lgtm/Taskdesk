@@ -30,7 +30,7 @@ interface TabPanelProps {
 function TabPanel({ children, value, index }: TabPanelProps) {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: { xs: 1.5, sm: 3 } }}>{children}</Box>}
     </div>
   );
 }
@@ -183,7 +183,7 @@ export default function TicketDetail() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 2 }}>
         <Button
           startIcon={<ArrowBack />}
           onClick={() => setLocation('/tickets')}
@@ -209,7 +209,7 @@ export default function TicketDetail() {
 
       {/* ── Compact header card ── */}
       <Card sx={{ mb: { xs: 1.5, sm: 3 }, overflow: 'visible' }}>
-        <Box px={{ xs: 2, sm: 3 }} pt={{ xs: 1.5, sm: 2.5 }} pb={{ xs: 1.5, sm: 2 }}>
+        <Box px={{ xs: 1.5, sm: 3 }} pt={{ xs: 1, sm: 2.5 }} pb={{ xs: 1, sm: 2 }}>
           {/* Row 1: author + date */}
           <Box display="flex" alignItems="center" gap={1.5} mb={{ xs: 1, sm: 1.5 }}>
             <Avatar

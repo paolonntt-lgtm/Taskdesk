@@ -237,7 +237,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
         position="fixed"
         sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}
       >
-        <Toolbar sx={{ gap: 1 }}>
+        <Toolbar sx={{ gap: 1, minHeight: { xs: '48px !important', sm: '64px !important' } }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
@@ -419,11 +419,11 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3, md: 4 },
+          p: { xs: 1, sm: 3, md: 4 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: '64px',
+          mt: { xs: '48px', sm: '64px' },
           bgcolor: 'background.default',
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: { xs: 'calc(100vh - 48px)', sm: 'calc(100vh - 64px)' },
         }}
       >
         {children}

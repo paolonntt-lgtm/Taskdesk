@@ -92,14 +92,14 @@ export default function NewTicket() {
 
   return (
     <Box maxWidth={800} mx="auto">
-      <Typography variant="h5" fontWeight="bold" mb={3}>
+      <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }}>
         {t.newTicket.title}
       </Typography>
 
       <Card>
-        <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 4 } }}>
           <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -228,7 +228,7 @@ export default function NewTicket() {
                 </Grid>
               )}
 
-              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2} mt={2}>
+              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2} mt={{ xs: 0, sm: 2 }}>
                 <Button variant="outlined" onClick={() => setLocation('/tickets')}>
                   {t.newTicket.cancel}
                 </Button>

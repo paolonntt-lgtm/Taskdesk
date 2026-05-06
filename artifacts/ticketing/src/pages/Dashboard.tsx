@@ -40,13 +40,13 @@ function StatCard({
   href?: string;
 }) {
   const inner = (
-    <CardContent sx={{ p: { xs: 1.5, sm: 3 }, '&:last-child': { pb: { xs: 1.5, sm: 3 } } }}>
-      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap fontSize={{ xs: '0.7rem', sm: '0.875rem' }}>
+    <CardContent sx={{ p: { xs: 1, sm: 3 }, '&:last-child': { pb: { xs: 1, sm: 3 } } }}>
+      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap fontSize={{ xs: '0.65rem', sm: '0.875rem' }}>
         {title}
       </Typography>
       <Typography
         component="div"
-        sx={{ color, fontWeight: 'bold', fontSize: { xs: '1.6rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
+        sx={{ color, fontWeight: 'bold', fontSize: { xs: '1.4rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
       >
         {value}
       </Typography>
@@ -97,7 +97,7 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" px={{ xs: 1.5, sm: 2 }} pt={{ xs: 1.5, sm: 2 }} pb={1}>
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.95rem', sm: '1.25rem' }}>{title}</Typography>
           <Button component={Link} href={viewAllHref || '/tickets'} size="small">{viewAllLabel}</Button>
         </Box>
@@ -119,7 +119,7 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
                 alignItems: 'flex-start',
                 gap: 1,
                 px: { xs: 1.5, sm: 2 },
-                py: 1.5,
+                py: { xs: 1, sm: 1.5 },
                 textDecoration: 'none',
                 color: 'inherit',
                 cursor: 'pointer',
@@ -214,11 +214,11 @@ export default function Dashboard() {
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom mb={3} fontSize={{ xs: '1.1rem', sm: '1.5rem' }}>
+      <Typography variant="h5" fontWeight="bold" gutterBottom mb={{ xs: 1.5, sm: 3 }} fontSize={{ xs: '1.1rem', sm: '1.5rem' }}>
         {t.dashboard.title}
       </Typography>
 
-      <Grid container spacing={{ xs: 1.5, sm: 2 }} mb={3}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 3 }}>
         <Grid item xs={6} md={3}>
           <StatCard
             title={t.dashboard.openTickets}
@@ -253,7 +253,7 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+      <Grid container spacing={{ xs: 1, sm: 2 }}>
         <Grid item xs={12} md={6}>
           <TicketListCard
             title={t.dashboard.myTickets}
