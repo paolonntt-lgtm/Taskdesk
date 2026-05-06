@@ -52,7 +52,7 @@ router.get('/stripe/products', async (_req, res) => {
   }
 });
 
-router.get('/stripe/subscription', requireAuth, async (req: any, res): Promise<void> => {
+router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
@@ -170,7 +170,7 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
   }
 });
 
-router.post('/stripe/portal', requireAuth, async (req: any, res): Promise<void> => {
+router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {

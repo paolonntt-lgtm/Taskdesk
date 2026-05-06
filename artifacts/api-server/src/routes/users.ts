@@ -13,6 +13,7 @@ import { randomBytes } from "crypto";
 import { hashPassword } from "./auth";
 import { destroySessionsForUser } from "../lib/session";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
+import { stripeStorage } from "../stripeStorage";
 
 const router: IRouter = Router();
 
@@ -160,6 +161,10 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
 
   if (updates.isActive === false) {
     destroySessionsForUser(id);
+  }
+
+  if (updates.role === 'user') {
+    await stripeStorage.updateUserStripeInfo(id, { stripeCustomerId: null, stripeSubscriptionId: null });
   }
 
   res.json(updated);
