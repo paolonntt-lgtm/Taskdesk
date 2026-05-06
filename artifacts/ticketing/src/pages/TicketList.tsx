@@ -196,8 +196,8 @@ export default function TicketList() {
                     <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
                     <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <Box display="flex" alignItems="center" gap={0.75}>
-                        {(ticket as any).hasSolution && (
-                          <Tooltip title="Soluzione trovata" placement="top" arrow>
+                        {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
+                          <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
                             <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
                           </Tooltip>
                         )}

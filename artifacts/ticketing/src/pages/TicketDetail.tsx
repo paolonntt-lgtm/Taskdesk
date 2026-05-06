@@ -11,6 +11,7 @@ import {
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
   useDeleteTicket,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
+  getListTicketsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -99,6 +100,7 @@ export default function TicketDetail() {
     }
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
   };
 
   const confirmResolved = async (note: string) => {
@@ -107,6 +109,7 @@ export default function TicketDetail() {
       data: { status: 'resolved' as any, resolutionNote: note || null } as any,
     });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setResolutionDialog(false);
     setResolutionNote('');
   };
@@ -115,17 +118,20 @@ export default function TicketDetail() {
     if (newPriority === ticket.priority) return;
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
   };
 
   const handleAssigneeChange = async (newAssignee: string) => {
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setAssignAnchor(null);
   };
 
   const handleGroupChange = async (val: string) => {
     const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setAssignAnchor(null);
   };
 
@@ -137,6 +143,7 @@ export default function TicketDetail() {
         credentials: 'include',
       });
       if (res.ok) {
+        const data = await res.json();
         queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) =>
           old.map((c: any) =>
             c.id === commentId
@@ -144,6 +151,11 @@ export default function TicketDetail() {
               : { ...c, isSolution: false }
           )
         );
+        // If ticket was auto-resolved, refresh ticket data and list
+        if (data.autoResolved) {
+          queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+        }
+        queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       }
     } finally {
       setMarkingSolution(null);
@@ -516,14 +528,14 @@ export default function TicketDetail() {
                 scrollButtons="auto"
                 allowScrollButtonsMobile
               >
-                <Tab label={`${t.ticketDetail.tabComments} (${comments?.length ?? 0})`} />
+                <Tab label={`${t.ticketDetail.tabComments} (${(comments?.length ?? 0) + ((ticket as any).resolutionNote ? 1 : 0)})`} />
                 <Tab label={t.ticketDetail.tabActivity} />
               </Tabs>
             </Box>
             <Box p={{ xs: 1.5, sm: 3 }}>
               <TabPanel value={tabValue} index={0}>
                 <Box display="flex" flexDirection="column" gap={{ xs: 1.5, sm: 3 }}>
-                  {comments?.length === 0 && (
+                  {comments?.length === 0 && !(ticket as any).resolutionNote && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
                       {t.ticketDetail.noComments}
                     </Typography>

@@ -305,7 +305,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   };
   const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
 
-  res.setHeader("Cache-Control", "private, max-age=60");
+  res.setHeader("Cache-Control", "no-store");
   res.json({
     dashboard: {
       totalTickets: Number(dashRow[0].total),

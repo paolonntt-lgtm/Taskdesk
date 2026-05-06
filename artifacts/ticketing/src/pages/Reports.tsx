@@ -66,7 +66,7 @@ export default function Reports() {
       .catch(() => {});
   }, []);
 
-  const statsOpts = { query: { staleTime: 5 * 60_000 } as any };
+  const statsOpts = { query: { staleTime: 30_000 } as any };
   const { data: statusStats, isLoading: s1 } = useGetStatsByStatus(statsOpts);
   const { data: categoryStats, isLoading: s2 } = useGetStatsByCategory(statsOpts);
   const { data: locationStats, isLoading: s3 } = useGetStatsByLocation(statsOpts);

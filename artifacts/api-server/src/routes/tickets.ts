@@ -112,7 +112,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     hasSolution: solutionSet.has(t.id),
   }));
 
-  res.setHeader("Cache-Control", "private, max-age=30");
+  res.setHeader("Cache-Control", "no-store");
   res.json(result);
 });
 
