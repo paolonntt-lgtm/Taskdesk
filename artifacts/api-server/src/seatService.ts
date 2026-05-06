@@ -1,7 +1,6 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { db, usersTable } from '@workspace/db';
 import { getUncachableStripeClient } from './stripeClient';
-import { stripeStorage } from './stripeStorage';
 
 export interface SeatUsage {
   usedSeats: number;
@@ -17,26 +16,47 @@ export interface SeatUsage {
   limitReached: boolean;
 }
 
-export async function getSeatUsage(userId: number): Promise<SeatUsage> {
-  const user = await stripeStorage.getUser(userId);
-
-  // Count active users only within the same organization
-  const [orgRow] = await db
-    .select({ organizationId: usersTable.organizationId })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId));
-
-  const orgId = orgRow?.organizationId;
-
+/**
+ * Returns seat usage for the given organization.
+ *
+ * Billing state is resolved at the organization level: we look through all
+ * admin users in the organization (role='admin') who have a stripeCustomerId,
+ * and search each one for an active/trialing/past_due subscription.
+ * This prevents any admin without a Stripe customer record from failing open
+ * to unlimited seats, and ensures we don't accidentally pick up a non-admin
+ * user's personal Stripe customer record.
+ */
+export async function getSeatUsage(organizationId: number | null): Promise<SeatUsage> {
+  // Count active users in the organization
   const activeUsers = await db
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(
-      orgId != null
-        ? and(eq(usersTable.isActive, true), eq(usersTable.organizationId, orgId))
+      organizationId != null
+        ? and(eq(usersTable.isActive, true), eq(usersTable.organizationId, organizationId))
         : eq(usersTable.isActive, true)
     );
   const usedSeats = activeUsers.length;
+
+  // Collect stripeCustomerIds from admin users in this organization only.
+  // Restricting to role='admin' prevents a non-admin user's personal Stripe
+  // customer (created e.g. via /stripe/checkout) from influencing enforcement.
+  let adminCustomerIds: string[] = [];
+  if (organizationId != null) {
+    const adminRows = await db
+      .select({ stripeCustomerId: usersTable.stripeCustomerId })
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.organizationId, organizationId),
+          eq(usersTable.role, 'admin'),
+          isNotNull(usersTable.stripeCustomerId)
+        )
+      );
+    adminCustomerIds = adminRows
+      .map((r) => r.stripeCustomerId)
+      .filter((id): id is string => id != null);
+  }
 
   let planSeats: number | null = null;
   let planName = 'Free';
@@ -47,37 +67,48 @@ export async function getSeatUsage(userId: number): Promise<SeatUsage> {
   let unlimited = true;
   let hasActiveSubscription = false;
 
-  if (user?.stripeCustomerId) {
+  if (adminCustomerIds.length > 0) {
     try {
       const stripe = await getUncachableStripeClient();
-      const subs = await stripe.subscriptions.list({
-        customer: user.stripeCustomerId,
-        status: 'all',
-        limit: 5,
-        expand: ['data.items.data.price.product'],
-      });
-      const sub = subs.data.find((s) => ['active', 'trialing', 'past_due'].includes(s.status));
-      if (sub) {
-        hasActiveSubscription = true;
-        status = sub.status;
-        subscriptionId = sub.id;
-        const item = sub.items.data[0];
-        if (item) {
-          subscriptionItemId = item.id;
-          currentPriceId = item.price.id;
-          const product = item.price.product as any;
-          planName = product?.name ?? 'Plan';
-          const seatsMeta = product?.metadata?.seats;
-          if (seatsMeta === 'unlimited' || !seatsMeta) {
-            unlimited = true;
-            planSeats = null;
-          } else {
-            const n = parseInt(String(seatsMeta), 10);
-            if (!isNaN(n) && n > 0) {
-              planSeats = n;
-              unlimited = false;
+
+      // Iterate through each admin's Stripe customer to find an active
+      // subscription. We stop at the first one found. In a well-formed org
+      // there is exactly one billing admin, but this handles edge cases
+      // without picking an arbitrary record via LIMIT 1.
+      for (const customerId of adminCustomerIds) {
+        const subs = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'all',
+          limit: 5,
+          expand: ['data.items.data.price.product'],
+        });
+        const sub = subs.data.find((s) =>
+          ['active', 'trialing', 'past_due'].includes(s.status)
+        );
+        if (sub) {
+          hasActiveSubscription = true;
+          status = sub.status;
+          subscriptionId = sub.id;
+          const item = sub.items.data[0];
+          if (item) {
+            subscriptionItemId = item.id;
+            currentPriceId = item.price.id;
+            const product = item.price.product as any;
+            planName = product?.name ?? 'Plan';
+            const seatsMeta = product?.metadata?.seats;
+            if (seatsMeta === 'unlimited' || !seatsMeta) {
+              unlimited = true;
+              planSeats = null;
+            } else {
+              const n = parseInt(String(seatsMeta), 10);
+              if (!isNaN(n) && n > 0) {
+                planSeats = n;
+                unlimited = false;
+              }
             }
           }
+          // Found an active subscription — stop searching
+          break;
         }
       }
     } catch (err) {

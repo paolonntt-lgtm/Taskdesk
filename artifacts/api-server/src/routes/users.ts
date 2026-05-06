@@ -66,7 +66,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   }
 
   const currentUser = (req as any).currentUser;
-  const usage = await getSeatUsage(currentUser.id);
+  const usage = await getSeatUsage(currentUser.organizationId ?? null);
   if (usage.limitReached) {
     res.status(402).json(buildSeatLimitError(usage));
     return;
@@ -135,7 +135,7 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
   if (updates.isActive === true) {
     const [target] = await db.select({ isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, id));
     if (target && target.isActive === false) {
-      const usage = await getSeatUsage(currentUser.id);
+      const usage = await getSeatUsage(currentUser.organizationId ?? null);
       if (usage.limitReached) {
         res.status(402).json(buildSeatLimitError(usage));
         return;

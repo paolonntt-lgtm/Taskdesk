@@ -12,7 +12,7 @@ const router: IRouter = Router();
 router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const admin = (req as any).currentUser;
 
-  const usage = await getSeatUsage(admin.id);
+  const usage = await getSeatUsage(admin.organizationId ?? null);
   if (usage.limitReached) {
     res.status(402).json(buildSeatLimitError(usage));
     return;
@@ -83,7 +83,10 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     return;
   }
 
-  const usage = await getSeatUsage(invite.adminId);
+  const [admin] = await db.select({ organizationId: usersTable.organizationId })
+    .from(usersTable).where(eq(usersTable.id, invite.adminId));
+
+  const usage = await getSeatUsage(admin?.organizationId ?? null);
   if (usage.limitReached) {
     res.status(402).json({
       ...buildSeatLimitError(usage),
@@ -91,9 +94,6 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     });
     return;
   }
-
-  const [admin] = await db.select({ organizationId: usersTable.organizationId })
-    .from(usersTable).where(eq(usersTable.id, invite.adminId));
 
   const passwordHash = await hashPassword(password);
   const [user] = await db.insert(usersTable).values({

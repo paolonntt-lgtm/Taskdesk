@@ -76,7 +76,7 @@ router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, r
 
 router.get('/stripe/seat-usage', requireAuth, async (req: any, res): Promise<void> => {
   try {
-    const usage = await getSeatUsage(req.currentUser.id);
+    const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     res.json(usage);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -119,7 +119,7 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
     const { priceId } = parsed.data;
 
-    const usage = await getSeatUsage(req.currentUser.id);
+    const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     if (!usage.subscriptionId || !usage.subscriptionItemId) {
       res.status(400).json({ error: 'NO_ACTIVE_SUBSCRIPTION', message: 'Nessun abbonamento attivo da modificare.' });
       return;
