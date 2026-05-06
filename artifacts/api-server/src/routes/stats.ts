@@ -153,7 +153,19 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
 
   const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
   const users = (userIds as number[]).length > 0
-    ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds as number[]))
+    ? await db.select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        role: usersTable.role,
+        mainLocation: usersTable.mainLocation,
+        avatarUrl: usersTable.avatarUrl,
+        createdAt: usersTable.createdAt,
+      }).from(usersTable).where(
+        orgId != null
+          ? and(inArray(usersTable.id, userIds as number[]), eq(usersTable.organizationId, orgId))
+          : inArray(usersTable.id, userIds as number[])
+      )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -183,7 +195,19 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
 
   const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
   const users = (userIds as number[]).length > 0
-    ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds as number[]))
+    ? await db.select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        role: usersTable.role,
+        mainLocation: usersTable.mainLocation,
+        avatarUrl: usersTable.avatarUrl,
+        createdAt: usersTable.createdAt,
+      }).from(usersTable).where(
+        orgId != null
+          ? and(inArray(usersTable.id, userIds as number[]), eq(usersTable.organizationId, orgId))
+          : inArray(usersTable.id, userIds as number[])
+      )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 

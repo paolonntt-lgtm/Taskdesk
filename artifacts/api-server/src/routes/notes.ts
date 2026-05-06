@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, ticketInternalNotesTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { AddTicketNoteBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-router.get("/tickets/:id/notes", requireAuth, async (req, res): Promise<void> => {
+router.get("/tickets/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
@@ -39,7 +39,7 @@ router.get("/tickets/:id/notes", requireAuth, async (req, res): Promise<void> =>
   res.json(notes.map((n) => ({ ...n, author: userMap.get(n.authorId)! })));
 });
 
-router.post("/tickets/:id/notes", requireAuth, async (req, res): Promise<void> => {
+router.post("/tickets/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 

@@ -117,12 +117,16 @@ export async function createNotificationForUser(
   userId: number,
   ticketId: number | null,
   text: string,
-  type: NotificationType = "system"
+  type: NotificationType = "system",
+  organizationId?: number | null
 ): Promise<void> {
+  const conditions = [eq(usersTable.id, userId)];
+  if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
+
   const [user] = await db
     .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
     .from(usersTable)
-    .where(eq(usersTable.id, userId));
+    .where(and(...conditions));
   if (!user) return;
 
   const prefs = await getChannelPrefs([userId], type);

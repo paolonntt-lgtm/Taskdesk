@@ -44,7 +44,6 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       .selectDistinct({ id: ticketsTable.id })
       .from(ticketsTable)
       .leftJoin(ticketCommentsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
-      .leftJoin(ticketInternalNotesTable, eq(ticketInternalNotesTable.ticketId, ticketsTable.id))
       .leftJoin(ticketActivityLogsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id));
 
     const searchWhere = or(
@@ -54,7 +53,6 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       ilike(ticketsTable.location, searchPattern),
       ilike(ticketsTable.resource, searchPattern),
       ilike(ticketCommentsTable.commentText, searchPattern),
-      ilike(ticketInternalNotesTable.noteText, searchPattern),
       ilike(ticketActivityLogsTable.actionDescription, searchPattern)
     );
 
@@ -79,7 +77,11 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   const allUserIds = [...new Set([...creatorIds, ...assigneeIds])];
   const users = allUserIds.length > 0
-    ? await db.select().from(usersTable).where(inArray(usersTable.id, allUserIds))
+    ? await db.select().from(usersTable).where(
+        orgId != null
+          ? and(inArray(usersTable.id, allUserIds), eq(usersTable.organizationId, orgId))
+          : inArray(usersTable.id, allUserIds)
+      )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -126,6 +128,21 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const { title, description, category, location, resource, priority, assignedTo, assignedToGroup } = parsed.data;
 
+  if (assignedTo) {
+    if (currentUser.role !== "admin") {
+      res.status(403).json({ error: "Only admins can assign tickets" });
+      return;
+    }
+    const orgId = currentUser.organizationId;
+    const [assigneeUser] = await db.select({ id: usersTable.id }).from(usersTable).where(
+      and(eq(usersTable.id, assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
+    if (!assigneeUser) {
+      res.status(400).json({ error: "Assignee not found in organization" });
+      return;
+    }
+  }
+
   const [ticket] = await db.insert(ticketsTable).values({
     title,
     description,
@@ -158,13 +175,16 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   await createNotificationsForTicket(ticket.id, `${currentUser.name} ha aperto il ticket #${ticket.id}: "${title}"`, currentUser.id, "ticket_created", currentUser.organizationId);
   if (assignedTo && assignedTo !== currentUser.id) {
-    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${ticket.id}: "${title}"`, "ticket_assigned");
+    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${ticket.id}: "${title}"`, "ticket_assigned", currentUser.organizationId);
   }
 
   const creator = currentUser;
   let assigneeUser = null;
   if (ticket.assignedTo) {
-    const [a] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.assignedTo));
+    const orgId = currentUser.organizationId;
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, ticket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
     assigneeUser = a ?? null;
   }
 
@@ -193,10 +213,14 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.createdBy));
+  const [creator] = await db.select().from(usersTable).where(
+    and(eq(usersTable.id, ticket.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+  );
   let assignee = null;
   if (ticket.assignedTo) {
-    const [a] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.assignedTo));
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, ticket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
     assignee = a ?? null;
   }
 
@@ -321,13 +345,17 @@ router.patch("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promis
     await createNotificationsForTicket(id, `${currentUser.name} ha cambiato la priorità del ticket #${id} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed", orgId);
   }
   if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
-    await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${id}: "${existing.title}"`, "ticket_assigned");
+    await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${id}: "${existing.title}"`, "ticket_assigned", orgId);
   }
 
-  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, updated.createdBy));
+  const [creator] = await db.select().from(usersTable).where(
+    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+  );
   let assignee = null;
   if (updated.assignedTo) {
-    const [a] = await db.select().from(usersTable).where(eq(usersTable.id, updated.assignedTo));
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
     assignee = a ?? null;
   }
 
