@@ -197,16 +197,17 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 }
 
 function ListEditor({
-  label,
+  placeholder,
   items,
   onSave,
   saving,
 }: {
-  label: string;
+  placeholder: string;
   items: string[];
   onSave: (items: string[]) => Promise<void>;
   saving: boolean;
 }) {
+  const { t } = useLanguage();
   const [list, setList] = useState<string[]>(items);
   const [newItem, setNewItem] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
@@ -306,7 +307,7 @@ function ListEditor({
           </ListItem>
         ))}
         {list.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>Nessun elemento.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>{t.settings.noItems}</Typography>
         )}
       </List>
 
@@ -314,14 +315,14 @@ function ListEditor({
         <TextField
           size="small"
           fullWidth
-          placeholder={`Aggiungi ${label.toLowerCase()}...`}
+          placeholder={placeholder}
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           onKeyDown={handleKey}
           disabled={saving || editIdx !== null}
         />
         <Button variant="outlined" startIcon={<Add />} onClick={add} disabled={!newItem.trim() || saving || editIdx !== null}>
-          Aggiungi
+          {t.settings.addItem}
         </Button>
         {saving && <CircularProgress size={18} />}
         {!saving && savedFlash && <Check fontSize="small" color="success" />}
@@ -877,7 +878,7 @@ export default function Settings() {
               {t.settings.locationsNote}
             </Typography>
             <ListEditor
-              label="sede"
+              placeholder={t.settings.addLocationPlaceholder}
               items={locations}
               onSave={saveLocations}
               saving={locSaving}
@@ -889,7 +890,7 @@ export default function Settings() {
               {t.settings.categoriesNote}
             </Typography>
             <ListEditor
-              label="categoria"
+              placeholder={t.settings.addCategoryPlaceholder}
               items={categories}
               onSave={saveCategories}
               saving={catSaving}
@@ -901,7 +902,7 @@ export default function Settings() {
               {t.settings.groupsNote}
             </Typography>
             <ListEditor
-              label="gruppo"
+              placeholder={t.settings.addGroupPlaceholder}
               items={groups}
               onSave={saveGroups}
               saving={grpSaving}
