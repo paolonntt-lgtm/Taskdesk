@@ -280,7 +280,7 @@ export default function Users() {
       await deleteUser.mutateAsync({ id: deleteConfirm.id });
       setDeleteConfirm(null);
     } catch (err: any) {
-      setDeleteError(err?.data?.error || err?.data?.message || err?.message || 'Errore durante l\'eliminazione');
+      setDeleteError(err?.data?.error || err?.data?.message || err?.message || t.users.deleteError);
     }
   };
 

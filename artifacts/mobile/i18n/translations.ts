@@ -173,6 +173,7 @@ const it = {
     error: 'Errore',
     errorSave: 'Impossibile salvare.',
     errorOp: "Impossibile eseguire l'operazione.",
+    errorEmailInUse: 'Email già in uso',
   },
   adminSettings: {
     title: 'Impostazioni sistema',
@@ -382,6 +383,7 @@ const en: typeof it = {
     error: 'Error',
     errorSave: 'Unable to save.',
     errorOp: 'Unable to perform the operation.',
+    errorEmailInUse: 'Email already in use',
   },
   adminSettings: {
     title: 'System Settings',

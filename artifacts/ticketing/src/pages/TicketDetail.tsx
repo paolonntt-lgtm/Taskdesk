@@ -190,7 +190,8 @@ export default function TicketDetail() {
   const assignedGroup = (ticket as any).assignedToGroup;
   const closerActivity = [...(activities ?? [])].reverse().find(
     (a: any) => a.actionType === 'status_changed' &&
-      (a.actionDescription?.includes('Risolto') || a.actionDescription?.includes('Chiuso'))
+      (a.actionDescription?.includes('Risolto') || a.actionDescription?.includes('Chiuso') ||
+       a.actionDescription?.includes('Resolved') || a.actionDescription?.includes('Closed'))
   );
 
   return (
@@ -783,7 +784,7 @@ export default function TicketDetail() {
             disabled={deleteTicket.isPending}
             startIcon={<DeleteOutline />}
           >
-            {deleteTicket.isPending ? 'Eliminazione...' : 'Elimina definitivamente'}
+            {deleteTicket.isPending ? t.ticketDetail.deleting : t.ticketDetail.deletePermanently}
           </Button>
         </DialogActions>
       </Dialog>

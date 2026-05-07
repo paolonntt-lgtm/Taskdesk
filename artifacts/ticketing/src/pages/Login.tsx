@@ -46,13 +46,13 @@ export default function Login() {
     const err = params.get('oauth_error');
     if (err) {
       const messages: Record<string, string> = {
-        cancelled: 'Accesso con Google annullato.',
-        token_exchange: "Errore durante l'autenticazione Google. Riprova.",
-        userinfo: 'Impossibile recuperare le informazioni Google. Riprova.',
-        disabled: 'Il tuo account è disabilitato. Contatta l\'amministratore.',
-        server_error: 'Errore del server. Riprova più tardi.',
+        cancelled: t.login.oauthCancelled,
+        token_exchange: t.login.oauthTokenError,
+        userinfo: t.login.oauthUserinfoError,
+        disabled: t.login.oauthDisabled,
+        server_error: t.login.oauthServerError,
       };
-      setOauthError(messages[err] ?? "Errore durante l'autenticazione Google.");
+      setOauthError(messages[err] ?? t.login.oauthGenericError);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -76,7 +76,7 @@ export default function Login() {
     setLocalError(null);
     if (password.length < 6) { setLocalError(t.login.passwordTooShort); return; }
     if (password !== confirmPassword) { setLocalError(t.login.passwordMismatch); return; }
-    if (!organizationName.trim()) { setLocalError('Il nome azienda è obbligatorio'); return; }
+    if (!organizationName.trim()) { setLocalError(t.login.orgNameRequired); return; }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/auth/register', {
@@ -85,9 +85,9 @@ export default function Login() {
         body: JSON.stringify({ name, email, password, organizationName: organizationName.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setLocalError(data.message || 'Errore durante la registrazione'); return; }
+      if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
       await login({ email, password });
-    } catch { setLocalError('Errore di rete. Riprova.'); }
+    } catch { setLocalError(t.login.networkError); }
     finally { setIsSubmitting(false); }
   };
 
@@ -102,7 +102,7 @@ export default function Login() {
         body: JSON.stringify({ email }),
       });
       setForgotSent(true);
-    } catch { setLocalError('Errore di rete. Riprova.'); }
+    } catch { setLocalError(t.login.networkError); }
     finally { setIsSubmitting(false); }
   };
 

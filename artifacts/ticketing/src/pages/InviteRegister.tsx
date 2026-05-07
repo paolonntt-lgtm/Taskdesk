@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useLocation } from 'wouter';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface InviteInfo {
   valid: boolean;
@@ -15,6 +16,8 @@ interface InviteInfo {
 
 export default function InviteRegister({ token }: { token: string }) {
   const [, setLocation] = useLocation();
+  const { t } = useLanguage();
+  const tr = t.inviteRegister;
   const [info, setInfo] = useState<InviteInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,14 +33,14 @@ export default function InviteRegister({ token }: { token: string }) {
     fetch(`/api/invites/${token}`)
       .then((r) => r.json())
       .then((data) => { setInfo(data); setLoading(false); })
-      .catch(() => { setInfo({ valid: false, message: 'Errore di rete' }); setLoading(false); });
+      .catch(() => { setInfo({ valid: false, message: tr.networkError }); setLoading(false); });
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) { setError('La password deve essere di almeno 6 caratteri'); return; }
-    if (password !== confirmPassword) { setError('Le password non coincidono'); return; }
+    if (password.length < 6) { setError(tr.passwordTooShort); return; }
+    if (password !== confirmPassword) { setError(tr.passwordMismatch); return; }
 
     setSubmitting(true);
     try {
@@ -48,11 +51,11 @@ export default function InviteRegister({ token }: { token: string }) {
         body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || 'Errore durante la registrazione'); return; }
+      if (!res.ok) { setError(data.message || tr.registrationError); return; }
       setDone(true);
       setTimeout(() => { window.location.href = '/app/'; }, 2500);
     } catch {
-      setError('Errore di rete. Riprova.');
+      setError(tr.networkRetry);
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +66,7 @@ export default function InviteRegister({ token }: { token: string }) {
       <Container maxWidth="sm">
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mx: 'auto', display: 'block', mb: 1 }} />
-          <Typography color="text.secondary">Sistema di ticketing aziendale</Typography>
+          <Typography color="text.secondary">{tr.tagline}</Typography>
         </Box>
 
         <Card elevation={3}>
@@ -74,32 +77,32 @@ export default function InviteRegister({ token }: { token: string }) {
               </Box>
             ) : !info?.valid ? (
               <Alert severity="error" sx={{ mt: 1 }}>
-                {info?.message ?? 'Link di invito non valido o scaduto.'}
+                {info?.message ?? tr.invalidLink}
               </Alert>
             ) : done ? (
               <Box sx={{ textAlign: 'center', py: 3 }}>
                 <CheckCircleOutlineIcon sx={{ fontSize: 56, color: 'success.main', mb: 2 }} />
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Registrazione completata!
+                  {tr.successTitle}
                 </Typography>
                 <Typography color="text.secondary">
-                  Accesso in corso...
+                  {tr.successSubtitle}
                 </Typography>
               </Box>
             ) : (
               <>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Sei stato invitato da <Box component="span" sx={{ color: 'primary.main' }}>{info.adminName}</Box>
+                  {tr.invitedBy} <Box component="span" sx={{ color: 'primary.main' }}>{info.adminName}</Box>
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                  Crea il tuo account per accedere al sistema di ticketing.
+                  {tr.createAccountPrompt}
                 </Typography>
 
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
                 <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <TextField
-                    label="Nome e cognome"
+                    label={tr.fullName}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -119,12 +122,12 @@ export default function InviteRegister({ token }: { token: string }) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    helperText="Minimo 6 caratteri"
+                    helperText={tr.passwordHint}
                     required
                     fullWidth
                   />
                   <TextField
-                    label="Conferma password"
+                    label={tr.confirmPassword}
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -139,7 +142,7 @@ export default function InviteRegister({ token }: { token: string }) {
                     disabled={submitting}
                     sx={{ mt: 1 }}
                   >
-                    {submitting ? <CircularProgress size={22} color="inherit" /> : 'Crea account'}
+                    {submitting ? <CircularProgress size={22} color="inherit" /> : tr.createAccount}
                   </Button>
                 </Box>
               </>

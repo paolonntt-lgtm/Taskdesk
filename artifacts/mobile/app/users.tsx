@@ -139,7 +139,7 @@ export default function UsersScreen() {
     } catch (err: any) {
       const msg: string = err.message ?? "";
       if (msg.toLowerCase().includes("email") || msg.includes("409")) {
-        setErrors({ email: "Email già in uso" });
+        setErrors({ email: t.users.errorEmailInUse });
       } else {
         Alert.alert(t.users.error, msg || t.users.errorSave);
       }

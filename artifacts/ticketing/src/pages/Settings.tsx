@@ -728,9 +728,9 @@ export default function Settings() {
       {/* ── SISTEMA (admin only) ── */}
       {isAdmin && (
         <TabPanel value={tab} index={2}>
-          <Section title="Nome Azienda" icon={<Business color="primary" />}>
+          <Section title={t.settings.orgNameTitle} icon={<Business color="primary" />}>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Il nome dell'azienda viene mostrato nella barra laterale per tutti gli utenti dell'organizzazione.
+              {t.settings.orgNameNote}
             </Typography>
             {orgMsg && (
               <Alert severity={orgMsg.type} sx={{ mb: 2 }} onClose={() => setOrgMsg(null)}>{orgMsg.text}</Alert>
@@ -739,7 +739,7 @@ export default function Settings() {
               <TextField
                 size="small"
                 fullWidth
-                label="Nome azienda"
+                label={t.settings.orgNameLabel}
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 disabled={orgSaving}
@@ -757,43 +757,43 @@ export default function Settings() {
             </Box>
           </Section>
 
-          <Section title="Dati di Fatturazione" icon={<Receipt color="primary" />}>
+          <Section title={t.settings.billingTitle} icon={<Receipt color="primary" />}>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Questi dati vengono sincronizzati automaticamente con Stripe e appariranno sulle fatture dell'abbonamento.
+              {t.settings.billingNote}
             </Typography>
             {billingMsg && (
               <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>
             )}
             <Box display="flex" flexDirection="column" gap={2}>
-              <TextField size="small" fullWidth label="Ragione Sociale" value={billing.ragioneSociale}
+              <TextField size="small" fullWidth label={t.settings.billingRagioneSociale} value={billing.ragioneSociale}
                 onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
               <Box display="flex" gap={2}>
-                <TextField size="small" fullWidth label="P.IVA" value={billing.piva}
+                <TextField size="small" fullWidth label={t.settings.billingPiva} value={billing.piva}
                   onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving}
                   placeholder="IT12345678901" />
-                <TextField size="small" fullWidth label="Codice Fiscale" value={billing.codiceFiscale}
+                <TextField size="small" fullWidth label={t.settings.billingCodFiscale} value={billing.codiceFiscale}
                   onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
               </Box>
-              <TextField size="small" fullWidth label="Indirizzo (via e numero civico)" value={billing.indirizzo}
+              <TextField size="small" fullWidth label={t.settings.billingIndirizzo} value={billing.indirizzo}
                 onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
               <Box display="flex" gap={2}>
-                <TextField size="small" label="CAP" value={billing.cap} sx={{ width: 120 }}
+                <TextField size="small" label={t.settings.billingCap} value={billing.cap} sx={{ width: 120 }}
                   onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
-                <TextField size="small" fullWidth label="Città" value={billing.citta}
+                <TextField size="small" fullWidth label={t.settings.billingCitta} value={billing.citta}
                   onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
-                <TextField size="small" label="Prov." value={billing.provincia} sx={{ width: 90 }}
+                <TextField size="small" label={t.settings.billingProv} value={billing.provincia} sx={{ width: 90 }}
                   onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
                   inputProps={{ maxLength: 2 }} placeholder="PE" />
               </Box>
               <Divider />
               <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                Fatturazione elettronica (opzionale)
+                {t.settings.billingElectronic}
               </Typography>
               <Box display="flex" gap={2}>
-                <TextField size="small" fullWidth label="Codice SDI" value={billing.sdiCode}
+                <TextField size="small" fullWidth label={t.settings.billingSdi} value={billing.sdiCode}
                   onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
                   placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
-                <TextField size="small" fullWidth label="PEC" type="email" value={billing.pec}
+                <TextField size="small" fullWidth label={t.settings.billingPec} type="email" value={billing.pec}
                   onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
                   placeholder="azienda@pec.it" />
               </Box>
@@ -804,7 +804,7 @@ export default function Settings() {
                   onClick={saveBilling}
                   disabled={billingSaving}
                 >
-                  {billingSaving ? t.settings.saving : 'Salva e sincronizza Stripe'}
+                  {billingSaving ? t.settings.saving : t.settings.saveSyncStripe}
                 </Button>
               </Box>
             </Box>

@@ -5,9 +5,12 @@ import {
 } from '@mui/material';
 import { LockReset, CheckCircle } from '@mui/icons-material';
 import { useLocation } from 'wouter';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
+  const { t } = useLanguage();
+  const tr = t.resetPassword;
   const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,9 +21,9 @@ export default function ResetPassword() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const t = params.get('token');
-    if (t) {
-      setToken(t);
+    const tok = params.get('token');
+    if (tok) {
+      setToken(tok);
     } else {
       setTokenMissing(true);
     }
@@ -30,11 +33,11 @@ export default function ResetPassword() {
     e.preventDefault();
     setError(null);
     if (password.length < 6) {
-      setError('La password deve essere di almeno 6 caratteri');
+      setError(tr.passwordTooShort);
       return;
     }
     if (password !== confirmPassword) {
-      setError('Le password non coincidono');
+      setError(tr.passwordMismatch);
       return;
     }
     setIsSubmitting(true);
@@ -46,12 +49,12 @@ export default function ResetPassword() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || 'Errore durante il reset');
+        setError(data.message || tr.resetError);
         return;
       }
       setSuccess(true);
     } catch {
-      setError('Errore di rete. Riprova.');
+      setError(tr.networkRetry);
     } finally {
       setIsSubmitting(false);
     }
@@ -75,30 +78,30 @@ export default function ResetPassword() {
               <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk"
                 sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="h6" fontWeight={700} mb={0.5}>
-                Reimposta password
+                {tr.title}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Scegli una nuova password per il tuo account
+                {tr.subtitle}
               </Typography>
             </Box>
 
             {tokenMissing ? (
               <Alert severity="error" sx={{ borderRadius: '12px' }}>
-                Link non valido. Richiedi un nuovo link di reset dalla pagina di accesso.
+                {tr.invalidLink}
               </Alert>
             ) : success ? (
               <Box textAlign="center">
                 <CheckCircle sx={{ fontSize: 56, color: 'success.main', mb: 2 }} />
-                <Typography variant="h6" fontWeight={700} mb={1}>Password aggiornata!</Typography>
+                <Typography variant="h6" fontWeight={700} mb={1}>{tr.successTitle}</Typography>
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                  Puoi ora accedere con la tua nuova password.
+                  {tr.successSubtitle}
                 </Typography>
                 <Button
                   variant="contained" fullWidth size="large"
                   sx={{ py: 1.5, fontWeight: 700, borderRadius: '12px' }}
                   onClick={() => setLocation('/login')}
                 >
-                  Vai al login
+                  {tr.goToLogin}
                 </Button>
               </Box>
             ) : (
@@ -109,17 +112,17 @@ export default function ResetPassword() {
                   </Alert>
                 )}
                 <TextField
-                  label="Nuova password" type="password" fullWidth margin="normal"
+                  label={tr.newPassword} type="password" fullWidth margin="normal"
                   value={password} onChange={(e) => setPassword(e.target.value)}
-                  required autoFocus helperText="Almeno 6 caratteri"
+                  required autoFocus helperText={tr.passwordHint}
                   autoComplete="new-password"
                 />
                 <TextField
-                  label="Conferma password" type="password" fullWidth margin="normal"
+                  label={tr.confirmPassword} type="password" fullWidth margin="normal"
                   value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   error={confirmPassword.length > 0 && password !== confirmPassword}
-                  helperText={confirmPassword.length > 0 && password !== confirmPassword ? 'Le password non coincidono' : ''}
+                  helperText={confirmPassword.length > 0 && password !== confirmPassword ? tr.passwordMismatch : ''}
                   autoComplete="new-password"
                   sx={{ mb: 3 }}
                 />
@@ -129,14 +132,14 @@ export default function ResetPassword() {
                   startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : <LockReset />}
                   sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
                 >
-                  {isSubmitting ? 'Aggiornamento…' : 'Reimposta password'}
+                  {isSubmitting ? tr.updating : tr.submit}
                 </Button>
                 <Box mt={2} textAlign="center">
                   <Typography
                     variant="body2" sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                     onClick={() => setLocation('/login')}
                   >
-                    ← Torna al login
+                    {tr.backToLogin}
                   </Typography>
                 </Box>
               </form>
