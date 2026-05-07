@@ -419,6 +419,8 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
+          overflowX: 'hidden',
           p: { xs: 1, sm: 3, md: 4 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: { xs: '48px', sm: '64px' },
