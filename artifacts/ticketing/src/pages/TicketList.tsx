@@ -5,7 +5,7 @@ import {
   Tooltip, TableSortLabel, Collapse, IconButton,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff } from '@mui/icons-material';
-import { useListTickets } from '@workspace/api-client-react';
+import { useListTickets, useListUsers } from '@workspace/api-client-react';
 import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
@@ -36,10 +36,13 @@ export default function TicketList() {
   const [category, setCategory] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [userFilter, setUserFilter] = useState('all');
+  const [userFilterType, setUserFilterType] = useState<'assignedTo' | 'createdBy'>('assignedTo');
   const [showExtra, setShowExtra] = useState(false);
 
   const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
   const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
+  const { data: users } = useListUsers();
 
   const [sortCol, setSortCol] = useState<SortCol>('id');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -55,7 +58,7 @@ export default function TicketList() {
       .catch(() => {});
   }, []);
 
-  const hasExtraFilters = location !== 'all' || category !== 'all' || dateFrom !== '' || dateTo !== '';
+  const hasExtraFilters = location !== 'all' || category !== 'all' || dateFrom !== '' || dateTo !== '' || userFilter !== 'all';
 
   const { data: tickets, isLoading } = useListTickets({
     search: debouncedSearch || undefined,
@@ -65,6 +68,8 @@ export default function TicketList() {
     category: category !== 'all' ? category : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
+    assignedTo: userFilter !== 'all' && userFilterType === 'assignedTo' ? parseInt(userFilter, 10) : undefined,
+    createdBy: userFilter !== 'all' && userFilterType === 'createdBy' ? parseInt(userFilter, 10) : undefined,
   });
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
@@ -226,7 +231,39 @@ export default function TicketList() {
                 </TextField>
               </Grid>
             )}
-            <Grid item xs={6} sm={3} md={2.5}>
+            {users && users.length > 0 && (
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label={userFilterType === 'assignedTo' ? t.ticketList.userFilterAssigned : t.ticketList.userFilterCreated}
+                  value={userFilter}
+                  onChange={(e) => setUserFilter(e.target.value)}
+                >
+                  <MenuItem value="all">{t.ticketList.allUsers}</MenuItem>
+                  {users.map((u: any) => (
+                    <MenuItem key={u.id} value={String(u.id)}>{u.name}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
+            {users && users.length > 0 && (
+              <Grid item xs={12} sm={6} md={2.5}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label={t.ticketList.userFilterType}
+                  value={userFilterType}
+                  onChange={(e) => setUserFilterType(e.target.value as 'assignedTo' | 'createdBy')}
+                >
+                  <MenuItem value="assignedTo">{t.ticketList.userFilterAssigned}</MenuItem>
+                  <MenuItem value="createdBy">{t.ticketList.userFilterCreated}</MenuItem>
+                </TextField>
+              </Grid>
+            )}
+            <Grid item xs={6} sm={3} md={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -237,7 +274,7 @@ export default function TicketList() {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={6} sm={3} md={2.5}>
+            <Grid item xs={6} sm={3} md={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -254,7 +291,7 @@ export default function TicketList() {
                   size="small"
                   color="inherit"
                   startIcon={<FilterListOff />}
-                  onClick={() => { setLocation('all'); setCategory('all'); setDateFrom(''); setDateTo(''); }}
+                  onClick={() => { setLocation('all'); setCategory('all'); setDateFrom(''); setDateTo(''); setUserFilter('all'); }}
                 >
                   {t.ticketList.clearFilters}
                 </Button>

@@ -100,6 +100,10 @@ const it = {
     dateTo: 'Al',
     moreFilters: 'Filtri',
     clearFilters: 'Azzera',
+    userFilterType: 'Tipo',
+    userFilterAssigned: 'Assegnato a',
+    userFilterCreated: 'Creato da',
+    allUsers: 'Tutti gli utenti',
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -544,6 +548,10 @@ const en: typeof it = {
     dateTo: 'To',
     moreFilters: 'Filters',
     clearFilters: 'Clear',
+    userFilterType: 'Type',
+    userFilterAssigned: 'Assigned to',
+    userFilterCreated: 'Created by',
+    allUsers: 'All users',
   },
   ticketDetail: {
     backToList: 'All tickets',
