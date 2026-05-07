@@ -412,6 +412,7 @@ export const ListTicketCommentsResponseItem = zod.object({
       emoji: zod.string(),
       count: zod.number(),
       userReacted: zod.boolean(),
+      users: zod.array(zod.string()),
     }),
   ),
 });
@@ -469,6 +470,7 @@ export const UpdateTicketCommentResponse = zod.object({
       emoji: zod.string(),
       count: zod.number(),
       userReacted: zod.boolean(),
+      users: zod.array(zod.string()),
     }),
   ),
 });
@@ -499,6 +501,7 @@ export const ToggleCommentReactionResponse = zod.object({
       emoji: zod.string(),
       count: zod.number(),
       userReacted: zod.boolean(),
+      users: zod.array(zod.string()),
     }),
   ),
 });

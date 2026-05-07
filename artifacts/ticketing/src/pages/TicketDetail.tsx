@@ -77,7 +77,7 @@ export default function TicketDetail() {
   const [editCommentText, setEditCommentText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
   const [reactionAnchor, setReactionAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
-  const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean }[]>>({});
+  const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>>({});
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
 
@@ -110,10 +110,22 @@ export default function TicketDetail() {
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
+  const formatReactionTooltip = (users: string[]): string => {
+    if (users.length === 0) return '';
+    const maxShown = 3;
+    const shown = users.slice(0, maxShown);
+    const rest = users.length - maxShown;
+    const nameList = shown.join(', ');
+    if (rest <= 0) return nameList;
+    return lang === 'en'
+      ? `${nameList} and ${rest} other${rest > 1 ? 's' : ''}`
+      : `${nameList} e ${rest} altr${rest > 1 ? 'i' : 'o'}`;
+  };
+
   // Sync reactions from API data when comments load
   useEffect(() => {
     if (!comments) return;
-    const map: Record<number, { emoji: string; count: number; userReacted: boolean }[]> = {};
+    const map: Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]> = {};
     for (const c of comments) {
       if (Array.isArray(c.reactions)) map[c.id] = c.reactions;
     }
@@ -839,31 +851,40 @@ export default function TicketDetail() {
                             return (
                               <Box display="flex" flexWrap="wrap" gap={0.5} mb={0.5}>
                                 {reactions.map((r) => (
-                                  <Box
+                                  <Tooltip
                                     key={r.emoji}
-                                    component="span"
-                                    onClick={() => handleToggleReaction(c.id, r.emoji)}
-                                    sx={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 0.4,
-                                      px: 0.8,
-                                      py: 0.2,
-                                      borderRadius: 10,
-                                      fontSize: '0.78rem',
-                                      cursor: 'pointer',
-                                      border: '1px solid',
-                                      borderColor: r.userReacted ? 'primary.main' : 'divider',
-                                      bgcolor: r.userReacted ? 'primary.50' : 'action.hover',
-                                      color: r.userReacted ? 'primary.main' : 'text.secondary',
-                                      fontWeight: r.userReacted ? 700 : 400,
-                                      transition: 'all 0.15s',
-                                      '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
-                                    }}
+                                    title={formatReactionTooltip(r.users)}
+                                    placement="top"
+                                    arrow
+                                    enterDelay={300}
+                                    enterTouchDelay={400}
+                                    leaveTouchDelay={3000}
                                   >
-                                    <span>{r.emoji}</span>
-                                    <span>{r.count}</span>
-                                  </Box>
+                                    <Box
+                                      component="span"
+                                      onClick={() => handleToggleReaction(c.id, r.emoji)}
+                                      sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 0.4,
+                                        px: 0.8,
+                                        py: 0.2,
+                                        borderRadius: 10,
+                                        fontSize: '0.78rem',
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: r.userReacted ? 'primary.main' : 'divider',
+                                        bgcolor: r.userReacted ? 'primary.50' : 'action.hover',
+                                        color: r.userReacted ? 'primary.main' : 'text.secondary',
+                                        fontWeight: r.userReacted ? 700 : 400,
+                                        transition: 'all 0.15s',
+                                        '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
+                                      }}
+                                    >
+                                      <span>{r.emoji}</span>
+                                      <span>{r.count}</span>
+                                    </Box>
+                                  </Tooltip>
                                 ))}
                               </Box>
                             );

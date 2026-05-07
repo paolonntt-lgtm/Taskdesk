@@ -10,4 +10,5 @@ export interface CommentReaction {
   emoji: string;
   count: number;
   userReacted: boolean;
+  users: string[];
 }

@@ -1122,10 +1122,15 @@ components:
           type: integer
         userReacted:
           type: boolean
+        users:
+          type: array
+          items:
+            type: string
       required:
         - emoji
         - count
         - userReacted
+        - users
 
     ToggleReactionBody:
       type: object

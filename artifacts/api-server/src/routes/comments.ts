@@ -11,30 +11,37 @@ function extractMentionedNames(text: string): string[] {
 }
 
 async function getReactionsForComments(commentIds: number[], currentUserId: number) {
-  if (commentIds.length === 0) return new Map<number, { emoji: string; count: number; userReacted: boolean }[]>();
+  if (commentIds.length === 0) return new Map<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>();
 
   const rows = await db
     .select({
       commentId: commentReactionsTable.commentId,
       emoji: commentReactionsTable.emoji,
       userId: commentReactionsTable.userId,
+      userName: usersTable.name,
     })
     .from(commentReactionsTable)
+    .leftJoin(usersTable, eq(commentReactionsTable.userId, usersTable.id))
     .where(inArray(commentReactionsTable.commentId, commentIds));
 
-  const map = new Map<number, Map<string, { count: number; userReacted: boolean }>>();
+  const map = new Map<number, Map<string, { count: number; userReacted: boolean; users: string[] }>>();
   for (const row of rows) {
     if (!map.has(row.commentId)) map.set(row.commentId, new Map());
     const emojiMap = map.get(row.commentId)!;
-    if (!emojiMap.has(row.emoji)) emojiMap.set(row.emoji, { count: 0, userReacted: false });
+    if (!emojiMap.has(row.emoji)) emojiMap.set(row.emoji, { count: 0, userReacted: false, users: [] });
     const entry = emojiMap.get(row.emoji)!;
     entry.count += 1;
     if (row.userId === currentUserId) entry.userReacted = true;
+    if (row.userName) entry.users.push(row.userName);
   }
 
-  const result = new Map<number, { emoji: string; count: number; userReacted: boolean }[]>();
+  const result = new Map<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>();
   for (const [commentId, emojiMap] of map.entries()) {
-    result.set(commentId, [...emojiMap.entries()].map(([emoji, data]) => ({ emoji, ...data })));
+    result.set(commentId, [...emojiMap.entries()].map(([emoji, data]) => ({
+      emoji,
+      ...data,
+      users: [...data.users].sort((a, b) => a.localeCompare(b)),
+    })));
   }
   return result;
 }
@@ -382,23 +389,8 @@ router.post("/tickets/:id/comments/:commentId/reactions", requireAuth, async (re
   }
 
   // Return updated reactions for this comment
-  const rows = await db
-    .select({
-      emoji: commentReactionsTable.emoji,
-      userId: commentReactionsTable.userId,
-    })
-    .from(commentReactionsTable)
-    .where(eq(commentReactionsTable.commentId, commentId));
-
-  const emojiMap = new Map<string, { count: number; userReacted: boolean }>();
-  for (const row of rows) {
-    if (!emojiMap.has(row.emoji)) emojiMap.set(row.emoji, { count: 0, userReacted: false });
-    const entry = emojiMap.get(row.emoji)!;
-    entry.count += 1;
-    if (row.userId === currentUser.id) entry.userReacted = true;
-  }
-
-  const reactions = [...emojiMap.entries()].map(([e, data]) => ({ emoji: e, ...data }));
+  const reactionsMap = await getReactionsForComments([commentId], currentUser.id);
+  const reactions = reactionsMap.get(commentId) ?? [];
   res.json({ reactions });
 });
 
