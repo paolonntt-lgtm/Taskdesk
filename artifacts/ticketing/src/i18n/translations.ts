@@ -128,6 +128,7 @@ const it = {
     editTitleField: 'Titolo',
     editSave: 'Salva modifiche',
     editCancel: 'Annulla',
+    replyComment: 'Rispondi',
   },
   richEditor: {
     bold: 'Grassetto (Ctrl+B)',
@@ -522,6 +523,7 @@ const en: typeof it = {
     editTitleField: 'Title',
     editSave: 'Save changes',
     editCancel: 'Cancel',
+    replyComment: 'Reply',
   },
   richEditor: {
     bold: 'Bold (Ctrl+B)',

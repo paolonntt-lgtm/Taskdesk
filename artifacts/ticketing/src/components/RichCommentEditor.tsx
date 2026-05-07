@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Box, IconButton, Tooltip, Divider, LinearProgress, Chip,
   Typography, Paper, List, ListItemButton, ListItemText, ListItemAvatar, Avatar,
@@ -140,17 +140,28 @@ const ALLOWED_TYPES = [
 ];
 const MAX_SIZE_MB = 20;
 
-export function RichCommentEditor({
+export interface RichCommentEditorHandle {
+  focus: () => void;
+}
+
+export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(function RichCommentEditor({
   value,
   onChange,
   placeholder,
   onAttachmentsChange,
   minRows = 3,
   ticketId,
-}: RichCommentEditorProps) {
+}: RichCommentEditorProps, ref) {
   const { t } = useLanguage();
   const tr = t.richEditor;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textareaRef.current?.focus();
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+  }), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -614,4 +625,4 @@ export function RichCommentEditor({
       )}
     </Box>
   );
-}
+});

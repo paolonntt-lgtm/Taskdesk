@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Card, Typography, Tabs, Tab, Divider, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, Reply as ReplyIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
-import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
+import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle } from '../components/RichCommentEditor';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 
@@ -64,6 +64,7 @@ export default function TicketDetail() {
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const singleLocation = editLocations.length <= 1;
+  const editorRef = useRef<RichCommentEditorHandle>(null);
 
   const deleteTicket = useDeleteTicket();
 
@@ -78,6 +79,14 @@ export default function TicketDetail() {
   const saveAttachment = useSaveTicketAttachment();
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
+
+  const handleReply = (authorName: string | null | undefined) => {
+    if (!authorName) return;
+    const mention = `@[${authorName}] `;
+    setNewComment((prev) => (prev.trim() ? `${mention}${prev}` : mention));
+    setTabValue(0);
+    setTimeout(() => editorRef.current?.focus(), 50);
+  };
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
@@ -655,6 +664,15 @@ export default function TicketDetail() {
                               <Typography variant="caption" color="text.secondary">
                                 {new Date(c.createdAt).toLocaleString(dateLocale)}
                               </Typography>
+                              <Tooltip title={t.ticketDetail.replyComment}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleReply(c.author?.name)}
+                                  sx={{ color: 'action.disabled', '&:hover': { color: 'primary.main' } }}
+                                >
+                                  <ReplyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               {canMarkSolution && (
                                 <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
                                   <IconButton
@@ -747,6 +765,7 @@ export default function TicketDetail() {
                     </Avatar>
                     <Box flex={1} display="flex" flexDirection="column" gap={1}>
                       <RichCommentEditor
+                        ref={editorRef}
                         value={newComment}
                         onChange={setNewComment}
                         placeholder={t.ticketDetail.addCommentPlaceholder}
