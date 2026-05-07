@@ -6,18 +6,18 @@ import { stripeService } from "../stripeService";
 
 const router: IRouter = Router();
 
-const DEFAULT_LOCATIONS = ["Sede principale"];
+const DEFAULT_LOCATIONS = ["Main office"];
 export const STANDARD_CATEGORIES = [
   "PC",
-  "Stampante",
-  "Internet / Rete",
+  "Printer",
+  "Internet / Network",
   "Software",
-  "Telefonia",
-  "Cassa / Gestionale",
-  "Altro",
+  "Telephony",
+  "Cash register / ERP",
+  "Other",
 ];
 const DEFAULT_CATEGORIES = STANDARD_CATEGORIES;
-const DEFAULT_GROUPS = ["IT Support", "Reception", "Amministrazione"];
+const DEFAULT_GROUPS = ["IT Support", "Reception", "Administration"];
 export { DEFAULT_LOCATIONS };
 
 function orgKey(orgId: number | null | undefined, base: string): string {

@@ -147,7 +147,7 @@ export default function NewTicket() {
                     value={formData.location}
                     onChange={e => setFormData({ ...formData, location: e.target.value })}
                   >
-                    <MenuItem value=""><em>— Nessuna sede —</em></MenuItem>
+                    <MenuItem value=""><em>{t.newTicket.noLocation}</em></MenuItem>
                     {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
                   </TextField>
                 </Grid>
@@ -191,15 +191,15 @@ export default function NewTicket() {
                       onChange={(_, v) => { if (v) setAssignMode(v); }}
                       size="small"
                     >
-                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
-                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />{t.newTicket.assignUser}</ToggleButton>
+                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />{t.newTicket.assignGroup}</ToggleButton>
                     </ToggleButtonGroup>
 
                     {assignMode === 'user' ? (
                       <TextField
                         select
                         size="small"
-                        label="Utente"
+                        label={t.newTicket.assignUser}
                         value={formData.assignedTo}
                         onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
                         sx={{ minWidth: 200 }}
@@ -213,7 +213,7 @@ export default function NewTicket() {
                       <TextField
                         select
                         size="small"
-                        label="Gruppo"
+                        label={t.newTicket.assignGroup}
                         value={formData.assignedToGroup}
                         onChange={e => setFormData({ ...formData, assignedToGroup: e.target.value })}
                         sx={{ minWidth: 200 }}

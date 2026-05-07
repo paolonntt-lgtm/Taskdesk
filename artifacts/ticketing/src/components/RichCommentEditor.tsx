@@ -515,7 +515,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <AlternateEmail sx={{ fontSize: 14, color: 'primary.600' }} />
             <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
-              @Nome
+              {tr.mentionAtName}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
               — {tr.mentionHint}

@@ -118,7 +118,10 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
-  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => setNotifAnchorEl(event.currentTarget);
+  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotifAnchorEl(event.currentTarget);
+    if (unreadCount > 0) { markAllRead.mutate(); }
+  };
   const handleMenuClose = () => { setAnchorEl(null); setNotifAnchorEl(null); };
   const handleLogout = () => { handleMenuClose(); logout(); };
   const handleMarkAllRead = () => { markAllRead.mutate(); handleMenuClose(); };
@@ -349,6 +352,11 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
                         {(t.nav.notifTypes as any)[ntype] ?? ntype}
                       </Typography>
                       <Typography variant="body2">{n.notificationText}</Typography>
+                      {n.createdAt && (
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', mt: 0.25, display: 'block' }}>
+                          {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+                        </Typography>
+                      )}
                     </Box>
                   </MenuItem>
                 );

@@ -666,7 +666,7 @@ export default function Settings() {
             <Box>
               <Typography variant="body2" fontWeight={600}>{user?.name}</Typography>
               <Typography variant="caption" color="text.secondary">
-                Clicca sull'icona per cambiare la foto
+                {t.settings.clickIconToChangePhoto}
               </Typography>
               {avatarUrl && (
                 <Box mt={0.5}>
@@ -676,7 +676,7 @@ export default function Settings() {
                     sx={{ p: 0, minWidth: 0, fontSize: '0.7rem' }}
                     onClick={() => setAvatarUrl('')}
                   >
-                    Rimuovi foto
+                    {t.settings.removePhoto}
                   </Button>
                 </Box>
               )}

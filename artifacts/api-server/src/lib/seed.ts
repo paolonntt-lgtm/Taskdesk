@@ -225,8 +225,8 @@ export async function seedIfEmpty(): Promise<void> {
   if (orgId != null) {
     await db
       .insert(settingsTable)
-      .values({ key: `org_${orgId}_groups`, value: JSON.stringify(["IT Support", "Reception", "Amministrazione", "Operazioni"]) })
-      .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(["IT Support", "Reception", "Amministrazione", "Operazioni"]) } });
+      .values({ key: `org_${orgId}_groups`, value: JSON.stringify(["IT Support", "Reception", "Administration", "Operations"]) })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(["IT Support", "Reception", "Administration", "Operations"]) } });
   }
 
   logger.info("Seed completed successfully!");

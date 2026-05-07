@@ -353,7 +353,7 @@ export default function Users() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Chip
               icon={<Group sx={{ fontSize: 14 }} />}
-              label={`${activeCount} ${activeCount === 1 ? 'utente attivo' : 'utenti attivi'} · ${users.length} totali`}
+              label={`${activeCount} ${activeCount === 1 ? ut.activeUser : ut.activeUsers} · ${users.length} ${ut.totalUsers}`}
               color="default"
               size="small"
               variant="outlined"
@@ -426,7 +426,7 @@ export default function Users() {
               {seatUsage.usedSeats} / {seatUsage.planSeats} {ut.seatsUsedLabel}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {seatUsage.available ?? 0} disponibili
+              {seatUsage.available ?? 0} {ut.seatsAvailableLabel}
             </Typography>
           </Box>
         </Box>
