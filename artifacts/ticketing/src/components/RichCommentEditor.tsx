@@ -163,7 +163,7 @@ export function RichCommentEditor({
     if (!ta) return;
     const before = value.slice(0, autocomplete.startIndex);
     const after = value.slice(ta.selectionStart);
-    const tag = `#${ticket.id}`;
+    const tag = `[#${ticket.id} ${ticket.title}](/tickets/${ticket.id})`;
     const newVal = before + tag + ' ' + after;
     onChange(newVal);
     closeAutocomplete();
