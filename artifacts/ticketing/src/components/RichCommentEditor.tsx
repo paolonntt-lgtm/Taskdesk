@@ -1,4 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Box, IconButton, Tooltip, Divider, LinearProgress, Chip,
   Typography, Paper, List, ListItemButton, ListItemText, ListItemAvatar, Avatar,
@@ -173,12 +174,14 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
   }), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [autocomplete, setAutocomplete] = useState<AutocompleteState>(null);
   const [allUsers, setAllUsers] = useState<AutocompleteItem[]>([]);
   const [allGroups, setAllGroups] = useState<AutocompleteItem[]>([]);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Load users and groups once
   useEffect(() => {
@@ -440,8 +443,26 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
 
   const hasResults = autocomplete && autocomplete.results.length > 0;
 
+  // Calculate dropdown position relative to viewport whenever autocomplete opens
+  useEffect(() => {
+    if (!hasResults || !wrapperRef.current) { setDropdownPos(null); return; }
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const DROPDOWN_HEIGHT = 260;
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    let top: number;
+    if (spaceAbove >= DROPDOWN_HEIGHT || spaceAbove > spaceBelow) {
+      // show above
+      top = rect.top - DROPDOWN_HEIGHT - 4;
+    } else {
+      // show below
+      top = rect.bottom + 4;
+    }
+    setDropdownPos({ top, left: rect.left, width: rect.width });
+  }, [hasResults]);
+
   return (
-    <Box sx={{ position: 'relative' }}>
+    <Box ref={wrapperRef} sx={{ position: 'relative' }}>
       <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
         {/* Toolbar */}
         <Box
@@ -515,7 +536,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <AlternateEmail sx={{ fontSize: 14, color: 'primary.600' }} />
             <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
-              {tr.mentionAtName}
+              {tr.mentionAtName} / {tr.mentionAtGroup}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
               — {tr.mentionHint}
@@ -557,26 +578,26 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
         />
       </Paper>
 
-      {/* Autocomplete dropdown */}
-      {hasResults && (
+      {/* Autocomplete dropdown — rendered via Portal to avoid overflow clipping */}
+      {hasResults && dropdownPos && createPortal(
         <Paper
           ref={dropdownRef}
-          elevation={4}
+          elevation={8}
           sx={{
-            position: 'absolute',
-            left: 0,
-            bottom: '100%',
-            mb: 0.5,
-            zIndex: 1400,
-            minWidth: 220,
-            maxWidth: 340,
+            position: 'fixed',
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 1500,
+            maxWidth: 400,
+            maxHeight: 260,
+            overflowY: 'auto',
             borderRadius: 2,
-            overflow: 'hidden',
             border: '1px solid',
             borderColor: 'divider',
           }}
         >
-          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', position: 'sticky', top: 0, zIndex: 1 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
               {autocomplete!.type === 'mention' ? tr.mentionDropdownTitle : tr.ticketDropdownTitle}
             </Typography>
@@ -619,7 +640,8 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
               ))
             }
           </List>
-        </Paper>
+        </Paper>,
+        document.body
       )}
 
       {uploading && <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />}
