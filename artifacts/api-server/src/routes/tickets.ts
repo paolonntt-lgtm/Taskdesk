@@ -240,11 +240,12 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc)));
 });
 
-router.patch("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const isAdmin = currentUser.role === "admin";
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -268,7 +269,21 @@ router.patch("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promis
     return;
   }
 
-  const updates = parsed.data;
+  // Authorization: admins can update all fields; authors can update content fields only
+  if (!isAdmin && existing.createdBy !== currentUser.id) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const updates: typeof parsed.data = isAdmin
+    ? parsed.data
+    : {
+        ...(parsed.data.title !== undefined && { title: parsed.data.title }),
+        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+        ...(parsed.data.category !== undefined && { category: parsed.data.category }),
+        ...(parsed.data.location !== undefined && { location: parsed.data.location }),
+        ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
+      };
   const activityLogs: { actionType: string; actionDescription: string }[] = [];
 
   if (updates.status && updates.status !== existing.status) {

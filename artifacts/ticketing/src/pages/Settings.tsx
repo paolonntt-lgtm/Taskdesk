@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -210,6 +210,8 @@ function ListEditor({
   const [list, setList] = useState<string[]>(items);
   const [newItem, setNewItem] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => { setList(items); }, [items]);
 
@@ -234,6 +236,35 @@ function ListEditor({
     await triggerSave(next);
   };
 
+  const startEdit = (idx: number) => {
+    setEditIdx(idx);
+    setEditValue(list[idx]);
+  };
+
+  const cancelEdit = () => {
+    setEditIdx(null);
+    setEditValue('');
+  };
+
+  const confirmEdit = async () => {
+    if (editIdx === null) return;
+    const trimmed = editValue.trim();
+    if (!trimmed || (trimmed !== list[editIdx] && list.includes(trimmed))) {
+      cancelEdit();
+      return;
+    }
+    const next = list.map((item, i) => (i === editIdx ? trimmed : item));
+    setList(next);
+    setEditIdx(null);
+    setEditValue('');
+    await triggerSave(next);
+  };
+
+  const handleEditKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+  };
+
   const handleKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
 
   return (
@@ -241,12 +272,37 @@ function ListEditor({
       <List dense disablePadding>
         {list.map((item, idx) => (
           <ListItem key={idx} disableGutters divider sx={{ py: 0.5 }}>
-            <ListItemText primary={item} />
-            <ListItemSecondaryAction>
-              <IconButton edge="end" size="small" onClick={() => remove(idx)} color="error" disabled={saving}>
-                <Delete fontSize="small" />
-              </IconButton>
-            </ListItemSecondaryAction>
+            {editIdx === idx ? (
+              <Box display="flex" flex={1} alignItems="center" gap={1}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleEditKey}
+                  autoFocus
+                  disabled={saving}
+                />
+                <IconButton size="small" color="primary" onClick={confirmEdit} disabled={!editValue.trim() || saving}>
+                  <Check fontSize="small" />
+                </IconButton>
+                <IconButton size="small" onClick={cancelEdit} disabled={saving}>
+                  <Close fontSize="small" />
+                </IconButton>
+              </Box>
+            ) : (
+              <>
+                <ListItemText primary={item} />
+                <ListItemSecondaryAction>
+                  <IconButton edge="end" size="small" onClick={() => startEdit(idx)} disabled={saving || editIdx !== null} sx={{ mr: 0.5 }}>
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                  <IconButton edge="end" size="small" onClick={() => remove(idx)} color="error" disabled={saving || editIdx !== null}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </>
+            )}
           </ListItem>
         ))}
         {list.length === 0 && (
@@ -262,9 +318,9 @@ function ListEditor({
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           onKeyDown={handleKey}
-          disabled={saving}
+          disabled={saving || editIdx !== null}
         />
-        <Button variant="outlined" startIcon={<Add />} onClick={add} disabled={!newItem.trim() || saving}>
+        <Button variant="outlined" startIcon={<Add />} onClick={add} disabled={!newItem.trim() || saving || editIdx !== null}>
           Aggiungi
         </Button>
         {saving && <CircularProgress size={18} />}

@@ -58,6 +58,11 @@ export default function TicketDetail() {
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '' });
+  const [editCategories, setEditCategories] = useState<string[]>([]);
+  const [editLocations, setEditLocations] = useState<string[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
 
   const deleteTicket = useDeleteTicket();
 
@@ -80,6 +85,17 @@ export default function TicketDetail() {
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
   }, [currentUser?.role]);
+
+  useEffect(() => {
+    fetch('/api/settings/categories', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setEditCategories(d.value ?? []))
+      .catch(() => {});
+    fetch('/api/settings/locations', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setEditLocations(d.value ?? []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (ticket) {
@@ -168,6 +184,38 @@ export default function TicketDetail() {
     setLocation('/tickets');
   };
 
+  const openEditDialog = () => {
+    setEditForm({
+      title: ticket.title,
+      description: ticket.description,
+      category: ticket.category,
+      location: ticket.location,
+      resource: (ticket as any).resource || '',
+    });
+    setEditDialog(true);
+  };
+
+  const handleEditSave = async () => {
+    setEditSaving(true);
+    try {
+      const updated = await updateTicket.mutateAsync({
+        id: ticketId,
+        data: {
+          title: editForm.title,
+          description: editForm.description,
+          category: editForm.category,
+          location: editForm.location,
+          resource: editForm.resource || undefined,
+        } as any,
+      });
+      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setEditDialog(false);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const submitComment = async () => {
     if (!newComment.trim() && pendingAttachments.length === 0) return;
     const commentText = newComment.trim() || '📎 Allegato';
@@ -185,6 +233,8 @@ export default function TicketDetail() {
   };
 
   const isAdmin = currentUser?.role === 'admin';
+  const isAuthor = (ticket as any).createdBy === currentUser?.id;
+  const canEdit = isAdmin || isAuthor;
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
@@ -205,19 +255,31 @@ export default function TicketDetail() {
         >
           {t.ticketDetail.backToList}
         </Button>
-        {isAdmin && (
-          <Tooltip title="Elimina ticket">
+        <Box display="flex" gap={1}>
+          {canEdit && (
             <Button
-              startIcon={<DeleteOutline />}
-              color="error"
+              startIcon={<EditOutlined />}
               size="small"
               variant="outlined"
-              onClick={() => setDeleteDialog(true)}
+              onClick={openEditDialog}
             >
-              Elimina
+              {t.ticketDetail.editButton}
             </Button>
-          </Tooltip>
-        )}
+          )}
+          {isAdmin && (
+            <Tooltip title="Elimina ticket">
+              <Button
+                startIcon={<DeleteOutline />}
+                color="error"
+                size="small"
+                variant="outlined"
+                onClick={() => setDeleteDialog(true)}
+              >
+                Elimina
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
 
       {/* ── Compact header card ── */}
@@ -785,6 +847,82 @@ export default function TicketDetail() {
             startIcon={<DeleteOutline />}
           >
             {deleteTicket.isPending ? t.ticketDetail.deleting : t.ticketDetail.deletePermanently}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Edit ticket dialog ── */}
+      <Dialog open={editDialog} onClose={() => !editSaving && setEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t.ticketDetail.editDialogTitle} #{ticket?.id}
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <TextField
+            label={t.ticketDetail.editTitleField}
+            fullWidth
+            size="small"
+            value={editForm.title}
+            onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+            disabled={editSaving}
+            required
+          />
+          <TextField
+            label={t.ticketDetail.descriptionLabel}
+            fullWidth
+            multiline
+            minRows={4}
+            size="small"
+            value={editForm.description}
+            onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+            disabled={editSaving}
+          />
+          <TextField
+            label={t.ticketDetail.categoryLabel}
+            fullWidth
+            size="small"
+            select={editCategories.length > 0}
+            value={editForm.category}
+            onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+            disabled={editSaving}
+          >
+            {editCategories.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label={t.ticketDetail.locationLabel}
+            fullWidth
+            size="small"
+            select={editLocations.length > 0}
+            value={editForm.location}
+            onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+            disabled={editSaving}
+          >
+            {editLocations.map((l) => (
+              <MenuItem key={l} value={l}>{l}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label={t.ticketDetail.resourceLabel}
+            fullWidth
+            size="small"
+            value={editForm.resource}
+            onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))}
+            disabled={editSaving}
+            placeholder={t.ticketDetail.resourceLabel}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setEditDialog(false)} color="inherit" disabled={editSaving}>
+            {t.ticketDetail.editCancel}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleEditSave}
+            disabled={editSaving || !editForm.title.trim()}
+            startIcon={editSaving ? <CircularProgress size={16} color="inherit" /> : <EditOutlined />}
+          >
+            {t.ticketDetail.editSave}
           </Button>
         </DialogActions>
       </Dialog>

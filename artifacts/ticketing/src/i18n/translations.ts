@@ -123,6 +123,11 @@ const it = {
     markSolution: 'Segna come soluzione',
     assignUser: 'Utente',
     assignGroup: 'Gruppo',
+    editButton: 'Modifica',
+    editDialogTitle: 'Modifica ticket',
+    editTitleField: 'Titolo',
+    editSave: 'Salva modifiche',
+    editCancel: 'Annulla',
   },
   richEditor: {
     bold: 'Grassetto (Ctrl+B)',
@@ -512,6 +517,11 @@ const en: typeof it = {
     markSolution: 'Mark as solution',
     assignUser: 'User',
     assignGroup: 'Group',
+    editButton: 'Edit',
+    editDialogTitle: 'Edit ticket',
+    editTitleField: 'Title',
+    editSave: 'Save changes',
+    editCancel: 'Cancel',
   },
   richEditor: {
     bold: 'Bold (Ctrl+B)',
