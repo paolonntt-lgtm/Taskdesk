@@ -6,7 +6,7 @@ import {
 import {
   FormatBold, FormatItalic, FormatListBulleted, FormatListNumbered,
   Code, AttachFile, Close, InsertDriveFile, Image as ImageIcon,
-  AlternateEmail, Tag,
+  AlternateEmail, Tag, Group as GroupIcon,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -26,10 +26,10 @@ interface RichCommentEditorProps {
   minRows?: number;
 }
 
-interface AutocompleteUser { id: number; name: string; avatarUrl?: string | null; }
+interface AutocompleteItem { kind: 'user' | 'group'; id?: number; name: string; avatarUrl?: string | null; }
 interface AutocompleteTicket { id: number; title: string; }
 type AutocompleteState =
-  | { type: 'mention'; query: string; startIndex: number; results: AutocompleteUser[]; selectedIdx: number }
+  | { type: 'mention'; query: string; startIndex: number; results: AutocompleteItem[]; selectedIdx: number }
   | { type: 'ticket'; query: string; startIndex: number; results: AutocompleteTicket[]; selectedIdx: number }
   | null;
 
@@ -177,13 +177,21 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [autocomplete, setAutocomplete] = useState<AutocompleteState>(null);
-  const [allUsers, setAllUsers] = useState<AutocompleteUser[]>([]);
+  const [allUsers, setAllUsers] = useState<AutocompleteItem[]>([]);
+  const [allGroups, setAllGroups] = useState<AutocompleteItem[]>([]);
 
-  // Load users once
+  // Load users and groups once
   useEffect(() => {
     fetch('/api/users', { credentials: 'include' })
       .then((r) => r.json())
-      .then((users: any[]) => setAllUsers(users.map((u) => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }))))
+      .then((users: any[]) => setAllUsers(users.map((u) => ({ kind: 'user' as const, id: u.id, name: u.name, avatarUrl: u.avatarUrl }))))
+      .catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data: any) => {
+        const names: string[] = Array.isArray(data?.value) ? data.value : Array.isArray(data) ? data : [];
+        setAllGroups(names.map((n) => ({ kind: 'group' as const, name: n })));
+      })
       .catch(() => {});
   }, []);
 
@@ -193,13 +201,13 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
 
   const closeAutocomplete = useCallback(() => setAutocomplete(null), []);
 
-  const insertMention = useCallback((user: AutocompleteUser) => {
+  const insertMention = useCallback((item: AutocompleteItem) => {
     if (!autocomplete || autocomplete.type !== 'mention') return;
     const ta = textareaRef.current;
     if (!ta) return;
     const before = value.slice(0, autocomplete.startIndex);
     const after = value.slice(ta.selectionStart);
-    const tag = `@[${user.name}]`;
+    const tag = `@[${item.name}]`;
     const newVal = before + tag + ' ' + after;
     onChange(newVal);
     closeAutocomplete();
@@ -240,9 +248,9 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     if (mentionMatch) {
       const query = mentionMatch[1].toLowerCase();
       const startIndex = cursor - mentionMatch[0].length;
-      const results = allUsers
-        .filter((u) => u.name.toLowerCase().includes(query))
-        .slice(0, 6);
+      const matchedUsers = allUsers.filter((u) => u.name.toLowerCase().includes(query));
+      const matchedGroups = allGroups.filter((g) => g.name.toLowerCase().includes(query));
+      const results = [...matchedUsers, ...matchedGroups].slice(0, 8);
       setAutocomplete({ type: 'mention', query, startIndex, results, selectedIdx: 0 });
       return;
     }
@@ -291,8 +299,8 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         if (autocomplete.type === 'mention') {
-          const user = (autocomplete.results as AutocompleteUser[])[autocomplete.selectedIdx];
-          if (user) insertMention(user);
+          const item = (autocomplete.results as AutocompleteItem[])[autocomplete.selectedIdx];
+          if (item) insertMention(item);
         } else {
           const ticket = (autocomplete.results as AutocompleteTicket[])[autocomplete.selectedIdx];
           if (ticket) insertTicketRef(ticket);
@@ -575,19 +583,25 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           </Box>
           <List dense disablePadding>
             {autocomplete!.type === 'mention'
-              ? (autocomplete!.results as AutocompleteUser[]).map((user, idx) => (
+              ? (autocomplete!.results as AutocompleteItem[]).map((item, idx) => (
                 <ListItemButton
-                  key={user.id}
+                  key={item.kind === 'user' ? `u-${item.id}` : `g-${item.name}`}
                   selected={idx === autocomplete!.selectedIdx}
-                  onMouseDown={(e) => { e.preventDefault(); insertMention(user); }}
+                  onMouseDown={(e) => { e.preventDefault(); insertMention(item); }}
                   sx={{ py: 0.75 }}
                 >
                   <ListItemAvatar sx={{ minWidth: 36 }}>
-                    <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
-                      {user.name.charAt(0)}
-                    </Avatar>
+                    {item.kind === 'group'
+                      ? <Avatar sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: 'secondary.main' }}><GroupIcon sx={{ fontSize: 14 }} /></Avatar>
+                      : <Avatar src={item.avatarUrl ?? undefined} sx={{ width: 26, height: 26, fontSize: '0.75rem', bgcolor: 'primary.main' }}>{item.name.charAt(0)}</Avatar>
+                    }
                   </ListItemAvatar>
-                  <ListItemText primary={user.name} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                  <ListItemText
+                    primary={item.name}
+                    secondary={item.kind === 'group' ? tr.groupLabel : undefined}
+                    primaryTypographyProps={{ fontSize: '0.85rem' }}
+                    secondaryTypographyProps={{ fontSize: '0.7rem' }}
+                  />
                 </ListItemButton>
               ))
               : (autocomplete!.results as AutocompleteTicket[]).map((ticket, idx) => (
