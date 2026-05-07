@@ -8,6 +8,7 @@ import {
   Code, AttachFile, Close, InsertDriveFile, Image as ImageIcon,
   AlternateEmail, Tag,
 } from '@mui/icons-material';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export interface PendingAttachment {
   objectPath: string;
@@ -71,23 +72,23 @@ function insertLinePrefix(
   }, 0);
 }
 
-async function requestPresignedUrl(file: File): Promise<{ uploadURL: string; objectPath: string }> {
+async function requestPresignedUrl(file: File, uploadRequestError: string): Promise<{ uploadURL: string; objectPath: string }> {
   const res = await fetch('/api/storage/uploads/request-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type || 'application/octet-stream' }),
   });
-  if (!res.ok) throw new Error('Errore nel richiedere URL di upload');
+  if (!res.ok) throw new Error(uploadRequestError);
   return res.json();
 }
 
-async function uploadToPresignedUrl(file: File, url: string): Promise<void> {
+async function uploadToPresignedUrl(file: File, url: string, uploadFileError: string): Promise<void> {
   const res = await fetch(url, {
     method: 'PUT',
     body: file,
     headers: { 'Content-Type': file.type || 'application/octet-stream' },
   });
-  if (!res.ok) throw new Error('Errore nel caricamento del file');
+  if (!res.ok) throw new Error(uploadFileError);
 }
 
 function formatBytes(bytes: number): string {
@@ -114,6 +115,8 @@ export function RichCommentEditor({
   minRows = 3,
   ticketId,
 }: RichCommentEditorProps) {
+  const { t } = useLanguage();
+  const tr = t.richEditor;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -196,14 +199,22 @@ export function RichCommentEditor({
     if (ticketMatch) {
       const query = ticketMatch[1];
       const startIndex = cursor - ticketMatch[0].length;
-      // Fetch ticket suggestions
-      fetch(`/api/tickets?search=${query}&limit=6`, { credentials: 'include' })
+      // Fetch ticket suggestions — search by ID when numeric, by title otherwise
+      const searchParam = query ? `search=${encodeURIComponent(query)}&` : '';
+      fetch(`/api/tickets?${searchParam}limit=6`, { credentials: 'include' })
         .then((r) => r.json())
         .then((data: any) => {
-          const tickets: AutocompleteTicket[] = (data.tickets ?? data ?? [])
-            .slice(0, 6)
+          const all: AutocompleteTicket[] = (data.tickets ?? data ?? [])
             .map((t: any) => ({ id: t.id, title: t.title }));
-          setAutocomplete({ type: 'ticket', query, startIndex, results: tickets, selectedIdx: 0 });
+          // When query is numeric, sort exact ID match first
+          const sorted = query && /^\d+$/.test(query)
+            ? [...all].sort((a, b) => {
+                const aMatch = a.id === parseInt(query, 10) ? -1 : 0;
+                const bMatch = b.id === parseInt(query, 10) ? 1 : 0;
+                return aMatch + bMatch;
+              })
+            : all;
+          setAutocomplete({ type: 'ticket', query, startIndex, results: sorted.slice(0, 6), selectedIdx: 0 });
         })
         .catch(() => closeAutocomplete());
       return;
@@ -262,11 +273,11 @@ export function RichCommentEditor({
 
     for (const file of files) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        errors.push(`${file.name}: tipo file non supportato`);
+        errors.push(`${file.name}: ${tr.uploadTypeError}`);
         continue;
       }
       if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        errors.push(`${file.name}: supera il limite di ${MAX_SIZE_MB} MB`);
+        errors.push(`${file.name}: ${tr.uploadSizeError.replace('{max}', String(MAX_SIZE_MB))}`);
         continue;
       }
       toUpload.push(file);
@@ -280,8 +291,8 @@ export function RichCommentEditor({
 
     for (const file of toUpload) {
       try {
-        const { uploadURL, objectPath } = await requestPresignedUrl(file);
-        await uploadToPresignedUrl(file, uploadURL);
+        const { uploadURL, objectPath } = await requestPresignedUrl(file, tr.uploadRequestError);
+        await uploadToPresignedUrl(file, uploadURL, tr.uploadFileError);
         uploaded.push({ objectPath, fileName: file.name, fileSize: file.size, mimeType: file.type || 'application/octet-stream' });
       } catch (err: any) {
         errors.push(`${file.name}: ${err.message}`);
@@ -323,34 +334,34 @@ export function RichCommentEditor({
             flexWrap: 'wrap',
           }}
         >
-          <Tooltip title="Grassetto (Ctrl+B)">
+          <Tooltip title={tr.bold}>
             <IconButton size="small" onMouseDown={e => { e.preventDefault(); action(ta => wrapSelection(ta, '**', '**', 'testo', onChange)); }}>
               <FormatBold fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Corsivo (Ctrl+I)">
+          <Tooltip title={tr.italic}>
             <IconButton size="small" onMouseDown={e => { e.preventDefault(); action(ta => wrapSelection(ta, '*', '*', 'testo', onChange)); }}>
               <FormatItalic fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Codice inline">
+          <Tooltip title={tr.code}>
             <IconButton size="small" onMouseDown={e => { e.preventDefault(); action(ta => wrapSelection(ta, '`', '`', 'codice', onChange)); }}>
               <Code fontSize="small" />
             </IconButton>
           </Tooltip>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-          <Tooltip title="Elenco puntato">
+          <Tooltip title={tr.bulletList}>
             <IconButton size="small" onMouseDown={e => { e.preventDefault(); action(ta => insertLinePrefix(ta, '- ', onChange)); }}>
               <FormatListBulleted fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Elenco numerato">
+          <Tooltip title={tr.numberedList}>
             <IconButton size="small" onMouseDown={e => { e.preventDefault(); action(ta => insertLinePrefix(ta, '1. ', onChange)); }}>
               <FormatListNumbered fontSize="small" />
             </IconButton>
           </Tooltip>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-          <Tooltip title="Allega file">
+          <Tooltip title={tr.attach}>
             <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
               <AttachFile fontSize="small" />
             </IconButton>
@@ -384,7 +395,7 @@ export function RichCommentEditor({
               @Nome
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
-              — menziona un collega
+              — {tr.mentionHint}
             </Typography>
           </Box>
           <Divider orientation="vertical" flexItem sx={{ borderColor: 'primary.200' }} />
@@ -394,7 +405,7 @@ export function RichCommentEditor({
               #42
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
-              — collega un ticket
+              — {tr.ticketHint}
             </Typography>
           </Box>
         </Box>
@@ -444,7 +455,7 @@ export function RichCommentEditor({
         >
           <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              {autocomplete!.type === 'mention' ? '@ Menziona utente' : '# Riferimento ticket'}
+              {autocomplete!.type === 'mention' ? tr.mentionDropdownTitle : tr.ticketDropdownTitle}
             </Typography>
           </Box>
           <List dense disablePadding>

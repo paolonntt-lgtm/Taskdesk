@@ -363,8 +363,8 @@ export default function TicketDetail() {
                         onChange={(_, v) => { if (!v) return; setAssignMode(v); }}
                         sx={{ mb: 1.5 }}
                       >
-                        <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />Utente</ToggleButton>
-                        <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />Gruppo</ToggleButton>
+                        <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignUser}</ToggleButton>
+                        <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignGroup}</ToggleButton>
                       </ToggleButtonGroup>
 
                       {assignMode === 'user' ? (
@@ -572,7 +572,7 @@ export default function TicketDetail() {
                           >
                             <CheckCircle sx={{ fontSize: 14, color: 'success.dark' }} />
                             <Typography variant="caption" fontWeight="bold" color="success.dark">
-                              Soluzione
+                              {t.ticketDetail.solutionLabel}
                             </Typography>
                           </Box>
                         )}
@@ -591,7 +591,7 @@ export default function TicketDetail() {
                                 {new Date(c.createdAt).toLocaleString(dateLocale)}
                               </Typography>
                               {canMarkSolution && (
-                                <Tooltip title={isSolution ? 'Rimuovi soluzione' : 'Segna come soluzione'}>
+                                <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
                                   <IconButton
                                     size="small"
                                     onClick={() => handleMarkSolution(c.id, isSolution)}

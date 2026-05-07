@@ -21,7 +21,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
@@ -40,13 +40,15 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   if (search) {
     const searchPattern = `%${search}%`;
+    const numericId = /^\d+$/.test(search) ? parseInt(search, 10) : null;
+
     const searchBase = db
       .selectDistinct({ id: ticketsTable.id })
       .from(ticketsTable)
       .leftJoin(ticketCommentsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
       .leftJoin(ticketActivityLogsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id));
 
-    const searchWhere = or(
+    const textWhere = or(
       ilike(ticketsTable.title, searchPattern),
       ilike(ticketsTable.description, searchPattern),
       ilike(ticketsTable.category, searchPattern),
@@ -55,6 +57,11 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       ilike(ticketCommentsTable.commentText, searchPattern),
       ilike(ticketActivityLogsTable.actionDescription, searchPattern)
     );
+
+    // When the query is a number, also match by exact ticket ID
+    const searchWhere = numericId != null
+      ? or(eq(ticketsTable.id, numericId), textWhere)
+      : textWhere;
 
     const orgWhere = orgId != null ? and(eq(ticketsTable.organizationId, orgId), searchWhere) : searchWhere;
     const searchTicketIds = await searchBase.where(orgWhere);
@@ -66,11 +73,14 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     conditions.push(inArray(ticketsTable.id, ids));
   }
 
+  const pageLimit = limit ? parseInt(limit, 10) : undefined;
+
   const tickets = await db
     .select()
     .from(ticketsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(sql`${ticketsTable.updatedAt} DESC`);
+    .orderBy(sql`${ticketsTable.updatedAt} DESC`)
+    .limit(pageLimit ?? 10000);
 
   const creatorIds = [...new Set(tickets.map((t) => t.createdBy))];
   const assigneeIds = [...new Set(tickets.map((t) => t.assignedTo).filter(Boolean))] as number[];
