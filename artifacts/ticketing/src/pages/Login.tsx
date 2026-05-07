@@ -10,6 +10,8 @@ import {
   Container,
   Divider,
   CircularProgress,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
@@ -193,13 +195,22 @@ export default function Login() {
                   <Typography variant="caption" color="text.secondary">oppure</Typography>
                   <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
                 </Box>
-                <Button
-                  component="a" href="/api/auth/google" fullWidth variant="outlined"
-                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', color: '#3c4043', borderColor: '#dadce0', gap: 1.5, '&:hover': { bgcolor: '#f8f9fa', borderColor: '#c6c9cc' } }}
-                >
-                  <GoogleLogo />
-                  Continua con Google
-                </Button>
+                <Tooltip title="Accesso con Google non ancora disponibile" arrow placement="top">
+                  <Box sx={{ position: 'relative', display: 'block' }}>
+                    <Button
+                      fullWidth variant="outlined" disabled
+                      sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
+                    >
+                      <GoogleLogo />
+                      Continua con Google
+                    </Button>
+                    <Chip
+                      label="Prossimamente"
+                      size="small"
+                      sx={{ position: 'absolute', top: -10, right: 8, fontSize: '0.65rem', height: 18, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 700, pointerEvents: 'none' }}
+                    />
+                  </Box>
+                </Tooltip>
               </form>
             ) : mode === 'register' ? (
               <form onSubmit={handleRegister}>
@@ -245,13 +256,22 @@ export default function Login() {
                   <Typography variant="caption" color="text.secondary">oppure</Typography>
                   <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
                 </Box>
-                <Button
-                  component="a" href="/api/auth/google" fullWidth variant="outlined"
-                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', color: '#3c4043', borderColor: '#dadce0', gap: 1.5, '&:hover': { bgcolor: '#f8f9fa', borderColor: '#c6c9cc' } }}
-                >
-                  <GoogleLogo />
-                  Registrati con Google
-                </Button>
+                <Tooltip title="Registrazione con Google non ancora disponibile" arrow placement="top">
+                  <Box sx={{ position: 'relative', display: 'block' }}>
+                    <Button
+                      fullWidth variant="outlined" disabled
+                      sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
+                    >
+                      <GoogleLogo />
+                      Registrati con Google
+                    </Button>
+                    <Chip
+                      label="Prossimamente"
+                      size="small"
+                      sx={{ position: 'absolute', top: -10, right: 8, fontSize: '0.65rem', height: 18, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 700, pointerEvents: 'none' }}
+                    />
+                  </Box>
+                </Tooltip>
               </form>
             ) : forgotSent ? (
               <Box textAlign="center" py={1}>
