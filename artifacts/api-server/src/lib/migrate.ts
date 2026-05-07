@@ -27,6 +27,11 @@ export async function runAppMigrations(): Promise<void> {
       WHERE t.id = r.id;
     `);
 
+    // Add updated_at column to ticket_comments if it doesn't exist
+    await client.query(`
+      ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
