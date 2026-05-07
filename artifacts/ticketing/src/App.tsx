@@ -3,7 +3,7 @@ import { Router as WouterRouter, Switch, Route, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, CircularProgress, Box } from "@mui/material";
-import { lightTheme, darkTheme } from "./theme";
+import { lightTheme } from "./theme";
 import { AuthContext, useAuth } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Login from "./pages/Login";
@@ -52,7 +52,7 @@ const queryClient = new QueryClient({
   },
 });
 
-function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light" | "dark" }) {
+function AppShell() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +107,7 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
           ) : !user ? (
             <Login />
           ) : (
-            <Layout toggleTheme={toggleTheme} mode={mode}>
+            <Layout>
               <Switch>
                 <Route path="/" component={Dashboard} />
                 <Route path="/tickets/new" component={NewTicket} />
@@ -129,27 +129,13 @@ function AppShell({ toggleTheme, mode }: { toggleTheme: () => void; mode: "light
 }
 
 function AppContent() {
-  const [mode, setMode] = useState<"light" | "dark">("light");
-  const theme = useMemo(() => (mode === "light" ? lightTheme : darkTheme), [mode]);
-
-  const toggleTheme = () => setMode((prev) => (prev === "light" ? "dark" : "light"));
-
-  useEffect(() => {
-    const saved = localStorage.getItem("themeMode");
-    if (saved === "dark" || saved === "light") setMode(saved);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("themeMode", mode);
-  }, [mode]);
-
   const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={lightTheme}>
       <CssBaseline />
       <WouterRouter base={base}>
-        <AppShell toggleTheme={toggleTheme} mode={mode} />
+        <AppShell />
       </WouterRouter>
     </ThemeProvider>
   );

@@ -30,8 +30,7 @@ import {
   BarChart,
   Notifications,
   AccountCircle,
-  LightMode,
-  DarkMode,
+
   People,
   CreditCard,
   Settings,
@@ -53,11 +52,9 @@ const drawerWidth = 264;
 
 interface LayoutProps {
   children: React.ReactNode;
-  toggleTheme: () => void;
-  mode: 'light' | 'dark';
 }
 
-export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
+export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const [location, setLocation] = useLocation();
@@ -183,7 +180,7 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
                   '&:hover': { background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)' },
                 },
                 '&:not(.Mui-selected):hover': {
-                  bgcolor: mode === 'light' ? '#f3f4f6' : 'rgba(255,255,255,0.05)',
+                  bgcolor: '#f3f4f6',
                 },
               }}
             >
@@ -207,8 +204,8 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
         <Box sx={{
           display: 'flex', alignItems: 'center', gap: 1.5,
           p: 1.5, borderRadius: '12px',
-          bgcolor: mode === 'light' ? '#f8faff' : 'rgba(255,255,255,0.04)',
-          border: '1px solid', borderColor: mode === 'light' ? '#f3f4f6' : 'rgba(255,255,255,0.07)',
+          bgcolor: '#f8faff',
+          border: '1px solid', borderColor: '#f3f4f6',
         }}>
           <Avatar
             src={(user as any)?.avatarUrl ?? undefined}
@@ -268,16 +265,6 @@ export default function Layout({ children, toggleTheme, mode }: LayoutProps) {
           >
             {lang === 'it' ? 'EN' : 'IT'}
           </Button>
-
-          {/* Dark/light toggle */}
-          <IconButton
-            onClick={toggleTheme}
-            size="small"
-            title={mode === 'light' ? t.nav.darkMode : t.nav.lightMode}
-            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-          >
-            {mode === 'light' ? <DarkMode fontSize="small" /> : <LightMode fontSize="small" />}
-          </IconButton>
 
           {/* Notifications */}
           <IconButton
