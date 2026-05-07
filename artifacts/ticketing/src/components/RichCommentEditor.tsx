@@ -196,7 +196,7 @@ export function RichCommentEditor({
     if (!ta) return;
     const before = value.slice(0, autocomplete.startIndex);
     const after = value.slice(ta.selectionStart);
-    const tag = `[#${ticket.id} ${ticket.title}](/tickets/${ticket.id})`;
+    const tag = `[#${(ticket as any).ticketNumber ?? ticket.id} ${ticket.title}](/tickets/${ticket.id})`;
     const newVal = before + tag + ' ' + after;
     onChange(newVal);
     closeAutocomplete();
@@ -516,7 +516,7 @@ export function RichCommentEditor({
                   sx={{ py: 0.75 }}
                 >
                   <ListItemText
-                    primary={<><Box component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>#{ticket.id}</Box> {ticket.title}</>}
+                    primary={<><Box component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>#{(ticket as any).ticketNumber ?? ticket.id}</Box> {ticket.title}</>}
                     primaryTypographyProps={{ fontSize: '0.85rem', noWrap: true }}
                   />
                 </ListItemButton>

@@ -58,9 +58,9 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       ilike(ticketActivityLogsTable.actionDescription, searchPattern)
     );
 
-    // When the query is a number, also match by exact ticket ID
+    // When the query is a number, also match by exact ticket ID or ticketNumber
     const searchWhere = numericId != null
-      ? or(eq(ticketsTable.id, numericId), textWhere)
+      ? or(eq(ticketsTable.id, numericId), eq(ticketsTable.ticketNumber, numericId), textWhere)
       : textWhere;
 
     const orgWhere = orgId != null ? and(eq(ticketsTable.organizationId, orgId), searchWhere) : searchWhere;
@@ -153,6 +153,14 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  // Compute per-org sequential ticket number
+  const orgIdForNum = currentUser.organizationId;
+  const [{ maxNum }] = await db
+    .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
+    .from(ticketsTable)
+    .where(orgIdForNum != null ? eq(ticketsTable.organizationId, orgIdForNum) : sql`organization_id IS NULL`);
+  const nextTicketNumber = (Number(maxNum) || 0) + 1;
+
   const [ticket] = await db.insert(ticketsTable).values({
     title,
     description,
@@ -163,6 +171,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     status: "open",
     createdBy: currentUser.id,
     organizationId: currentUser.organizationId,
+    ticketNumber: nextTicketNumber,
     assignedTo: assignedTo ?? null,
     assignedToGroup: assignedToGroup ?? null,
   }).returning();
@@ -183,9 +192,10 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     });
   }
 
-  await createNotificationsForTicket(ticket.id, `${currentUser.name} ha aperto il ticket #${ticket.id}: "${title}"`, currentUser.id, "ticket_created", currentUser.organizationId);
+  const displayNum = ticket.ticketNumber ?? ticket.id;
+  await createNotificationsForTicket(ticket.id, `${currentUser.name} ha aperto il ticket #${displayNum}: "${title}"`, currentUser.id, "ticket_created", currentUser.organizationId);
   if (assignedTo && assignedTo !== currentUser.id) {
-    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${ticket.id}: "${title}"`, "ticket_assigned", currentUser.organizationId);
+    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${title}"`, "ticket_assigned", currentUser.organizationId);
   }
 
   const creator = currentUser;

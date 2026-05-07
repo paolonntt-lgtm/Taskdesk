@@ -107,6 +107,7 @@ export const TicketStatus = {
 
 export interface Ticket {
   id: number;
+  ticketNumber?: number | null;
   title: string;
   description: string;
   category: string;

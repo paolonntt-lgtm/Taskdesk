@@ -193,7 +193,7 @@ export default function TicketList() {
                     sx={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
-                    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{ticket.id}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
                     <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <Box display="flex" alignItems="center" gap={0.75}>
                         {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (

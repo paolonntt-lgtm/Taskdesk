@@ -7,6 +7,7 @@ import { organizationsTable } from "./organizations";
 export const ticketsTable = pgTable("tickets", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => organizationsTable.id),
+  ticketNumber: integer("ticket_number"),
   title: text("title").notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),

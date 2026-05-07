@@ -855,6 +855,9 @@ components:
       properties:
         id:
           type: integer
+        ticketNumber:
+          type: integer
+          nullable: true
         title:
           type: string
         description:

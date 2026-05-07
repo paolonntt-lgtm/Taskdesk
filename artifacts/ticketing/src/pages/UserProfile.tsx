@@ -132,7 +132,7 @@ export default function UserProfile() {
                       sx={{ cursor: 'pointer' }}
                       onClick={() => setLocation(`/tickets/${ticket.id}`)}
                     >
-                      <TableCell>#{ticket.id}</TableCell>
+                      <TableCell>#{ticket.ticketNumber ?? ticket.id}</TableCell>
                       <TableCell sx={{ maxWidth: 240 }}>
                         <Typography variant="body2" noWrap>{ticket.title}</Typography>
                       </TableCell>
@@ -183,7 +183,7 @@ export default function UserProfile() {
                       sx={{ cursor: 'pointer' }}
                       onClick={() => setLocation(`/tickets/${ticket.id}`)}
                     >
-                      <TableCell>#{ticket.id}</TableCell>
+                      <TableCell>#{ticket.ticketNumber ?? ticket.id}</TableCell>
                       <TableCell sx={{ maxWidth: 240 }}>
                         <Typography variant="body2" noWrap>{ticket.title}</Typography>
                       </TableCell>

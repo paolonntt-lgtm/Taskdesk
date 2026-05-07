@@ -142,13 +142,13 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
                     flexShrink: 0,
                   }}
                 >
-                  #{ticket.id}
+                  #{(ticket as any).ticketNumber ?? ticket.id}
                 </Avatar>
               )}
 
               <Box flex={1} minWidth={0}>
                 <Typography variant="body2" fontWeight="medium" noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
-                  {isMobile && <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>#{ticket.id}</Typography>}
+                  {isMobile && <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>#{(ticket as any).ticketNumber ?? ticket.id}</Typography>}
                   {ticket.title}
                 </Typography>
                 {ticket.category && (

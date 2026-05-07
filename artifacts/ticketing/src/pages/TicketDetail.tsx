@@ -308,7 +308,7 @@ export default function TicketDetail() {
 
           {/* Row 2: ticket title */}
           <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', mb: { xs: 1, sm: 1.5 }, lineHeight: 1.3, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-            #{ticket.id} — {ticket.title}
+            #{ticket.ticketNumber ?? ticket.id} — {ticket.title}
           </Typography>
 
           {/* Row 3: status chips */}
@@ -829,7 +829,7 @@ export default function TicketDetail() {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Sei sicuro di voler eliminare il ticket <strong>#{ticket?.id} — {ticket?.title}</strong>?
+            Sei sicuro di voler eliminare il ticket <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={1}>
             Questa operazione è irreversibile: verranno eliminati anche tutti i commenti, allegati e lo storico attività.
@@ -854,7 +854,7 @@ export default function TicketDetail() {
       {/* ── Edit ticket dialog ── */}
       <Dialog open={editDialog} onClose={() => !editSaving && setEditDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {t.ticketDetail.editDialogTitle} #{ticket?.id}
+          {t.ticketDetail.editDialogTitle} #{ticket?.ticketNumber ?? ticket?.id}
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField

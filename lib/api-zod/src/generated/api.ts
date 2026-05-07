@@ -171,6 +171,7 @@ export const ListTicketsQueryParams = zod.object({
 export const ListTicketsResponseItem = zod
   .object({
     id: zod.number(),
+    ticketNumber: zod.number().nullish(),
     title: zod.string(),
     description: zod.string(),
     category: zod.string(),
@@ -241,6 +242,7 @@ export const GetTicketParams = zod.object({
 export const GetTicketResponse = zod
   .object({
     id: zod.number(),
+    ticketNumber: zod.number().nullish(),
     title: zod.string(),
     description: zod.string(),
     category: zod.string(),
@@ -311,6 +313,7 @@ export const UpdateTicketBody = zod.object({
 export const UpdateTicketResponse = zod
   .object({
     id: zod.number(),
+    ticketNumber: zod.number().nullish(),
     title: zod.string(),
     description: zod.string(),
     category: zod.string(),
@@ -651,6 +654,7 @@ export const GetTicketTrendResponse = zod.array(GetTicketTrendResponseItem);
 export const GetRecentTicketsResponseItem = zod
   .object({
     id: zod.number(),
+    ticketNumber: zod.number().nullish(),
     title: zod.string(),
     description: zod.string(),
     category: zod.string(),
@@ -703,6 +707,7 @@ export const GetRecentTicketsResponse = zod.array(GetRecentTicketsResponseItem);
 export const GetMyTicketsResponseItem = zod
   .object({
     id: zod.number(),
+    ticketNumber: zod.number().nullish(),
     title: zod.string(),
     description: zod.string(),
     category: zod.string(),
