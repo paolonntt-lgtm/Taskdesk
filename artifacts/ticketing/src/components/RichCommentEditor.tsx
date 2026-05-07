@@ -285,6 +285,68 @@ export function RichCommentEditor({
       }
     }
 
+    // Auto-continue lists on Enter
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      const ta = textareaRef.current;
+      if (ta) {
+        const cursor = ta.selectionStart;
+        const textBefore = ta.value.slice(0, cursor);
+        const lineStart = textBefore.lastIndexOf('\n') + 1;
+        const currentLine = textBefore.slice(lineStart);
+
+        const numberedMatch = currentLine.match(/^(\d+)\. (.*)/);
+        const bulletMatch = currentLine.match(/^([-*]) (.*)/);
+
+        if (numberedMatch) {
+          e.preventDefault();
+          const lineContent = numberedMatch[2];
+          if (lineContent.trim() === '') {
+            // Empty list item → exit list: remove the prefix
+            const newVal = ta.value.slice(0, lineStart) + '\n' + ta.value.slice(cursor);
+            onChange(newVal);
+            setTimeout(() => {
+              const pos = lineStart + 1;
+              ta.setSelectionRange(pos, pos);
+            }, 0);
+          } else {
+            const nextNum = parseInt(numberedMatch[1], 10) + 1;
+            const insert = `\n${nextNum}. `;
+            const newVal = ta.value.slice(0, cursor) + insert + ta.value.slice(ta.selectionEnd);
+            onChange(newVal);
+            setTimeout(() => {
+              const pos = cursor + insert.length;
+              ta.setSelectionRange(pos, pos);
+            }, 0);
+          }
+          return;
+        }
+
+        if (bulletMatch) {
+          e.preventDefault();
+          const lineContent = bulletMatch[2];
+          if (lineContent.trim() === '') {
+            // Empty list item → exit list: remove the prefix
+            const newVal = ta.value.slice(0, lineStart) + '\n' + ta.value.slice(cursor);
+            onChange(newVal);
+            setTimeout(() => {
+              const pos = lineStart + 1;
+              ta.setSelectionRange(pos, pos);
+            }, 0);
+          } else {
+            const marker = bulletMatch[1];
+            const insert = `\n${marker} `;
+            const newVal = ta.value.slice(0, cursor) + insert + ta.value.slice(ta.selectionEnd);
+            onChange(newVal);
+            setTimeout(() => {
+              const pos = cursor + insert.length;
+              ta.setSelectionRange(pos, pos);
+            }, 0);
+          }
+          return;
+        }
+      }
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
       e.preventDefault();
       action(ta => wrapSelection(ta, '**', '**', 'testo', onChange));
