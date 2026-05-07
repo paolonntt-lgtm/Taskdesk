@@ -78,8 +78,11 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           borderRadius: 0.5,
           fontSize: '0.8rem',
         },
-        '& ul, & ol': { pl: 2.5, my: 0.5 },
-        '& li': { mb: 0.25 },
+        '& ul': { pl: 2.5, my: 0.5, listStyleType: 'disc' },
+        '& ol': { pl: 2.5, my: 0.5, listStyleType: 'decimal' },
+        '& ul ul': { listStyleType: 'circle' },
+        '& ul ul ul': { listStyleType: 'square' },
+        '& li': { mb: 0.25, display: 'list-item' },
         '& a': { color: 'primary.main' },
         '& pre': {
           bgcolor: 'grey.100',

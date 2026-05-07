@@ -57,18 +57,51 @@ function insertLinePrefix(
   prefix: string,
   onChange: (val: string) => void,
 ) {
-  const start = textarea.selectionStart;
-  const value = textarea.value;
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  const alreadyHas = value.slice(lineStart).startsWith(prefix);
-  const newValue = alreadyHas
-    ? value.slice(0, lineStart) + value.slice(lineStart + prefix.length)
-    : value.slice(0, lineStart) + prefix + value.slice(lineStart);
+  const { selectionStart: start, selectionEnd: end, value } = textarea;
+
+  // Find the start of the first selected line
+  const firstLineStart = value.lastIndexOf('\n', start - 1) + 1;
+  // Find the end of the last selected line
+  const lastLineEnd = value.indexOf('\n', end);
+  const blockEnd = lastLineEnd === -1 ? value.length : lastLineEnd;
+
+  const block = value.slice(firstLineStart, blockEnd);
+  const lines = block.split('\n');
+
+  const isNumbered = /^\d+\.\s/.test(prefix);
+
+  // Detect whether all lines already have a list prefix (bullet or numbered)
+  const allHavePrefix = lines.every((l) =>
+    isNumbered ? /^\d+\.\s/.test(l) : l.startsWith(prefix),
+  );
+
+  let newBlock: string;
+  if (allHavePrefix) {
+    // Toggle off — strip the prefix from every line
+    newBlock = lines
+      .map((l) => (isNumbered ? l.replace(/^\d+\.\s/, '') : l.slice(prefix.length)))
+      .join('\n');
+  } else {
+    // Add prefix to every line, with auto-numbering for ordered lists
+    let counter = 1;
+    newBlock = lines
+      .map((l) => {
+        const stripped = isNumbered ? l.replace(/^\d+\.\s/, '') : l.startsWith(prefix) ? l.slice(prefix.length) : l;
+        return isNumbered ? `${counter++}. ${stripped}` : prefix + stripped;
+      })
+      .join('\n');
+  }
+
+  const newValue = value.slice(0, firstLineStart) + newBlock + value.slice(blockEnd);
   onChange(newValue);
+
+  // Restore / adjust selection
+  const lengthDiff = newBlock.length - block.length;
   setTimeout(() => {
     textarea.focus();
-    const offset = alreadyHas ? -prefix.length : prefix.length;
-    textarea.setSelectionRange(start + offset, start + offset);
+    const newStart = Math.max(firstLineStart, start + (allHavePrefix ? -prefix.length : prefix.length));
+    const newEnd = end + lengthDiff;
+    textarea.setSelectionRange(newStart, Math.max(newStart, newEnd));
   }, 0);
 }
 
