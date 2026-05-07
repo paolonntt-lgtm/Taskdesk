@@ -35,6 +35,7 @@ export * from "./ticketPriority";
 export * from "./ticketStatus";
 export * from "./ticketWithDetails";
 export * from "./trendPoint";
+export * from "./updateCommentBody";
 export * from "./updateTicketBody";
 export * from "./updateTicketBodyPriority";
 export * from "./updateTicketBodyStatus";

@@ -40,6 +40,7 @@ import type {
   SuccessResponse,
   TicketWithDetails,
   TrendPoint,
+  UpdateCommentBody,
   UpdateTicketBody,
   UpdateUserBody,
   User,
@@ -1376,6 +1377,182 @@ export const useAddTicketComment = <
   TContext
 > => {
   return useMutation(getAddTicketCommentMutationOptions(options));
+};
+
+/**
+ * @summary Edit a comment (own author or admin)
+ */
+export const getUpdateTicketCommentUrl = (id: number, commentId: number) => {
+  return `/api/tickets/${id}/comments/${commentId}`;
+};
+
+export const updateTicketComment = async (
+  id: number,
+  commentId: number,
+  updateCommentBody: UpdateCommentBody,
+  options?: RequestInit,
+): Promise<CommentWithAuthor> => {
+  return customFetch<CommentWithAuthor>(
+    getUpdateTicketCommentUrl(id, commentId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateCommentBody),
+    },
+  );
+};
+
+export const getUpdateTicketCommentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTicketComment>>,
+    TError,
+    { id: number; commentId: number; data: BodyType<UpdateCommentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTicketComment>>,
+  TError,
+  { id: number; commentId: number; data: BodyType<UpdateCommentBody> },
+  TContext
+> => {
+  const mutationKey = ["updateTicketComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTicketComment>>,
+    { id: number; commentId: number; data: BodyType<UpdateCommentBody> }
+  > = (props) => {
+    const { id, commentId, data } = props ?? {};
+
+    return updateTicketComment(id, commentId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTicketCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTicketComment>>
+>;
+export type UpdateTicketCommentMutationBody = BodyType<UpdateCommentBody>;
+export type UpdateTicketCommentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Edit a comment (own author or admin)
+ */
+export const useUpdateTicketComment = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTicketComment>>,
+    TError,
+    { id: number; commentId: number; data: BodyType<UpdateCommentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTicketComment>>,
+  TError,
+  { id: number; commentId: number; data: BodyType<UpdateCommentBody> },
+  TContext
+> => {
+  return useMutation(getUpdateTicketCommentMutationOptions(options));
+};
+
+/**
+ * @summary Delete a comment (own author or admin)
+ */
+export const getDeleteTicketCommentUrl = (id: number, commentId: number) => {
+  return `/api/tickets/${id}/comments/${commentId}`;
+};
+
+export const deleteTicketComment = async (
+  id: number,
+  commentId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteTicketCommentUrl(id, commentId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTicketCommentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicketComment>>,
+    TError,
+    { id: number; commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTicketComment>>,
+  TError,
+  { id: number; commentId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTicketComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTicketComment>>,
+    { id: number; commentId: number }
+  > = (props) => {
+    const { id, commentId } = props ?? {};
+
+    return deleteTicketComment(id, commentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTicketCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTicketComment>>
+>;
+
+export type DeleteTicketCommentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a comment (own author or admin)
+ */
+export const useDeleteTicketComment = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicketComment>>,
+    TError,
+    { id: number; commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTicketComment>>,
+  TError,
+  { id: number; commentId: number },
+  TContext
+> => {
+  return useMutation(getDeleteTicketCommentMutationOptions(options));
 };
 
 /**

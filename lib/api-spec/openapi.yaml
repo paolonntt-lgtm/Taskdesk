@@ -406,6 +406,79 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommentWithAuthor"
 
+  /tickets/{id}/comments/{commentId}:
+    patch:
+      operationId: updateTicketComment
+      tags: [comments]
+      summary: Edit a comment (own author or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentBody"
+      responses:
+        "200":
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentWithAuthor"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteTicketComment
+      tags: [comments]
+      summary: Delete a comment (own author or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Comment deleted
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /tickets/{id}/attachments:
     get:
       operationId: listTicketAttachments
@@ -1125,6 +1198,14 @@ components:
         replyToCommentId:
           type: integer
           nullable: true
+      required:
+        - commentText
+
+    UpdateCommentBody:
+      type: object
+      properties:
+        commentText:
+          type: string
       required:
         - commentText
 

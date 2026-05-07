@@ -11,6 +11,7 @@ import {
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
+  useUpdateTicketComment, useDeleteTicketComment,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey,
 } from '@workspace/api-client-react';
@@ -68,11 +69,17 @@ export default function TicketDetail() {
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
   const inlineEditorRef = useRef<RichCommentEditorHandle>(null);
+  const editCommentEditorRef = useRef<RichCommentEditorHandle>(null);
   const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
   const [inlineReplyText, setInlineReplyText] = useState('');
   const [inlinePendingAttachments, setInlinePendingAttachments] = useState<PendingAttachment[]>([]);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+  const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
 
   const deleteTicket = useDeleteTicket();
+  const updateComment = useUpdateTicketComment();
+  const deleteComment = useDeleteTicketComment();
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000 } as any });
@@ -219,6 +226,32 @@ export default function TicketDetail() {
     await deleteTicket.mutateAsync({ id: ticketId });
     setDeleteDialog(false);
     setLocation('/tickets');
+  };
+
+  const handleEditComment = (commentId: number, currentText: string) => {
+    setEditingCommentId(commentId);
+    setEditCommentText(currentText);
+    setReplyingToCommentId(null);
+    setTimeout(() => editCommentEditorRef.current?.focusEnd(), 50);
+  };
+
+  const handleEditCommentSave = async (commentId: number) => {
+    if (!editCommentText.trim()) return;
+    const updated = await updateComment.mutateAsync({ id: ticketId, commentId, data: { commentText: editCommentText } });
+    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) =>
+      old.map((c: any) => c.id === commentId ? { ...c, commentText: updated.commentText } : c)
+    );
+    setEditingCommentId(null);
+    setEditCommentText('');
+  };
+
+  const handleDeleteCommentConfirm = async () => {
+    if (deleteCommentId == null) return;
+    await deleteComment.mutateAsync({ id: ticketId, commentId: deleteCommentId });
+    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) =>
+      old.filter((c: any) => c.id !== deleteCommentId)
+    );
+    setDeleteCommentId(null);
   };
 
   const openEditDialog = () => {
@@ -666,6 +699,10 @@ export default function TicketDetail() {
                     const canMarkSolution = isAdmin || ticket.assignedTo === currentUser?.id || ticket.createdBy === currentUser?.id;
                     const isReply = (c as any).replyToCommentId != null;
                     const showInlineEditor = replyingToCommentId === c.id;
+                    const isEditingThis = editingCommentId === c.id;
+                    const isCommentAuthor = c.authorId === currentUser?.id;
+                    const canEditComment = isCommentAuthor;
+                    const canDeleteComment = isCommentAuthor || isAdmin;
                     const commentSx = isReply ? { pl: { xs: 3, sm: 5 }, borderLeft: '3px solid', borderColor: 'divider' as const } : undefined;
                     const commentEl = (
                     <Box key={`c-${c.id}`} display="flex" gap={{ xs: 1, sm: 1.5 }} sx={commentSx}>
@@ -699,9 +736,35 @@ export default function TicketDetail() {
                             name={c.author?.name}
                             typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
                           />
-                          <Box mt={0.25}>
-                            <MarkdownContent content={c.commentText} />
-                          </Box>
+                          {isEditingThis ? (
+                            <Box mt={0.5} display="flex" flexDirection="column" gap={1}>
+                              <RichCommentEditor
+                                ref={editCommentEditorRef}
+                                value={editCommentText}
+                                onChange={setEditCommentText}
+                                placeholder={t.ticketDetail.addCommentPlaceholder}
+                                ticketId={ticketId}
+                                minRows={2}
+                              />
+                              <Box display="flex" gap={1} justifyContent="flex-end">
+                                <Button size="small" onClick={() => { setEditingCommentId(null); setEditCommentText(''); }}>
+                                  {t.ticketDetail.editCancel}
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={() => handleEditCommentSave(c.id)}
+                                  disabled={!editCommentText.trim() || updateComment.isPending}
+                                >
+                                  {updateComment.isPending ? '...' : t.ticketDetail.editCommentSave}
+                                </Button>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Box mt={0.25}>
+                              <MarkdownContent content={c.commentText} />
+                            </Box>
+                          )}
                           {commentAttachments.length > 0 && (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
                               {commentAttachments.map((a: any) => {
@@ -726,6 +789,7 @@ export default function TicketDetail() {
                             </Box>
                           )}
                         </Box>
+                        {!isEditingThis && (
                         <Box display="flex" alignItems="center" gap={1} mt={0.5} flexWrap="wrap">
                           <Typography variant="caption" color="text.secondary">
                             {new Date(c.createdAt).toLocaleString(dateLocale)}
@@ -743,6 +807,34 @@ export default function TicketDetail() {
                           >
                             {t.ticketDetail.replyComment}
                           </Typography>
+                          {canEditComment && (
+                            <Typography
+                              variant="caption"
+                              component="span"
+                              onClick={() => handleEditComment(c.id, c.commentText)}
+                              sx={{
+                                color: 'text.secondary',
+                                cursor: 'pointer',
+                                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                              }}
+                            >
+                              {t.ticketDetail.editComment}
+                            </Typography>
+                          )}
+                          {canDeleteComment && (
+                            <Typography
+                              variant="caption"
+                              component="span"
+                              onClick={() => setDeleteCommentId(c.id)}
+                              sx={{
+                                color: 'text.secondary',
+                                cursor: 'pointer',
+                                '&:hover': { color: 'error.main', textDecoration: 'underline' },
+                              }}
+                            >
+                              {t.ticketDetail.deleteComment}
+                            </Typography>
+                          )}
                           {canMarkSolution && (
                             <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
                               <IconButton
@@ -756,6 +848,7 @@ export default function TicketDetail() {
                             </Tooltip>
                           )}
                         </Box>
+                        )}
                       </Box>
                     </Box>
                     );
@@ -979,6 +1072,32 @@ export default function TicketDetail() {
             startIcon={<CheckCircleOutline />}
           >
             {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Delete comment confirm dialog ── */}
+      <Dialog open={deleteCommentId != null} onClose={() => setDeleteCommentId(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteOutline /> {t.ticketDetail.deleteCommentTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {t.ticketDetail.deleteCommentConfirm}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setDeleteCommentId(null)} color="inherit" disabled={deleteComment.isPending}>
+            {t.ticketDetail.editCancel}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteCommentConfirm}
+            disabled={deleteComment.isPending}
+            startIcon={<DeleteOutline />}
+          >
+            {deleteComment.isPending ? t.ticketDetail.deleting : t.ticketDetail.deleteCommentAction}
           </Button>
         </DialogActions>
       </Dialog>

@@ -241,6 +241,10 @@ export interface CreateCommentBody {
   replyToCommentId?: number | null;
 }
 
+export interface UpdateCommentBody {
+  commentText: string;
+}
+
 export interface NoteWithAuthor {
   id: number;
   ticketId: number;

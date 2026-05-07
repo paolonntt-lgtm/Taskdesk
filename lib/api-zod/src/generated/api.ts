@@ -423,6 +423,47 @@ export const AddTicketCommentBody = zod.object({
 });
 
 /**
+ * @summary Edit a comment (own author or admin)
+ */
+export const UpdateTicketCommentParams = zod.object({
+  id: zod.coerce.number(),
+  commentId: zod.coerce.number(),
+});
+
+export const UpdateTicketCommentBody = zod.object({
+  commentText: zod.string(),
+});
+
+export const UpdateTicketCommentResponse = zod.object({
+  id: zod.number(),
+  ticketId: zod.number(),
+  authorId: zod.number(),
+  commentText: zod.string(),
+  replyToCommentId: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  author: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "user"]),
+    mainLocation: zod.string().nullish(),
+    group: zod.string().nullish(),
+    groups: zod.array(zod.string()).nullish(),
+    avatarUrl: zod.string().nullish(),
+    isActive: zod.boolean(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Delete a comment (own author or admin)
+ */
+export const DeleteTicketCommentParams = zod.object({
+  id: zod.coerce.number(),
+  commentId: zod.coerce.number(),
+});
+
+/**
  * @summary List attachments for a ticket
  */
 export const ListTicketAttachmentsParams = zod.object({
