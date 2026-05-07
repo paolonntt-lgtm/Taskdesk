@@ -89,7 +89,7 @@ export default function TicketDetail() {
     setReplyingToCommentId(commentId);
     setInlineReplyText(mention);
     setTabValue(0);
-    setTimeout(() => inlineEditorRef.current?.focus(), 50);
+    setTimeout(() => inlineEditorRef.current?.focusEnd(), 50);
   };
 
   useEffect(() => {

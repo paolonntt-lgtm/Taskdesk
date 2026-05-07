@@ -142,6 +142,7 @@ const MAX_SIZE_MB = 20;
 
 export interface RichCommentEditorHandle {
   focus: () => void;
+  focusEnd: () => void;
 }
 
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(function RichCommentEditor({
@@ -160,6 +161,14 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     focus: () => {
       textareaRef.current?.focus();
       textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+    focusEnd: () => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      const len = ta.value.length;
+      ta.setSelectionRange(len, len);
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
   }), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
