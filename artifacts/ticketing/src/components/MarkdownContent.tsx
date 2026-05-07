@@ -7,8 +7,8 @@ interface MarkdownContentProps {
 }
 
 function preprocessContent(text: string): string {
-  // Convert @[Name Surname] mentions to links
-  let result = text.replace(/@\[([^\]]+)\]/g, '[@$1](#mention-$1)');
+  // Convert @[Name Surname] mentions to links — encode the href so spaces don't break markdown link syntax
+  let result = text.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[@${name}](#mention-${encodeURIComponent(name)})`);
   // Convert #123 ticket references to markdown links, but not inside existing links or code
   result = result.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
   return result;
