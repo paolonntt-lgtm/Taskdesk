@@ -6,8 +6,8 @@ import { stripeService } from "../stripeService";
 
 const router: IRouter = Router();
 
-const DEFAULT_LOCATIONS = ["Sede A", "Sede B", "Sede C"];
-const DEFAULT_CATEGORIES = [
+const DEFAULT_LOCATIONS = ["Sede principale"];
+export const STANDARD_CATEGORIES = [
   "PC",
   "Stampante",
   "Internet / Rete",
@@ -16,7 +16,9 @@ const DEFAULT_CATEGORIES = [
   "Cassa / Gestionale",
   "Altro",
 ];
+const DEFAULT_CATEGORIES = STANDARD_CATEGORIES;
 const DEFAULT_GROUPS = ["IT Support", "Reception", "Amministrazione"];
+export { DEFAULT_LOCATIONS };
 
 function orgKey(orgId: number | null | undefined, base: string): string {
   return orgId != null ? `org_${orgId}_${base}` : base;

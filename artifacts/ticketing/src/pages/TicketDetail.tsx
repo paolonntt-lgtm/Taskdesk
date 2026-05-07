@@ -63,6 +63,7 @@ export default function TicketDetail() {
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
+  const singleLocation = editLocations.length <= 1;
 
   const deleteTicket = useDeleteTicket();
 
@@ -503,13 +504,15 @@ export default function TicketDetail() {
               <Typography variant="body2">{ticket.category}</Typography>
             </Box>
 
-            {/* Location */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                {t.ticketDetail.locationLabel}
-              </Typography>
-              <Typography variant="body2">{ticket.location}</Typography>
-            </Box>
+            {/* Location — hidden when org has only 1 location */}
+            {!singleLocation && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.ticketDetail.locationLabel}
+                </Typography>
+                <Typography variant="body2">{ticket.location}</Typography>
+              </Box>
+            )}
 
             {/* Resource */}
             {ticket.resource && (
@@ -889,19 +892,21 @@ export default function TicketDetail() {
               <MenuItem key={c} value={c}>{c}</MenuItem>
             ))}
           </TextField>
-          <TextField
-            label={t.ticketDetail.locationLabel}
-            fullWidth
-            size="small"
-            select={editLocations.length > 0}
-            value={editForm.location}
-            onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
-            disabled={editSaving}
-          >
-            {editLocations.map((l) => (
-              <MenuItem key={l} value={l}>{l}</MenuItem>
-            ))}
-          </TextField>
+          {!singleLocation && (
+            <TextField
+              label={t.ticketDetail.locationLabel}
+              fullWidth
+              size="small"
+              select={editLocations.length > 0}
+              value={editForm.location}
+              onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+              disabled={editSaving}
+            >
+              {editLocations.map((l) => (
+                <MenuItem key={l} value={l}>{l}</MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             label={t.ticketDetail.resourceLabel}
             fullWidth

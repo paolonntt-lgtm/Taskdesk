@@ -1,12 +1,13 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, usersTable, organizationsTable } from "@workspace/db";
+import { db, usersTable, organizationsTable, settingsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
+import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 
 const router: IRouter = Router();
 
@@ -106,6 +107,12 @@ router.post("/auth/register", registerRateLimiter, async (req, res): Promise<voi
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
   }).returning();
+
+  // Seed default settings for the new organization
+  await db.insert(settingsTable).values([
+    { key: `org_${org.id}_categories`, value: JSON.stringify(STANDARD_CATEGORIES) },
+    { key: `org_${org.id}_locations`, value: JSON.stringify(DEFAULT_LOCATIONS) },
+  ]).onConflictDoNothing();
 
   const passwordHash = await hashPassword(password);
   const [user] = await db.insert(usersTable).values({
