@@ -815,6 +815,7 @@ export default function TicketDetail() {
                       </Box>
                     </Box>
                   )}
+                  {!replyingToCommentId && (
                   <Box display="flex" gap={2} mt={2}>
                     <Avatar
                       src={(currentUser as any)?.avatarUrl ?? undefined}
@@ -841,6 +842,7 @@ export default function TicketDetail() {
                       </Button>
                     </Box>
                   </Box>
+                  )}
                 </Box>
               </TabPanel>
 
