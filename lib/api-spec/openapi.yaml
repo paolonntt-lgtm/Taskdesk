@@ -479,6 +479,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /tickets/{id}/comments/{commentId}/reactions:
+    post:
+      operationId: toggleCommentReaction
+      tags: [comments]
+      summary: Toggle an emoji reaction on a comment (add if absent, remove if present)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleReactionBody"
+      responses:
+        "200":
+          description: Updated reaction list for the comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToggleReactionResponse"
+        "400":
+          description: Invalid emoji
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Ticket or comment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /tickets/{id}/attachments:
     get:
       operationId: listTicketAttachments
@@ -1071,6 +1113,38 @@ components:
           type: string
           nullable: true
 
+    CommentReaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        userReacted:
+          type: boolean
+      required:
+        - emoji
+        - count
+        - userReacted
+
+    ToggleReactionBody:
+      type: object
+      properties:
+        emoji:
+          type: string
+      required:
+        - emoji
+
+    ToggleReactionResponse:
+      type: object
+      properties:
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommentReaction"
+      required:
+        - reactions
+
     CommentWithAuthor:
       type: object
       properties:
@@ -1085,6 +1159,8 @@ components:
         replyToCommentId:
           type: integer
           nullable: true
+        isSolution:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1094,6 +1170,10 @@ components:
           nullable: true
         author:
           $ref: "#/components/schemas/User"
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommentReaction"
       required:
         - id
         - ticketId
@@ -1101,6 +1181,7 @@ components:
         - commentText
         - createdAt
         - author
+        - reactions
 
     Attachment:
       type: object

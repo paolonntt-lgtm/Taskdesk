@@ -3,7 +3,7 @@ import {
   Box, Card, Typography, Tabs, Tab, Divider, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
-  IconButton, Popover,
+  IconButton, Popover, Snackbar,
 } from '@mui/material';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
 import {
@@ -76,6 +76,10 @@ export default function TicketDetail() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
+  const [reactionAnchor, setReactionAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
+  const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean }[]>>({});
+  const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
+  const [reactionError, setReactionError] = useState<string | null>(null);
 
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
@@ -105,6 +109,36 @@ export default function TicketDetail() {
   const addNote = useAddTicketNote();
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
+
+  // Sync reactions from API data when comments load
+  useEffect(() => {
+    if (!comments) return;
+    const map: Record<number, { emoji: string; count: number; userReacted: boolean }[]> = {};
+    for (const c of comments) {
+      if (Array.isArray(c.reactions)) map[c.id] = c.reactions;
+    }
+    setCommentReactions(map);
+  }, [comments]);
+
+  const handleToggleReaction = async (commentId: number, emoji: string) => {
+    setReactionAnchor(null);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/comments/${commentId}/reactions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCommentReactions((prev) => ({ ...prev, [commentId]: data.reactions }));
+      } else {
+        setReactionError(lang === 'en' ? 'Could not save reaction. Please try again.' : 'Impossibile salvare la reazione. Riprova.');
+      }
+    } catch {
+      setReactionError(lang === 'en' ? 'Network error. Please try again.' : 'Errore di rete. Riprova.');
+    }
+  };
 
   const handleReply = (commentId: number, authorName: string | null | undefined) => {
     const mention = authorName ? `@[${authorName}] ` : '';
@@ -705,7 +739,14 @@ export default function TicketDetail() {
                     const canDeleteComment = isCommentAuthor || isAdmin;
                     const commentSx = isReply ? { pl: { xs: 3, sm: 5 }, borderLeft: '3px solid', borderColor: 'divider' as const } : undefined;
                     const commentEl = (
-                    <Box key={`c-${c.id}`} display="flex" gap={{ xs: 1, sm: 1.5 }} sx={commentSx}>
+                    <Box
+                      key={`c-${c.id}`}
+                      display="flex"
+                      gap={{ xs: 1, sm: 1.5 }}
+                      sx={commentSx}
+                      onMouseEnter={() => setHoveredCommentId(c.id)}
+                      onMouseLeave={() => setHoveredCommentId(null)}
+                    >
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
                         sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 }, fontSize: { xs: 14, sm: 16 }, flexShrink: 0 }}
@@ -790,7 +831,45 @@ export default function TicketDetail() {
                           )}
                         </Box>
                         {!isEditingThis && (
-                        <Box display="flex" alignItems="center" gap={1} mt={0.5} flexWrap="wrap">
+                        <Box mt={0.5}>
+                          {/* Reaction chips row */}
+                          {(() => {
+                            const reactions = commentReactions[c.id] ?? [];
+                            if (reactions.length === 0) return null;
+                            return (
+                              <Box display="flex" flexWrap="wrap" gap={0.5} mb={0.5}>
+                                {reactions.map((r) => (
+                                  <Box
+                                    key={r.emoji}
+                                    component="span"
+                                    onClick={() => handleToggleReaction(c.id, r.emoji)}
+                                    sx={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 0.4,
+                                      px: 0.8,
+                                      py: 0.2,
+                                      borderRadius: 10,
+                                      fontSize: '0.78rem',
+                                      cursor: 'pointer',
+                                      border: '1px solid',
+                                      borderColor: r.userReacted ? 'primary.main' : 'divider',
+                                      bgcolor: r.userReacted ? 'primary.50' : 'action.hover',
+                                      color: r.userReacted ? 'primary.main' : 'text.secondary',
+                                      fontWeight: r.userReacted ? 700 : 400,
+                                      transition: 'all 0.15s',
+                                      '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
+                                    }}
+                                  >
+                                    <span>{r.emoji}</span>
+                                    <span>{r.count}</span>
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
+                          })()}
+                          {/* Action row: timestamp + links */}
+                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                           <Typography variant="caption" color="text.secondary">
                             {new Date(c.createdAt).toLocaleString(dateLocale)}
                           </Typography>
@@ -812,6 +891,25 @@ export default function TicketDetail() {
                           >
                             {t.ticketDetail.replyComment}
                           </Typography>
+                          {/* Reaction picker trigger — visible on hover (desktop) or always (touch) */}
+                          <Tooltip title={t.ticketDetail.addReaction}>
+                            <Typography
+                              variant="caption"
+                              component="span"
+                              onClick={(e) => setReactionAnchor({ el: e.currentTarget as HTMLElement, commentId: c.id })}
+                              sx={{
+                                color: 'text.secondary',
+                                cursor: 'pointer',
+                                lineHeight: 1,
+                                opacity: hoveredCommentId === c.id ? 1 : 0,
+                                transition: 'opacity 0.15s',
+                                '@media (pointer: coarse)': { opacity: 1 },
+                                '&:hover': { color: 'primary.main' },
+                              }}
+                            >
+                              😊+
+                            </Typography>
+                          </Tooltip>
                           {canEditComment && (
                             <Typography
                               variant="caption"
@@ -852,6 +950,7 @@ export default function TicketDetail() {
                               </IconButton>
                             </Tooltip>
                           )}
+                          </Box>
                         </Box>
                         )}
                       </Box>
@@ -1080,6 +1179,58 @@ export default function TicketDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ── Reaction error feedback ── */}
+      <Snackbar
+        open={reactionError != null}
+        autoHideDuration={4000}
+        onClose={() => setReactionError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setReactionError(null)} sx={{ width: '100%' }}>
+          {reactionError}
+        </Alert>
+      </Snackbar>
+
+      {/* ── Reaction picker popover ── */}
+      <Popover
+        open={reactionAnchor != null}
+        anchorEl={reactionAnchor?.el}
+        onClose={() => setReactionAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { borderRadius: 3, p: 0.75 } } }}
+      >
+        <Box display="flex" gap={0.5} p={0.5}>
+          {(['👍', '✅', '🎉', '❤️', '😂', '🙏'] as const).map((emoji) => {
+            const reactions = reactionAnchor ? (commentReactions[reactionAnchor.commentId] ?? []) : [];
+            const alreadyReacted = reactions.some((r) => r.emoji === emoji && r.userReacted);
+            return (
+              <Box
+                key={emoji}
+                component="span"
+                onClick={() => reactionAnchor && handleToggleReaction(reactionAnchor.commentId, emoji)}
+                sx={{
+                  fontSize: '1.4rem',
+                  cursor: 'pointer',
+                  px: 0.6,
+                  py: 0.25,
+                  borderRadius: 2,
+                  border: '1.5px solid',
+                  borderColor: alreadyReacted ? 'primary.main' : 'transparent',
+                  bgcolor: alreadyReacted ? 'primary.50' : 'transparent',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  transition: 'all 0.12s',
+                  '&:hover': { bgcolor: 'action.hover', transform: 'scale(1.15)' },
+                }}
+              >
+                {emoji}
+              </Box>
+            );
+          })}
+        </Box>
+      </Popover>
 
       {/* ── Delete comment confirm dialog ── */}
       <Dialog open={deleteCommentId != null} onClose={() => setDeleteCommentId(null)} maxWidth="xs" fullWidth>

@@ -8,6 +8,7 @@
 
 export * from "./activityLogWithUser";
 export * from "./attachment";
+export * from "./commentReaction";
 export * from "./commentWithAuthor";
 export * from "./createCommentBody";
 export * from "./createNoteBody";
@@ -34,6 +35,8 @@ export * from "./ticket";
 export * from "./ticketPriority";
 export * from "./ticketStatus";
 export * from "./ticketWithDetails";
+export * from "./toggleReactionBody";
+export * from "./toggleReactionResponse";
 export * from "./trendPoint";
 export * from "./updateCommentBody";
 export * from "./updateTicketBody";

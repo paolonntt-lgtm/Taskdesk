@@ -188,15 +188,31 @@ export interface UpdateTicketBody {
   resolutionNote?: string | null;
 }
 
+export interface CommentReaction {
+  emoji: string;
+  count: number;
+  userReacted: boolean;
+}
+
+export interface ToggleReactionBody {
+  emoji: string;
+}
+
+export interface ToggleReactionResponse {
+  reactions: CommentReaction[];
+}
+
 export interface CommentWithAuthor {
   id: number;
   ticketId: number;
   authorId: number;
   commentText: string;
   replyToCommentId?: number | null;
+  isSolution?: boolean;
   createdAt: string;
   updatedAt?: string | null;
   author: User;
+  reactions: CommentReaction[];
 }
 
 export interface Attachment {

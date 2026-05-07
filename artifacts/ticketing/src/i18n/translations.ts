@@ -144,6 +144,7 @@ const it = {
     deleteCommentTitle: 'Elimina commento',
     deleteCommentConfirm: 'Sei sicuro di voler eliminare questo commento? L\'operazione è irreversibile.',
     deleteCommentAction: 'Elimina',
+    addReaction: 'Aggiungi reazione',
   },
   richEditor: {
     bold: 'Grassetto (Ctrl+B)',
@@ -579,6 +580,7 @@ const en: typeof it = {
     deleteCommentTitle: 'Delete comment',
     deleteCommentConfirm: 'Are you sure you want to delete this comment? This action cannot be undone.',
     deleteCommentAction: 'Delete',
+    addReaction: 'Add reaction',
   },
   richEditor: {
     bold: 'Bold (Ctrl+B)',

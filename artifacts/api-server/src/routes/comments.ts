@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, inArray, and } from "drizzle-orm";
-import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
+import { eq, inArray, and, sql } from "drizzle-orm";
+import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -8,6 +8,35 @@ import { createNotificationsForTicket, createNotificationForUser } from "../lib/
 function extractMentionedNames(text: string): string[] {
   const matches = text.matchAll(/@\[([^\]]+)\]/g);
   return [...matches].map((m) => m[1]);
+}
+
+async function getReactionsForComments(commentIds: number[], currentUserId: number) {
+  if (commentIds.length === 0) return new Map<number, { emoji: string; count: number; userReacted: boolean }[]>();
+
+  const rows = await db
+    .select({
+      commentId: commentReactionsTable.commentId,
+      emoji: commentReactionsTable.emoji,
+      userId: commentReactionsTable.userId,
+    })
+    .from(commentReactionsTable)
+    .where(inArray(commentReactionsTable.commentId, commentIds));
+
+  const map = new Map<number, Map<string, { count: number; userReacted: boolean }>>();
+  for (const row of rows) {
+    if (!map.has(row.commentId)) map.set(row.commentId, new Map());
+    const emojiMap = map.get(row.commentId)!;
+    if (!emojiMap.has(row.emoji)) emojiMap.set(row.emoji, { count: 0, userReacted: false });
+    const entry = emojiMap.get(row.emoji)!;
+    entry.count += 1;
+    if (row.userId === currentUserId) entry.userReacted = true;
+  }
+
+  const result = new Map<number, { emoji: string; count: number; userReacted: boolean }[]>();
+  for (const [commentId, emojiMap] of map.entries()) {
+    result.set(commentId, [...emojiMap.entries()].map(([emoji, data]) => ({ emoji, ...data })));
+  }
+  return result;
 }
 
 const router: IRouter = Router();
@@ -41,7 +70,14 @@ router.get("/tickets/:id/comments", requireAuth, async (req, res): Promise<void>
     : [];
   const userMap = new Map(usersResult.map((u) => [u.id, u]));
 
-  res.json(comments.map((c) => ({ ...c, author: userMap.get(c.authorId)! })));
+  const commentIds = comments.map((c) => c.id);
+  const reactionsMap = await getReactionsForComments(commentIds, currentUser.id);
+
+  res.json(comments.map((c) => ({
+    ...c,
+    author: userMap.get(c.authorId)!,
+    reactions: reactionsMap.get(c.id) ?? [],
+  })));
 });
 
 router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void> => {
@@ -104,7 +140,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
   }
 
   const { passwordHash: _, ...safeUser } = currentUser;
-  res.status(201).json({ ...comment, author: safeUser });
+  res.status(201).json({ ...comment, author: safeUser, reactions: [] });
 });
 
 router.patch("/tickets/:id/comments/:commentId", requireAuth, async (req, res): Promise<void> => {
@@ -164,7 +200,8 @@ router.patch("/tickets/:id/comments/:commentId", requireAuth, async (req, res): 
     actionDescription: `${currentUser.name} ha modificato un commento`,
   });
 
-  res.json({ ...updated, author: authorResult[0] });
+  const reactionsMap = await getReactionsForComments([updated.id], currentUser.id);
+  res.json({ ...updated, author: authorResult[0], reactions: reactionsMap.get(updated.id) ?? [] });
 });
 
 router.delete("/tickets/:id/comments/:commentId", requireAuth, async (req, res): Promise<void> => {
@@ -283,6 +320,86 @@ router.patch("/tickets/:id/comments/:commentId/solution", requireAuth, async (re
   });
 
   res.json({ commentId, isSolution: newValue, autoResolved: newValue && ticket.status !== "resolved" && ticket.status !== "closed" });
+});
+
+router.post("/tickets/:id/comments/:commentId/reactions", requireAuth, async (req, res): Promise<void> => {
+  const ticketId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const commentId = parseInt(Array.isArray(req.params.commentId) ? req.params.commentId[0] : req.params.commentId, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const { emoji } = req.body;
+  const ALLOWED_EMOJIS = ["👍", "✅", "🎉", "❤️", "😂", "🙏"];
+  if (!emoji || !ALLOWED_EMOJIS.includes(emoji)) {
+    res.status(400).json({ error: "Emoji non valida" });
+    return;
+  }
+
+  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+    and(eq(ticketsTable.id, ticketId), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket non trovato" });
+    return;
+  }
+
+  const [comment] = await db
+    .select({ id: ticketCommentsTable.id })
+    .from(ticketCommentsTable)
+    .where(and(eq(ticketCommentsTable.id, commentId), eq(ticketCommentsTable.ticketId, ticketId)));
+
+  if (!comment) {
+    res.status(404).json({ error: "Commento non trovato" });
+    return;
+  }
+
+  // Check if the user has already reacted with this emoji — if so, remove it (toggle)
+  const [existing] = await db
+    .select()
+    .from(commentReactionsTable)
+    .where(
+      and(
+        eq(commentReactionsTable.commentId, commentId),
+        eq(commentReactionsTable.userId, currentUser.id),
+        eq(commentReactionsTable.emoji, emoji)
+      )
+    );
+
+  if (existing) {
+    await db.delete(commentReactionsTable).where(
+      and(
+        eq(commentReactionsTable.commentId, commentId),
+        eq(commentReactionsTable.userId, currentUser.id),
+        eq(commentReactionsTable.emoji, emoji)
+      )
+    );
+  } else {
+    await db.insert(commentReactionsTable).values({
+      commentId,
+      userId: currentUser.id,
+      emoji,
+    });
+  }
+
+  // Return updated reactions for this comment
+  const rows = await db
+    .select({
+      emoji: commentReactionsTable.emoji,
+      userId: commentReactionsTable.userId,
+    })
+    .from(commentReactionsTable)
+    .where(eq(commentReactionsTable.commentId, commentId));
+
+  const emojiMap = new Map<string, { count: number; userReacted: boolean }>();
+  for (const row of rows) {
+    if (!emojiMap.has(row.emoji)) emojiMap.set(row.emoji, { count: 0, userReacted: false });
+    const entry = emojiMap.get(row.emoji)!;
+    entry.count += 1;
+    if (row.userId === currentUser.id) entry.userReacted = true;
+  }
+
+  const reactions = [...emojiMap.entries()].map(([e, data]) => ({ emoji: e, ...data }));
+  res.json({ reactions });
 });
 
 export default router;

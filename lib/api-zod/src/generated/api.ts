@@ -392,6 +392,7 @@ export const ListTicketCommentsResponseItem = zod.object({
   authorId: zod.number(),
   commentText: zod.string(),
   replyToCommentId: zod.number().nullish(),
+  isSolution: zod.boolean().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date().nullish(),
   author: zod.object({
@@ -406,6 +407,13 @@ export const ListTicketCommentsResponseItem = zod.object({
     isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
+  reactions: zod.array(
+    zod.object({
+      emoji: zod.string(),
+      count: zod.number(),
+      userReacted: zod.boolean(),
+    }),
+  ),
 });
 export const ListTicketCommentsResponse = zod.array(
   ListTicketCommentsResponseItem,
@@ -441,6 +449,7 @@ export const UpdateTicketCommentResponse = zod.object({
   authorId: zod.number(),
   commentText: zod.string(),
   replyToCommentId: zod.number().nullish(),
+  isSolution: zod.boolean().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date().nullish(),
   author: zod.object({
@@ -455,6 +464,13 @@ export const UpdateTicketCommentResponse = zod.object({
     isActive: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
+  reactions: zod.array(
+    zod.object({
+      emoji: zod.string(),
+      count: zod.number(),
+      userReacted: zod.boolean(),
+    }),
+  ),
 });
 
 /**
@@ -463,6 +479,28 @@ export const UpdateTicketCommentResponse = zod.object({
 export const DeleteTicketCommentParams = zod.object({
   id: zod.coerce.number(),
   commentId: zod.coerce.number(),
+});
+
+/**
+ * @summary Toggle an emoji reaction on a comment (add if absent, remove if present)
+ */
+export const ToggleCommentReactionParams = zod.object({
+  id: zod.coerce.number(),
+  commentId: zod.coerce.number(),
+});
+
+export const ToggleCommentReactionBody = zod.object({
+  emoji: zod.string(),
+});
+
+export const ToggleCommentReactionResponse = zod.object({
+  reactions: zod.array(
+    zod.object({
+      emoji: zod.string(),
+      count: zod.number(),
+      userReacted: zod.boolean(),
+    }),
+  ),
 });
 
 /**

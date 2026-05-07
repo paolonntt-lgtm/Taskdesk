@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { CommentReaction } from "./commentReaction";
 import type { User } from "./user";
 
 export interface CommentWithAuthor {
@@ -13,7 +14,9 @@ export interface CommentWithAuthor {
   authorId: number;
   commentText: string;
   replyToCommentId?: number | null;
+  isSolution?: boolean;
   createdAt: Date;
   updatedAt?: Date | null;
   author: User;
+  reactions: CommentReaction[];
 }
