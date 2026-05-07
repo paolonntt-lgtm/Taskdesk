@@ -239,7 +239,7 @@ export default function TicketDetail() {
     if (!editCommentText.trim()) return;
     const updated = await updateComment.mutateAsync({ id: ticketId, commentId, data: { commentText: editCommentText } });
     queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) =>
-      old.map((c: any) => c.id === commentId ? { ...c, commentText: updated.commentText } : c)
+      old.map((c: any) => c.id === commentId ? { ...c, commentText: updated.commentText, updatedAt: updated.updatedAt } : c)
     );
     setEditingCommentId(null);
     setEditCommentText('');
