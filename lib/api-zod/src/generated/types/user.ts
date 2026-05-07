@@ -14,6 +14,7 @@ export interface User {
   role: UserRole;
   mainLocation?: string | null;
   group?: string | null;
+  groups?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
   createdAt: Date;

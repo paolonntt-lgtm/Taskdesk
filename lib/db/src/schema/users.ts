@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   organizationId: integer("organization_id").references(() => organizationsTable.id),
   mainLocation: text("main_location"),
   group: text("group"),
+  groups: text("groups"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),

@@ -15,4 +15,5 @@ export interface CreateUserBody {
   role: CreateUserBodyRole;
   mainLocation?: string | null;
   group?: string | null;
+  groups?: string[] | null;
 }

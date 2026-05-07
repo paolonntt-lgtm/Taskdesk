@@ -907,8 +907,101 @@ export default function Settings() {
               saving={grpSaving}
             />
           </Section>
+
+          <GroupPermissionsEditor groups={groups} />
         </TabPanel>
       )}
     </Box>
+  );
+}
+
+function GroupPermissionsEditor({ groups }: { groups: string[] }) {
+  const { t } = useLanguage();
+  const [perms, setPerms] = useState<Record<string, string[]>>({});
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings/group-permissions', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setPerms(d.value ?? {}))
+      .catch(() => {});
+  }, []);
+
+  const toggle = (group: string, perm: string) => {
+    setPerms((cur) => {
+      const current = cur[group] ?? [];
+      const next = current.includes(perm) ? current.filter((p) => p !== perm) : [...current, perm];
+      return { ...cur, [group]: next };
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/settings/group-permissions', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: perms }),
+      });
+      if (!res.ok) throw new Error();
+      setMsg({ type: 'success', text: t.settings.groupPermSaved });
+    } catch {
+      setMsg({ type: 'error', text: t.settings.groupPermError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Section title={t.settings.groupPermissionsTitle} icon={<Lock color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>
+        {t.settings.groupPermissionsNote}
+      </Typography>
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+      {groups.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">{t.settings.groupPermNoGroups}</Typography>
+      ) : (
+        <Box display="flex" flexDirection="column" gap={2}>
+          {groups.map((group) => {
+            const groupPerms = perms[group] ?? [];
+            return (
+              <Box key={group} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+                  {group}
+                </Typography>
+                <Box display="flex" flexDirection="column" gap={0.5}>
+                  {[
+                    { key: 'change_status', label: t.settings.groupPermChangeStatus },
+                    { key: 'add_notes', label: t.settings.groupPermAddNotes },
+                  ].map(({ key, label }) => (
+                    <Box key={key} display="flex" alignItems="center" justifyContent="space-between">
+                      <Typography variant="body2">{label}</Typography>
+                      <Switch
+                        size="small"
+                        checked={groupPerms.includes(key)}
+                        onChange={() => toggle(group, key)}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            );
+          })}
+          <Box display="flex" justifyContent="flex-end">
+            <Button
+              variant="contained"
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+              onClick={save}
+              disabled={saving}
+            >
+              {saving ? t.settings.saving : t.settings.groupPermSave}
+            </Button>
+          </Box>
+        </Box>
+      )}
+    </Section>
   );
 }

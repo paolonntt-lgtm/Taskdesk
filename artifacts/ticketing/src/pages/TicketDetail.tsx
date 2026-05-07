@@ -10,8 +10,9 @@ import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
   useDeleteTicket,
+  useListTicketNotes, useAddTicketNote,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
-  getListTicketsQueryKey,
+  getListTicketsQueryKey, getListTicketNotesQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,6 +52,7 @@ export default function TicketDetail() {
   const [newComment, setNewComment] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
+  const [groupPerms, setGroupPerms] = useState<Record<string, string[]>>({});
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
@@ -82,6 +84,19 @@ export default function TicketDetail() {
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
 
+  // Group permission helpers (computed after ticket is loaded)
+  const userGroupsList: string[] = (() => {
+    try { return (currentUser as any)?.groups ? JSON.parse((currentUser as any).groups) : []; } catch { return []; }
+  })();
+  const hasGroupPerm = (perm: string) =>
+    userGroupsList.some((g) => (groupPerms[g] ?? []).includes(perm));
+  const canChangeStatusByGroup = hasGroupPerm('change_status');
+  const canAccessNotes = currentUser?.role === 'admin' || hasGroupPerm('add_notes');
+
+  const [newNote, setNewNote] = useState('');
+  const { data: notes } = useListTicketNotes(ticketId, { query: { enabled: !!ticketId && canAccessNotes, staleTime: 60_000 } as any });
+  const addNote = useAddTicketNote();
+
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
   const handleReply = (commentId: number, authorName: string | null | undefined) => {
@@ -99,6 +114,14 @@ export default function TicketDetail() {
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
   }, [currentUser?.role]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    fetch('/api/settings/group-permissions', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setGroupPerms(d.value ?? {}))
+      .catch(() => {});
+  }, [currentUser]);
 
   useEffect(() => {
     fetch('/api/settings/categories', { credentials: 'include' })
@@ -265,6 +288,7 @@ export default function TicketDetail() {
   const isAdmin = currentUser?.role === 'admin';
   const isAuthor = (ticket as any).createdBy === currentUser?.id;
   const canEdit = isAdmin || isAuthor;
+  const canChangeStatus = isAdmin || canChangeStatusByGroup;
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
@@ -342,7 +366,7 @@ export default function TicketDetail() {
           </Typography>
 
           {/* Row 3: status chips */}
-          {isAdmin ? (
+          {canChangeStatus ? (
             <Box mb={1}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                 {t.ticketDetail.statusLabel}
@@ -369,7 +393,7 @@ export default function TicketDetail() {
           )}
 
           {/* Row 4: priority chips */}
-          {isAdmin ? (
+          {canChangeStatus ? (
             <Box mb={1}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                 {t.ticketDetail.priorityLabel}
@@ -625,6 +649,7 @@ export default function TicketDetail() {
               >
                 <Tab label={`${t.ticketDetail.tabComments} (${(comments?.length ?? 0) + ((ticket as any).resolutionNote ? 1 : 0)})`} />
                 <Tab label={t.ticketDetail.tabActivity} />
+                {canAccessNotes && <Tab label={`${t.ticketDetail.tabNotes} (${notes?.length ?? 0})`} />}
               </Tabs>
             </Box>
             <Box p={{ xs: 1.5, sm: 3 }}>
@@ -868,6 +893,63 @@ export default function TicketDetail() {
                   ))}
                 </Box>
               </TabPanel>
+
+              {canAccessNotes && (
+                <TabPanel value={tabValue} index={2}>
+                  <Box display="flex" flexDirection="column" gap={2}>
+                    {notes?.length === 0 && (
+                      <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+                        {t.ticketDetail.noNotes}
+                      </Typography>
+                    )}
+                    {notes?.map((n: any) => (
+                      <Box key={n.id} display="flex" gap={2} sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200', borderRadius: 1, p: 2 }}>
+                        <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>
+                          {n.author?.name?.charAt(0)}
+                        </Avatar>
+                        <Box flex={1}>
+                          <Box display="flex" justifyContent="space-between" mb={0.5}>
+                            <Typography variant="subtitle2" fontWeight={700}>{n.author?.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(n.createdAt).toLocaleString(dateLocale)}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{n.noteText}</Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                    <Box display="flex" gap={2} mt={1}>
+                      <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>
+                        {currentUser?.name?.charAt(0)}
+                      </Avatar>
+                      <Box flex={1} display="flex" flexDirection="column" gap={1}>
+                        <TextField
+                          multiline
+                          rows={3}
+                          fullWidth
+                          placeholder={t.ticketDetail.addNotePlaceholder}
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                        />
+                        <Button
+                          variant="contained"
+                          color="warning"
+                          sx={{ alignSelf: 'flex-end' }}
+                          disabled={!newNote.trim() || addNote.isPending}
+                          onClick={async () => {
+                            if (!newNote.trim()) return;
+                            const note = await addNote.mutateAsync({ id: ticketId, data: { noteText: newNote } });
+                            setNewNote('');
+                            queryClient.setQueryData(getListTicketNotesQueryKey(ticketId), (old: any[] = []) => [...old, note]);
+                          }}
+                        >
+                          {addNote.isPending ? t.ticketDetail.sending : t.ticketDetail.addNote}
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Box>
+                </TabPanel>
+              )}
             </Box>
           </Card>
       </Box>

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -285,8 +285,35 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // Check group permissions for non-admins
+  const userGroups: string[] = (() => {
+    try { return currentUser.groups ? JSON.parse(currentUser.groups) : []; } catch { return []; }
+  })();
+
+  let canChangeStatus = isAdmin;
+  if (!isAdmin && userGroups.length > 0 && currentUser.organizationId != null) {
+    const gpKey = `org_${currentUser.organizationId}_group_permissions`;
+    const [gpRow] = await db.select().from(settingsTable).where(eq(settingsTable.key, gpKey));
+    if (gpRow) {
+      try {
+        const perms: Record<string, string[]> = JSON.parse(gpRow.value);
+        canChangeStatus = userGroups.some((g) => (perms[g] ?? []).includes("change_status"));
+      } catch { /* noop */ }
+    }
+  }
+
   const updates: typeof parsed.data = isAdmin
     ? parsed.data
+    : canChangeStatus
+    ? {
+        ...(parsed.data.title !== undefined && { title: parsed.data.title }),
+        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+        ...(parsed.data.category !== undefined && { category: parsed.data.category }),
+        ...(parsed.data.location !== undefined && { location: parsed.data.location }),
+        ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
+        ...(parsed.data.status !== undefined && { status: parsed.data.status }),
+        ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
+      }
     : {
         ...(parsed.data.title !== undefined && { title: parsed.data.title }),
         ...(parsed.data.description !== undefined && { description: parsed.data.description }),

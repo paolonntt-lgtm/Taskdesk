@@ -25,6 +25,7 @@ const userFields = {
   organizationId: usersTable.organizationId,
   mainLocation: usersTable.mainLocation,
   group: usersTable.group,
+  groups: usersTable.groups,
   avatarUrl: usersTable.avatarUrl,
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
@@ -53,7 +54,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     return;
   }
 
-  const { name, email, password, role, mainLocation, group } = parsed.data;
+  const { name, email, password, role, mainLocation, group, groups } = parsed.data;
 
   const [existing] = await db
     .select({ id: usersTable.id })
@@ -80,6 +81,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     organizationId: currentUser.organizationId,
     mainLocation: mainLocation ?? null,
     group: group ?? null,
+    groups: groups ? JSON.stringify(groups) : null,
     isActive: true,
   }).returning(userFields);
 
@@ -122,8 +124,11 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
-  const { password: _ignoredPassword, ...rest } = parsed.data;
-  const updates: Record<string, unknown> = { ...rest };
+  const { password: _ignoredPassword, groups: groupsArray, ...rest } = parsed.data;
+  const updates: Record<string, unknown> = {
+    ...rest,
+    ...(groupsArray !== undefined && { groups: groupsArray ? JSON.stringify(groupsArray) : null }),
+  };
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });

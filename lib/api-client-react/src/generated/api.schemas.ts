@@ -38,6 +38,7 @@ export interface User {
   role: UserRole;
   mainLocation?: string | null;
   group?: string | null;
+  groups?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
   createdAt: string;
@@ -64,6 +65,7 @@ export interface CreateUserBody {
   role: CreateUserBodyRole;
   mainLocation?: string | null;
   group?: string | null;
+  groups?: string[] | null;
 }
 
 export type UpdateUserBodyRole =
@@ -82,6 +84,7 @@ export interface UpdateUserBody {
   role?: UpdateUserBodyRole;
   mainLocation?: string | null;
   group?: string | null;
+  groups?: string[] | null;
   isActive?: boolean;
 }
 

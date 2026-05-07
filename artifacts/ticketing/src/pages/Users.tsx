@@ -32,6 +32,7 @@ import {
   useMediaQuery,
   useTheme,
   Avatar,
+  Checkbox,
 } from '@mui/material';
 import {
   Add,
@@ -68,6 +69,7 @@ interface UserFormData {
   password: string;
   role: 'admin' | 'user';
   group: string;
+  groups: string[];
   mainLocation: string;
 }
 
@@ -77,6 +79,7 @@ const emptyForm: UserFormData = {
   password: '',
   role: 'user',
   group: '',
+  groups: [],
   mainLocation: '',
 };
 
@@ -177,12 +180,15 @@ export default function Users() {
   const openEdit = (u: User) => {
     refreshGroups();
     setEditTarget(u);
+    let parsedGroups: string[] = [];
+    try { parsedGroups = (u as any).groups ? JSON.parse((u as any).groups) : []; } catch { /* noop */ }
     setForm({
       name: u.name,
       email: u.email,
       password: '',
       role: u.role as 'admin' | 'user',
       group: (u as any).group ?? '',
+      groups: parsedGroups,
       mainLocation: (u as any).mainLocation ?? '',
     });
     setFormError(null);
@@ -226,6 +232,7 @@ export default function Users() {
           email: form.email,
           role: form.role,
           group: form.group || null,
+          groups: form.groups.length > 0 ? form.groups : null,
           mainLocation: form.mainLocation || null,
         } as any;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
@@ -236,6 +243,7 @@ export default function Users() {
           password: form.password,
           role: form.role,
           group: form.group || null,
+          groups: form.groups.length > 0 ? form.groups : null,
           mainLocation: form.mainLocation || null,
         } as any;
         await createUser.mutateAsync({ data: body });
@@ -740,6 +748,23 @@ export default function Users() {
                 <MenuItem value=""><em>—</em></MenuItem>
                 {groups.map((g) => (
                   <MenuItem key={g} value={g}>{g}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Gruppi di appartenenza</InputLabel>
+              <Select
+                multiple
+                value={form.groups}
+                label="Gruppi di appartenenza"
+                onChange={(e) => setForm((f) => ({ ...f, groups: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[] }))}
+                renderValue={(selected) => (selected as string[]).join(', ')}
+              >
+                {groups.map((g) => (
+                  <MenuItem key={g} value={g}>
+                    <Checkbox checked={form.groups.includes(g)} size="small" />
+                    {g}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>

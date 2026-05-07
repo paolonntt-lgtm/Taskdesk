@@ -103,6 +103,40 @@ router.put("/settings/groups", requireAuth, requireAdmin, async (req, res): Prom
   res.json({ value: cleaned });
 });
 
+// Group permissions: { [groupName]: string[] } where permissions are "change_status" | "add_notes"
+router.get("/settings/group-permissions", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "group_permissions");
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  let value: Record<string, string[]> = {};
+  if (row) {
+    try { value = JSON.parse(row.value); } catch { value = {}; }
+  }
+  res.json({ value });
+});
+
+router.put("/settings/group-permissions", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { value } = req.body ?? {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    res.status(400).json({ message: "Valore non valido: deve essere un oggetto { gruppo: permessi[] }" });
+    return;
+  }
+  const VALID_PERMS = new Set(["change_status", "add_notes"]);
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof k !== "string" || !Array.isArray(v) || (v as any[]).some((p) => !VALID_PERMS.has(p))) {
+      res.status(400).json({ message: `Permessi non validi per il gruppo "${k}"` });
+      return;
+    }
+  }
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "group_permissions");
+  await db
+    .insert(settingsTable)
+    .values({ key, value: JSON.stringify(value) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(value) } });
+  res.json({ value });
+});
+
 router.get("/settings/billing", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
