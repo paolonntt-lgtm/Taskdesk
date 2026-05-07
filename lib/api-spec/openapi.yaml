@@ -1088,6 +1088,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
         author:
           $ref: "#/components/schemas/User"
       required:

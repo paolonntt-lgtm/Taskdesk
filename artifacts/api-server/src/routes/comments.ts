@@ -146,7 +146,7 @@ router.patch("/tickets/:id/comments/:commentId", requireAuth, async (req, res): 
 
   const [updated] = await db
     .update(ticketCommentsTable)
-    .set({ commentText: parsed.data.commentText })
+    .set({ commentText: parsed.data.commentText, updatedAt: new Date() })
     .where(eq(ticketCommentsTable.id, commentId))
     .returning();
 

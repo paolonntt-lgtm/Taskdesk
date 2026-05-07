@@ -195,6 +195,7 @@ export interface CommentWithAuthor {
   commentText: string;
   replyToCommentId?: number | null;
   createdAt: string;
+  updatedAt?: string | null;
   author: User;
 }
 

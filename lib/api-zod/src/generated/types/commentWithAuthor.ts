@@ -14,5 +14,6 @@ export interface CommentWithAuthor {
   commentText: string;
   replyToCommentId?: number | null;
   createdAt: Date;
+  updatedAt?: Date | null;
   author: User;
 }

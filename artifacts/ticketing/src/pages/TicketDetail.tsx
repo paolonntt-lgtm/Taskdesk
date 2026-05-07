@@ -794,6 +794,11 @@ export default function TicketDetail() {
                           <Typography variant="caption" color="text.secondary">
                             {new Date(c.createdAt).toLocaleString(dateLocale)}
                           </Typography>
+                          {c.updatedAt && new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 2000 && (
+                            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                              ({t.ticketDetail.commentEdited} {new Date(c.updatedAt).toLocaleString(dateLocale)})
+                            </Typography>
+                          )}
                           <Typography
                             variant="caption"
                             component="span"

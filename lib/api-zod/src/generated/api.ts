@@ -393,6 +393,7 @@ export const ListTicketCommentsResponseItem = zod.object({
   commentText: zod.string(),
   replyToCommentId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date().nullish(),
   author: zod.object({
     id: zod.number(),
     name: zod.string(),
@@ -441,6 +442,7 @@ export const UpdateTicketCommentResponse = zod.object({
   commentText: zod.string(),
   replyToCommentId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date().nullish(),
   author: zod.object({
     id: zod.number(),
     name: zod.string(),
