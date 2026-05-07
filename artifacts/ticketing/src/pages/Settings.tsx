@@ -4,9 +4,9 @@ import {
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
   ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
-  Avatar, Snackbar,
+  Avatar, Snackbar, Paper,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -897,30 +897,48 @@ export default function Settings() {
             />
           </Section>
 
-          <Section title={t.settings.manageGroups} icon={<Group color="primary" />}>
+          <Section title={t.settings.manageGroups} icon={<GroupIcon color="primary" />}>
             <Typography variant="body2" color="text.secondary" mb={2}>
               {t.settings.groupsNote}
             </Typography>
-            <ListEditor
-              placeholder={t.settings.addGroupPlaceholder}
-              items={groups}
+            <GroupsEditor
+              groups={groups}
               onSave={saveGroups}
               saving={grpSaving}
             />
           </Section>
-
-          <GroupPermissionsEditor groups={groups} />
         </TabPanel>
       )}
     </Box>
   );
 }
 
-function GroupPermissionsEditor({ groups }: { groups: string[] }) {
+function GroupsEditor({
+  groups,
+  onSave,
+  saving,
+}: {
+  groups: string[];
+  onSave: (items: string[]) => Promise<void>;
+  saving: boolean;
+}) {
   const { t } = useLanguage();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Group list state
+  const [list, setList] = useState<string[]>(groups);
+  const [newItem, setNewItem] = useState('');
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [listFlash, setListFlash] = useState(false);
+
+  // Permissions state
   const [perms, setPerms] = useState<Record<string, string[]>>({});
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [permSaving, setPermSaving] = useState(false);
+  const [permFlash, setPermFlash] = useState(false);
+
+  useEffect(() => { setList(groups); }, [groups]);
 
   useEffect(() => {
     fetch('/api/settings/group-permissions', { credentials: 'include' })
@@ -929,80 +947,207 @@ function GroupPermissionsEditor({ groups }: { groups: string[] }) {
       .catch(() => {});
   }, []);
 
-  const toggle = (group: string, perm: string) => {
-    setPerms((cur) => {
-      const current = cur[group] ?? [];
-      const next = current.includes(perm) ? current.filter((p) => p !== perm) : [...current, perm];
-      return { ...cur, [group]: next };
-    });
-  };
+  const triggerListSave = useCallback(async (next: string[]) => {
+    await onSave(next);
+    setListFlash(true);
+    setTimeout(() => setListFlash(false), 1800);
+  }, [onSave]);
 
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
+  const savePerms = useCallback(async (nextPerms: Record<string, string[]>) => {
+    setPermSaving(true);
     try {
-      const res = await fetch('/api/settings/group-permissions', {
+      await fetch('/api/settings/group-permissions', {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: perms }),
+        body: JSON.stringify({ value: nextPerms }),
       });
-      if (!res.ok) throw new Error();
-      setMsg({ type: 'success', text: t.settings.groupPermSaved });
-    } catch {
-      setMsg({ type: 'error', text: t.settings.groupPermError });
-    } finally {
-      setSaving(false);
-    }
+      setPermFlash(true);
+      setTimeout(() => setPermFlash(false), 1800);
+    } catch {}
+    finally { setPermSaving(false); }
+  }, []);
+
+  const add = async () => {
+    const trimmed = newItem.trim();
+    if (!trimmed || list.includes(trimmed)) return;
+    const next = [...list, trimmed];
+    setList(next);
+    setNewItem('');
+    await triggerListSave(next);
   };
 
+  const remove = async (idx: number) => {
+    const removedName = list[idx];
+    const next = list.filter((_, i) => i !== idx);
+    setList(next);
+    const nextPerms = { ...perms };
+    delete nextPerms[removedName];
+    setPerms(nextPerms);
+    await triggerListSave(next);
+    await savePerms(nextPerms);
+  };
+
+  const startEdit = (idx: number) => { setEditIdx(idx); setEditValue(list[idx]); };
+  const cancelEdit = () => { setEditIdx(null); setEditValue(''); };
+
+  const confirmEdit = async () => {
+    if (editIdx === null) return;
+    const trimmed = editValue.trim();
+    if (!trimmed || (trimmed !== list[editIdx] && list.includes(trimmed))) { cancelEdit(); return; }
+    const oldName = list[editIdx];
+    const next = list.map((item, i) => (i === editIdx ? trimmed : item));
+    setList(next);
+    setEditIdx(null);
+    setEditValue('');
+    // Move permissions to new key
+    const nextPerms = { ...perms };
+    if (oldName !== trimmed && nextPerms[oldName] !== undefined) {
+      nextPerms[trimmed] = nextPerms[oldName];
+      delete nextPerms[oldName];
+      setPerms(nextPerms);
+      await savePerms(nextPerms);
+    }
+    await triggerListSave(next);
+  };
+
+  const handleEditKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+  };
+  const handleKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+
+  const togglePerm = async (group: string, perm: string) => {
+    const current = perms[group] ?? [];
+    const next = current.includes(perm) ? current.filter((p) => p !== perm) : [...current, perm];
+    const nextPerms = { ...perms, [group]: next };
+    setPerms(nextPerms);
+    await savePerms(nextPerms);
+  };
+
+  const PERM_DEFS = [
+    { key: 'change_status', label: t.settings.groupPermChangeStatus },
+    { key: 'add_notes', label: t.settings.groupPermAddNotes },
+  ];
+
   return (
-    <Section title={t.settings.groupPermissionsTitle} icon={<Lock color="primary" />}>
-      <Typography variant="body2" color="text.secondary" mb={2}>
-        {t.settings.groupPermissionsNote}
-      </Typography>
-      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
-      {groups.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">{t.settings.groupPermNoGroups}</Typography>
-      ) : (
-        <Box display="flex" flexDirection="column" gap={2}>
-          {groups.map((group) => {
-            const groupPerms = perms[group] ?? [];
-            return (
-              <Box key={group} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
-                  {group}
-                </Typography>
-                <Box display="flex" flexDirection="column" gap={0.5}>
-                  {[
-                    { key: 'change_status', label: t.settings.groupPermChangeStatus },
-                    { key: 'add_notes', label: t.settings.groupPermAddNotes },
-                  ].map(({ key, label }) => (
-                    <Box key={key} display="flex" alignItems="center" justifyContent="space-between">
-                      <Typography variant="body2">{label}</Typography>
-                      <Switch
-                        size="small"
-                        checked={groupPerms.includes(key)}
-                        onChange={() => toggle(group, key)}
-                      />
-                    </Box>
-                  ))}
-                </Box>
+    <Box>
+      <Box display="flex" flexDirection="column" gap={1.5}>
+        {list.map((item, idx) => {
+          const groupPerms = perms[item] ?? [];
+          return (
+            <Paper key={idx} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+              {/* Group name row */}
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{ px: 2, py: 1.25, bgcolor: 'grey.50' }}
+              >
+                <Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.main', flexShrink: 0 }}>
+                  <GroupIcon sx={{ fontSize: 15 }} />
+                </Avatar>
+                {editIdx === idx ? (
+                  <>
+                    <TextField
+                      size="small"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={handleEditKey}
+                      autoFocus
+                      sx={{ flex: 1 }}
+                      disabled={saving}
+                    />
+                    <IconButton size="small" color="primary" onClick={confirmEdit} disabled={!editValue.trim() || saving}>
+                      <Check fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={cancelEdit} disabled={saving}>
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
+                      {item}
+                    </Typography>
+                    <IconButton size="small" onClick={() => startEdit(idx)} disabled={saving || editIdx !== null} sx={{ color: 'text.secondary' }}>
+                      <EditOutlined fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => remove(idx)} disabled={saving || editIdx !== null}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
               </Box>
-            );
-          })}
-          <Box display="flex" justifyContent="flex-end">
-            <Button
-              variant="contained"
-              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-              onClick={save}
-              disabled={saving}
-            >
-              {saving ? t.settings.saving : t.settings.groupPermSave}
-            </Button>
-          </Box>
-        </Box>
-      )}
-    </Section>
+
+              {/* Permissions */}
+              <Divider />
+              <Box
+                display="grid"
+                gridTemplateColumns={isMobile ? '1fr' : '1fr 1fr'}
+                gap={0}
+                sx={{ px: 2, py: 1 }}
+              >
+                {PERM_DEFS.map(({ key, label }, pi) => (
+                  <Box
+                    key={key}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{
+                      py: 0.5,
+                      px: 0.5,
+                      borderRadius: 1,
+                      borderRight: !isMobile && pi === 0 ? '1px solid' : 'none',
+                      borderColor: 'divider',
+                      pr: !isMobile && pi === 0 ? 2 : 0.5,
+                      pl: !isMobile && pi === 1 ? 2 : 0.5,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem', lineHeight: 1.3 }}>
+                      {label}
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={groupPerms.includes(key)}
+                      onChange={() => togglePerm(item, key)}
+                      disabled={permSaving}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          );
+        })}
+        {list.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+            {t.settings.noItems}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Add new group */}
+      <Box display="flex" gap={1} mt={2} alignItems="center">
+        <TextField
+          size="small"
+          fullWidth
+          placeholder={t.settings.addGroupPlaceholder}
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={handleKey}
+          disabled={saving || editIdx !== null}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<Add />}
+          onClick={add}
+          disabled={!newItem.trim() || saving || editIdx !== null}
+        >
+          {t.settings.addItem}
+        </Button>
+        {(saving || permSaving) && <CircularProgress size={18} />}
+        {!saving && !permSaving && (listFlash || permFlash) && <Check fontSize="small" color="success" />}
+      </Box>
+    </Box>
   );
 }
