@@ -10,6 +10,7 @@ export const ticketCommentsTable = pgTable("ticket_comments", {
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   commentText: text("comment_text").notNull(),
   isSolution: boolean("is_solution").notNull().default(false),
+  replyToCommentId: integer("reply_to_comment_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("ticket_comments_ticket_id_idx").on(t.ticketId),

@@ -69,6 +69,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     ticketId: id,
     authorId: currentUser.id,
     commentText: parsed.data.commentText,
+    replyToCommentId: parsed.data.replyToCommentId ?? null,
   }).returning();
 
   await db.update(ticketsTable).set({ updatedAt: new Date() }).where(eq(ticketsTable.id, id));

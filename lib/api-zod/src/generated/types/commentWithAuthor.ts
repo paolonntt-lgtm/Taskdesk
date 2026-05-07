@@ -12,6 +12,7 @@ export interface CommentWithAuthor {
   ticketId: number;
   authorId: number;
   commentText: string;
+  replyToCommentId?: number | null;
   createdAt: Date;
   author: User;
 }

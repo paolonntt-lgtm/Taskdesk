@@ -65,6 +65,10 @@ export default function TicketDetail() {
   const [editSaving, setEditSaving] = useState(false);
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
+  const inlineEditorRef = useRef<RichCommentEditorHandle>(null);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
+  const [inlineReplyText, setInlineReplyText] = useState('');
+  const [inlinePendingAttachments, setInlinePendingAttachments] = useState<PendingAttachment[]>([]);
 
   const deleteTicket = useDeleteTicket();
 
@@ -80,12 +84,12 @@ export default function TicketDetail() {
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
 
-  const handleReply = (authorName: string | null | undefined) => {
-    if (!authorName) return;
-    const mention = `@[${authorName}] `;
-    setNewComment((prev) => (prev.trim() ? `${mention}${prev}` : mention));
+  const handleReply = (commentId: number, authorName: string | null | undefined) => {
+    const mention = authorName ? `@[${authorName}] ` : '';
+    setReplyingToCommentId(commentId);
+    setInlineReplyText(mention);
     setTabValue(0);
-    setTimeout(() => editorRef.current?.focus(), 50);
+    setTimeout(() => inlineEditorRef.current?.focus(), 50);
   };
 
   useEffect(() => {
@@ -239,6 +243,22 @@ export default function TicketDetail() {
     if (pendingAttachments.length > 0) {
       queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
       setPendingAttachments([]);
+    }
+  };
+
+  const submitInlineReply = async () => {
+    if (!inlineReplyText.trim() && inlinePendingAttachments.length === 0) return;
+    const commentText = inlineReplyText.trim() || '📎 Allegato';
+    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText, replyToCommentId: replyingToCommentId } });
+    setInlineReplyText('');
+    setReplyingToCommentId(null);
+    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+    for (const att of inlinePendingAttachments) {
+      await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
+    }
+    if (inlinePendingAttachments.length > 0) {
+      queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+      setInlinePendingAttachments([]);
     }
   };
 
@@ -615,12 +635,15 @@ export default function TicketDetail() {
                       {t.ticketDetail.noComments}
                     </Typography>
                   )}
-                  {comments?.map((c) => {
+                  {comments?.flatMap((c) => {
                     const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
                     const isSolution = (c as any).isSolution === true;
                     const canMarkSolution = isAdmin || ticket.assignedTo === currentUser?.id || ticket.createdBy === currentUser?.id;
-                    return (
-                    <Box key={c.id} display="flex" gap={{ xs: 1, sm: 2 }}>
+                    const isReply = (c as any).replyToCommentId != null;
+                    const showInlineEditor = replyingToCommentId === c.id;
+                    const commentSx = isReply ? { pl: { xs: 3, sm: 5 }, borderLeft: '3px solid', borderColor: 'divider' as const } : undefined;
+                    const commentEl = (
+                    <Box key={`c-${c.id}`} display="flex" gap={{ xs: 1, sm: 2 }} sx={commentSx}>
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
                         sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, fontSize: { xs: 14, sm: 20 } }}
@@ -667,8 +690,8 @@ export default function TicketDetail() {
                               <Tooltip title={t.ticketDetail.replyComment}>
                                 <IconButton
                                   size="small"
-                                  onClick={() => handleReply(c.author?.name)}
-                                  sx={{ color: 'action.disabled', '&:hover': { color: 'primary.main' } }}
+                                  onClick={() => handleReply(c.id, c.author?.name)}
+                                  sx={{ color: replyingToCommentId === c.id ? 'primary.main' : 'action.disabled', '&:hover': { color: 'primary.main' } }}
                                 >
                                   <ReplyIcon fontSize="small" />
                                 </IconButton>
@@ -715,6 +738,42 @@ export default function TicketDetail() {
                       </Box>
                     </Box>
                     );
+                    if (!showInlineEditor) return [commentEl];
+                    const editorEl = (
+                      <Box key={`r-${c.id}`} sx={{ pl: { xs: 3, sm: 5 }, display: 'flex', gap: { xs: 1, sm: 2 } }}>
+                        <Avatar
+                          src={(currentUser as any)?.avatarUrl ?? undefined}
+                          sx={{ bgcolor: 'primary.main', width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 }, flexShrink: 0 }}
+                        >
+                          {currentUser?.name?.charAt(0)}
+                        </Avatar>
+                        <Box flex={1} display="flex" flexDirection="column" gap={1}>
+                          <RichCommentEditor
+                            ref={inlineEditorRef}
+                            value={inlineReplyText}
+                            onChange={setInlineReplyText}
+                            placeholder={t.ticketDetail.addCommentPlaceholder}
+                            ticketId={ticketId}
+                            onAttachmentsChange={setInlinePendingAttachments}
+                            minRows={2}
+                          />
+                          <Box display="flex" gap={1} justifyContent="flex-end">
+                            <Button size="small" onClick={() => { setReplyingToCommentId(null); setInlineReplyText(''); }}>
+                              {t.ticketDetail.editCancel}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={submitInlineReply}
+                              disabled={(!inlineReplyText.trim() && inlinePendingAttachments.length === 0) || addComment.isPending}
+                            >
+                              {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.replyComment}
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Box>
+                    );
+                    return [commentEl, editorEl];
                   })}
 
                   {/* Resolution note shown inline among comments */}

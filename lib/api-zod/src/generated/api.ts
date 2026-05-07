@@ -378,6 +378,7 @@ export const ListTicketCommentsResponseItem = zod.object({
   ticketId: zod.number(),
   authorId: zod.number(),
   commentText: zod.string(),
+  replyToCommentId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
   author: zod.object({
     id: zod.number(),
@@ -404,6 +405,7 @@ export const AddTicketCommentParams = zod.object({
 
 export const AddTicketCommentBody = zod.object({
   commentText: zod.string(),
+  replyToCommentId: zod.number().nullish(),
 });
 
 /**

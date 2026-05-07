@@ -8,4 +8,5 @@
 
 export interface CreateCommentBody {
   commentText: string;
+  replyToCommentId?: number | null;
 }

@@ -190,6 +190,7 @@ export interface CommentWithAuthor {
   ticketId: number;
   authorId: number;
   commentText: string;
+  replyToCommentId?: number | null;
   createdAt: string;
   author: User;
 }
@@ -234,6 +235,7 @@ export interface RequestUploadUrlResponse {
 
 export interface CreateCommentBody {
   commentText: string;
+  replyToCommentId?: number | null;
 }
 
 export interface NoteWithAuthor {
