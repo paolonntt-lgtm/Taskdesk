@@ -282,7 +282,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     }
 
     closeAutocomplete();
-  }, [onChange, allUsers, closeAutocomplete]);
+  }, [onChange, allUsers, allGroups, closeAutocomplete]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (autocomplete) {

@@ -1,4 +1,4 @@
-import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable } from "@workspace/db";
+import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable, settingsTable } from "@workspace/db";
 import { hashPassword } from "../routes/auth";
 import { logger } from "./logger";
 
@@ -219,6 +219,15 @@ export async function seedIfEmpty(): Promise<void> {
     { ticketId: tickets[3].id, authorId: admin.id, noteText: "Il problema sembra legato all ultimo aggiornamento del gestionale (v3.2.1). Verificare rollback come piano B.", createdAt: twoDaysAgo },
     { ticketId: tickets[6].id, authorId: admin.id, noteText: "Numero seriale POS: TRX-2024-0891. Contratto assistenza attivo fino a dicembre 2025.", createdAt: now },
   ]);
+
+  // Seed default groups for org 1 (orgKey format: org_<orgId>_groups)
+  const orgId = admin.organizationId;
+  if (orgId != null) {
+    await db
+      .insert(settingsTable)
+      .values({ key: `org_${orgId}_groups`, value: JSON.stringify(["IT Support", "Reception", "Amministrazione", "Operazioni"]) })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(["IT Support", "Reception", "Amministrazione", "Operazioni"]) } });
+  }
 
   logger.info("Seed completed successfully!");
 }
