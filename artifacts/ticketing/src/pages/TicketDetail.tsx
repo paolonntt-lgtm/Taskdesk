@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, Reply as ReplyIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -668,30 +668,16 @@ export default function TicketDetail() {
                     const showInlineEditor = replyingToCommentId === c.id;
                     const commentSx = isReply ? { pl: { xs: 3, sm: 5 }, borderLeft: '3px solid', borderColor: 'divider' as const } : undefined;
                     const commentEl = (
-                    <Box key={`c-${c.id}`} display="flex" gap={{ xs: 1, sm: 2 }} sx={commentSx}>
+                    <Box key={`c-${c.id}`} display="flex" gap={{ xs: 1, sm: 1.5 }} sx={commentSx}>
                       <Avatar
                         src={(c.author as any)?.avatarUrl ?? undefined}
-                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, fontSize: { xs: 14, sm: 20 } }}
+                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 }, fontSize: { xs: 14, sm: 16 }, flexShrink: 0 }}
                       >
                         {c.author?.name?.charAt(0)}
                       </Avatar>
-                      <Box
-                        flex={1}
-                        borderRadius={1}
-                        overflow="hidden"
-                        sx={isSolution ? {
-                          border: '1px solid',
-                          borderColor: 'success.300',
-                        } : {
-                          bgcolor: 'background.default',
-                        }}
-                      >
+                      <Box flex={1} minWidth={0}>
                         {isSolution && (
-                          <Box
-                            display="flex" alignItems="center" gap={1}
-                            px={1.5} py={0.5}
-                            sx={{ bgcolor: 'success.100', borderBottom: '1px solid', borderColor: 'success.200' }}
-                          >
+                          <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
                             <CheckCircle sx={{ fontSize: 14, color: 'success.dark' }} />
                             <Typography variant="caption" fontWeight="bold" color="success.dark">
                               {t.ticketDetail.solutionLabel}
@@ -699,43 +685,23 @@ export default function TicketDetail() {
                           </Box>
                         )}
                         <Box
-                          p={{ xs: 1.5, sm: 2 }}
-                          sx={isSolution ? { background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' } : undefined}
+                          sx={isSolution ? {
+                            border: '1px solid',
+                            borderColor: 'success.300',
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                            px: { xs: 1.5, sm: 2 },
+                            py: 1,
+                          } : undefined}
                         >
-                          <Box display="flex" justifyContent="space-between" mb={1} flexWrap="wrap" gap={0.5} alignItems="center">
-                            <UserLink
-                              userId={c.authorId}
-                              name={c.author?.name}
-                              typographyProps={{ variant: 'subtitle2', fontWeight: 'bold' }}
-                            />
-                            <Box display="flex" alignItems="center" gap={0.5}>
-                              <Typography variant="caption" color="text.secondary">
-                                {new Date(c.createdAt).toLocaleString(dateLocale)}
-                              </Typography>
-                              <Tooltip title={t.ticketDetail.replyComment}>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleReply(c.id, c.author?.name)}
-                                  sx={{ color: replyingToCommentId === c.id ? 'primary.main' : 'action.disabled', '&:hover': { color: 'primary.main' } }}
-                                >
-                                  <ReplyIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              {canMarkSolution && (
-                                <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleMarkSolution(c.id, isSolution)}
-                                    disabled={markingSolution === c.id}
-                                    sx={{ color: isSolution ? 'success.main' : 'action.disabled', '&:hover': { color: 'success.main' } }}
-                                  >
-                                    {isSolution ? <CheckCircle fontSize="small" /> : <CheckCircleOutline fontSize="small" />}
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </Box>
+                          <UserLink
+                            userId={c.authorId}
+                            name={c.author?.name}
+                            typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
+                          />
+                          <Box mt={0.25}>
+                            <MarkdownContent content={c.commentText} />
                           </Box>
-                          <MarkdownContent content={c.commentText} />
                           {commentAttachments.length > 0 && (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
                               {commentAttachments.map((a: any) => {
@@ -758,6 +724,36 @@ export default function TicketDetail() {
                                 );
                               })}
                             </Box>
+                          )}
+                        </Box>
+                        <Box display="flex" alignItems="center" gap={1} mt={0.5} flexWrap="wrap">
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(c.createdAt).toLocaleString(dateLocale)}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            component="span"
+                            onClick={() => handleReply(c.id, c.author?.name)}
+                            sx={{
+                              color: replyingToCommentId === c.id ? 'primary.main' : 'text.secondary',
+                              cursor: 'pointer',
+                              fontWeight: replyingToCommentId === c.id ? 'bold' : 'normal',
+                              '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                            }}
+                          >
+                            {t.ticketDetail.replyComment}
+                          </Typography>
+                          {canMarkSolution && (
+                            <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleMarkSolution(c.id, isSolution)}
+                                disabled={markingSolution === c.id}
+                                sx={{ color: isSolution ? 'success.main' : 'action.disabled', '&:hover': { color: 'success.main' }, p: 0.25 }}
+                              >
+                                {isSolution ? <CheckCircle sx={{ fontSize: 16 }} /> : <CheckCircleOutline sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </Tooltip>
                           )}
                         </Box>
                       </Box>
