@@ -10,6 +10,35 @@ import { sendEmail, buildNotificationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { logger } from "./logger";
 
+async function sendExpoPushNotifications(
+  tokens: string[],
+  title: string,
+  body: string,
+  ticketId: number | null
+): Promise<void> {
+  if (tokens.length === 0) return;
+  const messages = tokens.map((to) => ({
+    to,
+    sound: "default" as const,
+    title,
+    body,
+    data: ticketId ? { ticketId } : {},
+  }));
+  try {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(messages),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "expo push send failed");
+    }
+  } catch (err) {
+    logger.warn({ err }, "expo push send error");
+  }
+}
+
 interface PrefForUser {
   userId: number;
   inApp: boolean;
@@ -88,7 +117,7 @@ export async function createNotificationsForTicket(
   if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
 
   const candidates = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
     .from(usersTable)
     .where(and(...conditions));
   if (candidates.length === 0) return;
@@ -109,6 +138,12 @@ export async function createNotificationsForTicket(
     );
   }
 
+  // Push notifications
+  const pushTokens = candidates
+    .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
+    .map((u) => u.expoPushToken!);
+  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
+
   // Email dispatch (independent of in-app)
   void dispatchEmails(candidates, prefs, text, ticketId);
 }
@@ -124,7 +159,7 @@ export async function createNotificationForUser(
   if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
 
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
     .from(usersTable)
     .where(and(...conditions));
   if (!user) return;
@@ -140,6 +175,9 @@ export async function createNotificationForUser(
       notificationText: text,
       isRead: false,
     });
+    if (user.expoPushToken) {
+      void sendExpoPushNotifications([user.expoPushToken], "TaskDesk", text, ticketId);
+    }
   }
 
   void dispatchEmails([user], prefs, text, ticketId);

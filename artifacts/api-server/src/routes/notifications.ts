@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc } from "drizzle-orm";
-import { db, notificationsTable } from "@workspace/db";
+import { db, notificationsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
@@ -46,6 +47,31 @@ router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<v
     .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false)));
 
   res.json({ success: true, message: "Tutte le notifiche marcate come lette" });
+});
+
+const pushTokenSchema = z.object({ token: z.string().min(1).max(500) });
+
+router.post("/notifications/push-token", requireAuth, async (req, res): Promise<void> => {
+  const parsed = pushTokenSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Token non valido" });
+    return;
+  }
+  const currentUser = (req as any).currentUser;
+  await db
+    .update(usersTable)
+    .set({ expoPushToken: parsed.data.token })
+    .where(eq(usersTable.id, currentUser.id));
+  res.json({ success: true });
+});
+
+router.delete("/notifications/push-token", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  await db
+    .update(usersTable)
+    .set({ expoPushToken: null })
+    .where(eq(usersTable.id, currentUser.id));
+  res.json({ success: true });
 });
 
 export default router;

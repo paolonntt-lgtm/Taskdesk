@@ -20,6 +20,7 @@ export const usersTable = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  expoPushToken: text("expo_push_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
