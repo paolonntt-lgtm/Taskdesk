@@ -3,9 +3,9 @@ import {
   Box, Card, Typography, Tabs, Tab, Divider, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
-  IconButton, Popover, Snackbar,
+  IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -77,6 +77,7 @@ export default function TicketDetail() {
   const [editCommentText, setEditCommentText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
   const [reactionAnchor, setReactionAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
+  const [commentMenuAnchor, setCommentMenuAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
   const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>>({});
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
@@ -536,7 +537,7 @@ export default function TicketDetail() {
                         <Typography variant="body2">{assignee.name}</Typography>
                       </Box>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
+                      <Typography variant="body2" color="text.disabled">—</Typography>
                     )}
                     <IconButton size="small">
                       <EditOutlined fontSize="small" />
@@ -611,7 +612,7 @@ export default function TicketDetail() {
                     </Box>
                   </Popover>
                 </>
-              ) : (
+              ) : (assignee || assignedGroup) ? (
                 <Box display="flex" alignItems="center" gap={1}>
                   {assignee && (
                     <Avatar
@@ -622,9 +623,11 @@ export default function TicketDetail() {
                     </Avatar>
                   )}
                   <Typography variant="body2">
-                    {assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name || t.ticketDetail.unassigned}
+                    {assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name}
                   </Typography>
                 </Box>
+              ) : (
+                <Typography variant="body2" color="text.disabled">—</Typography>
               )}
             </Box>
 
@@ -782,7 +785,14 @@ export default function TicketDetail() {
                             background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
                             px: { xs: 1.5, sm: 2 },
                             py: 1,
-                          } : undefined}
+                          } : {
+                            borderRadius: 2,
+                            bgcolor: '#f8faff',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            px: { xs: 1.5, sm: 2 },
+                            py: 1,
+                          }}
                         >
                           <UserLink
                             userId={c.authorId}
@@ -931,45 +941,27 @@ export default function TicketDetail() {
                               😊+
                             </Typography>
                           </Tooltip>
-                          {canEditComment && (
-                            <Typography
-                              variant="caption"
-                              component="span"
-                              onClick={() => handleEditComment(c.id, c.commentText)}
-                              sx={{
-                                color: 'text.secondary',
-                                cursor: 'pointer',
-                                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                              }}
+                          {(canEditComment || canDeleteComment) && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => setCommentMenuAnchor({ el: e.currentTarget, commentId: c.id })}
+                              sx={{ p: 0.25, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
                             >
-                              {t.ticketDetail.editComment}
-                            </Typography>
-                          )}
-                          {canDeleteComment && (
-                            <Typography
-                              variant="caption"
-                              component="span"
-                              onClick={() => setDeleteCommentId(c.id)}
-                              sx={{
-                                color: 'text.secondary',
-                                cursor: 'pointer',
-                                '&:hover': { color: 'error.main', textDecoration: 'underline' },
-                              }}
-                            >
-                              {t.ticketDetail.deleteComment}
-                            </Typography>
+                              <MoreVert sx={{ fontSize: 16 }} />
+                            </IconButton>
                           )}
                           {canMarkSolution && (
-                            <Tooltip title={isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleMarkSolution(c.id, isSolution)}
-                                disabled={markingSolution === c.id}
-                                sx={{ color: isSolution ? 'success.main' : 'action.disabled', '&:hover': { color: 'success.main' }, p: 0.25 }}
-                              >
-                                {isSolution ? <CheckCircle sx={{ fontSize: 16 }} /> : <CheckCircleOutline sx={{ fontSize: 16 }} />}
-                              </IconButton>
-                            </Tooltip>
+                            <Button
+                              size="small"
+                              variant={isSolution ? 'contained' : 'outlined'}
+                              color="success"
+                              startIcon={isSolution ? <CheckCircle sx={{ fontSize: 13 }} /> : <CheckCircleOutline sx={{ fontSize: 13 }} />}
+                              onClick={() => handleMarkSolution(c.id, isSolution)}
+                              disabled={markingSolution === c.id}
+                              sx={{ fontSize: '0.68rem', py: 0.25, px: 0.75, height: 22, minWidth: 0, ml: 'auto' }}
+                            >
+                              {isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}
+                            </Button>
                           )}
                           </Box>
                         </Box>
@@ -1014,6 +1006,50 @@ export default function TicketDetail() {
                     );
                     return [commentEl, editorEl];
                   })}
+
+                  {/* Comment actions menu (edit / delete) */}
+                  <Menu
+                    anchorEl={commentMenuAnchor?.el}
+                    open={Boolean(commentMenuAnchor)}
+                    onClose={() => setCommentMenuAnchor(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    slotProps={{ paper: { elevation: 3, sx: { minWidth: 150 } } }}
+                  >
+                    {(() => {
+                      const mc = comments?.find((c) => c.id === commentMenuAnchor?.commentId);
+                      if (!mc) return null;
+                      const canEdit = mc.authorId === currentUser?.id;
+                      const canDelete = mc.authorId === currentUser?.id || isAdmin;
+                      return [
+                        canEdit && (
+                          <MenuItem
+                            key="edit"
+                            onClick={() => {
+                              handleEditComment(commentMenuAnchor!.commentId, mc.commentText);
+                              setCommentMenuAnchor(null);
+                            }}
+                          >
+                            <ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon>
+                            <ListItemText>{t.ticketDetail.editComment}</ListItemText>
+                          </MenuItem>
+                        ),
+                        canDelete && (
+                          <MenuItem
+                            key="delete"
+                            onClick={() => {
+                              setDeleteCommentId(commentMenuAnchor!.commentId);
+                              setCommentMenuAnchor(null);
+                            }}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <ListItemIcon sx={{ color: 'error.main' }}><DeleteOutline fontSize="small" /></ListItemIcon>
+                            <ListItemText>{t.ticketDetail.deleteComment}</ListItemText>
+                          </MenuItem>
+                        ),
+                      ].filter(Boolean);
+                    })()}
+                  </Menu>
 
                   {/* Resolution note shown inline among comments */}
                   {(ticket as any).resolutionNote && (
