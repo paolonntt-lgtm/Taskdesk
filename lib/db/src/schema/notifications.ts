@@ -38,7 +38,7 @@ export const notificationPreferencesTable = pgTable("notification_preferences", 
   inApp: boolean("in_app").notNull().default(true),
   browser: boolean("browser").notNull().default(true),
   sound: boolean("sound").notNull().default(true),
-  email: boolean("email").notNull().default(true),
+  email: boolean("email").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   primaryKey({ columns: [t.userId, t.type] }),

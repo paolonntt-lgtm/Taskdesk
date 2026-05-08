@@ -24,7 +24,7 @@ function defaults(): PrefRow[] {
     inApp: true,
     browser: true,
     sound: true,
-    email: true,
+    email: false,
   }));
 }
 
