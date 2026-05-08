@@ -356,7 +356,7 @@ export default function TicketList() {
                       <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
                     </TableCell>
                     <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                      {ticket.assignee?.name || t.ticketList.unassigned}
+                      {ticket.assignee?.name || '—'}
                     </TableCell>
                     {showLocation && (
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>

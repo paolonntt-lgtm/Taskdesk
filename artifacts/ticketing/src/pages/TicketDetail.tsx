@@ -76,7 +76,6 @@ export default function TicketDetail() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
-  const [reactionAnchor, setReactionAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
   const [commentMenuAnchor, setCommentMenuAnchor] = useState<{ el: HTMLElement; commentId: number } | null>(null);
   const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>>({});
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
@@ -134,7 +133,6 @@ export default function TicketDetail() {
   }, [comments]);
 
   const handleToggleReaction = async (commentId: number, emoji: string) => {
-    setReactionAnchor(null);
     try {
       const res = await fetch(`/api/tickets/${ticketId}/comments/${commentId}/reactions`, {
         method: 'POST',
@@ -922,25 +920,32 @@ export default function TicketDetail() {
                           >
                             {t.ticketDetail.replyComment}
                           </Typography>
-                          {/* Reaction picker trigger — visible on hover (desktop) or always (touch) */}
-                          <Tooltip title={t.ticketDetail.addReaction}>
-                            <Typography
-                              variant="caption"
-                              component="span"
-                              onClick={(e) => setReactionAnchor({ el: e.currentTarget as HTMLElement, commentId: c.id })}
-                              sx={{
-                                color: 'text.secondary',
-                                cursor: 'pointer',
-                                lineHeight: 1,
-                                opacity: hoveredCommentId === c.id ? 1 : 0,
-                                transition: 'opacity 0.15s',
-                                '@media (pointer: coarse)': { opacity: 1 },
-                                '&:hover': { color: 'primary.main' },
-                              }}
-                            >
-                              😊+
-                            </Typography>
-                          </Tooltip>
+                          {/* Mi Piace 👍 — toggle diretto */}
+                          {(() => {
+                            const alreadyLiked = (commentReactions[c.id] ?? []).some((r) => r.emoji === '👍' && r.userReacted);
+                            return (
+                              <Tooltip title={alreadyLiked ? t.ticketDetail.addReaction : t.ticketDetail.addReaction}>
+                                <Typography
+                                  variant="caption"
+                                  component="span"
+                                  onClick={() => handleToggleReaction(c.id, '👍')}
+                                  sx={{
+                                    cursor: 'pointer',
+                                    lineHeight: 1,
+                                    fontSize: '0.85rem',
+                                    color: alreadyLiked ? 'primary.main' : 'text.secondary',
+                                    fontWeight: alreadyLiked ? 700 : 400,
+                                    opacity: hoveredCommentId === c.id || alreadyLiked ? 1 : 0,
+                                    transition: 'opacity 0.15s, color 0.15s',
+                                    '@media (pointer: coarse)': { opacity: 1 },
+                                    '&:hover': { color: 'primary.main' },
+                                  }}
+                                >
+                                  👍
+                                </Typography>
+                              </Tooltip>
+                            );
+                          })()}
                           {(canEditComment || canDeleteComment) && (
                             <IconButton
                               size="small"
@@ -1249,45 +1254,6 @@ export default function TicketDetail() {
         </Alert>
       </Snackbar>
 
-      {/* ── Reaction picker popover ── */}
-      <Popover
-        open={reactionAnchor != null}
-        anchorEl={reactionAnchor?.el}
-        onClose={() => setReactionAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { borderRadius: 3, p: 0.75 } } }}
-      >
-        <Box display="flex" gap={0.5} p={0.5}>
-          {(['👍', '✅', '🎉', '❤️', '😂', '🙏'] as const).map((emoji) => {
-            const reactions = reactionAnchor ? (commentReactions[reactionAnchor.commentId] ?? []) : [];
-            const alreadyReacted = reactions.some((r) => r.emoji === emoji && r.userReacted);
-            return (
-              <Box
-                key={emoji}
-                component="span"
-                onClick={() => reactionAnchor && handleToggleReaction(reactionAnchor.commentId, emoji)}
-                sx={{
-                  fontSize: '1.4rem',
-                  cursor: 'pointer',
-                  px: 0.6,
-                  py: 0.25,
-                  borderRadius: 2,
-                  border: '1.5px solid',
-                  borderColor: alreadyReacted ? 'primary.main' : 'transparent',
-                  bgcolor: alreadyReacted ? 'primary.50' : 'transparent',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  transition: 'all 0.12s',
-                  '&:hover': { bgcolor: 'action.hover', transform: 'scale(1.15)' },
-                }}
-              >
-                {emoji}
-              </Box>
-            );
-          })}
-        </Box>
-      </Popover>
 
       {/* ── Delete comment confirm dialog ── */}
       <Dialog open={deleteCommentId != null} onClose={() => setDeleteCommentId(null)} maxWidth="xs" fullWidth>
