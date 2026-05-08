@@ -11,6 +11,8 @@ interface Translations {
   };
   hero: {
     title: string;
+    titleLine1: string;
+    titleLine2: string;
     subtitle: string;
     cta: string;
     secondaryCta: string;
@@ -28,6 +30,7 @@ interface Translations {
       creation: { title: string; desc: string };
       priority: { title: string; desc: string };
       history: { title: string; desc: string };
+      solution: { title: string; desc: string };
       stats: { title: string; desc: string; bullets: string[] };
       multi: { title: string; desc: string };
       roles: { title: string; desc: string };
@@ -75,8 +78,10 @@ const translations: Record<Language, Translations> = {
       login: "Accedi",
     },
     hero: {
-      title: "Il supporto tecnico non deve essere complicato.",
-      subtitle: "TaskDesk è l'alternativa chiara, diretta e ultra-accessibile ai complessi help desk aziendali. Pensato per le PMI italiane che vogliono far funzionare le cose, senza leggere manuali.",
+      title: "I ticket aziendali che funzionano come una chat.",
+      titleLine1: "Ticket aziendali",
+      titleLine2: "come una chat.",
+      subtitle: "Apri un ticket in 10 secondi. Il team commenta, si menziona a vicenda e segna la soluzione — tutto in un unico thread conversazionale.",
       cta: "Inizia la prova gratuita",
       secondaryCta: "Scopri come funziona",
       trialBadge: "7 giorni gratis",
@@ -99,8 +104,12 @@ const translations: Record<Language, Translations> = {
           desc: "Tieni sempre sotto controllo cosa è urgente e cosa è già in lavorazione."
         },
         history: {
-          title: "Commenti e Cronologia",
-          desc: "Una singola fonte di verità per ogni richiesta, accessibile a tutti i collaboratori."
+          title: "Commenti e Thread",
+          desc: "Ogni ticket è una conversazione: risposte annidate, allegati e @menzioni per coinvolgere le persone giuste."
+        },
+        solution: {
+          title: "Soluzione Marcata",
+          desc: "Chi risolve marca il commento giusto come soluzione. Tutti vedono subito cosa ha funzionato."
         },
         stats: {
           title: "Report e Statistiche",
@@ -174,8 +183,10 @@ const translations: Record<Language, Translations> = {
       login: "Login",
     },
     hero: {
-      title: "IT support doesn't have to be complicated.",
-      subtitle: "TaskDesk is the clear, direct, and ultra-affordable alternative to bloated enterprise help desks. Designed for businesses that want things to just work, without reading manuals.",
+      title: "Business tickets that work like a chat.",
+      titleLine1: "Business tickets",
+      titleLine2: "that work like a chat.",
+      subtitle: "Open a ticket in 10 seconds. The team comments, mentions each other, and marks the solution — all in one conversational thread.",
       cta: "Start free trial",
       secondaryCta: "See how it works",
       trialBadge: "7 days free",
@@ -198,8 +209,12 @@ const translations: Record<Language, Translations> = {
           desc: "Always keep track of what's urgent and what's currently being worked on."
         },
         history: {
-          title: "Comments & History",
-          desc: "A single source of truth for every request, accessible to all collaborators."
+          title: "Comments & Threads",
+          desc: "Every ticket is a conversation: nested replies, attachments and @mentions to involve the right people."
+        },
+        solution: {
+          title: "Marked Solution",
+          desc: "Whoever resolves it marks the right comment as the solution. Everyone sees immediately what worked."
         },
         stats: {
           title: "Reports & Statistics",
