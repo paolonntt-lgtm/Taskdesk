@@ -332,7 +332,7 @@ function ListEditor({
 }
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { t } = useLanguage();
   const isAdmin = user?.role === 'admin';
 
@@ -511,6 +511,7 @@ export default function Settings() {
       });
       const data = await res.json();
       if (!res.ok) { setProfileMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      if (data.user) updateUser(data.user);
       setProfileMsg({ type: 'success', text: 'Profilo aggiornato con successo.' });
     } catch {
       setProfileMsg({ type: 'error', text: 'Errore di rete. Riprova.' });

@@ -92,8 +92,10 @@ function AppShell() {
     setLocation("/login");
   };
 
+  const updateUser = (updated: User) => setUser(updated);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, error }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser }}>
       <Switch>
         <Route path="/invite/:token">
           {(params) => <InviteRegister token={params.token!} />}
