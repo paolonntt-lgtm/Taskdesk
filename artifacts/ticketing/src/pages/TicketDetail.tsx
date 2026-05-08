@@ -743,7 +743,7 @@ export default function TicketDetail() {
                   {comments?.flatMap((c) => {
                     const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
                     const isSolution = (c as any).isSolution === true;
-                    const canMarkSolution = isAdmin || ticket.assignedTo === currentUser?.id || ticket.createdBy === currentUser?.id;
+                    const canMarkSolution = !!currentUser;
                     const isReply = (c as any).replyToCommentId != null;
                     const showInlineEditor = replyingToCommentId === c.id;
                     const isEditingThis = editingCommentId === c.id;
