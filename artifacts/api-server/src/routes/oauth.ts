@@ -41,11 +41,6 @@ router.get("/auth/google", (req, res) => {
   const state = randomBytes(24).toString("hex");
   pendingOAuthStates.set(state, Date.now());
 
-  res.setHeader(
-    "Set-Cookie",
-    `oauth_state=${state}; Path=/api/auth/google/callback; HttpOnly; SameSite=Lax; Max-Age=600`
-  );
-
   const params = new URLSearchParams({
     client_id: googleClientId(),
     redirect_uri: getCallbackUrl(),
@@ -61,27 +56,13 @@ router.get("/auth/google", (req, res) => {
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as { code?: string; error?: string; state?: string };
 
-  const cookieHeader = req.headers.cookie ?? "";
-  const cookies = Object.fromEntries(
-    cookieHeader.split(";").map((c) => {
-      const [k, ...v] = c.trim().split("=");
-      return [k.trim(), v.join("=")];
-    })
-  );
-  const cookieState = cookies["oauth_state"];
-
-  res.setHeader(
-    "Set-Cookie",
-    "oauth_state=; Path=/api/auth/google/callback; HttpOnly; Max-Age=0"
-  );
-
   if (error || !code) {
     res.redirect("/app/?oauth_error=cancelled");
     return;
   }
 
-  if (!state || !cookieState || state !== cookieState || !pendingOAuthStates.has(state)) {
-    logger.warn({ state, hasCookieState: !!cookieState, stateMatch: state === cookieState }, "OAuth callback state validation failed");
+  if (!state || !pendingOAuthStates.has(state)) {
+    logger.warn({ state, hasState: !!state }, "OAuth callback state validation failed");
     res.redirect("/app/?oauth_error=invalid_state");
     return;
   }
