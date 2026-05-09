@@ -12,151 +12,244 @@ const openai = new OpenAI({
 });
 
 interface ContextResult {
-  type: "ticket" | "article";
+  type: "resolved_ticket" | "open_ticket" | "article";
   title: string;
   content: string;
   rank: number;
 }
 
-async function searchContext(query: string, orgId: number | null): Promise<ContextResult[]> {
-  const results: ContextResult[] = [];
-
-  if (!query.trim()) return [];
-
-  if (orgId != null) {
-    const ticketRows = await db.execute(sql`
-      SELECT
-        t.id,
-        t.title,
-        t.description,
-        t.resolution_note,
-        ts_rank(
-          to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, '')),
-          plainto_tsquery('italian', ${query})
-        ) AS rank
-      FROM tickets t
-      WHERE
-        t.organization_id = ${orgId}
-        AND t.status IN ('resolved', 'closed')
-        AND t.resolution_note IS NOT NULL
-        AND (
-          to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
-          @@ plainto_tsquery('italian', ${query})
-          OR t.title ILIKE ${'%' + query + '%'}
-          OR t.description ILIKE ${'%' + query + '%'}
-        )
-      ORDER BY rank DESC
-      LIMIT 3
-    `);
-
-    for (const row of ticketRows.rows as any[]) {
-      const commentRows = await db
-        .select({ commentText: ticketCommentsTable.commentText, isSolution: ticketCommentsTable.isSolution })
-        .from(ticketCommentsTable)
-        .where(and(eq(ticketCommentsTable.ticketId, row.id), eq(ticketCommentsTable.isSolution, true)))
-        .limit(2);
-
-      const solutionText = commentRows.map((c) => c.commentText).join("\n");
-      const content = [
-        row.description,
-        row.resolution_note ? `Nota risoluzione: ${row.resolution_note}` : "",
-        solutionText ? `Soluzione: ${solutionText}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      results.push({
-        type: "ticket",
-        title: row.title,
-        content: content.slice(0, 600),
-        rank: Number(row.rank),
-      });
-    }
-
-    const articleRows = await db.execute(sql`
-      SELECT
-        id,
-        title,
-        content,
-        ts_rank(
-          to_tsvector('italian', title || ' ' || content),
-          plainto_tsquery('italian', ${query})
-        ) AS rank
-      FROM knowledge_articles
-      WHERE
-        organization_id = ${orgId}
-        AND (
-          to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${query})
-          OR title ILIKE ${'%' + query + '%'}
-          OR content ILIKE ${'%' + query + '%'}
-        )
-      ORDER BY rank DESC
-      LIMIT 3
-    `);
-
-    for (const row of articleRows.rows as any[]) {
-      results.push({
-        type: "article",
-        title: row.title,
-        content: String(row.content).slice(0, 600),
-        rank: Number(row.rank),
-      });
-    }
-  }
-
-  return results.sort((a, b) => b.rank - a.rank).slice(0, 5);
+interface SearchContextResult {
+  resolvedTickets: ContextResult[];
+  openTickets: ContextResult[];
+  articles: ContextResult[];
 }
 
-function buildSystemPrompt(context: ContextResult[], lang: "it" | "en"): string {
+// Strip common Italian/English stop words and extract meaningful keywords for search
+function extractKeywords(message: string): string[] {
+  const stopWords = new Set([
+    "il","lo","la","i","gli","le","un","uno","una","del","dello","della","dei","degli","delle",
+    "al","allo","alla","ai","agli","alle","dal","dallo","dalla","dai","dagli","dalle",
+    "nel","nello","nella","nei","negli","nelle","sul","sullo","sulla","sui","sugli","sulle",
+    "di","a","da","in","con","su","per","tra","fra","e","o","ma","se","che","chi","cui",
+    "non","ho","ha","ho","è","si","mi","ti","ci","vi","lo","la","li","le","ne",
+    "the","a","an","is","are","was","were","be","been","have","has","had","do","does","did",
+    "not","no","it","i","you","he","she","we","they","and","or","but","if","of","in","on","at",
+    "to","for","with","this","that","these","those","my","your","his","her","our","their",
+    "dice","dire","viene","vado","sono","ho","avere","fare","può","tutto","anche","già","ancora",
+    "come","quando","dove","perché","cosa","quale","quali","questo","questa","questi","queste",
+    "molto","sempre","subito","dopo","prima","poi","però","quindi","dunque","allora",
+  ]);
+
+  return message
+    .toLowerCase()
+    .replace(/[^\wàèéìòùáíóú\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !stopWords.has(w))
+    .slice(0, 5);
+}
+
+async function searchContext(query: string, orgId: number | null): Promise<SearchContextResult> {
+  const empty: SearchContextResult = { resolvedTickets: [], openTickets: [], articles: [] };
+  if (!query.trim() || orgId == null) return empty;
+
+  const keywords = extractKeywords(query);
+  if (keywords.length === 0) return empty;
+
+  // FTS uses simplified keywords (avoids AND-all-terms mismatch on long messages)
+  const ftsQuery = keywords.join(" ");
+  // Regex fallback: any ticket containing at least one keyword (case-insensitive)
+  const keywordRegex = keywords.join("|");
+
+  // Resolved/closed tickets with a resolution note — most useful for self-service
+  const resolvedRows = await db.execute(sql`
+    SELECT
+      t.id,
+      t.title,
+      t.description,
+      t.resolution_note,
+      ts_rank(
+        to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, '')),
+        plainto_tsquery('italian', ${ftsQuery})
+      ) AS rank
+    FROM tickets t
+    WHERE
+      t.organization_id = ${orgId}
+      AND t.status IN ('resolved', 'closed')
+      AND t.resolution_note IS NOT NULL
+      AND (
+        to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
+        @@ plainto_tsquery('italian', ${ftsQuery})
+        OR t.title ~* ${keywordRegex}
+        OR t.description ~* ${keywordRegex}
+      )
+    ORDER BY rank DESC
+    LIMIT 3
+  `);
+
+  const resolvedTickets: ContextResult[] = [];
+  for (const row of resolvedRows.rows as any[]) {
+    const commentRows = await db
+      .select({ commentText: ticketCommentsTable.commentText })
+      .from(ticketCommentsTable)
+      .where(and(eq(ticketCommentsTable.ticketId, row.id), eq(ticketCommentsTable.isSolution, true)))
+      .limit(2);
+
+    const solutionText = commentRows.map((c) => c.commentText).join("\n");
+    const content = [
+      row.description,
+      row.resolution_note ? `Soluzione adottata: ${row.resolution_note}` : "",
+      solutionText ? `Commento soluzione: ${solutionText}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    resolvedTickets.push({
+      type: "resolved_ticket",
+      title: row.title,
+      content: content.slice(0, 600),
+      rank: Number(row.rank),
+    });
+  }
+
+  // Open/in-progress tickets on the same topic — shows the issue may already be tracked
+  const openRows = await db.execute(sql`
+    SELECT
+      t.id,
+      t.title,
+      t.description,
+      t.status,
+      ts_rank(
+        to_tsvector('italian', t.title || ' ' || t.description),
+        plainto_tsquery('italian', ${ftsQuery})
+      ) AS rank
+    FROM tickets t
+    WHERE
+      t.organization_id = ${orgId}
+      AND t.status NOT IN ('resolved', 'closed')
+      AND (
+        to_tsvector('italian', t.title || ' ' || t.description)
+        @@ plainto_tsquery('italian', ${ftsQuery})
+        OR t.title ~* ${keywordRegex}
+        OR t.description ~* ${keywordRegex}
+      )
+    ORDER BY rank DESC
+    LIMIT 2
+  `);
+
+  const openTickets: ContextResult[] = (openRows.rows as any[]).map((row) => ({
+    type: "open_ticket" as const,
+    title: row.title,
+    content: `${row.description}\nStato attuale: ${row.status}`.slice(0, 400),
+    rank: Number(row.rank),
+  }));
+
+  // KB articles
+  const articleRows = await db.execute(sql`
+    SELECT
+      id,
+      title,
+      content,
+      ts_rank(
+        to_tsvector('italian', title || ' ' || content),
+        plainto_tsquery('italian', ${ftsQuery})
+      ) AS rank
+    FROM knowledge_articles
+    WHERE
+      organization_id = ${orgId}
+      AND (
+        to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
+        OR title ~* ${keywordRegex}
+        OR content ~* ${keywordRegex}
+      )
+    ORDER BY rank DESC
+    LIMIT 3
+  `);
+
+  const articles: ContextResult[] = (articleRows.rows as any[]).map((row) => ({
+    type: "article" as const,
+    title: row.title,
+    content: String(row.content).slice(0, 600),
+    rank: Number(row.rank),
+  }));
+
+  return { resolvedTickets, openTickets, articles };
+}
+
+function buildSystemPrompt(ctx: SearchContextResult, lang: "it" | "en"): string {
   const locale = lang === "en" ? "en-GB" : "it-IT";
   const now = new Date().toLocaleDateString(locale);
+  const { resolvedTickets, openTickets, articles } = ctx;
 
-  let contextSection = "";
   if (lang === "en") {
-    if (context.length > 0) {
-      contextSection = `\n\nAvailable resources:\n` + context.map((r, i) => {
-        const source = r.type === "ticket" ? "Resolved ticket" : "KB article";
-        return `[${i + 1}] ${source}: "${r.title}"\n${r.content}`;
-      }).join("\n\n");
-    } else {
-      contextSection = "\n\nNo resources found in the database for this issue.";
+    let historySection = "";
+    if (resolvedTickets.length > 0) {
+      historySection += "\n\n--- RESOLVED TICKETS (similar past issues from your company) ---\n";
+      historySection += resolvedTickets.map((r, i) =>
+        `[R${i + 1}] "${r.title}"\n${r.content}`
+      ).join("\n\n");
+    }
+    if (openTickets.length > 0) {
+      historySection += "\n\n--- OPEN TICKETS (currently tracked issues) ---\n";
+      historySection += openTickets.map((r, i) =>
+        `[O${i + 1}] "${r.title}"\n${r.content}`
+      ).join("\n\n");
+    }
+    if (articles.length > 0) {
+      historySection += "\n\n--- KNOWLEDGE BASE ARTICLES ---\n";
+      historySection += articles.map((r, i) =>
+        `[K${i + 1}] "${r.title}"\n${r.content}`
+      ).join("\n\n");
+    }
+    if (!historySection) {
+      historySection = "\n\nNo matching tickets or KB articles found in the company database for this issue.";
     }
 
     return `You are TaskBot, the AI assistant for TaskDesk internal IT support. Today's date: ${now}.
 
-Your job is to help users resolve issues BEFORE opening a ticket. Follow these instructions:
+Help users resolve issues before opening a ticket. Follow this order in every reply:
+1. If the context below contains resolved tickets similar to the user's problem, mention them first: "I found a similar past case: [title] — here's how it was solved: [solution]."
+2. If there are open tickets on the same topic, say: "There's already an open ticket for this: [title]."
+3. Based on the context, suggest concrete steps to try. Do not invent solutions not supported by the context.
+4. End your reply with: "Did that solve your problem?"
+5. If the user says no or still has issues, write one short empathetic sentence, then on the next line output exactly: {"action":"create_ticket","title":"SHORT_TITLE","description":"DETAILED_DESCRIPTION"} — DETAILED_DESCRIPTION must include the problem, any similar past tickets found, and solutions already tried.
 
-1. Analyse the user's problem
-2. If you have useful resources, present them clearly and concisely with numbered steps
-3. After suggesting solutions, ask: "Did that solve your problem?"
-4. If the user says no or still has issues, write a short empathetic sentence (e.g. "I'll open a ticket for you."), then on the NEXT line output this JSON exactly:
-   {"action":"create_ticket","title":"SHORT_TITLE","description":"DETAILED_DESCRIPTION"}
-   Where SHORT_TITLE is a concise title and DETAILED_DESCRIPTION includes the user's problem and the solutions already tried.
-5. Be concise and professional. Always reply in English.
-6. Do not invent solutions you are not sure about.${contextSection}`;
+Always reply in English. Be concise and professional.${historySection}`;
   }
 
-  if (context.length > 0) {
-    contextSection = `\n\nRisorse disponibili:\n` + context.map((r, i) => {
-      const source = r.type === "ticket" ? "Ticket risolto" : "Articolo KB";
-      return `[${i + 1}] ${source}: "${r.title}"\n${r.content}`;
-    }).join("\n\n");
-  } else {
-    contextSection = "\n\nNessuna risorsa trovata nel database per questo problema.";
+  // Italian
+  let historySection = "";
+  if (resolvedTickets.length > 0) {
+    historySection += "\n\n--- TICKET RISOLTI (casi simili già gestiti dalla tua azienda) ---\n";
+    historySection += resolvedTickets.map((r, i) =>
+      `[R${i + 1}] "${r.title}"\n${r.content}`
+    ).join("\n\n");
+  }
+  if (openTickets.length > 0) {
+    historySection += "\n\n--- TICKET APERTI (problemi attualmente in gestione) ---\n";
+    historySection += openTickets.map((r, i) =>
+      `[O${i + 1}] "${r.title}"\n${r.content}`
+    ).join("\n\n");
+  }
+  if (articles.length > 0) {
+    historySection += "\n\n--- ARTICOLI KNOWLEDGE BASE ---\n";
+    historySection += articles.map((r, i) =>
+      `[K${i + 1}] "${r.title}"\n${r.content}`
+    ).join("\n\n");
+  }
+  if (!historySection) {
+    historySection = "\n\nNessun ticket o articolo KB corrispondente trovato nel database aziendale per questo problema.";
   }
 
   return `Sei TaskBot, l'assistente AI di TaskDesk per il supporto IT interno. Data odierna: ${now}.
 
-Il tuo compito è aiutare gli utenti a risolvere i problemi PRIMA di aprire un ticket. Segui queste istruzioni:
+Aiuta gli utenti a risolvere i problemi prima di aprire un ticket. In ogni risposta segui quest'ordine:
+1. Se nel contesto qui sotto ci sono ticket risolti simili al problema dell'utente, citali subito: "Ho trovato un caso simile nello storico: [titolo] — ecco come è stato risolto: [soluzione]."
+2. Se ci sono ticket aperti sullo stesso argomento, segnalalo: "Esiste già un ticket aperto per questo: [titolo]."
+3. In base al contesto, suggerisci passi concreti da provare. Non inventare soluzioni non supportate dal contesto.
+4. Concludi sempre la risposta con: "Hai risolto il problema?"
+5. Se l'utente dice di no o ha ancora problemi, scrivi una frase empatica breve, poi nella riga successiva inserisci esattamente: {"action":"create_ticket","title":"TITOLO_BREVE","description":"DESCRIZIONE_DETTAGLIATA"} — DESCRIZIONE_DETTAGLIATA deve includere il problema, eventuali ticket simili trovati e le soluzioni già tentate.
 
-1. Analizza il problema dell'utente
-2. Se hai risorse utili, presentale in modo chiaro e conciso con passi numerati
-3. Dopo aver suggerito soluzioni, chiedi: "Hai risolto il problema?"
-4. Se l'utente dice di no o ha ancora problemi, scrivi una breve frase empatica (es. "Apro subito un ticket per te."), poi nella riga successiva inserisci questo JSON esatto:
-   {"action":"create_ticket","title":"TITOLO_BREVE","description":"DESCRIZIONE_DETTAGLIATA"}
-   Dove TITOLO_BREVE è un titolo conciso del problema e DESCRIZIONE_DETTAGLIATA è una descrizione completa che includa il problema dell'utente e le soluzioni tentate.
-5. Sii sintetico e professionale. Rispondi sempre in italiano.
-6. Non inventare soluzioni che non conosci.${contextSection}`;
+Rispondi sempre in italiano. Sii sintetico e professionale.${historySection}`;
 }
 
 router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
@@ -194,7 +287,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
       model: "gpt-5-mini",
       messages,
       stream: true,
-      max_completion_tokens: 800,
+      max_completion_tokens: 4000,
     });
 
     for await (const chunk of stream) {
