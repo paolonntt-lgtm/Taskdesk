@@ -23,6 +23,11 @@ interface CreateTicketAction {
   location?: string;
 }
 
+interface ParsedOption {
+  label: string;
+  value: string;
+}
+
 interface BotDialogProps {
   open: boolean;
   onClose: () => void;
@@ -30,11 +35,8 @@ interface BotDialogProps {
 }
 
 function parseActionFromText(text: string): CreateTicketAction | null {
-  // Find the start of the JSON object
   const start = text.indexOf('{"action"');
   if (start === -1) return null;
-  // Walk forward tracking brace depth to find the matching closing brace,
-  // correctly skipping over braces inside quoted strings.
   let depth = 0;
   let inString = false;
   let escape = false;
@@ -82,13 +84,40 @@ function stripActionJson(text: string): string {
   return text;
 }
 
-function MessageBubble({ msg, fallbackActionText }: { msg: Message; fallbackActionText?: string }) {
+// Detect lines like "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
+// or              "1 - No  2 - Già provato  3 - Risolto ✓"
+const OPTIONS_RE = /\b1\s*-\s*(.+?)\s{2,}2\s*-\s*(.+?)\s{2,}3\s*-\s*(.+?)(?:\s*)(?:\n|$)/m;
+
+function parseOptions(text: string): ParsedOption[] | null {
+  const match = text.match(OPTIONS_RE);
+  if (!match) return null;
+  return [
+    { label: match[1].trim(), value: '1' },
+    { label: match[2].trim(), value: '2' },
+    { label: match[3].trim(), value: '3' },
+  ];
+}
+
+function stripOptions(text: string): string {
+  return text.replace(OPTIONS_RE, '').trim();
+}
+
+function MessageBubble({
+  msg,
+  fallbackActionText,
+  onOptionClick,
+}: {
+  msg: Message;
+  fallbackActionText?: string;
+  onOptionClick?: (value: string) => void;
+}) {
   const isUser = msg.role === 'user';
   const action = !isUser ? parseActionFromText(msg.content) : null;
   const rawDisplay = action ? stripActionJson(msg.content) : msg.content;
-  // If the bot responded with only the JSON action and no surrounding text,
-  // use a fallback so the bubble is never empty.
   const displayText = rawDisplay || (action ? (fallbackActionText ?? '') : '');
+
+  const options = !isUser && onOptionClick ? parseOptions(displayText) : null;
+  const cleanText = options ? stripOptions(displayText) : displayText;
 
   return (
     <Box
@@ -103,27 +132,52 @@ function MessageBubble({ msg, fallbackActionText }: { msg: Message; fallbackActi
           <SmartToy sx={{ fontSize: 18 }} />
         </Avatar>
       )}
-      <Box maxWidth="75%">
+      <Box maxWidth="80%">
         {!isUser && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, mb: 0.25, display: 'block' }}>
             TaskBot
           </Typography>
         )}
-        <Box
-          sx={{
-            px: 1.75,
-            py: 1.25,
-            borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-            bgcolor: isUser ? 'primary.main' : 'grey.100',
-            color: isUser ? 'primary.contrastText' : 'text.primary',
-          }}
-        >
-          {displayText ? (
+        {cleanText ? (
+          <Box
+            sx={{
+              px: 1.75,
+              py: 1.25,
+              borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+              bgcolor: isUser ? 'primary.main' : 'grey.100',
+              color: isUser ? 'primary.contrastText' : 'text.primary',
+            }}
+          >
             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
-              {displayText}
+              {cleanText}
             </Typography>
-          ) : null}
-        </Box>
+          </Box>
+        ) : null}
+        {options && onOptionClick && (
+          <Box display="flex" gap={1} flexWrap="wrap" mt={1} ml={0.5}>
+            {options.map((opt) => (
+              <Button
+                key={opt.value}
+                variant="outlined"
+                size="small"
+                onClick={() => onOptionClick(opt.value)}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.78rem',
+                  py: 0.5,
+                  px: 1.5,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                  bgcolor: 'background.paper',
+                  '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -154,13 +208,10 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const sendMessage = async () => {
-    const text = input.trim();
+  const sendWithText = async (text: string) => {
     if (!text || loading) return;
 
     const userMsg: Message = { role: 'user', content: text };
-    // Strip embedded JSON action from assistant messages before sending history to the API,
-    // so the model doesn't confuse the action payload for conversational context.
     const history = messages.map((m) => ({
       role: m.role,
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
@@ -233,6 +284,11 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
     }
   };
 
+  const sendMessage = () => {
+    const text = input.trim();
+    if (text) sendWithText(text);
+  };
+
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -270,7 +326,16 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
 
       <DialogContent sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} fallbackActionText={t.bot.createFallback} />
+          <MessageBubble
+            key={i}
+            msg={msg}
+            fallbackActionText={t.bot.createFallback}
+            onOptionClick={
+              i === messages.length - 1 && msg.role === 'assistant' && !loading
+                ? (val) => sendWithText(val)
+                : undefined
+            }
+          />
         ))}
         {loading && (
           <Box display="flex" gap={1} alignItems="center" mb={1.5}>
