@@ -48,16 +48,14 @@ function extractKeywords(message: string): string[] {
     .slice(0, 5);
 }
 
-async function fetchOrgCategories(orgId: number): Promise<string[]> {
-  const orgKey = `org_${orgId}_categories`;
-  const globalKey = "categories";
-  // Try org-specific first, then fall back to global key (same logic as settings route)
+async function fetchOrgSettings(orgId: number, base: string): Promise<string[]> {
+  const orgKey = `org_${orgId}_${base}`;
+  const globalKey = base;
   const rows = await db
     .select()
     .from(settingsTable)
     .where(sql`${settingsTable.key} IN (${orgKey}, ${globalKey})`);
-  const orgRow = rows.find((r) => r.key === orgKey);
-  const row = orgRow ?? rows.find((r) => r.key === globalKey);
+  const row = rows.find((r) => r.key === orgKey) ?? rows.find((r) => r.key === globalKey);
   if (!row) return [];
   try {
     const parsed = JSON.parse(row.value as string);
@@ -66,6 +64,9 @@ async function fetchOrgCategories(orgId: number): Promise<string[]> {
     return [];
   }
 }
+
+const fetchOrgCategories = (orgId: number) => fetchOrgSettings(orgId, "categories");
+const fetchOrgLocations  = (orgId: number) => fetchOrgSettings(orgId, "locations");
 
 async function searchContext(query: string, orgId: number | null): Promise<SearchContextResult> {
   const empty: SearchContextResult = { resolvedTickets: [], openTickets: [], articles: [] };
@@ -207,11 +208,19 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
   return { resolvedTickets, openTickets, articles };
 }
 
-function buildSystemPrompt(ctx: SearchContextResult, lang: "it" | "en", categories: string[]): string {
+function buildSystemPrompt(
+  ctx: SearchContextResult,
+  lang: "it" | "en",
+  categories: string[],
+  locations: string[],
+  userLocation: string | null,
+): string {
   const locale = lang === "en" ? "en-GB" : "it-IT";
   const now = new Date().toLocaleDateString(locale);
   const { resolvedTickets, openTickets, articles } = ctx;
   const categoryList = categories.length > 0 ? categories.join(", ") : "—";
+  const multiLocation = locations.length > 1 && !userLocation;
+  const locationList = locations.join(", ");
 
   if (lang === "en") {
     let historySection = "";
@@ -237,9 +246,17 @@ function buildSystemPrompt(ctx: SearchContextResult, lang: "it" | "en", categori
       historySection = "\n\nNo matching tickets or KB articles found in the company database for this issue.";
     }
 
+    const locationPrompt = multiLocation
+      ? `\n- If the user has not yet specified their location: ask for it in the SAME message. Available locations: ${locationList}.`
+      : "";
+
     return `You are TaskBot, the AI assistant for TaskDesk internal IT support. Today's date: ${now}.
 
 Help users resolve issues before opening a ticket. Follow these rules strictly:
+
+INTAKE — Before anything else:
+- If the user's message is vague (e.g. "hi", "I have a problem", no specific device/symptom/error mentioned): ask them to describe the problem clearly — what is happening, which device, any error message. Do NOT ask diagnostic questions yet.${locationPrompt}
+- If the message already contains a specific description, skip the intake and proceed to the rules below.
 
 - If RESOLVED TICKETS are found in the context: first check whether the specific symptom or component the user mentioned (e.g. "monitor") actually appears in the historical ticket content. If the historical ticket is about a DIFFERENT component (e.g. "printer") than the one the user described, do NOT present it as a solution — treat it as "nothing found" and ask the user for more details. Only present the ticket if the specific issue genuinely matches.
 - If the ticket IS relevant: present each solution step on a NUMBERED line (1. … 2. … 3. …). Use ONLY what is recorded in the ticket. End with exactly this line: "1 - No  2 - Already tried  3 - Resolved ✓"
@@ -284,9 +301,17 @@ Always reply in English. Be concise. Never add steps or advice not grounded in t
     historySection = "\n\nNessun ticket o articolo KB corrispondente trovato nel database aziendale per questo problema.";
   }
 
+  const locationPrompt = multiLocation
+    ? `\n- Se l'utente non ha ancora specificato la sede: chiedila NELLA STESSA risposta. Sedi disponibili: ${locationList}.`
+    : "";
+
   return `Sei TaskBot, l'assistente AI di TaskDesk per il supporto IT interno. Data odierna: ${now}.
 
 Aiuta gli utenti a risolvere i problemi prima di aprire un ticket. Segui queste regole in modo rigoroso:
+
+INTAKE — Prima di tutto:
+- Se il messaggio dell'utente è vago (es. "ciao", "ho un problema", nessun dispositivo/sintomo/errore specifico): chiedi di descrivere il problema chiaramente — cosa sta succedendo, quale dispositivo, eventuali messaggi di errore. NON fare ancora domande diagnostiche specifiche.${locationPrompt}
+- Se il messaggio contiene già una descrizione specifica, salta l'intake e procedi con le regole seguenti.
 
 - Se nel contesto ci sono TICKET RISOLTI: verifica PRIMA che il sintomo o componente specifico menzionato dall'utente (es. "monitor") sia effettivamente trattato nel contenuto del ticket storico. Se il ticket storico riguarda un componente DIVERSO (es. "stampante") rispetto a quello che l'utente ha descritto (es. "monitor"), NON presentarlo come soluzione — trattalo come "nessun dato trovato" e chiedi all'utente di descrivere meglio il problema. Presenta il ticket solo se il problema specifico corrisponde davvero.
 - Se il ticket È pertinente: presenta ogni passo/azione su una riga NUMERATA (1. … 2. … 3. …). Usa SOLO ciò che è registrato nel ticket. Concludi con esattamente questa riga: "1 - No  2 - Già provato  3 - Risolto ✓"
@@ -323,11 +348,13 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
   }
 
   const resolvedLang: "it" | "en" = lang === "en" ? "en" : "it";
-  const [context, categories] = await Promise.all([
+  const userLocation: string | null = currentUser.mainLocation || null;
+  const [context, categories, locations] = await Promise.all([
     searchContext(message, orgId),
     fetchOrgCategories(orgId),
+    fetchOrgLocations(orgId),
   ]);
-  const systemPrompt = buildSystemPrompt(context, resolvedLang, categories);
+  const systemPrompt = buildSystemPrompt(context, resolvedLang, categories, locations, userLocation);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
