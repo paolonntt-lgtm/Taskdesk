@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
 import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
 
 const router: IRouter = Router();
@@ -60,7 +60,7 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
   // Regex fallback: any ticket containing at least one keyword (case-insensitive)
   const keywordRegex = keywords.join("|");
 
-  // Resolved/closed tickets with a resolution note — most useful for self-service
+  // Resolved/closed tickets — note di risoluzione opzionali, usiamo anche i commenti
   const resolvedRows = await db.execute(sql`
     SELECT
       t.id,
@@ -75,7 +75,6 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
     WHERE
       t.organization_id = ${orgId}
       AND t.status IN ('resolved', 'closed')
-      AND t.resolution_note IS NOT NULL
       AND (
         to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
         @@ plainto_tsquery('italian', ${ftsQuery})
@@ -88,17 +87,31 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
 
   const resolvedTickets: ContextResult[] = [];
   for (const row of resolvedRows.rows as any[]) {
-    const commentRows = await db
+    // Prefer comments marked as solution; fall back to the last 3 comments
+    let commentRows = await db
       .select({ commentText: ticketCommentsTable.commentText })
       .from(ticketCommentsTable)
       .where(and(eq(ticketCommentsTable.ticketId, row.id), eq(ticketCommentsTable.isSolution, true)))
-      .limit(2);
+      .limit(3);
 
-    const solutionText = commentRows.map((c) => c.commentText).join("\n");
+    if (commentRows.length === 0) {
+      // No solution-marked comments — take the 5 most recent to capture resolutions
+      // that appear near the end of the thread (not always the very last comment)
+      const allComments = await db
+        .select({ commentText: ticketCommentsTable.commentText })
+        .from(ticketCommentsTable)
+        .where(eq(ticketCommentsTable.ticketId, row.id))
+        .orderBy(desc(ticketCommentsTable.createdAt))
+        .limit(5);
+      // Reverse so the context reads chronologically
+      commentRows = allComments.reverse();
+    }
+
+    const commentText = commentRows.map((c) => c.commentText).join("\n");
     const content = [
       row.description,
       row.resolution_note ? `Soluzione adottata: ${row.resolution_note}` : "",
-      solutionText ? `Commento soluzione: ${solutionText}` : "",
+      commentText ? `Aggiornamenti dal ticket: ${commentText}` : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -106,7 +119,7 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
     resolvedTickets.push({
       type: "resolved_ticket",
       title: row.title,
-      content: content.slice(0, 600),
+      content: content.slice(0, 1200),
       rank: Number(row.rank),
     });
   }
