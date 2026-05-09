@@ -83,7 +83,7 @@ function MessageBubble({ msg }: { msg: Message }) {
 }
 
 export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -123,7 +123,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, history, lang }),
       });
 
       if (!res.ok || !res.body) {

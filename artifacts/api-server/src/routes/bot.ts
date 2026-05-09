@@ -107,10 +107,35 @@ async function searchContext(query: string, orgId: number | null): Promise<Conte
   return results.sort((a, b) => b.rank - a.rank).slice(0, 5);
 }
 
-function buildSystemPrompt(context: ContextResult[]): string {
-  const now = new Date().toLocaleDateString("it-IT");
+function buildSystemPrompt(context: ContextResult[], lang: "it" | "en"): string {
+  const locale = lang === "en" ? "en-GB" : "it-IT";
+  const now = new Date().toLocaleDateString(locale);
 
   let contextSection = "";
+  if (lang === "en") {
+    if (context.length > 0) {
+      contextSection = `\n\nAvailable resources:\n` + context.map((r, i) => {
+        const source = r.type === "ticket" ? "Resolved ticket" : "KB article";
+        return `[${i + 1}] ${source}: "${r.title}"\n${r.content}`;
+      }).join("\n\n");
+    } else {
+      contextSection = "\n\nNo resources found in the database for this issue.";
+    }
+
+    return `You are TaskBot, the AI assistant for TaskDesk internal IT support. Today's date: ${now}.
+
+Your job is to help users resolve issues BEFORE opening a ticket. Follow these instructions:
+
+1. Analyse the user's problem
+2. If you have useful resources, present them clearly and concisely with numbered steps
+3. After suggesting solutions, ask: "Did that solve your problem?"
+4. If the user says no or still has issues, reply EXACTLY with this JSON (on a single line, no extra text):
+   {"action":"create_ticket","title":"SHORT_TITLE","description":"DETAILED_DESCRIPTION"}
+   Where SHORT_TITLE is a concise title and DETAILED_DESCRIPTION includes the user's problem and the solutions already tried.
+5. Be concise and professional. Always reply in English.
+6. Do not invent solutions you are not sure about.${contextSection}`;
+  }
+
   if (context.length > 0) {
     contextSection = `\n\nRisorse disponibili:\n` + context.map((r, i) => {
       const source = r.type === "ticket" ? "Ticket risolto" : "Articolo KB";
@@ -138,9 +163,10 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { message, history } = req.body as {
+  const { message, history, lang } = req.body as {
     message: string;
     history: { role: "user" | "assistant"; content: string }[];
+    lang?: string;
   };
 
   if (!message || typeof message !== "string") {
@@ -148,8 +174,9 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const resolvedLang: "it" | "en" = lang === "en" ? "en" : "it";
   const context = await searchContext(message, orgId);
-  const systemPrompt = buildSystemPrompt(context);
+  const systemPrompt = buildSystemPrompt(context, resolvedLang);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
@@ -181,7 +208,8 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
     res.write("data: [DONE]\n\n");
   } catch (err: any) {
     req.log.error({ err }, "Bot chat error");
-    res.write(`data: ${JSON.stringify({ error: "Errore del bot. Riprova." })}\n\n`);
+    const errMsg = resolvedLang === "en" ? "Bot error. Please try again." : "Errore del bot. Riprova.";
+    res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
   } finally {
     res.end();
   }
