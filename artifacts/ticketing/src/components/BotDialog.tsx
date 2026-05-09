@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, IconButton, Button,
-  Avatar, CircularProgress, Divider, Chip,
+  Avatar, CircularProgress, Divider,
 } from '@mui/material';
 import {
   Send, SmartToy, Close, ConfirmationNumber,
 } from '@mui/icons-material';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,7 +36,7 @@ function parseActionFromText(text: string): CreateTicketAction | null {
   }
 }
 
-function MessageBubble({ msg, userName }: { msg: Message; userName?: string }) {
+function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === 'user';
   const action = !isUser ? parseActionFromText(msg.content) : null;
   const displayText = action
@@ -76,17 +77,13 @@ function MessageBubble({ msg, userName }: { msg: Message; userName?: string }) {
             </Typography>
           ) : null}
         </Box>
-        {isUser && userName && (
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, mt: 0.25, display: 'block', textAlign: 'right' }}>
-            {userName}
-          </Typography>
-        )}
       </Box>
     </Box>
   );
 }
 
 export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogProps) {
+  const { t } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -98,7 +95,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
     if (open) {
       setMessages([{
         role: 'assistant',
-        content: 'Ciao! Sono TaskBot, il tuo assistente. Descrivi il problema che stai riscontrando e cercherò di aiutarti a risolverlo prima di aprire un ticket.',
+        content: t.bot.welcome,
       }]);
       setPendingAction(null);
       setInput('');
@@ -130,7 +127,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
       });
 
       if (!res.ok || !res.body) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Errore del bot. Riprova tra qualche secondo.' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorBot }]);
         setLoading(false);
         return;
       }
@@ -177,7 +174,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
       const action = parseActionFromText(fullContent);
       if (action) setPendingAction(action);
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Errore di rete. Riprova.' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorNetwork }]);
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -212,7 +209,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
         </Avatar>
         <Box flex={1}>
           <Typography fontWeight={700} lineHeight={1.2}>TaskBot</Typography>
-          <Typography variant="caption" color="text.secondary">Assistente per apertura ticket</Typography>
+          <Typography variant="caption" color="text.secondary">{t.bot.subtitle}</Typography>
         </Box>
         <IconButton onClick={onClose} size="small">
           <Close />
@@ -246,10 +243,10 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
             }}
           >
             <Typography variant="body2" fontWeight={600} mb={0.5} color="primary.main">
-              Vuoi creare un ticket per questo problema?
+              {t.bot.createPrompt}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              Il ticket verrà pre-compilato con le informazioni della chat.
+              {t.bot.createNote}
             </Typography>
             <Box display="flex" gap={1} flexWrap="wrap">
               <Button
@@ -259,7 +256,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
                 onClick={handleCreateTicket}
                 sx={{ borderRadius: 2 }}
               >
-                Crea ticket
+                {t.bot.createBtn}
               </Button>
               <Button
                 variant="outlined"
@@ -268,7 +265,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
                 onClick={() => setPendingAction(null)}
                 sx={{ borderRadius: 2 }}
               >
-                Continua a chattare
+                {t.bot.continueChat}
               </Button>
             </Box>
           </Box>
@@ -284,7 +281,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
           size="small"
           multiline
           maxRows={3}
-          placeholder="Descrivi il problema..."
+          placeholder={t.bot.placeholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}

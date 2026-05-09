@@ -25,6 +25,10 @@ tags:
     description: Notifications
   - name: stats
     description: Statistics and reports
+  - name: bot
+    description: AI bot for ticket creation assistance
+  - name: knowledgeArticles
+    description: Knowledge base articles management
 
 paths:
   /healthz:
@@ -831,6 +835,121 @@ paths:
                 items:
                   $ref: "#/components/schemas/TicketWithDetails"
 
+  /bot/chat:
+    post:
+      operationId: botChat
+      tags: [bot]
+      summary: Send a message to the AI bot (SSE streaming)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotChatRequest"
+      responses:
+        "200":
+          description: Server-sent events stream of bot response chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+
+  /knowledge-articles:
+    get:
+      operationId: listKnowledgeArticles
+      tags: [knowledgeArticles]
+      summary: List knowledge base articles for the organization (admin only)
+      responses:
+        "200":
+          description: List of knowledge articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KnowledgeArticle"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      operationId: createKnowledgeArticle
+      tags: [knowledgeArticles]
+      summary: Create a knowledge base article (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeArticleInput"
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /knowledge-articles/{id}:
+    put:
+      operationId: updateKnowledgeArticle
+      tags: [knowledgeArticles]
+      summary: Update a knowledge base article (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeArticleInput"
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteKnowledgeArticle
+      tags: [knowledgeArticles]
+      summary: Delete a knowledge base article (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Article deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -1452,3 +1571,75 @@ components:
       required:
         - date
         - count
+
+    BotChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
+    BotChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotChatMessage"
+      required:
+        - message
+
+    KnowledgeArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+        organizationId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        content:
+          type: string
+        category:
+          type: string
+          nullable: true
+        createdBy:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - content
+        - createdBy
+        - createdAt
+        - updatedAt
+
+    KnowledgeArticleInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          nullable: true
+      required:
+        - title
+        - content

@@ -112,7 +112,7 @@ export default function NewTicket() {
             onClick={() => setBotOpen(true)}
             sx={{ borderRadius: 2 }}
           >
-            Chiedi a TaskBot
+            {t.newTicket.askTaskBot}
           </Button>
         </Box>
       )}
