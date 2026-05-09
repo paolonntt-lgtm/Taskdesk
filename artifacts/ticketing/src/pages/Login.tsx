@@ -195,22 +195,14 @@ export default function Login() {
                   <Typography variant="caption" color="text.secondary">{t.login.or}</Typography>
                   <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
                 </Box>
-                <Tooltip title={t.login.continueWithGoogle} arrow placement="top">
-                  <Box sx={{ position: 'relative', display: 'block' }}>
-                    <Button
-                      fullWidth variant="outlined" disabled
-                      sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
-                    >
-                      <GoogleLogo />
-                      {t.login.continueWithGoogle}
-                    </Button>
-                    <Chip
-                      label={t.login.comingSoon}
-                      size="small"
-                      sx={{ position: 'absolute', top: -10, right: 8, fontSize: '0.65rem', height: 18, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 700, pointerEvents: 'none' }}
-                    />
-                  </Box>
-                </Tooltip>
+                <Button
+                  fullWidth variant="outlined"
+                  onClick={() => { window.location.href = '/api/auth/google'; }}
+                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
+                >
+                  <GoogleLogo />
+                  {t.login.continueWithGoogle}
+                </Button>
               </form>
             ) : mode === 'register' ? (
               <form onSubmit={handleRegister}>
@@ -256,22 +248,14 @@ export default function Login() {
                   <Typography variant="caption" color="text.secondary">{t.login.or}</Typography>
                   <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
                 </Box>
-                <Tooltip title={t.login.registerWithGoogle} arrow placement="top">
-                  <Box sx={{ position: 'relative', display: 'block' }}>
-                    <Button
-                      fullWidth variant="outlined" disabled
-                      sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
-                    >
-                      <GoogleLogo />
-                      {t.login.registerWithGoogle}
-                    </Button>
-                    <Chip
-                      label={t.login.comingSoon}
-                      size="small"
-                      sx={{ position: 'absolute', top: -10, right: 8, fontSize: '0.65rem', height: 18, bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 700, pointerEvents: 'none' }}
-                    />
-                  </Box>
-                </Tooltip>
+                <Button
+                  fullWidth variant="outlined"
+                  onClick={() => { window.location.href = '/api/auth/google'; }}
+                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
+                >
+                  <GoogleLogo />
+                  {t.login.registerWithGoogle}
+                </Button>
               </form>
             ) : forgotSent ? (
               <Box textAlign="center" py={1}>
