@@ -3,13 +3,14 @@ import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { Person, Group } from '@mui/icons-material';
+import { Person, Group, SmartToy } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
+import BotDialog from '../components/BotDialog';
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
@@ -20,6 +21,7 @@ export default function NewTicket() {
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
 
+  const [botOpen, setBotOpen] = useState(true);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const [categories, setCategories] = useState<string[]>([]);
@@ -65,6 +67,11 @@ export default function NewTicket() {
 
   const singleLocation = locations.length === 1;
 
+  const handleBotCreateTicket = (title: string, description: string) => {
+    setFormData((f) => ({ ...f, title, description }));
+    setBotOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -95,6 +102,20 @@ export default function NewTicket() {
       <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }}>
         {t.newTicket.title}
       </Typography>
+
+      {!botOpen && (
+        <Box mb={2} display="flex" justifyContent="flex-end">
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<SmartToy />}
+            onClick={() => setBotOpen(true)}
+            sx={{ borderRadius: 2 }}
+          >
+            Chiedi a TaskBot
+          </Button>
+        </Box>
+      )}
 
       <Card>
         <CardContent sx={{ p: { xs: 1.5, sm: 4 } }}>
@@ -245,6 +266,11 @@ export default function NewTicket() {
           </form>
         </CardContent>
       </Card>
+      <BotDialog
+        open={botOpen}
+        onClose={() => setBotOpen(false)}
+        onCreateTicket={handleBotCreateTicket}
+      />
     </Box>
   );
 }

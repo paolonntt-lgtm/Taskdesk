@@ -19,6 +19,8 @@ import seedDemoRouter from "./seedDemo";
 import superadminRouter from "./superadmin";
 import passwordResetRouter from "./passwordReset";
 import oauthRouter from "./oauth";
+import botRouter from "./bot";
+import knowledgeArticlesRouter from "./knowledgeArticles";
 
 const router: IRouter = Router();
 
@@ -42,5 +44,7 @@ router.use(seedDemoRouter);
 router.use(superadminRouter);
 router.use(passwordResetRouter);
 router.use(oauthRouter);
+router.use(botRouter);
+router.use(knowledgeArticlesRouter);
 
 export default router;

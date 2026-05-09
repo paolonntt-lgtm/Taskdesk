@@ -4,9 +4,9 @@ import {
   Alert, Divider, Chip, IconButton, List, ListItem, ListItemText,
   ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
-  Avatar, Snackbar, Paper,
+  Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -620,6 +620,7 @@ export default function Settings() {
           <Tab label={t.settings.tabProfile} />
           <Tab label={t.settings.tabNotifications} />
           {isAdmin && <Tab label={t.settings.tabSystem} />}
+          {isAdmin && <Tab label={t.settings.tabKnowledgeBase} />}
         </Tabs>
       </Box>
 
@@ -910,6 +911,13 @@ export default function Settings() {
           </Section>
         </TabPanel>
       )}
+
+      {/* ── KNOWLEDGE BASE (admin only) ── */}
+      {isAdmin && (
+        <TabPanel value={tab} index={3}>
+          <KnowledgeBaseTab />
+        </TabPanel>
+      )}
     </Box>
   );
 }
@@ -1150,5 +1158,237 @@ function GroupsEditor({
         {!saving && !permSaving && (listFlash || permFlash) && <Check fontSize="small" color="success" />}
       </Box>
     </Box>
+  );
+}
+
+interface KbArticle {
+  id: number;
+  title: string;
+  content: string;
+  category: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function KnowledgeBaseTab() {
+  const { t } = useLanguage();
+  const [articles, setArticles] = useState<KbArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<KbArticle | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formCategory, setFormCategory] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<KbArticle | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/knowledge-articles', { credentials: 'include' });
+      const data = await res.json();
+      setArticles(data);
+    } catch {
+      setMsg({ type: 'error', text: t.settings.kbError });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => {
+    setEditing(null);
+    setFormTitle('');
+    setFormContent('');
+    setFormCategory('');
+    setDialogOpen(true);
+  };
+
+  const openEdit = (article: KbArticle) => {
+    setEditing(article);
+    setFormTitle(article.title);
+    setFormContent(article.content);
+    setFormCategory(article.category ?? '');
+    setDialogOpen(true);
+  };
+
+  const saveArticle = async () => {
+    if (!formTitle.trim() || !formContent.trim()) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const url = editing ? `/api/knowledge-articles/${editing.id}` : '/api/knowledge-articles';
+      const method = editing ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          content: formContent.trim(),
+          category: formCategory.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setMsg({ type: 'success', text: t.settings.kbSaved });
+      setDialogOpen(false);
+      await load();
+    } catch {
+      setMsg({ type: 'error', text: t.settings.kbError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/knowledge-articles/${deleteTarget.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      setMsg({ type: 'success', text: t.settings.kbDeleted });
+      setDeleteTarget(null);
+      await load();
+    } catch {
+      setMsg({ type: 'error', text: t.settings.kbError });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Section title={t.settings.kbTitle} icon={<SmartToy color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>
+        {t.settings.kbNote}
+      </Typography>
+      {msg && (
+        <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+      )}
+      <Box display="flex" justifyContent="flex-end" mb={2}>
+        <Button variant="contained" startIcon={<Add />} size="small" onClick={openAdd} sx={{ borderRadius: 2 }}>
+          {t.settings.kbAddArticle}
+        </Button>
+      </Box>
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" py={4}><CircularProgress size={28} /></Box>
+      ) : articles.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+          {t.settings.kbNoArticles}
+        </Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {articles.map((a) => (
+            <Paper key={a.id} variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
+              <Box display="flex" alignItems="flex-start" gap={1}>
+                <Article sx={{ color: 'primary.main', mt: 0.25, flexShrink: 0 }} />
+                <Box flex={1} minWidth={0}>
+                  <Typography variant="subtitle2" fontWeight={700} noWrap>{a.title}</Typography>
+                  {a.category && (
+                    <Chip label={a.category} size="small" sx={{ mt: 0.5, mb: 0.5, height: 20, fontSize: '0.7rem' }} />
+                  )}
+                  <Typography variant="body2" color="text.secondary" sx={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    fontSize: '0.8rem',
+                    lineHeight: 1.4,
+                  }}>
+                    {a.content}
+                  </Typography>
+                </Box>
+                <Box display="flex" gap={0.5} flexShrink={0}>
+                  <IconButton size="small" onClick={() => openEdit(a)}>
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                  <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          {editing ? t.settings.kbEditArticle : t.settings.kbAddArticle}
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} pt={1}>
+            <TextField
+              label={t.settings.kbTitleField}
+              fullWidth
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              required
+              inputProps={{ maxLength: 300 }}
+            />
+            <TextField
+              label={t.settings.kbContentField}
+              fullWidth
+              multiline
+              minRows={6}
+              value={formContent}
+              onChange={(e) => setFormContent(e.target.value)}
+              required
+              helperText="Scrivi in modo chiaro e dettagliato. Il bot citerà questo testo nelle risposte."
+            />
+            <TextField
+              label={t.settings.kbCategoryField}
+              fullWidth
+              value={formCategory}
+              onChange={(e) => setFormCategory(e.target.value)}
+              inputProps={{ maxLength: 100 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDialogOpen(false)} disabled={saving}>{t.settings.kbCancel}</Button>
+          <Button
+            variant="contained"
+            onClick={saveArticle}
+            disabled={saving || !formTitle.trim() || !formContent.trim()}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+          >
+            {saving ? t.settings.saving : t.settings.kbSave}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle>{t.settings.kbDeleteConfirm}</DialogTitle>
+        {deleteTarget && (
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">
+              "{deleteTarget.title}"
+            </Typography>
+          </DialogContent>
+        )}
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>{t.settings.kbCancel}</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={confirmDelete}
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Delete />}
+          >
+            {deleting ? t.settings.saving : t.settings.kbDeleteAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Section>
   );
 }
