@@ -12,7 +12,7 @@ const ArticleBody = z.object({
   category: z.string().max(100).optional().nullable(),
 });
 
-router.get("/knowledge-articles", requireAuth, async (req, res): Promise<void> => {
+router.get("/knowledge-articles", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 

@@ -21,15 +21,7 @@ interface ContextResult {
 async function searchContext(query: string, orgId: number | null): Promise<ContextResult[]> {
   const results: ContextResult[] = [];
 
-  const tsQuery = query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w.replace(/[^a-zA-Z0-9À-ÿ]/g, ""))
-    .filter(Boolean)
-    .join(" | ");
-
-  if (!tsQuery) return [];
+  if (!query.trim()) return [];
 
   if (orgId != null) {
     const ticketRows = await db.execute(sql`
@@ -46,6 +38,7 @@ async function searchContext(query: string, orgId: number | null): Promise<Conte
       WHERE
         t.organization_id = ${orgId}
         AND t.status IN ('resolved', 'closed')
+        AND t.resolution_note IS NOT NULL
         AND (
           to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
           @@ plainto_tsquery('italian', ${query})
@@ -171,7 +164,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages,
       stream: true,
       max_tokens: 800,

@@ -1,4 +1,5 @@
 import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organizationsTable } from "./organizations";
 import { usersTable } from "./users";
 
@@ -14,6 +15,7 @@ export const knowledgeArticlesTable = pgTable("knowledge_articles", {
 }, (t) => [
   index("knowledge_articles_org_idx").on(t.organizationId),
   index("knowledge_articles_category_idx").on(t.category),
+  index("knowledge_articles_fts_idx").using("gin", sql`to_tsvector('italian', ${t.title} || ' ' || ${t.content})`),
 ]);
 
 export type KnowledgeArticle = typeof knowledgeArticlesTable.$inferSelect;

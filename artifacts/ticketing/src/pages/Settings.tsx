@@ -1249,10 +1249,11 @@ function KnowledgeBaseTab() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await fetch(`/api/knowledge-articles/${deleteTarget.id}`, {
+      const res = await fetch(`/api/knowledge-articles/${deleteTarget.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
+      if (!res.ok) throw new Error();
       setMsg({ type: 'success', text: t.settings.kbDeleted });
       setDeleteTarget(null);
       await load();
