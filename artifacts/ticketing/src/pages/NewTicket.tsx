@@ -279,6 +279,7 @@ export default function NewTicket() {
         open={botOpen}
         onClose={() => setBotOpen(false)}
         onCreateTicket={handleBotCreateTicket}
+        onViewTicket={(id) => { setBotOpen(false); setLocation(`/tickets/${id}`); }}
       />
     </Box>
   );

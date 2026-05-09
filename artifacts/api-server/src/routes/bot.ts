@@ -13,9 +13,11 @@ const openai = new OpenAI({
 
 interface ContextResult {
   type: "resolved_ticket" | "open_ticket" | "article";
+  id?: number;
   title: string;
   content: string;
   rank: number;
+  createdAt?: string;
 }
 
 interface SearchContextResult {
@@ -151,6 +153,7 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
       t.title,
       t.description,
       t.status,
+      t.created_at,
       ts_rank(
         to_tsvector('italian', t.title || ' ' || t.description),
         plainto_tsquery('italian', ${ftsQuery})
@@ -169,12 +172,19 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
     LIMIT 2
   `);
 
-  const openTickets: ContextResult[] = (openRows.rows as any[]).map((row) => ({
-    type: "open_ticket" as const,
-    title: row.title,
-    content: `${row.description}\nStato attuale: ${row.status}`.slice(0, 400),
-    rank: Number(row.rank),
-  }));
+  const openTickets: ContextResult[] = (openRows.rows as any[]).map((row) => {
+    const createdDate = row.created_at
+      ? new Date(row.created_at).toLocaleDateString("it-IT")
+      : undefined;
+    return {
+      type: "open_ticket" as const,
+      id: Number(row.id),
+      title: row.title,
+      content: `${row.description}\nStato attuale: ${row.status}`.slice(0, 400),
+      rank: Number(row.rank),
+      createdAt: createdDate,
+    };
+  });
 
   // KB articles
   const articleRows = await db.execute(sql`
@@ -233,7 +243,7 @@ function buildSystemPrompt(
     if (openTickets.length > 0) {
       historySection += "\n\n--- OPEN TICKETS (currently tracked issues) ---\n";
       historySection += openTickets.map((r, i) =>
-        `[O${i + 1}] "${r.title}"\n${r.content}`
+        `[O${i + 1}] ID:${r.id} "${r.title}"${r.createdAt ? ` (opened on ${r.createdAt})` : ""}\n${r.content}`
       ).join("\n\n");
     }
     if (articles.length > 0) {
@@ -264,7 +274,8 @@ INTAKE — Always do this first, in strict order:
 - When asking the user multiple diagnostic/follow-up questions, ALWAYS number them (1. 2. 3. …). Never list them as bullet points or prose.
 - If RESOLVED TICKETS are found in the context: first verify that the specific component/symptom the user mentioned (e.g. "monitor") actually appears in the historical ticket. If the historical ticket concerns a DIFFERENT component, treat it as "nothing found".
 - If the ticket IS relevant: present it as a brief narrative summary of the similar past case (what happened and how it was resolved). Historical tickets are chronicles of real incidents — do NOT format them as numbered steps to try. End with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
-- If OPEN TICKETS are found on the same topic: inform the user and ask if they want to add details or open a new one.
+- If OPEN TICKETS are found on the same topic: briefly describe the existing ticket (title, opening date, current status). Then output ONLY this JSON on a single line with no other text after it:
+{"action":"view_ticket","id":NUMERIC_ID,"title":"TITLE","date":"DATE"}
 - If NO tickets found but KB articles exist: present each article step as a NUMBERED line (1. … 2. …). End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
 - If NOTHING is found: say you have no historical data, ask the user for more details using NUMBERED questions (1. 2. 3. …).
 - If the user replies with "2" or says they need more help: acknowledge briefly and ask for more details using NUMBERED questions.
@@ -291,7 +302,7 @@ Always reply in English. Be concise. Never add steps or advice not grounded in t
   if (openTickets.length > 0) {
     historySection += "\n\n--- TICKET APERTI (problemi attualmente in gestione) ---\n";
     historySection += openTickets.map((r, i) =>
-      `[O${i + 1}] "${r.title}"\n${r.content}`
+      `[O${i + 1}] ID:${r.id} "${r.title}"${r.createdAt ? ` (aperto il ${r.createdAt})` : ""}\n${r.content}`
     ).join("\n\n");
   }
   if (articles.length > 0) {
@@ -322,7 +333,8 @@ INTAKE — Segui sempre questo ordine:
 - Quando fai più domande diagnostiche/di approfondimento all'utente, NUMERALE SEMPRE (1. 2. 3. …). Non usare mai elenchi puntati o prosa.
 - Se nel contesto ci sono TICKET RISOLTI: verifica prima che il componente/sintomo menzionato dall'utente sia presente nel ticket storico. Se riguarda un componente diverso, trattalo come "nessun dato trovato".
 - Se il ticket È pertinente: presenta una breve sintesi narrativa del caso simile (cosa è successo e come è stato risolto). I ticket storici sono cronache di incidenti reali — NON formattare il loro contenuto come passi numerati da provare. Concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
-- Se ci sono TICKET APERTI sullo stesso argomento: informane l'utente e chiedi se vuole aggiungere dettagli o aprirne uno nuovo.
+- Se ci sono TICKET APERTI sullo stesso argomento: descrivi brevemente il ticket esistente (titolo, data di apertura, stato attuale). Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
+{"action":"view_ticket","id":ID_NUMERICO,"title":"TITOLO","date":"DATA"}
 - Se NON ci sono ticket ma ci sono articoli KB: presenta ogni passo dell'articolo su una riga NUMERATA (1. … 2. …). Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
 - Se NON è stato trovato nulla: di' che non hai dati storici e chiedi all'utente di descrivere meglio il problema con domande NUMERATE (1. 2. 3. …).
 - Se l'utente risponde con "2" o chiede altro aiuto: riconosci brevemente e fai domande NUMERATE per raccogliere più dettagli.

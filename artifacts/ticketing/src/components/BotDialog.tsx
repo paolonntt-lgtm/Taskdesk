@@ -23,6 +23,15 @@ interface CreateTicketAction {
   location?: string;
 }
 
+interface ViewTicketAction {
+  action: 'view_ticket';
+  id: number;
+  title: string;
+  date?: string;
+}
+
+type BotAction = CreateTicketAction | ViewTicketAction;
+
 interface ParsedOption {
   label: string;
   value: string;
@@ -32,9 +41,10 @@ interface BotDialogProps {
   open: boolean;
   onClose: () => void;
   onCreateTicket: (title: string, description: string, category?: string, resource?: string, location?: string) => void;
+  onViewTicket?: (id: number) => void;
 }
 
-function parseActionFromText(text: string): CreateTicketAction | null {
+function parseActionFromText(text: string): BotAction | null {
   const start = text.indexOf('{"action"');
   if (start === -1) return null;
   let depth = 0;
@@ -51,7 +61,9 @@ function parseActionFromText(text: string): CreateTicketAction | null {
       depth--;
       if (depth === 0) {
         try {
-          return JSON.parse(text.slice(start, i + 1));
+          const obj = JSON.parse(text.slice(start, i + 1));
+          if (obj.action === 'create_ticket' || obj.action === 'view_ticket') return obj as BotAction;
+          return null;
         } catch {
           return null;
         }
@@ -208,12 +220,12 @@ function MessageBubble({
   );
 }
 
-export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogProps) {
+export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState<CreateTicketAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<BotAction | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -245,6 +257,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
     setInput('');
     setLoading(true);
     setPendingAction(null);
+
 
     try {
       const res = await fetch('/api/bot/chat', {
@@ -322,8 +335,15 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
   };
 
   const handleCreateTicket = () => {
-    if (pendingAction) {
+    if (pendingAction?.action === 'create_ticket') {
       onCreateTicket(pendingAction.title, pendingAction.description, pendingAction.category, pendingAction.resource, pendingAction.location);
+      onClose();
+    }
+  };
+
+  const handleViewTicket = () => {
+    if (pendingAction?.action === 'view_ticket') {
+      onViewTicket?.(pendingAction.id);
       onClose();
     }
   };
@@ -351,7 +371,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
 
       <DialogContent sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
         {messages.map((msg, i) => {
-          const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && !pendingAction;
+          const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && pendingAction?.action !== 'create_ticket';
           const isWelcome = i === 0;
           return (
             <MessageBubble
@@ -359,7 +379,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
               msg={msg}
               fallbackActionText={t.bot.createFallback}
               onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
-              onOpenTicket={isLastAssistant && !isWelcome ? () => sendWithText(lang === 'en' ? 'open a ticket' : 'apri ticket') : undefined}
+              onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? 'open a ticket' : 'apri ticket') : undefined}
               openTicketLabel={t.bot.openTicketBtn}
             />
           );
@@ -374,7 +394,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
             </Box>
           </Box>
         )}
-        {pendingAction && (
+        {pendingAction?.action === 'create_ticket' && (
           <Box
             sx={{
               mt: 1,
@@ -401,6 +421,47 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
                 sx={{ borderRadius: 2 }}
               >
                 {t.bot.createBtn}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="inherit"
+                onClick={() => setPendingAction(null)}
+                sx={{ borderRadius: 2 }}
+              >
+                {t.bot.continueChat}
+              </Button>
+            </Box>
+          </Box>
+        )}
+        {pendingAction?.action === 'view_ticket' && (
+          <Box
+            sx={{
+              mt: 1,
+              mb: 1.5,
+              p: 2,
+              borderRadius: 2,
+              border: '2px solid',
+              borderColor: 'warning.main',
+              bgcolor: 'warning.50',
+            }}
+          >
+            <Typography variant="body2" fontWeight={600} mb={0.25} color="warning.dark">
+              {t.bot.openTicketFound}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+              «{pendingAction.title}»{pendingAction.date ? ` — ${pendingAction.date}` : ''}
+            </Typography>
+            <Box display="flex" gap={1} flexWrap="wrap">
+              <Button
+                variant="contained"
+                size="small"
+                color="warning"
+                startIcon={<ConfirmationNumber />}
+                onClick={handleViewTicket}
+                sx={{ borderRadius: 2 }}
+              >
+                {t.bot.viewTicketBtn}
               </Button>
               <Button
                 variant="outlined"

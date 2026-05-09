@@ -210,6 +210,8 @@ const it = {
     continueChat: 'Continua a chattare',
     createFallback: 'Ho preparato un ticket basato sul tuo problema.',
     openTicketBtn: 'Apri ticket',
+    openTicketFound: 'Esiste già un ticket aperto su questo problema:',
+    viewTicketBtn: 'Vai al ticket',
   },
   reports: {
     title: 'Report e Statistiche',
@@ -688,6 +690,8 @@ const en: typeof it = {
     continueChat: 'Continue chatting',
     createFallback: 'I\'ve prepared a ticket based on your issue.',
     openTicketBtn: 'Open a ticket',
+    openTicketFound: 'There is already an open ticket for this issue:',
+    viewTicketBtn: 'Go to ticket',
   },
   reports: {
     title: 'Reports & Statistics',
