@@ -105,7 +105,8 @@ export default function TicketDetailScreen() {
       refetchComments();
       qc.invalidateQueries({ queryKey: ["ticket", id] });
     } catch (e: any) {
-      Alert.alert(t.ticketDetail.error, e.message);
+      const msg = e?.error || e?.message || "Errore durante l'invio del commento";
+      Alert.alert(t.ticketDetail.error, msg);
     } finally {
       setSubmitting(false);
     }

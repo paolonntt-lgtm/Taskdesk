@@ -108,6 +108,11 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     return;
   }
 
+  if (ticket.status === "closed") {
+    res.status(403).json({ error: "Ticket chiuso. Riaprilo prima di aggiungere nuovi commenti." });
+    return;
+  }
+
   const [comment] = await db.insert(ticketCommentsTable).values({
     ticketId: id,
     authorId: currentUser.id,

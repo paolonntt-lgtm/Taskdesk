@@ -80,6 +80,7 @@ export default function TicketDetail() {
   const [commentReactions, setCommentReactions] = useState<Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]>>({});
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
@@ -334,32 +335,41 @@ export default function TicketDetail() {
   const submitComment = async () => {
     if (!newComment.trim() && pendingAttachments.length === 0) return;
     const commentText = newComment.trim() || '📎 Allegato';
-    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText } });
-    setNewComment('');
-    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
-
-    for (const att of pendingAttachments) {
-      await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
-    }
-    if (pendingAttachments.length > 0) {
-      queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
-      setPendingAttachments([]);
+    try {
+      const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText } });
+      setNewComment('');
+      queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+      for (const att of pendingAttachments) {
+        await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
+      }
+      if (pendingAttachments.length > 0) {
+        queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+        setPendingAttachments([]);
+      }
+    } catch (err: any) {
+      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment;
+      setCommentError(msg);
     }
   };
 
   const submitInlineReply = async () => {
     if (!inlineReplyText.trim() && inlinePendingAttachments.length === 0) return;
     const commentText = inlineReplyText.trim() || '📎 Allegato';
-    const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText, replyToCommentId: replyingToCommentId } });
-    setInlineReplyText('');
-    setReplyingToCommentId(null);
-    queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
-    for (const att of inlinePendingAttachments) {
-      await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
-    }
-    if (inlinePendingAttachments.length > 0) {
-      queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
-      setInlinePendingAttachments([]);
+    try {
+      const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText, replyToCommentId: replyingToCommentId } });
+      setInlineReplyText('');
+      setReplyingToCommentId(null);
+      queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+      for (const att of inlinePendingAttachments) {
+        await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
+      }
+      if (inlinePendingAttachments.length > 0) {
+        queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+        setInlinePendingAttachments([]);
+      }
+    } catch (err: any) {
+      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment;
+      setCommentError(msg);
     }
   };
 
@@ -1095,7 +1105,11 @@ export default function TicketDetail() {
                       </Box>
                     </Box>
                   )}
-                  {!replyingToCommentId && (
+                  {ticket.status === 'closed' ? (
+                    <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                      {t.ticketDetail.closedTicketComment}
+                    </Alert>
+                  ) : !replyingToCommentId && (
                   <Box display="flex" gap={2} mt={2}>
                     <Avatar
                       src={(currentUser as any)?.avatarUrl ?? undefined}
@@ -1251,6 +1265,18 @@ export default function TicketDetail() {
       >
         <Alert severity="error" onClose={() => setReactionError(null)} sx={{ width: '100%' }}>
           {reactionError}
+        </Alert>
+      </Snackbar>
+
+      {/* ── Comment error feedback ── */}
+      <Snackbar
+        open={commentError != null}
+        autoHideDuration={5000}
+        onClose={() => setCommentError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="warning" onClose={() => setCommentError(null)} sx={{ width: '100%' }}>
+          {commentError}
         </Alert>
       </Snackbar>
 
