@@ -27,21 +27,65 @@ interface BotDialogProps {
 }
 
 function parseActionFromText(text: string): CreateTicketAction | null {
-  const match = text.match(/\{"action"\s*:\s*"create_ticket"[^}]*\}/);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]);
-  } catch {
-    return null;
+  // Find the start of the JSON object
+  const start = text.indexOf('{"action"');
+  if (start === -1) return null;
+  // Walk forward tracking brace depth to find the matching closing brace,
+  // correctly skipping over braces inside quoted strings.
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
   }
+  return null;
 }
 
-function MessageBubble({ msg }: { msg: Message }) {
+function stripActionJson(text: string): string {
+  const start = text.indexOf('{"action"');
+  if (start === -1) return text;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return (text.slice(0, start) + text.slice(i + 1)).trim();
+      }
+    }
+  }
+  return text;
+}
+
+function MessageBubble({ msg, fallbackActionText }: { msg: Message; fallbackActionText?: string }) {
   const isUser = msg.role === 'user';
   const action = !isUser ? parseActionFromText(msg.content) : null;
-  const displayText = action
-    ? msg.content.replace(/\{"action"\s*:\s*"create_ticket"[^}]*\}/, '').trim()
-    : msg.content;
+  const rawDisplay = action ? stripActionJson(msg.content) : msg.content;
+  // If the bot responded with only the JSON action and no surrounding text,
+  // use a fallback so the bubble is never empty.
+  const displayText = rawDisplay || (action ? (fallbackActionText ?? '') : '');
 
   return (
     <Box
@@ -112,7 +156,12 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
     if (!text || loading) return;
 
     const userMsg: Message = { role: 'user', content: text };
-    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    // Strip embedded JSON action from assistant messages before sending history to the API,
+    // so the model doesn't confuse the action payload for conversational context.
+    const history = messages.map((m) => ({
+      role: m.role,
+      content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
+    }));
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -218,7 +267,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
 
       <DialogContent sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+          <MessageBubble key={i} msg={msg} fallbackActionText={t.bot.createFallback} />
         ))}
         {loading && (
           <Box display="flex" gap={1} alignItems="center" mb={1.5}>

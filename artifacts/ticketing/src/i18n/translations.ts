@@ -208,6 +208,7 @@ const it = {
     createNote: 'Il ticket verrà pre-compilato con le informazioni della chat.',
     createBtn: 'Crea ticket',
     continueChat: 'Continua a chattare',
+    createFallback: 'Ho preparato un ticket basato sul tuo problema.',
   },
   reports: {
     title: 'Report e Statistiche',
@@ -684,6 +685,7 @@ const en: typeof it = {
     createNote: 'The ticket will be pre-filled with information from this chat.',
     createBtn: 'Create ticket',
     continueChat: 'Continue chatting',
+    createFallback: 'I\'ve prepared a ticket based on your issue.',
   },
   reports: {
     title: 'Reports & Statistics',
