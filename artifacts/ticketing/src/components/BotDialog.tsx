@@ -106,10 +106,14 @@ function MessageBubble({
   msg,
   fallbackActionText,
   onOptionClick,
+  onOpenTicket,
+  openTicketLabel,
 }: {
   msg: Message;
   fallbackActionText?: string;
   onOptionClick?: (value: string) => void;
+  onOpenTicket?: () => void;
+  openTicketLabel?: string;
 }) {
   const isUser = msg.role === 'user';
   const action = !isUser ? parseActionFromText(msg.content) : null;
@@ -153,9 +157,9 @@ function MessageBubble({
             </Typography>
           </Box>
         ) : null}
-        {options && onOptionClick && (
-          <Box display="flex" gap={1} flexWrap="wrap" mt={1} ml={0.5}>
-            {options.map((opt) => (
+        {(options || onOpenTicket) && (
+          <Box display="flex" gap={1} flexWrap="wrap" mt={1} ml={0.5} alignItems="center">
+            {options && onOptionClick && options.map((opt) => (
               <Button
                 key={opt.value}
                 variant="outlined"
@@ -176,6 +180,27 @@ function MessageBubble({
                 {opt.label}
               </Button>
             ))}
+            {onOpenTicket && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ConfirmationNumber sx={{ fontSize: '0.9rem !important' }} />}
+                onClick={onOpenTicket}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.78rem',
+                  py: 0.5,
+                  px: 1.5,
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  bgcolor: 'primary.50',
+                  '&:hover': { bgcolor: 'primary.100', borderColor: 'primary.dark' },
+                }}
+              >
+                {openTicketLabel}
+              </Button>
+            )}
           </Box>
         )}
       </Box>
@@ -325,18 +350,20 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
       </DialogTitle>
 
       <DialogContent sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
-        {messages.map((msg, i) => (
-          <MessageBubble
-            key={i}
-            msg={msg}
-            fallbackActionText={t.bot.createFallback}
-            onOptionClick={
-              i === messages.length - 1 && msg.role === 'assistant' && !loading
-                ? (val) => sendWithText(val)
-                : undefined
-            }
-          />
-        ))}
+        {messages.map((msg, i) => {
+          const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && !pendingAction;
+          const isWelcome = i === 0;
+          return (
+            <MessageBubble
+              key={i}
+              msg={msg}
+              fallbackActionText={t.bot.createFallback}
+              onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
+              onOpenTicket={isLastAssistant && !isWelcome ? () => sendWithText(lang === 'en' ? 'open a ticket' : 'apri ticket') : undefined}
+              openTicketLabel={t.bot.openTicketBtn}
+            />
+          );
+        })}
         {loading && (
           <Box display="flex" gap={1} alignItems="center" mb={1.5}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0 }}>

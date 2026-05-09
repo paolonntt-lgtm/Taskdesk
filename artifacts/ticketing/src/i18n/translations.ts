@@ -209,6 +209,7 @@ const it = {
     createBtn: 'Crea ticket',
     continueChat: 'Continua a chattare',
     createFallback: 'Ho preparato un ticket basato sul tuo problema.',
+    openTicketBtn: 'Apri ticket',
   },
   reports: {
     title: 'Report e Statistiche',
@@ -686,6 +687,7 @@ const en: typeof it = {
     createBtn: 'Create ticket',
     continueChat: 'Continue chatting',
     createFallback: 'I\'ve prepared a ticket based on your issue.',
+    openTicketBtn: 'Open a ticket',
   },
   reports: {
     title: 'Reports & Statistics',
