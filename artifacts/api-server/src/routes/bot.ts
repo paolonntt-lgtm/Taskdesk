@@ -194,8 +194,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
       model: "gpt-5-mini",
       messages,
       stream: true,
-      max_tokens: 800,
-      temperature: 0.4,
+      max_completion_tokens: 800,
     });
 
     for await (const chunk of stream) {
