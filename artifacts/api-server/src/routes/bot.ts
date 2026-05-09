@@ -264,15 +264,16 @@ INTAKE — Before anything else:
 - If NO tickets are found but KB articles exist: present each suggested step on a NUMBERED line (1. … 2. …). End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
 - If NOTHING is found: say you have no historical data for this issue and ask the user to describe the problem in more detail.
 - If the user replies with "1" or says it did not work: output ONLY this JSON on a single line with no other text:
-{"action":"create_ticket","title":"TITLE","description":"DESCRIPTION","category":"CATEGORY","resource":"RESOURCE"}
+{"action":"create_ticket","title":"TITLE","description":"DESCRIPTION","category":"CATEGORY","resource":"RESOURCE","location":"LOCATION"}
 - If the user replies with "2" or says they already tried it: acknowledge it briefly and ask if they want to open a ticket anyway or provide more details.
 - If the user replies with "3" or says it is resolved: congratulate them briefly and close.
 
 Rules for the JSON fields:
   - title: copy the EXACT device code or identifier from the user's message (e.g. "BTM6", "PC-MARIO"). Do NOT shorten, rephrase or generalise it. Append a 2-3 word symptom summary.
-  - description: summarise the CURRENT problem from the whole conversation (what broke, symptoms, when). Do NOT copy solutions or text from past tickets.
+  - description: summarise the CURRENT problem from the whole conversation (what broke, symptoms, when). Do NOT copy solutions, location info, or text from past tickets.
   - category: you MUST choose EXACTLY one value from this list — ${categoryList}. Do NOT invent a new category. Pick the closest match.
   - resource: the PHYSICAL device with the problem (e.g. "printer", "PC", "screen"). Do NOT put asset codes like "BTM6" here — those go in the title. Leave empty string if no physical device is mentioned.
+  - location: the location/branch mentioned by the user. MUST be EXACTLY one of these values — ${locationList || ""}. Leave empty string if unknown or not applicable.
 
 Always reply in English. Be concise. Never add steps or advice not grounded in the provided context.${historySection}`;
   }
@@ -319,15 +320,16 @@ INTAKE — Prima di tutto:
 - Se NON ci sono ticket ma ci sono articoli KB: presenta ogni passo suggerito su una riga NUMERATA (1. … 2. …). Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
 - Se NON è stato trovato nulla: di' che non hai dati storici su questo problema e chiedi all'utente di descriverlo meglio.
 - Se l'utente risponde con "1" o dice che non ha funzionato: inserisci SOLO questo JSON su una riga senza altro testo prima o dopo:
-{"action":"create_ticket","title":"TITOLO","description":"DESCRIZIONE","category":"CATEGORIA","resource":"DISPOSITIVO"}
+{"action":"create_ticket","title":"TITOLO","description":"DESCRIZIONE","category":"CATEGORIA","resource":"DISPOSITIVO","location":"SEDE"}
 - Se l'utente risponde con "2" o dice che ha già provato: riconosci brevemente e chiedi se vuole aprire un ticket oppure fornire altri dettagli.
 - Se l'utente risponde con "3" o dice che è risolto: congratulati brevemente e chiudi.
 
 Regole per i campi JSON:
   - title: copia ESATTAMENTE il codice o nome del dispositivo dal messaggio dell'utente (es. "BTM6", "PC-MARIO"). NON abbreviare, NON riformulare, NON generalizzare. Aggiungi 2-3 parole sul sintomo.
-  - description: sintetizza il problema attuale dall'intera conversazione (cosa non funziona, sintomi, quando). NON copiare soluzioni o testo dai ticket passati.
+  - description: sintetizza il problema attuale dall'intera conversazione (cosa non funziona, sintomi, quando). NON copiare soluzioni, info sulla sede o testo dai ticket passati.
   - category: OBBLIGATORIO — scegli ESATTAMENTE un valore da questa lista: ${categoryList}. NON inventare nuove categorie. Scegli quella più vicina al problema.
   - resource: il DISPOSITIVO FISICO con il problema (es. "stampante", "PC", "schermo"). NON mettere qui codici asset come "BTM6" — quelli vanno nel titolo. Stringa vuota se non menzionato un dispositivo fisico specifico.
+  - location: la sede menzionata dall'utente nella conversazione. DEVE essere ESATTAMENTE uno di questi valori: ${locationList || ""}. Stringa vuota se non specificata.
 
 Rispondi sempre in italiano. Sii sintetico. Non aggiungere mai passi o consigli non presenti nel contesto fornito.${historySection}`;
 }

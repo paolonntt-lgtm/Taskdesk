@@ -20,12 +20,13 @@ interface CreateTicketAction {
   description: string;
   category?: string;
   resource?: string;
+  location?: string;
 }
 
 interface BotDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreateTicket: (title: string, description: string, category?: string, resource?: string) => void;
+  onCreateTicket: (title: string, description: string, category?: string, resource?: string, location?: string) => void;
 }
 
 function parseActionFromText(text: string): CreateTicketAction | null {
@@ -241,7 +242,7 @@ export default function BotDialog({ open, onClose, onCreateTicket }: BotDialogPr
 
   const handleCreateTicket = () => {
     if (pendingAction) {
-      onCreateTicket(pendingAction.title, pendingAction.description, pendingAction.category, pendingAction.resource);
+      onCreateTicket(pendingAction.title, pendingAction.description, pendingAction.category, pendingAction.resource, pendingAction.location);
       onClose();
     }
   };

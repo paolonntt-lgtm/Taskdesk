@@ -67,14 +67,16 @@ export default function NewTicket() {
 
   const singleLocation = locations.length === 1;
 
-  const handleBotCreateTicket = (title: string, description: string, category?: string, resource?: string) => {
+  const handleBotCreateTicket = (title: string, description: string, category?: string, resource?: string, location?: string) => {
     const validCategory = category && categories.includes(category) ? category : undefined;
+    const validLocation = location && locations.includes(location) ? location : undefined;
     setFormData((f) => ({
       ...f,
       title,
       description,
       ...(validCategory ? { category: validCategory } : {}),
       ...(resource ? { resource } : {}),
+      ...(validLocation ? { location: validLocation } : {}),
     }));
     setBotOpen(false);
   };
