@@ -18,6 +18,11 @@ interface ContextResult {
   content: string;
   rank: number;
   createdAt?: string;
+  priority?: string;
+  status?: string;
+  category?: string;
+  location?: string;
+  assignee?: string;
 }
 
 interface SearchContextResult {
@@ -153,12 +158,17 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
       t.title,
       t.description,
       t.status,
+      t.priority,
+      t.category,
+      t.location,
       t.created_at,
+      u.name AS assignee_name,
       ts_rank(
         to_tsvector('italian', t.title || ' ' || t.description),
         plainto_tsquery('italian', ${ftsQuery})
       ) AS rank
     FROM tickets t
+    LEFT JOIN users u ON u.id = t.assigned_to
     WHERE
       t.organization_id = ${orgId}
       AND t.status NOT IN ('resolved', 'closed')
@@ -180,9 +190,14 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
       type: "open_ticket" as const,
       id: Number(row.id),
       title: row.title,
-      content: `${row.description}\nStato attuale: ${row.status}`.slice(0, 400),
+      content: String(row.description ?? "").slice(0, 500),
       rank: Number(row.rank),
       createdAt: createdDate,
+      status: row.status ?? undefined,
+      priority: row.priority ?? undefined,
+      category: row.category ?? undefined,
+      location: row.location ?? undefined,
+      assignee: row.assignee_name ?? undefined,
     };
   });
 
@@ -242,9 +257,17 @@ function buildSystemPrompt(
     }
     if (openTickets.length > 0) {
       historySection += "\n\n--- OPEN TICKETS (currently tracked issues) ---\n";
-      historySection += openTickets.map((r, i) =>
-        `[O${i + 1}] ID:${r.id} "${r.title}"${r.createdAt ? ` (opened on ${r.createdAt})` : ""}\n${r.content}`
-      ).join("\n\n");
+      historySection += openTickets.map((r, i) => {
+        const meta = [
+          r.createdAt ? `opened on ${r.createdAt}` : null,
+          r.status ? `status: ${r.status}` : null,
+          r.priority ? `priority: ${r.priority}` : null,
+          r.category ? `category: ${r.category}` : null,
+          r.location ? `location: ${r.location}` : null,
+          r.assignee ? `assigned to: ${r.assignee}` : null,
+        ].filter(Boolean).join(" | ");
+        return `[O${i + 1}] ID:${r.id} "${r.title}" (${meta})\nProblem description: ${r.content}`;
+      }).join("\n\n");
     }
     if (articles.length > 0) {
       historySection += "\n\n--- KNOWLEDGE BASE ARTICLES ---\n";
@@ -274,7 +297,7 @@ INTAKE — Always do this first, in strict order:
 - When asking the user multiple diagnostic/follow-up questions, ALWAYS number them (1. 2. 3. …). Never list them as bullet points or prose.
 - If RESOLVED TICKETS are found in the context: first verify that the specific component/symptom the user mentioned (e.g. "monitor") actually appears in the historical ticket. If the historical ticket concerns a DIFFERENT component, treat it as "nothing found".
 - If the ticket IS relevant: present it as a brief narrative summary of the similar past case (what happened and how it was resolved). Historical tickets are chronicles of real incidents — do NOT format them as numbered steps to try. End with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
-- If OPEN TICKETS are found on the same topic: briefly describe the existing ticket — include its title, opening date, current status, AND a one-sentence summary of the problem it describes — so the user can decide whether it matches their issue. Then output ONLY this JSON on a single line with no other text after it:
+- If OPEN TICKETS are found on the same topic: present the existing ticket with ALL of the following details on separate lines so the operator can clearly assess it — title, opening date, current status, priority, category, location, assignee (if any), and a short summary of the problem description. Then output ONLY this JSON on a single line with no other text after it:
 {"action":"view_ticket","id":NUMERIC_ID,"title":"TITLE","date":"DATE"}
 - If NO tickets found but KB articles exist: present each article step as a NUMBERED line (1. … 2. …). End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
 - If NOTHING is found: say you have no historical data, ask the user for more details using NUMBERED questions (1. 2. 3. …).
@@ -301,9 +324,17 @@ Always reply in English. Be concise. Never add steps or advice not grounded in t
   }
   if (openTickets.length > 0) {
     historySection += "\n\n--- TICKET APERTI (problemi attualmente in gestione) ---\n";
-    historySection += openTickets.map((r, i) =>
-      `[O${i + 1}] ID:${r.id} "${r.title}"${r.createdAt ? ` (aperto il ${r.createdAt})` : ""}\n${r.content}`
-    ).join("\n\n");
+    historySection += openTickets.map((r, i) => {
+      const meta = [
+        r.createdAt ? `aperto il ${r.createdAt}` : null,
+        r.status ? `stato: ${r.status}` : null,
+        r.priority ? `priorità: ${r.priority}` : null,
+        r.category ? `categoria: ${r.category}` : null,
+        r.location ? `sede: ${r.location}` : null,
+        r.assignee ? `assegnato a: ${r.assignee}` : null,
+      ].filter(Boolean).join(" | ");
+      return `[O${i + 1}] ID:${r.id} "${r.title}" (${meta})\nDescrizione problema: ${r.content}`;
+    }).join("\n\n");
   }
   if (articles.length > 0) {
     historySection += "\n\n--- ARTICOLI KNOWLEDGE BASE ---\n";
@@ -333,7 +364,7 @@ INTAKE — Segui sempre questo ordine:
 - Quando fai più domande diagnostiche/di approfondimento all'utente, NUMERALE SEMPRE (1. 2. 3. …). Non usare mai elenchi puntati o prosa.
 - Se nel contesto ci sono TICKET RISOLTI: verifica prima che il componente/sintomo menzionato dall'utente sia presente nel ticket storico. Se riguarda un componente diverso, trattalo come "nessun dato trovato".
 - Se il ticket È pertinente: presenta una breve sintesi narrativa del caso simile (cosa è successo e come è stato risolto). I ticket storici sono cronache di incidenti reali — NON formattare il loro contenuto come passi numerati da provare. Concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
-- Se ci sono TICKET APERTI sullo stesso argomento: descrivi brevemente il ticket esistente — includi titolo, data di apertura, stato attuale E una frase che sintetizza il problema descritto — così l'utente può capire se corrisponde al suo caso. Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
+- Se ci sono TICKET APERTI sullo stesso argomento: mostra tutte le informazioni disponibili sul ticket esistente, su righe separate, così l'operatore può valutare con certezza se è lo stesso problema — includi: titolo, data di apertura, stato, priorità, categoria, sede, assegnatario (se presente) e un breve riassunto della descrizione del problema. Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
 {"action":"view_ticket","id":ID_NUMERICO,"title":"TITOLO","date":"DATA"}
 - Se NON ci sono ticket ma ci sono articoli KB: presenta ogni passo dell'articolo su una riga NUMERATA (1. … 2. …). Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
 - Se NON è stato trovato nulla: di' che non hai dati storici e chiedi all'utente di descrivere meglio il problema con domande NUMERATE (1. 2. 3. …).
