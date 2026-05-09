@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
-import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable } from "@workspace/db";
+import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable, settingsTable } from "@workspace/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
 
@@ -46,6 +46,25 @@ function extractKeywords(message: string): string[] {
     .split(/\s+/)
     .filter((w) => w.length >= 3 && !stopWords.has(w))
     .slice(0, 5);
+}
+
+async function fetchOrgCategories(orgId: number): Promise<string[]> {
+  const orgKey = `org_${orgId}_categories`;
+  const globalKey = "categories";
+  // Try org-specific first, then fall back to global key (same logic as settings route)
+  const rows = await db
+    .select()
+    .from(settingsTable)
+    .where(sql`${settingsTable.key} IN (${orgKey}, ${globalKey})`);
+  const orgRow = rows.find((r) => r.key === orgKey);
+  const row = orgRow ?? rows.find((r) => r.key === globalKey);
+  if (!row) return [];
+  try {
+    const parsed = JSON.parse(row.value as string);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 async function searchContext(query: string, orgId: number | null): Promise<SearchContextResult> {
@@ -188,10 +207,11 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
   return { resolvedTickets, openTickets, articles };
 }
 
-function buildSystemPrompt(ctx: SearchContextResult, lang: "it" | "en"): string {
+function buildSystemPrompt(ctx: SearchContextResult, lang: "it" | "en", categories: string[]): string {
   const locale = lang === "en" ? "en-GB" : "it-IT";
   const now = new Date().toLocaleDateString(locale);
   const { resolvedTickets, openTickets, articles } = ctx;
+  const categoryList = categories.length > 0 ? categories.join(", ") : "—";
 
   if (lang === "en") {
     let historySection = "";
@@ -225,7 +245,14 @@ Help users resolve issues before opening a ticket. Follow these rules strictly:
 - If OPEN TICKETS are found on the same topic: inform the user ("There's already an open ticket for this: [title].") and ask if they want to add details to it or open a new one.
 - If NO tickets are found but KB articles exist: suggest the steps from the articles only. Do not invent solutions.
 - If NOTHING is found: say you have no historical data for this issue and ask the user to describe the problem in more detail.
-- If the user says the issue is not resolved: write one short empathetic sentence, then on the next line output exactly: {"action":"create_ticket","title":"SHORT_TITLE","description":"DETAILED_DESCRIPTION"} — DETAILED_DESCRIPTION must include the problem, any similar past tickets found, and solutions already tried.
+- If the user says the issue is not resolved: write one short empathetic sentence, then on the next line output ONLY this JSON (no other text after it):
+{"action":"create_ticket","title":"TITLE","description":"DESCRIPTION","category":"CATEGORY","resource":"RESOURCE"}
+
+Rules for each field:
+  - title: copy the EXACT device code or identifier from the user's message (e.g. "BTM6", "PC-MARIO"). Do NOT shorten, rephrase or generalise it. Append a 2-3 word symptom summary.
+  - description: summarise the CURRENT problem from the whole conversation (what broke, symptoms, when). Do NOT copy solutions or text from past tickets.
+  - category: you MUST choose EXACTLY one value from this list — ${categoryList}. Do NOT invent a new category. Pick the closest match.
+  - resource: the PHYSICAL device with the problem (e.g. "printer", "PC", "screen"). Do NOT put asset codes like "BTM6" here — those go in the title. Leave empty string if no physical device is mentioned.
 
 Always reply in English. Be concise. Never add steps or advice not grounded in the provided context.${historySection}`;
   }
@@ -262,7 +289,14 @@ Aiuta gli utenti a risolvere i problemi prima di aprire un ticket. Segui queste 
 - Se ci sono TICKET APERTI sullo stesso argomento: informa l'utente ("Esiste già un ticket aperto per questo: [titolo].") e chiedi se vuole aggiungere dettagli o aprirne uno nuovo.
 - Se NON ci sono ticket ma ci sono articoli KB: suggerisci solo i passi degli articoli. Non inventare soluzioni.
 - Se NON è stato trovato nulla: di' che non hai dati storici su questo problema e chiedi all'utente di descriverlo meglio.
-- Se l'utente dice che il problema non è risolto: scrivi una frase empatica breve, poi nella riga successiva inserisci esattamente: {"action":"create_ticket","title":"TITOLO_BREVE","description":"DESCRIZIONE_DETTAGLIATA"} — DESCRIZIONE_DETTAGLIATA deve includere il problema, eventuali ticket simili trovati e le soluzioni già tentate.
+- Se l'utente dice che il problema non è risolto: scrivi una frase empatica breve, poi nella riga successiva inserisci SOLO questo JSON (nessun altro testo dopo):
+{"action":"create_ticket","title":"TITOLO","description":"DESCRIZIONE","category":"CATEGORIA","resource":"DISPOSITIVO"}
+
+Regole per ogni campo:
+  - title: copia ESATTAMENTE il codice o nome del dispositivo dal messaggio dell'utente (es. "BTM6", "PC-MARIO"). NON abbreviare, NON riformulare, NON generalizzare. Aggiungi 2-3 parole sul sintomo.
+  - description: sintetizza il problema attuale dall'intera conversazione (cosa non funziona, sintomi, quando). NON copiare soluzioni o testo dai ticket passati.
+  - category: OBBLIGATORIO — scegli ESATTAMENTE un valore da questa lista: ${categoryList}. NON inventare nuove categorie. Scegli quella più vicina al problema.
+  - resource: il DISPOSITIVO FISICO con il problema (es. "stampante", "PC", "schermo"). NON mettere qui codici asset come "BTM6" — quelli vanno nel titolo. Stringa vuota se non menzionato un dispositivo fisico specifico.
 
 Rispondi sempre in italiano. Sii sintetico. Non aggiungere mai passi o consigli non presenti nel contesto fornito.${historySection}`;
 }
@@ -283,8 +317,11 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
   }
 
   const resolvedLang: "it" | "en" = lang === "en" ? "en" : "it";
-  const context = await searchContext(message, orgId);
-  const systemPrompt = buildSystemPrompt(context, resolvedLang);
+  const [context, categories] = await Promise.all([
+    searchContext(message, orgId),
+    fetchOrgCategories(orgId),
+  ]);
+  const systemPrompt = buildSystemPrompt(context, resolvedLang, categories);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
