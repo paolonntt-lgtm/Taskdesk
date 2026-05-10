@@ -1,39 +1,56 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, organizationsTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { db, usersTable, organizationsTable, ticketsTable } from "@workspace/db";
+import { eq, desc, and, sql, notInArray } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
 router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const rows = await db
-    .select({
-      orgId: organizationsTable.id,
-      orgName: organizationsTable.name,
-      orgCreatedAt: organizationsTable.createdAt,
-      userId: usersTable.id,
-      userName: usersTable.name,
-      userEmail: usersTable.email,
-      userRole: usersTable.role,
-      userIsActive: usersTable.isActive,
-      userCreatedAt: usersTable.createdAt,
-      lastLoginAt: usersTable.lastLoginAt,
-      avatarUrl: usersTable.avatarUrl,
-    })
-    .from(organizationsTable)
-    .leftJoin(
-      usersTable,
-      and(
-        eq(usersTable.organizationId, organizationsTable.id),
-        eq(usersTable.isActive, true),
+  const [rows, ticketCounts] = await Promise.all([
+    db
+      .select({
+        orgId: organizationsTable.id,
+        orgName: organizationsTable.name,
+        orgCreatedAt: organizationsTable.createdAt,
+        userId: usersTable.id,
+        userName: usersTable.name,
+        userEmail: usersTable.email,
+        userRole: usersTable.role,
+        userIsActive: usersTable.isActive,
+        userCreatedAt: usersTable.createdAt,
+        lastLoginAt: usersTable.lastLoginAt,
+        avatarUrl: usersTable.avatarUrl,
+      })
+      .from(organizationsTable)
+      .leftJoin(
+        usersTable,
+        and(
+          eq(usersTable.organizationId, organizationsTable.id),
+          eq(usersTable.isActive, true),
+        )
       )
-    )
-    .orderBy(desc(organizationsTable.createdAt), desc(usersTable.createdAt));
+      .orderBy(desc(organizationsTable.createdAt), desc(usersTable.createdAt)),
+
+    db
+      .select({
+        organizationId: ticketsTable.organizationId,
+        openCount: sql<number>`count(*)::int`,
+      })
+      .from(ticketsTable)
+      .where(notInArray(ticketsTable.status, ["resolved", "closed"]))
+      .groupBy(ticketsTable.organizationId),
+  ]);
+
+  const openByOrg = new Map<number, number>();
+  for (const row of ticketCounts) {
+    if (row.organizationId != null) openByOrg.set(row.organizationId, row.openCount);
+  }
 
   const orgMap = new Map<number, {
     id: number;
     name: string;
     createdAt: string | null;
+    openTickets: number;
     users: Array<{
       id: number;
       name: string;
@@ -51,6 +68,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         id: row.orgId,
         name: row.orgName,
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
+        openTickets: openByOrg.get(row.orgId) ?? 0,
         users: [],
       });
     }
