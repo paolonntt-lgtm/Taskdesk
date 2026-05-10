@@ -20,7 +20,7 @@ interface Organization {
   id: number;
   name: string;
   createdAt: string | null;
-  openTickets: number;
+  totalTickets: number;
   users: OrgUser[];
 }
 
@@ -65,7 +65,7 @@ export default function SuperAdmin() {
   });
 
   const totalUsers = orgs.reduce((sum, o) => sum + o.users.length, 0);
-  const totalOpenTickets = orgs.reduce((sum, o) => sum + o.openTickets, 0);
+  const totalTickets = orgs.reduce((sum, o) => sum + o.totalTickets, 0);
 
   if (loading) {
     return (
@@ -90,7 +90,7 @@ export default function SuperAdmin() {
         <Box>
           <Typography variant="h5" fontWeight={700}>Iscritti</Typography>
           <Typography variant="body2" color="text.secondary" mt={0.5}>
-            {orgs.length} organizzazioni · {totalUsers} utenti attivi · {totalOpenTickets} ticket aperti
+            {orgs.length} organizzazioni · {totalUsers} utenti attivi · {totalTickets} ticket totali
           </Typography>
         </Box>
         <TextField
@@ -137,11 +137,11 @@ export default function SuperAdmin() {
                     Registrata il {formatDate(org.createdAt, dateLocale)}
                   </Typography>
                 </Box>
-                {org.openTickets > 0 && (
-                  <Tooltip title="Ticket aperti">
+                {org.totalTickets > 0 && (
+                  <Tooltip title="Ticket totali">
                     <Chip
                       icon={<ConfirmationNumber sx={{ fontSize: '14px !important' }} />}
-                      label={org.openTickets}
+                      label={org.totalTickets}
                       size="small"
                       color="primary"
                       sx={{ fontWeight: 700, fontSize: 12 }}

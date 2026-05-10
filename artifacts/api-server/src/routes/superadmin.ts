@@ -34,23 +34,22 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     db
       .select({
         organizationId: ticketsTable.organizationId,
-        openCount: sql<number>`count(*)::int`,
+        totalCount: sql<number>`count(*)::int`,
       })
       .from(ticketsTable)
-      .where(notInArray(ticketsTable.status, ["resolved", "closed"]))
       .groupBy(ticketsTable.organizationId),
   ]);
 
-  const openByOrg = new Map<number, number>();
+  const totalByOrg = new Map<number, number>();
   for (const row of ticketCounts) {
-    if (row.organizationId != null) openByOrg.set(row.organizationId, row.openCount);
+    if (row.organizationId != null) totalByOrg.set(row.organizationId, row.totalCount);
   }
 
   const orgMap = new Map<number, {
     id: number;
     name: string;
     createdAt: string | null;
-    openTickets: number;
+    totalTickets: number;
     users: Array<{
       id: number;
       name: string;
@@ -68,7 +67,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         id: row.orgId,
         name: row.orgName,
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
-        openTickets: openByOrg.get(row.orgId) ?? 0,
+        totalTickets: totalByOrg.get(row.orgId) ?? 0,
         users: [],
       });
     }
