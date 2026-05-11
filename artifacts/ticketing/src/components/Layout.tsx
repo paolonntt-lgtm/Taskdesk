@@ -30,7 +30,6 @@ import {
   BarChart,
   Notifications,
   AccountCircle,
-
   People,
   CreditCard,
   Settings,
@@ -40,6 +39,7 @@ import {
   AssignmentInd,
   PriorityHigh,
   Info,
+  ChevronLeft,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -62,8 +62,19 @@ export default function Layout({ children }: LayoutProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
+  });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar_open', String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const { data: notifications = [] } = useListNotifications({
     query: { enabled: !!user, refetchInterval: 60_000, refetchIntervalInBackground: false, staleTime: 30_000 } as any,
@@ -153,11 +164,14 @@ export default function Layout({ children }: LayoutProps) {
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Logo */}
-      <Box sx={{ px: 2.5, py: 2.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 36, width: 'auto' }} />
-        </Box>
+      {/* Logo + close button */}
+      <Box sx={{ px: 2, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 36, width: 'auto' }} />
+        {!isMobile && (
+          <IconButton size="small" onClick={toggleSidebar} sx={{ color: 'text.secondary' }}>
+            <ChevronLeft />
+          </IconButton>
+        )}
       </Box>
 
       <Divider />
@@ -235,15 +249,22 @@ export default function Layout({ children }: LayoutProps) {
 
       <AppBar
         position="fixed"
-        sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}
+        sx={{
+          width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
+          ml: { sm: sidebarOpen ? `${drawerWidth}px` : 0 },
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
       >
         <Toolbar sx={{ gap: 1, minHeight: { xs: '48px !important', sm: '64px !important' } }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
             edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 1, display: { sm: 'none' } }}
+            onClick={isMobile ? handleDrawerToggle : toggleSidebar}
+            sx={{ mr: 1, ...(isMobile ? {} : { display: sidebarOpen ? 'none' : 'inline-flex' }) }}
           >
             <MenuIcon />
           </IconButton>
@@ -391,7 +412,17 @@ export default function Layout({ children }: LayoutProps) {
         </Toolbar>
       </AppBar>
 
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
+      <Box
+        component="nav"
+        sx={{
+          width: { sm: sidebarOpen ? drawerWidth : 0 },
+          flexShrink: { sm: 0 },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
+      >
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -403,7 +434,19 @@ export default function Layout({ children }: LayoutProps) {
         </Drawer>
         <Drawer
           variant="permanent"
-          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              overflowX: 'hidden',
+              transform: sidebarOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
+              transition: theme.transitions.create('transform', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
+            },
+          }}
           open
         >
           {drawer}
@@ -417,10 +460,14 @@ export default function Layout({ children }: LayoutProps) {
           minWidth: 0,
           overflowX: 'hidden',
           p: { xs: 1, sm: 3, md: 4 },
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
           mt: { xs: '48px', sm: '64px' },
           bgcolor: 'background.default',
           minHeight: { xs: 'calc(100vh - 48px)', sm: 'calc(100vh - 64px)' },
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
       >
         {children}
