@@ -73,6 +73,7 @@ export default function TicketDetail() {
   const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
   const [inlineReplyText, setInlineReplyText] = useState('');
   const [inlinePendingAttachments, setInlinePendingAttachments] = useState<PendingAttachment[]>([]);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
@@ -698,29 +699,57 @@ export default function TicketDetail() {
               {(() => {
                 const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
                 if (!ticketAttachments.length) return null;
+                const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
+                const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
                 return (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
-                    {ticketAttachments.map((a: any) => {
-                      const isImg = (a.mimeType as string).startsWith('image/');
-                      const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                      return (
-                        <Chip
-                          key={a.id}
-                          icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
-                          label={a.fileName}
-                          size="small"
-                          variant="outlined"
-                          component="a"
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          clickable
-                          deleteIcon={<Download fontSize="small" />}
-                          onDelete={() => window.open(href, '_blank')}
-                          sx={{ maxWidth: 280 }}
-                        />
-                      );
-                    })}
+                  <Box mt={2}>
+                    {imgs.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
+                        {imgs.map((a: any) => {
+                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                          return (
+                            <Box
+                              key={a.id}
+                              onClick={() => setLightboxSrc(href)}
+                              sx={{
+                                borderRadius: 1, overflow: 'hidden', border: '1px solid',
+                                borderColor: 'divider', cursor: 'zoom-in',
+                                '&:hover img': { opacity: 0.85 },
+                              }}
+                            >
+                              <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 200, maxHeight: 140, objectFit: 'cover' }} />
+                              <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {a.fileName}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    )}
+                    {files.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {files.map((a: any) => {
+                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                          return (
+                            <Chip
+                              key={a.id}
+                              icon={<InsertDriveFile fontSize="small" />}
+                              label={a.fileName}
+                              size="small"
+                              variant="outlined"
+                              component="a"
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              clickable
+                              deleteIcon={<Download fontSize="small" />}
+                              onDelete={() => window.open(href, '_blank')}
+                              sx={{ maxWidth: 280 }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
                   </Box>
                 );
               })()}
@@ -837,26 +866,60 @@ export default function TicketDetail() {
                             </Box>
                           )}
                           {commentAttachments.length > 0 && (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
-                              {commentAttachments.map((a: any) => {
-                                const isImg = (a.mimeType as string).startsWith('image/');
-                                const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                            <Box mt={1.5}>
+                              {(() => {
+                                const imgs = commentAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
+                                const files = commentAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
                                 return (
-                                  <Chip
-                                    key={a.id}
-                                    icon={isImg ? <ImageIcon fontSize="small" /> : <InsertDriveFile fontSize="small" />}
-                                    label={a.fileName}
-                                    size="small"
-                                    variant="outlined"
-                                    component="a"
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    clickable
-                                    sx={{ maxWidth: 260 }}
-                                  />
+                                  <>
+                                    {imgs.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
+                                        {imgs.map((a: any) => {
+                                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                                          return (
+                                            <Box
+                                              key={a.id}
+                                              onClick={() => setLightboxSrc(href)}
+                                              sx={{
+                                                borderRadius: 1, overflow: 'hidden', border: '1px solid',
+                                                borderColor: 'divider', cursor: 'zoom-in',
+                                                '&:hover img': { opacity: 0.85 },
+                                              }}
+                                            >
+                                              <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 180, maxHeight: 120, objectFit: 'cover' }} />
+                                              <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {a.fileName}
+                                              </Box>
+                                            </Box>
+                                          );
+                                        })}
+                                      </Box>
+                                    )}
+                                    {files.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {files.map((a: any) => {
+                                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                                          return (
+                                            <Chip
+                                              key={a.id}
+                                              icon={<InsertDriveFile fontSize="small" />}
+                                              label={a.fileName}
+                                              size="small"
+                                              variant="outlined"
+                                              component="a"
+                                              href={href}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              clickable
+                                              sx={{ maxWidth: 260 }}
+                                            />
+                                          );
+                                        })}
+                                      </Box>
+                                    )}
+                                  </>
                                 );
-                              })}
+                              })()}
                             </Box>
                           )}
                         </Box>
@@ -1334,6 +1397,26 @@ export default function TicketDetail() {
             {deleteTicket.isPending ? t.ticketDetail.deleting : t.ticketDetail.deletePermanently}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* ── Lightbox ── */}
+      <Dialog open={!!lightboxSrc} onClose={() => setLightboxSrc(null)} maxWidth="xl" PaperProps={{ sx: { bgcolor: 'black', m: 1 } }}>
+        <Box sx={{ position: 'relative', lineHeight: 0 }}>
+          <IconButton
+            onClick={() => setLightboxSrc(null)}
+            size="small"
+            sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
+          >
+            ✕
+          </IconButton>
+          {lightboxSrc && (
+            <img
+              src={lightboxSrc}
+              alt="anteprima"
+              style={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+            />
+          )}
+        </Box>
       </Dialog>
 
       {/* ── Edit ticket dialog ── */}
