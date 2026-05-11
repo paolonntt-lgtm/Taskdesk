@@ -295,13 +295,14 @@ INTAKE — Always do this first, in strict order:
 {"action":"create_ticket","title":"TITLE","description":"DESCRIPTION","category":"CATEGORY","resource":"RESOURCE","location":"LOCATION"}
 - When asking the user multiple diagnostic/follow-up questions, ALWAYS number them (1. 2. 3. …). Never list them as bullet points or prose.
 - If RESOLVED TICKETS are found in the context: first verify that the specific component/symptom the user mentioned (e.g. "monitor") actually appears in the historical ticket. If the historical ticket concerns a DIFFERENT component, treat it as "nothing found".
-- If the ticket IS relevant: present it as a brief narrative summary of the similar past case (what happened and how it was resolved). Historical tickets are chronicles of real incidents — do NOT format them as numbered steps to try. End with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
+- If the ticket IS relevant: first check the conversation history. If you have ALREADY presented the historical summary in a previous assistant turn, do NOT repeat it — acknowledge the new information the user provided and ask NUMBERED diagnostic questions to dig deeper, or ask directly whether to open a ticket. If this is the FIRST time presenting it: show a brief narrative summary of the similar past case (what happened and how it was resolved). Historical tickets are chronicles of real incidents — do NOT format them as numbered steps to try. End with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
 - If OPEN TICKETS are found on the same topic: present the existing ticket with ALL of the following details on separate lines so the operator can clearly assess it — title, opening date, current status, priority, category, location, assignee (if any), and a short summary of the problem description. Then output ONLY this JSON on a single line with no other text after it:
 {"action":"view_ticket","id":NUMERIC_ID,"title":"TITLE","date":"DATE"}
 - If NO tickets found but KB articles exist: present each article step as a NUMBERED line (1. … 2. …). End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
 - If NOTHING is found: say you have no historical data, ask the user for more details using NUMBERED questions (1. 2. 3. …).
 - If the user replies with "2" or says they need more help: acknowledge briefly and ask for more details using NUMBERED questions.
 - If the user replies with "3" or says it is resolved: congratulate them briefly and close.
+- If the user provides new information after you have already presented historical context (e.g. "nobody pulled the card", "it always happens like this"): acknowledge the new info, do NOT repeat the historical tickets, and ask NUMBERED specific questions to gather further details or propose opening a ticket.
 
 Rules for the JSON fields:
   - title: copy the EXACT device code or identifier from the user's message (e.g. "BTM6", "PC-MARIO"). Do NOT shorten, rephrase or generalise it. Append a 2-3 word symptom summary.
@@ -362,13 +363,14 @@ INTAKE — Segui sempre questo ordine:
 {"action":"create_ticket","title":"TITOLO","description":"DESCRIZIONE","category":"CATEGORIA","resource":"DISPOSITIVO","location":"SEDE"}
 - Quando fai più domande diagnostiche/di approfondimento all'utente, NUMERALE SEMPRE (1. 2. 3. …). Non usare mai elenchi puntati o prosa.
 - Se nel contesto ci sono TICKET RISOLTI: verifica prima che il componente/sintomo menzionato dall'utente sia presente nel ticket storico. Se riguarda un componente diverso, trattalo come "nessun dato trovato".
-- Se il ticket È pertinente: presenta una breve sintesi narrativa del caso simile (cosa è successo e come è stato risolto). I ticket storici sono cronache di incidenti reali — NON formattare il loro contenuto come passi numerati da provare. Concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
+- Se il ticket È pertinente: controlla prima la cronologia della conversazione. Se hai GIÀ presentato il riepilogo storico in un tuo messaggio precedente, NON ripeterlo — riconosci la nuova informazione fornita dall'utente e fai domande NUMERATE per approfondire, oppure chiedi direttamente se aprire un ticket. Se invece è la prima volta che presenti il contesto storico: mostra una breve sintesi narrativa del caso simile (cosa è successo e come è stato risolto). I ticket storici sono cronache di incidenti reali — NON formattare il loro contenuto come passi numerati da provare. Concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
 - Se ci sono TICKET APERTI sullo stesso argomento: mostra tutte le informazioni disponibili sul ticket esistente, su righe separate, così l'operatore può valutare con certezza se è lo stesso problema — includi: titolo, data di apertura, stato, priorità, categoria, sede, assegnatario (se presente) e un breve riassunto della descrizione del problema. Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
 {"action":"view_ticket","id":ID_NUMERICO,"title":"TITOLO","date":"DATA"}
 - Se NON ci sono ticket ma ci sono articoli KB: presenta ogni passo dell'articolo su una riga NUMERATA (1. … 2. …). Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
 - Se NON è stato trovato nulla: di' che non hai dati storici e chiedi all'utente di descrivere meglio il problema con domande NUMERATE (1. 2. 3. …).
 - Se l'utente risponde con "2" o chiede altro aiuto: riconosci brevemente e fai domande NUMERATE per raccogliere più dettagli.
 - Se l'utente risponde con "3" o dice che è risolto: congratulati brevemente e chiudi.
+- Se l'utente fornisce nuove informazioni dopo che hai già presentato il contesto storico (es. "non ho tirato la schedina", "succede sempre così", ecc.): riconosci la nuova info, NON ripetere i ticket storici, e fai domande NUMERATE specifiche per raccogliere altri dettagli utili o proponi di aprire il ticket.
 
 Regole per i campi JSON:
   - title: copia ESATTAMENTE il codice o nome del dispositivo dal messaggio dell'utente (es. "BTM6", "PC-MARIO"). NON abbreviare, NON riformulare, NON generalizzare. Aggiungi 2-3 parole sul sintomo.
