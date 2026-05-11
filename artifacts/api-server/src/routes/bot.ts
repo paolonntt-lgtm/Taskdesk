@@ -302,7 +302,7 @@ INTAKE — Always do this first, in strict order:
 - If NOTHING is found: say you have no historical data, ask the user for more details using NUMBERED questions (1. 2. 3. …).
 - If the user replies with "2" or says they need more help: acknowledge briefly and ask for more details using NUMBERED questions.
 - If the user replies with "3" or says it is resolved: congratulate them briefly and close.
-- If the user provides new information after you have already presented historical context (e.g. "nobody pulled the card", "it always happens like this"): acknowledge the new info, do NOT repeat the historical tickets, and ask NUMBERED specific questions to gather further details or propose opening a ticket.
+- If the user provides new information after you have already presented historical context (e.g. "nobody pulled the card", "it always happens like this"): acknowledge the new info in one sentence, do NOT repeat the historical tickets, ask at most 2-3 NUMBERED specific questions to gather further details, and always end with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓". Do NOT add "Open a ticket" as a numbered question item.
 
 Rules for the JSON fields:
   - title: copy the EXACT device code or identifier from the user's message (e.g. "BTM6", "PC-MARIO"). Do NOT shorten, rephrase or generalise it. Append a 2-3 word symptom summary.
@@ -370,7 +370,7 @@ INTAKE — Segui sempre questo ordine:
 - Se NON è stato trovato nulla: di' che non hai dati storici e chiedi all'utente di descrivere meglio il problema con domande NUMERATE (1. 2. 3. …).
 - Se l'utente risponde con "2" o chiede altro aiuto: riconosci brevemente e fai domande NUMERATE per raccogliere più dettagli.
 - Se l'utente risponde con "3" o dice che è risolto: congratulati brevemente e chiudi.
-- Se l'utente fornisce nuove informazioni dopo che hai già presentato il contesto storico (es. "non ho tirato la schedina", "succede sempre così", ecc.): riconosci la nuova info, NON ripetere i ticket storici, e fai domande NUMERATE specifiche per raccogliere altri dettagli utili o proponi di aprire il ticket.
+- Se l'utente fornisce nuove informazioni dopo che hai già presentato il contesto storico (es. "non ho tirato la schedina", "succede sempre così", ecc.): riconosci la nuova info in una frase, NON ripetere i ticket storici, fai al massimo 2-3 domande NUMERATE specifiche per raccogliere altri dettagli, e concludi SEMPRE con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓". Non aggiungere "Apri ticket" come voce numerata nelle domande.
 
 Regole per i campi JSON:
   - title: copia ESATTAMENTE il codice o nome del dispositivo dal messaggio dell'utente (es. "BTM6", "PC-MARIO"). NON abbreviare, NON riformulare, NON generalizzare. Aggiungi 2-3 parole sul sintomo.
