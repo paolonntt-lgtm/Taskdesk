@@ -57,12 +57,11 @@ function extractKeywords(message: string): string[] {
 
 async function fetchOrgSettings(orgId: number, base: string): Promise<string[]> {
   const orgKey = `org_${orgId}_${base}`;
-  const globalKey = base;
   const rows = await db
     .select()
     .from(settingsTable)
-    .where(sql`${settingsTable.key} IN (${orgKey}, ${globalKey})`);
-  const row = rows.find((r) => r.key === orgKey) ?? rows.find((r) => r.key === globalKey);
+    .where(eq(settingsTable.key, orgKey));
+  const row = rows[0];
   if (!row) return [];
   try {
     const parsed = JSON.parse(row.value as string);
