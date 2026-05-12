@@ -158,12 +158,17 @@ function TicketRow({ ticket, showDueBadge = false }: { ticket: TicketRow; showDu
         <Avatar
           sx={{
             width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
-            bgcolor: dueBadge?.color === 'error' ? 'error.light'
-              : dueBadge?.color === 'warning' ? 'warning.light'
+            bgcolor: ticket.status === 'open' ? 'primary.light'
+              : ticket.status === 'in_progress' ? 'warning.light'
+              : ticket.status === 'waiting' ? 'secondary.light'
+              : ticket.status === 'resolved' ? 'success.light'
+              : ticket.status === 'closed' ? 'action.selected'
               : 'primary.light',
-            color: dueBadge?.color === 'error' ? 'error.contrastText'
-              : dueBadge?.color === 'warning' ? 'warning.contrastText'
-              : 'primary.contrastText',
+            color: ticket.status === 'open' ? 'primary.contrastText'
+              : ticket.status === 'in_progress' ? 'warning.contrastText'
+              : ticket.status === 'waiting' ? 'secondary.contrastText'
+              : ticket.status === 'resolved' ? 'success.contrastText'
+              : 'text.secondary',
           }}
         >
           #{ticket.ticketNumber ?? ticket.id}
