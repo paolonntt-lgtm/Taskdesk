@@ -8,6 +8,9 @@
 
 export * from "./activityLogWithUser";
 export * from "./attachment";
+export * from "./botChatMessage";
+export * from "./botChatMessageRole";
+export * from "./botChatRequest";
 export * from "./commentReaction";
 export * from "./commentWithAuthor";
 export * from "./createCommentBody";
@@ -19,6 +22,8 @@ export * from "./createUserBodyRole";
 export * from "./dashboardStats";
 export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./knowledgeArticle";
+export * from "./knowledgeArticleInput";
 export * from "./listTicketsParams";
 export * from "./loginRequest";
 export * from "./loginResponse";

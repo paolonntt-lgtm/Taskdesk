@@ -19,6 +19,7 @@ import type {
 import type {
   ActivityLogWithUser,
   Attachment,
+  BotChatRequest,
   CommentWithAuthor,
   CreateCommentBody,
   CreateNoteBody,
@@ -27,6 +28,8 @@ import type {
   DashboardStats,
   ErrorResponse,
   HealthStatus,
+  KnowledgeArticle,
+  KnowledgeArticleInput,
   ListTicketsParams,
   LoginRequest,
   LoginResponse,
@@ -3084,3 +3087,423 @@ export function useGetMyTickets<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Send a message to the AI bot (SSE streaming)
+ */
+export const getBotChatUrl = () => {
+  return `/api/bot/chat`;
+};
+
+export const botChat = async (
+  botChatRequest: BotChatRequest,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getBotChatUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(botChatRequest),
+  });
+};
+
+export const getBotChatMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof botChat>>,
+    TError,
+    { data: BodyType<BotChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof botChat>>,
+  TError,
+  { data: BodyType<BotChatRequest> },
+  TContext
+> => {
+  const mutationKey = ["botChat"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof botChat>>,
+    { data: BodyType<BotChatRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return botChat(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BotChatMutationResult = NonNullable<
+  Awaited<ReturnType<typeof botChat>>
+>;
+export type BotChatMutationBody = BodyType<BotChatRequest>;
+export type BotChatMutationError = ErrorType<void>;
+
+/**
+ * @summary Send a message to the AI bot (SSE streaming)
+ */
+export const useBotChat = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof botChat>>,
+    TError,
+    { data: BodyType<BotChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof botChat>>,
+  TError,
+  { data: BodyType<BotChatRequest> },
+  TContext
+> => {
+  return useMutation(getBotChatMutationOptions(options));
+};
+
+/**
+ * @summary List knowledge base articles for the organization (admin only)
+ */
+export const getListKnowledgeArticlesUrl = () => {
+  return `/api/knowledge-articles`;
+};
+
+export const listKnowledgeArticles = async (
+  options?: RequestInit,
+): Promise<KnowledgeArticle[]> => {
+  return customFetch<KnowledgeArticle[]>(getListKnowledgeArticlesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListKnowledgeArticlesQueryKey = () => {
+  return [`/api/knowledge-articles`] as const;
+};
+
+export const getListKnowledgeArticlesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listKnowledgeArticles>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listKnowledgeArticles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListKnowledgeArticlesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listKnowledgeArticles>>
+  > = ({ signal }) => listKnowledgeArticles({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listKnowledgeArticles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListKnowledgeArticlesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listKnowledgeArticles>>
+>;
+export type ListKnowledgeArticlesQueryError = ErrorType<void>;
+
+/**
+ * @summary List knowledge base articles for the organization (admin only)
+ */
+
+export function useListKnowledgeArticles<
+  TData = Awaited<ReturnType<typeof listKnowledgeArticles>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listKnowledgeArticles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListKnowledgeArticlesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a knowledge base article (admin only)
+ */
+export const getCreateKnowledgeArticleUrl = () => {
+  return `/api/knowledge-articles`;
+};
+
+export const createKnowledgeArticle = async (
+  knowledgeArticleInput: KnowledgeArticleInput,
+  options?: RequestInit,
+): Promise<KnowledgeArticle> => {
+  return customFetch<KnowledgeArticle>(getCreateKnowledgeArticleUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(knowledgeArticleInput),
+  });
+};
+
+export const getCreateKnowledgeArticleMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createKnowledgeArticle>>,
+    TError,
+    { data: BodyType<KnowledgeArticleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createKnowledgeArticle>>,
+  TError,
+  { data: BodyType<KnowledgeArticleInput> },
+  TContext
+> => {
+  const mutationKey = ["createKnowledgeArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createKnowledgeArticle>>,
+    { data: BodyType<KnowledgeArticleInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createKnowledgeArticle(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateKnowledgeArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createKnowledgeArticle>>
+>;
+export type CreateKnowledgeArticleMutationBody =
+  BodyType<KnowledgeArticleInput>;
+export type CreateKnowledgeArticleMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a knowledge base article (admin only)
+ */
+export const useCreateKnowledgeArticle = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createKnowledgeArticle>>,
+    TError,
+    { data: BodyType<KnowledgeArticleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createKnowledgeArticle>>,
+  TError,
+  { data: BodyType<KnowledgeArticleInput> },
+  TContext
+> => {
+  return useMutation(getCreateKnowledgeArticleMutationOptions(options));
+};
+
+/**
+ * @summary Update a knowledge base article (admin only)
+ */
+export const getUpdateKnowledgeArticleUrl = (id: number) => {
+  return `/api/knowledge-articles/${id}`;
+};
+
+export const updateKnowledgeArticle = async (
+  id: number,
+  knowledgeArticleInput: KnowledgeArticleInput,
+  options?: RequestInit,
+): Promise<KnowledgeArticle> => {
+  return customFetch<KnowledgeArticle>(getUpdateKnowledgeArticleUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(knowledgeArticleInput),
+  });
+};
+
+export const getUpdateKnowledgeArticleMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKnowledgeArticle>>,
+    TError,
+    { id: number; data: BodyType<KnowledgeArticleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateKnowledgeArticle>>,
+  TError,
+  { id: number; data: BodyType<KnowledgeArticleInput> },
+  TContext
+> => {
+  const mutationKey = ["updateKnowledgeArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateKnowledgeArticle>>,
+    { id: number; data: BodyType<KnowledgeArticleInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateKnowledgeArticle(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateKnowledgeArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateKnowledgeArticle>>
+>;
+export type UpdateKnowledgeArticleMutationBody =
+  BodyType<KnowledgeArticleInput>;
+export type UpdateKnowledgeArticleMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a knowledge base article (admin only)
+ */
+export const useUpdateKnowledgeArticle = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKnowledgeArticle>>,
+    TError,
+    { id: number; data: BodyType<KnowledgeArticleInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateKnowledgeArticle>>,
+  TError,
+  { id: number; data: BodyType<KnowledgeArticleInput> },
+  TContext
+> => {
+  return useMutation(getUpdateKnowledgeArticleMutationOptions(options));
+};
+
+/**
+ * @summary Delete a knowledge base article (admin only)
+ */
+export const getDeleteKnowledgeArticleUrl = (id: number) => {
+  return `/api/knowledge-articles/${id}`;
+};
+
+export const deleteKnowledgeArticle = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeleteKnowledgeArticleUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteKnowledgeArticleMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteKnowledgeArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteKnowledgeArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteKnowledgeArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteKnowledgeArticle>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteKnowledgeArticle(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteKnowledgeArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteKnowledgeArticle>>
+>;
+
+export type DeleteKnowledgeArticleMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a knowledge base article (admin only)
+ */
+export const useDeleteKnowledgeArticle = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteKnowledgeArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteKnowledgeArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteKnowledgeArticleMutationOptions(options));
+};

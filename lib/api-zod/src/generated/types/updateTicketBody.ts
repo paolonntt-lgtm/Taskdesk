@@ -19,4 +19,5 @@ export interface UpdateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   resolutionNote?: string | null;
+  dueAt?: Date | null;
 }

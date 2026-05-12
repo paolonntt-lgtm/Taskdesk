@@ -136,7 +136,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
-  const { title, description, category, location, resource, priority, assignedTo, assignedToGroup } = parsed.data;
+  const { title, description, category, location, resource, priority, assignedTo, assignedToGroup, dueAt } = parsed.data;
 
   if (assignedTo) {
     if (currentUser.role !== "admin") {
@@ -174,6 +174,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     ticketNumber: nextTicketNumber,
     assignedTo: assignedTo ?? null,
     assignedToGroup: assignedToGroup ?? null,
+    dueAt: dueAt ? new Date(dueAt) : null,
   }).returning();
 
   await db.insert(ticketActivityLogsTable).values({

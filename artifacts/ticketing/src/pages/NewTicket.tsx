@@ -38,6 +38,7 @@ export default function NewTicket() {
     priority: 'medium',
     assignedTo: '',
     assignedToGroup: '',
+    dueAt: '',
   });
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function NewTicket() {
           priority: formData.priority as any,
           assignedTo: assignMode === 'user' && formData.assignedTo ? parseInt(formData.assignedTo) : null,
           assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
+          dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
         },
       });
       for (const att of pendingAttachments) {
@@ -207,6 +209,18 @@ export default function NewTicket() {
                   <MenuItem value="high">{t.priority.high}</MenuItem>
                   <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
                 </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t.newTicket.dueAtField}
+                  type="datetime-local"
+                  value={formData.dueAt}
+                  onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+                />
               </Grid>
 
               {currentUser?.role === 'admin' && (

@@ -16,4 +16,5 @@ export interface CreateTicketBody {
   priority: CreateTicketBodyPriority;
   assignedTo?: number | null;
   assignedToGroup?: string | null;
+  dueAt?: Date | null;
 }

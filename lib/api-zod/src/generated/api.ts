@@ -191,6 +191,7 @@ export const ListTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
   })
   .and(
@@ -239,6 +240,7 @@ export const CreateTicketBody = zod.object({
   priority: zod.enum(["low", "medium", "high", "urgent"]),
   assignedTo: zod.number().nullish(),
   assignedToGroup: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
 });
 
 /**
@@ -264,6 +266,7 @@ export const GetTicketResponse = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
   })
   .and(
@@ -319,6 +322,7 @@ export const UpdateTicketBody = zod.object({
   assignedTo: zod.number().nullish(),
   assignedToGroup: zod.string().nullish(),
   resolutionNote: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
 });
 
 export const UpdateTicketResponse = zod
@@ -337,6 +341,7 @@ export const UpdateTicketResponse = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
   })
   .and(
@@ -769,6 +774,7 @@ export const GetRecentTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
   })
   .and(
@@ -824,6 +830,7 @@ export const GetMyTicketsResponseItem = zod
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
   })
   .and(
@@ -859,3 +866,82 @@ export const GetMyTicketsResponseItem = zod
     }),
   );
 export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem);
+
+/**
+ * @summary Send a message to the AI bot (SSE streaming)
+ */
+
+export const BotChatBody = zod.object({
+  message: zod.string().min(1),
+  history: zod
+    .array(
+      zod.object({
+        role: zod.enum(["user", "assistant"]),
+        content: zod.string(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary List knowledge base articles for the organization (admin only)
+ */
+export const ListKnowledgeArticlesResponseItem = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  title: zod.string(),
+  content: zod.string(),
+  category: zod.string().nullish(),
+  createdBy: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListKnowledgeArticlesResponse = zod.array(
+  ListKnowledgeArticlesResponseItem,
+);
+
+/**
+ * @summary Create a knowledge base article (admin only)
+ */
+
+export const CreateKnowledgeArticleBody = zod.object({
+  title: zod.string().min(1),
+  content: zod.string().min(1),
+  category: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a knowledge base article (admin only)
+ */
+export const UpdateKnowledgeArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateKnowledgeArticleBody = zod.object({
+  title: zod.string().min(1),
+  content: zod.string().min(1),
+  category: zod.string().nullish(),
+});
+
+export const UpdateKnowledgeArticleResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  title: zod.string(),
+  content: zod.string(),
+  category: zod.string().nullish(),
+  createdBy: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a knowledge base article (admin only)
+ */
+export const DeleteKnowledgeArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteKnowledgeArticleResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});

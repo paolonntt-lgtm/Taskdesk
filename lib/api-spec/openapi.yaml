@@ -1139,6 +1139,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        dueAt:
+          type: string
+          format: date-time
+          nullable: true
         resolutionNote:
           type: string
           nullable: true
@@ -1196,6 +1200,10 @@ components:
         assignedToGroup:
           type: string
           nullable: true
+        dueAt:
+          type: string
+          format: date-time
+          nullable: true
       required:
         - title
         - description
@@ -1230,6 +1238,10 @@ components:
           nullable: true
         resolutionNote:
           type: string
+          nullable: true
+        dueAt:
+          type: string
+          format: date-time
           nullable: true
 
     CommentReaction:

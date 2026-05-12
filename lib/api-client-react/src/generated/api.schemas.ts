@@ -123,6 +123,7 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
+  dueAt?: string | null;
   resolutionNote?: string | null;
 }
 
@@ -152,6 +153,7 @@ export interface CreateTicketBody {
   priority: CreateTicketBodyPriority;
   assignedTo?: number | null;
   assignedToGroup?: string | null;
+  dueAt?: string | null;
 }
 
 export type UpdateTicketBodyPriority =
@@ -186,6 +188,7 @@ export interface UpdateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   resolutionNote?: string | null;
+  dueAt?: string | null;
 }
 
 export interface CommentReaction {
@@ -322,6 +325,44 @@ export interface StatGroupWithName {
 export interface TrendPoint {
   date: string;
   count: number;
+}
+
+export type BotChatMessageRole =
+  (typeof BotChatMessageRole)[keyof typeof BotChatMessageRole];
+
+export const BotChatMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface BotChatMessage {
+  role: BotChatMessageRole;
+  content: string;
+}
+
+export interface BotChatRequest {
+  /** @minLength 1 */
+  message: string;
+  history?: BotChatMessage[];
+}
+
+export interface KnowledgeArticle {
+  id: number;
+  organizationId?: number | null;
+  title: string;
+  content: string;
+  category?: string | null;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KnowledgeArticleInput {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  content: string;
+  category?: string | null;
 }
 
 export type ListTicketsParams = {

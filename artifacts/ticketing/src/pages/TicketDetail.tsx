@@ -668,6 +668,18 @@ export default function TicketDetail() {
               </Box>
             )}
 
+            {/* Due date */}
+            {(ticket as any).dueAt && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.ticketDetail.dueAtLabel}
+                </Typography>
+                <Typography variant="body2" color={new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed' ? 'error.main' : 'text.primary'}>
+                  {new Date((ticket as any).dueAt).toLocaleString(dateLocale)}
+                </Typography>
+              </Box>
+            )}
+
             {/* Closed on + resolver */}
             {ticket.closedAt && (
               <Box>
