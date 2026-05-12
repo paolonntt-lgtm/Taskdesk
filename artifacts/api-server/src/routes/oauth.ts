@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db, usersTable, organizationsTable } from "@workspace/db";
-import { createSession } from "../lib/session";
+import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { appBaseUrl } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
@@ -158,10 +158,10 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         .where(eq(usersTable.id, user.id));
     }
 
-    const sessionId = createSession(user.id);
+    const sessionId = await createSession(user.id);
     res.setHeader(
       "Set-Cookie",
-      `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+      `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
     );
     res.redirect("/app/");
   } catch (err) {

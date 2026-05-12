@@ -94,7 +94,7 @@ router.post("/auth/reset-password", resetPasswordRateLimiter, async (req, res): 
     .set({ usedAt: new Date() })
     .where(eq(passwordResetTokensTable.id, resetToken.id));
 
-  destroySessionsForUser(resetToken.userId);
+  await destroySessionsForUser(resetToken.userId);
 
   res.json({ message: "Password aggiornata con successo. Puoi ora accedere con la nuova password." });
 });

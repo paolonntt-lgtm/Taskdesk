@@ -96,7 +96,7 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
     .returning(safeFields);
 
   if (updates.passwordHash !== undefined) {
-    destroySessionsForUser(current.id);
+    await destroySessionsForUser(current.id);
     res.setHeader("Set-Cookie", "session_id=; Path=/; HttpOnly; Max-Age=0");
     res.json({ user: updated, message: "Password aggiornata. Accedi di nuovo per continuare.", requiresReauth: true });
     return;

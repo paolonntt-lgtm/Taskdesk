@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, usersTable, organizationsTable, settingsTable } from "@workspace/db";
-import { createSession, destroySession, getSessionId, getCurrentUserId } from "../lib/session";
+import { createSession, destroySession, getSessionId, getCurrentUserId, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
@@ -67,11 +67,11 @@ router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => 
     upgradePasswordHashIfNeeded(user.id, password, user.passwordHash ?? ""),
   ]);
 
-  const sessionId = createSession(user.id);
+  const sessionId = await createSession(user.id);
 
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
   );
 
   const { passwordHash: _, ...safeUser } = user;
@@ -140,10 +140,10 @@ router.post("/auth/register", registerRateLimiter, async (req, res): Promise<voi
     if (sa.email) sendEmail({ to: sa.email, subject, html, text });
   }
 
-  const sessionId = createSession(user.id);
+  const sessionId = await createSession(user.id);
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
   );
 
   const { passwordHash: _, ...safeUser } = user;
@@ -153,14 +153,14 @@ router.post("/auth/register", registerRateLimiter, async (req, res): Promise<voi
 router.post("/auth/logout", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req);
   if (sessionId) {
-    destroySession(sessionId);
+    await destroySession(sessionId);
   }
   res.setHeader("Set-Cookie", "session_id=; Path=/; HttpOnly; Max-Age=0");
   res.json({ success: true, message: "Logout effettuato" });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
-  const userId = getCurrentUserId(req);
+  const userId = await getCurrentUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -191,7 +191,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
   if (!row.isActive) {
     const sessionId = getSessionId(req);
-    if (sessionId) destroySession(sessionId);
+    if (sessionId) await destroySession(sessionId);
     res.status(401).json({ error: "Account disabled" });
     return;
   }

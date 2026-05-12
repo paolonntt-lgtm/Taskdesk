@@ -4,7 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const userId = getCurrentUserId(req);
+  const userId = await getCurrentUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -16,7 +16,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   if (!user.isActive) {
     const sessionId = getSessionId(req);
-    if (sessionId) destroySession(sessionId);
+    if (sessionId) await destroySession(sessionId);
     res.status(401).json({ error: "Account disabled" });
     return;
   }

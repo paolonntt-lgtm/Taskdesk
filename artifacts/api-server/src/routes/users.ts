@@ -165,7 +165,7 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
   }
 
   if (updates.isActive === false) {
-    destroySessionsForUser(id);
+    await destroySessionsForUser(id);
   }
 
   if (updates.role === 'user') {
@@ -204,7 +204,7 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
     return;
   }
 
-  destroySessionsForUser(id);
+  await destroySessionsForUser(id);
 
   await db.transaction(async (tx) => {
     await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, id));

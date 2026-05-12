@@ -11,3 +11,4 @@ export * from "./invite_tokens";
 export * from "./ticket_attachments";
 export * from "./password_reset_tokens";
 export * from "./knowledge_articles";
+export * from "./sessions";

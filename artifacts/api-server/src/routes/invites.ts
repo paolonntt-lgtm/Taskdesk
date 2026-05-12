@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable, inviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-import { createSession } from "../lib/session";
+import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { randomBytes } from "crypto";
 import { hashPassword } from "./auth";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
@@ -109,10 +109,10 @@ router.post("/invites/:token/register", async (req, res): Promise<void> => {
     .set({ usedAt: new Date(), usedById: user.id })
     .where(eq(inviteTokensTable.token, token));
 
-  const sessionId = createSession(user.id);
+  const sessionId = await createSession(user.id);
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
   );
 
   const { passwordHash: _, ...safeUser } = user;
