@@ -3089,6 +3089,81 @@ export function useGetMyTickets<
 }
 
 /**
+ * @summary Get open tickets with a due date within the next 7 days (including overdue)
+ */
+export const getGetDueSoonTicketsUrl = () => {
+  return `/api/stats/due-soon`;
+};
+
+export const getDueSoonTickets = async (
+  options?: RequestInit,
+): Promise<TicketWithDetails[]> => {
+  return customFetch<TicketWithDetails[]>(getGetDueSoonTicketsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDueSoonTicketsQueryKey = () => {
+  return [`/api/stats/due-soon`] as const;
+};
+
+export const getGetDueSoonTicketsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDueSoonTickets>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDueSoonTickets>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDueSoonTicketsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDueSoonTickets>>
+  > = ({ signal }) => getDueSoonTickets({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDueSoonTickets>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDueSoonTicketsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDueSoonTickets>>
+>;
+export type GetDueSoonTicketsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get open tickets with a due date within the next 7 days (including overdue)
+ */
+
+export function useGetDueSoonTickets<
+  TData = Awaited<ReturnType<typeof getDueSoonTickets>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDueSoonTickets>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDueSoonTicketsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Send a message to the AI bot (SSE streaming)
  */
 export const getBotChatUrl = () => {

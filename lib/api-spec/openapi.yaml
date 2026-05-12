@@ -835,6 +835,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/TicketWithDetails"
 
+  /stats/due-soon:
+    get:
+      operationId: getDueSoonTickets
+      tags: [stats]
+      summary: Get open tickets with a due date within the next 7 days (including overdue)
+      responses:
+        "200":
+          description: Due soon tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketWithDetails"
+
   /bot/chat:
     post:
       operationId: botChat

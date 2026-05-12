@@ -3,7 +3,8 @@ import {
   Box, Grid, Card, CardContent, Typography, CircularProgress,
   Chip, Button, Avatar, useMediaQuery, useTheme,
 } from '@mui/material';
-import { useGetDashboardStats, useGetRecentTickets, useGetMyTickets } from '@workspace/api-client-react';
+import { Schedule as ScheduleIcon } from '@mui/icons-material';
+import { useGetDashboardStats, useGetRecentTickets, useGetMyTickets, useGetDueSoonTickets } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -198,19 +199,142 @@ function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }:
   );
 }
 
+function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' | 'default' } {
+  const now = new Date();
+  const due = new Date(dueAt);
+  const diffMs = due.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: t.dashboard.overdue, color: 'error' };
+  if (diffDays === 0) return { label: t.dashboard.dueToday, color: 'error' };
+  if (diffDays === 1) return { label: t.dashboard.dueTomorrow, color: 'warning' };
+  return { label: `${diffDays} ${t.dashboard.dueInDays}`, color: 'warning' };
+}
+
+function DueSoonCard({ tickets }: { tickets: Array<{ id: number; title: string; status: string; priority: string; category?: string | null; dueAt?: string | null; ticketNumber?: number | null }> }) {
+  const { t } = useLanguage();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  return (
+    <Card sx={{ height: '100%', borderLeft: 3, borderColor: tickets.length > 0 ? 'warning.main' : 'divider' }}>
+      <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" px={{ xs: 1.5, sm: 2 }} pt={{ xs: 1.5, sm: 2 }} pb={1}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <ScheduleIcon fontSize="small" color={tickets.length > 0 ? 'warning' : 'disabled'} />
+            <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.95rem', sm: '1.25rem' }}>
+              {t.dashboard.dueSoon}
+            </Typography>
+            {tickets.length > 0 && (
+              <Chip label={tickets.length} size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />
+            )}
+          </Box>
+          <Button component={Link} href="/tickets" size="small">{t.dashboard.viewAll}</Button>
+        </Box>
+
+        {tickets.length === 0 ? (
+          <Box px={2} pb={2}>
+            <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
+              {t.dashboard.noDueSoon}
+            </Typography>
+          </Box>
+        ) : (
+          tickets.map((ticket, idx) => {
+            const badge = ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
+            return (
+              <Box
+                key={ticket.id}
+                component={Link}
+                href={`/tickets/${ticket.id}`}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1,
+                  px: { xs: 1.5, sm: 2 },
+                  py: { xs: 1, sm: 1.5 },
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  borderTop: idx === 0 ? '1px solid' : 'none',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  '&:last-child': { borderBottom: 'none' },
+                  overflow: 'hidden',
+                }}
+              >
+                {!isMobile && (
+                  <Avatar
+                    sx={{
+                      width: 32, height: 32, fontSize: '0.7rem',
+                      bgcolor: badge?.color === 'error' ? 'error.light' : 'warning.light',
+                      color: badge?.color === 'error' ? 'error.contrastText' : 'warning.contrastText',
+                      flexShrink: 0,
+                    }}
+                  >
+                    #{(ticket as any).ticketNumber ?? ticket.id}
+                  </Avatar>
+                )}
+
+                <Box flex={1} minWidth={0}>
+                  <Typography variant="body2" fontWeight="medium" noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
+                    {isMobile && (
+                      <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
+                        #{(ticket as any).ticketNumber ?? ticket.id}
+                      </Typography>
+                    )}
+                    {ticket.title}
+                  </Typography>
+                  {ticket.category && (
+                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                      {ticket.category}
+                    </Typography>
+                  )}
+                </Box>
+
+                <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5} flexShrink={0}>
+                  {badge && (
+                    <Chip
+                      label={badge.label}
+                      size="small"
+                      color={badge.color}
+                      sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold' }}
+                    />
+                  )}
+                  {!isMobile && (
+                    <Chip
+                      label={t.status[ticket.status] || ticket.status}
+                      size="small"
+                      color={getStatusColor(ticket.status) as any}
+                      sx={{ fontSize: '0.65rem', height: 20 }}
+                    />
+                  )}
+                </Box>
+              </Box>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const { t } = useLanguage();
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
   const { data: recentTickets, isLoading: recentLoading } = useGetRecentTickets();
   const { data: myTickets, isLoading: myLoading } = useGetMyTickets();
+  const { data: dueSoonTickets, isLoading: dueSoonLoading } = useGetDueSoonTickets();
 
-  if (statsLoading || recentLoading || myLoading) {
+  if (statsLoading || recentLoading || myLoading || dueSoonLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
         <CircularProgress />
       </Box>
     );
   }
+
+  const dueSoon = dueSoonTickets || [];
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
@@ -253,7 +377,7 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={{ xs: 1, sm: 2 }}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 2 }}>
         <Grid item xs={12} md={6}>
           <TicketListCard
             title={t.dashboard.myTickets}
@@ -269,6 +393,12 @@ export default function Dashboard() {
             emptyMsg=""
             viewAllLabel={t.dashboard.viewAll}
           />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={{ xs: 1, sm: 2 }}>
+        <Grid item xs={12}>
+          <DueSoonCard tickets={dueSoon.slice(0, 8)} />
         </Grid>
       </Grid>
     </Box>

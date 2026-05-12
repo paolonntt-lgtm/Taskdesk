@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and, gte, isNotNull, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
@@ -355,6 +355,43 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       resolvers: resolvers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
     },
   });
+});
+
+router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const conditions: any[] = [
+    isNotNull(ticketsTable.dueAt),
+    lt(ticketsTable.dueAt, sql`now() + interval '7 days'`),
+    notInArray(ticketsTable.status, ["resolved", "closed"]),
+  ];
+  if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
+
+  const tickets = await db.select().from(ticketsTable)
+    .where(and(...conditions))
+    .orderBy(ticketsTable.dueAt)
+    .limit(10);
+
+  const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])] as number[];
+  const users = userIds.length > 0
+    ? await db.select({
+        id: usersTable.id, name: usersTable.name, email: usersTable.email,
+        role: usersTable.role, mainLocation: usersTable.mainLocation,
+        avatarUrl: usersTable.avatarUrl, createdAt: usersTable.createdAt,
+      }).from(usersTable).where(
+        orgId != null ? and(inArray(usersTable.id, userIds), eq(usersTable.organizationId, orgId)) : inArray(usersTable.id, userIds)
+      )
+    : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  res.json(tickets.map((t) => ({
+    ...t,
+    creator: userMap.get(t.createdBy)!,
+    assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
+    commentCount: 0,
+    noteCount: 0,
+  })));
 });
 
 router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> => {

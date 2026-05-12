@@ -868,6 +868,64 @@ export const GetMyTicketsResponseItem = zod
 export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem);
 
 /**
+ * @summary Get open tickets with a due date within the next 7 days (including overdue)
+ */
+export const GetDueSoonTicketsResponseItem = zod
+  .object({
+    id: zod.number(),
+    ticketNumber: zod.number().nullish(),
+    title: zod.string(),
+    description: zod.string(),
+    category: zod.string(),
+    location: zod.string(),
+    resource: zod.string().nullish(),
+    priority: zod.enum(["low", "medium", "high", "urgent"]),
+    status: zod.enum(["open", "in_progress", "waiting", "resolved", "closed"]),
+    createdBy: zod.number(),
+    assignedTo: zod.number().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+    closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      creator: zod.object({
+        id: zod.number(),
+        name: zod.string(),
+        email: zod.string(),
+        role: zod.enum(["admin", "user"]),
+        mainLocation: zod.string().nullish(),
+        group: zod.string().nullish(),
+        groups: zod.array(zod.string()).nullish(),
+        avatarUrl: zod.string().nullish(),
+        isActive: zod.boolean(),
+        createdAt: zod.coerce.date(),
+      }),
+      assignee: zod
+        .object({
+          id: zod.number(),
+          name: zod.string(),
+          email: zod.string(),
+          role: zod.enum(["admin", "user"]),
+          mainLocation: zod.string().nullish(),
+          group: zod.string().nullish(),
+          groups: zod.array(zod.string()).nullish(),
+          avatarUrl: zod.string().nullish(),
+          isActive: zod.boolean(),
+          createdAt: zod.coerce.date(),
+        })
+        .nullish(),
+      commentCount: zod.number(),
+      noteCount: zod.number(),
+    }),
+  );
+export const GetDueSoonTicketsResponse = zod.array(
+  GetDueSoonTicketsResponseItem,
+);
+
+/**
  * @summary Send a message to the AI bot (SSE streaming)
  */
 
