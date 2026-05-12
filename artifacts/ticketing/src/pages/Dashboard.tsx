@@ -9,8 +9,9 @@ import {
   CheckCircle as ResolvedIcon,
   PriorityHigh as UrgentIcon,
   Warning as OverdueIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
-import { useGetDashboardStats, useGetMyTickets, useGetDueSoonTickets } from '@workspace/api-client-react';
+import { useGetDashboardStats, useGetMyTickets, useGetDueSoonTickets, useGetRecentTickets } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -282,8 +283,9 @@ export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
   const { data: myTickets, isLoading: myLoading } = useGetMyTickets();
   const { data: dueSoonTickets, isLoading: dueSoonLoading } = useGetDueSoonTickets();
+  const { data: recentTickets, isLoading: recentLoading } = useGetRecentTickets();
 
-  if (statsLoading || myLoading || dueSoonLoading) {
+  if (statsLoading || myLoading || dueSoonLoading || recentLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
         <CircularProgress />
@@ -293,6 +295,7 @@ export default function Dashboard() {
 
   const dueSoon = (dueSoonTickets || []).slice(0, 8);
   const myOpen = (myTickets || []).filter((t) => !['resolved', 'closed'].includes(t.status)).slice(0, 8);
+  const recent = (recentTickets || []).slice(0, 8);
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
@@ -343,7 +346,7 @@ export default function Dashboard() {
       </Grid>
 
       <Grid container spacing={{ xs: 1, sm: 2 }}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <FeedCard
             title={t.dashboard.myTickets}
             icon={<Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main', fontSize: '0.6rem' }}>IO</Avatar>}
@@ -352,7 +355,7 @@ export default function Dashboard() {
             viewAllHref="/tickets"
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <FeedCard
             title={t.dashboard.dueSoon}
             icon={<ScheduleIcon fontSize="small" color={dueSoon.length > 0 ? 'warning' : 'disabled'} />}
@@ -361,6 +364,15 @@ export default function Dashboard() {
             viewAllHref="/tickets"
             showDueBadge
             accentColor={dueSoon.length > 0 ? 'warning.main' : undefined}
+          />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <FeedCard
+            title={t.dashboard.recentActivity}
+            icon={<HistoryIcon fontSize="small" color="action" />}
+            tickets={recent}
+            emptyMsg=""
+            viewAllHref="/tickets"
           />
         </Grid>
       </Grid>
