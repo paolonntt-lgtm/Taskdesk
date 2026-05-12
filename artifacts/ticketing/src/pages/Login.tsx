@@ -149,7 +149,7 @@ export default function Login() {
             <Box sx={{ mb: 4, textAlign: 'center' }}>
               <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="body2" color="text.secondary">
-                {mode === 'login' ? t.login.subtitle : mode === 'register' ? t.login.registerSubtitle : 'Inserisci la tua email per ricevere il link di reset'}
+                {mode === 'login' ? t.login.subtitle : mode === 'register' ? t.login.registerSubtitle : t.login.forgotSubtitle}
               </Typography>
             </Box>
 
@@ -180,7 +180,7 @@ export default function Login() {
                     sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
                     onClick={() => switchMode('forgot')}
                   >
-                    Password dimenticata?
+                    {t.login.forgotLink}
                   </Typography>
                 </Box>
                 <Button
@@ -207,10 +207,10 @@ export default function Login() {
             ) : mode === 'register' ? (
               <form onSubmit={handleRegister}>
                 <TextField
-                  label="Nome azienda" type="text" fullWidth margin="normal"
+                  label={t.login.orgName} type="text" fullWidth margin="normal"
                   value={organizationName} onChange={(e) => setOrganizationName(e.target.value)}
                   required variant="outlined" autoFocus
-                  helperText="Il nome della tua organizzazione o azienda"
+                  helperText={t.login.orgNameHelper}
                 />
                 <TextField
                   label={t.login.name} type="text" fullWidth margin="normal"
@@ -260,12 +260,12 @@ export default function Login() {
             ) : forgotSent ? (
               <Box textAlign="center" py={1}>
                 <CheckCircle sx={{ fontSize: 52, color: 'success.main', mb: 2 }} />
-                <Typography variant="subtitle1" fontWeight={700} mb={1}>Email inviata!</Typography>
+                <Typography variant="subtitle1" fontWeight={700} mb={1}>{t.login.forgotSentTitle}</Typography>
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                  Se l'indirizzo <strong>{email}</strong> è registrato, riceverai un link per reimpostare la password entro pochi minuti.
+                  {t.login.forgotSentPrefix} <strong>{email}</strong> {t.login.forgotSentMessage}
                 </Typography>
                 <Button variant="outlined" fullWidth sx={{ borderRadius: '12px' }} onClick={() => switchMode('login')}>
-                  Torna al login
+                  {t.login.backToLogin}
                 </Button>
               </Box>
             ) : (
@@ -282,7 +282,7 @@ export default function Login() {
                   startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : null}
                   sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
                 >
-                  {isSubmitting ? 'Invio in corso…' : 'Invia link di reset'}
+                  {isSubmitting ? t.login.forgotSubmitting : t.login.forgotSubmit}
                 </Button>
                 <Box mt={2} textAlign="center">
                   <Typography
@@ -290,7 +290,7 @@ export default function Login() {
                     sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
                     onClick={() => switchMode('login')}
                   >
-                    ← Torna al login
+                    ← {t.login.backToLogin}
                   </Typography>
                 </Box>
               </form>
