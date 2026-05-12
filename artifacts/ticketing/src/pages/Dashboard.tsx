@@ -1,10 +1,16 @@
 import React from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, CircularProgress,
-  Chip, Button, Avatar, useMediaQuery, useTheme,
+  Chip, Button, Avatar, useMediaQuery, useTheme, Divider,
 } from '@mui/material';
-import { Schedule as ScheduleIcon } from '@mui/icons-material';
-import { useGetDashboardStats, useGetRecentTickets, useGetMyTickets, useGetDueSoonTickets } from '@workspace/api-client-react';
+import {
+  Schedule as ScheduleIcon,
+  FolderOpen as OpenIcon,
+  CheckCircle as ResolvedIcon,
+  PriorityHigh as UrgentIcon,
+  Warning as OverdueIcon,
+} from '@mui/icons-material';
+import { useGetDashboardStats, useGetMyTickets, useGetDueSoonTickets } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -32,25 +38,57 @@ export function getPriorityColor(priority: string) {
 function StatCard({
   title,
   value,
-  color = 'primary.main',
+  color,
+  bgColor,
+  icon,
   href,
 }: {
   title: string;
   value: number;
-  color?: string;
+  color: string;
+  bgColor: string;
+  icon: React.ReactNode;
   href?: string;
 }) {
   const inner = (
-    <CardContent sx={{ p: { xs: 1, sm: 3 }, '&:last-child': { pb: { xs: 1, sm: 3 } } }}>
-      <Typography color="text.secondary" gutterBottom variant="subtitle2" noWrap fontSize={{ xs: '0.65rem', sm: '0.875rem' }}>
-        {title}
-      </Typography>
-      <Typography
-        component="div"
-        sx={{ color, fontWeight: 'bold', fontSize: { xs: '1.4rem', sm: '2.5rem', md: '3rem' }, lineHeight: 1 }}
-      >
-        {value}
-      </Typography>
+    <CardContent sx={{ p: { xs: 1.5, sm: 2.5 }, '&:last-child': { pb: { xs: 1.5, sm: 2.5 } } }}>
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between">
+        <Box>
+          <Typography
+            color="text.secondary"
+            variant="caption"
+            display="block"
+            fontWeight={500}
+            mb={0.5}
+            fontSize={{ xs: '0.65rem', sm: '0.75rem' }}
+            textTransform="uppercase"
+            letterSpacing={0.5}
+          >
+            {title}
+          </Typography>
+          <Typography
+            component="div"
+            sx={{ color, fontWeight: 'bold', fontSize: { xs: '1.8rem', sm: '2.8rem' }, lineHeight: 1 }}
+          >
+            {value}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            width: { xs: 36, sm: 44 },
+            height: { xs: 36, sm: 44 },
+            borderRadius: 2,
+            bgcolor: bgColor,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            color,
+          }}
+        >
+          {icon}
+        </Box>
+      </Box>
     </CardContent>
   );
 
@@ -72,247 +110,161 @@ function StatCard({
       </Card>
     );
   }
-
   return <Card sx={{ height: '100%' }}>{inner}</Card>;
 }
 
-interface TicketItem {
+type TicketRow = {
   id: number;
   title: string;
   status: string;
   priority: string;
-  category?: string;
-}
+  category?: string | null;
+  dueAt?: string | null;
+  ticketNumber?: number | null;
+};
 
-function TicketListCard({ title, tickets, emptyMsg, viewAllLabel, viewAllHref }: {
-  title: string;
-  tickets: TicketItem[];
-  emptyMsg: string;
-  viewAllLabel: string;
-  viewAllHref?: string;
-}) {
-  const { t } = useLanguage();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" px={{ xs: 1.5, sm: 2 }} pt={{ xs: 1.5, sm: 2 }} pb={1}>
-          <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.95rem', sm: '1.25rem' }}>{title}</Typography>
-          <Button component={Link} href={viewAllHref || '/tickets'} size="small">{viewAllLabel}</Button>
-        </Box>
-
-        {tickets.length === 0 ? (
-          <Box px={2} pb={2}>
-            <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-              {emptyMsg}
-            </Typography>
-          </Box>
-        ) : (
-          tickets.map((ticket, idx) => (
-            <Box
-              key={ticket.id}
-              component={Link}
-              href={`/tickets/${ticket.id}`}
-              sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 1,
-                px: { xs: 1.5, sm: 2 },
-                py: { xs: 1, sm: 1.5 },
-                textDecoration: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                borderTop: idx === 0 ? '1px solid' : 'none',
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                '&:hover': { bgcolor: 'action.hover' },
-                '&:last-child': { borderBottom: 'none' },
-                overflow: 'hidden',
-              }}
-            >
-              {!isMobile && (
-                <Avatar
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    fontSize: '0.7rem',
-                    bgcolor: 'primary.light',
-                    color: 'primary.contrastText',
-                    flexShrink: 0,
-                  }}
-                >
-                  #{(ticket as any).ticketNumber ?? ticket.id}
-                </Avatar>
-              )}
-
-              <Box flex={1} minWidth={0}>
-                <Typography variant="body2" fontWeight="medium" noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
-                  {isMobile && <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>#{(ticket as any).ticketNumber ?? ticket.id}</Typography>}
-                  {ticket.title}
-                </Typography>
-                {ticket.category && (
-                  <Typography variant="caption" color="text.secondary" noWrap display="block">
-                    {ticket.category}
-                  </Typography>
-                )}
-                {isMobile && (
-                  <Box display="flex" gap={0.5} mt={0.5} flexWrap="wrap">
-                    <Chip
-                      label={t.status[ticket.status] || ticket.status}
-                      size="small"
-                      color={getStatusColor(ticket.status) as any}
-                      sx={{ fontSize: '0.65rem', height: 18 }}
-                    />
-                    <Chip
-                      label={t.priority[ticket.priority] || ticket.priority}
-                      size="small"
-                      variant="outlined"
-                      color={getPriorityColor(ticket.priority) as any}
-                      sx={{ fontSize: '0.65rem', height: 18 }}
-                    />
-                  </Box>
-                )}
-              </Box>
-
-              {!isMobile && (
-                <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5} flexShrink={0} maxWidth={120}>
-                  <Chip
-                    label={t.status[ticket.status] || ticket.status}
-                    size="small"
-                    color={getStatusColor(ticket.status) as any}
-                  />
-                  <Chip
-                    label={t.priority[ticket.priority] || ticket.priority}
-                    size="small"
-                    variant="outlined"
-                    color={getPriorityColor(ticket.priority) as any}
-                  />
-                </Box>
-              )}
-            </Box>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' | 'default' } {
-  const now = new Date();
-  const due = new Date(dueAt);
-  const diffMs = due.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return { label: t.dashboard.overdue, color: 'error' };
+function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
+  const diffDays = Math.ceil((new Date(dueAt).getTime() - Date.now()) / 86400000);
+  if (diffDays < 0) return { label: t.dashboard.overdueLabel, color: 'error' };
   if (diffDays === 0) return { label: t.dashboard.dueToday, color: 'error' };
   if (diffDays === 1) return { label: t.dashboard.dueTomorrow, color: 'warning' };
   return { label: `${diffDays} ${t.dashboard.dueInDays}`, color: 'warning' };
 }
 
-function DueSoonCard({ tickets }: { tickets: Array<{ id: number; title: string; status: string; priority: string; category?: string | null; dueAt?: string | null; ticketNumber?: number | null }> }) {
+function TicketRow({ ticket, showDueBadge = false }: { ticket: TicketRow; showDueBadge?: boolean }) {
   const { t } = useLanguage();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const dueBadge = showDueBadge && ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
 
   return (
-    <Card sx={{ height: '100%', borderLeft: 3, borderColor: tickets.length > 0 ? 'warning.main' : 'divider' }}>
+    <Box
+      component={Link}
+      href={`/tickets/${ticket.id}`}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        px: { xs: 1.5, sm: 2 },
+        py: { xs: 1, sm: 1.25 },
+        textDecoration: 'none',
+        color: 'inherit',
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
+        overflow: 'hidden',
+      }}
+    >
+      {!isMobile && (
+        <Avatar
+          sx={{
+            width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
+            bgcolor: dueBadge?.color === 'error' ? 'error.light'
+              : dueBadge?.color === 'warning' ? 'warning.light'
+              : 'primary.light',
+            color: dueBadge?.color === 'error' ? 'error.contrastText'
+              : dueBadge?.color === 'warning' ? 'warning.contrastText'
+              : 'primary.contrastText',
+          }}
+        >
+          #{ticket.ticketNumber ?? ticket.id}
+        </Avatar>
+      )}
+
+      <Box flex={1} minWidth={0}>
+        <Typography variant="body2" fontWeight={500} noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
+          {isMobile && (
+            <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
+              #{ticket.ticketNumber ?? ticket.id}
+            </Typography>
+          )}
+          {ticket.title}
+        </Typography>
+        {ticket.category && (
+          <Typography variant="caption" color="text.secondary" noWrap display="block">
+            {ticket.category}
+          </Typography>
+        )}
+      </Box>
+
+      <Box display="flex" alignItems="center" gap={0.5} flexShrink={0}>
+        {dueBadge && (
+          <Chip label={dueBadge.label} size="small" color={dueBadge.color}
+            sx={{ fontSize: '0.62rem', height: 20, fontWeight: 'bold' }} />
+        )}
+        <Chip
+          label={t.status[ticket.status] || ticket.status}
+          size="small"
+          color={getStatusColor(ticket.status) as any}
+          sx={{ fontSize: '0.62rem', height: 20 }}
+        />
+        {!isMobile && (
+          <Chip
+            label={t.priority[ticket.priority] || ticket.priority}
+            size="small"
+            variant="outlined"
+            color={getPriorityColor(ticket.priority) as any}
+            sx={{ fontSize: '0.62rem', height: 20 }}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function FeedCard({
+  title,
+  icon,
+  tickets,
+  emptyMsg,
+  viewAllHref,
+  showDueBadge = false,
+  accentColor,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  tickets: TicketRow[];
+  emptyMsg: string;
+  viewAllHref?: string;
+  showDueBadge?: boolean;
+  accentColor?: string;
+}) {
+  const { t } = useLanguage();
+  return (
+    <Card sx={{ height: '100%', ...(accentColor ? { borderTop: 3, borderColor: accentColor } : {}) }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" px={{ xs: 1.5, sm: 2 }} pt={{ xs: 1.5, sm: 2 }} pb={1}>
+        <Box display="flex" justifyContent="space-between" alignItems="center"
+          px={{ xs: 1.5, sm: 2 }} pt={{ xs: 1.5, sm: 2 }} pb={1}>
           <Box display="flex" alignItems="center" gap={1}>
-            <ScheduleIcon fontSize="small" color={tickets.length > 0 ? 'warning' : 'disabled'} />
-            <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.95rem', sm: '1.25rem' }}>
-              {t.dashboard.dueSoon}
+            {icon}
+            <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.1rem' }}>
+              {title}
             </Typography>
             {tickets.length > 0 && (
-              <Chip label={tickets.length} size="small" color="warning" sx={{ height: 20, fontSize: '0.7rem' }} />
+              <Chip label={tickets.length} size="small"
+                color={accentColor ? 'warning' : 'default'}
+                sx={{ height: 18, fontSize: '0.65rem' }} />
             )}
           </Box>
-          <Button component={Link} href="/tickets" size="small">{t.dashboard.viewAll}</Button>
+          <Button component={Link} href={viewAllHref || '/tickets'} size="small" sx={{ fontSize: '0.75rem' }}>
+            {t.dashboard.viewAll}
+          </Button>
         </Box>
 
+        <Divider />
+
         {tickets.length === 0 ? (
-          <Box px={2} pb={2}>
-            <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-              {t.dashboard.noDueSoon}
+          <Box px={2} py={3}>
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              {emptyMsg}
             </Typography>
           </Box>
         ) : (
-          tickets.map((ticket, idx) => {
-            const badge = ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
-            return (
-              <Box
-                key={ticket.id}
-                component={Link}
-                href={`/tickets/${ticket.id}`}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 1,
-                  px: { xs: 1.5, sm: 2 },
-                  py: { xs: 1, sm: 1.5 },
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  borderTop: idx === 0 ? '1px solid' : 'none',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  '&:last-child': { borderBottom: 'none' },
-                  overflow: 'hidden',
-                }}
-              >
-                {!isMobile && (
-                  <Avatar
-                    sx={{
-                      width: 32, height: 32, fontSize: '0.7rem',
-                      bgcolor: badge?.color === 'error' ? 'error.light' : 'warning.light',
-                      color: badge?.color === 'error' ? 'error.contrastText' : 'warning.contrastText',
-                      flexShrink: 0,
-                    }}
-                  >
-                    #{(ticket as any).ticketNumber ?? ticket.id}
-                  </Avatar>
-                )}
-
-                <Box flex={1} minWidth={0}>
-                  <Typography variant="body2" fontWeight="medium" noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
-                    {isMobile && (
-                      <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
-                        #{(ticket as any).ticketNumber ?? ticket.id}
-                      </Typography>
-                    )}
-                    {ticket.title}
-                  </Typography>
-                  {ticket.category && (
-                    <Typography variant="caption" color="text.secondary" noWrap display="block">
-                      {ticket.category}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5} flexShrink={0}>
-                  {badge && (
-                    <Chip
-                      label={badge.label}
-                      size="small"
-                      color={badge.color}
-                      sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold' }}
-                    />
-                  )}
-                  {!isMobile && (
-                    <Chip
-                      label={t.status[ticket.status] || ticket.status}
-                      size="small"
-                      color={getStatusColor(ticket.status) as any}
-                      sx={{ fontSize: '0.65rem', height: 20 }}
-                    />
-                  )}
-                </Box>
-              </Box>
-            );
-          })
+          tickets.map((ticket, idx) => (
+            <React.Fragment key={ticket.id}>
+              <TicketRow ticket={ticket} showDueBadge={showDueBadge} />
+              {idx < tickets.length - 1 && <Divider sx={{ mx: 2 }} />}
+            </React.Fragment>
+          ))
         )}
       </CardContent>
     </Card>
@@ -321,12 +273,12 @@ function DueSoonCard({ tickets }: { tickets: Array<{ id: number; title: string; 
 
 export default function Dashboard() {
   const { t } = useLanguage();
+  const theme = useTheme();
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
-  const { data: recentTickets, isLoading: recentLoading } = useGetRecentTickets();
   const { data: myTickets, isLoading: myLoading } = useGetMyTickets();
   const { data: dueSoonTickets, isLoading: dueSoonLoading } = useGetDueSoonTickets();
 
-  if (statsLoading || recentLoading || myLoading || dueSoonLoading) {
+  if (statsLoading || myLoading || dueSoonLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
         <CircularProgress />
@@ -334,71 +286,77 @@ export default function Dashboard() {
     );
   }
 
-  const dueSoon = dueSoonTickets || [];
+  const dueSoon = (dueSoonTickets || []).slice(0, 8);
+  const myOpen = (myTickets || []).filter((t) => !['resolved', 'closed'].includes(t.status)).slice(0, 8);
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom mb={{ xs: 1.5, sm: 3 }} fontSize={{ xs: '1.1rem', sm: '1.5rem' }}>
+      <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }} fontSize={{ xs: '1.1rem', sm: '1.4rem' }}>
         {t.dashboard.title}
       </Typography>
 
-      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 3 }}>
-        <Grid item xs={6} md={3}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 2, sm: 3 }}>
+        <Grid item xs={6} sm={6} md={3}>
           <StatCard
             title={t.dashboard.openTickets}
             value={stats?.openTickets || 0}
-            color="primary.main"
+            color={theme.palette.primary.main}
+            bgColor={theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.15)' : '#e3f2fd'}
+            icon={<OpenIcon fontSize="small" />}
             href="/tickets?status=open"
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            title={t.dashboard.inProgress}
-            value={stats?.inProgressTickets || 0}
-            color="warning.main"
-            href="/tickets?status=in_progress"
+            title={t.dashboard.resolved}
+            value={stats?.resolvedTickets || 0}
+            color={theme.palette.success.main}
+            bgColor={theme.palette.mode === 'dark' ? 'rgba(46,125,50,0.15)' : '#e8f5e9'}
+            icon={<ResolvedIcon fontSize="small" />}
+            href="/tickets?status=resolved"
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <StatCard
             title={t.dashboard.urgent}
             value={stats?.urgentTickets || 0}
-            color="error.main"
+            color={theme.palette.error.main}
+            bgColor={theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.15)' : '#ffebee'}
+            icon={<UrgentIcon fontSize="small" />}
             href="/tickets?priority=urgent"
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            title={t.dashboard.closed}
-            value={stats?.closedTickets || 0}
-            color="text.secondary"
-            href="/tickets?status=closed"
-          />
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 2 }}>
-        <Grid item xs={12} md={6}>
-          <TicketListCard
-            title={t.dashboard.myTickets}
-            tickets={(myTickets || []).slice(0, 5)}
-            emptyMsg={t.dashboard.noAssignedTickets}
-            viewAllLabel={t.dashboard.viewAll}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TicketListCard
-            title={t.dashboard.recentActivity}
-            tickets={(recentTickets || []).slice(0, 5)}
-            emptyMsg=""
-            viewAllLabel={t.dashboard.viewAll}
+            title={t.dashboard.overdue}
+            value={(stats as any)?.overdueTickets || 0}
+            color={theme.palette.warning.dark}
+            bgColor={theme.palette.mode === 'dark' ? 'rgba(230,81,0,0.15)' : '#fff3e0'}
+            icon={<OverdueIcon fontSize="small" />}
           />
         </Grid>
       </Grid>
 
       <Grid container spacing={{ xs: 1, sm: 2 }}>
-        <Grid item xs={12}>
-          <DueSoonCard tickets={dueSoon.slice(0, 8)} />
+        <Grid item xs={12} md={6}>
+          <FeedCard
+            title={t.dashboard.myTickets}
+            icon={<Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main', fontSize: '0.6rem' }}>IO</Avatar>}
+            tickets={myOpen}
+            emptyMsg={t.dashboard.noAssignedTickets}
+            viewAllHref="/tickets"
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <FeedCard
+            title={t.dashboard.dueSoon}
+            icon={<ScheduleIcon fontSize="small" color={dueSoon.length > 0 ? 'warning' : 'disabled'} />}
+            tickets={dueSoon}
+            emptyMsg={t.dashboard.noDueSoon}
+            viewAllHref="/tickets"
+            showDueBadge
+            accentColor={dueSoon.length > 0 ? 'warning.main' : undefined}
+          />
         </Grid>
       </Grid>
     </Box>

@@ -17,7 +17,8 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     waiting: sql<number>`count(*) filter (where status = 'waiting')`,
     resolved: sql<number>`count(*) filter (where status = 'resolved')`,
     closed: sql<number>`count(*) filter (where status = 'closed')`,
-    urgent: sql<number>`count(*) filter (where priority = 'urgent')`,
+    urgent: sql<number>`count(*) filter (where priority = 'urgent' and status not in ('resolved','closed'))`,
+    overdue: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
     last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
     last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
   }).from(ticketsTable).where(orgFilter);
@@ -34,6 +35,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     resolvedTickets: Number(counts.resolved),
     closedTickets: Number(counts.closed),
     urgentTickets: Number(counts.urgent),
+    overdueTickets: Number(counts.overdue),
     last7Days: Number(counts.last7),
     last30Days: Number(counts.last30),
     avgResolutionHours: avgResult.avg ? Number(avgResult.avg) : null,
