@@ -4,7 +4,7 @@ import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTa
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
-import { sendEmail, buildTicketReplyEmail } from "../lib/email";
+import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { settingsTable } from "@workspace/db";
 
@@ -173,7 +173,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       appBaseUrl: appBaseUrl(),
     });
     const replyTo = await getOrgInboundEmail(ticket.organizationId);
-    void sendEmail({ to: toEmail, subject, html, text, ...(replyTo ? { replyTo } : {}) });
+    void sendEmailForOrg(ticket.organizationId, { to: toEmail, subject, html, text, ...(replyTo ? { replyTo } : {}) });
   }
 
   // Send targeted notifications to mentioned users

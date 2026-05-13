@@ -6,7 +6,7 @@ import {
   usersTable,
   type NotificationType,
 } from "@workspace/db";
-import { sendEmail, buildNotificationEmail } from "./email";
+import { sendEmailForOrg, buildNotificationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { logger } from "./logger";
 
@@ -82,7 +82,8 @@ async function dispatchEmails(
   recipients: Array<{ id: number; name: string | null; email: string | null }>,
   prefs: Map<number, PrefForUser>,
   text: string,
-  ticketId: number | null
+  ticketId: number | null,
+  orgId?: number | null
 ): Promise<void> {
   const baseUrl = appBaseUrl();
   const targets = recipients.filter((u) => {
@@ -99,8 +100,8 @@ async function dispatchEmails(
         ticketId,
         appBaseUrl: baseUrl,
       });
-      return sendEmail({ to: u.email!, subject, html, text: body }).then((r) => {
-        if (!r.ok) logger.warn({ userId: u.id, err: r.error }, "notification email failed");
+      return sendEmailForOrg(orgId, { to: u.email!, subject, html, text: body }).then((r) => {
+        if (!r.ok) logger.warn({ userId: u.id, orgId, err: r.error }, "notification email failed");
       });
     })
   );
@@ -145,7 +146,7 @@ export async function createNotificationsForTicket(
   void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
 
   // Email dispatch (independent of in-app)
-  void dispatchEmails(candidates, prefs, text, ticketId);
+  void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
 }
 
 export async function createNotificationForUser(
@@ -180,5 +181,5 @@ export async function createNotificationForUser(
     }
   }
 
-  void dispatchEmails([user], prefs, text, ticketId);
+  void dispatchEmails([user], prefs, text, ticketId, organizationId);
 }

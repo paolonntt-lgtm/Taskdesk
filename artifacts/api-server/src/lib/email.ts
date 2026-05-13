@@ -1,22 +1,31 @@
 import nodemailer from "nodemailer";
+import { eq } from "drizzle-orm";
+import { db, settingsTable } from "@workspace/db";
 import { logger } from "./logger";
 
-function createTransport() {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  from: string;
+}
 
-  if (!host || !user || !pass) {
-    throw new Error("Credenziali SMTP mancanti (SMTP_HOST, SMTP_USER, SMTP_PASS)");
-  }
-
+function createTransportFromConfig(config: SmtpConfig) {
   return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.password },
   });
+}
+
+export async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null> {
+  const key = `org_${orgId}_smtp_config`;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (!row) return null;
+  try { return JSON.parse(row.value as string) as SmtpConfig; } catch { return null; }
 }
 
 interface SendEmailArgs {
@@ -27,12 +36,28 @@ interface SendEmailArgs {
   replyTo?: string;
 }
 
-export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Send an email using the SMTP config configured by the organisation.
+ * Returns { ok: false } (without throwing) if no config is set — callers
+ * should log / surface this to the user as a configuration reminder.
+ */
+export async function sendEmailForOrg(
+  orgId: number | null | undefined,
+  args: SendEmailArgs
+): Promise<{ ok: boolean; error?: string }> {
+  if (!orgId) {
+    logger.warn({ to: args.to }, "sendEmailForOrg: nessun orgId — email non inviata");
+    return { ok: false, error: "Nessuna organizzazione associata" };
+  }
+  const config = await getOrgSmtpConfig(orgId);
+  if (!config) {
+    logger.warn({ orgId, to: args.to }, "sendEmailForOrg: SMTP uscente non configurato");
+    return { ok: false, error: "Configura l'email uscente SMTP nelle Impostazioni → Email" };
+  }
   try {
-    const transporter = createTransport();
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const transporter = createTransportFromConfig(config);
     await transporter.sendMail({
-      from,
+      from: config.from || config.user,
       to: args.to,
       subject: args.subject,
       html: args.html,
@@ -41,7 +66,27 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; err
     });
     return { ok: true };
   } catch (err: any) {
-    logger.warn({ to: args.to, err: err?.message }, "email send failed");
+    logger.warn({ orgId, to: args.to, err: err?.message }, "sendEmailForOrg failed");
+    return { ok: false, error: err?.message ?? "send failed" };
+  }
+}
+
+/** @deprecated Use sendEmailForOrg — kept only for the SMTP test route */
+export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) {
+    return { ok: false, error: "Credenziali SMTP di sistema mancanti" };
+  }
+  try {
+    const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+    const from = process.env.SMTP_FROM || user;
+    await transporter.sendMail({ from, to: args.to, subject: args.subject, html: args.html, text: args.text, ...(args.replyTo ? { replyTo: args.replyTo } : {}) });
+    return { ok: true };
+  } catch (err: any) {
+    logger.warn({ to: args.to, err: err?.message }, "sendEmail (legacy) failed");
     return { ok: false, error: err?.message ?? "send failed" };
   }
 }

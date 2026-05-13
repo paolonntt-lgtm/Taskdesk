@@ -4,6 +4,7 @@ import { db, settingsTable, organizationsTable, usersTable } from "@workspace/db
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { testImapConnection, getImapStatus, baselineMailbox, type ImapConfig } from "../lib/emailPoller";
+import { type SmtpConfig } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -388,6 +389,101 @@ router.get("/settings/inbound-email/status", requireAuth, requireAdmin, async (r
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
   const status = await getImapStatus(orgId);
   res.json({ status });
+});
+
+// ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────
+
+router.get("/settings/outbound-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+
+  const key = `org_${orgId}_smtp_config`;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (!row) { res.json({ config: null }); return; }
+
+  let config: SmtpConfig;
+  try { config = JSON.parse(row.value); } catch { res.json({ config: null }); return; }
+
+  res.json({
+    config: { host: config.host, port: config.port, secure: config.secure, user: config.user, password: "***", from: config.from },
+  });
+});
+
+router.put("/settings/outbound-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+
+  const { host, port, secure, user, password, from } = req.body ?? {};
+  if (!host || typeof host !== "string") { res.status(400).json({ message: "Host SMTP obbligatorio" }); return; }
+  if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente SMTP obbligatorio" }); return; }
+  if (!from || typeof from !== "string") { res.status(400).json({ message: "Indirizzo mittente obbligatorio" }); return; }
+
+  const key = `org_${orgId}_smtp_config`;
+  const [existing] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  let existingPassword = "";
+  if (existing) {
+    try { existingPassword = (JSON.parse(existing.value) as SmtpConfig).password ?? ""; } catch {}
+  }
+
+  const resolvedPassword = (typeof password === "string" && password !== "***" && password.length > 0)
+    ? password : existingPassword;
+  if (!resolvedPassword) { res.status(400).json({ message: "Password SMTP obbligatoria" }); return; }
+
+  const config: SmtpConfig = {
+    host: host.trim(),
+    port: typeof port === "number" ? port : parseInt(String(port), 10) || 587,
+    secure: secure === true,
+    user: user.trim(),
+    password: resolvedPassword,
+    from: from.trim(),
+  };
+
+  await db.insert(settingsTable).values({ key, value: JSON.stringify(config) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(config) } });
+
+  res.json({ config: { ...config, password: "***" } });
+});
+
+router.post("/settings/outbound-email/test", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+
+  const { host, port, secure, user, password, from } = req.body ?? {};
+  if (!host || !user) { res.status(400).json({ message: "Host e utente SMTP obbligatori" }); return; }
+
+  let resolvedPassword = password;
+  if (!resolvedPassword || resolvedPassword === "***") {
+    const key = `org_${orgId}_smtp_config`;
+    const [existing] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+    if (existing) {
+      try { resolvedPassword = (JSON.parse(existing.value) as SmtpConfig).password; } catch {}
+    }
+  }
+  if (!resolvedPassword) { res.status(400).json({ message: "Password obbligatoria per il test" }); return; }
+
+  try {
+    const nodemailerMod = await import("nodemailer");
+    const transporter = nodemailerMod.default.createTransport({
+      host: String(host).trim(),
+      port: typeof port === "number" ? port : parseInt(String(port), 10) || 587,
+      secure: secure === true,
+      auth: { user: String(user).trim(), pass: resolvedPassword },
+    });
+    await transporter.verify();
+    await transporter.sendMail({
+      from: from || user,
+      to: currentUser.email!,
+      subject: "TaskDesk — Test email uscente SMTP",
+      text: `Configurazione SMTP verificata per ${user}. Messaggio automatico di test.`,
+      html: `<p>Configurazione SMTP verificata per <strong>${user}</strong>.</p><p>Messaggio automatico di test da <strong>TaskDesk</strong>.</p>`,
+    });
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.json({ ok: false, error: err?.message ?? "Connessione fallita" });
+  }
 });
 
 export default router;

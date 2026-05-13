@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -920,7 +920,10 @@ export default function Settings() {
             <KnowledgeBaseTab />
           </TabPanel>
           <TabPanel value={tab} index={4}>
-            <InboundEmailTab />
+            <Box display="flex" flexDirection="column" gap={4}>
+              <OutboundEmailTab />
+              <InboundEmailTab />
+            </Box>
           </TabPanel>
         </>
       )}
@@ -1265,6 +1268,140 @@ function OAuthProviderCard({
         </Button>
       )}
     </Box>
+  );
+}
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  from: string;
+}
+const EMPTY_SMTP: SmtpConfig = { host: '', port: 587, secure: false, user: '', password: '', from: '' };
+
+function OutboundEmailTab() {
+  const { t } = useLanguage();
+  const [config, setConfig] = useState<SmtpConfig>(EMPTY_SMTP);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings/outbound-email', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => { if (d.config) setConfig(d.config); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true); setMsg(null);
+    try {
+      const res = await fetch('/api/settings/outbound-email', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.smtpSaveError }); return; }
+      setConfig(data.config);
+      setMsg({ type: 'success', text: t.settings.smtpSaved });
+    } catch { setMsg({ type: 'error', text: t.settings.smtpSaveError }); }
+    finally { setSaving(false); }
+  };
+
+  const test = async () => {
+    setTesting(true); setMsg(null);
+    try {
+      const res = await fetch('/api/settings/outbound-email/test', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (data.ok) setMsg({ type: 'success', text: t.settings.smtpTestOk });
+      else setMsg({ type: 'error', text: `${t.settings.smtpTestFail}: ${data.error ?? ''}` });
+    } catch { setMsg({ type: 'error', text: t.settings.smtpTestFail }); }
+    finally { setTesting(false); }
+  };
+
+  if (loading) return <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>;
+
+  const isConfigured = !!(config.host && config.user && config.from);
+
+  return (
+    <Section title={t.settings.smtpTitle} icon={<Send color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={3}>{t.settings.smtpNote}</Typography>
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+      <Box
+        sx={{
+          border: '1px solid', borderColor: isConfigured ? 'primary.main' : 'divider',
+          borderRadius: 2, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5,
+          bgcolor: isConfigured ? 'primary.50' : 'transparent',
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: isConfigured ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
+          <Typography variant="subtitle2" fontWeight={700}>{t.settings.smtpTitle}</Typography>
+        </Box>
+
+        {/* Host + Port */}
+        <Box display="flex" gap={1}>
+          <TextField
+            label={t.settings.smtpHost} value={config.host} size="small" sx={{ flex: 1 }}
+            placeholder="smtp.gmail.com"
+            onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
+          />
+          <TextField
+            label={t.settings.smtpPort} value={config.port} size="small" sx={{ width: 88, flexShrink: 0 }}
+            type="number" inputProps={{ min: 1, max: 65535 }}
+            onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 587 }))}
+          />
+        </Box>
+
+        {/* SSL toggle */}
+        <Box display="flex" alignItems="center" gap={1}>
+          <Switch size="small" checked={config.secure}
+            onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked, port: e.target.checked ? 465 : 587 }))}
+          />
+          <Typography variant="body2">{t.settings.smtpSecure}</Typography>
+        </Box>
+
+        {/* User */}
+        <TextField
+          label={t.settings.smtpUser} value={config.user} size="small" fullWidth
+          placeholder="support@miazienda.it" type="email" autoComplete="off"
+          onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
+        />
+
+        {/* Password */}
+        <TextField
+          label={t.settings.smtpPassword} value={config.password} size="small" fullWidth
+          type="password" autoComplete="new-password"
+          onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
+        />
+
+        {/* From */}
+        <TextField
+          label={t.settings.smtpFrom} value={config.from} size="small" fullWidth
+          placeholder={t.settings.smtpFromPlaceholder}
+          onChange={(e) => setConfig((c) => ({ ...c, from: e.target.value }))}
+        />
+
+        {/* Actions */}
+        <Box display="flex" gap={1} justifyContent="flex-end" mt={0.5} flexWrap="wrap">
+          <Button size="small" variant="outlined" onClick={test} disabled={testing || saving || !config.host || !config.user}>
+            {testing ? t.settings.smtpTesting : t.settings.smtpTest}
+          </Button>
+          <Button size="small" variant="contained" onClick={save} disabled={saving || testing}>
+            {saving ? '…' : t.settings.smtpSave}
+          </Button>
+        </Box>
+      </Box>
+    </Section>
   );
 }
 
