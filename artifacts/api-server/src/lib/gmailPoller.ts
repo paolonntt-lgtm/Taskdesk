@@ -1,7 +1,7 @@
 import { db, settingsTable } from "@workspace/db";
 import { eq, like } from "drizzle-orm";
 import { logger } from "./logger";
-import { createTicketFromEmail } from "./ticketFromEmail";
+import { processInboundEmail } from "./ticketFromEmail";
 
 export interface GmailTokens {
   access_token: string;
@@ -157,7 +157,7 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
           const bodyText = extractBody(msg.payload);
           if (!fromEmail) continue;
 
-          await createTicketFromEmail({ fromEmail, fromName, subject, bodyText, orgId });
+          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId });
 
           // Mark as read so it won't be picked up again on the next poll
           await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/modify`, {

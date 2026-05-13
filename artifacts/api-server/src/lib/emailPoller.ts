@@ -3,7 +3,7 @@ import { simpleParser } from "mailparser";
 import { db, settingsTable } from "@workspace/db";
 import { like, eq } from "drizzle-orm";
 import { logger } from "./logger";
-import { createTicketFromEmail } from "./ticketFromEmail";
+import { processInboundEmail } from "./ticketFromEmail";
 
 export interface ImapConfig {
   host: string;
@@ -148,7 +148,7 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
 
             if (!fromAddr) continue;
 
-            await createTicketFromEmail({ fromEmail: fromAddr, fromName, subject, bodyText, orgId });
+            await processInboundEmail({ fromEmail: fromAddr, fromName, subject, bodyText, orgId });
             await client.messageFlagsAdd({ uid: msg.uid }, ["\\Seen"], { uid: true });
             created++;
           } catch (err) {

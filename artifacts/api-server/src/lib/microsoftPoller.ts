@@ -1,7 +1,7 @@
 import { db, settingsTable } from "@workspace/db";
 import { eq, like } from "drizzle-orm";
 import { logger } from "./logger";
-import { createTicketFromEmail } from "./ticketFromEmail";
+import { processInboundEmail } from "./ticketFromEmail";
 
 export interface MicrosoftTokens {
   access_token: string;
@@ -145,7 +145,7 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
             : rawBody.trim();
 
           if (!fromEmail) continue;
-          await createTicketFromEmail({ fromEmail, fromName, subject, bodyText, orgId });
+          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId });
 
           // Mark as read so it won't be picked up again on the next poll
           await fetch(`${GRAPH}/me/messages/${msg.id}`, {
