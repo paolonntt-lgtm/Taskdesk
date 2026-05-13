@@ -842,7 +842,7 @@ export default function TicketDetail() {
                       key={`c-${c.id}`}
                       display="flex"
                       gap={{ xs: 1, sm: 1.5 }}
-                      sx={{ position: 'relative', zIndex: 1 }}
+                      sx={{ position: 'relative', zIndex: 1, ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
                       onMouseEnter={() => setHoveredCommentId(c.id)}
                       onMouseLeave={() => setHoveredCommentId(null)}
                     >
