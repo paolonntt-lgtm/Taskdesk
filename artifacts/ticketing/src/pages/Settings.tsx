@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -616,11 +616,12 @@ export default function Settings() {
       </Typography>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
           <Tab label={t.settings.tabProfile} />
           <Tab label={t.settings.tabNotifications} />
           {isAdmin && <Tab label={t.settings.tabSystem} />}
           {isAdmin && <Tab label={t.settings.tabKnowledgeBase} />}
+          {isAdmin && <Tab label={t.settings.tabInboundEmail} icon={<MailOutline sx={{ fontSize: 16 }} />} iconPosition="start" />}
         </Tabs>
       </Box>
 
@@ -914,9 +915,14 @@ export default function Settings() {
 
       {/* ── KNOWLEDGE BASE (admin only) ── */}
       {isAdmin && (
-        <TabPanel value={tab} index={3}>
-          <KnowledgeBaseTab />
-        </TabPanel>
+        <>
+          <TabPanel value={tab} index={3}>
+            <KnowledgeBaseTab />
+          </TabPanel>
+          <TabPanel value={tab} index={4}>
+            <InboundEmailTab />
+          </TabPanel>
+        </>
       )}
     </Box>
   );
@@ -1158,6 +1164,264 @@ function GroupsEditor({
         {!saving && !permSaving && (listFlash || permFlash) && <Check fontSize="small" color="success" />}
       </Box>
     </Box>
+  );
+}
+
+// ── INBOUND EMAIL (IMAP) TAB ──────────────────────────────────────────────
+
+interface ImapConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  enabled: boolean;
+  folder: string;
+}
+interface ImapStatus {
+  lastPollAt: string | null;
+  lastError: string | null;
+  ticketsCreated: number;
+}
+
+const IMAP_PRESETS = [
+  { label: 'Gmail', host: 'imap.gmail.com', port: 993, secure: true },
+  { label: 'Outlook / Hotmail', host: 'outlook.office365.com', port: 993, secure: true },
+  { label: 'Yahoo', host: 'imap.mail.yahoo.com', port: 993, secure: true },
+  { label: 'Aruba', host: 'imaps.aruba.it', port: 993, secure: true },
+  { label: 'Libero / Italiaonline', host: 'imap.libero.it', port: 993, secure: true },
+];
+
+const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX' };
+
+function InboundEmailTab() {
+  const { t } = useLanguage();
+  const [config, setConfig] = useState<ImapConfig>(EMPTY_CONFIG);
+  const [status, setStatus] = useState<ImapStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/settings/inbound-email', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        if (data.config) setConfig(data.config);
+        if (data.status) setStatus(data.status);
+      })
+      .catch(() => {})
+      .finally(() => mounted && setLoading(false));
+    return () => { mounted = false; };
+  }, []);
+
+  const applyPreset = (preset: typeof IMAP_PRESETS[0]) => {
+    setConfig((c) => ({ ...c, host: preset.host, port: preset.port, secure: preset.secure }));
+  };
+
+  const testConnection = async () => {
+    setTesting(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/settings/inbound-email/test', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMsg({ type: 'success', text: t.settings.imapTestOk });
+      } else {
+        setMsg({ type: 'error', text: `${t.settings.imapTestFail}: ${data.error ?? ''}` });
+      }
+    } catch {
+      setMsg({ type: 'error', text: t.settings.imapTestFail });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/settings/inbound-email', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.imapSaveError }); return; }
+      setConfig(data.config);
+      if (data.status) setStatus(data.status);
+      setMsg({ type: 'success', text: t.settings.imapSaved });
+    } catch {
+      setMsg({ type: 'error', text: t.settings.imapSaveError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>;
+
+  return (
+    <Section title={t.settings.imapTitle} icon={<MailOutline color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={3}>
+        {t.settings.imapNote}
+      </Typography>
+
+      {msg && (
+        <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+      )}
+
+      {/* Enable toggle */}
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}
+        sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+        <Box>
+          <Typography variant="subtitle2" fontWeight={700}>{t.settings.imapEnabled}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {config.enabled ? 'TaskDesk sta controllando questa casella ogni 3 minuti.' : 'La ricezione automatica è disattivata.'}
+          </Typography>
+        </Box>
+        <Switch checked={config.enabled} onChange={(e) => setConfig((c) => ({ ...c, enabled: e.target.checked }))} color="primary" />
+      </Box>
+
+      {/* Server presets */}
+      <Typography variant="caption" color="text.secondary" fontWeight={600} mb={1} display="block">
+        {t.settings.imapCommonServers}
+      </Typography>
+      <Box display="flex" gap={1} flexWrap="wrap" mb={3}>
+        {IMAP_PRESETS.map((p) => (
+          <Chip
+            key={p.label}
+            label={p.label}
+            size="small"
+            variant={config.host === p.host ? 'filled' : 'outlined'}
+            color={config.host === p.host ? 'primary' : 'default'}
+            onClick={() => applyPreset(p)}
+            clickable
+          />
+        ))}
+      </Box>
+
+      {/* IMAP Form */}
+      <Box display="flex" flexDirection="column" gap={2}>
+        <Box display="flex" gap={2}>
+          <TextField
+            label={t.settings.imapHost}
+            value={config.host}
+            onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
+            fullWidth
+            placeholder="imap.esempio.it"
+            size="small"
+          />
+          <TextField
+            label={t.settings.imapPort}
+            value={config.port}
+            onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 993 }))}
+            sx={{ width: 110, flexShrink: 0 }}
+            size="small"
+            type="number"
+            inputProps={{ min: 1, max: 65535 }}
+          />
+        </Box>
+
+        <TextField
+          label={t.settings.imapUser}
+          value={config.user}
+          onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
+          fullWidth
+          placeholder="support@miazienda.it"
+          size="small"
+          type="email"
+          autoComplete="off"
+        />
+
+        <TextField
+          label={t.settings.imapPassword}
+          value={config.password}
+          onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
+          fullWidth
+          size="small"
+          type="password"
+          autoComplete="new-password"
+          helperText="Per Gmail usa una App Password (non la password principale)."
+        />
+
+        <Box display="flex" gap={2}>
+          <TextField
+            label={t.settings.imapFolder}
+            value={config.folder}
+            onChange={(e) => setConfig((c) => ({ ...c, folder: e.target.value }))}
+            sx={{ flex: 1 }}
+            size="small"
+            placeholder="INBOX"
+          />
+          <Box display="flex" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
+            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">{t.settings.imapSecure}</Typography>
+            <Switch
+              size="small"
+              checked={config.secure}
+              onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked }))}
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Actions */}
+      <Box display="flex" gap={1.5} mt={3} flexWrap="wrap">
+        <Button
+          variant="outlined"
+          startIcon={testing ? <CircularProgress size={16} color="inherit" /> : <WifiTethering />}
+          onClick={testConnection}
+          disabled={testing || saving || !config.host || !config.user}
+        >
+          {testing ? t.settings.imapTesting : t.settings.imapTest}
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+          onClick={save}
+          disabled={saving || testing || !config.host || !config.user}
+        >
+          {saving ? t.settings.saving : t.settings.imapSave}
+        </Button>
+      </Box>
+
+      {/* Status */}
+      {status && (
+        <Box mt={3} p={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50' }}>
+          <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={1.5}>
+            {t.settings.imapStatusTitle}
+          </Typography>
+          <Stack spacing={1}>
+            <Box display="flex" alignItems="center" gap={1}>
+              {status.lastError
+                ? <ErrorOutline fontSize="small" color="error" />
+                : <CheckCircleOutline fontSize="small" color="success" />}
+              <Typography variant="body2" fontSize="0.8rem">
+                <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
+                {status.lastPollAt
+                  ? new Date(status.lastPollAt).toLocaleString('it-IT')
+                  : t.settings.imapStatusNever}
+              </Typography>
+            </Box>
+            {status.lastError && (
+              <Typography variant="body2" fontSize="0.8rem" color="error.main" sx={{ pl: 3.5 }}>
+                {t.settings.imapStatusError}: {status.lastError}
+              </Typography>
+            )}
+            <Typography variant="body2" fontSize="0.8rem" sx={{ pl: 3.5 }}>
+              <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
+            </Typography>
+          </Stack>
+        </Box>
+      )}
+    </Section>
   );
 }
 

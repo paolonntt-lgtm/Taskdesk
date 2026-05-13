@@ -4,6 +4,7 @@ import { seedIfEmpty } from "./lib/seed";
 import { runAppMigrations } from "./lib/migrate";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
+import { startEmailPoller } from "./lib/emailPoller";
 
 const rawPort = process.env["PORT"];
 
@@ -60,4 +61,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startEmailPoller();
 });
