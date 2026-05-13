@@ -1177,6 +1177,7 @@ interface ImapConfig {
   password: string;
   enabled: boolean;
   folder: string;
+  label?: string;
 }
 interface ImapStatus {
   lastPollAt: string | null;
@@ -1205,7 +1206,7 @@ const IMAP_PRESETS = [
   { label: 'Libero / Italiaonline', host: 'imap.libero.it', port: 993, secure: true },
 ];
 
-const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX' };
+const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX', label: '' };
 
 function OAuthProviderCard({
   providerLabel, providerColor, connectUrl, available, info, onDisconnect, disconnecting, t,
@@ -1392,199 +1393,188 @@ function InboundEmailTab() {
       </Typography>
 
       {msg && (
-        <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+        <Alert severity={msg.type} sx={{ mb: 3 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
       )}
 
-      {/* OAuth section */}
-      {oauthStatus && (
-        <Box mb={3}>
-          <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={1.5}>
-            {t.settings.oauthEmailTitle}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" fontSize="0.8rem" mb={2}>
-            {t.settings.oauthEmailNote}
-          </Typography>
-          <Box display="flex" gap={2} flexWrap="wrap">
-            <OAuthProviderCard
-              providerLabel="Gmail"
-              providerColor="#EA4335"
-              connectUrl="/api/settings/inbound-email/gmail/connect"
-              available={oauthStatus.gmailAvailable}
-              info={oauthStatus.gmail}
-              onDisconnect={disconnectGmail}
-              disconnecting={disconnecting === 'gmail'}
-              t={t}
-            />
-            <OAuthProviderCard
-              providerLabel="Microsoft Outlook"
-              providerColor="#0078d4"
-              connectUrl="/api/settings/inbound-email/microsoft/connect"
-              available={oauthStatus.microsoftAvailable}
-              info={oauthStatus.microsoft}
-              onDisconnect={disconnectMicrosoft}
-              disconnecting={disconnecting === 'microsoft'}
-              t={t}
-            />
-          </Box>
-          <Divider sx={{ mt: 3, mb: 3 }}>
-            <Typography variant="caption" color="text.secondary">{t.settings.oauthOrDivider}</Typography>
-          </Divider>
-        </Box>
-      )}
-
-      {/* Enable toggle */}
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}
-        sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-        <Box>
-          <Typography variant="subtitle2" fontWeight={700}>{t.settings.imapEnabled}</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {config.enabled ? 'TaskDesk sta controllando questa casella ogni 3 minuti.' : 'La ricezione automatica è disattivata.'}
-          </Typography>
-        </Box>
-        <Switch checked={config.enabled} onChange={(e) => setConfig((c) => ({ ...c, enabled: e.target.checked }))} color="primary" />
-      </Box>
-
-      {/* Server presets */}
-      <Typography variant="caption" color="text.secondary" fontWeight={600} mb={1} display="block">
-        {t.settings.imapCommonServers}
-      </Typography>
-      <Box display="flex" gap={1} flexWrap="wrap" mb={3}>
-        {IMAP_PRESETS.map((p) => (
-          <Chip
-            key={p.label}
-            label={p.label}
-            size="small"
-            variant={config.host === p.host ? 'filled' : 'outlined'}
-            color={config.host === p.host ? 'primary' : 'default'}
-            onClick={() => applyPreset(p)}
-            clickable
+      <Box display="flex" gap={2} flexWrap="wrap" alignItems="stretch">
+        {/* Gmail */}
+        {oauthStatus && (
+          <OAuthProviderCard
+            providerLabel="Gmail"
+            providerColor="#EA4335"
+            connectUrl="/api/settings/inbound-email/gmail/connect"
+            available={oauthStatus.gmailAvailable}
+            info={oauthStatus.gmail}
+            onDisconnect={disconnectGmail}
+            disconnecting={disconnecting === 'gmail'}
+            t={t}
           />
-        ))}
-      </Box>
+        )}
 
-      {/* IMAP Form */}
-      <Box display="flex" flexDirection="column" gap={2}>
-        <Box display="flex" gap={2}>
-          <TextField
-            label={t.settings.imapHost}
-            value={config.host}
-            onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
-            fullWidth
-            placeholder="imap.esempio.it"
-            size="small"
+        {/* Microsoft */}
+        {oauthStatus && (
+          <OAuthProviderCard
+            providerLabel="Microsoft Outlook"
+            providerColor="#0078d4"
+            connectUrl="/api/settings/inbound-email/microsoft/connect"
+            available={oauthStatus.microsoftAvailable}
+            info={oauthStatus.microsoft}
+            onDisconnect={disconnectMicrosoft}
+            disconnecting={disconnecting === 'microsoft'}
+            t={t}
           />
-          <TextField
-            label={t.settings.imapPort}
-            value={config.port}
-            onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 993 }))}
-            sx={{ width: 110, flexShrink: 0 }}
-            size="small"
-            type="number"
-            inputProps={{ min: 1, max: 65535 }}
-          />
-        </Box>
+        )}
 
-        <TextField
-          label={t.settings.imapUser}
-          value={config.user}
-          onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
-          fullWidth
-          placeholder="support@miazienda.it"
-          size="small"
-          type="email"
-          autoComplete="off"
-        />
-
-        <TextField
-          label={t.settings.imapPassword}
-          value={config.password}
-          onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
-          fullWidth
-          size="small"
-          type="password"
-          autoComplete="new-password"
-          helperText="Per Gmail usa una App Password (non la password principale)."
-        />
-
-        <Box display="flex" gap={2}>
-          <TextField
-            label={t.settings.imapFolder}
-            value={config.folder}
-            onChange={(e) => setConfig((c) => ({ ...c, folder: e.target.value }))}
-            sx={{ flex: 1 }}
-            size="small"
-            placeholder="INBOX"
-          />
-          <Box display="flex" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
-            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">{t.settings.imapSecure}</Typography>
+        {/* Altro (IMAP) */}
+        <Box
+          sx={{
+            flex: 1, minWidth: 280,
+            border: '1px solid',
+            borderColor: (config.host && config.user) ? 'primary.main' : 'divider',
+            borderRadius: 2, p: 2,
+            display: 'flex', flexDirection: 'column', gap: 1.5,
+            bgcolor: (config.host && config.user) ? 'primary.50' : 'transparent',
+          }}
+        >
+          {/* Header */}
+          <Box display="flex" alignItems="center" gap={1}>
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: (config.enabled && config.host) ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
+            <Typography variant="subtitle2" fontWeight={700}>{t.settings.imapOtherTitle}</Typography>
             <Switch
               size="small"
-              checked={config.secure}
-              onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked }))}
+              checked={config.enabled}
+              onChange={(e) => setConfig((c) => ({ ...c, enabled: e.target.checked }))}
+              sx={{ ml: 'auto' }}
             />
           </Box>
-        </Box>
-      </Box>
 
-      {/* Actions */}
-      <Box display="flex" gap={1.5} mt={3} flexWrap="wrap">
-        <Button
-          variant="outlined"
-          startIcon={testing ? <CircularProgress size={16} color="inherit" /> : <WifiTethering />}
-          onClick={testConnection}
-          disabled={testing || saving || !config.host || !config.user}
-        >
-          {testing ? t.settings.imapTesting : t.settings.imapTest}
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-          onClick={save}
-          disabled={saving || testing || !config.host || !config.user}
-        >
-          {saving ? t.settings.saving : t.settings.imapSave}
-        </Button>
-      </Box>
+          {/* Provider label */}
+          <TextField
+            label={t.settings.imapLabel}
+            value={config.label ?? ''}
+            onChange={(e) => setConfig((c) => ({ ...c, label: e.target.value }))}
+            size="small"
+            fullWidth
+            placeholder={t.settings.imapLabelPlaceholder}
+          />
 
-      {/* Status */}
-      {status && (
-        <Box mt={3} p={2} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50' }}>
-          <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={1.5}>
-            {t.settings.imapStatusTitle}
-          </Typography>
+          {/* Host + Port */}
+          <Box display="flex" gap={1}>
+            <TextField
+              label={t.settings.imapHost}
+              value={config.host}
+              onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
+              size="small"
+              sx={{ flex: 1 }}
+              placeholder="imap.esempio.it"
+            />
+            <TextField
+              label={t.settings.imapPort}
+              value={config.port}
+              onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 993 }))}
+              size="small"
+              sx={{ width: 88, flexShrink: 0 }}
+              type="number"
+              inputProps={{ min: 1, max: 65535 }}
+            />
+          </Box>
 
-          {!status.baselined ? (
-            <Box display="flex" alignItems="center" gap={1}>
-              <CircularProgress size={14} />
-              <Typography variant="body2" fontSize="0.8rem" color="warning.main">
-                Calibrazione casella in corso — le email esistenti verranno ignorate. Sarà pronto tra qualche secondo.
-              </Typography>
+          {/* User */}
+          <TextField
+            label={t.settings.imapUser}
+            value={config.user}
+            onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
+            size="small"
+            fullWidth
+            placeholder="support@miazienda.it"
+            type="email"
+            autoComplete="off"
+          />
+
+          {/* Password */}
+          <TextField
+            label={t.settings.imapPassword}
+            value={config.password}
+            onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
+            size="small"
+            fullWidth
+            type="password"
+            autoComplete="new-password"
+          />
+
+          {/* Folder + SSL */}
+          <Box display="flex" gap={1} alignItems="center">
+            <TextField
+              label={t.settings.imapFolder}
+              value={config.folder}
+              onChange={(e) => setConfig((c) => ({ ...c, folder: e.target.value }))}
+              size="small"
+              sx={{ flex: 1 }}
+              placeholder="INBOX"
+            />
+            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+              <Typography variant="caption" color="text.secondary">SSL</Typography>
+              <Switch
+                size="small"
+                checked={config.secure}
+                onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked }))}
+              />
             </Box>
-          ) : (
-            <Stack spacing={1}>
-              <Box display="flex" alignItems="center" gap={1}>
-                {status.lastError
-                  ? <ErrorOutline fontSize="small" color="error" />
-                  : <CheckCircleOutline fontSize="small" color="success" />}
-                <Typography variant="body2" fontSize="0.8rem">
-                  <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
-                  {status.lastPollAt
-                    ? new Date(status.lastPollAt).toLocaleString('it-IT')
-                    : t.settings.imapStatusNever}
-                </Typography>
-              </Box>
-              {status.lastError && (
-                <Typography variant="body2" fontSize="0.8rem" color="error.main" sx={{ pl: 3.5 }}>
-                  {t.settings.imapStatusError}: {status.lastError}
-                </Typography>
+          </Box>
+
+          {/* Actions */}
+          <Box display="flex" gap={1} mt={0.5}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={testing ? <CircularProgress size={14} color="inherit" /> : <WifiTethering fontSize="small" />}
+              onClick={testConnection}
+              disabled={testing || saving || !config.host || !config.user}
+            >
+              {testing ? t.settings.imapTesting : t.settings.imapTest}
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save fontSize="small" />}
+              onClick={save}
+              disabled={saving || testing || !config.host || !config.user}
+            >
+              {saving ? t.settings.saving : t.settings.imapSave}
+            </Button>
+          </Box>
+
+          {/* Status */}
+          {status && (
+            <Box p={1.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}>
+              {!status.baselined ? (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <CircularProgress size={12} />
+                  <Typography variant="caption" color="warning.main">Calibrazione in corso…</Typography>
+                </Box>
+              ) : (
+                <Stack spacing={0.5}>
+                  <Box display="flex" alignItems="center" gap={0.75}>
+                    {status.lastError
+                      ? <ErrorOutline sx={{ fontSize: 14 }} color="error" />
+                      : <CheckCircleOutline sx={{ fontSize: 14 }} color="success" />}
+                    <Typography variant="caption">
+                      <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
+                      {status.lastPollAt ? new Date(status.lastPollAt).toLocaleString('it-IT') : t.settings.imapStatusNever}
+                    </Typography>
+                  </Box>
+                  {status.lastError && (
+                    <Typography variant="caption" color="error.main" sx={{ pl: 2.75 }}>{status.lastError}</Typography>
+                  )}
+                  <Typography variant="caption" sx={{ pl: 2.75 }}>
+                    <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
+                  </Typography>
+                </Stack>
               )}
-              <Typography variant="body2" fontSize="0.8rem" sx={{ pl: 3.5 }}>
-                <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
-              </Typography>
-            </Stack>
+            </Box>
           )}
         </Box>
-      )}
+      </Box>
     </Section>
   );
 }
