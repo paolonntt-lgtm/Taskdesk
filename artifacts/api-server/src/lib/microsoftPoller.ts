@@ -15,10 +15,12 @@ export interface MicrosoftStatus {
   lastError: string | null;
   ticketsCreated: number;
   baselined: boolean;
+  /** ISO 8601 timestamp — only process messages received AFTER this date */
+  baselineISO?: string;
 }
 
 const tokensKey = (orgId: number) => `org_${orgId}_microsoft_tokens`;
-const statusKey = (orgId: number) => `org_${orgId}_microsoft_status`;
+const statusKey  = (orgId: number) => `org_${orgId}_microsoft_status`;
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
 export async function getMicrosoftTokens(orgId: number): Promise<MicrosoftTokens | null> {
@@ -83,42 +85,15 @@ async function validTokens(orgId: number, tokens: MicrosoftTokens): Promise<Micr
   return Date.now() >= tokens.expires_at_ms - 60_000 ? refreshMicrosoftToken(orgId, tokens) : tokens;
 }
 
+/**
+ * Baseline: records the current time as a cutoff ISO string.
+ * The poll will only process messages received AFTER this timestamp.
+ * No mark-as-read needed — avoids Graph API quota / reliability issues.
+ */
 export async function baselineMicrosoftOrg(orgId: number): Promise<void> {
-  const tokens = await getMicrosoftTokens(orgId);
-  if (!tokens) return;
-  const valid = await validTokens(orgId, tokens);
-  if (!valid) { await updateMicrosoftStatus(orgId, { lastError: "Token refresh fallito durante baseline" }); return; }
-
-  try {
-    // Mark all unread inbox messages as read (up to 1000)
-    let nextLink: string | null = `${GRAPH}/me/mailFolders/inbox/messages?$filter=isRead eq false&$select=id&$top=50`;
-    const allIds: string[] = [];
-
-    while (nextLink && allIds.length < 1000) {
-      const res = await fetch(nextLink, { headers: { Authorization: `Bearer ${valid.access_token}` } });
-      const data = await res.json() as { value?: Array<{ id: string }>; "@odata.nextLink"?: string };
-      if (data.value) allIds.push(...data.value.map((m) => m.id));
-      nextLink = data["@odata.nextLink"] ?? null;
-    }
-
-    // Patch each to isRead=true (Graph has no batch modify for this, use Promise.allSettled in batches)
-    for (let i = 0; i < allIds.length; i += 20) {
-      await Promise.allSettled(
-        allIds.slice(i, i + 20).map((id) =>
-          fetch(`${GRAPH}/me/messages/${id}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${valid.access_token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ isRead: true }),
-          })
-        )
-      );
-    }
-
-    await updateMicrosoftStatus(orgId, { baselined: true, lastError: null });
-    logger.info({ orgId, marked: allIds.length }, "Microsoft baseline complete");
-  } catch (err: any) {
-    logger.warn({ err, orgId }, "Microsoft baseline failed");
-  }
+  const baselineISO = new Date().toISOString();
+  await updateMicrosoftStatus(orgId, { baselined: true, baselineISO, lastError: null });
+  logger.info({ orgId, baselineISO }, "Microsoft baseline complete (timestamp cutoff set)");
 }
 
 export async function pollMicrosoftOrg(orgId: number): Promise<void> {
@@ -126,7 +101,13 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
   if (!tokens) return;
 
   const status = await getMicrosoftStatus(orgId);
-  if (!status?.baselined) { await baselineMicrosoftOrg(orgId); return; }
+
+  // If not baselined OR baselined with old approach (no ISO timestamp), re-baseline
+  if (!status?.baselined || !status.baselineISO) {
+    logger.info({ orgId }, "Microsoft: running baseline pass");
+    await baselineMicrosoftOrg(orgId);
+    return;
+  }
 
   const valid = await validTokens(orgId, tokens);
   if (!valid) {
@@ -136,13 +117,20 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
 
   try {
     let created = 0;
+    // OData filter: unread AND received after baseline cutoff
+    const filter = `isRead eq false and receivedDateTime gt ${status.baselineISO}`;
     let nextLink: string | null =
-      `${GRAPH}/me/mailFolders/inbox/messages?$filter=isRead eq false&$select=id,subject,from,body&$top=20`;
+      `${GRAPH}/me/mailFolders/inbox/messages?$filter=${encodeURIComponent(filter)}&$select=id,subject,from,body&$top=20`;
 
     while (nextLink) {
       const res = await fetch(nextLink, { headers: { Authorization: `Bearer ${valid.access_token}` } });
       const data = await res.json() as {
-        value?: Array<{ id: string; subject?: string; from?: { emailAddress?: { name?: string; address?: string } }; body?: { content?: string; contentType?: string } }>;
+        value?: Array<{
+          id: string;
+          subject?: string;
+          from?: { emailAddress?: { name?: string; address?: string } };
+          body?: { content?: string; contentType?: string };
+        }>;
         "@odata.nextLink"?: string;
       };
 
@@ -151,7 +139,6 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
           const fromEmail = msg.from?.emailAddress?.address ?? "";
           const fromName = msg.from?.emailAddress?.name || fromEmail;
           const subject = msg.subject ?? "Richiesta di assistenza";
-          // Strip HTML tags for plain text body
           const rawBody = msg.body?.content ?? "";
           const bodyText = msg.body?.contentType === "html"
             ? rawBody.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
@@ -160,7 +147,7 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
           if (!fromEmail) continue;
           await createTicketFromEmail({ fromEmail, fromName, subject, bodyText, orgId });
 
-          // Mark as read
+          // Mark as read so it won't be picked up again on the next poll
           await fetch(`${GRAPH}/me/messages/${msg.id}`, {
             method: "PATCH",
             headers: { Authorization: `Bearer ${valid.access_token}`, "Content-Type": "application/json" },
@@ -173,7 +160,11 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
     }
 
     const prev = await getMicrosoftStatus(orgId);
-    await updateMicrosoftStatus(orgId, { lastPollAt: new Date().toISOString(), lastError: null, ticketsCreated: (prev?.ticketsCreated ?? 0) + created });
+    await updateMicrosoftStatus(orgId, {
+      lastPollAt: new Date().toISOString(),
+      lastError: null,
+      ticketsCreated: (prev?.ticketsCreated ?? 0) + created,
+    });
     if (created > 0) logger.info({ orgId, created }, "Microsoft poll: created tickets");
   } catch (err: any) {
     logger.error({ err, orgId }, "Microsoft poll failed");
