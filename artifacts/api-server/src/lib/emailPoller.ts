@@ -19,9 +19,23 @@ export interface ImapStatus {
   lastPollAt: string | null;
   lastError: string | null;
   ticketsCreated: number;
+  /** true after the first-run baseline pass completes (marks existing emails as read without creating tickets) */
+  baselined: boolean;
 }
 
 const POLL_INTERVAL_MS = 3 * 60 * 1000;
+
+function makeClient(config: ImapConfig): ImapFlow {
+  return new ImapFlow({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.password },
+    logger: false,
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15_000,
+  });
+}
 
 async function getAllImapConfigs(): Promise<Array<{ orgId: number; config: ImapConfig }>> {
   const rows = await db
@@ -55,7 +69,7 @@ export async function getImapStatus(orgId: number): Promise<ImapStatus | null> {
 
 async function updateStatus(orgId: number, patch: Partial<ImapStatus>): Promise<void> {
   const key = `org_${orgId}_imap_status`;
-  const current = (await getImapStatus(orgId)) ?? { lastPollAt: null, lastError: null, ticketsCreated: 0 };
+  const current = (await getImapStatus(orgId)) ?? { lastPollAt: null, lastError: null, ticketsCreated: 0, baselined: false };
   const updated: ImapStatus = { ...current, ...patch };
   await db
     .insert(settingsTable)
@@ -63,16 +77,56 @@ async function updateStatus(orgId: number, patch: Partial<ImapStatus>): Promise<
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(updated) } });
 }
 
-async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
+/**
+ * First-run baseline: marks all currently unseen emails as read WITHOUT creating tickets.
+ * This ensures only emails arriving after the configuration is saved become tickets.
+ * Called once after saving IMAP credentials for the first time.
+ */
+export async function baselineMailbox(orgId: number, config: ImapConfig): Promise<void> {
   const folder = config.folder || "INBOX";
-  const client = new ImapFlow({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: { user: config.user, pass: config.password },
-    logger: false,
-    tls: { rejectUnauthorized: false },
-  });
+  const client = makeClient(config);
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock(folder);
+    let marked = 0;
+
+    try {
+      const searchResult = await client.search({ seen: false }, { uid: true });
+      const uids = Array.isArray(searchResult) ? searchResult : [];
+      if (uids.length > 0) {
+        await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+        marked = uids.length;
+      }
+    } finally {
+      lock.release();
+    }
+
+    await client.logout();
+    await updateStatus(orgId, {
+      baselined: true,
+      lastError: null,
+    });
+    logger.info({ orgId, marked }, "IMAP baseline complete: existing emails marked as read");
+  } catch (err: any) {
+    logger.warn({ err, orgId }, "IMAP baseline failed — will retry on first poll");
+    // Don't mark as baselined — will try again on first poll
+    try { await client.logout(); } catch {}
+  }
+}
+
+async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
+  const status = await getImapStatus(orgId);
+
+  // If never baselined (first run), do baseline pass now instead of creating tickets
+  if (!status?.baselined) {
+    logger.info({ orgId }, "IMAP first run — running baseline pass");
+    await baselineMailbox(orgId, config);
+    return;
+  }
+
+  const folder = config.folder || "INBOX";
+  const client = makeClient(config);
 
   try {
     await client.connect();
@@ -82,6 +136,7 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
     try {
       const searchResult = await client.search({ seen: false }, { uid: true });
       const uids = Array.isArray(searchResult) ? searchResult : [];
+
       if (uids.length > 0) {
         for await (const msg of client.fetch(uids, { source: true, uid: true }, { uid: true })) {
           try {

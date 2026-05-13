@@ -3,7 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, settingsTable, organizationsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
-import { testImapConnection, getImapStatus, type ImapConfig } from "../lib/emailPoller";
+import { testImapConnection, getImapStatus, baselineMailbox, type ImapConfig } from "../lib/emailPoller";
 
 const router: IRouter = Router();
 
@@ -329,10 +329,24 @@ router.put("/settings/inbound-email", requireAuth, requireAdmin, async (req, res
     .values({ key, value: JSON.stringify(config) })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(config) } });
 
-  const status = await getImapStatus(orgId);
+  // Determine if this is a new config or credentials changed → need baseline
+  const currentStatus = await getImapStatus(orgId);
+  const credentialsChanged = !existing ||
+    (JSON.parse(existing.value) as ImapConfig).host !== config.host ||
+    (JSON.parse(existing.value) as ImapConfig).user !== config.user ||
+    resolvedPassword !== existingPassword;
+
+  if (config.enabled && credentialsChanged) {
+    // Fire-and-forget: mark all existing emails as read so they don't become tickets
+    baselineMailbox(orgId, config).catch((err) =>
+      req.log.warn({ err, orgId }, "Baseline mailbox failed after save")
+    );
+  }
+
   res.json({
     config: { ...config, password: "***" },
-    status,
+    status: currentStatus,
+    baselinePending: config.enabled && credentialsChanged,
   });
 });
 

@@ -1182,6 +1182,7 @@ interface ImapStatus {
   lastPollAt: string | null;
   lastError: string | null;
   ticketsCreated: number;
+  baselined: boolean;
 }
 
 const IMAP_PRESETS = [
@@ -1258,7 +1259,12 @@ function InboundEmailTab() {
       if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.imapSaveError }); return; }
       setConfig(data.config);
       if (data.status) setStatus(data.status);
-      setMsg({ type: 'success', text: t.settings.imapSaved });
+      setMsg({
+        type: 'success',
+        text: data.baselinePending
+          ? `${t.settings.imapSaved} Le email già presenti nella casella verranno ignorate — solo le nuove diventeranno ticket.`
+          : t.settings.imapSaved,
+      });
     } catch {
       setMsg({ type: 'error', text: t.settings.imapSaveError });
     } finally {
@@ -1398,27 +1404,37 @@ function InboundEmailTab() {
           <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={1.5}>
             {t.settings.imapStatusTitle}
           </Typography>
-          <Stack spacing={1}>
+
+          {!status.baselined ? (
             <Box display="flex" alignItems="center" gap={1}>
-              {status.lastError
-                ? <ErrorOutline fontSize="small" color="error" />
-                : <CheckCircleOutline fontSize="small" color="success" />}
-              <Typography variant="body2" fontSize="0.8rem">
-                <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
-                {status.lastPollAt
-                  ? new Date(status.lastPollAt).toLocaleString('it-IT')
-                  : t.settings.imapStatusNever}
+              <CircularProgress size={14} />
+              <Typography variant="body2" fontSize="0.8rem" color="warning.main">
+                Calibrazione casella in corso — le email esistenti verranno ignorate. Sarà pronto tra qualche secondo.
               </Typography>
             </Box>
-            {status.lastError && (
-              <Typography variant="body2" fontSize="0.8rem" color="error.main" sx={{ pl: 3.5 }}>
-                {t.settings.imapStatusError}: {status.lastError}
+          ) : (
+            <Stack spacing={1}>
+              <Box display="flex" alignItems="center" gap={1}>
+                {status.lastError
+                  ? <ErrorOutline fontSize="small" color="error" />
+                  : <CheckCircleOutline fontSize="small" color="success" />}
+                <Typography variant="body2" fontSize="0.8rem">
+                  <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
+                  {status.lastPollAt
+                    ? new Date(status.lastPollAt).toLocaleString('it-IT')
+                    : t.settings.imapStatusNever}
+                </Typography>
+              </Box>
+              {status.lastError && (
+                <Typography variant="body2" fontSize="0.8rem" color="error.main" sx={{ pl: 3.5 }}>
+                  {t.settings.imapStatusError}: {status.lastError}
+                </Typography>
+              )}
+              <Typography variant="body2" fontSize="0.8rem" sx={{ pl: 3.5 }}>
+                <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
               </Typography>
-            )}
-            <Typography variant="body2" fontSize="0.8rem" sx={{ pl: 3.5 }}>
-              <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
-            </Typography>
-          </Stack>
+            </Stack>
+          )}
         </Box>
       )}
     </Section>
