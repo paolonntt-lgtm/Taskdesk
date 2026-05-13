@@ -7,6 +7,45 @@ import { logger } from "./logger";
 
 const TICKET_NUMBER_RE = /\[#(\d+)\]/;
 
+/**
+ * Strips quoted reply content from an email body, keeping only the new text
+ * written by the sender. Handles Gmail (IT/EN), Outlook, Yahoo, and RFC ">".
+ */
+function stripEmailQuotes(body: string): string {
+  // Common quote-header patterns that mark the start of the quoted original
+  const quoteHeaderPatterns = [
+    // Gmail Italian: "Il giorno gio 13 mag 2026 alle ore 17:08 ... ha scritto:"
+    /\r?\nIl giorno .{5,200}ha scritto:\s*\r?\n/,
+    // Gmail English: "On Thu, 13 May 2026 at 17:08 ... wrote:"
+    /\r?\nOn .{5,200}wrote:\s*\r?\n/,
+    // Outlook Italian / generic: "Da: ... Inviato: ..."
+    /\r?\nDa: .{1,200}\r?\n.*(?:Inviato|Oggetto|A:)/,
+    // Outlook English: "From: ... Sent: ..."
+    /\r?\nFrom: .{1,200}\r?\n.*(?:Sent|Subject|To:)/,
+    // Standard separator: "-----Original Message-----"
+    /\r?\n-{3,}\s*(?:Original Message|Messaggio originale)\s*-{3,}/i,
+    // Underscore line (Yahoo, Outlook Web)
+    /\r?\n_{5,}\r?\n/,
+  ];
+
+  let text = body;
+  let cutAt = text.length;
+  for (const pattern of quoteHeaderPatterns) {
+    const m = pattern.exec(text);
+    if (m && m.index < cutAt) cutAt = m.index;
+  }
+  text = text.slice(0, cutAt).trim();
+
+  // Strip any remaining lines that start with ">" (RFC 2822 inline quotes)
+  text = text
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith(">"))
+    .join("\n")
+    .trim();
+
+  return text || body.trim(); // fallback to full body if everything was stripped
+}
+
 export interface EmailTicketInput {
   fromEmail: string;
   fromName: string;
@@ -168,10 +207,11 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
           });
         }
 
+        const cleanBody = stripEmailQuotes(bodyText || "").trim() || "(nessun testo)";
         const commentText = [
           `📧 **Risposta del cliente** — da: ${fromName} <${fromEmail}>`,
           "",
-          bodyText || "(nessun testo)",
+          cleanBody,
         ].join("\n");
 
         const [comment] = await db
