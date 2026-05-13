@@ -21,6 +21,7 @@ import passwordResetRouter from "./passwordReset";
 import oauthRouter from "./oauth";
 import botRouter from "./bot";
 import knowledgeArticlesRouter from "./knowledgeArticles";
+import inboundEmailRouter from "./inboundEmail";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(passwordResetRouter);
 router.use(oauthRouter);
 router.use(botRouter);
 router.use(knowledgeArticlesRouter);
+router.use(inboundEmailRouter);
 
 export default router;

@@ -131,6 +131,63 @@ export function buildRegistrationNotificationEmail(args: {
   return { subject, html, text };
 }
 
+export function buildInboundConfirmationEmail(args: {
+  fromName: string;
+  ticketNumber: number;
+  ticketTitle: string;
+  appBaseUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `✅ Richiesta di assistenza ricevuta! [#${args.ticketNumber}]`;
+  const text = [
+    `Ciao ${args.fromName},`,
+    "",
+    `La tua richiesta di assistenza è stata ricevuta e registrata con il numero #${args.ticketNumber}.`,
+    "",
+    `Oggetto: ${args.ticketTitle}`,
+    "",
+    "Un nostro operatore la prenderà in carico al più presto e ti risponderà a questo indirizzo email.",
+    "",
+    "Grazie per averci contattato.",
+    "",
+    "— Il team di supporto",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="${args.appBaseUrl}/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:13px;color:#16a34a;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Richiesta ricevuta</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:#15803d">Ticket #${args.ticketNumber}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Ciao <strong>${escapeHtml(args.fromName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#374151">
+        La tua richiesta di assistenza è stata ricevuta e registrata correttamente.
+        Un nostro operatore la prenderà in carico al più presto e ti risponderà a questo indirizzo email.
+      </p>
+      <table style="width:100%;background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:24px;border-collapse:collapse">
+        <tr>
+          <td style="padding:6px 12px;font-size:13px;color:#6b7280;white-space:nowrap;width:100px">Numero ticket</td>
+          <td style="padding:6px 12px;font-size:13px;font-weight:600;color:#111827">#${args.ticketNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 12px;font-size:13px;color:#6b7280">Oggetto</td>
+          <td style="padding:6px 12px;font-size:13px;color:#111827">${escapeHtml(args.ticketTitle)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 12px;font-size:13px;color:#6b7280">Stato</td>
+          <td style="padding:6px 12px;font-size:13px;color:#2563eb;font-weight:600">Aperto</td>
+        </tr>
+      </table>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">
+        Questo messaggio è stato inviato automaticamente. Per aggiornare la tua richiesta, rispondi a questa email oppure contatta direttamente il supporto.
+      </p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
