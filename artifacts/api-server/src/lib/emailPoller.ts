@@ -184,12 +184,23 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
 
 async function pollAll(): Promise<void> {
   try {
-    const configs = await getAllImapConfigs();
-    if (configs.length === 0) return;
-    logger.info({ count: configs.length }, "Starting IMAP poll cycle");
-    await Promise.allSettled(configs.map(({ orgId, config }) => pollMailbox(orgId, config)));
+    const [imapConfigs, gmailOrgIds, microsoftOrgIds] = await Promise.all([
+      getAllImapConfigs(),
+      import("./gmailPoller").then((m) => m.getAllGmailOrgIds()),
+      import("./microsoftPoller").then((m) => m.getAllMicrosoftOrgIds()),
+    ]);
+
+    const tasks: Promise<void>[] = [
+      ...imapConfigs.map(({ orgId, config }) => pollMailbox(orgId, config)),
+      ...gmailOrgIds.map((orgId) => import("./gmailPoller").then((m) => m.pollGmailOrg(orgId))),
+      ...microsoftOrgIds.map((orgId) => import("./microsoftPoller").then((m) => m.pollMicrosoftOrg(orgId))),
+    ];
+
+    if (tasks.length === 0) return;
+    logger.info({ imap: imapConfigs.length, gmail: gmailOrgIds.length, microsoft: microsoftOrgIds.length }, "Starting email poll cycle");
+    await Promise.allSettled(tasks);
   } catch (err) {
-    logger.error({ err }, "IMAP pollAll error");
+    logger.error({ err }, "Email pollAll error");
   }
 }
 

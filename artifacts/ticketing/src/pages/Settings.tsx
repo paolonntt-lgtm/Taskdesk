@@ -6,7 +6,7 @@ import {
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -1185,6 +1185,18 @@ interface ImapStatus {
   baselined: boolean;
 }
 
+interface OAuthProviderInfo {
+  email: string;
+  status: ImapStatus | null;
+}
+
+interface OAuthStatus {
+  gmail: OAuthProviderInfo | null;
+  microsoft: OAuthProviderInfo | null;
+  gmailAvailable: boolean;
+  microsoftAvailable: boolean;
+}
+
 const IMAP_PRESETS = [
   { label: 'Gmail', host: 'imap.gmail.com', port: 993, secure: true },
   { label: 'Outlook / Hotmail', host: 'outlook.office365.com', port: 993, secure: true },
@@ -1195,26 +1207,109 @@ const IMAP_PRESETS = [
 
 const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX' };
 
+function OAuthProviderCard({
+  providerLabel, providerColor, connectUrl, available, info, onDisconnect, disconnecting, t,
+}: {
+  providerLabel: string; providerColor: string; connectUrl: string;
+  available: boolean; info: OAuthProviderInfo | null;
+  onDisconnect: () => void; disconnecting: boolean; t: any;
+}) {
+  return (
+    <Box
+      sx={{
+        flex: 1, minWidth: 240, border: '1px solid', borderRadius: 2,
+        borderColor: info ? providerColor : 'divider',
+        p: 2, display: 'flex', flexDirection: 'column', gap: 1,
+        bgcolor: info ? `${providerColor}08` : 'transparent',
+      }}
+    >
+      <Box display="flex" alignItems="center" gap={1}>
+        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: available ? providerColor : 'text.disabled', flexShrink: 0 }} />
+        <Typography variant="subtitle2" fontWeight={700}>{providerLabel}</Typography>
+        {info && <CheckCircleOutline fontSize="small" sx={{ color: providerColor, ml: 'auto' }} />}
+      </Box>
+
+      {!available ? (
+        <Typography variant="caption" color="text.disabled">{t.settings.oauthNotAvailable} — {t.settings.oauthNotAvailableNote}</Typography>
+      ) : info ? (
+        <>
+          <Typography variant="body2" fontSize="0.8rem" color="text.secondary">
+            <strong>{t.settings.oauthConnected}:</strong> {info.email}
+          </Typography>
+          {info.status && (
+            <Typography variant="caption" color="text.secondary">
+              {info.status.baselined
+                ? `${t.settings.oauthLastPoll}: ${info.status.lastPollAt ? new Date(info.status.lastPollAt).toLocaleString('it-IT') : '—'} · ${t.settings.oauthTickets}: ${info.status.ticketsCreated}`
+                : 'Calibrazione in corso…'}
+            </Typography>
+          )}
+          {info.status?.lastError && (
+            <Typography variant="caption" color="error.main">{t.settings.oauthErrorLabel}: {info.status.lastError}</Typography>
+          )}
+          <Button
+            size="small" color="error" variant="outlined" startIcon={disconnecting ? <CircularProgress size={12} /> : <LinkOff fontSize="small" />}
+            onClick={onDisconnect} disabled={disconnecting}
+            sx={{ mt: 0.5, alignSelf: 'flex-start', fontSize: '0.75rem', py: 0.5 }}
+          >
+            {disconnecting ? t.settings.oauthDisconnecting : t.settings.oauthDisconnect}
+          </Button>
+        </>
+      ) : (
+        <Button
+          size="small" variant="contained" endIcon={<OpenInNew fontSize="small" />}
+          href={connectUrl} component="a"
+          sx={{ mt: 0.5, alignSelf: 'flex-start', bgcolor: providerColor, '&:hover': { bgcolor: providerColor, filter: 'brightness(0.9)' }, fontSize: '0.8rem', py: 0.75 }}
+        >
+          {providerLabel === 'Gmail' ? t.settings.oauthConnectGmail : t.settings.oauthConnectMicrosoft}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
 function InboundEmailTab() {
   const { t } = useLanguage();
   const [config, setConfig] = useState<ImapConfig>(EMPTY_CONFIG);
   const [status, setStatus] = useState<ImapStatus | null>(null);
+  const [oauthStatus, setOauthStatus] = useState<OAuthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState<'gmail' | 'microsoft' | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const loadOAuthStatus = () =>
+    fetch('/api/settings/inbound-email/oauth-status', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setOauthStatus(data))
+      .catch(() => {});
 
   useEffect(() => {
     let mounted = true;
-    fetch('/api/settings/inbound-email', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!mounted) return;
-        if (data.config) setConfig(data.config);
-        if (data.status) setStatus(data.status);
-      })
-      .catch(() => {})
-      .finally(() => mounted && setLoading(false));
+
+    // Check URL params for OAuth callback results
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail_connected') === '1') {
+      setMsg({ type: 'success', text: t.settings.oauthConnectedSuccess });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('microsoft_connected') === '1') {
+      setMsg({ type: 'success', text: t.settings.oauthConnectedSuccess });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('gmail_error') || params.get('microsoft_error')) {
+      setMsg({ type: 'error', text: 'Connessione OAuth fallita. Riprova.' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    Promise.all([
+      fetch('/api/settings/inbound-email', { credentials: 'include' }).then((r) => r.json()),
+      fetch('/api/settings/inbound-email/oauth-status', { credentials: 'include' }).then((r) => r.json()),
+    ]).then(([imapData, oauthData]) => {
+      if (!mounted) return;
+      if (imapData.config) setConfig(imapData.config);
+      if (imapData.status) setStatus(imapData.status);
+      setOauthStatus(oauthData);
+    }).catch(() => {}).finally(() => mounted && setLoading(false));
+
     return () => { mounted = false; };
   }, []);
 
@@ -1272,6 +1367,22 @@ function InboundEmailTab() {
     }
   };
 
+  const disconnectGmail = async () => {
+    setDisconnecting('gmail');
+    try {
+      await fetch('/api/settings/inbound-email/gmail', { method: 'DELETE', credentials: 'include' });
+      await loadOAuthStatus();
+    } catch { } finally { setDisconnecting(null); }
+  };
+
+  const disconnectMicrosoft = async () => {
+    setDisconnecting('microsoft');
+    try {
+      await fetch('/api/settings/inbound-email/microsoft', { method: 'DELETE', credentials: 'include' });
+      await loadOAuthStatus();
+    } catch { } finally { setDisconnecting(null); }
+  };
+
   if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>;
 
   return (
@@ -1282,6 +1393,43 @@ function InboundEmailTab() {
 
       {msg && (
         <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+      )}
+
+      {/* OAuth section */}
+      {oauthStatus && (
+        <Box mb={3}>
+          <Typography variant="caption" fontWeight={700} color="text.secondary" display="block" mb={1.5}>
+            {t.settings.oauthEmailTitle}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" fontSize="0.8rem" mb={2}>
+            {t.settings.oauthEmailNote}
+          </Typography>
+          <Box display="flex" gap={2} flexWrap="wrap">
+            <OAuthProviderCard
+              providerLabel="Gmail"
+              providerColor="#EA4335"
+              connectUrl="/api/settings/inbound-email/gmail/connect"
+              available={oauthStatus.gmailAvailable}
+              info={oauthStatus.gmail}
+              onDisconnect={disconnectGmail}
+              disconnecting={disconnecting === 'gmail'}
+              t={t}
+            />
+            <OAuthProviderCard
+              providerLabel="Microsoft Outlook"
+              providerColor="#0078d4"
+              connectUrl="/api/settings/inbound-email/microsoft/connect"
+              available={oauthStatus.microsoftAvailable}
+              info={oauthStatus.microsoft}
+              onDisconnect={disconnectMicrosoft}
+              disconnecting={disconnecting === 'microsoft'}
+              t={t}
+            />
+          </Box>
+          <Divider sx={{ mt: 3, mb: 3 }}>
+            <Typography variant="caption" color="text.secondary">{t.settings.oauthOrDivider}</Typography>
+          </Divider>
+        </Box>
       )}
 
       {/* Enable toggle */}
