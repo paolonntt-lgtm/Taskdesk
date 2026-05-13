@@ -15,10 +15,12 @@ export interface GmailStatus {
   lastError: string | null;
   ticketsCreated: number;
   baselined: boolean;
+  /** Unix epoch seconds — only process messages received AFTER this timestamp */
+  baselineEpochSec?: number;
 }
 
 const tokensKey = (orgId: number) => `org_${orgId}_gmail_tokens`;
-const statusKey = (orgId: number) => `org_${orgId}_gmail_status`;
+const statusKey  = (orgId: number) => `org_${orgId}_gmail_status`;
 
 export async function getGmailTokens(orgId: number): Promise<GmailTokens | null> {
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, tokensKey(orgId)));
@@ -66,7 +68,11 @@ async function refreshGmailToken(orgId: number, tokens: GmailTokens): Promise<Gm
     });
     const data = await res.json() as { access_token?: string; expires_in?: number; error?: string };
     if (!res.ok || !data.access_token) { logger.error({ data, orgId }, "Gmail token refresh failed"); return null; }
-    const updated: GmailTokens = { ...tokens, access_token: data.access_token, expires_at_ms: Date.now() + (data.expires_in ?? 3600) * 1000 };
+    const updated: GmailTokens = {
+      ...tokens,
+      access_token: data.access_token,
+      expires_at_ms: Date.now() + (data.expires_in ?? 3600) * 1000,
+    };
     await saveGmailTokens(orgId, updated);
     return updated;
   } catch (err) { logger.error({ err, orgId }, "Gmail token refresh error"); return null; }
@@ -90,38 +96,15 @@ function extractBody(payload: any): string {
   return "";
 }
 
+/**
+ * Baseline: just records the current epoch second as a cutoff.
+ * The poll will only process messages received AFTER this timestamp.
+ * No batchModify needed — avoids quota / reliability issues.
+ */
 export async function baselineGmailOrg(orgId: number): Promise<void> {
-  const tokens = await getGmailTokens(orgId);
-  if (!tokens) return;
-  const valid = await validTokens(orgId, tokens);
-  if (!valid) { await updateGmailStatus(orgId, { lastError: "Token refresh fallito durante baseline" }); return; }
-
-  try {
-    const allIds: string[] = [];
-    let pageToken: string | undefined;
-    do {
-      const params = new URLSearchParams({ labelIds: "INBOX", q: "is:unread", maxResults: "500" });
-      if (pageToken) params.set("pageToken", pageToken);
-      const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`, {
-        headers: { Authorization: `Bearer ${valid.access_token}` },
-      });
-      const data = await res.json() as { messages?: Array<{ id: string }>; nextPageToken?: string };
-      if (data.messages) allIds.push(...data.messages.map((m) => m.id));
-      pageToken = data.nextPageToken;
-    } while (pageToken && allIds.length < 1000);
-
-    for (let i = 0; i < allIds.length; i += 100) {
-      await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${valid.access_token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: allIds.slice(i, i + 100), removeLabelIds: ["UNREAD"] }),
-      });
-    }
-    await updateGmailStatus(orgId, { baselined: true, lastError: null });
-    logger.info({ orgId, marked: allIds.length }, "Gmail baseline complete");
-  } catch (err: any) {
-    logger.warn({ err, orgId }, "Gmail baseline failed");
-  }
+  const baselineEpochSec = Math.floor(Date.now() / 1000);
+  await updateGmailStatus(orgId, { baselined: true, baselineEpochSec, lastError: null });
+  logger.info({ orgId, baselineEpochSec }, "Gmail baseline complete (timestamp cutoff set)");
 }
 
 export async function pollGmailOrg(orgId: number): Promise<void> {
@@ -129,7 +112,13 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
   if (!tokens) return;
 
   const status = await getGmailStatus(orgId);
-  if (!status?.baselined) { await baselineGmailOrg(orgId); return; }
+
+  // If not baselined OR baselined with old approach (no timestamp), re-baseline
+  if (!status?.baselined || !status.baselineEpochSec) {
+    logger.info({ orgId }, "Gmail: running baseline pass");
+    await baselineGmailOrg(orgId);
+    return;
+  }
 
   const valid = await validTokens(orgId, tokens);
   if (!valid) {
@@ -140,8 +129,12 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
   try {
     let created = 0;
     let pageToken: string | undefined;
+
+    // Use `after:` to only fetch messages received after baseline timestamp
+    const afterFilter = `is:unread after:${status.baselineEpochSec}`;
+
     do {
-      const params = new URLSearchParams({ labelIds: "INBOX", q: "is:unread", maxResults: "20" });
+      const params = new URLSearchParams({ labelIds: "INBOX", q: afterFilter, maxResults: "20" });
       if (pageToken) params.set("pageToken", pageToken);
       const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`, {
         headers: { Authorization: `Bearer ${valid.access_token}` },
@@ -163,7 +156,10 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
           const fromName = fromHeader.replace(/<[^>]+>/g, "").replace(/"/g, "").trim() || fromEmail;
           const bodyText = extractBody(msg.payload);
           if (!fromEmail) continue;
+
           await createTicketFromEmail({ fromEmail, fromName, subject, bodyText, orgId });
+
+          // Mark as read so it won't be picked up again on the next poll
           await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/modify`, {
             method: "POST",
             headers: { Authorization: `Bearer ${valid.access_token}`, "Content-Type": "application/json" },
@@ -176,7 +172,11 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
     } while (pageToken);
 
     const prev = await getGmailStatus(orgId);
-    await updateGmailStatus(orgId, { lastPollAt: new Date().toISOString(), lastError: null, ticketsCreated: (prev?.ticketsCreated ?? 0) + created });
+    await updateGmailStatus(orgId, {
+      lastPollAt: new Date().toISOString(),
+      lastError: null,
+      ticketsCreated: (prev?.ticketsCreated ?? 0) + created,
+    });
     if (created > 0) logger.info({ orgId, created }, "Gmail poll: created tickets");
   } catch (err: any) {
     logger.error({ err, orgId }, "Gmail poll failed");
