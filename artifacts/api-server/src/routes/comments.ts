@@ -4,6 +4,10 @@ import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTa
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
+import { sendEmail, buildTicketReplyEmail } from "../lib/email";
+import { appBaseUrl } from "../lib/appUrl";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function extractMentionedNames(text: string): string[] {
   const matches = text.matchAll(/@\[([^\]]+)\]/g);
@@ -130,6 +134,26 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
   });
 
   await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId);
+
+  // Send email reply to the original customer if requested
+  if (req.body.sendToCustomer === true && ticket.resource && EMAIL_RE.test(ticket.resource)) {
+    const toEmail = ticket.resource;
+    const toName = toEmail.split("@")[0].replace(/[._-]+/g, " ");
+    const plainText = parsed.data.commentText
+      .replace(/@\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
+      .trim();
+    const { subject, html, text } = buildTicketReplyEmail({
+      toName,
+      ticketNumber: ticket.ticketNumber ?? ticket.id,
+      ticketTitle: ticket.title,
+      replyText: plainText,
+      operatorName: currentUser.name,
+      appBaseUrl: appBaseUrl(),
+    });
+    void sendEmail({ to: toEmail, subject, html, text });
+  }
 
   // Send targeted notifications to mentioned users
   const mentionedNames = extractMentionedNames(parsed.data.commentText);

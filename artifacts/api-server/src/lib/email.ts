@@ -188,6 +188,59 @@ export function buildInboundConfirmationEmail(args: {
   return { subject, html, text };
 }
 
+export function buildTicketReplyEmail(args: {
+  toName: string;
+  ticketNumber: number;
+  ticketTitle: string;
+  replyText: string;
+  operatorName: string;
+  appBaseUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Re: [#${args.ticketNumber}] ${args.ticketTitle}`;
+  const text = [
+    `Ciao ${args.toName},`,
+    "",
+    `Ti scriviamo riguardo alla tua richiesta di assistenza #${args.ticketNumber} — "${args.ticketTitle}".`,
+    "",
+    "Risposta dell'operatore:",
+    "",
+    args.replyText,
+    "",
+    `— ${args.operatorName}`,
+    "  Il team di supporto",
+    "",
+    "Per rispondere o aggiungere ulteriori dettagli, rispondi a questa email.",
+  ].join("\n");
+
+  const replyHtml = args.replyText
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="${args.appBaseUrl}/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:13px;color:#1d4ed8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Risposta al ticket</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:#1e40af">#${args.ticketNumber}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 6px">Ciao <strong>${escapeHtml(args.toName)}</strong>,</p>
+      <p style="font-size:14px;color:#6b7280;margin:0 0 20px">
+        Di seguito la risposta dell'operatore alla tua richiesta <strong>"${escapeHtml(args.ticketTitle)}"</strong>.
+      </p>
+      <div style="background:#f9fafb;border-left:4px solid #0f62fe;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;font-size:15px;line-height:1.7;color:#1f2937">
+        ${replyHtml}
+      </div>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 4px">— <strong>${escapeHtml(args.operatorName)}</strong>, Il team di supporto</p>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">
+        Per rispondere o aggiungere dettagli, rispondi a questa email. Fa' riferimento al ticket <strong>#${args.ticketNumber}</strong>.
+      </p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

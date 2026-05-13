@@ -4,6 +4,7 @@ import {
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
+  FormControlLabel, Checkbox,
 } from '@mui/material';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert } from '@mui/icons-material';
 import {
@@ -82,6 +83,7 @@ export default function TicketDetail() {
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [sendToCustomer, setSendToCustomer] = useState(true);
 
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
@@ -333,11 +335,13 @@ export default function TicketDetail() {
     }
   };
 
+  const isEmailResource = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((ticket as any)?.resource ?? '');
+
   const submitComment = async () => {
     if (!newComment.trim() && pendingAttachments.length === 0) return;
     const commentText = newComment.trim() || '📎 Allegato';
     try {
-      const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText } });
+      const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText, ...(isEmailResource && sendToCustomer ? { sendToCustomer: true } : {}) } as any });
       setNewComment('');
       queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
       for (const att of pendingAttachments) {
@@ -1201,14 +1205,38 @@ export default function TicketDetail() {
                         ticketId={ticketId}
                         onAttachmentsChange={setPendingAttachments}
                       />
-                      <Button
-                        variant="contained"
-                        sx={{ alignSelf: 'flex-end' }}
-                        onClick={submitComment}
-                        disabled={(!newComment.trim() && pendingAttachments.length === 0) || addComment.isPending}
-                      >
-                        {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
-                      </Button>
+                      <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+                        {isEmailResource && (
+                          <Tooltip title={`${t.ticketDetail.replyWillBeSentTo} ${(ticket as any).resource}`}>
+                            <FormControlLabel
+                              control={
+                                <Checkbox
+                                  size="small"
+                                  checked={sendToCustomer}
+                                  onChange={(e) => setSendToCustomer(e.target.checked)}
+                                  color="primary"
+                                />
+                              }
+                              label={
+                                <Typography variant="caption" color="text.secondary">
+                                  {t.ticketDetail.sendReplyToCustomer}{' '}
+                                  <Typography component="span" variant="caption" color="primary.main" fontWeight={600}>
+                                    {(ticket as any).resource}
+                                  </Typography>
+                                </Typography>
+                              }
+                            />
+                          </Tooltip>
+                        )}
+                        <Button
+                          variant="contained"
+                          sx={{ alignSelf: 'flex-end', ml: 'auto' }}
+                          onClick={submitComment}
+                          disabled={(!newComment.trim() && pendingAttachments.length === 0) || addComment.isPending}
+                        >
+                          {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
+                        </Button>
+                      </Box>
                     </Box>
                   </Box>
                   )}
