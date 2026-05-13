@@ -1,5 +1,5 @@
 import { eq, sql, and } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket } from "./notifications";
@@ -80,14 +80,6 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     actionType: "created",
     actionDescription: `Ticket creato automaticamente da email di ${fromName} <${fromEmail}>`,
   });
-
-  if (bodyText) {
-    await db.insert(ticketCommentsTable).values({
-      ticketId: ticket.id,
-      authorId: systemUser.id,
-      commentText: `**Messaggio originale da ${fromName} <${fromEmail}>:**\n\n${bodyText}`,
-    });
-  }
 
   await createNotificationsForTicket(
     ticket.id,
