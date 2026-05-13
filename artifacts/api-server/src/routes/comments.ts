@@ -6,8 +6,28 @@ import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zo
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 import { sendEmail, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
+import { settingsTable } from "@workspace/db";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function getOrgInboundEmail(orgId: number | null): Promise<string | null> {
+  if (!orgId) return null;
+  const keys = [
+    `org_${orgId}_gmail_tokens`,
+    `org_${orgId}_microsoft_tokens`,
+    `org_${orgId}_imap_config`,
+  ];
+  for (const key of keys) {
+    try {
+      const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+      if (!row) continue;
+      const parsed = JSON.parse(row.value as string);
+      const addr = parsed.email || parsed.user;
+      if (addr && EMAIL_RE.test(addr)) return addr as string;
+    } catch { /* skip malformed */ }
+  }
+  return null;
+}
 
 function extractMentionedNames(text: string): string[] {
   const matches = text.matchAll(/@\[([^\]]+)\]/g);
@@ -152,7 +172,8 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       operatorName: currentUser.name,
       appBaseUrl: appBaseUrl(),
     });
-    void sendEmail({ to: toEmail, subject, html, text });
+    const replyTo = await getOrgInboundEmail(ticket.organizationId);
+    void sendEmail({ to: toEmail, subject, html, text, ...(replyTo ? { replyTo } : {}) });
   }
 
   // Send targeted notifications to mentioned users

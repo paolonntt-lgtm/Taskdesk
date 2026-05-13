@@ -24,6 +24,7 @@ interface SendEmailArgs {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 }
 
 export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
@@ -36,6 +37,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; err
       subject: args.subject,
       html: args.html,
       text: args.text,
+      ...(args.replyTo ? { replyTo: args.replyTo } : {}),
     });
     return { ok: true };
   } catch (err: any) {
