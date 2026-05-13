@@ -6,7 +6,7 @@ import {
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -41,6 +41,13 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 const STATUS_OPTIONS = ['open', 'waiting', 'resolved', 'closed'] as const;
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
+
+const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n([\s\S]*)$/;
+function parseCustomerReply(text: string): { name: string; email: string; body: string } | null {
+  const m = CUSTOMER_REPLY_RE.exec(text);
+  if (!m) return null;
+  return { name: m[1].trim(), email: m[2].trim(), body: m[3].trim() };
+}
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -795,31 +802,55 @@ export default function TicketDetail() {
                       {t.ticketDetail.noComments}
                     </Typography>
                   )}
+                  {/* Thread wrapper with vertical connector line */}
+                  {(comments?.length ?? 0) > 0 && (
+                  <Box sx={{ position: 'relative' }}>
+                    {(comments?.length ?? 0) > 1 && (
+                      <Box sx={{
+                        position: 'absolute',
+                        left: { xs: 15, sm: 17 },
+                        top: { xs: 32, sm: 36 },
+                        bottom: 24,
+                        width: 2,
+                        bgcolor: 'divider',
+                        borderRadius: 1,
+                        zIndex: 0,
+                        pointerEvents: 'none',
+                      }} />
+                    )}
+                    <Box display="flex" flexDirection="column" gap={{ xs: 1, sm: 1.5 }}>
                   {comments?.flatMap((c) => {
                     const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
                     const isSolution = (c as any).isSolution === true;
                     const canMarkSolution = !!currentUser;
-                    const isReply = (c as any).replyToCommentId != null;
                     const showInlineEditor = replyingToCommentId === c.id;
                     const isEditingThis = editingCommentId === c.id;
                     const isCommentAuthor = c.authorId === currentUser?.id;
                     const canEditComment = isCommentAuthor;
                     const canDeleteComment = isCommentAuthor || isAdmin;
-                    const commentSx = isReply ? { pl: { xs: 3, sm: 5 }, borderLeft: '3px solid', borderColor: 'divider' as const } : undefined;
+                    const customerReply = parseCustomerReply(c.commentText);
+                    const avatarLetter = customerReply
+                      ? customerReply.name.charAt(0).toUpperCase()
+                      : c.author?.name?.charAt(0);
+                    const avatarBg = isSolution
+                      ? 'success.main'
+                      : customerReply
+                      ? '#7c4dff'
+                      : 'primary.main';
                     const commentEl = (
                     <Box
                       key={`c-${c.id}`}
                       display="flex"
                       gap={{ xs: 1, sm: 1.5 }}
-                      sx={commentSx}
+                      sx={{ position: 'relative', zIndex: 1 }}
                       onMouseEnter={() => setHoveredCommentId(c.id)}
                       onMouseLeave={() => setHoveredCommentId(null)}
                     >
                       <Avatar
-                        src={(c.author as any)?.avatarUrl ?? undefined}
-                        sx={{ bgcolor: isSolution ? 'success.main' : 'primary.main', width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 }, fontSize: { xs: 14, sm: 16 }, flexShrink: 0 }}
+                        src={customerReply ? undefined : ((c.author as any)?.avatarUrl ?? undefined)}
+                        sx={{ bgcolor: avatarBg, width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 }, fontSize: { xs: 14, sm: 16 }, flexShrink: 0 }}
                       >
-                        {c.author?.name?.charAt(0)}
+                        {avatarLetter}
                       </Avatar>
                       <Box flex={1} minWidth={0}>
                         {isSolution && (
@@ -838,6 +869,13 @@ export default function TicketDetail() {
                             background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
                             px: { xs: 1.5, sm: 2 },
                             py: 1,
+                          } : customerReply ? {
+                            borderRadius: 2,
+                            bgcolor: '#f5f0ff',
+                            border: '1px solid',
+                            borderColor: '#d4bbff',
+                            px: { xs: 1.5, sm: 2 },
+                            py: 1,
                           } : {
                             borderRadius: 2,
                             bgcolor: '#f8faff',
@@ -847,11 +885,33 @@ export default function TicketDetail() {
                             py: 1,
                           }}
                         >
-                          <UserLink
-                            userId={c.authorId}
-                            name={c.author?.name}
-                            typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
-                          />
+                          {customerReply ? (
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold" color="text.primary">
+                                {customerReply.name}
+                              </Typography>
+                              <Box display="flex" alignItems="center" gap={0.5} mt={0.25}>
+                                <MailOutline sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary">
+                                  Risposta del cliente
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  component="a"
+                                  href={`mailto:${customerReply.email}`}
+                                  sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                                >
+                                  {customerReply.email}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <UserLink
+                              userId={c.authorId}
+                              name={c.author?.name}
+                              typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
+                            />
+                          )}
                           {isEditingThis ? (
                             <Box mt={0.5} display="flex" flexDirection="column" gap={1}>
                               <RichCommentEditor
@@ -877,8 +937,8 @@ export default function TicketDetail() {
                               </Box>
                             </Box>
                           ) : (
-                            <Box mt={0.25}>
-                              <MarkdownContent content={c.commentText} />
+                            <Box mt={0.5}>
+                              <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
                             </Box>
                           )}
                           {commentAttachments.length > 0 && (
@@ -1100,6 +1160,9 @@ export default function TicketDetail() {
                     );
                     return [commentEl, editorEl];
                   })}
+                    </Box>
+                  </Box>
+                  )}
 
                   {/* Comment actions menu (edit / delete) */}
                   <Menu
