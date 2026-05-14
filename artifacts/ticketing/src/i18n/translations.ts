@@ -551,7 +551,7 @@ const it = {
   },
   status: {
     open: 'Aperto',
-    in_progress: 'In lavorazione',
+    in_progress: 'In attesa',
     waiting: 'In attesa',
     resolved: 'Risolto',
     closed: 'Chiuso',
@@ -1115,7 +1115,7 @@ const en: typeof it = {
   },
   status: {
     open: 'Open',
-    in_progress: 'In Progress',
+    in_progress: 'Waiting',
     waiting: 'Waiting',
     resolved: 'Resolved',
     closed: 'Closed',

@@ -11,7 +11,6 @@ export type UpdateTicketBodyStatus =
 
 export const UpdateTicketBodyStatus = {
   open: "open",
-  in_progress: "in_progress",
   waiting: "waiting",
   resolved: "resolved",
   closed: "closed",

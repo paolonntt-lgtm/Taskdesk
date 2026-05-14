@@ -326,7 +326,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   if (updates.status && updates.status !== existing.status) {
     const statusLabels: Record<string, string> = {
-      open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+      open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
     };
     activityLogs.push({
       actionType: "status_changed",
@@ -398,7 +398,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (activityLogs.some((l) => l.actionType === "status_changed")) {
-    const statusLabels: Record<string, string> = { open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso" };
+    const statusLabels: Record<string, string> = { open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso" };
     const statusLabel = statusLabels[updates.status!] ?? updates.status!;
     await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${id} in "${statusLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
   }

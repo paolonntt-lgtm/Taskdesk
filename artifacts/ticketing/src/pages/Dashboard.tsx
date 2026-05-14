@@ -18,7 +18,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 export function getStatusColor(status: string) {
   switch (status) {
     case 'open': return 'primary';
-    case 'in_progress': return 'warning';
     case 'waiting': return 'secondary';
     case 'resolved': return 'success';
     case 'closed': return 'default';
@@ -160,13 +159,11 @@ function TicketRow({ ticket, showDueBadge = false }: { ticket: TicketRow; showDu
           sx={{
             width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
             bgcolor: ticket.status === 'open' ? 'primary.light'
-              : ticket.status === 'in_progress' ? 'warning.light'
               : ticket.status === 'waiting' ? 'secondary.light'
               : ticket.status === 'resolved' ? 'success.light'
               : ticket.status === 'closed' ? 'action.selected'
               : 'primary.light',
             color: ticket.status === 'open' ? 'primary.contrastText'
-              : ticket.status === 'in_progress' ? 'warning.contrastText'
               : ticket.status === 'waiting' ? 'secondary.contrastText'
               : ticket.status === 'resolved' ? 'success.contrastText'
               : 'text.secondary',

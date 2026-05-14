@@ -11,11 +11,11 @@ import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const VALID_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
+const VALID_STATUSES = ['open', 'waiting', 'resolved', 'closed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-const STATUS_ORDER: Record<string, number> = { open: 0, in_progress: 1, waiting: 2, resolved: 3, closed: 4 };
+const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2, closed: 3 };
 
 type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt';
 type SortDir = 'asc' | 'desc';
@@ -196,7 +196,6 @@ export default function TicketList() {
             >
               <MenuItem value="all">{t.ticketList.allStatuses}</MenuItem>
               <MenuItem value="open">{t.status.open}</MenuItem>
-              <MenuItem value="in_progress">{t.status.in_progress}</MenuItem>
               <MenuItem value="waiting">{t.status.waiting}</MenuItem>
               <MenuItem value="resolved">{t.status.resolved}</MenuItem>
               <MenuItem value="closed">{t.status.closed}</MenuItem>

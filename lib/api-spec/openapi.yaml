@@ -1138,7 +1138,7 @@ components:
           enum: [low, medium, high, urgent]
         status:
           type: string
-          enum: [open, in_progress, waiting, resolved, closed]
+          enum: [open, waiting, resolved, closed]
         createdBy:
           type: integer
         assignedTo:
@@ -1244,7 +1244,7 @@ components:
           enum: [low, medium, high, urgent]
         status:
           type: string
-          enum: [open, in_progress, waiting, resolved, closed]
+          enum: [open, waiting, resolved, closed]
         assignedTo:
           type: integer
           nullable: true

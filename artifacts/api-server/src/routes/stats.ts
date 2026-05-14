@@ -13,7 +13,6 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const [counts] = await db.select({
     total: sql<number>`count(*)`,
     open: sql<number>`count(*) filter (where status = 'open')`,
-    inProgress: sql<number>`count(*) filter (where status = 'in_progress')`,
     waiting: sql<number>`count(*) filter (where status = 'waiting')`,
     resolved: sql<number>`count(*) filter (where status = 'resolved')`,
     closed: sql<number>`count(*) filter (where status = 'closed')`,
@@ -30,7 +29,6 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   res.json({
     totalTickets: Number(counts.total),
     openTickets: Number(counts.open),
-    inProgressTickets: Number(counts.inProgress),
     waitingTickets: Number(counts.waiting),
     resolvedTickets: Number(counts.resolved),
     closedTickets: Number(counts.closed),
@@ -53,7 +51,7 @@ router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status);
 
   const labels: Record<string, string> = {
-    open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+    open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
   };
 
   res.json(rows.map((r) => ({ name: labels[r.name] ?? r.name, count: Number(r.count) })));
@@ -244,7 +242,6 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
     db.select({
       total: sql<number>`count(*)`,
       open: sql<number>`count(*) filter (where status = 'open')`,
-      inProgress: sql<number>`count(*) filter (where status = 'in_progress')`,
       waiting: sql<number>`count(*) filter (where status = 'waiting')`,
       resolved: sql<number>`count(*) filter (where status = 'resolved')`,
       closed: sql<number>`count(*) filter (where status = 'closed')`,
@@ -327,7 +324,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   ]);
 
   const statusLabels: Record<string, string> = {
-    open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+    open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
   };
   const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
 
@@ -336,7 +333,6 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
     dashboard: {
       totalTickets: Number(dashRow[0].total),
       openTickets: Number(dashRow[0].open),
-      inProgressTickets: Number(dashRow[0].inProgress),
       waitingTickets: Number(dashRow[0].waiting),
       resolvedTickets: Number(dashRow[0].resolved),
       closedTickets: Number(dashRow[0].closed),
