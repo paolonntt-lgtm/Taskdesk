@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
@@ -24,28 +24,81 @@ export default function TicketList() {
   const { t, lang } = useLanguage();
   const [, navigate] = useLocation();
   const searchStr = useSearch();
-  const params = new URLSearchParams(searchStr);
-  const initialStatus = VALID_STATUSES.includes(params.get('status') ?? '') ? params.get('status')! : 'all';
-  const initialPriority = VALID_PRIORITIES.includes(params.get('priority') ?? '') ? params.get('priority')! : 'all';
 
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [status, setStatus] = useState(initialStatus);
-  const [priority, setPriority] = useState(initialPriority);
-  const [location, setLocation] = useState('all');
-  const [category, setCategory] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [userFilter, setUserFilter] = useState('all');
-  const [userFilterType, setUserFilterType] = useState<'assignedTo' | 'createdBy'>('assignedTo');
-  const [showExtra, setShowExtra] = useState(false);
+  // ── Derive ALL filter values from the URL query string ──────────────────
+  const urlParams = new URLSearchParams(searchStr);
+  const status   = VALID_STATUSES.includes(urlParams.get('status') ?? '') ? urlParams.get('status')! : 'all';
+  const priority = VALID_PRIORITIES.includes(urlParams.get('priority') ?? '') ? urlParams.get('priority')! : 'all';
+  const location = urlParams.get('location') ?? 'all';
+  const category = urlParams.get('category') ?? 'all';
+  const dateFrom = urlParams.get('dateFrom') ?? '';
+  const dateTo   = urlParams.get('dateTo') ?? '';
+  const userFilter     = urlParams.get('userFilter') ?? 'all';
+  const userFilterType = (urlParams.get('userFilterType') as 'assignedTo' | 'createdBy') || 'assignedTo';
+  const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
+  const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
+
+  // Search input keeps local state so typing feels instant; URL is updated
+  // after the debounce delay — this avoids a URL push on every keystroke.
+  const [searchInput, setSearchInput] = useState(urlParams.get('search') ?? '');
+  const debouncedSearch = useDebounce(searchInput, 300);
 
   const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
   const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
   const { data: users } = useListUsers();
 
-  const [sortCol, setSortCol] = useState<SortCol>('id');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all';
+  // Auto-expand the advanced panel if there are active extra filters; the
+  // button can still manually toggle when no extra filters are set.
+  const [showExtraManual, setShowExtraManual] = useState(false);
+  const showExtra = showExtraManual || hasExtraFilters;
+
+  // ── Helper: write one URL param (replace so filters don't pollute history) ─
+  const setParam = useCallback((key: string, value: string, empty = 'all') => {
+    const next = new URLSearchParams(searchStr);
+    if (!value || value === empty) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+  }, [searchStr, navigate]);
+
+  // Sync debounced search value → URL (replace, same as other filters)
+  useEffect(() => {
+    const next = new URLSearchParams(searchStr);
+    if (debouncedSearch) {
+      next.set('search', debouncedSearch);
+    } else {
+      next.delete('search');
+    }
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const clearExtra = () => {
+    const next = new URLSearchParams(searchStr);
+    ['location', 'category', 'dateFrom', 'dateTo', 'userFilter', 'userFilterType'].forEach((k) => next.delete(k));
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+    setShowExtraManual(false);
+  };
+
+  const handleSort = (col: SortCol) => {
+    const next = new URLSearchParams(searchStr);
+    if (sortCol === col) {
+      const newDir = sortDir === 'asc' ? 'desc' : 'asc';
+      newDir === 'desc' ? next.delete('sortDir') : next.set('sortDir', newDir);
+    } else {
+      next.set('sortCol', col);
+      next.delete('sortDir');
+    }
+    if (col === 'id') next.delete('sortCol');
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+  };
 
   useEffect(() => {
     fetch('/api/settings/locations', { credentials: 'include' })
@@ -58,44 +111,33 @@ export default function TicketList() {
       .catch(() => {});
   }, []);
 
-  const hasExtraFilters = location !== 'all' || category !== 'all' || dateFrom !== '' || dateTo !== '' || userFilter !== 'all';
-
   const { data: tickets, isLoading } = useListTickets({
     search: debouncedSearch || undefined,
-    status: status !== 'all' ? status : undefined,
+    status:   status   !== 'all' ? status   : undefined,
     priority: priority !== 'all' ? priority : undefined,
     location: location !== 'all' ? location : undefined,
     category: category !== 'all' ? category : undefined,
     dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
+    dateTo:   dateTo   || undefined,
     assignedTo: userFilter !== 'all' && userFilterType === 'assignedTo' ? parseInt(userFilter, 10) : undefined,
-    createdBy: userFilter !== 'all' && userFilterType === 'createdBy' ? parseInt(userFilter, 10) : undefined,
+    createdBy:  userFilter !== 'all' && userFilterType === 'createdBy'  ? parseInt(userFilter, 10) : undefined,
   });
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
-
-  const handleSort = (col: SortCol) => {
-    if (sortCol === col) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortCol(col);
-      setSortDir('asc');
-    }
-  };
 
   const sortedTickets = useMemo(() => {
     if (!tickets) return [];
     return [...tickets].sort((a, b) => {
       let cmp = 0;
       switch (sortCol) {
-        case 'id': cmp = a.id - b.id; break;
-        case 'title': cmp = a.title.localeCompare(b.title); break;
-        case 'category': cmp = (a.category || '').localeCompare(b.category || ''); break;
-        case 'status': cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99); break;
-        case 'priority': cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99); break;
-        case 'assignee': cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || ''); break;
-        case 'location': cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
+        case 'id':        cmp = a.id - b.id; break;
+        case 'title':     cmp = a.title.localeCompare(b.title); break;
+        case 'category':  cmp = (a.category || '').localeCompare(b.category || ''); break;
+        case 'status':    cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99); break;
+        case 'priority':  cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99); break;
+        case 'assignee':  cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || ''); break;
+        case 'location':  cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
         case 'createdAt': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -138,8 +180,8 @@ export default function TicketList() {
               fullWidth
               size="small"
               placeholder={t.ticketList.searchPlaceholder}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
               }}
@@ -147,12 +189,10 @@ export default function TicketList() {
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
             <TextField
-              select
-              fullWidth
-              size="small"
+              select fullWidth size="small"
               label={t.ticketList.statusFilter}
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => setParam('status', e.target.value)}
             >
               <MenuItem value="all">{t.ticketList.allStatuses}</MenuItem>
               <MenuItem value="open">{t.status.open}</MenuItem>
@@ -164,12 +204,10 @@ export default function TicketList() {
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
             <TextField
-              select
-              fullWidth
-              size="small"
+              select fullWidth size="small"
               label={t.ticketList.priorityFilter}
               value={priority}
-              onChange={(e) => setPriority(e.target.value)}
+              onChange={(e) => setParam('priority', e.target.value)}
             >
               <MenuItem value="all">{t.ticketList.allPriorities}</MenuItem>
               <MenuItem value="low">{t.priority.low}</MenuItem>
@@ -180,32 +218,29 @@ export default function TicketList() {
           </Grid>
           <Grid item xs={12} sm="auto" md={2}>
             <Button
-              fullWidth
-              size="small"
+              fullWidth size="small"
               variant={hasExtraFilters ? 'contained' : 'outlined'}
               color={hasExtraFilters ? 'primary' : 'inherit'}
-              startIcon={hasExtraFilters ? <FilterList /> : <FilterList />}
-              onClick={() => setShowExtra((v) => !v)}
+              startIcon={<FilterList />}
+              onClick={() => setShowExtraManual((v) => !v)}
               sx={{ whiteSpace: 'nowrap' }}
             >
               {t.ticketList.moreFilters}
-              {hasExtraFilters && ` (${[location !== 'all', category !== 'all', !!dateFrom, !!dateTo].filter(Boolean).length})`}
+              {hasExtraFilters && ` (${[location !== 'all', category !== 'all', !!dateFrom, !!dateTo, userFilter !== 'all'].filter(Boolean).length})`}
             </Button>
           </Grid>
         </Grid>
 
         {/* Row 2: advanced filters */}
-        <Collapse in={showExtra || hasExtraFilters}>
+        <Collapse in={showExtra}>
           <Grid container spacing={1.5} mt={0.25}>
             {configuredLocations.length > 1 && (
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
-                  select
-                  fullWidth
-                  size="small"
+                  select fullWidth size="small"
                   label={t.ticketList.locationFilter}
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => setParam('location', e.target.value)}
                 >
                   <MenuItem value="all">{t.ticketList.allLocations}</MenuItem>
                   {configuredLocations.map((loc) => (
@@ -217,12 +252,10 @@ export default function TicketList() {
             {configuredCategories.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
-                  select
-                  fullWidth
-                  size="small"
+                  select fullWidth size="small"
                   label={t.ticketList.categoryFilter}
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e) => setParam('category', e.target.value)}
                 >
                   <MenuItem value="all">{t.ticketList.allCategories}</MenuItem>
                   {configuredCategories.map((cat) => (
@@ -234,12 +267,10 @@ export default function TicketList() {
             {users && users.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
-                  select
-                  fullWidth
-                  size="small"
+                  select fullWidth size="small"
                   label={userFilterType === 'assignedTo' ? t.ticketList.userFilterAssigned : t.ticketList.userFilterCreated}
                   value={userFilter}
-                  onChange={(e) => setUserFilter(e.target.value)}
+                  onChange={(e) => setParam('userFilter', e.target.value)}
                 >
                   <MenuItem value="all">{t.ticketList.allUsers}</MenuItem>
                   {users.map((u: any) => (
@@ -251,12 +282,10 @@ export default function TicketList() {
             {users && users.length > 0 && (
               <Grid item xs={12} sm={6} md={2.5}>
                 <TextField
-                  select
-                  fullWidth
-                  size="small"
+                  select fullWidth size="small"
                   label={t.ticketList.userFilterType}
                   value={userFilterType}
-                  onChange={(e) => setUserFilterType(e.target.value as 'assignedTo' | 'createdBy')}
+                  onChange={(e) => setParam('userFilterType', e.target.value, 'assignedTo')}
                 >
                   <MenuItem value="assignedTo">{t.ticketList.userFilterAssigned}</MenuItem>
                   <MenuItem value="createdBy">{t.ticketList.userFilterCreated}</MenuItem>
@@ -265,33 +294,30 @@ export default function TicketList() {
             )}
             <Grid item xs={6} sm={3} md={2}>
               <TextField
-                fullWidth
-                size="small"
+                fullWidth size="small"
                 label={t.ticketList.dateFrom}
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+                onChange={(e) => setParam('dateFrom', e.target.value, '')}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={6} sm={3} md={2}>
               <TextField
-                fullWidth
-                size="small"
+                fullWidth size="small"
                 label={t.ticketList.dateTo}
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+                onChange={(e) => setParam('dateTo', e.target.value, '')}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
             {hasExtraFilters && (
               <Grid item xs={12} sm="auto">
                 <Button
-                  size="small"
-                  color="inherit"
+                  size="small" color="inherit"
                   startIcon={<FilterListOff />}
-                  onClick={() => { setLocation('all'); setCategory('all'); setDateFrom(''); setDateTo(''); setUserFilter('all'); }}
+                  onClick={clearExtra}
                 >
                   {t.ticketList.clearFilters}
                 </Button>
