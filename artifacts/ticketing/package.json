@@ -79,6 +79,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "react-grid-layout": "^2.2.3",
     "react-markdown": "^10.1.0"
   }
 }
