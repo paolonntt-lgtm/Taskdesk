@@ -285,6 +285,8 @@ router.get("/settings/inbound-email", requireAuth, requireAdmin, async (req, res
       password: "***",
       enabled: config.enabled,
       folder: config.folder ?? "INBOX",
+      defaultCategory: config.defaultCategory ?? "",
+      defaultGroup: config.defaultGroup ?? "",
     },
     status,
   });
@@ -295,7 +297,7 @@ router.put("/settings/inbound-email", requireAuth, requireAdmin, async (req, res
   const orgId = currentUser.organizationId;
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
 
-  const { host, port, secure, user, password, enabled, folder } = req.body ?? {};
+  const { host, port, secure, user, password, enabled, folder, defaultCategory, defaultGroup } = req.body ?? {};
 
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host IMAP obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente IMAP obbligatorio" }); return; }
@@ -323,6 +325,8 @@ router.put("/settings/inbound-email", requireAuth, requireAdmin, async (req, res
     password: resolvedPassword,
     enabled: enabled !== false,
     folder: (typeof folder === "string" && folder.trim()) ? folder.trim() : "INBOX",
+    defaultCategory: (typeof defaultCategory === "string" && defaultCategory.trim()) ? defaultCategory.trim() : undefined,
+    defaultGroup: (typeof defaultGroup === "string" && defaultGroup.trim()) ? defaultGroup.trim() : undefined,
   };
 
   await db

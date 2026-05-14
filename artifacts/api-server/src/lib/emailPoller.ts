@@ -13,6 +13,8 @@ export interface ImapConfig {
   password: string;
   enabled: boolean;
   folder?: string;
+  defaultCategory?: string;
+  defaultGroup?: string;
 }
 
 export interface ImapStatus {

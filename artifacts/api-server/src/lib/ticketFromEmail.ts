@@ -1,9 +1,21 @@
 import { eq, sql, and } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket } from "./notifications";
 import { logger } from "./logger";
+import type { ImapConfig } from "./emailPoller";
+
+async function getInboundRouting(orgId: number | null | undefined): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
+  if (!orgId) return {};
+  const key = `org_${orgId}_imap_config`;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (!row) return {};
+  try {
+    const cfg = JSON.parse(row.value) as ImapConfig;
+    return { defaultCategory: cfg.defaultCategory, defaultGroup: cfg.defaultGroup };
+  } catch { return {}; }
+}
 
 const TICKET_NUMBER_RE = /\[#(\d+)\]/;
 
@@ -99,12 +111,14 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     bodyText || "(nessun testo nel corpo dell'email)",
   ].join("\n");
 
+  const routing = await getInboundRouting(orgId);
+
   const [ticket] = await db
     .insert(ticketsTable)
     .values({
       title,
       description,
-      category: "Email Fornitore",
+      category: routing.defaultCategory ?? "Email",
       location: "Esterno",
       resource: fromEmail,
       priority: "medium",
@@ -112,6 +126,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       createdBy: systemUser.id,
       organizationId: orgId,
       ticketNumber: nextTicketNumber,
+      assignedToGroup: routing.defaultGroup ?? null,
     })
     .returning();
 

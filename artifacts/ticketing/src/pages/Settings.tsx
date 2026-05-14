@@ -5,6 +5,7 @@ import {
   ListItemSecondaryAction, CircularProgress, Switch, Table, TableBody,
   TableCell, TableHead, TableRow, Tooltip, Stack, useMediaQuery, useTheme,
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
+  MenuItem,
 } from '@mui/material';
 import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
@@ -1170,6 +1171,61 @@ function GroupsEditor({
   );
 }
 
+// ── INBOUND ROUTING FIELDS (shared sub-component) ────────────────────────
+
+function InboundRoutingFields({
+  config,
+  setConfig,
+}: {
+  config: ImapConfig;
+  setConfig: React.Dispatch<React.SetStateAction<ImapConfig>>;
+}) {
+  const { t } = useLanguage();
+  const [categories, setCategories] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then(setCategories).catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' }).then((r) => r.json()).then(setGroups).catch(() => {});
+  }, []);
+
+  return (
+    <Box display="flex" flexDirection="column" gap={1.5}>
+      {/* Category */}
+      <TextField
+        select
+        label={t.settings.imapRoutingCategory}
+        value={config.defaultCategory ?? ''}
+        onChange={(e) => setConfig((c) => ({ ...c, defaultCategory: e.target.value }))}
+        size="small"
+        fullWidth
+        helperText={t.settings.imapRoutingCategoryHint}
+      >
+        <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+        {categories.map((cat) => (
+          <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+        ))}
+      </TextField>
+
+      {/* Group */}
+      <TextField
+        select
+        label={t.settings.imapRoutingGroup}
+        value={config.defaultGroup ?? ''}
+        onChange={(e) => setConfig((c) => ({ ...c, defaultGroup: e.target.value }))}
+        size="small"
+        fullWidth
+        helperText={t.settings.imapRoutingGroupHint}
+      >
+        <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+        {groups.map((g) => (
+          <MenuItem key={g} value={g}>{g}</MenuItem>
+        ))}
+      </TextField>
+    </Box>
+  );
+}
+
 // ── INBOUND EMAIL (IMAP) TAB ──────────────────────────────────────────────
 
 interface ImapConfig {
@@ -1181,6 +1237,8 @@ interface ImapConfig {
   enabled: boolean;
   folder: string;
   label?: string;
+  defaultCategory?: string;
+  defaultGroup?: string;
 }
 interface ImapStatus {
   lastPollAt: string | null;
@@ -1209,7 +1267,7 @@ const IMAP_PRESETS = [
   { label: 'Libero / Italiaonline', host: 'imap.libero.it', port: 993, secure: true },
 ];
 
-const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX', label: '' };
+const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX', label: '', defaultCategory: '', defaultGroup: '' };
 
 function OAuthProviderCard({
   providerLabel, providerColor, connectUrl, available, info, onDisconnect, disconnecting, t,
@@ -1657,6 +1715,14 @@ function InboundEmailTab() {
                 onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked }))}
               />
             </Box>
+          </Box>
+
+          {/* Routing */}
+          <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1.5, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {t.settings.imapRoutingTitle}
+            </Typography>
+            <InboundRoutingFields config={config} setConfig={setConfig} />
           </Box>
 
           {/* Actions */}
