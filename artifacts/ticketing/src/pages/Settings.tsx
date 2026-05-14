@@ -1185,8 +1185,8 @@ function InboundRoutingFields({
   const [groups, setGroups] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then(setCategories).catch(() => {});
-    fetch('/api/settings/groups', { credentials: 'include' }).then((r) => r.json()).then(setGroups).catch(() => {});
+    fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then((d) => setCategories(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' }).then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
   }, []);
 
   return (
