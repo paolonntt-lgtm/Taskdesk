@@ -1260,13 +1260,17 @@ interface OAuthStatus {
 }
 
 const IMAP_PRESETS = [
-  { label: 'Gmail', host: 'imap.gmail.com', port: 993, secure: true, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
-  { label: 'Outlook / Office 365', host: 'outlook.office365.com', port: 993, secure: true, appPwd: false, pwdLink: '' },
-  { label: 'Yahoo', host: 'imap.mail.yahoo.com', port: 993, secure: true, appPwd: true, pwdLink: 'https://login.yahoo.com/account/security' },
   { label: 'Aruba', host: 'imaps.aruba.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
-  { label: 'Libero / IOL', host: 'imap.libero.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
-  { label: 'Fastweb', host: 'imap.fastweb.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
-  { label: 'Virgilio / Tim', host: 'imap.virgilio.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Register.it', host: 'imap.register.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Netsons', host: 'imap.netsons.com', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Keliweb', host: 'imap.keliweb.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Serverplan', host: 'imap.serverplan.com', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Seeweb', host: 'imap.seeweb.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'OVH', host: 'ssl0.ovh.net', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Ionos / 1&1', host: 'imap.ionos.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'GoDaddy', host: 'imap.secureserver.net', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Google Workspace', host: 'imap.gmail.com', port: 993, secure: true, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
+  { label: 'Microsoft 365', host: 'outlook.office365.com', port: 993, secure: true, appPwd: false, pwdLink: '' },
 ];
 
 const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX', label: '', defaultCategory: '', defaultGroup: '' };
@@ -1342,13 +1346,17 @@ interface SmtpConfig {
 const EMPTY_SMTP: SmtpConfig = { host: '', port: 587, secure: false, user: '', password: '', from: '' };
 
 const SMTP_PRESETS = [
-  { label: 'Gmail', host: 'smtp.gmail.com', port: 587, secure: false, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
-  { label: 'Outlook / Office 365', host: 'smtp.office365.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
-  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, secure: false, appPwd: true, pwdLink: 'https://login.yahoo.com/account/security' },
   { label: 'Aruba', host: 'smtp.aruba.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
-  { label: 'Libero / IOL', host: 'smtp.libero.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
-  { label: 'Fastweb', host: 'smtp.fastweb.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
-  { label: 'Virgilio / Tim', host: 'smtp.virgilio.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Register.it', host: 'smtp.register.it', port: 465, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Netsons', host: 'smtp.netsons.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Keliweb', host: 'smtp.keliweb.it', port: 465, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Serverplan', host: 'smtp.serverplan.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Seeweb', host: 'smtp.seeweb.it', port: 465, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'OVH', host: 'ssl0.ovh.net', port: 465, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Ionos / 1&1', host: 'smtp.ionos.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'GoDaddy', host: 'smtpout.secureserver.net', port: 465, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Google Workspace', host: 'smtp.gmail.com', port: 587, secure: false, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
+  { label: 'Microsoft 365', host: 'smtp.office365.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
   { label: 'SendGrid', host: 'smtp.sendgrid.net', port: 587, secure: false, appPwd: false, pwdLink: '' },
   { label: 'Brevo', host: 'smtp-relay.brevo.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
   { label: 'Mailgun', host: 'smtp.mailgun.org', port: 587, secure: false, appPwd: false, pwdLink: '' },
