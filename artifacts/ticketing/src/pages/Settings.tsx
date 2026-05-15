@@ -1260,11 +1260,13 @@ interface OAuthStatus {
 }
 
 const IMAP_PRESETS = [
-  { label: 'Gmail', host: 'imap.gmail.com', port: 993, secure: true },
-  { label: 'Outlook / Hotmail', host: 'outlook.office365.com', port: 993, secure: true },
-  { label: 'Yahoo', host: 'imap.mail.yahoo.com', port: 993, secure: true },
-  { label: 'Aruba', host: 'imaps.aruba.it', port: 993, secure: true },
-  { label: 'Libero / Italiaonline', host: 'imap.libero.it', port: 993, secure: true },
+  { label: 'Gmail', host: 'imap.gmail.com', port: 993, secure: true, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
+  { label: 'Outlook / Office 365', host: 'outlook.office365.com', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Yahoo', host: 'imap.mail.yahoo.com', port: 993, secure: true, appPwd: true, pwdLink: 'https://login.yahoo.com/account/security' },
+  { label: 'Aruba', host: 'imaps.aruba.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Libero / IOL', host: 'imap.libero.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Fastweb', host: 'imap.fastweb.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
+  { label: 'Virgilio / Tim', host: 'imap.virgilio.it', port: 993, secure: true, appPwd: false, pwdLink: '' },
 ];
 
 const EMPTY_CONFIG: ImapConfig = { host: '', port: 993, secure: true, user: '', password: '', enabled: true, folder: 'INBOX', label: '', defaultCategory: '', defaultGroup: '' };
@@ -1339,6 +1341,19 @@ interface SmtpConfig {
 }
 const EMPTY_SMTP: SmtpConfig = { host: '', port: 587, secure: false, user: '', password: '', from: '' };
 
+const SMTP_PRESETS = [
+  { label: 'Gmail', host: 'smtp.gmail.com', port: 587, secure: false, appPwd: true, pwdLink: 'https://myaccount.google.com/apppasswords' },
+  { label: 'Outlook / Office 365', host: 'smtp.office365.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, secure: false, appPwd: true, pwdLink: 'https://login.yahoo.com/account/security' },
+  { label: 'Aruba', host: 'smtp.aruba.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Libero / IOL', host: 'smtp.libero.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Fastweb', host: 'smtp.fastweb.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Virgilio / Tim', host: 'smtp.virgilio.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'SendGrid', host: 'smtp.sendgrid.net', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Brevo', host: 'smtp-relay.brevo.com', port: 587, secure: false, appPwd: false, pwdLink: '' },
+  { label: 'Mailgun', host: 'smtp.mailgun.org', port: 587, secure: false, appPwd: false, pwdLink: '' },
+];
+
 function OutboundEmailTab() {
   const { t } = useLanguage();
   const [config, setConfig] = useState<SmtpConfig>(EMPTY_SMTP);
@@ -1346,6 +1361,12 @@ function OutboundEmailTab() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [presetNote, setPresetNote] = useState<{ label: string; link: string } | null>(null);
+
+  const applySmtpPreset = (preset: typeof SMTP_PRESETS[0]) => {
+    setConfig((c) => ({ ...c, host: preset.host, port: preset.port, secure: preset.secure }));
+    setPresetNote(preset.appPwd ? { label: preset.label, link: preset.pwdLink } : null);
+  };
 
   useEffect(() => {
     fetch('/api/settings/outbound-email', { credentials: 'include' })
@@ -1392,7 +1413,38 @@ function OutboundEmailTab() {
 
   return (
     <Section title={t.settings.smtpTitle} icon={<Send color="primary" />}>
-      <Typography variant="body2" color="text.secondary" mb={3}>{t.settings.smtpNote}</Typography>
+      <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.smtpNote}</Typography>
+
+      {/* Provider presets */}
+      <Box mb={2.5}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.75 }}>
+          {t.settings.providerPreset}
+        </Typography>
+        <Box display="flex" flexWrap="wrap" gap={0.75}>
+          {SMTP_PRESETS.map((preset) => (
+            <Chip
+              key={preset.label}
+              label={preset.label}
+              size="small"
+              onClick={() => applySmtpPreset(preset)}
+              variant={config.host === preset.host ? 'filled' : 'outlined'}
+              color={config.host === preset.host ? 'primary' : 'default'}
+              clickable
+            />
+          ))}
+        </Box>
+        {presetNote && (
+          <Alert severity="info" sx={{ mt: 1.5, fontSize: '0.8rem', py: 0.5 }}>
+            <strong>{presetNote.label}</strong> {t.settings.appPasswordNote}{' '}
+            {presetNote.link && (
+              <a href={presetNote.link} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                {t.settings.appPasswordLink} →
+              </a>
+            )}
+          </Alert>
+        )}
+      </Box>
+
       {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
       <Box
         sx={{
@@ -1509,8 +1561,11 @@ function InboundEmailTab() {
     return () => { mounted = false; };
   }, []);
 
+  const [presetNote, setPresetNote] = useState<{ label: string; link: string } | null>(null);
+
   const applyPreset = (preset: typeof IMAP_PRESETS[0]) => {
     setConfig((c) => ({ ...c, host: preset.host, port: preset.port, secure: preset.secure }));
+    setPresetNote(preset.appPwd ? { label: preset.label, link: preset.pwdLink } : null);
   };
 
   const testConnection = async () => {
@@ -1641,6 +1696,36 @@ function InboundEmailTab() {
               onChange={(e) => setConfig((c) => ({ ...c, enabled: e.target.checked }))}
               sx={{ ml: 'auto' }}
             />
+          </Box>
+
+          {/* Provider presets */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.75 }}>
+              {t.settings.providerPreset}
+            </Typography>
+            <Box display="flex" flexWrap="wrap" gap={0.75}>
+              {IMAP_PRESETS.map((preset) => (
+                <Chip
+                  key={preset.label}
+                  label={preset.label}
+                  size="small"
+                  onClick={() => applyPreset(preset)}
+                  variant={config.host === preset.host ? 'filled' : 'outlined'}
+                  color={config.host === preset.host ? 'primary' : 'default'}
+                  clickable
+                />
+              ))}
+            </Box>
+            {presetNote && (
+              <Alert severity="info" sx={{ mt: 1.5, fontSize: '0.8rem', py: 0.5 }}>
+                <strong>{presetNote.label}</strong> {t.settings.appPasswordNote}{' '}
+                {presetNote.link && (
+                  <a href={presetNote.link} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                    {t.settings.appPasswordLink} →
+                  </a>
+                )}
+              </Alert>
+            )}
           </Box>
 
           {/* Provider label */}
