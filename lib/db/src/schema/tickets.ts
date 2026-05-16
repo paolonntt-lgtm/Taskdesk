@@ -23,6 +23,8 @@ export const ticketsTable = pgTable("tickets", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   closedAt: timestamp("closed_at", { withTimezone: true }),
+  emailMessageId: text("email_message_id"),
+  emailConversationId: text("email_conversation_id"),
 }, (t) => [
   index("tickets_status_idx").on(t.status),
   index("tickets_priority_idx").on(t.priority),
@@ -32,6 +34,8 @@ export const ticketsTable = pgTable("tickets", {
   index("tickets_assigned_to_idx").on(t.assignedTo),
   index("tickets_updated_at_idx").on(t.updatedAt),
   index("tickets_organization_id_idx").on(t.organizationId),
+  index("tickets_email_message_id_idx").on(t.emailMessageId),
+  index("tickets_email_conversation_id_idx").on(t.emailConversationId),
 ]);
 
 export const insertTicketSchema = createInsertSchema(ticketsTable).omit({ id: true, createdAt: true, updatedAt: true });

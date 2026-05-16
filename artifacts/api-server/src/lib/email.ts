@@ -36,6 +36,13 @@ interface SendEmailArgs {
   replyTo?: string;
 }
 
+interface SendEmailResult {
+  ok: boolean;
+  error?: string;
+  /** The Message-ID of the sent email (from nodemailer), usable for reply threading */
+  messageId?: string;
+}
+
 /**
  * Send an email using the SMTP config configured by the organisation.
  * Returns { ok: false } (without throwing) if no config is set — callers
@@ -44,7 +51,7 @@ interface SendEmailArgs {
 export async function sendEmailForOrg(
   orgId: number | null | undefined,
   args: SendEmailArgs
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<SendEmailResult> {
   if (!orgId) {
     logger.warn({ to: args.to }, "sendEmailForOrg: nessun orgId — email non inviata");
     return { ok: false, error: "Nessuna organizzazione associata" };
@@ -56,7 +63,7 @@ export async function sendEmailForOrg(
   }
   try {
     const transporter = createTransportFromConfig(config);
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: config.from || config.user,
       to: args.to,
       subject: args.subject,
@@ -64,7 +71,7 @@ export async function sendEmailForOrg(
       text: args.text,
       ...(args.replyTo ? { replyTo: args.replyTo } : {}),
     });
-    return { ok: true };
+    return { ok: true, messageId: info.messageId ?? undefined };
   } catch (err: any) {
     logger.warn({ orgId, to: args.to, err: err?.message }, "sendEmailForOrg failed");
     return { ok: false, error: err?.message ?? "send failed" };
@@ -72,7 +79,7 @@ export async function sendEmailForOrg(
 }
 
 /** @deprecated Use sendEmailForOrg — kept only for the SMTP test route */
-export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
+export async function sendEmail(args: SendEmailArgs): Promise<SendEmailResult> {
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
   const user = process.env.SMTP_USER;
@@ -83,8 +90,8 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ ok: boolean; err
   try {
     const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
     const from = process.env.SMTP_FROM || user;
-    await transporter.sendMail({ from, to: args.to, subject: args.subject, html: args.html, text: args.text, ...(args.replyTo ? { replyTo: args.replyTo } : {}) });
-    return { ok: true };
+    const info = await transporter.sendMail({ from, to: args.to, subject: args.subject, html: args.html, text: args.text, ...(args.replyTo ? { replyTo: args.replyTo } : {}) });
+    return { ok: true, messageId: info.messageId ?? undefined };
   } catch (err: any) {
     logger.warn({ to: args.to, err: err?.message }, "sendEmail (legacy) failed");
     return { ok: false, error: err?.message ?? "send failed" };

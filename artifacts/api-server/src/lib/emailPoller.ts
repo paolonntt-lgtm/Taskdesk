@@ -147,10 +147,18 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
             const fromName = parsed.from?.value[0]?.name || fromAddr;
             const subject = parsed.subject ?? "Richiesta di assistenza";
             const bodyText = parsed.text ?? "";
+            const messageId = parsed.messageId ?? undefined;
+            const inReplyTo = parsed.inReplyTo ?? undefined;
+            const referencesRaw = parsed.references;
+            const referencesStr = Array.isArray(referencesRaw)
+              ? referencesRaw.join(" ")
+              : typeof referencesRaw === "string"
+              ? referencesRaw
+              : undefined;
 
             if (!fromAddr) continue;
 
-            await processInboundEmail({ fromEmail: fromAddr, fromName, subject, bodyText, orgId });
+            await processInboundEmail({ fromEmail: fromAddr, fromName, subject, bodyText, orgId, messageId, inReplyTo, references: referencesStr });
             await client.messageFlagsAdd({ uid: msg.uid }, ["\\Seen"], { uid: true });
             created++;
           } catch (err) {

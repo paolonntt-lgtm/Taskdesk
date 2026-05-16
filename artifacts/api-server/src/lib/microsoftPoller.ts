@@ -120,7 +120,7 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
     // OData filter: unread AND received after baseline cutoff
     const filter = `isRead eq false and receivedDateTime gt ${status.baselineISO}`;
     let nextLink: string | null =
-      `${GRAPH}/me/mailFolders/inbox/messages?$filter=${encodeURIComponent(filter)}&$select=id,subject,from,body&$top=20`;
+      `${GRAPH}/me/mailFolders/inbox/messages?$filter=${encodeURIComponent(filter)}&$select=id,subject,from,body,internetMessageId,conversationId,singleValueExtendedProperties&$top=20`;
 
     while (nextLink) {
       const res = await fetch(nextLink, { headers: { Authorization: `Bearer ${valid.access_token}` } });
@@ -130,6 +130,8 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
           subject?: string;
           from?: { emailAddress?: { name?: string; address?: string } };
           body?: { content?: string; contentType?: string };
+          internetMessageId?: string;
+          conversationId?: string;
         }>;
         "@odata.nextLink"?: string;
       };
@@ -143,9 +145,14 @@ export async function pollMicrosoftOrg(orgId: number): Promise<void> {
           const bodyText = msg.body?.contentType === "html"
             ? rawBody.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
             : rawBody.trim();
+          // Pass internetMessageId as the RFC Message-ID (stored as emailMessageId)
+          // and conversationId separately (stored as emailConversationId) so both
+          // matching strategies work: standard header match and Microsoft thread match.
+          const messageId = msg.internetMessageId ?? undefined;
+          const conversationId = msg.conversationId ?? undefined;
 
           if (!fromEmail) continue;
-          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId });
+          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId, messageId, conversationId });
 
           // Mark as read so it won't be picked up again on the next poll
           await fetch(`${GRAPH}/me/messages/${msg.id}`, {

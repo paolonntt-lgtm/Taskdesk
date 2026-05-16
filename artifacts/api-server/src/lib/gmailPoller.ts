@@ -155,9 +155,12 @@ export async function pollGmailOrg(orgId: number): Promise<void> {
           const fromEmail = emailMatch ? emailMatch[1] : fromHeader.trim();
           const fromName = fromHeader.replace(/<[^>]+>/g, "").replace(/"/g, "").trim() || fromEmail;
           const bodyText = extractBody(msg.payload);
+          const messageId = headers.find((h) => h.name === "Message-ID" || h.name === "Message-Id")?.value ?? undefined;
+          const inReplyTo = headers.find((h) => h.name === "In-Reply-To")?.value ?? undefined;
+          const references = headers.find((h) => h.name === "References")?.value ?? undefined;
           if (!fromEmail) continue;
 
-          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId });
+          await processInboundEmail({ fromEmail, fromName, subject, bodyText, orgId, messageId, inReplyTo, references });
 
           // Mark as read so it won't be picked up again on the next poll
           await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/modify`, {

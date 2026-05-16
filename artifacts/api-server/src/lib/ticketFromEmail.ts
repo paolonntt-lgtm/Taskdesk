@@ -1,4 +1,4 @@
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, or, isNull } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
@@ -24,19 +24,12 @@ const TICKET_NUMBER_RE = /\[#(\d+)\]/;
  * written by the sender. Handles Gmail (IT/EN), Outlook, Yahoo, and RFC ">".
  */
 function stripEmailQuotes(body: string): string {
-  // Common quote-header patterns that mark the start of the quoted original
   const quoteHeaderPatterns = [
-    // Gmail Italian: "Il giorno gio 13 mag 2026 alle ore 17:08 ... ha scritto:"
     /\r?\nIl giorno .{5,200}ha scritto:\s*\r?\n/,
-    // Gmail English: "On Thu, 13 May 2026 at 17:08 ... wrote:"
     /\r?\nOn .{5,200}wrote:\s*\r?\n/,
-    // Outlook Italian / generic: "Da: ... Inviato: ..."
     /\r?\nDa: .{1,200}\r?\n.*(?:Inviato|Oggetto|A:)/,
-    // Outlook English: "From: ... Sent: ..."
     /\r?\nFrom: .{1,200}\r?\n.*(?:Sent|Subject|To:)/,
-    // Standard separator: "-----Original Message-----"
     /\r?\n-{3,}\s*(?:Original Message|Messaggio originale)\s*-{3,}/i,
-    // Underscore line (Yahoo, Outlook Web)
     /\r?\n_{5,}\r?\n/,
   ];
 
@@ -48,14 +41,35 @@ function stripEmailQuotes(body: string): string {
   }
   text = text.slice(0, cutAt).trim();
 
-  // Strip any remaining lines that start with ">" (RFC 2822 inline quotes)
   text = text
     .split("\n")
     .filter((line) => !line.trimStart().startsWith(">"))
     .join("\n")
     .trim();
 
-  return text || body.trim(); // fallback to full body if everything was stripped
+  return text || body.trim();
+}
+
+/**
+ * Normalises an email subject for fallback matching:
+ * strips Re:, Fwd:, Fw:, AW:, etc. prefixes (case-insensitive), trims whitespace.
+ */
+function normaliseSubject(subject: string): string {
+  return subject
+    .replace(/^(re|fwd|fw|aw|sv|vs|r|rif|ant)[\s:]+/gi, "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Parses a References header string (space/newline separated message-ids) into
+ * an array of individual message-id strings.
+ */
+function parseReferences(references: string): string[] {
+  return references
+    .split(/[\s,]+/)
+    .map((r) => r.trim())
+    .filter(Boolean);
 }
 
 export interface EmailTicketInput {
@@ -64,6 +78,14 @@ export interface EmailTicketInput {
   subject: string;
   bodyText: string;
   orgId?: number | null;
+  /** Message-ID header of the incoming email (RFC 2822) */
+  messageId?: string;
+  /** In-Reply-To header of the incoming email */
+  inReplyTo?: string;
+  /** References header of the incoming email (space-separated message-ids) */
+  references?: string;
+  /** Provider-specific thread/conversation identifier (e.g. Microsoft Graph conversationId) */
+  conversationId?: string;
 }
 
 export interface EmailTicketResult {
@@ -72,7 +94,7 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId } = input;
+  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId } = input;
 
   let systemUser: { id: number; organizationId: number | null; name: string } | null = null;
 
@@ -127,6 +149,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       organizationId: orgId,
       ticketNumber: nextTicketNumber,
       assignedToGroup: routing.defaultGroup ?? null,
+      emailMessageId: messageId ?? null,
+      emailConversationId: conversationId ?? null,
     })
     .returning();
 
@@ -156,6 +180,12 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     const emailResult = await sendEmail({ to: fromEmail, subject: confSubject, html, text });
     if (!emailResult.ok) {
       logger.warn({ to: fromEmail, err: emailResult.error }, "Failed to send inbound confirmation email");
+    } else if (emailResult.messageId) {
+      // Update the ticket's emailMessageId to the outgoing confirmation's Message-ID.
+      // Customer replies will have In-Reply-To referencing this ID, enabling header threading.
+      await db.update(ticketsTable)
+        .set({ emailMessageId: emailResult.messageId })
+        .where(eq(ticketsTable.id, ticket.id));
     }
   } catch (err) {
     logger.warn({ err }, "Error sending inbound confirmation email");
@@ -166,38 +196,100 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
 }
 
 /**
+ * Threads an email reply as a comment on an existing ticket.
+ * Re-opens the ticket if it was closed. Logs activity and sends notifications.
+ */
+async function threadReplyAsComment(
+  ticket: typeof ticketsTable.$inferSelect,
+  systemUserId: number,
+  systemUserOrgId: number | null,
+  fromEmail: string,
+  fromName: string,
+  bodyText: string,
+  matchReason: string,
+): Promise<void> {
+  if (ticket.status === "closed") {
+    await db.update(ticketsTable).set({ status: "open", updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
+    await db.insert(ticketActivityLogsTable).values({
+      ticketId: ticket.id,
+      userId: systemUserId,
+      actionType: "status_changed",
+      actionDescription: `Ticket riaperto automaticamente per risposta del cliente`,
+    });
+  }
+
+  const cleanBody = stripEmailQuotes(bodyText || "").trim() || "(nessun testo)";
+  const commentText = [
+    `📧 **Risposta del cliente** — da: ${fromName} <${fromEmail}>`,
+    "",
+    cleanBody,
+  ].join("\n");
+
+  const [comment] = await db
+    .insert(ticketCommentsTable)
+    .values({ ticketId: ticket.id, authorId: systemUserId, commentText })
+    .returning();
+
+  await db.update(ticketsTable).set({ updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: ticket.id,
+    userId: systemUserId,
+    actionType: "comment_added",
+    actionDescription: `Risposta del cliente ricevuta via email da ${fromName} <${fromEmail}>`,
+  });
+
+  await createNotificationsForTicket(
+    ticket.id,
+    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber}: "${ticket.title}"`,
+    systemUserId,
+    "ticket_commented",
+    systemUserOrgId
+  );
+
+  logger.info(
+    { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, commentId: comment.id, from: fromEmail, matchReason },
+    "Customer email reply threaded into existing ticket"
+  );
+}
+
+/**
  * Entry point for all pollers.
- * If the email subject contains [#N] and the ticket's resource matches the
- * sender, the body is threaded as a comment. Otherwise a new ticket is created.
+ * Threading priority:
+ * 1. Subject contains [#N] and sender matches resource
+ * 2. In-Reply-To / References header matches a known ticket's email_message_id
+ * 3. Same sender + same normalised subject (open/recently-closed tickets only)
+ * Otherwise, creates a new ticket.
  */
 export async function processInboundEmail(input: EmailTicketInput): Promise<void> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId } = input;
+  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, inReplyTo, references, conversationId } = input;
 
-  const match = TICKET_NUMBER_RE.exec(subject);
-  if (match) {
-    const ticketNumber = parseInt(match[1], 10);
+  // Resolve the system user for this org
+  let systemUser: { id: number; organizationId: number | null } | null = null;
+  if (targetOrgId) {
+    const [u] = await db
+      .select({ id: usersTable.id, organizationId: usersTable.organizationId })
+      .from(usersTable)
+      .where(and(eq(usersTable.organizationId, targetOrgId), eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
+      .limit(1);
+    systemUser = u ?? null;
+  }
+  if (!systemUser) {
+    const [u] = await db
+      .select({ id: usersTable.id, organizationId: usersTable.organizationId })
+      .from(usersTable)
+      .where(and(eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
+      .limit(1);
+    systemUser = u ?? null;
+  }
 
-    // Find a system/admin user for this org (needed as comment author)
-    let systemUser: { id: number; organizationId: number | null } | null = null;
-    if (targetOrgId) {
-      const [u] = await db
-        .select({ id: usersTable.id, organizationId: usersTable.organizationId })
-        .from(usersTable)
-        .where(and(eq(usersTable.organizationId, targetOrgId), eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-        .limit(1);
-      systemUser = u ?? null;
-    }
-    if (!systemUser) {
-      const [u] = await db
-        .select({ id: usersTable.id, organizationId: usersTable.organizationId })
-        .from(usersTable)
-        .where(and(eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-        .limit(1);
-      systemUser = u ?? null;
-    }
+  if (systemUser) {
+    const orgId = systemUser.organizationId;
 
-    if (systemUser) {
-      const orgId = systemUser.organizationId;
+    // --- 1. [#N] subject match ---
+    const match = TICKET_NUMBER_RE.exec(subject);
+    if (match) {
+      const ticketNumber = parseInt(match[1], 10);
       const [ticket] = await db
         .select()
         .from(ticketsTable)
@@ -209,54 +301,90 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
         )
         .limit(1);
 
-      // Only thread if the sender matches the original customer email
       if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
-        if (ticket.status === "closed") {
-          // Re-open closed ticket when customer replies
-          await db.update(ticketsTable).set({ status: "open", updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
-          await db.insert(ticketActivityLogsTable).values({
-            ticketId: ticket.id,
-            userId: systemUser.id,
-            actionType: "status_changed",
-            actionDescription: `Ticket riaperto automaticamente per risposta del cliente`,
-          });
+        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "[#N] subject match");
+        return;
+      }
+    }
+
+    // --- 2. In-Reply-To / References header match (RFC Message-IDs) ---
+    const referencedIds: string[] = [];
+    if (inReplyTo) referencedIds.push(inReplyTo.trim());
+    if (references) {
+      for (const ref of parseReferences(references)) {
+        if (!referencedIds.includes(ref)) referencedIds.push(ref);
+      }
+    }
+
+    if (referencedIds.length > 0) {
+      for (const msgId of referencedIds) {
+        if (!msgId) continue;
+        const [ticket] = await db
+          .select()
+          .from(ticketsTable)
+          .where(
+            and(
+              eq(ticketsTable.emailMessageId, msgId),
+              orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`
+            )
+          )
+          .limit(1);
+
+        // Only thread if the sender matches the original customer email on the ticket
+        if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
+          await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "In-Reply-To/References header match");
+          return;
         }
+      }
+    }
 
-        const cleanBody = stripEmailQuotes(bodyText || "").trim() || "(nessun testo)";
-        const commentText = [
-          `📧 **Risposta del cliente** — da: ${fromName} <${fromEmail}>`,
-          "",
-          cleanBody,
-        ].join("\n");
+    // --- 2b. Conversation-ID match (Microsoft Graph and similar provider-specific thread keys) ---
+    if (conversationId) {
+      const [ticket] = await db
+        .select()
+        .from(ticketsTable)
+        .where(
+          and(
+            eq(ticketsTable.emailConversationId, conversationId),
+            orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`
+          )
+        )
+        .limit(1);
 
-        const [comment] = await db
-          .insert(ticketCommentsTable)
-          .values({ ticketId: ticket.id, authorId: systemUser.id, commentText })
-          .returning();
+      if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
+        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "conversationId match");
+        return;
+      }
+    }
 
-        await db.update(ticketsTable).set({ updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
-
-        await db.insert(ticketActivityLogsTable).values({
-          ticketId: ticket.id,
-          userId: systemUser.id,
-          actionType: "comment_added",
-          actionDescription: `Risposta del cliente ricevuta via email da ${fromName} <${fromEmail}>`,
-        });
-
-        await createNotificationsForTicket(
-          ticket.id,
-          `${fromName} ha risposto via email al ticket #${ticketNumber}: "${ticket.title}"`,
-          systemUser.id,
-          "ticket_commented",
-          orgId
+    // --- 3. Subject fallback: same sender + normalised subject (open/not closed >30 days) ---
+    const normSubject = normaliseSubject(subject);
+    if (normSubject) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const fromEmailLower = fromEmail.toLowerCase();
+      const candidates = await db
+        .select()
+        .from(ticketsTable)
+        .where(
+          and(
+            sql`lower(${ticketsTable.resource}) = ${fromEmailLower}`,
+            orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`,
+            or(
+              sql`${ticketsTable.status} != 'closed'`,
+              sql`${ticketsTable.closedAt} > ${thirtyDaysAgo.toISOString()}`
+            )
+          )
         );
 
-        logger.info({ ticketId: ticket.id, ticketNumber, commentId: comment.id, from: fromEmail }, "Customer email reply threaded into existing ticket");
-        return;
+      for (const candidate of candidates) {
+        if (normaliseSubject(candidate.title) === normSubject) {
+          await threadReplyAsComment(candidate, systemUser.id, orgId, fromEmail, fromName, bodyText, "subject fallback match");
+          return;
+        }
       }
     }
   }
 
-  // No matching ticket found — create a new one as usual
+  // No matching ticket found — create a new one
   await createTicketFromEmail(input);
 }
