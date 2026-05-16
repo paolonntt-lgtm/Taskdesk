@@ -2,14 +2,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
-  Tooltip, TableSortLabel, Collapse, IconButton,
+  Tooltip, TableSortLabel, Collapse, IconButton, Checkbox, Toolbar, Dialog,
+  DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff } from '@mui/icons-material';
-import { useListTickets, useListUsers } from '@workspace/api-client-react';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon } from '@mui/icons-material';
+import { useListTickets, useListUsers, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const VALID_STATUSES = ['open', 'waiting', 'resolved', 'closed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -22,8 +25,11 @@ type SortDir = 'asc' | 'desc';
 
 export default function TicketList() {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [, navigate] = useLocation();
   const searchStr = useSearch();
+  const queryClient = useQueryClient();
 
   // ── Derive ALL filter values from the URL query string ──────────────────
   const urlParams = new URLSearchParams(searchStr);
@@ -38,8 +44,6 @@ export default function TicketList() {
   const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
   const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
 
-  // Search input keeps local state so typing feels instant; URL is updated
-  // after the debounce delay — this avoids a URL push on every keystroke.
   const [searchInput, setSearchInput] = useState(urlParams.get('search') ?? '');
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -47,13 +51,18 @@ export default function TicketList() {
   const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
   const { data: users } = useListUsers();
 
+  // ── Bulk selection state ─────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const deleteTicket = useDeleteTicket();
+
   const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all';
-  // Auto-expand the advanced panel if there are active extra filters; the
-  // button can still manually toggle when no extra filters are set.
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
-  // ── Helper: write one URL param (replace so filters don't pollute history) ─
   const setParam = useCallback((key: string, value: string, empty = 'all') => {
     const next = new URLSearchParams(searchStr);
     if (!value || value === empty) {
@@ -65,7 +74,6 @@ export default function TicketList() {
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
   }, [searchStr, navigate]);
 
-  // Sync debounced search value → URL (replace, same as other filters)
   useEffect(() => {
     const next = new URLSearchParams(searchStr);
     if (debouncedSearch) {
@@ -123,6 +131,9 @@ export default function TicketList() {
     createdBy:  userFilter !== 'all' && userFilterType === 'createdBy'  ? parseInt(userFilter, 10) : undefined,
   });
 
+  // Clear selection when tickets change (e.g. after delete or filter)
+  useEffect(() => { setSelectedIds(new Set()); }, [tickets]);
+
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
 
@@ -144,6 +155,51 @@ export default function TicketList() {
     });
   }, [tickets, sortCol, sortDir]);
 
+  // ── Selection helpers ────────────────────────────────────────────────────
+  const allVisibleIds = sortedTickets.map((t) => t.id);
+  const allSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedIds.has(id));
+  const someSelected = allVisibleIds.some((id) => selectedIds.has(id)) && !allSelected;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allVisibleIds));
+    }
+  };
+
+  const toggleSelectOne = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  };
+
+  // ── Bulk delete ──────────────────────────────────────────────────────────
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    const ids = Array.from(selectedIds);
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await deleteTicket.mutateAsync({ id });
+      } catch {
+        failed++;
+      }
+    }
+    await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    setSelectedIds(new Set());
+    setDeleteDialogOpen(false);
+    setDeleting(false);
+    const succeeded = ids.length - failed;
+    if (succeeded > 0) {
+      setBulkFeedback({ type: 'success', msg: t.ticketList.bulkDeleteSuccess(succeeded) });
+      setTimeout(() => setBulkFeedback(null), 4000);
+    }
+  };
+
   const col = (id: SortCol, label: string, sx?: object) => (
     <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', ...sx }}>
       <TableSortLabel
@@ -155,6 +211,8 @@ export default function TicketList() {
       </TableSortLabel>
     </TableCell>
   );
+
+  const colSpanTotal = (showLocation ? 8 : 7) + (isAdmin ? 1 : 0);
 
   return (
     <Box>
@@ -171,6 +229,13 @@ export default function TicketList() {
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{t.ticketList.newTicket}</Box>
         </Button>
       </Box>
+
+      {/* Bulk feedback */}
+      {bulkFeedback && (
+        <Alert severity={bulkFeedback.type} sx={{ mb: 2 }} onClose={() => setBulkFeedback(null)}>
+          {bulkFeedback.msg}
+        </Alert>
+      )}
 
       <Card sx={{ mb: { xs: 1.5, sm: 3 }, p: { xs: 1.5, sm: 2 } }}>
         {/* Row 1: search + stato + priorità + toggle */}
@@ -327,10 +392,49 @@ export default function TicketList() {
       </Card>
 
       <Card>
+        {/* Bulk action toolbar — visible only when items are selected */}
+        {isAdmin && selectedIds.size > 0 && (
+          <Toolbar
+            sx={{
+              pl: 2, pr: 1,
+              bgcolor: 'primary.50',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              minHeight: '48px !important',
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ flex: 1, fontWeight: 600, fontSize: '0.875rem', color: 'primary.main' }}>
+              {t.ticketList.bulkSelected(selectedIds.size)}
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteDialogOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {t.ticketList.bulkDelete}
+            </Button>
+          </Toolbar>
+        )}
+
         <Box sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>
+                {isAdmin && (
+                  <TableCell padding="checkbox" sx={{ width: 48 }}>
+                    <Checkbox
+                      size="small"
+                      indeterminate={someSelected}
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      disabled={sortedTickets.length === 0}
+                    />
+                  </TableCell>
+                )}
                 {col('id', t.ticketList.colId)}
                 {col('title', t.ticketList.colTitle)}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
@@ -344,67 +448,115 @@ export default function TicketList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={showLocation ? 8 : 7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 4 }}>
                     <CircularProgress size={32} />
                   </TableCell>
                 </TableRow>
               ) : sortedTickets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showLocation ? 8 : 7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {t.ticketList.noResults}
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedTickets.map((ticket) => (
-                  <TableRow
-                    key={ticket.id}
-                    hover
-                    sx={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/tickets/${ticket.id}`)}
-                  >
-                    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                    <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <Box display="flex" alignItems="center" gap={0.75}>
-                        {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
-                          <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
-                            <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
-                          </Tooltip>
-                        )}
-                        {ticket.title}
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      <Chip label={t.status[ticket.status] || ticket.status} size="small" color={getStatusColor(ticket.status) as any} />
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                      <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                      {ticket.assignee?.name || '—'}
-                    </TableCell>
-                    {showLocation && (
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                        {(ticket as any).location || '—'}
+                sortedTickets.map((ticket) => {
+                  const isSelected = selectedIds.has(ticket.id);
+                  return (
+                    <TableRow
+                      key={ticket.id}
+                      hover
+                      selected={isSelected}
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/tickets/${ticket.id}`)}
+                    >
+                      {isAdmin && (
+                        <TableCell padding="checkbox" onClick={(e) => toggleSelectOne(ticket.id, e)}>
+                          <Checkbox size="small" checked={isSelected} />
+                        </TableCell>
+                      )}
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Box display="flex" alignItems="center" gap={0.75}>
+                          {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
+                            <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
+                              <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
+                            </Tooltip>
+                          )}
+                          {ticket.title}
+                        </Box>
                       </TableCell>
-                    )}
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                      <Box>
-                        <Typography variant="body2" component="span">
-                          {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
-                        </Typography>
-                        <Typography variant="caption" component="div" color="text.secondary">
-                          {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Chip label={t.status[ticket.status] || ticket.status} size="small" color={getStatusColor(ticket.status) as any} />
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        {ticket.assignee?.name || '—'}
+                      </TableCell>
+                      {showLocation && (
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                          {(ticket as any).location || '—'}
+                        </TableCell>
+                      )}
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        <Box>
+                          <Typography variant="body2" component="span">
+                            {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
+                          </Typography>
+                          <Typography variant="caption" component="div" color="text.secondary">
+                            {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </Box>
       </Card>
+
+      {/* Confirmation dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => { if (!deleting) setDeleteDialogOpen(false); }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t.ticketList.bulkDeleteConfirmTitle}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t.ticketList.bulkDeleteConfirmText(selectedIds.size)}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleting}
+            variant="outlined"
+            color="inherit"
+            sx={{ textTransform: 'none' }}
+          >
+            {t.ticketList.bulkDeleteCancel}
+          </Button>
+          <Button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            variant="contained"
+            color="error"
+            startIcon={deleting ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {deleting ? '...' : t.ticketList.bulkDeleteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
