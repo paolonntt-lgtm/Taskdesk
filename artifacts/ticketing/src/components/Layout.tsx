@@ -44,7 +44,8 @@ import {
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useListNotifications, useMarkAllNotificationsRead } from '@workspace/api-client-react';
+import { useListNotifications, useMarkAllNotificationsRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 
@@ -81,6 +82,7 @@ export default function Layout({ children }: LayoutProps) {
   });
 
   const markAllRead = useMarkAllNotificationsRead();
+  const queryClient = useQueryClient();
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
@@ -128,11 +130,27 @@ export default function Layout({ children }: LayoutProps) {
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setNotifAnchorEl(event.currentTarget);
-    if (unreadCount > 0) { markAllRead.mutate(); }
   };
-  const handleMenuClose = () => { setAnchorEl(null); setNotifAnchorEl(null); };
+  const handleMenuClose = () => {
+    if (notifAnchorEl && unreadCount > 0) {
+      markAllRead.mutate(undefined, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+        },
+      });
+    }
+    setAnchorEl(null);
+    setNotifAnchorEl(null);
+  };
   const handleLogout = () => { handleMenuClose(); logout(); };
-  const handleMarkAllRead = () => { markAllRead.mutate(); handleMenuClose(); };
+  const handleMarkAllRead = () => {
+    markAllRead.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+    });
+    handleMenuClose();
+  };
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
