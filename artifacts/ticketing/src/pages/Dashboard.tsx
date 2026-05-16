@@ -783,6 +783,8 @@ export default function Dashboard() {
         isDraggable={editMode}
         isResizable={editMode}
         draggableHandle=".drag-handle"
+        compactType={null}
+        preventCollision={true}
         onLayoutChange={handleLayoutChange}
         style={{ minHeight: 200 }}
       >
