@@ -194,10 +194,14 @@ export default function TicketList() {
     setDeleteDialogOpen(false);
     setDeleting(false);
     const succeeded = ids.length - failed;
-    if (succeeded > 0) {
+    if (failed === 0) {
       setBulkFeedback({ type: 'success', msg: t.ticketList.bulkDeleteSuccess(succeeded) });
-      setTimeout(() => setBulkFeedback(null), 4000);
+    } else if (succeeded > 0) {
+      setBulkFeedback({ type: 'error', msg: t.ticketList.bulkDeletePartial(succeeded, failed) });
+    } else {
+      setBulkFeedback({ type: 'error', msg: t.ticketList.bulkDeleteError });
     }
+    setTimeout(() => setBulkFeedback(null), 5000);
   };
 
   const col = (id: SortCol, label: string, sx?: object) => (
