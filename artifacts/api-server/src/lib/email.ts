@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
-import { eq } from "drizzle-orm";
-import { db, settingsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, settingsTable, emailChannelsTable } from "@workspace/db";
 import { logger } from "./logger";
 
 export interface SmtpConfig {
@@ -21,7 +21,34 @@ function createTransportFromConfig(config: SmtpConfig) {
   });
 }
 
+/**
+ * Gets SMTP config for an org. Prefers email_channels table (is_primary=true, enabled=true),
+ * falling back to first active SMTP channel, and finally legacy settings key.
+ */
 export async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null> {
+  const channels = await db
+    .select()
+    .from(emailChannelsTable)
+    .where(
+      and(
+        eq(emailChannelsTable.organizationId, orgId),
+        eq(emailChannelsTable.type, "smtp"),
+        eq(emailChannelsTable.enabled, true)
+      )
+    );
+
+  if (channels.length > 0) {
+    const primary = channels.find((c) => c.isPrimary) ?? channels[0];
+    return {
+      host: primary.host,
+      port: primary.port,
+      secure: primary.secure,
+      user: primary.user,
+      password: primary.password,
+      from: primary.fromAddress || primary.user,
+    };
+  }
+
   const key = `org_${orgId}_smtp_config`;
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
   if (!row) return null;

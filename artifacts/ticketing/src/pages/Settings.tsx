@@ -7,7 +7,7 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send, MoreVert, StarOutlined } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -921,10 +921,7 @@ export default function Settings() {
             <KnowledgeBaseTab />
           </TabPanel>
           <TabPanel value={tab} index={4}>
-            <Box display="flex" flexDirection="column" gap={4}>
-              <OutboundEmailTab />
-              <InboundEmailTab />
-            </Box>
+            <EmailChannelsTab />
           </TabPanel>
         </>
       )}
@@ -1335,16 +1332,6 @@ function OAuthProviderCard({
   );
 }
 
-interface SmtpConfig {
-  host: string;
-  port: number;
-  secure: boolean;
-  user: string;
-  password: string;
-  from: string;
-}
-const EMPTY_SMTP: SmtpConfig = { host: '', port: 587, secure: false, user: '', password: '', from: '' };
-
 const SMTP_PRESETS = [
   { label: 'Aruba', host: 'smtp.aruba.it', port: 587, secure: false, appPwd: false, pwdLink: '' },
   { label: 'Register.it', host: 'smtp.register.it', port: 465, secure: true, appPwd: false, pwdLink: '' },
@@ -1362,275 +1349,220 @@ const SMTP_PRESETS = [
   { label: 'Mailgun', host: 'smtp.mailgun.org', port: 587, secure: false, appPwd: false, pwdLink: '' },
 ];
 
-function OutboundEmailTab() {
+// ── EMAIL CHANNELS TAB ────────────────────────────────────────────────────
+
+interface EmailChannel {
+  id: number;
+  type: string;
+  label: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  fromAddress: string | null;
+  folder: string | null;
+  defaultCategory: string | null;
+  defaultGroup: string | null;
+  isPrimary: boolean;
+  enabled: boolean;
+  status?: { lastPollAt: string | null; lastError: string | null; ticketsCreated: number; baselined: boolean } | null;
+}
+
+interface ChannelForm {
+  type: 'smtp' | 'imap';
+  label: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+  fromAddress: string;
+  folder: string;
+  defaultCategory: string;
+  defaultGroup: string;
+  isPrimary: boolean;
+  enabled: boolean;
+}
+
+const EMPTY_SMTP_FORM: ChannelForm = { type: 'smtp', label: '', host: '', port: 587, secure: false, user: '', password: '', fromAddress: '', folder: 'INBOX', defaultCategory: '', defaultGroup: '', isPrimary: false, enabled: true };
+const EMPTY_IMAP_FORM: ChannelForm = { type: 'imap', label: '', host: '', port: 993, secure: true, user: '', password: '', fromAddress: '', folder: 'INBOX', defaultCategory: '', defaultGroup: '', isPrimary: false, enabled: true };
+
+function ChannelRoutingFields({
+  form, setForm,
+}: { form: ChannelForm; setForm: React.Dispatch<React.SetStateAction<ChannelForm>>; }) {
   const { t } = useLanguage();
-  const [config, setConfig] = useState<SmtpConfig>(EMPTY_SMTP);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [presetNote, setPresetNote] = useState<{ label: string; link: string } | null>(null);
-
-  const applySmtpPreset = (preset: typeof SMTP_PRESETS[0]) => {
-    setConfig((c) => ({ ...c, host: preset.host, port: preset.port, secure: preset.secure }));
-    setPresetNote(preset.appPwd ? { label: preset.label, link: preset.pwdLink } : null);
-  };
-
+  const [categories, setCategories] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
   useEffect(() => {
-    fetch('/api/settings/outbound-email', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => { if (d.config) setConfig(d.config); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then((d) => setCategories(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' }).then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
   }, []);
-
-  const save = async () => {
-    setSaving(true); setMsg(null);
-    try {
-      const res = await fetch('/api/settings/outbound-email', {
-        method: 'PUT', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.smtpSaveError }); return; }
-      setConfig(data.config);
-      setMsg({ type: 'success', text: t.settings.smtpSaved });
-    } catch { setMsg({ type: 'error', text: t.settings.smtpSaveError }); }
-    finally { setSaving(false); }
-  };
-
-  const test = async () => {
-    setTesting(true); setMsg(null);
-    try {
-      const res = await fetch('/api/settings/outbound-email/test', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-      const data = await res.json();
-      if (data.ok) setMsg({ type: 'success', text: t.settings.smtpTestOk });
-      else setMsg({ type: 'error', text: `${t.settings.smtpTestFail}: ${data.error ?? ''}` });
-    } catch { setMsg({ type: 'error', text: t.settings.smtpTestFail }); }
-    finally { setTesting(false); }
-  };
-
-  if (loading) return <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>;
-
-  const isConfigured = !!(config.host && config.user && config.from);
-
   return (
-    <Section title={t.settings.smtpTitle} icon={<Send color="primary" />}>
-      <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.smtpNote}</Typography>
-
-      {/* Provider presets */}
-      <Box mb={2.5}>
-        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.75 }}>
-          {t.settings.providerPreset}
-        </Typography>
-        <Box display="flex" flexWrap="wrap" gap={0.75}>
-          {SMTP_PRESETS.map((preset) => (
-            <Chip
-              key={preset.label}
-              label={preset.label}
-              size="small"
-              onClick={() => applySmtpPreset(preset)}
-              variant={config.host === preset.host ? 'filled' : 'outlined'}
-              color={config.host === preset.host ? 'primary' : 'default'}
-              clickable
-            />
-          ))}
-        </Box>
-        {presetNote && (
-          <Alert severity="info" sx={{ mt: 1.5, fontSize: '0.8rem', py: 0.5 }}>
-            <strong>{presetNote.label}</strong> {t.settings.appPasswordNote}{' '}
-            {presetNote.link && (
-              <a href={presetNote.link} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
-                {t.settings.appPasswordLink} →
-              </a>
-            )}
-          </Alert>
-        )}
-      </Box>
-
-      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
-      <Box
-        sx={{
-          border: '1px solid', borderColor: isConfigured ? 'primary.main' : 'divider',
-          borderRadius: 2, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5,
-          bgcolor: isConfigured ? 'primary.50' : 'transparent',
-        }}
-      >
-        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: isConfigured ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
-          <Typography variant="subtitle2" fontWeight={700}>{t.settings.smtpTitle}</Typography>
-        </Box>
-
-        {/* Host + Port */}
-        <Box display="flex" gap={1}>
-          <TextField
-            label={t.settings.smtpHost} value={config.host} size="small" sx={{ flex: 1 }}
-            placeholder="smtp.gmail.com"
-            onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
-          />
-          <TextField
-            label={t.settings.smtpPort} value={config.port} size="small" sx={{ width: 88, flexShrink: 0 }}
-            type="number" inputProps={{ min: 1, max: 65535 }}
-            onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 587 }))}
-          />
-        </Box>
-
-        {/* SSL toggle */}
-        <Box display="flex" alignItems="center" gap={1}>
-          <Switch size="small" checked={config.secure}
-            onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked, port: e.target.checked ? 465 : 587 }))}
-          />
-          <Typography variant="body2">{t.settings.smtpSecure}</Typography>
-        </Box>
-
-        {/* User */}
-        <TextField
-          label={t.settings.smtpUser} value={config.user} size="small" fullWidth
-          placeholder="support@miazienda.it" type="email" autoComplete="off"
-          onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
-        />
-
-        {/* Password */}
-        <TextField
-          label={t.settings.smtpPassword} value={config.password} size="small" fullWidth
-          type="password" autoComplete="new-password"
-          onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
-        />
-
-        {/* From */}
-        <TextField
-          label={t.settings.smtpFrom} value={config.from} size="small" fullWidth
-          placeholder={t.settings.smtpFromPlaceholder}
-          onChange={(e) => setConfig((c) => ({ ...c, from: e.target.value }))}
-        />
-
-        {/* Actions */}
-        <Box display="flex" gap={1} justifyContent="flex-end" mt={0.5} flexWrap="wrap">
-          <Button size="small" variant="outlined" onClick={test} disabled={testing || saving || !config.host || !config.user}>
-            {testing ? t.settings.smtpTesting : t.settings.smtpTest}
-          </Button>
-          <Button size="small" variant="contained" onClick={save} disabled={saving || testing}>
-            {saving ? '…' : t.settings.smtpSave}
-          </Button>
-        </Box>
-      </Box>
-    </Section>
+    <Box display="flex" flexDirection="column" gap={1.5}>
+      <TextField select label={t.settings.imapRoutingCategory} value={form.defaultCategory} size="small" fullWidth
+        helperText={t.settings.imapRoutingCategoryHint}
+        onChange={(e) => setForm((f) => ({ ...f, defaultCategory: e.target.value }))}>
+        <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+        {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+      </TextField>
+      <TextField select label={t.settings.imapRoutingGroup} value={form.defaultGroup} size="small" fullWidth
+        helperText={t.settings.imapRoutingGroupHint}
+        onChange={(e) => setForm((f) => ({ ...f, defaultGroup: e.target.value }))}>
+        <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+        {groups.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+      </TextField>
+    </Box>
   );
 }
 
-function InboundEmailTab() {
+function EmailChannelsTab() {
   const { t } = useLanguage();
-  const [config, setConfig] = useState<ImapConfig>(EMPTY_CONFIG);
-  const [status, setStatus] = useState<ImapStatus | null>(null);
+  const [channels, setChannels] = useState<EmailChannel[]>([]);
   const [oauthStatus, setOauthStatus] = useState<OAuthStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState<'gmail' | 'microsoft' | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
-  const loadOAuthStatus = () =>
-    fetch('/api/settings/inbound-email/oauth-status', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => setOauthStatus(data))
-      .catch(() => {});
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EmailChannel | null>(null);
+  const [form, setForm] = useState<ChannelForm>(EMPTY_SMTP_FORM);
+  const [saving, setSaving] = useState(false);
+  const [presetNote, setPresetNote] = useState<{ label: string; link: string } | null>(null);
+
+  // Delete confirm
+  const [confirmDelete, setConfirmDelete] = useState<EmailChannel | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Test state
+  const [testing, setTesting] = useState<number | null>(null);
+
+  // OAuth disconnect
+  const [disconnecting, setDisconnecting] = useState<'gmail' | 'microsoft' | null>(null);
+
+  // Menu anchor
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; channel: EmailChannel } | null>(null);
+
+  const load = async () => {
+    try {
+      const [chRes, oaRes] = await Promise.all([
+        fetch('/api/settings/email-channels', { credentials: 'include' }),
+        fetch('/api/settings/inbound-email/oauth-status', { credentials: 'include' }),
+      ]);
+      const [chData, oaData] = await Promise.all([chRes.json(), oaRes.json()]);
+      setChannels(chData.channels ?? []);
+      setOauthStatus(oaData);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Check URL params for OAuth callback results
+    // Handle OAuth callback params
     const params = new URLSearchParams(window.location.search);
-    if (params.get('gmail_connected') === '1') {
-      setMsg({ type: 'success', text: t.settings.oauthConnectedSuccess });
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (params.get('microsoft_connected') === '1') {
+    if (params.get('gmail_connected') === '1' || params.get('microsoft_connected') === '1') {
       setMsg({ type: 'success', text: t.settings.oauthConnectedSuccess });
       window.history.replaceState({}, '', window.location.pathname);
     } else if (params.get('gmail_error') || params.get('microsoft_error')) {
       setMsg({ type: 'error', text: 'Connessione OAuth fallita. Riprova.' });
       window.history.replaceState({}, '', window.location.pathname);
     }
-
-    Promise.all([
-      fetch('/api/settings/inbound-email', { credentials: 'include' }).then((r) => r.json()),
-      fetch('/api/settings/inbound-email/oauth-status', { credentials: 'include' }).then((r) => r.json()),
-    ]).then(([imapData, oauthData]) => {
-      if (!mounted) return;
-      if (imapData.config) setConfig(imapData.config);
-      if (imapData.status) setStatus(imapData.status);
-      setOauthStatus(oauthData);
-    }).catch(() => {}).finally(() => mounted && setLoading(false));
-
-    return () => { mounted = false; };
+    load();
   }, []);
 
-  const [presetNote, setPresetNote] = useState<{ label: string; link: string } | null>(null);
-
-  const applyPreset = (preset: typeof IMAP_PRESETS[0]) => {
-    setConfig((c) => ({ ...c, host: preset.host, port: preset.port, secure: preset.secure }));
-    setPresetNote(preset.appPwd ? { label: preset.label, link: preset.pwdLink } : null);
+  const openAdd = () => {
+    setEditTarget(null);
+    setForm({ ...EMPTY_SMTP_FORM });
+    setPresetNote(null);
+    setDialogOpen(true);
   };
 
-  const testConnection = async () => {
-    setTesting(true);
-    setMsg(null);
-    try {
-      const res = await fetch('/api/settings/inbound-email/test', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setMsg({ type: 'success', text: t.settings.imapTestOk });
-      } else {
-        setMsg({ type: 'error', text: `${t.settings.imapTestFail}: ${data.error ?? ''}` });
-      }
-    } catch {
-      setMsg({ type: 'error', text: t.settings.imapTestFail });
-    } finally {
-      setTesting(false);
-    }
+  const openEdit = (ch: EmailChannel) => {
+    setMenuAnchor(null);
+    setEditTarget(ch);
+    setForm({
+      type: ch.type as 'smtp' | 'imap',
+      label: ch.label,
+      host: ch.host,
+      port: ch.port,
+      secure: ch.secure,
+      user: ch.user,
+      password: '***',
+      fromAddress: ch.fromAddress ?? '',
+      folder: ch.folder ?? 'INBOX',
+      defaultCategory: ch.defaultCategory ?? '',
+      defaultGroup: ch.defaultGroup ?? '',
+      isPrimary: ch.isPrimary,
+      enabled: ch.enabled,
+    });
+    setPresetNote(null);
+    setDialogOpen(true);
   };
 
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
+  const handleSave = async () => {
+    setSaving(true); setMsg(null);
     try {
-      const res = await fetch('/api/settings/inbound-email', {
-        method: 'PUT',
-        credentials: 'include',
+      const url = editTarget ? `/api/settings/email-channels/${editTarget.id}` : '/api/settings/email-channels';
+      const method = editTarget ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ ...form, fromAddress: form.fromAddress || null, defaultCategory: form.defaultCategory || null, defaultGroup: form.defaultGroup || null }),
       });
       const data = await res.json();
-      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.imapSaveError }); return; }
-      setConfig(data.config);
-      if (data.status) setStatus(data.status);
-      setMsg({
-        type: 'success',
-        text: data.baselinePending
-          ? `${t.settings.imapSaved} Le email già presenti nella casella verranno ignorate — solo le nuove diventeranno ticket.`
-          : t.settings.imapSaved,
-      });
-    } catch {
-      setMsg({ type: 'error', text: t.settings.imapSaveError });
-    } finally {
-      setSaving(false);
-    }
+      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.channelError }); return; }
+      setMsg({ type: 'success', text: t.settings.channelSaved });
+      setDialogOpen(false);
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.channelError }); }
+    finally { setSaving(false); }
+  };
+
+  const handleTest = async (ch: EmailChannel) => {
+    setMenuAnchor(null);
+    setTesting(ch.id); setMsg(null);
+    try {
+      const res = await fetch(`/api/settings/email-channels/${ch.id}/test`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      setMsg(data.ok
+        ? { type: 'success', text: t.settings.channelTestOk }
+        : { type: 'error', text: `${t.settings.channelTestFail}: ${data.error ?? ''}` });
+    } catch { setMsg({ type: 'error', text: t.settings.channelTestFail }); }
+    finally { setTesting(null); }
+  };
+
+  const handleToggle = async (ch: EmailChannel) => {
+    setMenuAnchor(null);
+    try {
+      await fetch(`/api/settings/email-channels/${ch.id}/toggle`, { method: 'PUT', credentials: 'include' });
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.channelError }); }
+  };
+
+  const handleSetPrimary = async (ch: EmailChannel) => {
+    setMenuAnchor(null);
+    try {
+      await fetch(`/api/settings/email-channels/${ch.id}/primary`, { method: 'PUT', credentials: 'include' });
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.channelError }); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/settings/email-channels/${confirmDelete.id}`, { method: 'DELETE', credentials: 'include' });
+      setMsg({ type: 'success', text: t.settings.channelDeleted });
+      setConfirmDelete(null);
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.channelError }); }
+    finally { setDeleting(false); }
   };
 
   const disconnectGmail = async () => {
     setDisconnecting('gmail');
     try {
       await fetch('/api/settings/inbound-email/gmail', { method: 'DELETE', credentials: 'include' });
-      await loadOAuthStatus();
+      await load();
     } catch { } finally { setDisconnecting(null); }
   };
 
@@ -1638,239 +1570,301 @@ function InboundEmailTab() {
     setDisconnecting('microsoft');
     try {
       await fetch('/api/settings/inbound-email/microsoft', { method: 'DELETE', credentials: 'include' });
-      await loadOAuthStatus();
+      await load();
     } catch { } finally { setDisconnecting(null); }
   };
+
+  const applyPreset = (preset: { host: string; port: number; secure: boolean; appPwd: boolean; pwdLink: string; label: string }) => {
+    setForm((f) => ({ ...f, host: preset.host, port: preset.port, secure: preset.secure }));
+    setPresetNote(preset.appPwd ? { label: preset.label, link: preset.pwdLink } : null);
+  };
+
+  const presets = form.type === 'smtp' ? SMTP_PRESETS : IMAP_PRESETS;
 
   if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>;
 
   return (
-    <Section title={t.settings.imapTitle} icon={<MailOutline color="primary" />}>
+    <Section title={t.settings.emailChannels} icon={<MailOutline color="primary" />}>
       <Typography variant="body2" color="text.secondary" mb={3}>
         {t.settings.imapNote}
       </Typography>
 
-      {msg && (
-        <Alert severity={msg.type} sx={{ mb: 3 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+
+      {/* OAuth cards */}
+      {oauthStatus && (
+        <Box display="flex" gap={2} flexWrap="wrap" mb={3}>
+          <OAuthProviderCard
+            providerLabel="Gmail" providerColor="#EA4335"
+            connectUrl="/api/settings/inbound-email/gmail/connect"
+            available={oauthStatus.gmailAvailable} info={oauthStatus.gmail}
+            onDisconnect={disconnectGmail} disconnecting={disconnecting === 'gmail'} t={t}
+          />
+          <OAuthProviderCard
+            providerLabel="Microsoft Outlook" providerColor="#0078d4"
+            connectUrl="/api/settings/inbound-email/microsoft/connect"
+            available={oauthStatus.microsoftAvailable} info={oauthStatus.microsoft}
+            onDisconnect={disconnectMicrosoft} disconnecting={disconnecting === 'microsoft'} t={t}
+          />
+        </Box>
       )}
 
-      <Box display="flex" gap={2} flexWrap="wrap" alignItems="stretch">
-        {/* Gmail */}
-        {oauthStatus && (
-          <OAuthProviderCard
-            providerLabel="Gmail"
-            providerColor="#EA4335"
-            connectUrl="/api/settings/inbound-email/gmail/connect"
-            available={oauthStatus.gmailAvailable}
-            info={oauthStatus.gmail}
-            onDisconnect={disconnectGmail}
-            disconnecting={disconnecting === 'gmail'}
-            t={t}
-          />
-        )}
-
-        {/* Microsoft */}
-        {oauthStatus && (
-          <OAuthProviderCard
-            providerLabel="Microsoft Outlook"
-            providerColor="#0078d4"
-            connectUrl="/api/settings/inbound-email/microsoft/connect"
-            available={oauthStatus.microsoftAvailable}
-            info={oauthStatus.microsoft}
-            onDisconnect={disconnectMicrosoft}
-            disconnecting={disconnecting === 'microsoft'}
-            t={t}
-          />
-        )}
-
-        {/* Altro (IMAP) */}
-        <Box
-          sx={{
-            flex: 1, minWidth: 280,
-            border: '1px solid',
-            borderColor: (config.host && config.user) ? 'primary.main' : 'divider',
-            borderRadius: 2, p: 2,
-            display: 'flex', flexDirection: 'column', gap: 1.5,
-            bgcolor: (config.host && config.user) ? 'primary.50' : 'transparent',
-          }}
-        >
-          {/* Header */}
-          <Box display="flex" alignItems="center" gap={1}>
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: (config.enabled && config.host) ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
-            <Typography variant="subtitle2" fontWeight={700}>{t.settings.imapOtherTitle}</Typography>
-            <Switch
-              size="small"
-              checked={config.enabled}
-              onChange={(e) => setConfig((c) => ({ ...c, enabled: e.target.checked }))}
-              sx={{ ml: 'auto' }}
-            />
-          </Box>
-
-          {/* Provider presets */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.75 }}>
-              {t.settings.providerPreset}
-            </Typography>
-            <Box display="flex" flexWrap="wrap" gap={0.75}>
-              {IMAP_PRESETS.map((preset) => (
-                <Chip
-                  key={preset.label}
-                  label={preset.label}
-                  size="small"
-                  onClick={() => applyPreset(preset)}
-                  variant={config.host === preset.host ? 'filled' : 'outlined'}
-                  color={config.host === preset.host ? 'primary' : 'default'}
-                  clickable
-                />
-              ))}
-            </Box>
-            {presetNote && (
-              <Alert severity="info" sx={{ mt: 1.5, fontSize: '0.8rem', py: 0.5 }}>
-                <strong>{presetNote.label}</strong> {t.settings.appPasswordNote}{' '}
-                {presetNote.link && (
-                  <a href={presetNote.link} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
-                    {t.settings.appPasswordLink} →
-                  </a>
-                )}
-              </Alert>
-            )}
-          </Box>
-
-          {/* Provider label */}
-          <TextField
-            label={t.settings.imapLabel}
-            value={config.label ?? ''}
-            onChange={(e) => setConfig((c) => ({ ...c, label: e.target.value }))}
-            size="small"
-            fullWidth
-            placeholder={t.settings.imapLabelPlaceholder}
-          />
-
-          {/* Host + Port */}
-          <Box display="flex" gap={1}>
-            <TextField
-              label={t.settings.imapHost}
-              value={config.host}
-              onChange={(e) => setConfig((c) => ({ ...c, host: e.target.value }))}
-              size="small"
-              sx={{ flex: 1 }}
-              placeholder="imap.esempio.it"
-            />
-            <TextField
-              label={t.settings.imapPort}
-              value={config.port}
-              onChange={(e) => setConfig((c) => ({ ...c, port: parseInt(e.target.value, 10) || 993 }))}
-              size="small"
-              sx={{ width: 88, flexShrink: 0 }}
-              type="number"
-              inputProps={{ min: 1, max: 65535 }}
-            />
-          </Box>
-
-          {/* User */}
-          <TextField
-            label={t.settings.imapUser}
-            value={config.user}
-            onChange={(e) => setConfig((c) => ({ ...c, user: e.target.value }))}
-            size="small"
-            fullWidth
-            placeholder="support@miazienda.it"
-            type="email"
-            autoComplete="off"
-          />
-
-          {/* Password */}
-          <TextField
-            label={t.settings.imapPassword}
-            value={config.password}
-            onChange={(e) => setConfig((c) => ({ ...c, password: e.target.value }))}
-            size="small"
-            fullWidth
-            type="password"
-            autoComplete="new-password"
-          />
-
-          {/* Folder + SSL */}
-          <Box display="flex" gap={1} alignItems="center">
-            <TextField
-              label={t.settings.imapFolder}
-              value={config.folder}
-              onChange={(e) => setConfig((c) => ({ ...c, folder: e.target.value }))}
-              size="small"
-              sx={{ flex: 1 }}
-              placeholder="INBOX"
-            />
-            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
-              <Typography variant="caption" color="text.secondary">SSL</Typography>
-              <Switch
-                size="small"
-                checked={config.secure}
-                onChange={(e) => setConfig((c) => ({ ...c, secure: e.target.checked }))}
-              />
-            </Box>
-          </Box>
-
-          {/* Routing */}
-          <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1.5, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {t.settings.imapRoutingTitle}
-            </Typography>
-            <InboundRoutingFields config={config} setConfig={setConfig} />
-          </Box>
-
-          {/* Actions */}
-          <Box display="flex" gap={1} mt={0.5}>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={testing ? <CircularProgress size={14} color="inherit" /> : <WifiTethering fontSize="small" />}
-              onClick={testConnection}
-              disabled={testing || saving || !config.host || !config.user}
-            >
-              {testing ? t.settings.imapTesting : t.settings.imapTest}
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save fontSize="small" />}
-              onClick={save}
-              disabled={saving || testing || !config.host || !config.user}
-            >
-              {saving ? t.settings.saving : t.settings.imapSave}
-            </Button>
-          </Box>
-
-          {/* Status */}
-          {status && (
-            <Box p={1.5} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}>
-              {!status.baselined ? (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CircularProgress size={12} />
-                  <Typography variant="caption" color="warning.main">Calibrazione in corso…</Typography>
-                </Box>
-              ) : (
-                <Stack spacing={0.5}>
-                  <Box display="flex" alignItems="center" gap={0.75}>
-                    {status.lastError
-                      ? <ErrorOutline sx={{ fontSize: 14 }} color="error" />
-                      : <CheckCircleOutline sx={{ fontSize: 14 }} color="success" />}
-                    <Typography variant="caption">
-                      <strong>{t.settings.imapStatusLastPoll}:</strong>{' '}
-                      {status.lastPollAt ? new Date(status.lastPollAt).toLocaleString('it-IT') : t.settings.imapStatusNever}
-                    </Typography>
+      {/* Channel cards */}
+      {channels.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2, mb: 2 }}>{t.settings.noChannels}</Typography>
+      ) : (
+        <Stack spacing={1.5} mb={3}>
+          {channels.map((ch) => (
+            <Paper key={ch.id} variant="outlined" sx={{ borderRadius: 2, p: 2, borderColor: ch.enabled ? (ch.isPrimary ? 'primary.main' : 'divider') : 'divider', opacity: ch.enabled ? 1 : 0.65 }}>
+              <Box display="flex" alignItems="flex-start" gap={1.5}>
+                {/* Icon */}
+                <Avatar sx={{ width: 36, height: 36, bgcolor: ch.type === 'smtp' ? 'primary.light' : 'secondary.light', color: ch.type === 'smtp' ? 'primary.dark' : 'secondary.dark', flexShrink: 0 }}>
+                  {ch.type === 'smtp' ? <Send sx={{ fontSize: 18 }} /> : <MailOutline sx={{ fontSize: 18 }} />}
+                </Avatar>
+                {/* Body */}
+                <Box flex={1} minWidth={0}>
+                  <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                    <Typography variant="subtitle2" fontWeight={700} noWrap>{ch.label || ch.user}</Typography>
+                    <Chip label={ch.type.toUpperCase()} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                    {ch.isPrimary && ch.type === 'smtp' && (
+                      <Chip label={t.settings.primaryBadge} size="small" color="primary" icon={<StarOutlined sx={{ fontSize: '12px !important' }} />} sx={{ height: 18, fontSize: '0.65rem' }} />
+                    )}
+                    <Chip
+                      label={ch.enabled ? t.settings.channelEnabled : t.settings.channelDisabled}
+                      size="small"
+                      color={ch.enabled ? 'success' : 'default'}
+                      variant="outlined"
+                      sx={{ height: 18, fontSize: '0.65rem' }}
+                    />
                   </Box>
-                  {status.lastError && (
-                    <Typography variant="caption" color="error.main" sx={{ pl: 2.75 }}>{status.lastError}</Typography>
-                  )}
-                  <Typography variant="caption" sx={{ pl: 2.75 }}>
-                    <strong>{t.settings.imapStatusTickets}:</strong> {status.ticketsCreated}
+                  <Typography variant="caption" color="text.secondary" display="block" mt={0.25}>
+                    {ch.host}:{ch.port} · {ch.user}
                   </Typography>
-                </Stack>
+                  {ch.type === 'imap' && ch.status && (
+                    <Box mt={0.75}>
+                      {!ch.status.baselined ? (
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <CircularProgress size={10} />
+                          <Typography variant="caption" color="warning.main">Calibrazione in corso…</Typography>
+                        </Box>
+                      ) : (
+                        <Box display="flex" alignItems="center" gap={0.75}>
+                          {ch.status.lastError
+                            ? <ErrorOutline sx={{ fontSize: 13 }} color="error" />
+                            : <CheckCircleOutline sx={{ fontSize: 13 }} color="success" />}
+                          <Typography variant="caption" color="text.secondary">
+                            {t.settings.imapStatusLastPoll}: {ch.status.lastPollAt ? new Date(ch.status.lastPollAt).toLocaleString('it-IT') : t.settings.imapStatusNever}
+                            {' · '}{t.settings.imapStatusTickets}: {ch.status.ticketsCreated}
+                          </Typography>
+                        </Box>
+                      )}
+                      {ch.status.lastError && (
+                        <Typography variant="caption" color="error.main" display="block" sx={{ pl: 2.5 }}>{ch.status.lastError}</Typography>
+                      )}
+                    </Box>
+                  )}
+                  {testing === ch.id && (
+                    <Box display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                      <CircularProgress size={12} />
+                      <Typography variant="caption">Test in corso…</Typography>
+                    </Box>
+                  )}
+                </Box>
+                {/* Actions menu */}
+                <IconButton size="small" onClick={(e) => setMenuAnchor({ el: e.currentTarget, channel: ch })} sx={{ flexShrink: 0 }}>
+                  <MoreVert fontSize="small" />
+                </IconButton>
+              </Box>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Add channel button */}
+      <Box>
+        <Button variant="outlined" size="small" startIcon={<Add fontSize="small" />} onClick={openAdd}>
+          {t.settings.addChannel}
+        </Button>
+      </Box>
+
+      {/* Context menu */}
+      {menuAnchor && (
+        <Paper component="div" elevation={3} sx={{ position: 'fixed', zIndex: 1400, minWidth: 200, borderRadius: 2, overflow: 'hidden', py: 0.5,
+          top: menuAnchor.el.getBoundingClientRect().bottom + 4,
+          left: Math.min(menuAnchor.el.getBoundingClientRect().left, window.innerWidth - 210),
+        }}>
+          <MenuItem dense onClick={() => openEdit(menuAnchor.channel)} sx={{ gap: 1.5 }}>
+            <EditOutlined fontSize="small" color="action" />
+            <Typography variant="body2">{t.settings.editChannel}</Typography>
+          </MenuItem>
+          <MenuItem dense onClick={() => handleTest(menuAnchor.channel)} disabled={testing !== null} sx={{ gap: 1.5 }}>
+            <WifiTethering fontSize="small" color="action" />
+            <Typography variant="body2">{t.settings.imapTest}</Typography>
+          </MenuItem>
+          {menuAnchor.channel.type === 'smtp' && !menuAnchor.channel.isPrimary && (
+            <MenuItem dense onClick={() => handleSetPrimary(menuAnchor.channel)} sx={{ gap: 1.5 }}>
+              <StarOutlined fontSize="small" color="action" />
+              <Typography variant="body2">{t.settings.setPrimary}</Typography>
+            </MenuItem>
+          )}
+          <MenuItem dense onClick={() => handleToggle(menuAnchor.channel)} sx={{ gap: 1.5 }}>
+            <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: menuAnchor.channel.enabled ? 'text.disabled' : 'success.main' }} />
+            </Box>
+            <Typography variant="body2">{menuAnchor.channel.enabled ? t.settings.channelDisabled : t.settings.channelEnabled}</Typography>
+          </MenuItem>
+          <Divider sx={{ my: 0.5 }} />
+          <MenuItem dense onClick={() => { setMenuAnchor(null); setConfirmDelete(menuAnchor.channel); }} sx={{ gap: 1.5, color: 'error.main' }}>
+            <Delete fontSize="small" color="error" />
+            <Typography variant="body2" color="error">{t.settings.deleteChannel}</Typography>
+          </MenuItem>
+        </Paper>
+      )}
+      {/* Click-away overlay for menu */}
+      {menuAnchor && <Box sx={{ position: 'fixed', inset: 0, zIndex: 1399 }} onClick={() => setMenuAnchor(null)} />}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          {editTarget ? t.settings.editChannel : t.settings.addChannelTitle}
+          {editTarget && (
+            <Chip label={editTarget.type.toUpperCase()} size="small" variant="outlined" sx={{ ml: 1.5, fontSize: '0.7rem', height: 20 }} />
+          )}
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} pt={1}>
+            {/* Type selector (add only) */}
+            {!editTarget && (
+              <Box display="flex" gap={1}>
+                {(['smtp', 'imap'] as const).map((type) => (
+                  <Button key={type} variant={form.type === type ? 'contained' : 'outlined'} size="small"
+                    onClick={() => { setForm(type === 'smtp' ? { ...EMPTY_SMTP_FORM } : { ...EMPTY_IMAP_FORM }); setPresetNote(null); }}>
+                    {type === 'smtp' ? t.settings.smtpChannelLabel : t.settings.imapChannelLabel}
+                  </Button>
+                ))}
+              </Box>
+            )}
+
+            {/* Presets */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.75 }}>
+                {t.settings.providerPreset}
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={0.75}>
+                {presets.map((p) => (
+                  <Chip key={p.label} label={p.label} size="small" clickable
+                    variant={form.host === p.host ? 'filled' : 'outlined'}
+                    color={form.host === p.host ? 'primary' : 'default'}
+                    onClick={() => applyPreset(p)}
+                  />
+                ))}
+              </Box>
+              {presetNote && (
+                <Alert severity="info" sx={{ mt: 1.5, fontSize: '0.8rem', py: 0.5 }}>
+                  <strong>{presetNote.label}</strong> {t.settings.appPasswordNote}{' '}
+                  {presetNote.link && <a href={presetNote.link} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>{t.settings.appPasswordLink} →</a>}
+                </Alert>
               )}
             </Box>
-          )}
-        </Box>
-      </Box>
+
+            {/* Label */}
+            <TextField label={t.settings.channelLabel} size="small" fullWidth value={form.label}
+              placeholder={t.settings.channelLabelPlaceholder}
+              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
+
+            {/* Host + Port */}
+            <Box display="flex" gap={1}>
+              <TextField label={form.type === 'smtp' ? t.settings.smtpHost : t.settings.imapHost}
+                value={form.host} size="small" sx={{ flex: 1 }}
+                placeholder={form.type === 'smtp' ? 'smtp.gmail.com' : 'imap.example.com'}
+                onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))} />
+              <TextField label={t.settings.smtpPort} value={form.port} size="small" sx={{ width: 88, flexShrink: 0 }}
+                type="number" inputProps={{ min: 1, max: 65535 }}
+                onChange={(e) => setForm((f) => ({ ...f, port: parseInt(e.target.value, 10) || (f.type === 'smtp' ? 587 : 993) }))} />
+            </Box>
+
+            {/* SSL */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Switch size="small" checked={form.secure}
+                onChange={(e) => setForm((f) => ({ ...f, secure: e.target.checked, port: e.target.checked ? (f.type === 'smtp' ? 465 : 993) : (f.type === 'smtp' ? 587 : 143) }))} />
+              <Typography variant="body2">{t.settings.smtpSecure}</Typography>
+            </Box>
+
+            {/* User */}
+            <TextField label={form.type === 'smtp' ? t.settings.smtpUser : t.settings.imapUser}
+              value={form.user} size="small" fullWidth
+              placeholder="support@miazienda.it" type="email" autoComplete="off"
+              onChange={(e) => setForm((f) => ({ ...f, user: e.target.value }))} />
+
+            {/* Password */}
+            <TextField label={form.type === 'smtp' ? t.settings.smtpPassword : t.settings.imapPassword}
+              value={form.password} size="small" fullWidth type="password" autoComplete="new-password"
+              helperText={editTarget ? 'Lascia "***" per non modificarla' : undefined}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+
+            {/* SMTP-specific */}
+            {form.type === 'smtp' && (
+              <>
+                <TextField label={t.settings.channelFromAddress} value={form.fromAddress} size="small" fullWidth
+                  placeholder="Supporto <support@azienda.it>"
+                  onChange={(e) => setForm((f) => ({ ...f, fromAddress: e.target.value }))} />
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Switch size="small" checked={form.isPrimary}
+                    onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))} />
+                  <Typography variant="body2">{t.settings.setPrimary}</Typography>
+                </Box>
+              </>
+            )}
+
+            {/* IMAP-specific */}
+            {form.type === 'imap' && (
+              <>
+                <TextField label={t.settings.imapFolder} value={form.folder} size="small" fullWidth
+                  placeholder="INBOX"
+                  onChange={(e) => setForm((f) => ({ ...f, folder: e.target.value }))} />
+                <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1.5, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {t.settings.imapRoutingTitle}
+                  </Typography>
+                  <ChannelRoutingFields form={form} setForm={setForm} />
+                </Box>
+              </>
+            )}
+
+            {/* Enabled toggle */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Switch size="small" checked={form.enabled}
+                onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))} />
+              <Typography variant="body2">{form.enabled ? t.settings.channelEnabled : t.settings.channelDisabled}</Typography>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDialogOpen(false)} disabled={saving}>{t.settings.kbCancel}</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving || !form.host || !form.user || (!editTarget && !form.password)}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}>
+            {saving ? t.settings.saving : t.settings.kbSave}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle>{t.settings.deleteChannel}</DialogTitle>
+        {confirmDelete && (
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">{t.settings.confirmDeleteChannel}</Typography>
+            <Typography variant="body2" fontWeight={600} mt={1}>"{confirmDelete.label || confirmDelete.user}"</Typography>
+          </DialogContent>
+        )}
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmDelete(null)} disabled={deleting}>{t.settings.kbCancel}</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Delete />}>
+            {deleting ? t.settings.saving : t.settings.kbDeleteAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Section>
   );
 }

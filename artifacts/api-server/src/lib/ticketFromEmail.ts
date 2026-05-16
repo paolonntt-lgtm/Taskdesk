@@ -1,13 +1,27 @@
-import { eq, sql, and, or, isNull } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable } from "@workspace/db";
+import { eq, sql, and, or } from "drizzle-orm";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable, emailChannelsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket } from "./notifications";
 import { logger } from "./logger";
 import type { ImapConfig } from "./emailPoller";
 
-async function getInboundRouting(orgId: number | null | undefined): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
+async function getInboundRouting(orgId: number | null | undefined, channelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
   if (!orgId) return {};
+
+  if (channelId) {
+    try {
+      const [ch] = await db.select().from(emailChannelsTable)
+        .where(and(eq(emailChannelsTable.id, channelId), eq(emailChannelsTable.organizationId, orgId)));
+      if (ch) {
+        return {
+          defaultCategory: ch.defaultCategory ?? undefined,
+          defaultGroup: ch.defaultGroup ?? undefined,
+        };
+      }
+    } catch { /* fall through to legacy */ }
+  }
+
   const key = `org_${orgId}_imap_config`;
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
   if (!row) return {};
@@ -86,6 +100,8 @@ export interface EmailTicketInput {
   references?: string;
   /** Provider-specific thread/conversation identifier (e.g. Microsoft Graph conversationId) */
   conversationId?: string;
+  /** Channel ID this email arrived on (for per-channel routing) */
+  channelId?: number | null;
 }
 
 export interface EmailTicketResult {
@@ -94,7 +110,7 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId } = input;
+  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId, channelId } = input;
 
   let systemUser: { id: number; organizationId: number | null; name: string } | null = null;
 
@@ -133,7 +149,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     bodyText || "(nessun testo nel corpo dell'email)",
   ].join("\n");
 
-  const routing = await getInboundRouting(orgId);
+  const routing = await getInboundRouting(orgId, channelId);
 
   const [ticket] = await db
     .insert(ticketsTable)
@@ -181,8 +197,6 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     if (!emailResult.ok) {
       logger.warn({ to: fromEmail, err: emailResult.error }, "Failed to send inbound confirmation email");
     } else if (emailResult.messageId) {
-      // Update the ticket's emailMessageId to the outgoing confirmation's Message-ID.
-      // Customer replies will have In-Reply-To referencing this ID, enabling header threading.
       await db.update(ticketsTable)
         .set({ emailMessageId: emailResult.messageId })
         .where(eq(ticketsTable.id, ticket.id));
@@ -264,7 +278,6 @@ async function threadReplyAsComment(
 export async function processInboundEmail(input: EmailTicketInput): Promise<void> {
   const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, inReplyTo, references, conversationId } = input;
 
-  // Resolve the system user for this org
   let systemUser: { id: number; organizationId: number | null } | null = null;
   if (targetOrgId) {
     const [u] = await db
@@ -307,7 +320,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
       }
     }
 
-    // --- 2. In-Reply-To / References header match (RFC Message-IDs) ---
+    // --- 2. In-Reply-To / References header match ---
     const referencedIds: string[] = [];
     if (inReplyTo) referencedIds.push(inReplyTo.trim());
     if (references) {
@@ -330,7 +343,6 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
           )
           .limit(1);
 
-        // Only thread if the sender matches the original customer email on the ticket
         if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
           await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "In-Reply-To/References header match");
           return;
@@ -338,7 +350,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
       }
     }
 
-    // --- 2b. Conversation-ID match (Microsoft Graph and similar provider-specific thread keys) ---
+    // --- 2b. Conversation-ID match ---
     if (conversationId) {
       const [ticket] = await db
         .select()
@@ -357,7 +369,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
       }
     }
 
-    // --- 3. Subject fallback: same sender + normalised subject (open/not closed >30 days) ---
+    // --- 3. Subject fallback ---
     const normSubject = normaliseSubject(subject);
     if (normSubject) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -385,6 +397,5 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
     }
   }
 
-  // No matching ticket found — create a new one
   await createTicketFromEmail(input);
 }

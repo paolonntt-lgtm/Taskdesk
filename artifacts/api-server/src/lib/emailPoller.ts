@@ -1,7 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
-import { db, settingsTable } from "@workspace/db";
-import { like, eq } from "drizzle-orm";
+import { db, settingsTable, emailChannelsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 import { processInboundEmail } from "./ticketFromEmail";
 
@@ -39,29 +39,61 @@ function makeClient(config: ImapConfig): ImapFlow {
   });
 }
 
-async function getAllImapConfigs(): Promise<Array<{ orgId: number; config: ImapConfig }>> {
+async function getAllImapConfigsFromChannels(): Promise<Array<{ channelId: number; orgId: number; config: ImapConfig }>> {
   const rows = await db
     .select()
-    .from(settingsTable)
-    .where(like(settingsTable.key, "org_%_imap_config"));
+    .from(emailChannelsTable)
+    .where(
+      and(
+        eq(emailChannelsTable.type, "imap"),
+        eq(emailChannelsTable.enabled, true)
+      )
+    );
 
-  const result: Array<{ orgId: number; config: ImapConfig }> = [];
+  const result: Array<{ channelId: number; orgId: number; config: ImapConfig }> = [];
   for (const row of rows) {
-    const match = row.key.match(/^org_(\d+)_imap_config$/);
-    if (!match) continue;
-    const orgId = parseInt(match[1], 10);
-    try {
-      const config: ImapConfig = JSON.parse(row.value);
-      if (config.enabled && config.host && config.user && config.password) {
-        result.push({ orgId, config });
-      }
-    } catch {
-      logger.warn({ key: row.key }, "Invalid IMAP config JSON");
-    }
+    if (!row.host || !row.user || !row.password) continue;
+    result.push({
+      channelId: row.id,
+      orgId: row.organizationId,
+      config: {
+        host: row.host,
+        port: row.port,
+        secure: row.secure,
+        user: row.user,
+        password: row.password,
+        enabled: row.enabled,
+        folder: row.folder ?? "INBOX",
+        defaultCategory: row.defaultCategory ?? undefined,
+        defaultGroup: row.defaultGroup ?? undefined,
+      },
+    });
   }
   return result;
 }
 
+function channelStatusKey(channelId: number): string {
+  return `email_channel_${channelId}_status`;
+}
+
+export async function getChannelImapStatus(channelId: number): Promise<ImapStatus | null> {
+  const key = channelStatusKey(channelId);
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (!row) return null;
+  try { return JSON.parse(row.value) as ImapStatus; } catch { return null; }
+}
+
+async function updateChannelStatus(channelId: number, patch: Partial<ImapStatus>): Promise<void> {
+  const key = channelStatusKey(channelId);
+  const current = (await getChannelImapStatus(channelId)) ?? { lastPollAt: null, lastError: null, ticketsCreated: 0, baselined: false };
+  const updated: ImapStatus = { ...current, ...patch };
+  await db
+    .insert(settingsTable)
+    .values({ key, value: JSON.stringify(updated) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(updated) } });
+}
+
+/** @deprecated Use getChannelImapStatus for per-channel status. Kept for legacy single-IMAP settings route. */
 export async function getImapStatus(orgId: number): Promise<ImapStatus | null> {
   const key = `org_${orgId}_imap_status`;
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
@@ -69,7 +101,7 @@ export async function getImapStatus(orgId: number): Promise<ImapStatus | null> {
   try { return JSON.parse(row.value) as ImapStatus; } catch { return null; }
 }
 
-async function updateStatus(orgId: number, patch: Partial<ImapStatus>): Promise<void> {
+async function updateLegacyStatus(orgId: number, patch: Partial<ImapStatus>): Promise<void> {
   const key = `org_${orgId}_imap_status`;
   const current = (await getImapStatus(orgId)) ?? { lastPollAt: null, lastError: null, ticketsCreated: 0, baselined: false };
   const updated: ImapStatus = { ...current, ...patch };
@@ -81,8 +113,40 @@ async function updateStatus(orgId: number, patch: Partial<ImapStatus>): Promise<
 
 /**
  * First-run baseline: marks all currently unseen emails as read WITHOUT creating tickets.
- * This ensures only emails arriving after the configuration is saved become tickets.
- * Called once after saving IMAP credentials for the first time.
+ * Keyed by channel ID. Called after saving credentials for the first time.
+ */
+export async function baselineMailboxById(channelId: number, config: ImapConfig): Promise<void> {
+  const folder = config.folder || "INBOX";
+  const client = makeClient(config);
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock(folder);
+    let marked = 0;
+
+    try {
+      const searchResult = await client.search({ seen: false }, { uid: true });
+      const uids = Array.isArray(searchResult) ? searchResult : [];
+      if (uids.length > 0) {
+        await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+        marked = uids.length;
+      }
+    } finally {
+      lock.release();
+    }
+
+    await client.logout();
+    await updateChannelStatus(channelId, { baselined: true, lastError: null });
+    logger.info({ channelId, marked }, "IMAP baseline complete: existing emails marked as read");
+  } catch (err: any) {
+    logger.warn({ err, channelId }, "IMAP baseline failed — will retry on first poll");
+    try { await client.logout(); } catch {}
+  }
+}
+
+/**
+ * @deprecated Use baselineMailboxById for the new channels system.
+ * Kept for backward compat with legacy /settings/inbound-email route.
  */
 export async function baselineMailbox(orgId: number, config: ImapConfig): Promise<void> {
   const folder = config.folder || "INBOX";
@@ -105,25 +169,20 @@ export async function baselineMailbox(orgId: number, config: ImapConfig): Promis
     }
 
     await client.logout();
-    await updateStatus(orgId, {
-      baselined: true,
-      lastError: null,
-    });
-    logger.info({ orgId, marked }, "IMAP baseline complete: existing emails marked as read");
+    await updateLegacyStatus(orgId, { baselined: true, lastError: null });
+    logger.info({ orgId, marked }, "IMAP baseline complete (legacy): existing emails marked as read");
   } catch (err: any) {
     logger.warn({ err, orgId }, "IMAP baseline failed — will retry on first poll");
-    // Don't mark as baselined — will try again on first poll
     try { await client.logout(); } catch {}
   }
 }
 
-async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
-  const status = await getImapStatus(orgId);
+async function pollChannelMailbox(channelId: number, orgId: number, config: ImapConfig): Promise<void> {
+  const status = await getChannelImapStatus(channelId);
 
-  // If never baselined (first run), do baseline pass now instead of creating tickets
   if (!status?.baselined) {
-    logger.info({ orgId }, "IMAP first run — running baseline pass");
-    await baselineMailbox(orgId, config);
+    logger.info({ channelId, orgId }, "IMAP first run — running baseline pass");
+    await baselineMailboxById(channelId, config);
     return;
   }
 
@@ -158,11 +217,15 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
 
             if (!fromAddr) continue;
 
-            await processInboundEmail({ fromEmail: fromAddr, fromName, subject, bodyText, orgId, messageId, inReplyTo, references: referencesStr });
+            await processInboundEmail({
+              fromEmail: fromAddr, fromName, subject, bodyText, orgId,
+              messageId, inReplyTo, references: referencesStr,
+              channelId,
+            });
             await client.messageFlagsAdd({ uid: msg.uid }, ["\\Seen"], { uid: true });
             created++;
           } catch (err) {
-            logger.error({ err, orgId, uid: msg.uid }, "Error creating ticket from email");
+            logger.error({ err, channelId, orgId, uid: msg.uid }, "Error creating ticket from email");
           }
         }
       }
@@ -172,19 +235,19 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
 
     await client.logout();
 
-    const prev = await getImapStatus(orgId);
-    await updateStatus(orgId, {
+    const prev = await getChannelImapStatus(channelId);
+    await updateChannelStatus(channelId, {
       lastPollAt: new Date().toISOString(),
       lastError: null,
       ticketsCreated: (prev?.ticketsCreated ?? 0) + created,
     });
 
     if (created > 0) {
-      logger.info({ orgId, created }, "IMAP poll: created tickets from email");
+      logger.info({ channelId, orgId, created }, "IMAP poll: created tickets from email");
     }
   } catch (err: any) {
-    logger.error({ err, orgId, host: config.host }, "IMAP poll failed");
-    await updateStatus(orgId, {
+    logger.error({ err, channelId, orgId, host: config.host }, "IMAP poll failed");
+    await updateChannelStatus(channelId, {
       lastPollAt: new Date().toISOString(),
       lastError: err?.message ?? "Connessione fallita",
     });
@@ -195,13 +258,13 @@ async function pollMailbox(orgId: number, config: ImapConfig): Promise<void> {
 async function pollAll(): Promise<void> {
   try {
     const [imapConfigs, gmailOrgIds, microsoftOrgIds] = await Promise.all([
-      getAllImapConfigs(),
+      getAllImapConfigsFromChannels(),
       import("./gmailPoller").then((m) => m.getAllGmailOrgIds()),
       import("./microsoftPoller").then((m) => m.getAllMicrosoftOrgIds()),
     ]);
 
     const tasks: Promise<void>[] = [
-      ...imapConfigs.map(({ orgId, config }) => pollMailbox(orgId, config)),
+      ...imapConfigs.map(({ channelId, orgId, config }) => pollChannelMailbox(channelId, orgId, config)),
       ...gmailOrgIds.map((orgId) => import("./gmailPoller").then((m) => m.pollGmailOrg(orgId))),
       ...microsoftOrgIds.map((orgId) => import("./microsoftPoller").then((m) => m.pollMicrosoftOrg(orgId))),
     ];
