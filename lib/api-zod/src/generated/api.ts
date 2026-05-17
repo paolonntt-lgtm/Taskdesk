@@ -33,6 +33,7 @@ export const LoginResponse = zod.object({
     groups: zod.array(zod.string()).nullish(),
     avatarUrl: zod.string().nullish(),
     isActive: zod.boolean(),
+    isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
   message: zod.string().optional(),
@@ -59,6 +60,7 @@ export const GetCurrentUserResponse = zod.object({
   groups: zod.array(zod.string()).nullish(),
   avatarUrl: zod.string().nullish(),
   isActive: zod.boolean(),
+  isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 
@@ -75,6 +77,7 @@ export const ListUsersResponseItem = zod.object({
   groups: zod.array(zod.string()).nullish(),
   avatarUrl: zod.string().nullish(),
   isActive: zod.boolean(),
+  isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -111,6 +114,7 @@ export const GetUserResponse = zod.object({
   groups: zod.array(zod.string()).nullish(),
   avatarUrl: zod.string().nullish(),
   isActive: zod.boolean(),
+  isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 
@@ -132,6 +136,7 @@ export const UpdateUserBody = zod.object({
   group: zod.string().nullish(),
   groups: zod.array(zod.string()).nullish(),
   isActive: zod.boolean().optional(),
+  isAvailable: zod.boolean().optional(),
 });
 
 export const UpdateUserResponse = zod.object({
@@ -144,6 +149,7 @@ export const UpdateUserResponse = zod.object({
   groups: zod.array(zod.string()).nullish(),
   avatarUrl: zod.string().nullish(),
   isActive: zod.boolean(),
+  isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
 });
 
@@ -206,6 +212,7 @@ export const ListTicketsResponseItem = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -219,6 +226,7 @@ export const ListTicketsResponseItem = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -281,6 +289,7 @@ export const GetTicketResponse = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -294,6 +303,7 @@ export const GetTicketResponse = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -354,6 +364,7 @@ export const UpdateTicketResponse = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -367,6 +378,7 @@ export const UpdateTicketResponse = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -408,6 +420,7 @@ export const ListTicketCommentsResponseItem = zod.object({
     groups: zod.array(zod.string()).nullish(),
     avatarUrl: zod.string().nullish(),
     isActive: zod.boolean(),
+    isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
   reactions: zod.array(
@@ -466,6 +479,7 @@ export const UpdateTicketCommentResponse = zod.object({
     groups: zod.array(zod.string()).nullish(),
     avatarUrl: zod.string().nullish(),
     isActive: zod.boolean(),
+    isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
   reactions: zod.array(
@@ -588,6 +602,7 @@ export const ListTicketNotesResponseItem = zod.object({
     groups: zod.array(zod.string()).nullish(),
     avatarUrl: zod.string().nullish(),
     isActive: zod.boolean(),
+    isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -628,6 +643,7 @@ export const ListTicketActivityResponseItem = zod.object({
     groups: zod.array(zod.string()).nullish(),
     avatarUrl: zod.string().nullish(),
     isActive: zod.boolean(),
+    isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -787,6 +803,7 @@ export const GetRecentTicketsResponseItem = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -800,6 +817,7 @@ export const GetRecentTicketsResponseItem = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -843,6 +861,7 @@ export const GetMyTicketsResponseItem = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -856,6 +875,7 @@ export const GetMyTicketsResponseItem = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),
@@ -899,6 +919,7 @@ export const GetDueSoonTicketsResponseItem = zod
         groups: zod.array(zod.string()).nullish(),
         avatarUrl: zod.string().nullish(),
         isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
       }),
       assignee: zod
@@ -912,6 +933,7 @@ export const GetDueSoonTicketsResponseItem = zod
           groups: zod.array(zod.string()).nullish(),
           avatarUrl: zod.string().nullish(),
           isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
         })
         .nullish(),

@@ -329,6 +329,12 @@ const it = {
     errorDowngradeBelow: 'Il piano selezionato ha meno posti degli utenti attivi. Disattiva alcuni utenti prima di passare a questo piano.',
     noPlansHint: 'Nessun piano trovato. Contatta il supporto per configurare i piani con i posti.',
   },
+  availability: {
+    available: 'Disponibile',
+    unavailable: 'Non disponibile',
+    toggleTooltipAvailable: 'Sei disponibile — clicca per impostarti come non disponibile',
+    toggleTooltipUnavailable: 'Non disponibile — clicca per impostarti come disponibile',
+  },
   users: {
     title: 'Gestione Utenti',
     subtitle: 'utenti attivi',
@@ -945,6 +951,12 @@ const en: typeof it = {
     errorUpgrade: 'Error changing plan. Please try again.',
     errorDowngradeBelow: 'The selected plan has fewer seats than your active users. Deactivate some users before switching to this plan.',
     noPlansHint: 'No plans found. Contact support to configure seat-based plans.',
+  },
+  availability: {
+    available: 'Available',
+    unavailable: 'Unavailable',
+    toggleTooltipAvailable: 'You are available — click to set yourself as unavailable',
+    toggleTooltipUnavailable: 'Unavailable — click to set yourself as available',
   },
   users: {
     title: 'User Management',

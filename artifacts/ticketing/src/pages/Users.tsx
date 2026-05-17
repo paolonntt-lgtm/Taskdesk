@@ -494,6 +494,12 @@ export default function Users() {
                         color={u.role === 'admin' ? 'secondary' : 'default'}
                         variant="outlined"
                       />
+                      <Chip
+                        label={u.isAvailable !== false ? t.availability.available : t.availability.unavailable}
+                        size="small"
+                        variant="outlined"
+                        color={u.isAvailable !== false ? 'success' : 'default'}
+                      />
                       {(u as any).group && (
                         <Chip label={(u as any).group} size="small" variant="outlined" />
                       )}
@@ -547,6 +553,7 @@ export default function Users() {
                 <TableCell><strong>{ut.group}</strong></TableCell>
                 <TableCell><strong>{ut.location}</strong></TableCell>
                 <TableCell><strong>{ut.status}</strong></TableCell>
+                <TableCell><strong>{t.availability.available}</strong></TableCell>
                 <TableCell><strong>{ut.createdAt}</strong></TableCell>
                 <TableCell align="right"><strong>{ut.actions}</strong></TableCell>
               </TableRow>
@@ -554,7 +561,7 @@ export default function Users() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {ut.noUsers}
                   </TableCell>
                 </TableRow>
@@ -608,6 +615,14 @@ export default function Users() {
                           label={isActive ? ut.active : ut.inactive}
                           size="small"
                           color={isActive ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={u.isAvailable !== false ? t.availability.available : t.availability.unavailable}
+                          size="small"
+                          variant="outlined"
+                          color={u.isAvailable !== false ? 'success' : 'default'}
                         />
                       </TableCell>
                       <TableCell>

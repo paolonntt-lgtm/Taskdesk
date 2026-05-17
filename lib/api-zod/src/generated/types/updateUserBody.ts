@@ -17,4 +17,5 @@ export interface UpdateUserBody {
   group?: string | null;
   groups?: string[] | null;
   isActive?: boolean;
+  isAvailable?: boolean;
 }

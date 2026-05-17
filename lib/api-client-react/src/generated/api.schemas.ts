@@ -41,6 +41,7 @@ export interface User {
   groups?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
+  isAvailable: boolean;
   createdAt: string;
 }
 
@@ -86,6 +87,7 @@ export interface UpdateUserBody {
   group?: string | null;
   groups?: string[] | null;
   isActive?: boolean;
+  isAvailable?: boolean;
 }
 
 export type TicketPriority =

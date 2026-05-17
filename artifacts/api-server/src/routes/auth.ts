@@ -175,6 +175,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       organizationId: usersTable.organizationId,
       organizationName: organizationsTable.name,
       isActive: usersTable.isActive,
+      isAvailable: usersTable.isAvailable,
       phone: usersTable.phone,
       avatarUrl: usersTable.avatarUrl,
       createdAt: usersTable.createdAt,

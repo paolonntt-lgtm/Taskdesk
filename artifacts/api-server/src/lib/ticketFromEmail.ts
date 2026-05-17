@@ -1,8 +1,8 @@
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable, emailChannelsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
-import { createNotificationsForTicket } from "./notifications";
+import { createNotificationsForTicket, createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
 import type { ImapConfig } from "./emailPoller";
 
@@ -151,6 +151,60 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
 
   const routing = await getInboundRouting(orgId, channelId);
 
+  // Auto-assign to the least-loaded available operator in the default group
+  let autoAssignedUserId: number | null = null;
+  if (routing.defaultGroup && orgId) {
+    try {
+      const groupMembers = await db
+        .select({ id: usersTable.id, groups: usersTable.groups })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.organizationId, orgId),
+          eq(usersTable.isActive, true),
+          eq(usersTable.isAvailable, true),
+        ));
+
+      const eligible = groupMembers.filter((u) => {
+        if (!u.groups) return false;
+        try {
+          const arr: string[] = JSON.parse(u.groups);
+          return arr.includes(routing.defaultGroup!);
+        } catch { return false; }
+      });
+
+      if (eligible.length > 0) {
+        const eligibleIds = eligible.map((u) => u.id);
+        const openCounts = await db
+          .select({ assignedTo: ticketsTable.assignedTo, count: sql<number>`COUNT(*)::int` })
+          .from(ticketsTable)
+          .where(and(
+            eq(ticketsTable.organizationId, orgId),
+            inArray(ticketsTable.assignedTo, eligibleIds),
+            or(eq(ticketsTable.status, "open"), eq(ticketsTable.status, "waiting")),
+          ))
+          .groupBy(ticketsTable.assignedTo);
+
+        const countMap = new Map<number, number>();
+        for (const row of openCounts) {
+          if (row.assignedTo != null) countMap.set(row.assignedTo, row.count);
+        }
+
+        let minLoad = Infinity;
+        let minUserId: number | null = null;
+        for (const u of eligible) {
+          const load = countMap.get(u.id) ?? 0;
+          if (load < minLoad) {
+            minLoad = load;
+            minUserId = u.id;
+          }
+        }
+        autoAssignedUserId = minUserId;
+      }
+    } catch (err) {
+      logger.warn({ err }, "Auto-assignment query failed, skipping");
+    }
+  }
+
   const [ticket] = await db
     .insert(ticketsTable)
     .values({
@@ -165,16 +219,23 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       organizationId: orgId,
       ticketNumber: nextTicketNumber,
       assignedToGroup: routing.defaultGroup ?? null,
+      assignedTo: autoAssignedUserId ?? null,
       emailMessageId: messageId ?? null,
       emailConversationId: conversationId ?? null,
     })
     .returning();
 
+  const activityDescParts = [`Ticket creato automaticamente da email di ${fromName} <${fromEmail}>`];
+  if (autoAssignedUserId) {
+    const [assignedUser] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, autoAssignedUserId));
+    activityDescParts.push(`Assegnato automaticamente a ${assignedUser?.name ?? `utente #${autoAssignedUserId}`} (operatore meno carico disponibile)`);
+  }
+
   await db.insert(ticketActivityLogsTable).values({
     ticketId: ticket.id,
     userId: systemUser.id,
     actionType: "created",
-    actionDescription: `Ticket creato automaticamente da email di ${fromName} <${fromEmail}>`,
+    actionDescription: activityDescParts.join(". "),
   });
 
   await createNotificationsForTicket(
@@ -184,6 +245,16 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     "ticket_created",
     orgId
   );
+
+  if (autoAssignedUserId) {
+    await createNotificationForUser(
+      autoAssignedUserId,
+      ticket.id,
+      `Ti è stato assegnato automaticamente il ticket #${nextTicketNumber}: "${title}"`,
+      "ticket_assigned",
+      orgId
+    );
+  }
 
   try {
     const baseUrl = appBaseUrl();

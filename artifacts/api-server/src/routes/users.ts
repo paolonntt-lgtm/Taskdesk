@@ -28,6 +28,7 @@ const userFields = {
   groups: usersTable.groups,
   avatarUrl: usersTable.avatarUrl,
   isActive: usersTable.isActive,
+  isAvailable: usersTable.isAvailable,
   createdAt: usersTable.createdAt,
 };
 
@@ -111,7 +112,7 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(user);
 });
 
-router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid user ID" });
@@ -124,6 +125,24 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     return;
   }
 
+  const currentUser = (req as any).currentUser;
+  const isAdmin = currentUser.role === "admin";
+  const isSelf = currentUser.id === id;
+
+  // Non-admins can only update their own isAvailable field
+  if (!isAdmin) {
+    if (!isSelf) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const allowedKeys = new Set(["isAvailable"]);
+    const hasDisallowed = Object.keys(parsed.data).some((k) => !allowedKeys.has(k));
+    if (hasDisallowed) {
+      res.status(403).json({ error: "Forbidden: only isAvailable can be updated by non-admin users" });
+      return;
+    }
+  }
+
   const { password: _ignoredPassword, groups: groupsArray, ...rest } = parsed.data;
   const updates: Record<string, unknown> = {
     ...rest,
@@ -134,8 +153,6 @@ router.patch("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<
     res.status(400).json({ error: "No fields to update" });
     return;
   }
-
-  const currentUser = (req as any).currentUser;
 
   if (updates.isActive === true) {
     const [target] = await db.select({ isActive: usersTable.isActive }).from(usersTable).where(eq(usersTable.id, id));

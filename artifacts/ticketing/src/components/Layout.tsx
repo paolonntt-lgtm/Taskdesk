@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   Button,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -40,6 +41,7 @@ import {
   PriorityHigh,
   Info,
   ChevronLeft,
+  Circle,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -56,7 +58,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const [location, setLocation] = useLocation();
   const theme = useTheme();
@@ -68,6 +70,32 @@ export default function Layout({ children }: LayoutProps) {
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
+
+  const handleToggleAvailability = async () => {
+    if (!user || availabilityUpdating) return;
+    const newVal = !user.isAvailable;
+    // Optimistic update: flip immediately so the UI responds at once
+    updateUser({ ...user, isAvailable: newVal });
+    setAvailabilityUpdating(true);
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAvailable: newVal }),
+      });
+      if (!res.ok) {
+        // Rollback on failure
+        updateUser({ ...user, isAvailable: !newVal });
+      }
+    } catch {
+      // Rollback on network error
+      updateUser({ ...user, isAvailable: !newVal });
+    } finally {
+      setAvailabilityUpdating(false);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
@@ -304,6 +332,28 @@ export default function Layout({ children }: LayoutProps) {
           >
             {lang === 'it' ? 'EN' : 'IT'}
           </Button>
+
+          {/* Availability toggle */}
+          <Tooltip title={user?.isAvailable ? t.availability.toggleTooltipAvailable : t.availability.toggleTooltipUnavailable}>
+            <Chip
+              size="small"
+              icon={<Circle sx={{ fontSize: '10px !important', color: user?.isAvailable ? 'success.main' : 'text.disabled' }} />}
+              label={user?.isAvailable ? t.availability.available : t.availability.unavailable}
+              onClick={handleToggleAvailability}
+              disabled={availabilityUpdating}
+              variant="outlined"
+              sx={{
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                height: 26,
+                borderColor: user?.isAvailable ? 'success.main' : 'divider',
+                color: user?.isAvailable ? 'success.main' : 'text.secondary',
+                cursor: 'pointer',
+                display: { xs: 'none', sm: 'inline-flex' },
+                '&:hover': { opacity: 0.8 },
+              }}
+            />
+          </Tooltip>
 
           {/* Notifications */}
           <IconButton

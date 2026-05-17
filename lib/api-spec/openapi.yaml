@@ -1044,6 +1044,8 @@ components:
           nullable: true
         isActive:
           type: boolean
+        isAvailable:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1053,6 +1055,7 @@ components:
         - email
         - role
         - isActive
+        - isAvailable
         - createdAt
 
     CreateUserBody:
@@ -1112,6 +1115,8 @@ components:
             type: string
           nullable: true
         isActive:
+          type: boolean
+        isAvailable:
           type: boolean
 
     Ticket:

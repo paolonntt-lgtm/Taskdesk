@@ -17,5 +17,6 @@ export interface User {
   groups?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
+  isAvailable: boolean;
   createdAt: Date;
 }
