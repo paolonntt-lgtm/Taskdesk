@@ -342,15 +342,15 @@ export default function Landing() {
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
       <Helmet>
         <html lang={lang} />
-        <title>TaskDesk — Software Ticketing per PMI italiane | Da €9/mese</title>
-        <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile per le PMI italiane. Gestisci richieste di supporto come una chat: commenti, @menzioni e soluzioni marcate. Da €9/mese." />
+        <title>TaskDesk — Software Ticketing Aziendale | Da €9/mese</title>
+        <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile. Gestisci richieste di supporto come una chat: commenti, @menzioni e soluzioni marcate. Da €9/mese." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://taskdesk.it/" />
         <meta property="og:url" content="https://taskdesk.it/" />
-        <meta property="og:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+        <meta property="og:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
         <meta property="og:description" content="Gestisci i ticket aziendali come una chat. Commenti, @menzioni, soluzioni marcate. Da €9/mese tutto incluso." />
         <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
-        <meta name="twitter:title" content="TaskDesk — Software Ticketing per PMI | Da €9/mese" />
+        <meta name="twitter:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
         <meta name="twitter:description" content="Ticket aziendali come una chat. Commenti, @menzioni, soluzioni marcate. Da €9/mese." />
         <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
       </Helmet>

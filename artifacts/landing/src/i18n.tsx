@@ -168,7 +168,7 @@ const translations: Record<Language, Translations> = {
         { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €9/mese." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
-        { q: "È adatto alla mia azienda?", a: "Se sei una PMI italiana che ha bisogno di mettere ordine nelle richieste interne o dei clienti senza spendere una fortuna, sì." }
+        { q: "È adatto alla mia azienda?", a: "Se hai bisogno di mettere ordine nelle richieste interne o dei clienti senza setup complicati e senza spendere una fortuna, sì. TaskDesk è progettato per essere semplice da avviare e facile da usare ogni giorno." }
       ]
     },
     footer: {

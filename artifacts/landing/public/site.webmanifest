@@ -1,7 +1,7 @@
 {
-  "name": "TaskDesk — Software Ticketing PMI",
+  "name": "TaskDesk — Software Ticketing",
   "short_name": "TaskDesk",
-  "description": "Sistema di ticketing aziendale per PMI italiane",
+  "description": "Sistema di ticketing aziendale semplice e accessibile",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
