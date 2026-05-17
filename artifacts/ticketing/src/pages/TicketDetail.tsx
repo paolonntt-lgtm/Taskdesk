@@ -591,20 +591,38 @@ export default function TicketDetail() {
                           >
                             <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
                           </Box>
-                          {users?.map(u => (
+                          {[...(users ?? [])].sort((a, b) => {
+                            if (a.isAvailable === b.isAvailable) return 0;
+                            return a.isAvailable ? -1 : 1;
+                          }).map(u => (
                             <Box
                               key={u.id}
                               px={1} py={0.5} borderRadius={1}
                               display="flex" alignItems="center" gap={1}
-                              sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined }}
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': { bgcolor: 'action.hover' },
+                                bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined,
+                                opacity: u.isAvailable ? 1 : 0.55,
+                              }}
                               onClick={() => handleAssigneeChange(String(u.id))}
                             >
                               <Avatar
-                                src={(u as any).avatarUrl ?? undefined}
+                                src={u.avatarUrl ?? undefined}
                                 sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}
                               >
                                 {u.name?.charAt(0)}
                               </Avatar>
+                              <Tooltip title={u.isAvailable ? (lang === 'it' ? 'Disponibile' : 'Available') : (lang === 'it' ? 'Non disponibile' : 'Unavailable')} placement="right">
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                    bgcolor: u.isAvailable ? 'success.main' : 'text.disabled',
+                                    display: 'inline-block',
+                                  }}
+                                />
+                              </Tooltip>
                               <Typography variant="body2">{u.name}</Typography>
                             </Box>
                           ))}
