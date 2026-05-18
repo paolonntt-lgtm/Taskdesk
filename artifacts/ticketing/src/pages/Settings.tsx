@@ -1460,7 +1460,7 @@ function InboundAddressesSection() {
     try {
       await fetch(`/api/settings/inbound-channels/${confirmRegen.id}/regenerate-token`, { method: 'POST', credentials: 'include' });
       setConfirmRegen(null);
-      setMsg({ type: 'success', text: 'Token rigenerato. Aggiorna il forward nel tuo client email.' });
+      setMsg({ type: 'success', text: t.settings.inboundAddressRegeneratedMsg });
       await load();
     } catch { setMsg({ type: 'error', text: t.settings.inboundAddressError }); }
     finally { setRegenerating(false); }
