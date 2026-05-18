@@ -2,10 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedIfEmpty } from "./lib/seed";
 import { runAppMigrations } from "./lib/migrate";
-import { migrateEmailChannels } from "./lib/migrateEmailChannels";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
-import { startEmailPoller } from "./lib/emailPoller";
 
 const rawPort = process.env["PORT"];
 
@@ -52,7 +50,6 @@ async function initStripe() {
 
 seedIfEmpty()
   .then(() => runAppMigrations())
-  .then(() => migrateEmailChannels())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 
@@ -63,5 +60,4 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-  startEmailPoller();
 });

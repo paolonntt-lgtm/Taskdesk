@@ -23,7 +23,6 @@ import botRouter from "./bot";
 import knowledgeArticlesRouter from "./knowledgeArticles";
 import inboundEmailRouter from "./inboundEmail";
 import inboundChannelsRouter from "./inboundChannels";
-import emailOauthRouter from "./emailOauth";
 import emailChannelsRouter from "./emailChannels";
 
 const router: IRouter = Router();
@@ -52,7 +51,6 @@ router.use(botRouter);
 router.use(knowledgeArticlesRouter);
 router.use(inboundEmailRouter);
 router.use(inboundChannelsRouter);
-router.use(emailOauthRouter);
 router.use(emailChannelsRouter);
 
 export default router;

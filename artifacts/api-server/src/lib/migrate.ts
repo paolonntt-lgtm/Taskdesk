@@ -32,6 +32,17 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
     `);
 
+    // Remove legacy IMAP email_channels rows and orphaned settings keys
+    await client.query(`
+      DELETE FROM email_channels WHERE type = 'imap';
+    `);
+    await client.query(`
+      DELETE FROM settings WHERE key LIKE 'org_%_imap_config'
+         OR key LIKE 'email_channel_%_status'
+         OR key LIKE 'org_%_gmail_%'
+         OR key LIKE 'org_%_microsoft_%';
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

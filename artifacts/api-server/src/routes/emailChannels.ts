@@ -2,8 +2,6 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, emailChannelsTable, settingsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-import { testImapConnection, baselineMailboxById, getChannelImapStatus } from "../lib/emailPoller";
-import { migrateEmailChannels } from "../lib/migrateEmailChannels";
 import nodemailer from "nodemailer";
 
 const router: IRouter = Router();
@@ -13,21 +11,12 @@ router.get("/settings/email-channels", requireAuth, requireAdmin, async (req, re
   const orgId = currentUser.organizationId;
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
 
-  await migrateEmailChannels();
-
   const channels = await db
     .select()
     .from(emailChannelsTable)
-    .where(eq(emailChannelsTable.organizationId, orgId));
+    .where(and(eq(emailChannelsTable.organizationId, orgId), eq(emailChannelsTable.type, "smtp")));
 
-  const channelsWithStatus = await Promise.all(
-    channels.map(async (ch) => {
-      const status = ch.type === "imap" ? await getChannelImapStatus(ch.id) : null;
-      return { ...ch, password: "***", status };
-    })
-  );
-
-  res.json({ channels: channelsWithStatus });
+  res.json({ channels: channels.map((ch) => ({ ...ch, password: "***" })) });
 });
 
 router.post("/settings/email-channels", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -35,16 +24,13 @@ router.post("/settings/email-channels", requireAuth, requireAdmin, async (req, r
   const orgId = currentUser.organizationId;
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
 
-  const { type, label, host, port, secure, user, password, fromAddress, folder, defaultCategory, defaultGroup, isPrimary, enabled } = req.body ?? {};
+  const { label, host, port, secure, user, password, fromAddress, isPrimary, enabled } = req.body ?? {};
 
-  if (!type || (type !== "smtp" && type !== "imap")) {
-    res.status(400).json({ message: "Tipo canale non valido (smtp o imap)" }); return;
-  }
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
   if (!password || typeof password !== "string") { res.status(400).json({ message: "Password obbligatoria" }); return; }
 
-  if (type === "smtp" && isPrimary) {
+  if (isPrimary) {
     await db.update(emailChannelsTable)
       .set({ isPrimary: false })
       .where(and(eq(emailChannelsTable.organizationId, orgId), eq(emailChannelsTable.type, "smtp")));
@@ -52,28 +38,20 @@ router.post("/settings/email-channels", requireAuth, requireAdmin, async (req, r
 
   const [channel] = await db.insert(emailChannelsTable).values({
     organizationId: orgId,
-    type,
+    type: "smtp",
     label: (label && label.trim()) ? label.trim() : user.trim(),
     host: host.trim(),
-    port: typeof port === "number" ? port : parseInt(String(port), 10) || (type === "smtp" ? 587 : 993),
+    port: typeof port === "number" ? port : parseInt(String(port), 10) || 587,
     secure: secure === true || secure === "true",
     user: user.trim(),
     password,
     fromAddress: (fromAddress && fromAddress.trim()) ? fromAddress.trim() : null,
-    folder: (folder && folder.trim()) ? folder.trim() : "INBOX",
-    defaultCategory: defaultCategory || null,
-    defaultGroup: defaultGroup || null,
-    isPrimary: type === "smtp" ? (isPrimary === true) : false,
+    folder: "INBOX",
+    defaultCategory: null,
+    defaultGroup: null,
+    isPrimary: isPrimary === true,
     enabled: enabled !== false,
   }).returning();
-
-  if (type === "imap" && channel.enabled) {
-    baselineMailboxById(channel.id, {
-      host: channel.host, port: channel.port, secure: channel.secure,
-      user: channel.user, password, enabled: channel.enabled,
-      folder: channel.folder ?? "INBOX",
-    }).catch((err) => req.log.warn({ err, channelId: channel.id }, "Baseline mailbox failed after create"));
-  }
 
   res.json({ channel: { ...channel, password: "***" } });
 });
@@ -87,8 +65,9 @@ router.put("/settings/email-channels/:id", requireAuth, requireAdmin, async (req
   const [existing] = await db.select().from(emailChannelsTable)
     .where(and(eq(emailChannelsTable.id, channelId), eq(emailChannelsTable.organizationId, orgId)));
   if (!existing) { res.status(404).json({ message: "Canale non trovato" }); return; }
+  if (existing.type !== "smtp") { res.status(400).json({ message: "Solo i canali SMTP sono supportati" }); return; }
 
-  const { label, host, port, secure, user, password, fromAddress, folder, defaultCategory, defaultGroup, isPrimary, enabled } = req.body ?? {};
+  const { label, host, port, secure, user, password, fromAddress, isPrimary, enabled } = req.body ?? {};
 
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
@@ -98,13 +77,11 @@ router.put("/settings/email-channels/:id", requireAuth, requireAdmin, async (req
     : existing.password;
   if (!resolvedPassword) { res.status(400).json({ message: "Password obbligatoria" }); return; }
 
-  if (existing.type === "smtp" && isPrimary) {
+  if (isPrimary) {
     await db.update(emailChannelsTable)
       .set({ isPrimary: false })
       .where(and(eq(emailChannelsTable.organizationId, orgId), eq(emailChannelsTable.type, "smtp")));
   }
-
-  const credentialsChanged = existing.host !== host.trim() || existing.user !== user.trim() || existing.password !== resolvedPassword;
 
   const [updated] = await db.update(emailChannelsTable).set({
     label: (label && label.trim()) ? label.trim() : user.trim(),
@@ -114,23 +91,12 @@ router.put("/settings/email-channels/:id", requireAuth, requireAdmin, async (req
     user: user.trim(),
     password: resolvedPassword,
     fromAddress: (fromAddress && fromAddress.trim()) ? fromAddress.trim() : null,
-    folder: (folder && folder.trim()) ? folder.trim() : "INBOX",
-    defaultCategory: defaultCategory || null,
-    defaultGroup: defaultGroup || null,
-    isPrimary: existing.type === "smtp" ? (isPrimary === true) : false,
+    isPrimary: isPrimary === true,
     enabled: enabled !== false,
     updatedAt: new Date(),
   })
     .where(eq(emailChannelsTable.id, channelId))
     .returning();
-
-  if (updated.type === "imap" && updated.enabled && credentialsChanged) {
-    baselineMailboxById(updated.id, {
-      host: updated.host, port: updated.port, secure: updated.secure,
-      user: updated.user, password: resolvedPassword, enabled: updated.enabled,
-      folder: updated.folder ?? "INBOX",
-    }).catch((err) => req.log.warn({ err, channelId: updated.id }, "Baseline mailbox failed after update"));
-  }
 
   res.json({ channel: { ...updated, password: "***" } });
 });
@@ -144,6 +110,7 @@ router.delete("/settings/email-channels/:id", requireAuth, requireAdmin, async (
   const [existing] = await db.select().from(emailChannelsTable)
     .where(and(eq(emailChannelsTable.id, channelId), eq(emailChannelsTable.organizationId, orgId)));
   if (!existing) { res.status(404).json({ message: "Canale non trovato" }); return; }
+  if (existing.type !== "smtp") { res.status(400).json({ message: "Solo i canali SMTP sono supportati" }); return; }
 
   await db.delete(emailChannelsTable).where(eq(emailChannelsTable.id, channelId));
 
@@ -162,16 +129,7 @@ router.post("/settings/email-channels/:id/test", requireAuth, requireAdmin, asyn
   const [channel] = await db.select().from(emailChannelsTable)
     .where(and(eq(emailChannelsTable.id, channelId), eq(emailChannelsTable.organizationId, orgId)));
   if (!channel) { res.status(404).json({ message: "Canale non trovato" }); return; }
-
-  if (channel.type === "imap") {
-    const result = await testImapConnection({
-      host: channel.host, port: channel.port, secure: channel.secure,
-      user: channel.user, password: channel.password, enabled: true,
-      folder: channel.folder ?? "INBOX",
-    });
-    res.json(result);
-    return;
-  }
+  if (channel.type !== "smtp") { res.status(400).json({ message: "Solo i canali SMTP sono supportati" }); return; }
 
   try {
     const transporter = nodemailer.createTransport({
@@ -222,6 +180,7 @@ router.put("/settings/email-channels/:id/toggle", requireAuth, requireAdmin, asy
   const [channel] = await db.select().from(emailChannelsTable)
     .where(and(eq(emailChannelsTable.id, channelId), eq(emailChannelsTable.organizationId, orgId)));
   if (!channel) { res.status(404).json({ message: "Canale non trovato" }); return; }
+  if (channel.type !== "smtp") { res.status(400).json({ message: "Solo i canali SMTP sono supportati" }); return; }
 
   const [updated] = await db.update(emailChannelsTable)
     .set({ enabled: !channel.enabled, updatedAt: new Date() })
