@@ -1697,7 +1697,7 @@ function EmailChannelsTab() {
 
       {/* Channel cards */}
       {channels.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ py: 2, mb: 2 }}>{t.settings.noChannels}</Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>{t.settings.noChannels}</Alert>
       ) : (
         <Stack spacing={1.5} mb={3}>
           {channels.map((ch) => (

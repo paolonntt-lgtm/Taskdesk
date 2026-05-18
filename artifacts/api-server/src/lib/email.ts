@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { eq, and } from "drizzle-orm";
-import { db, settingsTable, emailChannelsTable } from "@workspace/db";
+import { db, emailChannelsTable } from "@workspace/db";
 import { logger } from "./logger";
 
 export interface SmtpConfig {
@@ -22,8 +22,27 @@ function createTransportFromConfig(config: SmtpConfig) {
 }
 
 /**
- * Gets SMTP config for an org. Prefers email_channels table (is_primary=true, enabled=true),
- * falling back to first active SMTP channel, and finally legacy settings key.
+ * Returns the platform-level SMTP config from environment variables, if fully configured.
+ * Used as the default sender when no org-specific SMTP channel is set up.
+ */
+export function getPlatformSmtpConfig(): SmtpConfig | null {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return {
+    host,
+    port: parseInt(process.env.SMTP_PORT ?? "587", 10),
+    secure: process.env.SMTP_PORT === "465",
+    user,
+    password: pass,
+    from: process.env.SMTP_FROM || user,
+  };
+}
+
+/**
+ * Gets SMTP config for an org. Prefers org-specific email_channels (primary enabled SMTP),
+ * then falls back to the platform-level SMTP env vars (SMTP_HOST/PORT/USER/PASS/FROM).
  */
 export async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null> {
   const channels = await db
@@ -49,10 +68,7 @@ export async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null
     };
   }
 
-  const key = `org_${orgId}_smtp_config`;
-  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
-  if (!row) return null;
-  try { return JSON.parse(row.value as string) as SmtpConfig; } catch { return null; }
+  return getPlatformSmtpConfig();
 }
 
 interface SendEmailArgs {
@@ -85,8 +101,8 @@ export async function sendEmailForOrg(
   }
   const config = await getOrgSmtpConfig(orgId);
   if (!config) {
-    logger.warn({ orgId, to: args.to }, "sendEmailForOrg: SMTP uscente non configurato");
-    return { ok: false, error: "Configura l'email uscente SMTP nelle Impostazioni → Email" };
+    logger.warn({ orgId, to: args.to }, "sendEmailForOrg: nessun SMTP configurato (né org-specific né platform env vars)");
+    return { ok: false, error: "Nessun server SMTP disponibile. Contatta l'amministratore di sistema." };
   }
   try {
     const transporter = createTransportFromConfig(config);
