@@ -10,6 +10,15 @@ function generateToken(): string {
   return crypto.randomBytes(8).toString("hex");
 }
 
+const SLUG_RE = /^[a-z0-9][a-z0-9_-]{1,38}[a-z0-9]$|^[a-z0-9]{3}$/;
+
+function validateSlug(slug: string): string | null {
+  if (!SLUG_RE.test(slug)) {
+    return "Lo slug deve essere 3–40 caratteri: solo lettere minuscole, cifre, underscore e trattini.";
+  }
+  return null;
+}
+
 router.get("/settings/inbound-channels", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
@@ -29,10 +38,19 @@ router.post("/settings/inbound-channels", requireAuth, requireAdmin, async (req,
   const orgId = currentUser.organizationId;
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
 
-  const { label, defaultCategory, defaultGroup, enabled } = req.body ?? {};
+  const { label, defaultCategory, defaultGroup, enabled, slug } = req.body ?? {};
 
   if (!label || typeof label !== "string" || !label.trim()) {
     res.status(400).json({ message: "Etichetta obbligatoria" }); return;
+  }
+
+  const cleanSlug = typeof slug === "string" && slug.trim() ? slug.trim().toLowerCase() : null;
+  if (cleanSlug) {
+    const slugErr = validateSlug(cleanSlug);
+    if (slugErr) { res.status(400).json({ message: slugErr }); return; }
+    const [clash] = await db.select({ id: inboundEmailChannelsTable.id }).from(inboundEmailChannelsTable)
+      .where(eq(inboundEmailChannelsTable.slug, cleanSlug));
+    if (clash) { res.status(409).json({ message: "Questo slug è già in uso. Scegline un altro." }); return; }
   }
 
   let token = generateToken();
@@ -52,6 +70,7 @@ router.post("/settings/inbound-channels", requireAuth, requireAdmin, async (req,
     defaultCategory: defaultCategory || null,
     defaultGroup: defaultGroup || null,
     enabled: enabled !== false,
+    slug: cleanSlug,
   }).returning();
 
   res.json({ channel });
@@ -67,10 +86,24 @@ router.put("/settings/inbound-channels/:id", requireAuth, requireAdmin, async (r
     .where(and(eq(inboundEmailChannelsTable.id, channelId), eq(inboundEmailChannelsTable.organizationId, orgId)));
   if (!existing) { res.status(404).json({ message: "Canale non trovato" }); return; }
 
-  const { label, defaultCategory, defaultGroup, enabled } = req.body ?? {};
+  const { label, defaultCategory, defaultGroup, enabled, slug } = req.body ?? {};
 
   if (!label || typeof label !== "string" || !label.trim()) {
     res.status(400).json({ message: "Etichetta obbligatoria" }); return;
+  }
+
+  const cleanSlug = typeof slug === "string" && slug.trim() ? slug.trim().toLowerCase() : null;
+  if (cleanSlug) {
+    const slugErr = validateSlug(cleanSlug);
+    if (slugErr) { res.status(400).json({ message: slugErr }); return; }
+    const [clash] = await db.select({ id: inboundEmailChannelsTable.id }).from(inboundEmailChannelsTable)
+      .where(and(eq(inboundEmailChannelsTable.slug, cleanSlug), eq(inboundEmailChannelsTable.id, channelId)));
+    // Allow the same channel to keep its own slug; only reject if another channel has it
+    const [clashOther] = await db.select({ id: inboundEmailChannelsTable.id }).from(inboundEmailChannelsTable)
+      .where(eq(inboundEmailChannelsTable.slug, cleanSlug));
+    if (clashOther && clashOther.id !== channelId) {
+      res.status(409).json({ message: "Questo slug è già in uso. Scegline un altro." }); return;
+    }
   }
 
   const [updated] = await db.update(inboundEmailChannelsTable).set({
@@ -78,6 +111,7 @@ router.put("/settings/inbound-channels/:id", requireAuth, requireAdmin, async (r
     defaultCategory: defaultCategory || null,
     defaultGroup: defaultGroup || null,
     enabled: enabled !== false,
+    slug: cleanSlug,
     updatedAt: new Date(),
   })
     .where(eq(inboundEmailChannelsTable.id, channelId))

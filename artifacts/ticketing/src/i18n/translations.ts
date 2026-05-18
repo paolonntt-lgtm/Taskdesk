@@ -587,6 +587,10 @@ const it = {
     inboundAddressEditTitle: 'Modifica indirizzo',
     inboundAddressAddTitle: 'Nuovo indirizzo di ricezione',
     inboundAddressDeleteConfirm: 'Eliminare questo indirizzo? Le email inviate ad esso non creeranno più ticket.',
+    inboundSlugLabel: 'Indirizzo personalizzato (opzionale)',
+    inboundSlugPlaceholder: 'es. support_acme',
+    inboundSlugHelper: 'Lascia vuoto per usare il formato automatico tickets-xxxx. Se impostato, l\'indirizzo diventa {slug}@{domain}.',
+    inboundSlugError: 'Solo lettere minuscole, cifre, trattini e underscore. Min 3, max 40 caratteri.',
   },
   userProfile: {
     back: 'Indietro',
@@ -1233,6 +1237,10 @@ const en: typeof it = {
     inboundAddressEditTitle: 'Edit address',
     inboundAddressAddTitle: 'New inbound address',
     inboundAddressDeleteConfirm: 'Delete this address? Emails sent to it will no longer create tickets.',
+    inboundSlugLabel: 'Custom address (optional)',
+    inboundSlugPlaceholder: 'e.g. support_acme',
+    inboundSlugHelper: 'Leave blank to use the auto-generated tickets-xxxx format. If set, the address becomes {slug}@{domain}.',
+    inboundSlugError: 'Only lowercase letters, digits, hyphens and underscores. Min 3, max 40 characters.',
   },
   userProfile: {
     back: 'Back',

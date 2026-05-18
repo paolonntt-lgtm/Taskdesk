@@ -40,9 +40,15 @@ function extractToAddresses(body: any): string[] {
   return [];
 }
 
-/** Extract inbound token from an email address like tickets-abc123@inbound.taskdesk.it */
-function extractToken(address: string): string | null {
-  const m = /tickets-([a-f0-9]{8,32})/i.exec(address);
+/** Extract local part (everything before @) from an email address */
+function extractLocalPart(address: string): string {
+  const at = address.indexOf("@");
+  return at > 0 ? address.slice(0, at).toLowerCase() : address.toLowerCase();
+}
+
+/** Extract inbound token from an address like tickets-abc123@inbound.taskdesk.it */
+function extractToken(localPart: string): string | null {
+  const m = /^tickets-([a-f0-9]{8,32})$/i.exec(localPart);
   return m ? m[1].toLowerCase() : null;
 }
 
@@ -83,19 +89,33 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     return;
   }
 
-  // Resolve org + routing via inbound channel token from To: address
+  // Resolve org + routing via inbound channel from To: address.
+  // Checks slug (exact local-part match) first, then legacy tickets-{token} format.
   let resolvedOrgId: number | undefined;
   let resolvedChannelId: number | null = null;
 
   const toAddresses = extractToAddresses(body);
   for (const addr of toAddresses) {
-    const token = extractToken(addr);
+    const localPart = extractLocalPart(addr);
+    if (!localPart) continue;
+
+    // 1. Try slug match (custom addresses like support_acme@domain)
+    const [bySlug] = await db.select().from(inboundEmailChannelsTable)
+      .where(eq(inboundEmailChannelsTable.slug, localPart));
+    if (bySlug?.enabled) {
+      resolvedOrgId = bySlug.organizationId;
+      resolvedChannelId = bySlug.id;
+      break;
+    }
+
+    // 2. Fall back to legacy tickets-{token} pattern
+    const token = extractToken(localPart);
     if (!token) continue;
-    const [channel] = await db.select().from(inboundEmailChannelsTable)
+    const [byToken] = await db.select().from(inboundEmailChannelsTable)
       .where(eq(inboundEmailChannelsTable.token, token));
-    if (channel && channel.enabled) {
-      resolvedOrgId = channel.organizationId;
-      resolvedChannelId = channel.id;
+    if (byToken?.enabled) {
+      resolvedOrgId = byToken.organizationId;
+      resolvedChannelId = byToken.id;
       break;
     }
   }

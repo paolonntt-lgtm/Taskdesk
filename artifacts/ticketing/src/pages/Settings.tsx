@@ -1192,6 +1192,7 @@ interface InboundChannel {
   id: number;
   label: string;
   token: string;
+  slug: string | null;
   defaultCategory: string | null;
   defaultGroup: string | null;
   enabled: boolean;
@@ -1209,6 +1210,8 @@ function InboundAddressesSection() {
   const [formLabel, setFormLabel] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formGroup, setFormGroup] = useState('');
+  const [formSlug, setFormSlug] = useState('');
+  const [slugError, setSlugError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<InboundChannel | null>(null);
@@ -1225,7 +1228,7 @@ function InboundAddressesSection() {
 
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; channel: InboundChannel } | null>(null);
 
-  const fullAddress = (token: string) => `tickets-${token}@${domain}`;
+  const fullAddress = (ch: InboundChannel) => ch.slug ? `${ch.slug}@${domain}` : `tickets-${ch.token}@${domain}`;
 
   const load = async () => {
     try {
@@ -1243,16 +1246,23 @@ function InboundAddressesSection() {
   }, []);
 
   const openAdd = () => {
-    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup('');
+    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup(''); setFormSlug(''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
   const openEdit = (ch: InboundChannel) => {
     setEditTarget(ch); setFormLabel(ch.label);
-    setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? '');
+    setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? ''); setFormSlug(ch.slug ?? ''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
 
+  const SLUG_RE = /^[a-z0-9][a-z0-9_-]{1,38}[a-z0-9]$|^[a-z0-9]{3}$/;
   const handleSave = async () => {
+    const cleanSlug = formSlug.trim().toLowerCase();
+    if (cleanSlug && !SLUG_RE.test(cleanSlug)) {
+      setSlugError(t.settings.inboundSlugError);
+      return;
+    }
+    setSlugError('');
     setSaving(true); setMsg(null);
     try {
       const url = editTarget ? `/api/settings/inbound-channels/${editTarget.id}` : '/api/settings/inbound-channels';
@@ -1260,7 +1270,7 @@ function InboundAddressesSection() {
       const res = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null }),
+        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null, slug: cleanSlug || null }),
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.inboundAddressError }); return; }
@@ -1304,7 +1314,7 @@ function InboundAddressesSection() {
   };
 
   const copyAddress = (ch: InboundChannel) => {
-    navigator.clipboard.writeText(fullAddress(ch.token)).then(() => {
+    navigator.clipboard.writeText(fullAddress(ch)).then(() => {
       setCopiedId(ch.id);
       setTimeout(() => setCopiedId(null), 2000);
     });
@@ -1347,7 +1357,7 @@ function InboundAddressesSection() {
                     <Box display="flex" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
                       <Typography variant="caption" color="text.secondary"
                         sx={{ fontFamily: 'monospace', fontSize: '0.72rem', wordBreak: 'break-all' }}>
-                        {fullAddress(ch.token)}
+                        {fullAddress(ch)}
                       </Typography>
                       <Tooltip title={copiedId === ch.id ? t.settings.inboundAddressCopied : t.settings.inboundAddressCopy}>
                         <IconButton size="small" onClick={() => copyAddress(ch)} sx={{ p: 0.25 }}>
@@ -1440,6 +1450,14 @@ function InboundAddressesSection() {
               <TextField label={t.settings.inboundAddressLabel} size="small" fullWidth
                 placeholder={t.settings.inboundAddressLabelPlaceholder}
                 value={formLabel} onChange={(e) => setFormLabel(e.target.value)} />
+              <TextField label={t.settings.inboundSlugLabel} size="small" fullWidth
+                placeholder={t.settings.inboundSlugPlaceholder}
+                value={formSlug}
+                error={!!slugError}
+                helperText={slugError || t.settings.inboundSlugHelper.replace('{slug}', formSlug.trim() || 'support_acme').replace('{domain}', domain)}
+                onChange={(e) => { setFormSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setSlugError(''); }}
+                inputProps={{ maxLength: 40 }}
+              />
               <TextField select label={t.settings.imapRoutingCategory} value={formCategory} size="small" fullWidth
                 helperText={t.settings.imapRoutingCategoryHint}
                 onChange={(e) => setFormCategory(e.target.value)}>

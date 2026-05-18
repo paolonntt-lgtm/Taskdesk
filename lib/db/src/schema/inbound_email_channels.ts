@@ -9,10 +9,12 @@ export const inboundEmailChannelsTable = pgTable("inbound_email_channels", {
   defaultCategory: text("default_category"),
   defaultGroup: text("default_group"),
   enabled: boolean("enabled").notNull().default(true),
+  slug: text("slug"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   uniqueIndex("inbound_email_channels_token_idx").on(t.token),
+  uniqueIndex("inbound_email_channels_slug_idx").on(t.slug),
   index("inbound_email_channels_org_idx").on(t.organizationId),
 ]);
 

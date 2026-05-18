@@ -9,6 +9,11 @@ import { appBaseUrl } from "../lib/appUrl";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function channelReplyTo(ch: { token: string; slug: string | null }, domain: string): string {
+  const localPart = ch.slug ?? `tickets-${ch.token}`;
+  return `${localPart}@${domain}`;
+}
+
 async function getOrgInboundEmail(orgId: number | null, inboundChannelId?: number | null): Promise<string | null> {
   if (!orgId) return null;
   const domain = process.env.INBOUND_EMAIL_DOMAIN ?? "inbound.taskdesk.it";
@@ -16,20 +21,20 @@ async function getOrgInboundEmail(orgId: number | null, inboundChannelId?: numbe
   if (inboundChannelId) {
     try {
       const [ch] = await db
-        .select({ token: inboundEmailChannelsTable.token })
+        .select({ token: inboundEmailChannelsTable.token, slug: inboundEmailChannelsTable.slug })
         .from(inboundEmailChannelsTable)
         .where(and(eq(inboundEmailChannelsTable.id, inboundChannelId), eq(inboundEmailChannelsTable.organizationId, orgId)));
-      if (ch) return `tickets-${ch.token}@${domain}`;
+      if (ch) return channelReplyTo(ch, domain);
     } catch { /* ignore */ }
   }
 
   try {
     const [ch] = await db
-      .select({ token: inboundEmailChannelsTable.token })
+      .select({ token: inboundEmailChannelsTable.token, slug: inboundEmailChannelsTable.slug })
       .from(inboundEmailChannelsTable)
       .where(and(eq(inboundEmailChannelsTable.organizationId, orgId), eq(inboundEmailChannelsTable.enabled, true)))
       .limit(1);
-    if (ch) return `tickets-${ch.token}@${domain}`;
+    if (ch) return channelReplyTo(ch, domain);
   } catch { /* ignore */ }
 
   return null;
