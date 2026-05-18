@@ -1,14 +1,29 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable, emailChannelsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, settingsTable, emailChannelsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket, createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
 import type { ImapConfig } from "./emailPoller";
 
-async function getInboundRouting(orgId: number | null | undefined, channelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
+async function getInboundRouting(orgId: number | null | undefined, channelId?: number | null, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
   if (!orgId) return {};
 
+  // Check inbound_email_channels first (forwarding address model)
+  if (inboundChannelId) {
+    try {
+      const [ch] = await db.select().from(inboundEmailChannelsTable)
+        .where(and(eq(inboundEmailChannelsTable.id, inboundChannelId), eq(inboundEmailChannelsTable.organizationId, orgId)));
+      if (ch) {
+        return {
+          defaultCategory: ch.defaultCategory ?? undefined,
+          defaultGroup: ch.defaultGroup ?? undefined,
+        };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Check legacy email_channels (IMAP/SMTP model)
   if (channelId) {
     try {
       const [ch] = await db.select().from(emailChannelsTable)
@@ -100,8 +115,10 @@ export interface EmailTicketInput {
   references?: string;
   /** Provider-specific thread/conversation identifier (e.g. Microsoft Graph conversationId) */
   conversationId?: string;
-  /** Channel ID this email arrived on (for per-channel routing) */
+  /** Channel ID this email arrived on (IMAP/SMTP, for per-channel routing) */
   channelId?: number | null;
+  /** Inbound forwarding channel ID (inbound_email_channels table) */
+  inboundChannelId?: number | null;
 }
 
 export interface EmailTicketResult {
@@ -110,7 +127,7 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId, channelId } = input;
+  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId } = input;
 
   let systemUser: { id: number; organizationId: number | null; name: string } | null = null;
 
@@ -149,7 +166,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     bodyText || "(nessun testo nel corpo dell'email)",
   ].join("\n");
 
-  const routing = await getInboundRouting(orgId, channelId);
+  const routing = await getInboundRouting(orgId, channelId, inboundChannelId);
 
   // Auto-assign to the least-loaded available operator in the default group
   let autoAssignedUserId: number | null = null;

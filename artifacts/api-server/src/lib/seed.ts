@@ -1,4 +1,4 @@
-import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable, settingsTable } from "@workspace/db";
+import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable, settingsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { hashPassword } from "../routes/auth";
 import { logger } from "./logger";
 
@@ -227,6 +227,26 @@ export async function seedIfEmpty(): Promise<void> {
       .insert(settingsTable)
       .values({ key: `org_${orgId}_groups`, value: JSON.stringify(["IT Support", "Reception", "Administration", "Operations"]) })
       .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(["IT Support", "Reception", "Administration", "Operations"]) } });
+
+    // Seed demo inbound email channels (forwarding address model)
+    await db.insert(inboundEmailChannelsTable).values([
+      {
+        organizationId: orgId,
+        label: "Supporto IT",
+        token: "demo00001a2b3c4d",
+        defaultCategory: "Software",
+        defaultGroup: "IT Support",
+        enabled: true,
+      },
+      {
+        organizationId: orgId,
+        label: "Assistenza Generale",
+        token: "demo00005e6f7a8b",
+        defaultCategory: null,
+        defaultGroup: null,
+        enabled: true,
+      },
+    ]).onConflictDoNothing();
   }
 
   logger.info("Seed completed successfully!");

@@ -7,7 +7,7 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send, MoreVert, StarOutlined } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, CheckCircleOutline, ErrorOutline, WifiTethering, LinkOff, OpenInNew, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -1351,6 +1351,316 @@ const SMTP_PRESETS = [
 
 // ── EMAIL CHANNELS TAB ────────────────────────────────────────────────────
 
+interface InboundChannel {
+  id: number;
+  label: string;
+  token: string;
+  defaultCategory: string | null;
+  defaultGroup: string | null;
+  enabled: boolean;
+}
+
+function InboundAddressesSection() {
+  const { t, lang } = useLanguage();
+  const [channels, setChannels] = useState<InboundChannel[]>([]);
+  const [domain, setDomain] = useState('inbound.taskdesk.it');
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<InboundChannel | null>(null);
+  const [formLabel, setFormLabel] = useState('');
+  const [formCategory, setFormCategory] = useState('');
+  const [formGroup, setFormGroup] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [confirmDelete, setConfirmDelete] = useState<InboundChannel | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [confirmRegen, setConfirmRegen] = useState<InboundChannel | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const [categories, setCategories] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
+
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; channel: InboundChannel } | null>(null);
+
+  const fullAddress = (token: string) => `tickets-${token}@${domain}`;
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/settings/inbound-channels', { credentials: 'include' });
+      const data = await res.json();
+      setChannels(data.channels ?? []);
+      if (data.domain) setDomain(data.domain);
+    } catch { } finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    load();
+    fetch('/api/settings/categories', { credentials: 'include' }).then(r => r.json()).then(d => setCategories(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/groups', { credentials: 'include' }).then(r => r.json()).then(d => setGroups(d.value ?? [])).catch(() => {});
+  }, []);
+
+  const openAdd = () => {
+    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup('');
+    setMenuAnchor(null); setDialogOpen(true);
+  };
+  const openEdit = (ch: InboundChannel) => {
+    setEditTarget(ch); setFormLabel(ch.label);
+    setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? '');
+    setMenuAnchor(null); setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true); setMsg(null);
+    try {
+      const url = editTarget ? `/api/settings/inbound-channels/${editTarget.id}` : '/api/settings/inbound-channels';
+      const method = editTarget ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.inboundAddressError }); return; }
+      setMsg({ type: 'success', text: t.settings.inboundAddressSaved });
+      setDialogOpen(false);
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.inboundAddressError }); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/settings/inbound-channels/${confirmDelete.id}`, { method: 'DELETE', credentials: 'include' });
+      setMsg({ type: 'success', text: t.settings.inboundAddressDeleted });
+      setConfirmDelete(null);
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.inboundAddressError }); }
+    finally { setDeleting(false); }
+  };
+
+  const handleToggle = async (ch: InboundChannel) => {
+    setMenuAnchor(null);
+    try {
+      await fetch(`/api/settings/inbound-channels/${ch.id}/toggle`, { method: 'PUT', credentials: 'include' });
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.inboundAddressError }); }
+  };
+
+  const handleRegen = async () => {
+    if (!confirmRegen) return;
+    setRegenerating(true);
+    try {
+      await fetch(`/api/settings/inbound-channels/${confirmRegen.id}/regenerate-token`, { method: 'POST', credentials: 'include' });
+      setConfirmRegen(null);
+      setMsg({ type: 'success', text: 'Token rigenerato. Aggiorna il forward nel tuo client email.' });
+      await load();
+    } catch { setMsg({ type: 'error', text: t.settings.inboundAddressError }); }
+    finally { setRegenerating(false); }
+  };
+
+  const copyAddress = (ch: InboundChannel) => {
+    navigator.clipboard.writeText(fullAddress(ch.token)).then(() => {
+      setCopiedId(ch.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
+
+  if (loading) return null;
+
+  return (
+    <>
+      <Section title={t.settings.inboundAddresses} icon={<AlternateEmail color="primary" />}>
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          {t.settings.inboundAddressesNote}
+        </Typography>
+
+        {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+
+        {channels.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 1, mb: 2 }}>{t.settings.inboundAddressEmpty}</Typography>
+        ) : (
+          <Stack spacing={1.5} mb={3}>
+            {channels.map((ch) => (
+              <Paper key={ch.id} variant="outlined" sx={{ borderRadius: 2, p: 2, opacity: ch.enabled ? 1 : 0.65 }}>
+                <Box display="flex" alignItems="flex-start" gap={1.5}>
+                  <Avatar sx={{ width: 36, height: 36, bgcolor: 'success.light', color: 'success.dark', flexShrink: 0 }}>
+                    <AlternateEmail sx={{ fontSize: 18 }} />
+                  </Avatar>
+                  <Box flex={1} minWidth={0}>
+                    <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                      <Typography variant="subtitle2" fontWeight={700}>{ch.label}</Typography>
+                      <Chip label={ch.enabled ? t.settings.channelEnabled : t.settings.channelDisabled}
+                        size="small" color={ch.enabled ? 'success' : 'default'} variant="outlined"
+                        sx={{ height: 18, fontSize: '0.65rem' }} />
+                      {ch.defaultCategory && (
+                        <Chip label={ch.defaultCategory} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      )}
+                      {ch.defaultGroup && (
+                        <Chip label={ch.defaultGroup} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      )}
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
+                      <Typography variant="caption" color="text.secondary"
+                        sx={{ fontFamily: 'monospace', fontSize: '0.72rem', wordBreak: 'break-all' }}>
+                        {fullAddress(ch.token)}
+                      </Typography>
+                      <Tooltip title={copiedId === ch.id ? t.settings.inboundAddressCopied : t.settings.inboundAddressCopy}>
+                        <IconButton size="small" onClick={() => copyAddress(ch)} sx={{ p: 0.25 }}>
+                          {copiedId === ch.id
+                            ? <Check sx={{ fontSize: 14 }} color="success" />
+                            : <ContentCopy sx={{ fontSize: 14 }} />}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    <Box mt={0.75}>
+                      <Button size="small" variant="text"
+                        sx={{ p: 0, fontSize: '0.72rem', color: 'text.secondary', minWidth: 0 }}
+                        startIcon={expandedId === ch.id
+                          ? <ExpandLess sx={{ fontSize: 14 }} />
+                          : <ExpandMore sx={{ fontSize: 14 }} />}
+                        onClick={() => setExpandedId(expandedId === ch.id ? null : ch.id)}>
+                        {t.settings.inboundSetupTitle}
+                      </Button>
+                      {expandedId === ch.id && (
+                        <Box mt={1} p={1.5} sx={{ bgcolor: 'action.hover', borderRadius: 1.5 }}>
+                          <Typography variant="caption" display="block" mb={1} color="text.secondary">
+                            {t.settings.inboundSetupNote}
+                          </Typography>
+                          {[
+                            { label: 'Gmail', text: t.settings.inboundSetupGmail },
+                            { label: 'Outlook', text: t.settings.inboundSetupOutlook },
+                            { label: lang === 'it' ? 'Altri provider' : 'Other providers', text: t.settings.inboundSetupGeneric },
+                          ].map((item) => (
+                            <Box key={item.label} mb={0.75}>
+                              <Typography variant="caption" fontWeight={700} display="block">{item.label}</Typography>
+                              <Typography variant="caption" color="text.secondary">{item.text}</Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                  <IconButton size="small" onClick={(e) => setMenuAnchor({ el: e.currentTarget, channel: ch })} sx={{ flexShrink: 0 }}>
+                    <MoreVert fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+
+        <Box>
+          <Button variant="outlined" size="small" startIcon={<Add fontSize="small" />} onClick={openAdd}>
+            {t.settings.addInboundAddress}
+          </Button>
+        </Box>
+
+        {/* Context menu */}
+        {menuAnchor && (
+          <Paper component="div" elevation={3} sx={{
+            position: 'fixed', zIndex: 1400, minWidth: 200, borderRadius: 2, overflow: 'hidden', py: 0.5,
+            top: menuAnchor.el.getBoundingClientRect().bottom + 4,
+            left: Math.min(menuAnchor.el.getBoundingClientRect().left, window.innerWidth - 210),
+          }}>
+            <MenuItem dense onClick={() => openEdit(menuAnchor.channel)} sx={{ gap: 1.5 }}>
+              <EditOutlined fontSize="small" color="action" />
+              <Typography variant="body2">{t.settings.editChannel}</Typography>
+            </MenuItem>
+            <MenuItem dense onClick={() => { setMenuAnchor(null); setConfirmRegen(menuAnchor.channel); }} sx={{ gap: 1.5 }}>
+              <Refresh fontSize="small" color="action" />
+              <Typography variant="body2">{t.settings.inboundAddressRegenerate}</Typography>
+            </MenuItem>
+            <MenuItem dense onClick={() => handleToggle(menuAnchor.channel)} sx={{ gap: 1.5 }}>
+              <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: menuAnchor.channel.enabled ? 'text.disabled' : 'success.main' }} />
+              </Box>
+              <Typography variant="body2">{menuAnchor.channel.enabled ? t.settings.channelDisabled : t.settings.channelEnabled}</Typography>
+            </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem dense onClick={() => { setMenuAnchor(null); setConfirmDelete(menuAnchor.channel); }} sx={{ gap: 1.5, color: 'error.main' }}>
+              <Delete fontSize="small" color="error" />
+              <Typography variant="body2" color="error">{t.settings.deleteChannel}</Typography>
+            </MenuItem>
+          </Paper>
+        )}
+        {menuAnchor && <Box sx={{ position: 'fixed', inset: 0, zIndex: 1399 }} onClick={() => setMenuAnchor(null)} />}
+
+        {/* Add/Edit Dialog */}
+        <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+          <DialogTitle sx={{ pb: 1 }}>
+            {editTarget ? t.settings.inboundAddressEditTitle : t.settings.inboundAddressAddTitle}
+          </DialogTitle>
+          <DialogContent>
+            <Box display="flex" flexDirection="column" gap={2} pt={1}>
+              <TextField label={t.settings.inboundAddressLabel} size="small" fullWidth
+                placeholder={t.settings.inboundAddressLabelPlaceholder}
+                value={formLabel} onChange={(e) => setFormLabel(e.target.value)} />
+              <TextField select label={t.settings.imapRoutingCategory} value={formCategory} size="small" fullWidth
+                helperText={t.settings.imapRoutingCategoryHint}
+                onChange={(e) => setFormCategory(e.target.value)}>
+                <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+                {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              </TextField>
+              <TextField select label={t.settings.imapRoutingGroup} value={formGroup} size="small" fullWidth
+                helperText={t.settings.imapRoutingGroupHint}
+                onChange={(e) => setFormGroup(e.target.value)}>
+                <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+                {groups.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+              </TextField>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setDialogOpen(false)} disabled={saving}>{t.settings.kbCancel}</Button>
+            <Button variant="contained" onClick={handleSave} disabled={saving || !formLabel.trim()}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}>
+              {saving ? t.settings.saving : t.settings.kbSave}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete confirm */}
+        <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+          <DialogTitle>{t.settings.deleteChannel}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">{t.settings.inboundAddressDeleteConfirm}</Typography>
+            {confirmDelete && <Typography variant="body2" fontWeight={600} mt={1}>"{confirmDelete.label}"</Typography>}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setConfirmDelete(null)} disabled={deleting}>{t.settings.kbCancel}</Button>
+            <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}
+              startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Delete />}>
+              {deleting ? t.settings.saving : t.settings.kbDeleteAction}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Regenerate token confirm */}
+        <Dialog open={!!confirmRegen} onClose={() => setConfirmRegen(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+          <DialogTitle>{t.settings.inboundAddressRegenerate}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">{t.settings.inboundAddressRegenerateWarning}</Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setConfirmRegen(null)} disabled={regenerating}>{t.settings.kbCancel}</Button>
+            <Button variant="contained" color="warning" onClick={handleRegen} disabled={regenerating}
+              startIcon={regenerating ? <CircularProgress size={16} color="inherit" /> : <Refresh />}>
+              {regenerating ? t.settings.saving : t.settings.inboundAddressRegenerateConfirm}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Section>
+    </>
+  );
+}
+
 interface EmailChannel {
   id: number;
   type: string;
@@ -1584,6 +1894,9 @@ function EmailChannelsTab() {
   if (loading) return <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>;
 
   return (
+    <>
+      <InboundAddressesSection />
+      <Box mt={4} />
     <Section title={t.settings.emailChannels} icon={<MailOutline color="primary" />}>
       <Typography variant="body2" color="text.secondary" mb={3}>
         {t.settings.imapNote}
@@ -1866,6 +2179,7 @@ function EmailChannelsTab() {
         </DialogActions>
       </Dialog>
     </Section>
+    </>
   );
 }
 

@@ -22,6 +22,7 @@ import oauthRouter from "./oauth";
 import botRouter from "./bot";
 import knowledgeArticlesRouter from "./knowledgeArticles";
 import inboundEmailRouter from "./inboundEmail";
+import inboundChannelsRouter from "./inboundChannels";
 import emailOauthRouter from "./emailOauth";
 import emailChannelsRouter from "./emailChannels";
 
@@ -50,6 +51,7 @@ router.use(oauthRouter);
 router.use(botRouter);
 router.use(knowledgeArticlesRouter);
 router.use(inboundEmailRouter);
+router.use(inboundChannelsRouter);
 router.use(emailOauthRouter);
 router.use(emailChannelsRouter);
 
