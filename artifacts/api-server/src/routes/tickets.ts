@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
+import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
+import { appBaseUrl } from "../lib/appUrl";
 
 const router: IRouter = Router();
 
@@ -401,6 +403,56 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     const statusLabels: Record<string, string> = { open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso" };
     const statusLabel = statusLabels[updates.status!] ?? updates.status!;
     await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${id} in "${statusLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
+
+    if (updates.status === "closed" && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
+      const customerEmail = existing.resource;
+      const ticketNum = existing.ticketNumber ?? existing.id;
+      void (async () => {
+        try {
+          let replyTo: string | undefined;
+          if (orgId != null) {
+            const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN ?? "inbound.taskdesk.it";
+            if (existing.inboundChannelId) {
+              const [ch] = await db.select({ token: inboundEmailChannelsTable.token })
+                .from(inboundEmailChannelsTable)
+                .where(and(
+                  eq(inboundEmailChannelsTable.id, existing.inboundChannelId),
+                  eq(inboundEmailChannelsTable.organizationId, orgId)
+                ));
+              if (ch?.token) replyTo = `tickets-${ch.token}@${inboundDomain}`;
+            }
+            if (!replyTo) {
+              const [ch] = await db.select({ token: inboundEmailChannelsTable.token })
+                .from(inboundEmailChannelsTable)
+                .where(and(
+                  eq(inboundEmailChannelsTable.organizationId, orgId),
+                  eq(inboundEmailChannelsTable.enabled, true)
+                ))
+                .limit(1);
+              if (ch?.token) replyTo = `tickets-${ch.token}@${inboundDomain}`;
+            }
+          }
+          const baseUrl = appBaseUrl();
+          const resolutionNote = updates.resolutionNote ?? existing.resolutionNote ?? undefined;
+          const { subject: closureSubject, html, text } = buildTicketClosureEmail({
+            toName: customerEmail,
+            ticketNumber: ticketNum,
+            ticketTitle: existing.title,
+            resolutionNote: resolutionNote || undefined,
+            appBaseUrl: baseUrl,
+          });
+          const result = await sendEmailForOrg(orgId, { to: customerEmail, subject: closureSubject, html, text, replyTo });
+          if (!result.ok) {
+            req.log.warn({ ticketId: id, to: customerEmail, err: result.error }, "Failed to send ticket closure email");
+          } else {
+            req.log.info({ ticketId: id, to: customerEmail }, "Ticket closure email sent");
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          req.log.warn({ ticketId: id, err: msg }, "Error sending ticket closure email");
+        }
+      })();
+    }
   }
   if (activityLogs.some((l) => l.actionType === "priority_changed")) {
     const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };

@@ -322,6 +322,61 @@ export function buildTicketReplyEmail(args: {
   return { subject, html, text };
 }
 
+export function buildTicketClosureEmail(args: {
+  toName: string;
+  ticketNumber: number;
+  ticketTitle: string;
+  resolutionNote?: string;
+  appBaseUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `✅ Richiesta #${args.ticketNumber} risolta — ${args.ticketTitle}`;
+
+  const resolutionSection = args.resolutionNote
+    ? `\n\nNota di chiusura:\n${args.resolutionNote}`
+    : "";
+
+  const text = [
+    `Ciao ${args.toName},`,
+    "",
+    `La tua richiesta di assistenza #${args.ticketNumber} — "${args.ticketTitle}" è stata risolta e chiusa.`,
+    resolutionSection,
+    "",
+    "Se hai ulteriori domande o hai bisogno di assistenza, rispondi a questa email e riapriremo il ticket.",
+    "",
+    "Grazie per aver contattato il supporto.",
+    "",
+    "— Il team di supporto",
+  ].join("\n");
+
+  const resolutionHtml = args.resolutionNote
+    ? `<div style="background:#f9fafb;border-left:4px solid #16a34a;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;font-size:15px;line-height:1.7;color:#1f2937">${escapeHtml(args.resolutionNote).replace(/\n/g, "<br>")}</div>`
+    : "";
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="${args.appBaseUrl}/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:13px;color:#16a34a;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Richiesta risolta</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:#15803d">Ticket #${args.ticketNumber}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Ciao <strong>${escapeHtml(args.toName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#374151">
+        La tua richiesta di assistenza <strong>"${escapeHtml(args.ticketTitle)}"</strong> è stata risolta e chiusa.
+      </p>
+      ${resolutionHtml}
+      <p style="font-size:14px;color:#6b7280;margin:0 0 24px">
+        Se hai ulteriori domande o hai bisogno di ulteriore assistenza, rispondi a questa email e riapriremo il ticket.
+      </p>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">
+        Questo messaggio è stato inviato automaticamente alla chiusura del ticket <strong>#${args.ticketNumber}</strong>.
+      </p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
