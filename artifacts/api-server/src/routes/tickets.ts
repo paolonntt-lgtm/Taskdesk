@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, and, ilike, or, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
@@ -9,13 +9,14 @@ import { appBaseUrl } from "../lib/appUrl";
 
 const router: IRouter = Router();
 
-function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number) {
+function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null) {
   return {
     ...ticket,
     creator: { id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, avatarUrl: creator.avatarUrl ?? null, createdAt: creator.createdAt },
     assignee: assignee ? { id: assignee.id, name: assignee.name, email: assignee.email, role: assignee.role, mainLocation: assignee.mainLocation, avatarUrl: assignee.avatarUrl ?? null, createdAt: assignee.createdAt } : null,
     commentCount,
     noteCount,
+    inboundChannelName: inboundChannelName ?? null,
   };
 }
 
@@ -23,7 +24,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
@@ -39,6 +40,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (createdBy) conditions.push(eq(ticketsTable.createdBy, parseInt(createdBy, 10)));
   if (dateFrom) conditions.push(gte(ticketsTable.createdAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
+  if (emailOrigin === 'true') conditions.push(isNotNull(ticketsTable.inboundChannelId));
 
   if (search) {
     const searchPattern = `%${search}%`;
@@ -115,13 +117,23 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     .where(eq(ticketCommentsTable.isSolution, true));
   const solutionSet = new Set(solutionTickets.map((s) => s.ticketId));
 
+  // Batch-fetch inbound channel labels for tickets that arrived via email
+  const channelIds = [...new Set(tickets.map((t) => t.inboundChannelId).filter(Boolean))] as number[];
+  const channels = channelIds.length > 0
+    ? await db.select({ id: inboundEmailChannelsTable.id, label: inboundEmailChannelsTable.label })
+        .from(inboundEmailChannelsTable)
+        .where(inArray(inboundEmailChannelsTable.id, channelIds))
+    : [];
+  const channelMap = new Map(channels.map((c) => [c.id, c.label]));
+
   const result = tickets.map((t) => ({
     ...buildTicketWithDetails(
       t,
       userMap.get(t.createdBy)!,
       t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
       commentMap.get(t.id) ?? 0,
-      noteMap.get(t.id) ?? 0
+      noteMap.get(t.id) ?? 0,
+      t.inboundChannelId ? (channelMap.get(t.inboundChannelId) ?? null) : null
     ),
     hasSolution: solutionSet.has(t.id),
   }));
@@ -250,7 +262,15 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc)));
+  let inboundChannelName: string | null = null;
+  if (ticket.inboundChannelId) {
+    const [ch] = await db.select({ label: inboundEmailChannelsTable.label })
+      .from(inboundEmailChannelsTable)
+      .where(eq(inboundEmailChannelsTable.id, ticket.inboundChannelId));
+    inboundChannelName = ch?.label ?? null;
+  }
+
+  res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName));
 });
 
 router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {

@@ -13,4 +13,5 @@ export type TicketWithDetails = Ticket & {
   assignee?: User | null;
   commentCount: number;
   noteCount: number;
+  inboundChannelName?: string | null;
 };

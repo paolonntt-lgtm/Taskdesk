@@ -17,4 +17,5 @@ export type ListTicketsParams = {
   dateFrom?: string;
   dateTo?: string;
   resource?: string;
+  emailOrigin?: boolean;
 };

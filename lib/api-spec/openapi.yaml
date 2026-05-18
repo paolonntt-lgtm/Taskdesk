@@ -262,6 +262,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: emailOrigin
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of tickets
@@ -1149,6 +1153,9 @@ components:
         assignedTo:
           type: integer
           nullable: true
+        inboundChannelId:
+          type: integer
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1192,6 +1199,9 @@ components:
               type: integer
             noteCount:
               type: integer
+            inboundChannelName:
+              type: string
+              nullable: true
           required:
             - creator
             - commentCount

@@ -6,7 +6,7 @@ import {
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -461,9 +461,23 @@ export default function TicketDetail() {
           </Box>
 
           {/* Row 2: ticket title */}
-          <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', mb: { xs: 1, sm: 1.5 }, lineHeight: 1.3, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-            #{ticket.ticketNumber ?? ticket.id} — {ticket.title}
-          </Typography>
+          <Box display="flex" alignItems="flex-start" gap={1} mb={{ xs: 1, sm: 1.5 }} flexWrap="wrap">
+            <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', lineHeight: 1.3, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+              #{ticket.ticketNumber ?? ticket.id} — {ticket.title}
+            </Typography>
+            {ticket.inboundChannelId && (
+              <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
+                <Chip
+                  icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />}
+                  label="Email"
+                  size="small"
+                  color="info"
+                  variant="outlined"
+                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
+                />
+              </Tooltip>
+            )}
+          </Box>
 
           {/* Row 3: status chips */}
           {canChangeStatus ? (
@@ -688,13 +702,43 @@ export default function TicketDetail() {
             )}
 
             {/* Resource */}
-            {ticket.resource && (
+            {ticket.resource && !ticket.inboundChannelId && (
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.ticketDetail.resourceLabel}
                 </Typography>
                 <Typography variant="body2">{ticket.resource}</Typography>
               </Box>
+            )}
+
+            {/* Email origin info */}
+            {ticket.inboundChannelId && (
+              <>
+                {isEmailResource && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                      {t.ticketDetail.senderEmailLabel}
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <EmailIcon sx={{ fontSize: 14, color: 'info.main' }} />
+                      <Typography variant="body2" component="a" href={`mailto:${ticket.resource}`} sx={{ color: 'info.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                        {ticket.resource}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                {ticket.inboundChannelName && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                      {t.ticketDetail.inboundChannelLabel}
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <MailOutline sx={{ fontSize: 14, color: 'text.secondary' }} />
+                      <Typography variant="body2">{ticket.inboundChannelName}</Typography>
+                    </Box>
+                  </Box>
+                )}
+              </>
             )}
 
             {/* Due date */}

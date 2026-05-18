@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, ticketsTable, ticketCommentsTable } from "@workspace/db";
+import { db, usersTable, ticketsTable, ticketCommentsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { hashPassword } from "./auth";
 
 const router: IRouter = Router();
@@ -59,6 +59,26 @@ router.post("/seed-demo", async (req: Request, res: Response): Promise<void> => 
     group: "Amministrazione",
     isActive: true,
   }).returning();
+
+  // Create demo inbound email channels
+  const [channelIT, channelGeneral] = await db.insert(inboundEmailChannelsTable).values([
+    {
+      organizationId: admin.organizationId!,
+      label: "Supporto IT",
+      token: `demo-it-${admin.id}-${Date.now()}`,
+      defaultCategory: "Informatica",
+      defaultGroup: "IT",
+      enabled: true,
+    },
+    {
+      organizationId: admin.organizationId!,
+      label: "Assistenza Generale",
+      token: `demo-gen-${admin.id}-${Date.now()}`,
+      defaultCategory: null,
+      defaultGroup: null,
+      enabled: true,
+    },
+  ]).returning();
 
   const ticketData = [
     {
@@ -213,6 +233,36 @@ router.post("/seed-demo", async (req: Request, res: Response): Promise<void> => 
       updatedAt: daysAgo(12),
       closedAt: daysAgo(12),
       resolutionNote: "Software installato e attivato correttamente. Test completato con l'utente.",
+    },
+    {
+      title: "Problema accesso al gestionale dopo aggiornamento",
+      description: "Buongiorno, dopo l'aggiornamento di ieri non riesco più ad accedere al gestionale. Il sistema mostra un errore di autenticazione. Potete aiutarmi?\n\nGrazie,\nMaria Conti",
+      category: "Informatica",
+      location: "Milano",
+      resource: "maria.conti@acmecorp.it",
+      priority: "high" as const,
+      status: "open" as const,
+      createdBy: admin.id,
+      assignedTo: tech.id,
+      inboundChannelId: channelIT.id,
+      emailMessageId: `email-demo-${Date.now()}-1@acmecorp.it`,
+      createdAt: daysAgo(1),
+      updatedAt: daysAgo(1),
+    },
+    {
+      title: "Richiesta accesso VPN per lavoro da remoto",
+      description: "Salve, sono un nuovo assunto del reparto commerciale e ho bisogno di accedere alla VPN per lavorare da casa. Come posso procedere?\n\nGrazie,\nFrancesco Belli",
+      category: "Informatica",
+      location: "Roma",
+      resource: "f.belli@partner-agency.com",
+      priority: "medium" as const,
+      status: "waiting" as const,
+      createdBy: admin.id,
+      assignedTo: tech.id,
+      inboundChannelId: channelGeneral.id,
+      emailMessageId: `email-demo-${Date.now()}-2@partner-agency.com`,
+      createdAt: daysAgo(3),
+      updatedAt: daysAgo(2),
     },
   ];
 

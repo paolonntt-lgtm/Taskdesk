@@ -179,6 +179,7 @@ export const ListTicketsQueryParams = zod.object({
   dateFrom: zod.coerce.string().optional(),
   dateTo: zod.coerce.string().optional(),
   resource: zod.coerce.string().optional(),
+  emailOrigin: zod.coerce.boolean().optional(),
 });
 
 export const ListTicketsResponseItem = zod
@@ -194,6 +195,7 @@ export const ListTicketsResponseItem = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -232,6 +234,7 @@ export const ListTicketsResponseItem = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 export const ListTicketsResponse = zod.array(ListTicketsResponseItem);
@@ -271,6 +274,7 @@ export const GetTicketResponse = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -309,6 +313,7 @@ export const GetTicketResponse = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 
@@ -346,6 +351,7 @@ export const UpdateTicketResponse = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -384,6 +390,7 @@ export const UpdateTicketResponse = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 
@@ -785,6 +792,7 @@ export const GetRecentTicketsResponseItem = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -823,6 +831,7 @@ export const GetRecentTicketsResponseItem = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 export const GetRecentTicketsResponse = zod.array(GetRecentTicketsResponseItem);
@@ -843,6 +852,7 @@ export const GetMyTicketsResponseItem = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -881,6 +891,7 @@ export const GetMyTicketsResponseItem = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem);
@@ -901,6 +912,7 @@ export const GetDueSoonTicketsResponseItem = zod
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
     closedAt: zod.coerce.date().nullish(),
@@ -939,6 +951,7 @@ export const GetDueSoonTicketsResponseItem = zod
         .nullish(),
       commentCount: zod.number(),
       noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
     }),
   );
 export const GetDueSoonTicketsResponse = zod.array(

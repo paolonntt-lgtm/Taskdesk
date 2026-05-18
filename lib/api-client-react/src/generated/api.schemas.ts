@@ -121,6 +121,7 @@ export interface Ticket {
   status: TicketStatus;
   createdBy: number;
   assignedTo?: number | null;
+  inboundChannelId?: number | null;
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
@@ -133,6 +134,7 @@ export type TicketWithDetails = Ticket & {
   assignee?: User | null;
   commentCount: number;
   noteCount: number;
+  inboundChannelName?: string | null;
 };
 
 export type CreateTicketBodyPriority =
@@ -376,4 +378,5 @@ export type ListTicketsParams = {
   dateFrom?: string;
   dateTo?: string;
   resource?: string;
+  emailOrigin?: boolean;
 };

@@ -20,6 +20,7 @@ export interface Ticket {
   status: TicketStatus;
   createdBy: number;
   assignedTo?: number | null;
+  inboundChannelId?: number | null;
   createdAt: Date;
   updatedAt: Date;
   closedAt?: Date | null;
