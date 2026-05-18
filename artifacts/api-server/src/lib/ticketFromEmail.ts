@@ -5,7 +5,7 @@ import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket, createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
 
-async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string }> {
+async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string; channelToken?: string }> {
   if (!orgId || !inboundChannelId) return {};
 
   try {
@@ -15,6 +15,7 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
       return {
         defaultCategory: ch.defaultCategory ?? undefined,
         defaultGroup: ch.defaultGroup ?? undefined,
+        channelToken: ch.token,
       };
     }
   } catch { /* ignore */ }
@@ -214,6 +215,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       assignedTo: autoAssignedUserId ?? null,
       emailMessageId: messageId ?? null,
       emailConversationId: conversationId ?? null,
+      inboundChannelId: inboundChannelId ?? null,
     })
     .returning();
 
@@ -256,7 +258,9 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       ticketTitle: title,
       appBaseUrl: baseUrl,
     });
-    const emailResult = await sendEmail({ to: fromEmail, subject: confSubject, html, text });
+    const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN ?? "inbound.taskdesk.it";
+    const replyTo = routing.channelToken ? `tickets-${routing.channelToken}@${inboundDomain}` : undefined;
+    const emailResult = await sendEmail({ to: fromEmail, subject: confSubject, html, text, replyTo });
     if (!emailResult.ok) {
       logger.warn({ to: fromEmail, err: emailResult.error }, "Failed to send inbound confirmation email");
     } else if (emailResult.messageId) {

@@ -1,31 +1,37 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray, and, sql } from "drizzle-orm";
-import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable } from "@workspace/db";
+import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
-import { settingsTable } from "@workspace/db";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-async function getOrgInboundEmail(orgId: number | null): Promise<string | null> {
+async function getOrgInboundEmail(orgId: number | null, inboundChannelId?: number | null): Promise<string | null> {
   if (!orgId) return null;
-  const keys = [
-    `org_${orgId}_gmail_tokens`,
-    `org_${orgId}_microsoft_tokens`,
-    `org_${orgId}_imap_config`,
-  ];
-  for (const key of keys) {
+  const domain = process.env.INBOUND_EMAIL_DOMAIN ?? "inbound.taskdesk.it";
+
+  if (inboundChannelId) {
     try {
-      const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
-      if (!row) continue;
-      const parsed = JSON.parse(row.value as string);
-      const addr = parsed.email || parsed.user;
-      if (addr && EMAIL_RE.test(addr)) return addr as string;
-    } catch { /* skip malformed */ }
+      const [ch] = await db
+        .select({ token: inboundEmailChannelsTable.token })
+        .from(inboundEmailChannelsTable)
+        .where(and(eq(inboundEmailChannelsTable.id, inboundChannelId), eq(inboundEmailChannelsTable.organizationId, orgId)));
+      if (ch) return `tickets-${ch.token}@${domain}`;
+    } catch { /* ignore */ }
   }
+
+  try {
+    const [ch] = await db
+      .select({ token: inboundEmailChannelsTable.token })
+      .from(inboundEmailChannelsTable)
+      .where(and(eq(inboundEmailChannelsTable.organizationId, orgId), eq(inboundEmailChannelsTable.enabled, true)))
+      .limit(1);
+    if (ch) return `tickets-${ch.token}@${domain}`;
+  } catch { /* ignore */ }
+
   return null;
 }
 
@@ -172,7 +178,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       operatorName: currentUser.name,
       appBaseUrl: appBaseUrl(),
     });
-    const replyTo = await getOrgInboundEmail(ticket.organizationId);
+    const replyTo = await getOrgInboundEmail(ticket.organizationId, ticket.inboundChannelId);
     void sendEmailForOrg(ticket.organizationId, { to: toEmail, subject, html, text, ...(replyTo ? { replyTo } : {}) });
   }
 
