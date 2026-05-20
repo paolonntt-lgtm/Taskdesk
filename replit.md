@@ -91,3 +91,7 @@ The `lib/api-spec/package.json` codegen script runs orval and then immediately o
 - ✅ UI completamente in italiano
 - ✅ Dati demo pre-caricati (11 ticket, commenti, note, attività)
 - ✅ Gestione Utenti (solo admin): crea, modifica, disattiva utenti con tabella MUI + dialog + conferma disattivazione
+
+## User Preferences
+
+- All new UI strings must be written in English first, then added as the Italian translation in `translations.ts`. Never add Italian-only strings directly.
