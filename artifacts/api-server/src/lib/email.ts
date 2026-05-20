@@ -247,6 +247,9 @@ export function buildInboundConfirmationEmail(args: {
     "Grazie per averci contattato.",
     "",
     "— Il team di supporto",
+    "",
+    "-- ",
+    "TaskDesk Support — non modificare il testo sotto questa riga",
   ].join("\n");
 
   const html = `
@@ -307,6 +310,9 @@ export function buildTicketReplyEmail(args: {
     "  Il team di supporto",
     "",
     "Per rispondere o aggiungere ulteriori dettagli, rispondi a questa email.",
+    "",
+    "-- ",
+    "TaskDesk Support — non modificare il testo sotto questa riga",
   ].join("\n");
 
   const replyHtml = args.replyText
@@ -362,6 +368,9 @@ export function buildTicketClosureEmail(args: {
     "Grazie per aver contattato il supporto.",
     "",
     "— Il team di supporto",
+    "",
+    "-- ",
+    "TaskDesk Support — non modificare il testo sotto questa riga",
   ].join("\n");
 
   const resolutionHtml = args.resolutionNote

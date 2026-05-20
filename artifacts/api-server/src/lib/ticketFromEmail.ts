@@ -34,12 +34,22 @@ const TICKET_NUMBER_RE = /\[#(\d+)\]/;
  */
 function stripEmailQuotes(body: string): string {
   const quoteHeaderPatterns = [
+    // Standard email reply separators
+    /\r?\n-- \r?\n/,
+    /\r?\n--\r?\n/,
+    // Gmail IT/EN
     /\r?\nIl giorno .{5,200}ha scritto:\s*\r?\n/,
     /\r?\nOn .{5,200}wrote:\s*\r?\n/,
+    // Outlook IT/EN
     /\r?\nDa: .{1,200}\r?\n.*(?:Inviato|Oggetto|A:)/,
     /\r?\nFrom: .{1,200}\r?\n.*(?:Sent|Subject|To:)/,
+    // Generic separators
     /\r?\n-{3,}\s*(?:Original Message|Messaggio originale)\s*-{3,}/i,
     /\r?\n_{5,}\r?\n/,
+    // MIME boundary markers (from raw MIME parsing in Cloudflare Worker)
+    /\r?\n--[A-Za-z0-9_\-+/=]{10,}/,
+    // Long dash/underscore separator lines
+    /\r?\n[=\-_]{20,}\r?\n/,
   ];
 
   let text = body;
