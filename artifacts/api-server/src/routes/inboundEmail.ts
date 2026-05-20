@@ -54,7 +54,12 @@ function extractToken(localPart: string): string | null {
 
 router.post("/inbound-email", async (req, res): Promise<void> => {
   const expectedToken = process.env.INBOUND_EMAIL_TOKEN;
-  const receivedToken = (req.query.token as string) || req.headers["x-webhook-token"];
+
+  // Normalise the received token: the Cloudflare Worker may send the value
+  // with trailing whitespace or a duplicated "?token=…" fragment caused by a
+  // newline in the URL template.  Split on the first newline / "?" and trim.
+  const rawToken = (req.query.token as string) || (req.headers["x-webhook-token"] as string) || "";
+  const receivedToken = rawToken.split(/[\n\r?]/)[0].trim();
 
   if (!expectedToken) {
     req.log.warn("INBOUND_EMAIL_TOKEN not configured — rejecting request");
@@ -63,7 +68,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   }
 
   if (receivedToken !== expectedToken) {
-    req.log.warn({ received: receivedToken }, "Invalid inbound email token");
+    req.log.warn({ received: receivedToken, raw: rawToken }, "Invalid inbound email token");
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
