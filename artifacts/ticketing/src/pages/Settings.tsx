@@ -1605,7 +1605,7 @@ function EmailChannelsTab() {
       port: ch.port,
       secure: ch.secure,
       user: ch.user,
-      password: '***',
+      password: '',
       fromAddress: ch.fromAddress ?? '',
       folder: ch.folder ?? 'INBOX',
       defaultCategory: ch.defaultCategory ?? '',
@@ -1846,7 +1846,7 @@ function EmailChannelsTab() {
             {/* Password */}
             <TextField label={t.settings.smtpPassword}
               value={form.password} size="small" fullWidth type="password" autoComplete="new-password"
-              helperText={editTarget ? 'Lascia "***" per non modificarla' : undefined}
+              placeholder={editTarget ? t.settings.smtpPasswordEditPlaceholder : undefined}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
 
             {/* From address */}
