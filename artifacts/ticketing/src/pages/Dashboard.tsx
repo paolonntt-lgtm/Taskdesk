@@ -161,14 +161,14 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
         ) : (
           <Avatar sx={{
             width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
-            bgcolor: ticket.status === 'open' ? 'primary.light'
-              : ticket.status === 'waiting' ? 'secondary.light'
-              : ticket.status === 'resolved' ? 'success.light'
-              : 'action.selected',
-            color: ticket.status === 'open' ? 'primary.contrastText'
-              : ticket.status === 'waiting' ? 'secondary.contrastText'
-              : ticket.status === 'resolved' ? 'success.contrastText'
-              : 'text.secondary',
+            background: ticket.status === 'open' ? '#dbeafe'
+              : ticket.status === 'waiting' ? '#ede9fe'
+              : ticket.status === 'resolved' ? '#d1fae5'
+              : '#f3f4f6',
+            color: ticket.status === 'open' ? '#2563eb'
+              : ticket.status === 'waiting' ? '#7c3aed'
+              : ticket.status === 'resolved' ? '#059669'
+              : '#6b7280',
           }}>
             #{ticket.ticketNumber ?? ticket.id}
           </Avatar>
