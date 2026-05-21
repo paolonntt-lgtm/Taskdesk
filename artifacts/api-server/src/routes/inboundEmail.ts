@@ -75,11 +75,21 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
 
   const body = req.body;
 
+  // Log the raw payload structure for debugging (no sensitive content)
+  req.log.info({
+    bodyKeys: body ? Object.keys(body) : [],
+    toRaw: body?.to ?? body?.To ?? body?.ToFull ?? body?.envelope?.to ?? "(missing)",
+    fromRaw: body?.from ?? body?.From ?? body?.from_email ?? "(missing)",
+    subject: body?.subject ?? body?.Subject ?? "(missing)",
+    hasText: !!(body?.text || body?.body_text || body?.plain || body?.body),
+    hasHeaders: !!body?.headers,
+  }, "Inbound email webhook received");
+
   // Extract sender — handle "Name <email>" format
   const rawFrom = extractField(body, "from", "from_email", "sender_email", "From");
   const { email: fromEmail, name: fromNameParsed } = parseEmailAddress(rawFrom);
   const fromName = extractField(body, "from_name", "sender_name", "name") || fromNameParsed || fromEmail;
-  const subject = extractField(body, "subject", "Subject") || "Richiesta di assistenza";
+  const subject = extractField(body, "subject", "Subject") || "Support request";
   const bodyText = extractText(body);
 
   // Email headers for threading
@@ -89,7 +99,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const references = extractField(body, "references", "References") || headers["references"] || headers["References"] || "";
 
   if (!fromEmail) {
-    req.log.warn({ body }, "Inbound email missing sender address");
+    req.log.warn({ bodyKeys: body ? Object.keys(body) : [] }, "Inbound email missing sender address");
     res.status(400).json({ error: "Missing sender email" });
     return;
   }
@@ -100,6 +110,8 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   let resolvedChannelId: number | null = null;
 
   const toAddresses = extractToAddresses(body);
+  req.log.info({ toAddresses }, "Inbound email: resolved To addresses");
+
   for (const addr of toAddresses) {
     const localPart = extractLocalPart(addr);
     if (!localPart) continue;
@@ -110,24 +122,34 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     if (bySlug?.enabled) {
       resolvedOrgId = bySlug.organizationId;
       resolvedChannelId = bySlug.id;
+      req.log.info({ localPart, channelId: bySlug.id }, "Inbound email: channel resolved via slug");
       break;
     }
 
     // 2. Fall back to legacy tickets-{token} pattern
     const token = extractToken(localPart);
+    req.log.info({ localPart, extractedToken: token ?? "(no match)" }, "Inbound email: token extraction");
     if (!token) continue;
     const [byToken] = await db.select().from(inboundEmailChannelsTable)
       .where(eq(inboundEmailChannelsTable.token, token));
     if (byToken?.enabled) {
       resolvedOrgId = byToken.organizationId;
       resolvedChannelId = byToken.id;
+      req.log.info({ token, channelId: byToken.id }, "Inbound email: channel resolved via token");
       break;
+    } else {
+      req.log.warn({ token, found: !!byToken, enabled: byToken?.enabled }, "Inbound email: token not matched to any enabled channel");
     }
+  }
+
+  if (!resolvedChannelId) {
+    req.log.warn({ toAddresses }, "Inbound email: no channel resolved from To addresses");
   }
 
   // Fall back to env-configured org if no token matched
   if (!resolvedOrgId && process.env.INBOUND_EMAIL_ORG_ID) {
     resolvedOrgId = parseInt(process.env.INBOUND_EMAIL_ORG_ID, 10);
+    req.log.info({ resolvedOrgId }, "Inbound email: org resolved via INBOUND_EMAIL_ORG_ID env fallback");
   }
 
   try {
@@ -142,7 +164,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
       references: references || undefined,
       inboundChannelId: resolvedChannelId,
     });
-    req.log.info({ from: fromEmail, orgId: resolvedOrgId, inboundChannelId: resolvedChannelId }, "Inbound webhook email processed");
+    req.log.info({ from: fromEmail, orgId: resolvedOrgId, inboundChannelId: resolvedChannelId }, "Inbound email processed successfully");
     res.status(200).json({ ok: true });
   } catch (err: any) {
     req.log.error({ err }, "Failed to process inbound email webhook");
