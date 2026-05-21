@@ -4,6 +4,7 @@ import {
   Box,
   CssBaseline,
   Drawer,
+  Fab,
   IconButton,
   List,
   ListItem,
@@ -42,6 +43,7 @@ import {
   Info,
   ChevronLeft,
   Circle,
+  SmartToy,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,6 +53,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 import BugReportFab from './BugReportFab';
+import BotDialog from './BotDialog';
 
 const drawerWidth = 264;
 
@@ -69,6 +72,7 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
+  const [botOpen, setBotOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
@@ -543,6 +547,40 @@ export default function Layout({ children }: LayoutProps) {
       </Box>
 
       <BugReportFab />
+
+      <Tooltip title={t.bot.fabTooltip} placement="left">
+        <Fab
+          color="primary"
+          onClick={() => setBotOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: theme.zIndex.speedDial,
+          }}
+        >
+          <SmartToy />
+        </Fab>
+      </Tooltip>
+
+      <BotDialog
+        open={botOpen}
+        onClose={() => setBotOpen(false)}
+        onCreateTicket={(title, description, category, resource, location) => {
+          setBotOpen(false);
+          const params = new URLSearchParams();
+          if (title) params.set('title', title);
+          if (description) params.set('description', description);
+          if (category) params.set('category', category);
+          if (resource) params.set('resource', resource);
+          if (location) params.set('location', location);
+          setLocation(`/tickets/new?${params.toString()}`);
+        }}
+        onViewTicket={(id) => {
+          setBotOpen(false);
+          setLocation(`/tickets/${id}`);
+        }}
+      />
     </Box>
   );
 }

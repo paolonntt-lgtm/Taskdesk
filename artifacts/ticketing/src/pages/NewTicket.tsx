@@ -3,17 +3,17 @@ import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { Person, Group, SmartToy } from '@mui/icons-material';
+import { Person, Group } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, getListTicketsQueryKey } from '@workspace/api-client-react';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
-import BotDialog from '../components/BotDialog';
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const createTicket = useCreateTicket();
@@ -21,7 +21,6 @@ export default function NewTicket() {
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
 
-  const [botOpen, setBotOpen] = useState(true);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const [categories, setCategories] = useState<string[]>([]);
@@ -29,12 +28,13 @@ export default function NewTicket() {
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
 
+  const urlParams = new URLSearchParams(search);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    location: currentUser?.mainLocation || '',
-    resource: '',
+    title: urlParams.get('title') || '',
+    description: urlParams.get('description') || '',
+    category: urlParams.get('category') || '',
+    location: urlParams.get('location') || currentUser?.mainLocation || '',
+    resource: urlParams.get('resource') || '',
     priority: 'medium',
     assignedTo: '',
     assignedToGroup: '',
@@ -68,20 +68,6 @@ export default function NewTicket() {
 
   const singleLocation = locations.length === 1;
 
-  const handleBotCreateTicket = (title: string, description: string, category?: string, resource?: string, location?: string) => {
-    const validCategory = category && categories.includes(category) ? category : undefined;
-    const validLocation = location && locations.includes(location) ? location : undefined;
-    setFormData((f) => ({
-      ...f,
-      title,
-      description,
-      ...(validCategory ? { category: validCategory } : {}),
-      ...(resource ? { resource } : {}),
-      ...(validLocation ? { location: validLocation } : {}),
-    }));
-    setBotOpen(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -113,20 +99,6 @@ export default function NewTicket() {
       <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }}>
         {t.newTicket.title}
       </Typography>
-
-      {!botOpen && (
-        <Box mb={2} display="flex" justifyContent="flex-end">
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<SmartToy />}
-            onClick={() => setBotOpen(true)}
-            sx={{ borderRadius: 2 }}
-          >
-            {t.newTicket.askTaskBot}
-          </Button>
-        </Box>
-      )}
 
       <Card>
         <CardContent sx={{ p: { xs: 1.5, sm: 4 } }}>
@@ -289,12 +261,6 @@ export default function NewTicket() {
           </form>
         </CardContent>
       </Card>
-      <BotDialog
-        open={botOpen}
-        onClose={() => setBotOpen(false)}
-        onCreateTicket={handleBotCreateTicket}
-        onViewTicket={(id) => { setBotOpen(false); setLocation(`/tickets/${id}`); }}
-      />
     </Box>
   );
 }

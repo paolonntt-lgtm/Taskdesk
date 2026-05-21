@@ -269,6 +269,7 @@ const it = {
     openTicketBtn: 'Apri ticket',
     openTicketFound: 'Esiste già un ticket aperto su questo problema:',
     viewTicketBtn: 'Vai al ticket',
+    fabTooltip: 'Chiedi a TaskBot',
   },
   reports: {
     title: 'Report e Statistiche',
@@ -948,6 +949,7 @@ const en: typeof it = {
     openTicketBtn: 'Open a ticket',
     openTicketFound: 'There is already an open ticket for this issue:',
     viewTicketBtn: 'Go to ticket',
+    fabTooltip: 'Ask TaskBot',
   },
   reports: {
     title: 'Reports & Statistics',
