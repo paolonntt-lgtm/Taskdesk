@@ -12,7 +12,7 @@ const bugReportSchema = z.object({
   currentPage: z.string().max(500).optional().default(""),
 });
 
-router.post("/api/bug-report", requireAuth, async (req, res) => {
+router.post("/bug-report", requireAuth, async (req, res) => {
   const parsed = bugReportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid input" });
