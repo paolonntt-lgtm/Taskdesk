@@ -220,6 +220,27 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   })));
 });
 
+router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const filter = orgId != null
+    ? and(eq(ticketsTable.organizationId, orgId), eq(ticketsTable.assignedTo, currentUser.id))
+    : eq(ticketsTable.assignedTo, currentUser.id);
+
+  const tickets = await db.select().from(ticketsTable)
+    .where(filter)
+    .orderBy(sql`updated_at DESC`);
+
+  res.json(tickets.map((t) => ({
+    ...t,
+    creator: null,
+    assignee: null,
+    commentCount: 0,
+    noteCount: 0,
+  })));
+});
+
 router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;

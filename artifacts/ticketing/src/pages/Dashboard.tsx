@@ -21,6 +21,8 @@ import {
   Close as CloseIcon,
   DragIndicator as DragIcon,
   RestartAlt as ResetIcon,
+  Email as EmailIcon,
+  AssignmentInd as AssignedIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -33,6 +35,7 @@ import {
   useGetStatsByLocation, useGetStatsByPriority, useGetStatsByAssignee,
   useGetTicketTrend,
 } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -119,6 +122,7 @@ function StatCard({
 type TicketRow = {
   id: number; title: string; status: string; priority: string;
   category?: string | null; dueAt?: string | null; ticketNumber?: number | null;
+  inboundChannelId?: number | null;
 };
 
 function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
@@ -158,14 +162,23 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
         </Avatar>
       )}
       <Box flex={1} minWidth={0}>
-        <Typography variant="body2" fontWeight={500} noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
-          {isMobile && (
-            <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
-              #{ticket.ticketNumber ?? ticket.id}
-            </Typography>
+        <Box display="flex" alignItems="center" gap={0.75}>
+          {ticket.inboundChannelId && (
+            <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
+              <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: 'info.main', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <EmailIcon sx={{ fontSize: 10, color: '#fff' }} />
+              </Box>
+            </Tooltip>
           )}
-          {ticket.title}
-        </Typography>
+          <Typography variant="body2" fontWeight={500} noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
+            {isMobile && (
+              <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
+                #{ticket.ticketNumber ?? ticket.id}
+              </Typography>
+            )}
+            {ticket.title}
+          </Typography>
+        </Box>
         {ticket.category && (
           <Typography variant="caption" color="text.secondary" noWrap display="block">
             {ticket.category}
@@ -455,6 +468,25 @@ function FeedRecentWidget() {
   );
 }
 
+function FeedAssignedWidget() {
+  const { t } = useLanguage();
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['assigned-to-me'],
+    queryFn: () => fetch('/api/stats/assigned-to-me', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const tickets = data.filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
+  return (
+    <FeedCard
+      title={t.dashboard.widgetFeedAssigned}
+      icon={<AssignedIcon fontSize="small" color="primary" />}
+      tickets={tickets}
+      emptyMsg={t.dashboard.noAssignedToMe}
+      viewAllHref="/tickets"
+    />
+  );
+}
+
 // ── STAT WIDGET WRAPPERS (self-contained) ─────────────────────────────────
 
 function StatOpenWidget() {
@@ -537,6 +569,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-my',        labelKey: 'widgetFeedMy',        defaultLayout: { x: 0, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedMyWidget },
   { id: 'feed-due',       labelKey: 'widgetFeedDue',       defaultLayout: { x: 4, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedDueWidget },
   { id: 'feed-recent',    labelKey: 'widgetFeedRecent',    defaultLayout: { x: 8, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedRecentWidget },
+  { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget },
   { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 9, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget },
   { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 9, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget },
   { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget },
