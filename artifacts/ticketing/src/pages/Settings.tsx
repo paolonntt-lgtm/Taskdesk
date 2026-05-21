@@ -1686,6 +1686,33 @@ function EmailChannelsTab() {
 
   return (
     <>
+      {/* ── How email works intro ── */}
+      <Paper variant="outlined" sx={{ borderRadius: 2, p: 3, mb: 4 }}>
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+          {t.settings.emailTabHowItWorksTitle}
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+            <Box sx={{ mt: 0.25, flexShrink: 0, width: 32, height: 32, borderRadius: 1.5, bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlternateEmail sx={{ fontSize: 18, color: '#fff' }} />
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600} gutterBottom>{t.settings.emailTabMode1Title}</Typography>
+              <Typography variant="body2" color="text.secondary">{t.settings.emailTabMode1Desc}</Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+            <Box sx={{ mt: 0.25, flexShrink: 0, width: 32, height: 32, borderRadius: 1.5, bgcolor: 'success.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Send sx={{ fontSize: 18, color: '#fff' }} />
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600} gutterBottom>{t.settings.emailTabMode2Title}</Typography>
+              <Typography variant="body2" color="text.secondary">{t.settings.emailTabMode2Desc}</Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
+
       <InboundAddressesSection />
       <Box mt={4} />
     <Section title={t.settings.emailChannels} icon={<MailOutline color="primary" />}>
