@@ -29,7 +29,7 @@ router.post("/api/bug-report", requireAuth, async (req, res) => {
     return;
   }
 
-  const destination = config.from || config.user;
+  const destination = "paolonntt@gmail.com";
   const escapedDesc = description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   const subject = `🐛 Bug Report da ${user.name} — TaskDesk`;
   const html = `
