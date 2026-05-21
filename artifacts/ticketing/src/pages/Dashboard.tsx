@@ -147,38 +147,42 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
       '&:hover': { bgcolor: 'action.hover' }, overflow: 'hidden',
     }}>
       {!isMobile && (
-        <Avatar sx={{
-          width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
-          bgcolor: ticket.status === 'open' ? 'primary.light'
-            : ticket.status === 'waiting' ? 'secondary.light'
-            : ticket.status === 'resolved' ? 'success.light'
-            : 'action.selected',
-          color: ticket.status === 'open' ? 'primary.contrastText'
-            : ticket.status === 'waiting' ? 'secondary.contrastText'
-            : ticket.status === 'resolved' ? 'success.contrastText'
-            : 'text.secondary',
-        }}>
-          #{ticket.ticketNumber ?? ticket.id}
-        </Avatar>
+        ticket.inboundChannelId ? (
+          <Box sx={{
+            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+            bgcolor: 'info.main', position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <EmailIcon sx={{ fontSize: 20, color: 'rgba(255,255,255,0.25)', position: 'absolute' }} />
+            <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, color: '#fff', position: 'relative', zIndex: 1, lineHeight: 1 }}>
+              #{ticket.ticketNumber ?? ticket.id}
+            </Typography>
+          </Box>
+        ) : (
+          <Avatar sx={{
+            width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
+            bgcolor: ticket.status === 'open' ? 'primary.light'
+              : ticket.status === 'waiting' ? 'secondary.light'
+              : ticket.status === 'resolved' ? 'success.light'
+              : 'action.selected',
+            color: ticket.status === 'open' ? 'primary.contrastText'
+              : ticket.status === 'waiting' ? 'secondary.contrastText'
+              : ticket.status === 'resolved' ? 'success.contrastText'
+              : 'text.secondary',
+          }}>
+            #{ticket.ticketNumber ?? ticket.id}
+          </Avatar>
+        )
       )}
       <Box flex={1} minWidth={0}>
-        <Box display="flex" alignItems="center" gap={0.75}>
-          {ticket.inboundChannelId && (
-            <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
-              <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: 'info.main', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <EmailIcon sx={{ fontSize: 10, color: '#fff' }} />
-              </Box>
-            </Tooltip>
+        <Typography variant="body2" fontWeight={500} noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
+          {isMobile && (
+            <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
+              #{ticket.ticketNumber ?? ticket.id}
+            </Typography>
           )}
-          <Typography variant="body2" fontWeight={500} noWrap fontSize={{ xs: '0.8rem', sm: '0.875rem' }}>
-            {isMobile && (
-              <Typography component="span" variant="caption" color="text.secondary" mr={0.5}>
-                #{ticket.ticketNumber ?? ticket.id}
-              </Typography>
-            )}
-            {ticket.title}
-          </Typography>
-        </Box>
+          {ticket.title}
+        </Typography>
         {ticket.category && (
           <Typography variant="caption" color="text.secondary" noWrap display="block">
             {ticket.category}

@@ -501,9 +501,7 @@ export default function TicketList() {
                           )}
                           {ticket.inboundChannelId && (
                             <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
-                              <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: 'info.main', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <EmailIcon sx={{ fontSize: 11, color: '#fff' }} />
-                              </Box>
+                              <EmailIcon sx={{ fontSize: 15, color: 'info.main', flexShrink: 0 }} />
                             </Tooltip>
                           )}
                           {ticket.title}
