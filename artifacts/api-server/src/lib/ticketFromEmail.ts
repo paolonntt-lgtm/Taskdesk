@@ -220,7 +220,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     .values({
       title,
       description,
-      category: routing.defaultCategory ?? "Email",
+      category: routing.defaultCategory ?? "",
       location: "Esterno",
       resource: fromEmail,
       priority: "medium",
