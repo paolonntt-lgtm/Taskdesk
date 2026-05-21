@@ -12,14 +12,14 @@ const app: Express = express();
 // other IP-based middleware see the real client IP from X-Forwarded-For.
 app.set("trust proxy", 1);
 
-// Normalise URLs: strip any trailing newline / carriage-return characters
-// that some webhook senders (e.g. Cloudflare Workers) accidentally append to
-// the path, causing Express to return 404 on an otherwise valid route.
+// Normalise URLs: strip any newline / carriage-return characters that some
+// webhook senders (e.g. Cloudflare Workers) accidentally append to the path,
+// causing Express to return 404 on an otherwise valid route.
 app.use((req, _res, next) => {
   if (req.url) {
-    // Decode %0A / %0D, strip them from path (before the query string)
     const [path, qs] = req.url.split("?", 2);
-    const cleanPath = path.replace(/[\n\r%0A%0D]+/gi, "");
+    // Remove literal \n / \r and their URL-encoded equivalents %0A / %0D
+    const cleanPath = path.replace(/\r?\n/g, "").replace(/%0[AD]/gi, "");
     req.url = qs !== undefined ? `${cleanPath}?${qs}` : cleanPath;
   }
   next();
