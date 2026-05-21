@@ -50,6 +50,7 @@ import { useListNotifications, useMarkAllNotificationsRead, getListNotifications
 import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
+import BugReportFab from './BugReportFab';
 
 const drawerWidth = 264;
 
@@ -540,6 +541,8 @@ export default function Layout({ children }: LayoutProps) {
       >
         {children}
       </Box>
+
+      <BugReportFab />
     </Box>
   );
 }

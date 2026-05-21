@@ -24,6 +24,7 @@ import knowledgeArticlesRouter from "./knowledgeArticles";
 import inboundEmailRouter from "./inboundEmail";
 import inboundChannelsRouter from "./inboundChannels";
 import emailChannelsRouter from "./emailChannels";
+import bugReportRouter from "./bugReport";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(knowledgeArticlesRouter);
 router.use(inboundEmailRouter);
 router.use(inboundChannelsRouter);
 router.use(emailChannelsRouter);
+router.use(bugReportRouter);
 
 export default router;

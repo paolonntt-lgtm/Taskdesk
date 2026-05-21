@@ -662,6 +662,21 @@ const it = {
     high: 'Alta',
     urgent: 'Urgente',
   } as Record<string, string>,
+  bugReport: {
+    tooltip: 'Segnala un bug',
+    title: 'Segnala un problema',
+    subtitle: 'Descrivi il problema riscontrato. Ti risponderemo via email.',
+    reporterLabel: 'Segnalato da',
+    pageLabel: 'Pagina attuale',
+    descriptionLabel: 'Descrizione del problema',
+    descriptionPlaceholder: 'Descrivi cosa è successo, cosa ti aspettavi e cosa hai visto invece...',
+    submit: 'Invia segnalazione',
+    sending: 'Invio in corso…',
+    successTitle: 'Segnalazione inviata!',
+    successSubtitle: 'Grazie per il feedback. La esamineremo al più presto.',
+    errorGeneric: 'Invio fallito. Riprova più tardi.',
+    close: 'Chiudi',
+  },
 };
 
 const en: typeof it = {
@@ -1325,6 +1340,21 @@ const en: typeof it = {
     medium: 'Medium',
     high: 'High',
     urgent: 'Urgent',
+  },
+  bugReport: {
+    tooltip: 'Report a bug',
+    title: 'Report a problem',
+    subtitle: 'Describe the issue you encountered. We will get back to you via email.',
+    reporterLabel: 'Reported by',
+    pageLabel: 'Current page',
+    descriptionLabel: 'Problem description',
+    descriptionPlaceholder: 'Describe what happened, what you expected, and what you saw instead...',
+    submit: 'Send report',
+    sending: 'Sending…',
+    successTitle: 'Report sent!',
+    successSubtitle: 'Thank you for the feedback. We will review it as soon as possible.',
+    errorGeneric: 'Failed to send. Please try again later.',
+    close: 'Close',
   },
 };
 
