@@ -5,14 +5,58 @@ import { processInboundEmail } from "../lib/ticketFromEmail";
 
 const router: IRouter = Router();
 
+/**
+ * Extracts plain-text content from a raw MIME multipart body.
+ * If the string contains MIME boundaries, returns only the text/plain part.
+ * Otherwise returns the string as-is.
+ */
+function extractPlainFromMime(raw: string): string {
+  // Detect a MIME boundary: lines starting with "--" followed by alphanumeric chars
+  const boundaryMatch = raw.match(/^--([A-Za-z0-9_+/=\-]{6,})/m);
+  if (!boundaryMatch) {
+    // Single-part: strip any leading MIME headers (header block ends at first blank line)
+    const blankLine = raw.search(/\r?\n\r?\n/);
+    if (blankLine !== -1 && /^[\w-]+:/m.test(raw.slice(0, blankLine))) {
+      return raw.slice(blankLine).trim();
+    }
+    return raw;
+  }
+
+  const boundary = boundaryMatch[1].trim();
+  // Split on --boundary (escaping special regex chars)
+  const escaped = boundary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = raw.split(new RegExp(`--${escaped}(?:--)?\\s*`));
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    // Each part: headers, blank line, body
+    const headerEnd = trimmed.search(/\r?\n\r?\n/);
+    if (headerEnd === -1) continue;
+    const headers = trimmed.slice(0, headerEnd).toLowerCase();
+    const partBody = trimmed.slice(headerEnd).trim();
+    if (headers.includes("content-type: text/plain")) {
+      return partBody;
+    }
+  }
+
+  // Fallback: return everything that isn't a boundary/header line
+  return raw
+    .split("\n")
+    .filter((l) => !l.startsWith("--") && !/^[\w-]+:\s/.test(l))
+    .join("\n")
+    .trim();
+}
+
 function extractText(body: any): string {
-  return (
+  const raw = (
     body?.text ||
     body?.body_text ||
     body?.plain ||
     body?.body ||
     ""
   ).trim();
+  return extractPlainFromMime(raw);
 }
 
 function extractField(body: any, ...keys: string[]): string {

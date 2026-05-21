@@ -150,10 +150,13 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const nextTicketNumber = (Number(maxNum) || 0) + 1;
 
   const title = subject.length > 120 ? subject.slice(0, 117) + "…" : subject;
+  const senderLabel = fromName && fromName !== fromEmail
+    ? `${fromName} <${fromEmail}>`
+    : fromEmail;
   const description = [
-    `📧 Richiesta ricevuta via email da: ${fromName} <${fromEmail}>`,
+    `📧 Received via email from: ${senderLabel}`,
     "",
-    bodyText || "(nessun testo nel corpo dell'email)",
+    bodyText || "(no body text)",
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
