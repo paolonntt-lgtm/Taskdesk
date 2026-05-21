@@ -20,7 +20,7 @@ router.post("/bug-report", requireAuth, async (req, res) => {
   }
 
   const { description, currentPage } = parsed.data;
-  const user = (req as any).user as { name: string; email: string; id: number };
+  const user = (req as any).currentUser as { name: string; email: string; id: number };
 
   const config = getPlatformSmtpConfig();
   if (!config) {
