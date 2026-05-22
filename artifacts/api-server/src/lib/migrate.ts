@@ -55,6 +55,11 @@ export async function runAppMigrations(): Promise<void> {
          OR key LIKE 'org_%_microsoft_%';
     `);
 
+    // Add clients_enabled column to organizations if it doesn't exist
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS clients_enabled BOOLEAN NOT NULL DEFAULT true;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
