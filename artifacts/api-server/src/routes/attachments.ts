@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { SaveTicketAttachmentBody } from "@workspace/api-zod";
+import { consumePendingUpload } from "../lib/pendingUploads";
 
 const router: IRouter = Router();
 
@@ -38,14 +39,23 @@ router.post("/tickets/:id/attachments", requireAuth, async (req, res): Promise<v
   }
 
   const currentUser = (req as any).currentUser;
-  const orgId = currentUser.organizationId;
+  const orgId: number | null = currentUser.organizationId ?? null;
+
+  const { objectPath, fileName, fileSize, mimeType, commentId } = parsed.data;
+
+  // Verify that the objectPath was legitimately issued by this server to
+  // the calling user/org. This prevents a caller from rebinding an
+  // arbitrary (or stolen) path — including files owned by another tenant.
+  const isOwned = consumePendingUpload(objectPath, currentUser.id, orgId);
+  if (!isOwned) {
+    res.status(403).json({ error: "objectPath was not issued by this server for your account, or the upload token has expired" });
+    return;
+  }
 
   const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
     and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
-
-  const { objectPath, fileName, fileSize, mimeType, commentId } = parsed.data;
 
   const [attachment] = await db.insert(ticketAttachmentsTable).values({
     ticketId: id,

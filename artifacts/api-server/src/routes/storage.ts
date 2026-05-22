@@ -8,6 +8,7 @@ import {
 import { db, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middlewares/auth";
+import { registerPendingUpload } from "../lib/pendingUploads";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -29,8 +30,15 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
   try {
     const { name, size, contentType } = parsed.data;
 
+    const currentUser = (req as any).currentUser;
+    const orgId: number | null = currentUser.organizationId ?? null;
+
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+
+    // Bind the issued objectPath to the requesting user/org so the
+    // attachment-creation handler can verify provenance server-side.
+    registerPendingUpload(objectPath, currentUser.id, orgId);
 
     res.json(
       RequestUploadUrlResponse.parse({
