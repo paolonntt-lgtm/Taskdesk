@@ -239,7 +239,7 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
   res.json({ name: org.name, businessType: org.businessType });
 });
 
-router.put("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const { name, businessType } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });

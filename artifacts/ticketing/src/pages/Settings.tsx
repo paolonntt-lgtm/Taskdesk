@@ -427,7 +427,7 @@ export default function Settings() {
     setOrgMsg(null);
     try {
       const res = await fetch('/api/settings/organization', {
-        method: 'PUT',
+        method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: orgName, businessType: orgBusinessType || undefined }),

@@ -389,6 +389,22 @@ export type CompleteOnboarding200 = {
   categories?: string[];
 };
 
+export type GetOrganizationSettings200 = {
+  name?: string;
+  businessType?: string | null;
+};
+
+export type UpdateOrganizationSettingsBody = {
+  /** @minLength 2 */
+  name: string;
+  businessType?: string | null;
+};
+
+export type UpdateOrganizationSettings200 = {
+  name?: string;
+  businessType?: string | null;
+};
+
 export type ListTicketsParams = {
   status?: string;
   priority?: string;

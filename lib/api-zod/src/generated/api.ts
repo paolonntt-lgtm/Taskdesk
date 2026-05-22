@@ -68,6 +68,29 @@ export const CompleteOnboardingResponse = zod.object({
 });
 
 /**
+ * @summary Get current organization name and business type
+ */
+export const GetOrganizationSettingsResponse = zod.object({
+  name: zod.string().optional(),
+  businessType: zod.string().nullish(),
+});
+
+/**
+ * @summary Update organization name and/or business type (admin only)
+ */
+export const updateOrganizationSettingsBodyNameMin = 2;
+
+export const UpdateOrganizationSettingsBody = zod.object({
+  name: zod.string().min(updateOrganizationSettingsBodyNameMin),
+  businessType: zod.string().nullish(),
+});
+
+export const UpdateOrganizationSettingsResponse = zod.object({
+  name: zod.string().optional(),
+  businessType: zod.string().nullish(),
+});
+
+/**
  * @summary Get current authenticated user
  */
 export const GetCurrentUserResponse = zod.object({
