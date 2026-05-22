@@ -32,6 +32,18 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
     `);
 
+    // Backfill onboarding_done: organisations that pre-date the onboarding feature
+    // (created before 2026-05-22) should be treated as already onboarded so their
+    // admins are never shown the onboarding screen on login.
+    // New orgs registered after this date are explicitly created with onboarding_done=false
+    // by the register and Google OAuth routes and must complete the onboarding flow.
+    await client.query(`
+      UPDATE organizations
+      SET onboarding_done = true
+      WHERE onboarding_done = false
+        AND created_at < '2026-05-22T00:00:00Z';
+    `);
+
     // Remove legacy IMAP email_channels rows and orphaned settings keys
     await client.query(`
       DELETE FROM email_channels WHERE type = 'imap';
