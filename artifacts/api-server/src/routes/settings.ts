@@ -223,6 +223,8 @@ router.put("/settings/billing", requireAuth, requireAdmin, async (req, res): Pro
   });
 });
 
+const VALID_BUSINESS_TYPES = ["it_support", "professional_studio", "agency", "other"];
+
 router.get("/settings/organization", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   if (!currentUser.organizationId) {
@@ -234,13 +236,17 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
     res.status(404).json({ message: "Organizzazione non trovata" });
     return;
   }
-  res.json({ name: org.name });
+  res.json({ name: org.name, businessType: org.businessType });
 });
 
 router.put("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name } = req.body ?? {};
+  const { name, businessType } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
+    return;
+  }
+  if (businessType !== undefined && businessType !== null && !VALID_BUSINESS_TYPES.includes(businessType)) {
+    res.status(400).json({ message: "Tipo di attività non valido" });
     return;
   }
   const currentUser = (req as any).currentUser;
@@ -248,12 +254,14 @@ router.put("/settings/organization", requireAuth, requireAdmin, async (req, res)
     res.status(404).json({ message: "Organizzazione non trovata" });
     return;
   }
+  const updateData: Record<string, unknown> = { name: name.trim() };
+  if (businessType !== undefined) updateData.businessType = businessType || null;
   const [updated] = await db
     .update(organizationsTable)
-    .set({ name: name.trim() })
+    .set(updateData as any)
     .where(eq(organizationsTable.id, currentUser.organizationId))
     .returning();
-  res.json({ name: updated.name });
+  res.json({ name: updated.name, businessType: updated.businessType });
 });
 
 // ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────

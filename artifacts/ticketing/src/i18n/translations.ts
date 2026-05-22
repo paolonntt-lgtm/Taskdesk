@@ -456,6 +456,16 @@ const it = {
     orgNameTitle: 'Nome Azienda',
     orgNameLabel: 'Nome azienda',
     orgNameNote: "Il nome dell'azienda viene mostrato nella barra laterale per tutti gli utenti dell'organizzazione.",
+    orgBusinessTypeLabel: 'Tipo di attività',
+    orgBusinessTypeNone: '— Non specificato —',
+    orgBusinessTypeOptions: [
+      { value: 'it_support', label: 'Supporto IT' },
+      { value: 'professional_studio', label: 'Studio Professionale' },
+      { value: 'agency', label: 'Agenzia / Consulenza' },
+      { value: 'other', label: 'Altro' },
+    ] as { value: string; label: string }[],
+    orgSavedOk: 'Impostazioni organizzazione salvate.',
+    orgSaveError: 'Errore di rete. Riprova.',
     billingTitle: 'Dati di Fatturazione',
     billingNote: "Questi dati vengono sincronizzati automaticamente con Stripe e appariranno sulle fatture dell'abbonamento.",
     billingRagioneSociale: 'Ragione Sociale',
@@ -677,6 +687,32 @@ const it = {
     successSubtitle: 'Grazie per il feedback. La esamineremo al più presto.',
     errorGeneric: 'Invio fallito. Riprova più tardi.',
     close: 'Chiudi',
+  },
+  onboarding: {
+    title: 'Come userai TaskDesk?',
+    subtitle: 'Seleziona il tipo di attività per configurare le categorie e i flussi di lavoro più adatti alla tua organizzazione.',
+    confirm: 'Inizia',
+    confirming: 'Configurazione in corso…',
+    errorGeneric: 'Errore durante la configurazione. Riprova.',
+    errorNetwork: 'Errore di rete. Riprova.',
+    types: {
+      it_support: {
+        label: 'Supporto IT',
+        description: 'Help desk, assistenza hardware e software, reti aziendali, gestione dispositivi.',
+      },
+      professional_studio: {
+        label: 'Studio Professionale',
+        description: 'Studi legali, commercialisti, consulenti: gestione pratiche, scadenze fiscali e societarie.',
+      },
+      agency: {
+        label: 'Agenzia / Consulenza',
+        description: 'Agenzie creative, di sviluppo o marketing: gestione progetti, clienti e deliverable.',
+      },
+      other: {
+        label: 'Altro',
+        description: 'Utilizza TaskDesk come sistema generico per gestire richieste e attività operative.',
+      },
+    },
   },
 };
 
@@ -1136,6 +1172,16 @@ const en: typeof it = {
     orgNameTitle: 'Company Name',
     orgNameLabel: 'Company name',
     orgNameNote: 'The company name is shown in the sidebar for all organization users.',
+    orgBusinessTypeLabel: 'Business type',
+    orgBusinessTypeNone: '— Not specified —',
+    orgBusinessTypeOptions: [
+      { value: 'it_support', label: 'IT Support' },
+      { value: 'professional_studio', label: 'Professional Studio' },
+      { value: 'agency', label: 'Agency / Consulting' },
+      { value: 'other', label: 'Other' },
+    ] as { value: string; label: string }[],
+    orgSavedOk: 'Organization settings saved.',
+    orgSaveError: 'Network error. Please try again.',
     billingTitle: 'Billing Information',
     billingNote: 'This data is automatically synced with Stripe and will appear on subscription invoices.',
     billingRagioneSociale: 'Company / Legal Name',
@@ -1357,6 +1403,32 @@ const en: typeof it = {
     successSubtitle: 'Thank you for the feedback. We will review it as soon as possible.',
     errorGeneric: 'Failed to send. Please try again later.',
     close: 'Close',
+  },
+  onboarding: {
+    title: 'How will you use TaskDesk?',
+    subtitle: 'Select your business type to configure the most suitable categories and workflows for your organization.',
+    confirm: 'Get started',
+    confirming: 'Setting up…',
+    errorGeneric: 'Setup error. Please try again.',
+    errorNetwork: 'Network error. Please try again.',
+    types: {
+      it_support: {
+        label: 'IT Support',
+        description: 'Help desk, hardware & software support, networking, and device management.',
+      },
+      professional_studio: {
+        label: 'Professional Studio',
+        description: 'Law firms, accountants, consultants: manage cases, tax deadlines, and corporate filings.',
+      },
+      agency: {
+        label: 'Agency / Consulting',
+        description: 'Creative, development, or marketing agencies: manage projects, clients, and deliverables.',
+      },
+      other: {
+        label: 'Other',
+        description: 'Use TaskDesk as a general-purpose system to manage requests and operational tasks.',
+      },
+    },
   },
 };
 

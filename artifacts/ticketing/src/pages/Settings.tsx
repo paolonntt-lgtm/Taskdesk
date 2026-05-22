@@ -362,6 +362,7 @@ export default function Settings() {
   const [adminMsg, setAdminMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [orgName, setOrgName] = useState('');
+  const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -382,7 +383,7 @@ export default function Settings() {
     fetch('/api/settings/groups', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
     fetch('/api/settings/organization', { credentials: 'include' })
-      .then((r) => r.json()).then((d) => setOrgName(d.name ?? '')).catch(() => {});
+      .then((r) => r.json()).then((d) => { setOrgName(d.name ?? ''); if (d.businessType) setOrgBusinessType(d.businessType); }).catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
       .then((r) => r.json()).then((d) => {
         if (d && !d.error) setBilling({
@@ -429,14 +430,15 @@ export default function Settings() {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orgName }),
+        body: JSON.stringify({ name: orgName, businessType: orgBusinessType || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setOrgName(data.name);
-      setOrgMsg({ type: 'success', text: 'Nome azienda aggiornato con successo.' });
+      if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
+      setOrgMsg({ type: 'success', text: t.settings.orgSavedOk });
     } catch {
-      setOrgMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
+      setOrgMsg({ type: 'error', text: t.settings.orgSaveError });
     } finally {
       setOrgSaving(false);
     }
@@ -796,25 +798,41 @@ export default function Settings() {
             {orgMsg && (
               <Alert severity={orgMsg.type} sx={{ mb: 2 }} onClose={() => setOrgMsg(null)}>{orgMsg.text}</Alert>
             )}
-            <Box display="flex" gap={2} alignItems="flex-start">
+            <Box display="flex" flexDirection="column" gap={2}>
+              <Box display="flex" gap={2} alignItems="flex-start">
+                <TextField
+                  size="small"
+                  fullWidth
+                  label={t.settings.orgNameLabel}
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  disabled={orgSaving}
+                  inputProps={{ maxLength: 100 }}
+                />
+                <Button
+                  variant="contained"
+                  startIcon={orgSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                  onClick={saveOrgName}
+                  disabled={orgSaving || orgName.trim().length < 2}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {orgSaving ? t.settings.saving : t.settings.save}
+                </Button>
+              </Box>
               <TextField
+                select
                 size="small"
-                fullWidth
-                label={t.settings.orgNameLabel}
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
+                label={t.settings.orgBusinessTypeLabel}
+                value={orgBusinessType}
+                onChange={(e) => setOrgBusinessType(e.target.value)}
                 disabled={orgSaving}
-                inputProps={{ maxLength: 100 }}
-              />
-              <Button
-                variant="contained"
-                startIcon={orgSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-                onClick={saveOrgName}
-                disabled={orgSaving || orgName.trim().length < 2}
-                sx={{ whiteSpace: 'nowrap' }}
+                sx={{ maxWidth: 340 }}
               >
-                {orgSaving ? t.settings.saving : t.settings.save}
-              </Button>
+                <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
+                {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </TextField>
             </Box>
           </Section>
 

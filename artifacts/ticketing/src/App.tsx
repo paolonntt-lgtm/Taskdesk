@@ -20,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
+import Onboarding from "./pages/Onboarding";
 import type { User } from "@workspace/api-client-react";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
@@ -108,6 +109,10 @@ function AppShell() {
             </Box>
           ) : !user ? (
             <Login />
+          ) : !(user as any).onboardingDone ? (
+            <Onboarding onComplete={(businessType) => {
+              setUser({ ...user, onboardingDone: true, businessType } as any);
+            }} />
           ) : (
             <Layout>
               <Switch>

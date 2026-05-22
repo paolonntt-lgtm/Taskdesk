@@ -180,6 +180,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       avatarUrl: usersTable.avatarUrl,
       createdAt: usersTable.createdAt,
       isSuperAdmin: usersTable.isSuperAdmin,
+      onboardingDone: organizationsTable.onboardingDone,
+      businessType: organizationsTable.businessType,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))

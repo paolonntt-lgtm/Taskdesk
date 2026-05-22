@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const organizationsTable = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -13,6 +13,8 @@ export const organizationsTable = pgTable("organizations", {
   paese: text("paese").default("IT"),
   sdiCode: text("sdi_code"),
   pec: text("pec"),
+  businessType: text("business_type"),
+  onboardingDone: boolean("onboarding_done").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
