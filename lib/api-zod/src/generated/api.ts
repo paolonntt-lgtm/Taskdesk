@@ -231,6 +231,7 @@ export const ListTicketsQueryParams = zod.object({
   dateTo: zod.coerce.string().optional(),
   resource: zod.coerce.string().optional(),
   emailOrigin: zod.coerce.boolean().optional(),
+  clientId: zod.coerce.number().optional(),
 });
 
 export const ListTicketsResponseItem = zod

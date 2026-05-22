@@ -369,6 +369,10 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: clientId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of tickets

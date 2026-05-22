@@ -25,7 +25,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
@@ -42,6 +42,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (dateFrom) conditions.push(gte(ticketsTable.createdAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
   if (emailOrigin === 'true') conditions.push(isNotNull(ticketsTable.inboundChannelId));
+  if (clientId) conditions.push(eq(ticketsTable.clientId, parseInt(clientId, 10)));
 
   if (search) {
     const searchPattern = `%${search}%`;

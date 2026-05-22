@@ -6,7 +6,7 @@ import {
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon } from '@mui/icons-material';
-import { useListTickets, useListUsers, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
@@ -42,6 +42,7 @@ export default function TicketList() {
   const userFilter     = urlParams.get('userFilter') ?? 'all';
   const userFilterType = (urlParams.get('userFilterType') as 'assignedTo' | 'createdBy') || 'assignedTo';
   const emailOrigin    = urlParams.get('emailOrigin') === 'true';
+  const clientIdFilter = urlParams.get('clientId') ?? 'all';
   const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
   const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
 
@@ -51,6 +52,7 @@ export default function TicketList() {
   const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
   const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
   const { data: users } = useListUsers();
+  const { data: clients } = useListClients();
 
   // ── Bulk selection state ─────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -60,7 +62,7 @@ export default function TicketList() {
 
   const deleteTicket = useDeleteTicket();
 
-  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin;
+  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all';
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
@@ -89,7 +91,7 @@ export default function TicketList() {
 
   const clearExtra = () => {
     const next = new URLSearchParams(searchStr);
-    ['location', 'category', 'dateFrom', 'dateTo', 'userFilter', 'userFilterType', 'emailOrigin'].forEach((k) => next.delete(k));
+    ['location', 'category', 'dateFrom', 'dateTo', 'userFilter', 'userFilterType', 'emailOrigin', 'clientId'].forEach((k) => next.delete(k));
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
     setShowExtraManual(false);
@@ -131,6 +133,7 @@ export default function TicketList() {
     assignedTo: userFilter !== 'all' && userFilterType === 'assignedTo' ? parseInt(userFilter, 10) : undefined,
     createdBy:  userFilter !== 'all' && userFilterType === 'createdBy'  ? parseInt(userFilter, 10) : undefined,
     emailOrigin: emailOrigin || undefined,
+    clientId: clientIdFilter !== 'all' ? parseInt(clientIdFilter, 10) : undefined,
   });
 
   // Clear selection when tickets change (e.g. after delete or filter)
@@ -297,7 +300,7 @@ export default function TicketList() {
               sx={{ whiteSpace: 'nowrap' }}
             >
               {t.ticketList.moreFilters}
-              {hasExtraFilters && ` (${[location !== 'all', category !== 'all', !!dateFrom, !!dateTo, userFilter !== 'all', emailOrigin].filter(Boolean).length})`}
+              {hasExtraFilters && ` (${[location !== 'all', category !== 'all', !!dateFrom, !!dateTo, userFilter !== 'all', emailOrigin, clientIdFilter !== 'all'].filter(Boolean).length})`}
             </Button>
           </Grid>
         </Grid>
@@ -394,6 +397,21 @@ export default function TicketList() {
                 <MenuItem value="email">{t.ticketList.emailOriginFilter}</MenuItem>
               </TextField>
             </Grid>
+            {clients && clients.length > 0 && (
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  select fullWidth size="small"
+                  label={t.ticketList.clientFilter}
+                  value={clientIdFilter}
+                  onChange={(e) => setParam('clientId', e.target.value)}
+                >
+                  <MenuItem value="all">{t.ticketList.allClients}</MenuItem>
+                  {clients.map((c: any) => (
+                    <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
             {hasExtraFilters && (
               <Grid item xs={12} sm="auto">
                 <Button

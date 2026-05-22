@@ -156,6 +156,8 @@ const it = {
     allOrigins: 'Tutte le origini',
     originFilter: 'Origine',
     emailBadgeTooltip: 'Ticket ricevuto via email',
+    clientFilter: 'Cliente',
+    allClients: 'Tutti i clienti',
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -910,6 +912,8 @@ const en: typeof it = {
     allOrigins: 'All origins',
     originFilter: 'Origin',
     emailBadgeTooltip: 'Ticket received via email',
+    clientFilter: 'Client',
+    allClients: 'All clients',
   },
   ticketDetail: {
     backToList: 'All tickets',
