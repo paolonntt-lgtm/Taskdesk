@@ -520,7 +520,20 @@ export default function TicketList() {
                         {ticket.assignee?.name || '—'}
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                        {(ticket as any).client?.name || '—'}
+                        {(ticket as any).client ? (
+                          isAdmin ? (
+                            <Typography
+                              variant="body2"
+                              component="span"
+                              sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/clients/${(ticket as any).clientId}`); }}
+                            >
+                              {(ticket as any).client.name}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" component="span">{(ticket as any).client.name}</Typography>
+                          )
+                        ) : '—'}
                       </TableCell>
                       {showLocation && (
                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
