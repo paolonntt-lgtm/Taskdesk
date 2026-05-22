@@ -56,6 +56,7 @@ import { useListNotifications, useMarkAllNotificationsRead, getListNotifications
 import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
 
@@ -69,6 +70,7 @@ export default function Layout({ children }: LayoutProps) {
   const { user, logout, updateUser } = useAuth();
   const { mode, toggleColorMode } = useColorMode();
   const { t, lang, setLang } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [location, setLocation] = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -204,9 +206,9 @@ export default function Layout({ children }: LayoutProps) {
 
 
   const menuItems = [
-    { text: t.nav.dashboard,  icon: <Dashboard />,          path: '/',            adminOnly: false },
-    { text: t.nav.allTickets, icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false },
-    { text: t.nav.newTicket,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
+    { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false },
+    { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false },
+    { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
     { text: t.nav.users,      icon: <People />,              path: '/users',       adminOnly: true  },
     ...(((user as any)?.clientsEnabled !== false) ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: true }] : []),

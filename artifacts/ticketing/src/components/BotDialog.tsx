@@ -8,6 +8,7 @@ import {
   Send, SmartToy, Close, ConfirmationNumber,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -222,6 +223,7 @@ function MessageBubble({
 
 export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -362,7 +364,9 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
         </Avatar>
         <Box flex={1}>
           <Typography fontWeight={700} lineHeight={1.2}>TaskBot</Typography>
-          <Typography variant="caption" color="text.secondary">{t.bot.subtitle}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {lang === 'it' ? `Assistente per apertura ${entityTerm.singularLower}` : `${entityTerm.singular} assistant`}
+          </Typography>
         </Box>
         <IconButton onClick={onClose} size="small">
           <Close />
@@ -379,8 +383,8 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
               msg={msg}
               fallbackActionText={t.bot.createFallback}
               onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
-              onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? 'open a ticket' : 'apri ticket') : undefined}
-              openTicketLabel={t.bot.openTicketBtn}
+              onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+              openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
             />
           );
         })}
@@ -407,10 +411,14 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
             }}
           >
             <Typography variant="body2" fontWeight={600} mb={0.5} color="primary.main">
-              {t.bot.createPrompt}
+              {lang === 'it'
+                ? `Vuoi creare ${entityTerm.articleIndef} ${entityTerm.singularLower} per questo problema?`
+                : `Would you like to create ${entityTerm.articleIndef} ${entityTerm.singularLower} for this issue?`}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              {t.bot.createNote}
+              {lang === 'it'
+                ? `Il/La ${entityTerm.singularLower} verrà pre-compilato/a con le informazioni della chat.`
+                : `The ${entityTerm.singularLower} will be pre-filled with information from this chat.`}
             </Typography>
             <Box display="flex" gap={1} flexWrap="wrap">
               <Button
@@ -420,7 +428,7 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
                 onClick={handleCreateTicket}
                 sx={{ borderRadius: 2 }}
               >
-                {t.bot.createBtn}
+                {lang === 'it' ? `Crea ${entityTerm.singularLower}` : `Create ${entityTerm.singularLower}`}
               </Button>
               <Button
                 variant="outlined"
@@ -447,7 +455,9 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
             }}
           >
             <Typography variant="body2" fontWeight={600} mb={0.25} color="warning.dark">
-              {t.bot.openTicketFound}
+              {lang === 'it'
+                ? `Esiste già ${entityTerm.articleIndef} ${entityTerm.singularLower} aperto/a su questo problema:`
+                : `There is already an open ${entityTerm.singularLower} for this issue:`}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
               «{pendingAction.title}»{pendingAction.date ? ` — ${pendingAction.date}` : ''}
@@ -461,7 +471,7 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
                 onClick={handleViewTicket}
                 sx={{ borderRadius: 2 }}
               >
-                {t.bot.viewTicketBtn}
+                {lang === 'it' ? `Vai al ${entityTerm.singularLower}` : `Go to ${entityTerm.singularLower}`}
               </Button>
               <Button
                 variant="outlined"

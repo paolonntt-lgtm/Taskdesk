@@ -20,6 +20,7 @@ import {
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle } from '../components/RichCommentEditor';
@@ -55,6 +56,7 @@ export default function TicketDetail() {
   const ticketId = parseInt(id || '0');
   const { user: currentUser } = useAuth();
   const { t, lang } = useLanguage();
+  const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
@@ -411,7 +413,7 @@ export default function TicketDetail() {
           color="inherit"
           size="small"
         >
-          {t.ticketDetail.backToList}
+          {entityTerm.navAll}
         </Button>
         <Box display="flex" gap={1}>
           {canEdit && (
@@ -1613,7 +1615,7 @@ export default function TicketDetail() {
       {/* ── Edit ticket dialog ── */}
       <Dialog open={editDialog} onClose={() => !editSaving && setEditDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {t.ticketDetail.editDialogTitle} #{ticket?.ticketNumber ?? ticket?.id}
+          {lang === 'it' ? `Modifica ${entityTerm.singularLower}` : `Edit ${entityTerm.singular}`} #{ticket?.ticketNumber ?? ticket?.id}
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField

@@ -13,6 +13,7 @@ import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 
 const VALID_STATUSES = ['open', 'waiting', 'resolved', 'closed'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -26,6 +27,7 @@ type SortDir = 'asc' | 'desc';
 export default function TicketList() {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
+  const entityTerm = useEntityTerm();
   const isAdmin = user?.role === 'admin';
   const [, navigate] = useLocation();
   const searchStr = useSearch();
@@ -228,7 +230,7 @@ export default function TicketList() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, sm: 3 }}>
-        <Typography variant="h5" fontWeight="bold">{t.ticketList.title}</Typography>
+        <Typography variant="h5" fontWeight="bold">{entityTerm.navAll}</Typography>
         <Button
           component={Link}
           href="/tickets/new"
@@ -237,7 +239,7 @@ export default function TicketList() {
           startIcon={<AddIcon />}
           size="small"
         >
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{t.ticketList.newTicket}</Box>
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{entityTerm.navNew}</Box>
         </Button>
       </Box>
 
@@ -255,7 +257,7 @@ export default function TicketList() {
             <TextField
               fullWidth
               size="small"
-              placeholder={t.ticketList.searchPlaceholder}
+              placeholder={lang === 'it' ? `Cerca ${entityTerm.pluralLower}...` : `Search ${entityTerm.pluralLower}...`}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               InputProps={{
@@ -493,7 +495,9 @@ export default function TicketList() {
               ) : sortedTickets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    {t.ticketList.noResults}
+                    {lang === 'it'
+                      ? `Nessun${entityTerm.articleIndef === 'una' ? 'a' : ''} ${entityTerm.singularLower} trovato${entityTerm.articleIndef === 'una' ? 'a' : ''} con i filtri selezionati.`
+                      : `No ${entityTerm.pluralLower} found matching your criteria.`}
                   </TableCell>
                 </TableRow>
               ) : (

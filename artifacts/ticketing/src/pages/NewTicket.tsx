@@ -9,12 +9,14 @@ import { useLocation, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
   const search = useSearch();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
   const createTicket = useCreateTicket();
   const saveAttachment = useSaveTicketAttachment();
@@ -101,7 +103,7 @@ export default function NewTicket() {
   return (
     <Box maxWidth={800} mx="auto">
       <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }}>
-        {t.newTicket.title}
+        {lang === 'it' ? `Apri ${entityTerm.navNew}` : `Open ${entityTerm.navNew}`}
       </Typography>
 
       <Card>
@@ -272,7 +274,7 @@ export default function NewTicket() {
                   color="primary"
                   disabled={createTicket.isPending}
                 >
-                  {createTicket.isPending ? t.newTicket.creating : t.newTicket.create}
+                  {createTicket.isPending ? t.newTicket.creating : (lang === 'it' ? `Crea ${entityTerm.singular}` : `Create ${entityTerm.singular}`)}
                 </Button>
               </Grid>
             </Grid>

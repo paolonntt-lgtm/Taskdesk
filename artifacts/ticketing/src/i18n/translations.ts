@@ -2,7 +2,7 @@ export type Lang = 'it' | 'en';
 
 const it = {
   login: {
-    subtitle: 'Accedi per gestire i ticket IT e operativi',
+    subtitle: 'Accedi per gestire le richieste della tua organizzazione',
     email: 'Indirizzo Email',
     password: 'Password',
     submit: 'Accedi',
@@ -260,7 +260,7 @@ const it = {
     askTaskBot: 'Chiedi a TaskBot',
   },
   bot: {
-    subtitle: 'Assistente per apertura ticket',
+    subtitle: 'Ticket assistant',
     welcome: 'Ciao! Sono TaskBot, il tuo assistente. Descrivi il problema che stai riscontrando e cercherò di aiutarti a risolverlo prima di aprire un ticket.',
     placeholder: 'Descrivi il problema...',
     errorBot: 'Errore del bot. Riprova tra qualche secondo.',
@@ -757,11 +757,29 @@ const it = {
     colVat: 'P.IVA',
     colTickets: 'Ticket',
   },
+  entityTerms: {
+    it_support: {
+      singular: 'Ticket', plural: 'Ticket', singularLower: 'ticket', pluralLower: 'ticket',
+      navAll: 'Tutti i Ticket', navNew: 'Nuovo Ticket', articleIndef: 'un',
+    },
+    professional_studio: {
+      singular: 'Pratica', plural: 'Pratiche', singularLower: 'pratica', pluralLower: 'pratiche',
+      navAll: 'Tutte le Pratiche', navNew: 'Nuova Pratica', articleIndef: 'una',
+    },
+    agency: {
+      singular: 'Progetto', plural: 'Progetti', singularLower: 'progetto', pluralLower: 'progetti',
+      navAll: 'Tutti i Progetti', navNew: 'Nuovo Progetto', articleIndef: 'un',
+    },
+    other: {
+      singular: 'Richiesta', plural: 'Richieste', singularLower: 'richiesta', pluralLower: 'richieste',
+      navAll: 'Tutte le Richieste', navNew: 'Nuova Richiesta', articleIndef: 'una',
+    },
+  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; navAll: string; navNew: string; articleIndef: string }>,
 };
 
 const en: typeof it = {
   login: {
-    subtitle: 'Sign in to manage IT and operations tickets',
+    subtitle: 'Sign in to manage your organization requests',
     email: 'Email Address',
     password: 'Password',
     submit: 'Sign In',
@@ -1516,6 +1534,24 @@ const en: typeof it = {
     colVat: 'VAT',
     colTickets: 'Tickets',
   },
+  entityTerms: {
+    it_support: {
+      singular: 'Ticket', plural: 'Tickets', singularLower: 'ticket', pluralLower: 'tickets',
+      navAll: 'All Tickets', navNew: 'New Ticket', articleIndef: 'a',
+    },
+    professional_studio: {
+      singular: 'Case', plural: 'Cases', singularLower: 'case', pluralLower: 'cases',
+      navAll: 'All Cases', navNew: 'New Case', articleIndef: 'a',
+    },
+    agency: {
+      singular: 'Project', plural: 'Projects', singularLower: 'project', pluralLower: 'projects',
+      navAll: 'All Projects', navNew: 'New Project', articleIndef: 'a',
+    },
+    other: {
+      singular: 'Request', plural: 'Requests', singularLower: 'request', pluralLower: 'requests',
+      navAll: 'All Requests', navNew: 'New Request', articleIndef: 'a',
+    },
+  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; navAll: string; navNew: string; articleIndef: string }>,
 };
 
 export const translations: Record<Lang, typeof it> = { it, en };
