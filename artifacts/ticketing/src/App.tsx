@@ -109,7 +109,7 @@ function AppShell() {
             </Box>
           ) : !user ? (
             <Login />
-          ) : !(user as any).onboardingDone ? (
+          ) : user.role === 'admin' && !(user as any).onboardingDone ? (
             <Onboarding onComplete={(businessType) => {
               setUser({ ...user, onboardingDone: true, businessType } as any);
             }} />

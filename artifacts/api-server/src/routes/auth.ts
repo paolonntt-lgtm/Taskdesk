@@ -47,34 +47,51 @@ router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => 
 
   const { email, password } = parsed.data;
 
-  const [user] = await db
-    .select()
+  const [row] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      role: usersTable.role,
+      organizationId: usersTable.organizationId,
+      organizationName: organizationsTable.name,
+      isActive: usersTable.isActive,
+      isAvailable: usersTable.isAvailable,
+      phone: usersTable.phone,
+      avatarUrl: usersTable.avatarUrl,
+      passwordHash: usersTable.passwordHash,
+      createdAt: usersTable.createdAt,
+      isSuperAdmin: usersTable.isSuperAdmin,
+      onboardingDone: organizationsTable.onboardingDone,
+      businessType: organizationsTable.businessType,
+    })
     .from(usersTable)
+    .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
     .where(eq(usersTable.email, email));
 
-  if (!user || !(await verifyPassword(password, user.passwordHash ?? ""))) {
+  if (!row || !(await verifyPassword(password, row.passwordHash ?? ""))) {
     res.status(401).json({ error: "Invalid credentials", message: "Email o password non corretti" });
     return;
   }
 
-  if (!user.isActive) {
+  if (!row.isActive) {
     res.status(401).json({ error: "Account disabled", message: "Il tuo account è stato disattivato. Contatta l'amministratore." });
     return;
   }
 
   await Promise.all([
-    db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, user.id)),
-    upgradePasswordHashIfNeeded(user.id, password, user.passwordHash ?? ""),
+    db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, row.id)),
+    upgradePasswordHashIfNeeded(row.id, password, row.passwordHash ?? ""),
   ]);
 
-  const sessionId = await createSession(user.id);
+  const sessionId = await createSession(row.id);
 
   res.setHeader(
     "Set-Cookie",
     `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
   );
 
-  const { passwordHash: _, ...safeUser } = user;
+  const { passwordHash: _, ...safeUser } = row;
   res.json({ user: safeUser, message: "Login effettuato" });
 });
 
