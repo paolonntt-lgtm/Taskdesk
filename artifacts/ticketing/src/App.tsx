@@ -125,10 +125,15 @@ function AppShell() {
                 <Route path="/reports" component={Reports} />
                 <Route path="/users/:id" component={UserProfile} />
                 <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
-                {(user as any)?.clientsEnabled !== false && (
+                {(user as any)?.clientsEnabled !== false ? (
                   <>
                     <Route path="/clients/:id">{(params) => <AdminRoute component={() => <ClientDetail />} />}</Route>
                     <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
+                  </>
+                ) : (
+                  <>
+                    <Route path="/clients/:id">{() => { setLocation('/tickets'); return null; }}</Route>
+                    <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
                   </>
                 )}
                 <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
