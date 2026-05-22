@@ -14,6 +14,7 @@ export const organizationsTable = pgTable("organizations", {
   sdiCode: text("sdi_code"),
   pec: text("pec"),
   businessType: text("business_type"),
+  clientsEnabled: boolean("clients_enabled").default(true).notNull(),
   onboardingDone: boolean("onboarding_done").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -363,6 +363,7 @@ export default function Settings() {
 
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
+  const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -383,7 +384,7 @@ export default function Settings() {
     fetch('/api/settings/groups', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setGroups(d.value ?? [])).catch(() => {});
     fetch('/api/settings/organization', { credentials: 'include' })
-      .then((r) => r.json()).then((d) => { setOrgName(d.name ?? ''); if (d.businessType) setOrgBusinessType(d.businessType); }).catch(() => {});
+      .then((r) => r.json()).then((d) => { setOrgName(d.name ?? ''); if (d.businessType) setOrgBusinessType(d.businessType); setOrgClientsEnabled(d.clientsEnabled !== false); }).catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
       .then((r) => r.json()).then((d) => {
         if (d && !d.error) setBilling({
@@ -430,12 +431,16 @@ export default function Settings() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orgName, businessType: orgBusinessType || undefined }),
+        body: JSON.stringify({ name: orgName, businessType: orgBusinessType || undefined, clientsEnabled: orgClientsEnabled }),
       });
       const data = await res.json();
       if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
+      if (data.clientsEnabled !== undefined) {
+        setOrgClientsEnabled(data.clientsEnabled !== false);
+        updateUser({ ...(user as any), clientsEnabled: data.clientsEnabled });
+      }
       setOrgMsg({ type: 'success', text: t.settings.orgSavedOk });
     } catch {
       setOrgMsg({ type: 'error', text: t.settings.orgSaveError });
@@ -833,6 +838,18 @@ export default function Settings() {
                   <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </TextField>
+              <Box display="flex" alignItems="center" gap={1} mt={1}>
+                <Switch
+                  checked={orgClientsEnabled}
+                  onChange={(e) => setOrgClientsEnabled(e.target.checked)}
+                  disabled={orgSaving}
+                  size="small"
+                />
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>{t.settings.orgClientsEnabledLabel}</Typography>
+                  <Typography variant="caption" color="text.secondary">{t.settings.orgClientsEnabledHint}</Typography>
+                </Box>
+              </Box>
             </Box>
           </Section>
 

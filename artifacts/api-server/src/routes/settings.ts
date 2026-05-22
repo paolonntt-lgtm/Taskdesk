@@ -236,11 +236,11 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
     res.status(404).json({ message: "Organizzazione non trovata" });
     return;
   }
-  res.json({ name: org.name, businessType: org.businessType });
+  res.json({ name: org.name, businessType: org.businessType, clientsEnabled: org.clientsEnabled });
 });
 
 router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name, businessType } = req.body ?? {};
+  const { name, businessType, clientsEnabled } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
     return;
@@ -256,12 +256,13 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   }
   const updateData: Record<string, unknown> = { name: name.trim() };
   if (businessType !== undefined) updateData.businessType = businessType || null;
+  if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
   const [updated] = await db
     .update(organizationsTable)
     .set(updateData as any)
     .where(eq(organizationsTable.id, currentUser.organizationId))
     .returning();
-  res.json({ name: updated.name, businessType: updated.businessType });
+  res.json({ name: updated.name, businessType: updated.businessType, clientsEnabled: updated.clientsEnabled });
 });
 
 // ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────

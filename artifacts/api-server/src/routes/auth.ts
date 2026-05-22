@@ -64,6 +64,7 @@ router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => 
       isSuperAdmin: usersTable.isSuperAdmin,
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
+      clientsEnabled: organizationsTable.clientsEnabled,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
@@ -200,6 +201,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       isSuperAdmin: usersTable.isSuperAdmin,
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
+      clientsEnabled: organizationsTable.clientsEnabled,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
