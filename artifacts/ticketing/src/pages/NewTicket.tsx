@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
-  ToggleButton, ToggleButtonGroup,
+  ToggleButton, ToggleButtonGroup, Autocomplete,
 } from '@mui/material';
 import { Person, Group } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey } from '@workspace/api-client-react';
@@ -201,16 +201,15 @@ export default function NewTicket() {
 
               {clientsList.length > 0 && (
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label={t.clients.clientField}
-                    value={formData.clientId}
-                    onChange={e => setFormData({ ...formData, clientId: e.target.value })}
-                  >
-                    <MenuItem value=""><em>{t.clients.noClient}</em></MenuItem>
-                    {clientsList.map(c => <MenuItem key={c.id} value={c.id.toString()}>{c.name}</MenuItem>)}
-                  </TextField>
+                  <Autocomplete
+                    options={clientsList}
+                    getOptionLabel={(o) => o.name}
+                    value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
+                    onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
+                    renderInput={(params) => (
+                      <TextField {...params} label={t.clients.clientField} />
+                    )}
+                  />
                 </Grid>
               )}
 

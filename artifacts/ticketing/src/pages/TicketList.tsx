@@ -20,7 +20,7 @@ const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2, closed: 3 };
 
-type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt';
+type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt' | 'client';
 type SortDir = 'asc' | 'desc';
 
 export default function TicketList() {
@@ -151,6 +151,7 @@ export default function TicketList() {
         case 'priority':  cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99); break;
         case 'assignee':  cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || ''); break;
         case 'location':  cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
+        case 'client':    cmp = ((a as any).client?.name || '').localeCompare((b as any).client?.name || ''); break;
         case 'createdAt': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -218,7 +219,7 @@ export default function TicketList() {
     </TableCell>
   );
 
-  const colSpanTotal = (showLocation ? 8 : 7) + (isAdmin ? 1 : 0);
+  const colSpanTotal = (showLocation ? 9 : 8) + (isAdmin ? 1 : 0);
 
   return (
     <Box>
@@ -458,6 +459,7 @@ export default function TicketList() {
                 {col('status', t.ticketList.colStatus)}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
+                {col('client', t.ticketList.colClient, { display: { xs: 'none', xl: 'table-cell' } })}
                 {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
                 {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
               </TableRow>
@@ -516,6 +518,9 @@ export default function TicketList() {
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
                         {ticket.assignee?.name || '—'}
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        {(ticket as any).client?.name || '—'}
                       </TableCell>
                       {showLocation && (
                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>

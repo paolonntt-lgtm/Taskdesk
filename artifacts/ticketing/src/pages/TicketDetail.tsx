@@ -4,7 +4,7 @@ import {
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
-  FormControlLabel, Checkbox,
+  FormControlLabel, Checkbox, Autocomplete,
 } from '@mui/material';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon } from '@mui/icons-material';
 import {
@@ -751,13 +751,19 @@ export default function TicketDetail() {
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.clients.clientField}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                  onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}
-                >
-                  {clientsList.find((c) => c.id === (ticket as any).clientId)?.name ?? `#${(ticket as any).clientId}`}
-                </Typography>
+                {isAdmin ? (
+                  <Typography
+                    variant="body2"
+                    sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                    onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}
+                  >
+                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2">
+                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}
+                  </Typography>
+                )}
               </Box>
             )}
 
@@ -1667,20 +1673,16 @@ export default function TicketDetail() {
             placeholder={t.ticketDetail.resourceLabel}
           />
           {clientsList.length > 0 && (
-            <TextField
-              label={t.clients.clientField}
-              fullWidth
-              size="small"
-              select
-              value={editForm.clientId}
-              onChange={(e) => setEditForm((f) => ({ ...f, clientId: e.target.value }))}
+            <Autocomplete
+              options={clientsList}
+              getOptionLabel={(o) => o.name}
+              value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null}
+              onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))}
               disabled={editSaving}
-            >
-              <MenuItem value=""><em>{t.clients.noClient}</em></MenuItem>
-              {clientsList.map((c) => (
-                <MenuItem key={c.id} value={c.id.toString()}>{c.name}</MenuItem>
-              ))}
-            </TextField>
+              renderInput={(params) => (
+                <TextField {...params} label={t.clients.clientField} fullWidth size="small" />
+              )}
+            />
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>

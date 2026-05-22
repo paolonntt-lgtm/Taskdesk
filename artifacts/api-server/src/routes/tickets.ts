@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -9,7 +9,7 @@ import { appBaseUrl } from "../lib/appUrl";
 
 const router: IRouter = Router();
 
-function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null) {
+function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null, client?: { id: number; name: string } | null) {
   return {
     ...ticket,
     creator: { id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, avatarUrl: creator.avatarUrl ?? null, createdAt: creator.createdAt },
@@ -17,6 +17,7 @@ function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commen
     commentCount,
     noteCount,
     inboundChannelName: inboundChannelName ?? null,
+    client: client ?? null,
   };
 }
 
@@ -126,6 +127,14 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     : [];
   const channelMap = new Map(channels.map((c) => [c.id, c.label]));
 
+  const clientIds = [...new Set(tickets.map((t) => t.clientId).filter(Boolean))] as number[];
+  const clientRows = clientIds.length > 0
+    ? await db.select({ id: clientsTable.id, name: clientsTable.name })
+        .from(clientsTable)
+        .where(inArray(clientsTable.id, clientIds))
+    : [];
+  const clientMap = new Map(clientRows.map((c) => [c.id, c]));
+
   const result = tickets.map((t) => ({
     ...buildTicketWithDetails(
       t,
@@ -133,7 +142,8 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
       commentMap.get(t.id) ?? 0,
       noteMap.get(t.id) ?? 0,
-      t.inboundChannelId ? (channelMap.get(t.inboundChannelId) ?? null) : null
+      t.inboundChannelId ? (channelMap.get(t.inboundChannelId) ?? null) : null,
+      t.clientId ? (clientMap.get(t.clientId) ?? null) : null
     ),
     hasSolution: solutionSet.has(t.id),
   }));
@@ -163,6 +173,17 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     );
     if (!assigneeUser) {
       res.status(400).json({ error: "Assignee not found in organization" });
+      return;
+    }
+  }
+
+  if (clientId != null) {
+    const orgId = currentUser.organizationId;
+    const [clientRow] = await db.select({ id: clientsTable.id }).from(clientsTable).where(
+      and(eq(clientsTable.id, clientId), orgId != null ? eq(clientsTable.organizationId, orgId) : undefined)
+    );
+    if (!clientRow) {
+      res.status(400).json({ error: "Client not found in organization" });
       return;
     }
   }
@@ -224,7 +245,15 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     assigneeUser = a ?? null;
   }
 
-  res.status(201).json(buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0));
+  let ticketClient = null;
+  if (ticket.clientId) {
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+      .from(clientsTable)
+      .where(eq(clientsTable.id, ticket.clientId));
+    ticketClient = c ?? null;
+  }
+
+  res.status(201).json(buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0, null, ticketClient));
 });
 
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -271,7 +300,15 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     inboundChannelName = ch?.label ?? null;
   }
 
-  res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName));
+  let ticketClient = null;
+  if (ticket.clientId) {
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+      .from(clientsTable)
+      .where(eq(clientsTable.id, ticket.clientId));
+    ticketClient = c ?? null;
+  }
+
+  res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient));
 });
 
 router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -405,6 +442,16 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if ("clientId" in updates && updates.clientId != null) {
+    const [clientRow] = await db.select({ id: clientsTable.id }).from(clientsTable).where(
+      and(eq(clientsTable.id, updates.clientId as number), orgId != null ? eq(clientsTable.organizationId, orgId) : undefined)
+    );
+    if (!clientRow) {
+      res.status(400).json({ error: "Client not found in organization" });
+      return;
+    }
+  }
+
   const [updated] = await db
     .update(ticketsTable)
     .set({ ...updates, updatedAt: new Date() })
@@ -495,10 +542,18 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     assignee = a ?? null;
   }
 
+  let updatedClient = null;
+  if (updated.clientId) {
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+      .from(clientsTable)
+      .where(eq(clientsTable.id, updated.clientId));
+    updatedClient = c ?? null;
+  }
+
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc)));
+  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient));
 });
 
 router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
