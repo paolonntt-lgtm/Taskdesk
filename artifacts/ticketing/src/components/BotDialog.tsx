@@ -231,11 +231,19 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const botWelcome = lang === 'it'
+    ? `Ciao! Sono TaskBot, il tuo assistente. Descrivi il problema che stai riscontrando e cercherò di aiutarti a risolverlo prima di aprire ${entityTerm.articleIndef} ${entityTerm.singularLower}.`
+    : `Hi! I'm TaskBot, your assistant. Describe the issue you're experiencing and I'll try to help you resolve it before opening ${entityTerm.articleIndef} ${entityTerm.singularLower}.`;
+
+  const botFallback = lang === 'it'
+    ? `Ho preparato ${entityTerm.articleIndef} ${entityTerm.singularLower} basato${entityTerm.articleIndef === 'una' ? 'a' : ''} sul tuo problema.`
+    : `I've prepared ${entityTerm.articleIndef} ${entityTerm.singularLower} based on your issue.`;
+
   useEffect(() => {
     if (open) {
       setMessages([{
         role: 'assistant',
-        content: t.bot.welcome,
+        content: botWelcome,
       }]);
       setPendingAction(null);
       setInput('');
@@ -381,7 +389,7 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
             <MessageBubble
               key={i}
               msg={msg}
-              fallbackActionText={t.bot.createFallback}
+              fallbackActionText={botFallback}
               onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
               onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
               openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}

@@ -327,7 +327,18 @@ export default function Layout({ children }: LayoutProps) {
             <MenuIcon />
           </IconButton>
 
-          <Box sx={{ flexGrow: 1 }} />
+          {isMobile && (() => {
+            const active = menuItems.find(item =>
+              item.path === '/' ? location === '/' : location.startsWith(item.path)
+            );
+            return active ? (
+              <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ flexGrow: 1, ml: 0.5 }}>
+                {active.text}
+              </Typography>
+            ) : <Box sx={{ flexGrow: 1 }} />;
+          })()}
+
+          {!isMobile && <Box sx={{ flexGrow: 1 }} />}
 
           {/* Language toggle */}
           <Button

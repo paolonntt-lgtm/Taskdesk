@@ -427,7 +427,7 @@ export default function TicketDetail() {
             </Button>
           )}
           {isAdmin && (
-            <Tooltip title="Elimina ticket">
+            <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
               <Button
                 startIcon={<DeleteOutline />}
                 color="error"
@@ -1566,11 +1566,13 @@ export default function TicketDetail() {
       {/* ── Delete confirm dialog ── */}
       <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DeleteOutline /> Elimina ticket
+          <DeleteOutline /> {lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Sei sicuro di voler eliminare il ticket <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?
+            {lang === 'it'
+              ? <>Sei sicuro di voler eliminare {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?</>
+              : <>Are you sure you want to delete {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?</>}
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={1}>
             Questa operazione è irreversibile: verranno eliminati anche tutti i commenti, allegati e lo storico attività.
