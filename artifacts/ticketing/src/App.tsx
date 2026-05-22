@@ -21,6 +21,8 @@ import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
 import Onboarding from "./pages/Onboarding";
+import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
 import type { User } from "@workspace/api-client-react";
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
@@ -123,6 +125,8 @@ function AppShell() {
                 <Route path="/reports" component={Reports} />
                 <Route path="/users/:id" component={UserProfile} />
                 <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+                <Route path="/clients/:id">{(params) => <AdminRoute component={() => <ClientDetail />} />}</Route>
+                <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
                 <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
                 <Route path="/settings" component={Settings} />
                 <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>

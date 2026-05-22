@@ -17,4 +17,5 @@ export interface CreateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   dueAt?: Date | null;
+  clientId?: number | null;
 }

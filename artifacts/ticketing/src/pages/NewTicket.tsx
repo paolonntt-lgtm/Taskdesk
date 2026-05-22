@@ -4,7 +4,7 @@ import {
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import { Person, Group } from '@mui/icons-material';
-import { useCreateTicket, useListUsers, useSaveTicketAttachment, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +29,8 @@ export default function NewTicket() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
 
   const urlParams = new URLSearchParams(search);
+  const { data: clientsList = [] } = useListClients();
+
   const [formData, setFormData] = useState({
     title: urlParams.get('title') || '',
     description: urlParams.get('description') || '',
@@ -39,6 +41,7 @@ export default function NewTicket() {
     assignedTo: '',
     assignedToGroup: '',
     dueAt: '',
+    clientId: '',
   });
 
   useEffect(() => {
@@ -82,6 +85,7 @@ export default function NewTicket() {
           assignedTo: assignMode === 'user' && formData.assignedTo ? parseInt(formData.assignedTo) : null,
           assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
           dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
+          clientId: formData.clientId ? parseInt(formData.clientId) : null,
         },
       });
       for (const att of pendingAttachments) {
@@ -194,6 +198,21 @@ export default function NewTicket() {
                   inputProps={{ min: new Date().toISOString().slice(0, 16) }}
                 />
               </Grid>
+
+              {clientsList.length > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label={t.clients.clientField}
+                    value={formData.clientId}
+                    onChange={e => setFormData({ ...formData, clientId: e.target.value })}
+                  >
+                    <MenuItem value=""><em>{t.clients.noClient}</em></MenuItem>
+                    {clientsList.map(c => <MenuItem key={c.id} value={c.id.toString()}>{c.name}</MenuItem>)}
+                  </TextField>
+                </Grid>
+              )}
 
               {currentUser?.role === 'admin' && (
                 <Grid item xs={12}>

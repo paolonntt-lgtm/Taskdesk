@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { organizationsTable } from "./organizations";
 import { inboundEmailChannelsTable } from "./inbound_email_channels";
+import { clientsTable } from "./clients";
 
 export const ticketsTable = pgTable("tickets", {
   id: serial("id").primaryKey(),
@@ -27,6 +28,7 @@ export const ticketsTable = pgTable("tickets", {
   emailMessageId: text("email_message_id"),
   emailConversationId: text("email_conversation_id"),
   inboundChannelId: integer("inbound_channel_id").references(() => inboundEmailChannelsTable.id),
+  clientId: integer("client_id").references(() => clientsTable.id),
 }, (t) => [
   index("tickets_status_idx").on(t.status),
   index("tickets_priority_idx").on(t.priority),

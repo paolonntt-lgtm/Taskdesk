@@ -129,6 +129,7 @@ export interface Ticket {
   closedAt?: string | null;
   dueAt?: string | null;
   resolutionNote?: string | null;
+  clientId?: number | null;
 }
 
 export type TicketWithDetails = Ticket & {
@@ -159,6 +160,7 @@ export interface CreateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   dueAt?: string | null;
+  clientId?: number | null;
 }
 
 export type UpdateTicketBodyPriority =
@@ -193,6 +195,7 @@ export interface UpdateTicketBody {
   assignedToGroup?: string | null;
   resolutionNote?: string | null;
   dueAt?: string | null;
+  clientId?: number | null;
 }
 
 export interface CommentReaction {
@@ -369,6 +372,27 @@ export interface KnowledgeArticleInput {
   category?: string | null;
 }
 
+export interface Client {
+  id: number;
+  organizationId?: number | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  vatNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientInput {
+  /** @minLength 1 */
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  vatNumber?: string | null;
+  notes?: string | null;
+}
+
 export type CompleteOnboardingBodyBusinessType =
   (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];
 
@@ -417,4 +441,23 @@ export type ListTicketsParams = {
   dateTo?: string;
   resource?: string;
   emailOrigin?: boolean;
+};
+
+export type ListClientsParams = {
+  search?: string;
+};
+
+export type GetClient200TicketsItem = {
+  id?: number;
+  ticketNumber?: number | null;
+  title?: string;
+  status?: string;
+  priority?: string;
+  category?: string;
+  createdAt?: string;
+  assignedToName?: string | null;
+};
+
+export type GetClient200 = Client & {
+  tickets?: GetClient200TicketsItem[];
 };

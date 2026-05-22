@@ -252,6 +252,7 @@ export const ListTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -307,6 +308,7 @@ export const CreateTicketBody = zod.object({
   assignedTo: zod.number().nullish(),
   assignedToGroup: zod.string().nullish(),
   dueAt: zod.coerce.date().nullish(),
+  clientId: zod.number().nullish(),
 });
 
 /**
@@ -335,6 +337,7 @@ export const GetTicketResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -395,6 +398,7 @@ export const UpdateTicketBody = zod.object({
   assignedToGroup: zod.string().nullish(),
   resolutionNote: zod.string().nullish(),
   dueAt: zod.coerce.date().nullish(),
+  clientId: zod.number().nullish(),
 });
 
 export const UpdateTicketResponse = zod
@@ -416,6 +420,7 @@ export const UpdateTicketResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -869,6 +874,7 @@ export const GetRecentTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -933,6 +939,7 @@ export const GetMyTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -997,6 +1004,7 @@ export const GetDueSoonTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
   })
   .and(
     zod.object({
@@ -1118,4 +1126,108 @@ export const DeleteKnowledgeArticleParams = zod.object({
 export const DeleteKnowledgeArticleResponse = zod.object({
   success: zod.boolean(),
   message: zod.string().optional(),
+});
+
+/**
+ * @summary List clients for the current organization
+ */
+export const ListClientsQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+});
+
+export const ListClientsResponseItem = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  name: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListClientsResponse = zod.array(ListClientsResponseItem);
+
+/**
+ * @summary Create a new client (admin only)
+ */
+
+export const CreateClientBody = zod.object({
+  name: zod.string().min(1),
+  email: zod.string().email().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Get a single client with its tickets
+ */
+export const GetClientParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetClientResponse = zod
+  .object({
+    id: zod.number(),
+    organizationId: zod.number().nullish(),
+    name: zod.string(),
+    email: zod.string().nullish(),
+    phone: zod.string().nullish(),
+    vatNumber: zod.string().nullish(),
+    notes: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  })
+  .and(
+    zod.object({
+      tickets: zod
+        .array(
+          zod.object({
+            id: zod.number().optional(),
+            ticketNumber: zod.number().nullish(),
+            title: zod.string().optional(),
+            status: zod.string().optional(),
+            priority: zod.string().optional(),
+            category: zod.string().optional(),
+            createdAt: zod.coerce.date().optional(),
+            assignedToName: zod.string().nullish(),
+          }),
+        )
+        .optional(),
+    }),
+  );
+
+/**
+ * @summary Update a client (admin only)
+ */
+export const UpdateClientParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateClientBody = zod.object({
+  name: zod.string().min(1),
+  email: zod.string().email().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateClientResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  name: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a client (admin only)
+ */
+export const DeleteClientParams = zod.object({
+  id: zod.coerce.number(),
 });

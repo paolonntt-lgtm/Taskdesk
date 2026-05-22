@@ -13,6 +13,7 @@ import {
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
+  useListClients,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey,
 } from '@workspace/api-client-react';
@@ -70,7 +71,7 @@ export default function TicketDetail() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '' });
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
@@ -100,6 +101,7 @@ export default function TicketDetail() {
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000 } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
+  const { data: clientsList = [] } = useListClients(undefined, { query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
   const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
 
   const updateTicket = useUpdateTicket();
@@ -317,6 +319,7 @@ export default function TicketDetail() {
       category: ticket.category,
       location: ticket.location,
       resource: (ticket as any).resource || '',
+      clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
     });
     setEditDialog(true);
   };
@@ -332,6 +335,7 @@ export default function TicketDetail() {
           category: editForm.category,
           location: editForm.location,
           resource: editForm.resource || undefined,
+          clientId: editForm.clientId ? parseInt(editForm.clientId) : null,
         } as any,
       });
       queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
@@ -739,6 +743,22 @@ export default function TicketDetail() {
                   </Box>
                 )}
               </>
+            )}
+
+            {/* Client */}
+            {(ticket as any).clientId && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.clients.clientField}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                  onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}
+                >
+                  {clientsList.find((c) => c.id === (ticket as any).clientId)?.name ?? `#${(ticket as any).clientId}`}
+                </Typography>
+              </Box>
             )}
 
             {/* Due date */}
@@ -1646,6 +1666,22 @@ export default function TicketDetail() {
             disabled={editSaving}
             placeholder={t.ticketDetail.resourceLabel}
           />
+          {clientsList.length > 0 && (
+            <TextField
+              label={t.clients.clientField}
+              fullWidth
+              size="small"
+              select
+              value={editForm.clientId}
+              onChange={(e) => setEditForm((f) => ({ ...f, clientId: e.target.value }))}
+              disabled={editSaving}
+            >
+              <MenuItem value=""><em>{t.clients.noClient}</em></MenuItem>
+              {clientsList.map((c) => (
+                <MenuItem key={c.id} value={c.id.toString()}>{c.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setEditDialog(false)} color="inherit" disabled={editSaving}>

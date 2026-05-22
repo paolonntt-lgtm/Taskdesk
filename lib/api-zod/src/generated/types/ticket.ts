@@ -26,4 +26,5 @@ export interface Ticket {
   closedAt?: Date | null;
   dueAt?: Date | null;
   resolutionNote?: string | null;
+  clientId?: number | null;
 }
