@@ -199,7 +199,7 @@ export default function NewTicket() {
                 />
               </Grid>
 
-              {clientsList.length > 0 && (
+              {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
                     options={clientsList}

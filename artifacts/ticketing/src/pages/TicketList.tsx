@@ -141,6 +141,7 @@ export default function TicketList() {
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
+  const showClient = (user as any)?.clientsEnabled !== false;
 
   const sortedTickets = useMemo(() => {
     if (!tickets) return [];
@@ -222,7 +223,7 @@ export default function TicketList() {
     </TableCell>
   );
 
-  const colSpanTotal = (showLocation ? 9 : 8) + (isAdmin ? 1 : 0);
+  const colSpanTotal = (showLocation ? 9 : 8) + (isAdmin ? 1 : 0) - (showClient ? 0 : 1);
 
   return (
     <Box>
@@ -397,7 +398,7 @@ export default function TicketList() {
                 <MenuItem value="email">{t.ticketList.emailOriginFilter}</MenuItem>
               </TextField>
             </Grid>
-            {clients && clients.length > 0 && (
+            {showClient && clients && clients.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   select fullWidth size="small"
@@ -477,7 +478,7 @@ export default function TicketList() {
                 {col('status', t.ticketList.colStatus)}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
-                {col('client', t.ticketList.colClient, { display: { xs: 'none', xl: 'table-cell' } })}
+                {showClient && col('client', t.ticketList.colClient, { display: { xs: 'none', xl: 'table-cell' } })}
                 {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
                 {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
               </TableRow>
@@ -537,22 +538,24 @@ export default function TicketList() {
                       <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
                         {ticket.assignee?.name || '—'}
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                        {(ticket as any).client ? (
-                          isAdmin ? (
-                            <Typography
-                              variant="body2"
-                              component="span"
-                              sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/clients/${(ticket as any).clientId}`); }}
-                            >
-                              {(ticket as any).client.name}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" component="span">{(ticket as any).client.name}</Typography>
-                          )
-                        ) : '—'}
-                      </TableCell>
+                      {showClient && (
+                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                          {(ticket as any).client ? (
+                            isAdmin ? (
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/clients/${(ticket as any).clientId}`); }}
+                              >
+                                {(ticket as any).client.name}
+                              </Typography>
+                            ) : (
+                              <Typography variant="body2" component="span">{(ticket as any).client.name}</Typography>
+                            )
+                          ) : '—'}
+                        </TableCell>
+                      )}
                       {showLocation && (
                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
                           {(ticket as any).location || '—'}

@@ -746,7 +746,7 @@ export default function TicketDetail() {
             )}
 
             {/* Client */}
-            {(ticket as any).clientId && (
+            {(ticket as any).clientId && (currentUser as any)?.clientsEnabled !== false && (
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.clients.clientField}
@@ -1672,7 +1672,7 @@ export default function TicketDetail() {
             disabled={editSaving}
             placeholder={t.ticketDetail.resourceLabel}
           />
-          {clientsList.length > 0 && (
+          {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
             <Autocomplete
               options={clientsList}
               getOptionLabel={(o) => o.name}
