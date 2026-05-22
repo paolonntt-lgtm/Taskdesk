@@ -1,18 +1,55 @@
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
+interface ColorSet {
+  main: string;
+  light: string;
+  dark: string;
+  secondary: string;
+  secondaryLight: string;
+  secondaryDark: string;
+}
+
+const BUSINESS_COLORS: Record<string, ColorSet> = {
+  it_support: {
+    main: '#2563eb', light: '#60a5fa', dark: '#1d4ed8',
+    secondary: '#7c3aed', secondaryLight: '#a78bfa', secondaryDark: '#6d28d9',
+  },
+  professional_studio: {
+    main: '#059669', light: '#34d399', dark: '#047857',
+    secondary: '#0891b2', secondaryLight: '#67e8f9', secondaryDark: '#0e7490',
+  },
+  agency: {
+    main: '#7c3aed', light: '#a78bfa', dark: '#6d28d9',
+    secondary: '#db2777', secondaryLight: '#f9a8d4', secondaryDark: '#be185d',
+  },
+  other: {
+    main: '#ea580c', light: '#fb923c', dark: '#c2410c',
+    secondary: '#ca8a04', secondaryLight: '#fcd34d', secondaryDark: '#a16207',
+  },
+};
+
+const DEFAULT_COLORS = BUSINESS_COLORS.it_support;
+
+const hexToRgb = (hex: string) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+};
+
+const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): ThemeOptions => ({
   palette: {
     mode,
     primary: {
-      main: '#2563eb',
-      light: '#60a5fa',
-      dark: '#1d4ed8',
+      main: c.main,
+      light: c.light,
+      dark: c.dark,
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#7c3aed',
-      light: '#a78bfa',
-      dark: '#5b21b6',
+      main: c.secondary,
+      light: c.secondaryLight,
+      dark: c.secondaryDark,
       contrastText: '#ffffff',
     },
     error: {
@@ -74,15 +111,15 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
           '&:hover': { boxShadow: 'none' },
         },
         contained: {
-          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+          background: `linear-gradient(135deg, ${c.main}, ${c.secondary})`,
           '&:hover': {
-            background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)',
+            background: `linear-gradient(135deg, ${c.dark}, ${c.secondaryDark})`,
           },
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+          background: `linear-gradient(135deg, ${c.main}, ${c.secondary})`,
           '&:hover': {
-            background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)',
+            background: `linear-gradient(135deg, ${c.dark}, ${c.secondaryDark})`,
           },
         },
         outlined: {
@@ -147,8 +184,10 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
         },
         filled: {
           '&.MuiChip-colorPrimary': {
-            background: 'linear-gradient(135deg, #dbeafe, #ede9fe)',
-            color: '#2563eb',
+            background: mode === 'light'
+              ? `rgba(${hexToRgb(c.main)}, 0.12)`
+              : `rgba(${hexToRgb(c.main)}, 0.2)`,
+            color: c.main,
           },
         },
       },
@@ -166,7 +205,7 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
               borderColor: mode === 'light' ? '#9ca3af' : '#6b7280',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#2563eb',
+              borderColor: c.main,
               borderWidth: '2px',
             },
           },
@@ -191,12 +230,12 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
           borderRadius: '10px',
           marginBottom: '2px',
           '&.Mui-selected': {
-            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+            background: `linear-gradient(135deg, ${c.main}, ${c.secondary})`,
             color: '#ffffff',
             '& .MuiListItemIcon-root': { color: '#ffffff' },
             '& .MuiListItemText-primary': { color: '#ffffff' },
             '&:hover': {
-              background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)',
+              background: `linear-gradient(135deg, ${c.dark}, ${c.secondaryDark})`,
             },
           },
           '&:hover': {
@@ -215,7 +254,7 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
     MuiAvatar: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+          background: `linear-gradient(135deg, ${c.main}, ${c.secondary})`,
         },
       },
     },
@@ -248,5 +287,10 @@ const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
   },
 });
 
-export const lightTheme = createTheme(getDesignTokens('light'));
-export const darkTheme  = createTheme(getDesignTokens('dark'));
+export function createAppTheme(mode: 'light' | 'dark', businessType?: string | null) {
+  const colors = (businessType ? BUSINESS_COLORS[businessType] : undefined) ?? DEFAULT_COLORS;
+  return createTheme(getDesignTokens(mode, colors));
+}
+
+export const lightTheme = createAppTheme('light');
+export const darkTheme  = createAppTheme('dark');

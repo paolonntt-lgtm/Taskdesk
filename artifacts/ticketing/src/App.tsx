@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { Router as WouterRouter, Switch, Route, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, CircularProgress, Box } from "@mui/material";
-import { lightTheme } from "./theme";
+import { createAppTheme } from "./theme";
 import { AuthContext, useAuth } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Login from "./pages/Login";
@@ -24,6 +24,15 @@ import Onboarding from "./pages/Onboarding";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import type { User } from "@workspace/api-client-react";
+
+export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
+  toggleColorMode: () => {},
+  mode: 'light',
+});
+
+export function useColorMode() {
+  return useContext(ColorModeContext);
+}
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
@@ -62,6 +71,32 @@ function AppShell() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
 
+  const [mode, setMode] = useState<'light' | 'dark'>(() => {
+    try {
+      return (localStorage.getItem('theme_mode') as 'light' | 'dark') ?? 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const colorModeCtx = useMemo(() => ({
+    mode,
+    toggleColorMode: () => {
+      setMode((prev) => {
+        const next = prev === 'light' ? 'dark' : 'light';
+        try { localStorage.setItem('theme_mode', next); } catch {}
+        return next;
+      });
+    },
+  }), [mode]);
+
+  const businessType = (user as any)?.businessType ?? null;
+
+  const theme = useMemo(
+    () => createAppTheme(mode, businessType),
+    [mode, businessType],
+  );
+
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
@@ -98,53 +133,58 @@ function AppShell() {
   const updateUser = (updated: User) => setUser(updated);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser }}>
-      <Switch>
-        <Route path="/invite/:token">
-          {(params) => <InviteRegister token={params.token!} />}
-        </Route>
-        <Route path="/reset-password" component={ResetPassword} />
-        <Route>
-          {isLoading ? (
-            <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
-              <CircularProgress />
-            </Box>
-          ) : !user ? (
-            <Login />
-          ) : user.role === 'admin' && !(user as any).onboardingDone ? (
-            <Onboarding onComplete={(businessType) => {
-              setUser({ ...user, onboardingDone: true, businessType } as any);
-            }} />
-          ) : (
-            <Layout>
-              <Switch>
-                <Route path="/" component={Dashboard} />
-                <Route path="/tickets/new" component={NewTicket} />
-                <Route path="/tickets/:id" component={TicketDetail} />
-                <Route path="/tickets" component={TicketList} />
-                <Route path="/reports" component={Reports} />
-                <Route path="/users/:id" component={UserProfile} />
-                <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
-                {(user as any)?.clientsEnabled !== false ? (
-                  <>
-                    <Route path="/clients/:id">{(params) => <AdminRoute component={() => <ClientDetail />} />}</Route>
-                    <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
-                  </>
-                ) : (
-                  <>
-                    <Route path="/clients/:id">{() => { setLocation('/tickets'); return null; }}</Route>
-                    <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
-                  </>
-                )}
-                <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
-                <Route path="/settings" component={Settings} />
-                <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
-              </Switch>
-            </Layout>
-          )}
-        </Route>
-      </Switch>
-    </AuthContext.Provider>
+    <ColorModeContext.Provider value={colorModeCtx}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser }}>
+          <Switch>
+            <Route path="/invite/:token">
+              {(params) => <InviteRegister token={params.token!} />}
+            </Route>
+            <Route path="/reset-password" component={ResetPassword} />
+            <Route>
+              {isLoading ? (
+                <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
+                  <CircularProgress />
+                </Box>
+              ) : !user ? (
+                <Login />
+              ) : user.role === 'admin' && !(user as any).onboardingDone ? (
+                <Onboarding onComplete={(businessType) => {
+                  setUser({ ...user, onboardingDone: true, businessType } as any);
+                }} />
+              ) : (
+                <Layout>
+                  <Switch>
+                    <Route path="/" component={Dashboard} />
+                    <Route path="/tickets/new" component={NewTicket} />
+                    <Route path="/tickets/:id" component={TicketDetail} />
+                    <Route path="/tickets" component={TicketList} />
+                    <Route path="/reports" component={Reports} />
+                    <Route path="/users/:id" component={UserProfile} />
+                    <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+                    {(user as any)?.clientsEnabled !== false ? (
+                      <>
+                        <Route path="/clients/:id">{(params) => <AdminRoute component={() => <ClientDetail />} />}</Route>
+                        <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
+                      </>
+                    ) : (
+                      <>
+                        <Route path="/clients/:id">{() => { setLocation('/tickets'); return null; }}</Route>
+                        <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
+                      </>
+                    )}
+                    <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
+                    <Route path="/settings" component={Settings} />
+                    <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
+                  </Switch>
+                </Layout>
+              )}
+            </Route>
+          </Switch>
+        </AuthContext.Provider>
+      </ThemeProvider>
+    </ColorModeContext.Provider>
   );
 }
 
@@ -152,12 +192,9 @@ function AppContent() {
   const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
   return (
-    <ThemeProvider theme={lightTheme}>
-      <CssBaseline />
-      <WouterRouter base={base}>
-        <AppShell />
-      </WouterRouter>
-    </ThemeProvider>
+    <WouterRouter base={base}>
+      <AppShell />
+    </WouterRouter>
   );
 }
 

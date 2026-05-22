@@ -45,9 +45,12 @@ import {
   Circle,
   SmartToy,
   Business,
+  Brightness4,
+  Brightness7,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useListNotifications, useMarkAllNotificationsRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,6 +67,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { user, logout, updateUser } = useAuth();
+  const { mode, toggleColorMode } = useColorMode();
   const { t, lang, setLang } = useLanguage();
   const [location, setLocation] = useLocation();
   const theme = useTheme();
@@ -240,14 +244,14 @@ export default function Layout({ children }: LayoutProps) {
                 borderRadius: '10px',
                 py: 1,
                 '&.Mui-selected': {
-                  background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   color: '#ffffff',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                  boxShadow: `0 4px 12px rgba(${parseInt(theme.palette.primary.main.slice(1,3),16)},${parseInt(theme.palette.primary.main.slice(3,5),16)},${parseInt(theme.palette.primary.main.slice(5,7),16)},0.25)`,
                   '& .MuiListItemIcon-root': { color: '#ffffff' },
-                  '&:hover': { background: 'linear-gradient(135deg, #1d4ed8, #6d28d9)' },
+                  '&:hover': { background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})` },
                 },
                 '&:not(.Mui-selected):hover': {
-                  bgcolor: '#f3f4f6',
+                  bgcolor: 'action.hover',
                 },
               }}
             >
@@ -271,14 +275,13 @@ export default function Layout({ children }: LayoutProps) {
         <Box sx={{
           display: 'flex', alignItems: 'center', gap: 1.5,
           p: 1.5, borderRadius: '12px',
-          bgcolor: '#f8faff',
-          border: '1px solid', borderColor: '#f3f4f6',
+          bgcolor: 'background.default',
+          border: '1px solid', borderColor: 'divider',
         }}>
           <Avatar
             src={(user as any)?.avatarUrl ?? undefined}
             sx={{
               width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
-              background: (user as any)?.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
             }}
           >
             {!(user as any)?.avatarUrl && (user?.name?.charAt(0) || <AccountCircle />)}
@@ -460,7 +463,6 @@ export default function Layout({ children }: LayoutProps) {
               src={(user as any)?.avatarUrl ?? undefined}
               sx={{
                 width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700,
-                background: (user as any)?.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
               }}
             >
               {!(user as any)?.avatarUrl && (user?.name?.charAt(0) || <AccountCircle />)}
@@ -480,7 +482,13 @@ export default function Layout({ children }: LayoutProps) {
               <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
             </Box>
             <Divider />
-            <MenuItem onClick={handleLogout} sx={{ color: 'error.main', fontWeight: 600, mt: 0.5 }}>
+            <MenuItem onClick={toggleColorMode} sx={{ fontWeight: 500 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {mode === 'dark' ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
+                {mode === 'dark' ? t.nav.lightMode : t.nav.darkMode}
+              </Box>
+            </MenuItem>
+            <MenuItem onClick={handleLogout} sx={{ color: 'error.main', fontWeight: 600 }}>
               {t.nav.logout}
             </MenuItem>
           </Menu>
