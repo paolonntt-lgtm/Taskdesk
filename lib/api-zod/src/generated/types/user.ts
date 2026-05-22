@@ -19,4 +19,6 @@ export interface User {
   isActive: boolean;
   isAvailable: boolean;
   createdAt: Date;
+  onboardingDone?: boolean | null;
+  businessType?: string | null;
 }

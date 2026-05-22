@@ -21,6 +21,8 @@ import type {
   Attachment,
   BotChatRequest,
   CommentWithAuthor,
+  CompleteOnboarding200,
+  CompleteOnboardingBody,
   CreateCommentBody,
   CreateNoteBody,
   CreateTicketBody,
@@ -300,6 +302,92 @@ export const useLogout = <
   TContext
 > => {
   return useMutation(getLogoutMutationOptions(options));
+};
+
+/**
+ * @summary Complete onboarding by selecting business type (admin only)
+ */
+export const getCompleteOnboardingUrl = () => {
+  return `/api/onboarding/complete`;
+};
+
+export const completeOnboarding = async (
+  completeOnboardingBody: CompleteOnboardingBody,
+  options?: RequestInit,
+): Promise<CompleteOnboarding200> => {
+  return customFetch<CompleteOnboarding200>(getCompleteOnboardingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(completeOnboardingBody),
+  });
+};
+
+export const getCompleteOnboardingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    { data: BodyType<CompleteOnboardingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  { data: BodyType<CompleteOnboardingBody> },
+  TContext
+> => {
+  const mutationKey = ["completeOnboarding"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    { data: BodyType<CompleteOnboardingBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return completeOnboarding(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteOnboardingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeOnboarding>>
+>;
+export type CompleteOnboardingMutationBody = BodyType<CompleteOnboardingBody>;
+export type CompleteOnboardingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Complete onboarding by selecting business type (admin only)
+ */
+export const useCompleteOnboarding = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    { data: BodyType<CompleteOnboardingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  { data: BodyType<CompleteOnboardingBody> },
+  TContext
+> => {
+  return useMutation(getCompleteOnboardingMutationOptions(options));
 };
 
 /**

@@ -117,7 +117,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
 
     if (!user) {
-      const [org] = await db.insert(organizationsTable).values({ name }).returning();
+      const [org] = await db.insert(organizationsTable).values({ name, onboardingDone: false }).returning();
 
       [user] = await db.insert(usersTable).values({
         name,

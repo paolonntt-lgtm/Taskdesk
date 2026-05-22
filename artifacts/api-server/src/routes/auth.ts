@@ -123,6 +123,7 @@ router.post("/auth/register", registerRateLimiter, async (req, res): Promise<voi
 
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
+    onboardingDone: false,
   }).returning();
 
   // Seed default settings for the new organization

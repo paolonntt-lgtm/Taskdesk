@@ -82,6 +82,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
 
+  /onboarding/complete:
+    post:
+      operationId: completeOnboarding
+      tags: [auth]
+      summary: Complete onboarding by selecting business type (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [businessType]
+              properties:
+                businessType:
+                  type: string
+                  enum: [it_support, professional_studio, agency, other]
+      responses:
+        "200":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  businessType:
+                    type: string
+                  categories:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          description: Invalid business type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /auth/me:
     get:
       operationId: getCurrentUser
@@ -1053,6 +1098,12 @@ components:
         createdAt:
           type: string
           format: date-time
+        onboardingDone:
+          type: boolean
+          nullable: true
+        businessType:
+          type: string
+          nullable: true
       required:
         - id
         - name

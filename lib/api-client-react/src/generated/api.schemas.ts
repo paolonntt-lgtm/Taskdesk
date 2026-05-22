@@ -43,6 +43,8 @@ export interface User {
   isActive: boolean;
   isAvailable: boolean;
   createdAt: string;
+  onboardingDone?: boolean | null;
+  businessType?: string | null;
 }
 
 export interface LoginResponse {
@@ -366,6 +368,26 @@ export interface KnowledgeArticleInput {
   content: string;
   category?: string | null;
 }
+
+export type CompleteOnboardingBodyBusinessType =
+  (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];
+
+export const CompleteOnboardingBodyBusinessType = {
+  it_support: "it_support",
+  professional_studio: "professional_studio",
+  agency: "agency",
+  other: "other",
+} as const;
+
+export type CompleteOnboardingBody = {
+  businessType: CompleteOnboardingBodyBusinessType;
+};
+
+export type CompleteOnboarding200 = {
+  success?: boolean;
+  businessType?: string;
+  categories?: string[];
+};
 
 export type ListTicketsParams = {
   status?: string;

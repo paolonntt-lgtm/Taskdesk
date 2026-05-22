@@ -35,6 +35,8 @@ export const LoginResponse = zod.object({
     isActive: zod.boolean(),
     isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
+    onboardingDone: zod.boolean().nullish(),
+    businessType: zod.string().nullish(),
   }),
   message: zod.string().optional(),
 });
@@ -45,6 +47,24 @@ export const LoginResponse = zod.object({
 export const LogoutResponse = zod.object({
   success: zod.boolean(),
   message: zod.string().optional(),
+});
+
+/**
+ * @summary Complete onboarding by selecting business type (admin only)
+ */
+export const CompleteOnboardingBody = zod.object({
+  businessType: zod.enum([
+    "it_support",
+    "professional_studio",
+    "agency",
+    "other",
+  ]),
+});
+
+export const CompleteOnboardingResponse = zod.object({
+  success: zod.boolean().optional(),
+  businessType: zod.string().optional(),
+  categories: zod.array(zod.string()).optional(),
 });
 
 /**
@@ -62,6 +82,8 @@ export const GetCurrentUserResponse = zod.object({
   isActive: zod.boolean(),
   isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
+  onboardingDone: zod.boolean().nullish(),
+  businessType: zod.string().nullish(),
 });
 
 /**
@@ -79,6 +101,8 @@ export const ListUsersResponseItem = zod.object({
   isActive: zod.boolean(),
   isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
+  onboardingDone: zod.boolean().nullish(),
+  businessType: zod.string().nullish(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
 
@@ -116,6 +140,8 @@ export const GetUserResponse = zod.object({
   isActive: zod.boolean(),
   isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
+  onboardingDone: zod.boolean().nullish(),
+  businessType: zod.string().nullish(),
 });
 
 /**
@@ -151,6 +177,8 @@ export const UpdateUserResponse = zod.object({
   isActive: zod.boolean(),
   isAvailable: zod.boolean(),
   createdAt: zod.coerce.date(),
+  onboardingDone: zod.boolean().nullish(),
+  businessType: zod.string().nullish(),
 });
 
 /**
@@ -216,6 +244,8 @@ export const ListTicketsResponseItem = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -230,6 +260,8 @@ export const ListTicketsResponseItem = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
@@ -295,6 +327,8 @@ export const GetTicketResponse = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -309,6 +343,8 @@ export const GetTicketResponse = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
@@ -372,6 +408,8 @@ export const UpdateTicketResponse = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -386,6 +424,8 @@ export const UpdateTicketResponse = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
@@ -429,6 +469,8 @@ export const ListTicketCommentsResponseItem = zod.object({
     isActive: zod.boolean(),
     isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
+    onboardingDone: zod.boolean().nullish(),
+    businessType: zod.string().nullish(),
   }),
   reactions: zod.array(
     zod.object({
@@ -488,6 +530,8 @@ export const UpdateTicketCommentResponse = zod.object({
     isActive: zod.boolean(),
     isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
+    onboardingDone: zod.boolean().nullish(),
+    businessType: zod.string().nullish(),
   }),
   reactions: zod.array(
     zod.object({
@@ -611,6 +655,8 @@ export const ListTicketNotesResponseItem = zod.object({
     isActive: zod.boolean(),
     isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
+    onboardingDone: zod.boolean().nullish(),
+    businessType: zod.string().nullish(),
   }),
 });
 export const ListTicketNotesResponse = zod.array(ListTicketNotesResponseItem);
@@ -652,6 +698,8 @@ export const ListTicketActivityResponseItem = zod.object({
     isActive: zod.boolean(),
     isAvailable: zod.boolean(),
     createdAt: zod.coerce.date(),
+    onboardingDone: zod.boolean().nullish(),
+    businessType: zod.string().nullish(),
   }),
 });
 export const ListTicketActivityResponse = zod.array(
@@ -813,6 +861,8 @@ export const GetRecentTicketsResponseItem = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -827,6 +877,8 @@ export const GetRecentTicketsResponseItem = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
@@ -873,6 +925,8 @@ export const GetMyTicketsResponseItem = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -887,6 +941,8 @@ export const GetMyTicketsResponseItem = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
@@ -933,6 +989,8 @@ export const GetDueSoonTicketsResponseItem = zod
         isActive: zod.boolean(),
         isAvailable: zod.boolean(),
         createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
       }),
       assignee: zod
         .object({
@@ -947,6 +1005,8 @@ export const GetDueSoonTicketsResponseItem = zod
           isActive: zod.boolean(),
           isAvailable: zod.boolean(),
           createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
         })
         .nullish(),
       commentCount: zod.number(),
