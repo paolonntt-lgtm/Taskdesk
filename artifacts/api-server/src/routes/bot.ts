@@ -74,7 +74,7 @@ async function fetchOrgSettings(orgId: number, base: string): Promise<string[]> 
 const fetchOrgCategories = (orgId: number) => fetchOrgSettings(orgId, "categories");
 const fetchOrgLocations  = (orgId: number) => fetchOrgSettings(orgId, "locations");
 
-async function searchContext(query: string, orgId: number | null): Promise<SearchContextResult> {
+async function searchContext(query: string, orgId: number | null, isAdmin: boolean): Promise<SearchContextResult> {
   const empty: SearchContextResult = { resolvedTickets: [], openTickets: [], articles: [] };
   if (!query.trim() || orgId == null) return empty;
 
@@ -200,34 +200,37 @@ async function searchContext(query: string, orgId: number | null): Promise<Searc
     };
   });
 
-  // KB articles
-  const articleRows = await db.execute(sql`
-    SELECT
-      id,
-      title,
-      content,
-      ts_rank(
-        to_tsvector('italian', title || ' ' || content),
-        plainto_tsquery('italian', ${ftsQuery})
-      ) AS rank
-    FROM knowledge_articles
-    WHERE
-      organization_id = ${orgId}
-      AND (
-        to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
-        OR title ~* ${keywordRegex}
-        OR content ~* ${keywordRegex}
-      )
-    ORDER BY rank DESC
-    LIMIT 3
-  `);
+  // KB articles — only available to admins
+  let articles: ContextResult[] = [];
+  if (isAdmin) {
+    const articleRows = await db.execute(sql`
+      SELECT
+        id,
+        title,
+        content,
+        ts_rank(
+          to_tsvector('italian', title || ' ' || content),
+          plainto_tsquery('italian', ${ftsQuery})
+        ) AS rank
+      FROM knowledge_articles
+      WHERE
+        organization_id = ${orgId}
+        AND (
+          to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
+          OR title ~* ${keywordRegex}
+          OR content ~* ${keywordRegex}
+        )
+      ORDER BY rank DESC
+      LIMIT 3
+    `);
 
-  const articles: ContextResult[] = (articleRows.rows as any[]).map((row) => ({
-    type: "article" as const,
-    title: row.title,
-    content: String(row.content).slice(0, 600),
-    rank: Number(row.rank),
-  }));
+    articles = (articleRows.rows as any[]).map((row) => ({
+      type: "article" as const,
+      title: row.title,
+      content: String(row.content).slice(0, 600),
+      rank: Number(row.rank),
+    }));
+  }
 
   return { resolvedTickets, openTickets, articles };
 }
@@ -399,6 +402,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
 
   const resolvedLang: "it" | "en" = lang === "en" ? "en" : "it";
   const userLocation: string | null = currentUser.mainLocation || null;
+  const isAdmin: boolean = currentUser.role === "admin";
 
   // Build a combined search query from all user turns so that short follow-up
   // messages (e.g. "sono in sede Verdi") still retrieve the relevant tickets.
@@ -408,7 +412,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
   const searchQuery = [...userTurns, message].join(" ");
 
   const [context, categories, locations] = await Promise.all([
-    searchContext(searchQuery, orgId),
+    searchContext(searchQuery, orgId, isAdmin),
     fetchOrgCategories(orgId),
     fetchOrgLocations(orgId),
   ]);
