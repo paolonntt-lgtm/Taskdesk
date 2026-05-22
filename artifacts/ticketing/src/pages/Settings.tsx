@@ -838,17 +838,24 @@ export default function Settings() {
                   <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </TextField>
-              <Box display="flex" alignItems="center" gap={1} mt={1}>
-                <Switch
-                  checked={orgClientsEnabled}
-                  onChange={(e) => setOrgClientsEnabled(e.target.checked)}
-                  disabled={orgSaving}
-                  size="small"
-                />
-                <Box>
-                  <Typography variant="body2" fontWeight={500}>{t.settings.orgClientsEnabledLabel}</Typography>
-                  <Typography variant="caption" color="text.secondary">{t.settings.orgClientsEnabledHint}</Typography>
+              <Box display="flex" flexDirection="column" gap={1} mt={1}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Switch
+                    checked={orgClientsEnabled}
+                    onChange={(e) => setOrgClientsEnabled(e.target.checked)}
+                    disabled={orgSaving}
+                    size="small"
+                  />
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>{t.settings.orgClientsEnabledLabel}</Typography>
+                    <Typography variant="caption" color="text.secondary">{t.settings.orgClientsEnabledHint}</Typography>
+                  </Box>
                 </Box>
+                {!orgClientsEnabled && (
+                  <Alert severity="warning" sx={{ py: 0.5 }}>
+                    {t.settings.orgClientsDisabledWarning}
+                  </Alert>
+                )}
               </Box>
             </Box>
           </Section>
