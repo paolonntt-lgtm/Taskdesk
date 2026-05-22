@@ -14,6 +14,24 @@ interface BusinessTypeOption {
   color: string;
 }
 
+const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v3';
+const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v3';
+
+const DASHBOARD_PRESETS: Record<string, string[]> = {
+  it_support:          ['stat-open', 'stat-urgent', 'stat-overdue', 'stat-resolved', 'feed-my', 'feed-due', 'chart-trend', 'chart-status'],
+  professional_studio: ['stat-open', 'stat-resolved', 'feed-my', 'feed-due', 'chart-category', 'chart-priority'],
+  agency:              ['stat-open', 'stat-resolved', 'stat-urgent', 'feed-recent', 'feed-assigned', 'chart-trend', 'chart-assignee'],
+  other:               ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'],
+};
+
+function applyDashboardPreset(businessType: string): void {
+  try {
+    const preset = DASHBOARD_PRESETS[businessType] ?? DASHBOARD_PRESETS.other;
+    localStorage.setItem(DASHBOARD_VISIBLE_KEY, JSON.stringify(preset));
+    localStorage.removeItem(DASHBOARD_LAYOUT_KEY);
+  } catch { /* ignore quota errors */ }
+}
+
 const OPTIONS: BusinessTypeOption[] = [
   {
     value: 'it_support',
@@ -63,6 +81,7 @@ export default function Onboarding({ onComplete }: Props) {
         setError(data.message || t.onboarding.errorGeneric);
         return;
       }
+      applyDashboardPreset(selected);
       onComplete(selected);
     } catch {
       setError(t.onboarding.errorNetwork);
