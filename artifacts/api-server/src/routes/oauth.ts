@@ -10,6 +10,7 @@ import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 const router = Router();
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const OAUTH_STATE_COOKIE = "oauth_state";
 const pendingOAuthStates = new Map<string, number>();
 
 function pruneExpiredStates(): void {
@@ -41,6 +42,14 @@ router.get("/auth/google", (req, res) => {
   const state = randomBytes(24).toString("hex");
   pendingOAuthStates.set(state, Date.now());
 
+  // Bind the state to the initiating browser via a short-lived HttpOnly cookie.
+  // The callback will verify the cookie value matches the `state` query param,
+  // preventing an attacker from handing their callback URL to a victim.
+  res.setHeader(
+    "Set-Cookie",
+    `${OAUTH_STATE_COOKIE}=${state}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600`
+  );
+
   const params = new URLSearchParams({
     client_id: googleClientId(),
     redirect_uri: getCallbackUrl(),
@@ -61,14 +70,38 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     return;
   }
 
+  // Verify state exists in server-side map (not expired or reused)
   if (!state || !pendingOAuthStates.has(state)) {
     logger.warn({ state, hasState: !!state }, "OAuth callback state validation failed");
     res.redirect("/app/?oauth_error=invalid_state");
     return;
   }
 
+  // Verify state is bound to the initiating browser via cookie
+  const cookieHeader = req.headers.cookie ?? "";
+  const cookies = Object.fromEntries(
+    cookieHeader.split(";").map((c) => {
+      const [k, ...v] = c.trim().split("=");
+      return [k.trim(), v.join("=")];
+    })
+  );
+  const cookieState = cookies[OAUTH_STATE_COOKIE];
+
+  if (!cookieState || cookieState !== state) {
+    logger.warn({ state, hasCookie: !!cookieState }, "OAuth callback state cookie mismatch — possible session-forcing attempt");
+    pendingOAuthStates.delete(state);
+    res.redirect("/app/?oauth_error=invalid_state");
+    return;
+  }
+
   const stateCreatedAt = pendingOAuthStates.get(state)!;
   pendingOAuthStates.delete(state);
+
+  // Clear the oauth_state cookie
+  res.setHeader(
+    "Set-Cookie",
+    `${OAUTH_STATE_COOKIE}=; Path=/api/auth/google; HttpOnly; Max-Age=0`
+  );
 
   if (Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
     logger.warn({ state }, "OAuth state expired");

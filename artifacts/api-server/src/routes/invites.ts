@@ -6,6 +6,7 @@ import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { randomBytes } from "crypto";
 import { hashPassword } from "./auth";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
+import { requireSameOrigin } from "../lib/originCheck";
 
 const router: IRouter = Router();
 
@@ -51,7 +52,7 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
   res.json({ valid: true, adminName: admin?.name ?? "Admin", expiresAt: invite.expiresAt });
 });
 
-router.post("/invites/:token/register", async (req, res): Promise<void> => {
+router.post("/invites/:token/register", requireSameOrigin, async (req, res): Promise<void> => {
   const { token } = req.params;
   const { name, email, password } = req.body ?? {};
 
