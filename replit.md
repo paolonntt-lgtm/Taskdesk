@@ -92,6 +92,24 @@ The `lib/api-spec/package.json` codegen script runs orval and then immediately o
 - ✅ Dati demo pre-caricati (11 ticket, commenti, note, attività)
 - ✅ Gestione Utenti (solo admin): crea, modifica, disattiva utenti con tabella MUI + dialog + conferma disattivazione
 
+## Translation Convention
+
+Every user-facing string — labels, placeholders, messages, tooltips, button text, error messages — must be added in **both** English (`en`) and Italian (`it`). Hardcoded strings directly in JSX or component code are not allowed.
+
+### Web app (`artifacts/ticketing`)
+- All strings live in `artifacts/ticketing/src/i18n/translations.ts`, which exports a `const it = { ... }` and a `const en = { ... }` object with identical structure.
+- The active language is provided by `LanguageContext` (`artifacts/ticketing/src/contexts/LanguageContext.tsx`); components access it via `const { t } = useLanguage()`.
+- **Workflow**: add the English key/value first under `en`, then add the exact Italian equivalent under `it` in the same position. Never add a key to only one language.
+
+### Mobile app (`artifacts/mobile`)
+- All strings live in `artifacts/mobile/i18n/translations.ts` — same convention as the web app (parallel `it` / `en` objects).
+- Add any new mobile string in both languages in that file.
+
+### Rule summary
+1. Write the English string first.
+2. Add the Italian translation immediately after in the same PR/commit.
+3. Never add Italian-only strings or hardcode text outside the translation files.
+
 ## User Preferences
 
 - All new UI strings must be written in English first, then added as the Italian translation in `translations.ts`. Never add Italian-only strings directly.
