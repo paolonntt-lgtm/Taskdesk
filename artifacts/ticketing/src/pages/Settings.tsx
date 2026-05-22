@@ -334,7 +334,7 @@ function ListEditor({
 
 export default function Settings() {
   const { user, updateUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const isAdmin = user?.role === 'admin';
 
   const [tab, setTab] = useState(0);
@@ -437,10 +437,12 @@ export default function Settings() {
       if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
-      if (data.clientsEnabled !== undefined) {
-        setOrgClientsEnabled(data.clientsEnabled !== false);
-        updateUser({ ...(user as any), clientsEnabled: data.clientsEnabled });
-      }
+      if (data.clientsEnabled !== undefined) setOrgClientsEnabled(data.clientsEnabled !== false);
+      updateUser({
+        ...(user as any),
+        businessType: data.businessType ?? null,
+        clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
+      });
       setOrgMsg({ type: 'success', text: t.settings.orgSavedOk });
     } catch {
       setOrgMsg({ type: 'error', text: t.settings.orgSaveError });
@@ -824,20 +826,35 @@ export default function Settings() {
                   {orgSaving ? t.settings.saving : t.settings.save}
                 </Button>
               </Box>
-              <TextField
-                select
-                size="small"
-                label={t.settings.orgBusinessTypeLabel}
-                value={orgBusinessType}
-                onChange={(e) => setOrgBusinessType(e.target.value)}
-                disabled={orgSaving}
-                sx={{ maxWidth: 340 }}
-              >
-                <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
-                {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                ))}
-              </TextField>
+              <Box sx={{ maxWidth: 340 }}>
+                <TextField
+                  select
+                  size="small"
+                  fullWidth
+                  label={t.settings.orgBusinessTypeLabel}
+                  value={orgBusinessType}
+                  onChange={(e) => setOrgBusinessType(e.target.value)}
+                  disabled={orgSaving}
+                  helperText={t.settings.orgBusinessTypeHint}
+                >
+                  <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
+                  {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </TextField>
+                {orgBusinessType && (() => {
+                  const et = (t.entityTerms as Record<string, any>)[orgBusinessType];
+                  return et ? (
+                    <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
+                      <Typography variant="caption" color="text.secondary">
+                        {t.settings.orgBusinessTypePreviewLabel}
+                      </Typography>
+                      <Chip label={et.singular} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
+                      <Chip label={et.plural} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />
+                    </Box>
+                  ) : null;
+                })()}
+              </Box>
               <Box display="flex" flexDirection="column" gap={1} mt={1}>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Switch
