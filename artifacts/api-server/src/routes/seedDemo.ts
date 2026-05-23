@@ -12,6 +12,11 @@ function daysAgo(n: number): Date {
 }
 
 router.post("/seed-demo", async (req: Request, res: Response): Promise<void> => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ message: "Not found" });
+    return;
+  }
+
   const secret = req.headers["x-seed-secret"];
   if (!secret || secret !== process.env.SEED_SECRET) {
     res.status(401).json({ message: "Non autorizzato" });
