@@ -12,12 +12,13 @@ const app: Express = express();
 // other IP-based middleware see the real client IP from X-Forwarded-For.
 app.set("trust proxy", 1);
 
-// Force HTTPS in production: redirect any plain-HTTP request before it
-// reaches any route handler. `req.secure` is reliable here because
-// `trust proxy 1` is set above, so Express reads X-Forwarded-Proto correctly.
+// Force HTTPS in production: redirect external HTTP requests to HTTPS.
+// We only redirect when the proxy explicitly tells us the original request
+// was HTTP (X-Forwarded-Proto: http). This safely skips internal health-check
+// probes from Cloud Run, which arrive without that header and must get 200.
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (!req.secure) {
+    if (req.headers["x-forwarded-proto"] === "http") {
       return res.redirect(301, `https://${req.headers.host}${req.url}`);
     }
     next();
