@@ -1,0 +1,6 @@
+name = "taskdesk-email-inbound"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Secrets are NOT stored here — set them via the Cloudflare dashboard
+# or with: wrangler secret put WEBHOOK_URL / wrangler secret put WEBHOOK_TOKEN
