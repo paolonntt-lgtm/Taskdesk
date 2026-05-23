@@ -114,10 +114,14 @@ function parseXml(file: File): Promise<ParsedRow[]> {
   });
 }
 
-function validateRows(rows: ParsedRow[]): ParsedRow[] {
+function validateRows(rows: ParsedRow[], existingVats: Set<string>): ParsedRow[] {
+  const seenVats = new Set<string>();
   return rows.map((r) => {
     if (!r.name) return { ...r, error: 'missingName' };
     if (!r.vatNumber) return { ...r, error: 'missingVat' };
+    const vatLower = r.vatNumber.toLowerCase();
+    if (existingVats.has(vatLower) || seenVats.has(vatLower)) return { ...r, error: 'duplicateVat' };
+    seenVats.add(vatLower);
     return r;
   });
 }
@@ -132,6 +136,7 @@ export default function Clients() {
 
   const [search, setSearch] = useState('');
   const { data: clients = [], isLoading } = useListClients({ search: search || undefined });
+  const { data: allClients = [] } = useListClients({});
 
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
@@ -239,7 +244,10 @@ export default function Clients() {
         setImportParseError(tc.importErrorParse);
         return;
       }
-      setImportRows(validateRows(raw));
+      const existingVats = new Set(
+        allClients.map((c) => ((c as any).vatNumber ?? '').toString().trim().toLowerCase()).filter(Boolean)
+      );
+      setImportRows(validateRows(raw, existingVats));
     } catch {
       setImportParseError(tc.importErrorParse);
     }
@@ -277,7 +285,7 @@ export default function Clients() {
       setImportOpen(false);
       setImportRows(null);
       setImportFileName('');
-      setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped + errorCount), severity: 'success' });
+      setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped + errorCount + duplicateCount), severity: 'success' });
     } catch {
       setSnackbar({ open: true, msg: tc.importErrorServer, severity: 'error' });
     } finally {
@@ -286,7 +294,8 @@ export default function Clients() {
   };
 
   const validCount = importRows?.filter((r) => !r.error).length ?? 0;
-  const errorCount = importRows?.filter((r) => r.error).length ?? 0;
+  const errorCount = importRows?.filter((r) => r.error && r.error !== 'duplicateVat').length ?? 0;
+  const duplicateCount = importRows?.filter((r) => r.error === 'duplicateVat').length ?? 0;
 
   return (
     <Box>
@@ -509,11 +518,14 @@ export default function Clients() {
 
           {importRows && importRows.length > 0 && (
             <>
-              <Box display="flex" alignItems="center" gap={2} mb={1}>
+              <Box display="flex" alignItems="center" gap={2} mb={1} flexWrap="wrap">
                 <Typography variant="subtitle2" fontWeight={600}>{tc.importPreviewTitle}</Typography>
                 <Chip label={tc.importPreviewCount(importRows.length)} size="small" color="primary" variant="outlined" />
                 {errorCount > 0 && (
                   <Chip label={tc.importErrorCount(errorCount)} size="small" color="error" variant="outlined" />
+                )}
+                {duplicateCount > 0 && (
+                  <Chip label={tc.importDuplicateCount(duplicateCount)} size="small" color="warning" variant="outlined" />
                 )}
               </Box>
               <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 340 }}>
@@ -536,7 +548,13 @@ export default function Clients() {
                     {importRows.map((row) => (
                       <TableRow
                         key={row.rowIndex}
-                        sx={row.error ? { bgcolor: 'error.50', '& td': { color: 'error.main' } } : undefined}
+                        sx={
+                          row.error === 'duplicateVat'
+                            ? { bgcolor: 'warning.50', '& td': { color: 'warning.dark' } }
+                            : row.error
+                            ? { bgcolor: 'error.50', '& td': { color: 'error.main' } }
+                            : undefined
+                        }
                       >
                         <TableCell>{row.rowIndex}</TableCell>
                         <TableCell>{row.name || '—'}</TableCell>
@@ -550,6 +568,7 @@ export default function Clients() {
                         <TableCell>
                           {row.error === 'missingName' && tc.importRowErrorMissingName}
                           {row.error === 'missingVat' && tc.importRowErrorMissingVat}
+                          {row.error === 'duplicateVat' && tc.importRowErrorDuplicateVat}
                         </TableCell>
                       </TableRow>
                     ))}

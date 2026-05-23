@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { eq, and, ilike, or, inArray } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
@@ -83,7 +83,16 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
   const { rows } = bodyParsed.data;
   let imported = 0;
   let skipped = 0;
+  let duplicates = 0;
   const errors: { row: number; name?: string | null; reason: string }[] = [];
+
+  const existingClients = await db
+    .select({ vatNumber: clientsTable.vatNumber })
+    .from(clientsTable)
+    .where(eq(clientsTable.organizationId, currentUser.organizationId));
+  const existingVats = new Set(
+    existingClients.map((c) => c.vatNumber?.trim().toLowerCase()).filter(Boolean)
+  );
 
   for (let i = 0; i < rows.length; i++) {
     const rowParsed = ImportRow.safeParse(rows[i]);
@@ -109,6 +118,13 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
       continue;
     }
 
+    if (existingVats.has(vatNumber.toLowerCase())) {
+      duplicates++;
+      skipped++;
+      errors.push({ row: i + 1, name, reason: "Duplicate VAT Number" });
+      continue;
+    }
+
     await db.insert(clientsTable).values({
       organizationId: currentUser.organizationId,
       name,
@@ -121,10 +137,11 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
       phone: row.phone?.trim() || null,
     });
 
+    existingVats.add(vatNumber.toLowerCase());
     imported++;
   }
 
-  res.json({ imported, skipped, errors });
+  res.json({ imported, skipped, duplicates, errors });
 });
 
 router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
