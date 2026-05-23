@@ -379,6 +379,10 @@ export interface Client {
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
+  taxCode?: string | null;
+  address?: string | null;
+  pec?: string | null;
+  contactPerson?: string | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -390,7 +394,34 @@ export interface ClientInput {
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
+  taxCode?: string | null;
+  address?: string | null;
+  pec?: string | null;
+  contactPerson?: string | null;
   notes?: string | null;
+}
+
+export interface ClientImportRow {
+  name: string;
+  vatNumber?: string | null;
+  taxCode?: string | null;
+  address?: string | null;
+  pec?: string | null;
+  contactPerson?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export type ClientImportResultErrorsItem = {
+  row: number;
+  name?: string | null;
+  reason: string;
+};
+
+export interface ClientImportResult {
+  imported: number;
+  skipped: number;
+  errors: ClientImportResultErrorsItem[];
 }
 
 export type CompleteOnboardingBodyBusinessType =
@@ -446,6 +477,10 @@ export type ListTicketsParams = {
 
 export type ListClientsParams = {
   search?: string;
+};
+
+export type ImportClientsBody = {
+  rows: ClientImportRow[];
 };
 
 export type GetClient200TicketsItem = {

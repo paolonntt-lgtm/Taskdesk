@@ -1122,6 +1122,38 @@ paths:
         "403":
           description: Forbidden
 
+  /clients/import:
+    post:
+      operationId: importClients
+      tags: [clients]
+      summary: Bulk import clients from parsed rows (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ClientImportRow"
+              required:
+                - rows
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientImportResult"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
   /clients/{id}:
     get:
       operationId: getClient
@@ -1971,6 +2003,18 @@ components:
         vatNumber:
           type: string
           nullable: true
+        taxCode:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        pec:
+          type: string
+          nullable: true
+        contactPerson:
+          type: string
+          nullable: true
         notes:
           type: string
           nullable: true
@@ -2002,8 +2046,76 @@ components:
         vatNumber:
           type: string
           nullable: true
+        taxCode:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        pec:
+          type: string
+          nullable: true
+        contactPerson:
+          type: string
+          nullable: true
         notes:
           type: string
           nullable: true
       required:
         - name
+
+    ClientImportRow:
+      type: object
+      properties:
+        name:
+          type: string
+        vatNumber:
+          type: string
+          nullable: true
+        taxCode:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        pec:
+          type: string
+          nullable: true
+        contactPerson:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+      required:
+        - name
+
+    ClientImportResult:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              row:
+                type: integer
+              name:
+                type: string
+                nullable: true
+              reason:
+                type: string
+            required:
+              - row
+              - reason
+      required:
+        - imported
+        - skipped
+        - errors

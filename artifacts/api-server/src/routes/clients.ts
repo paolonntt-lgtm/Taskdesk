@@ -11,7 +11,22 @@ const ClientBody = z.object({
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   vatNumber: z.string().optional().nullable(),
+  taxCode: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  pec: z.string().optional().nullable(),
+  contactPerson: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+});
+
+const ImportRow = z.object({
+  name: z.string(),
+  vatNumber: z.string().optional().nullable(),
+  taxCode: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  pec: z.string().optional().nullable(),
+  contactPerson: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
 });
 
 router.get("/clients", requireAuth, async (req, res): Promise<void> => {
@@ -53,6 +68,63 @@ router.post("/clients", requireAuth, requireAdmin, async (req, res): Promise<voi
     .returning();
 
   res.status(201).json(client);
+});
+
+router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+
+  const bodySchema = z.object({ rows: z.array(z.unknown()) });
+  const bodyParsed = bodySchema.safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+
+  const { rows } = bodyParsed.data;
+  let imported = 0;
+  let skipped = 0;
+  const errors: { row: number; name?: string | null; reason: string }[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowParsed = ImportRow.safeParse(rows[i]);
+    if (!rowParsed.success) {
+      skipped++;
+      errors.push({ row: i + 1, reason: "Invalid row format" });
+      continue;
+    }
+
+    const row = rowParsed.data;
+    const name = row.name?.trim();
+    const vatNumber = row.vatNumber?.trim() || null;
+
+    if (!name) {
+      skipped++;
+      errors.push({ row: i + 1, name: null, reason: "Missing required Name" });
+      continue;
+    }
+
+    if (!vatNumber) {
+      skipped++;
+      errors.push({ row: i + 1, name, reason: "Missing required VAT Number" });
+      continue;
+    }
+
+    await db.insert(clientsTable).values({
+      organizationId: currentUser.organizationId,
+      name,
+      vatNumber,
+      taxCode: row.taxCode?.trim() || null,
+      address: row.address?.trim() || null,
+      pec: row.pec?.trim() || null,
+      contactPerson: row.contactPerson?.trim() || null,
+      email: row.email?.trim() || null,
+      phone: row.phone?.trim() || null,
+    });
+
+    imported++;
+  }
+
+  res.json({ imported, skipped, errors });
 });
 
 router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {

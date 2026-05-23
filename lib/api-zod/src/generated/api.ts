@@ -1143,6 +1143,10 @@ export const ListClientsResponseItem = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
@@ -1158,7 +1162,41 @@ export const CreateClientBody = zod.object({
   email: zod.string().email().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Bulk import clients from parsed rows (admin only)
+ */
+export const ImportClientsBody = zod.object({
+  rows: zod.array(
+    zod.object({
+      name: zod.string(),
+      vatNumber: zod.string().nullish(),
+      taxCode: zod.string().nullish(),
+      address: zod.string().nullish(),
+      pec: zod.string().nullish(),
+      contactPerson: zod.string().nullish(),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+    }),
+  ),
+});
+
+export const ImportClientsResponse = zod.object({
+  imported: zod.number(),
+  skipped: zod.number(),
+  errors: zod.array(
+    zod.object({
+      row: zod.number(),
+      name: zod.string().nullish(),
+      reason: zod.string(),
+    }),
+  ),
 });
 
 /**
@@ -1176,6 +1214,10 @@ export const GetClientResponse = zod
     email: zod.string().nullish(),
     phone: zod.string().nullish(),
     vatNumber: zod.string().nullish(),
+    taxCode: zod.string().nullish(),
+    address: zod.string().nullish(),
+    pec: zod.string().nullish(),
+    contactPerson: zod.string().nullish(),
     notes: zod.string().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
@@ -1211,6 +1253,10 @@ export const UpdateClientBody = zod.object({
   email: zod.string().email().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
 });
 
@@ -1221,6 +1267,10 @@ export const UpdateClientResponse = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),

@@ -12,5 +12,9 @@ export interface ClientInput {
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
+  taxCode?: string | null;
+  address?: string | null;
+  pec?: string | null;
+  contactPerson?: string | null;
   notes?: string | null;
 }

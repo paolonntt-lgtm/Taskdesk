@@ -1,17 +1,125 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent,
-  DialogActions, Alert, InputAdornment, Chip, Tooltip,
+  DialogActions, Alert, InputAdornment, Tooltip, Snackbar, Chip,
+  LinearProgress, Divider,
 } from '@mui/material';
-import { Add, Edit, Delete, Search, OpenInNew } from '@mui/icons-material';
+import { Add, Edit, Delete, Search, OpenInNew, Upload, FileUpload } from '@mui/icons-material';
 import { useListClients, useCreateClient, useUpdateClient, useDeleteClient, getListClientsQueryKey } from '@workspace/api-client-react';
 import type { Client, ClientInput } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import * as XLSX from 'xlsx';
 
-const emptyForm: ClientInput = { name: '', email: null, phone: null, vatNumber: null, notes: null };
+const emptyForm: ClientInput = {
+  name: '',
+  email: null,
+  phone: null,
+  vatNumber: null,
+  taxCode: null,
+  address: null,
+  pec: null,
+  contactPerson: null,
+  notes: null,
+};
+
+interface ParsedRow {
+  rowIndex: number;
+  name: string;
+  vatNumber: string;
+  taxCode: string;
+  address: string;
+  pec: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  error?: string;
+}
+
+function parseXlsx(file: File): Promise<ParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const rows: ParsedRow[] = json.map((row, i) => ({
+          rowIndex: i + 2,
+          name: (row['Nome'] ?? row['name'] ?? '').toString().trim(),
+          vatNumber: (row['PartitaIVA'] ?? row['Partita IVA'] ?? row['vatNumber'] ?? '').toString().trim(),
+          taxCode: (row['CodiceFiscale'] ?? row['Codice Fiscale'] ?? row['taxCode'] ?? '').toString().trim(),
+          address: (row['Indirizzo'] ?? row['address'] ?? '').toString().trim(),
+          pec: (row['PEC'] ?? row['pec'] ?? '').toString().trim(),
+          contactPerson: (row['Referente'] ?? row['contactPerson'] ?? '').toString().trim(),
+          email: (row['Email'] ?? row['email'] ?? '').toString().trim(),
+          phone: (row['Telefono'] ?? row['phone'] ?? '').toString().trim(),
+        }));
+        resolve(rows);
+      } catch {
+        reject(new Error('parse_error'));
+      }
+    };
+    reader.onerror = () => reject(new Error('read_error'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseXml(file: File): Promise<ParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target!.result as string;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'application/xml');
+        const parserError = doc.querySelector('parsererror');
+        if (parserError) throw new Error('invalid xml');
+
+        const items = Array.from(
+          doc.querySelectorAll('cliente, client, row, item, Cliente, Client, Row, Item')
+        );
+        if (items.length === 0) throw new Error('no items');
+
+        const get = (el: Element, ...tags: string[]) => {
+          for (const tag of tags) {
+            const node = el.querySelector(tag);
+            if (node) return node.textContent?.trim() ?? '';
+          }
+          return '';
+        };
+
+        const rows: ParsedRow[] = items.map((el, i) => ({
+          rowIndex: i + 1,
+          name: get(el, 'Nome', 'Name', 'nome', 'name'),
+          vatNumber: get(el, 'PartitaIVA', 'Partita_IVA', 'vatNumber', 'PIva', 'PIVA'),
+          taxCode: get(el, 'CodiceFiscale', 'Codice_Fiscale', 'taxCode', 'CF'),
+          address: get(el, 'Indirizzo', 'Address', 'indirizzo', 'address'),
+          pec: get(el, 'PEC', 'pec'),
+          contactPerson: get(el, 'Referente', 'contactPerson', 'referente'),
+          email: get(el, 'Email', 'email', 'Mail', 'mail'),
+          phone: get(el, 'Telefono', 'Phone', 'telefono', 'phone', 'Tel'),
+        }));
+        resolve(rows);
+      } catch {
+        reject(new Error('parse_error'));
+      }
+    };
+    reader.onerror = () => reject(new Error('read_error'));
+    reader.readAsText(file);
+  });
+}
+
+function validateRows(rows: ParsedRow[]): ParsedRow[] {
+  return rows.map((r) => {
+    if (!r.name) return { ...r, error: 'missingName' };
+    if (!r.vatNumber) return { ...r, error: 'missingVat' };
+    return r;
+  });
+}
 
 export default function Clients() {
   const { t } = useLanguage();
@@ -35,6 +143,17 @@ export default function Clients() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
+  // Import state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ParsedRow[] | null>(null);
+  const [importFileName, setImportFileName] = useState('');
+  const [importParseError, setImportParseError] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({
+    open: false, msg: '', severity: 'success',
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const openCreate = useCallback(() => {
     setEditingClient(null);
     setForm(emptyForm);
@@ -48,7 +167,11 @@ export default function Clients() {
       name: client.name,
       email: client.email ?? null,
       phone: client.phone ?? null,
-      vatNumber: client.vatNumber ?? null,
+      vatNumber: (client as any).vatNumber ?? null,
+      taxCode: (client as any).taxCode ?? null,
+      address: (client as any).address ?? null,
+      pec: (client as any).pec ?? null,
+      contactPerson: (client as any).contactPerson ?? null,
       notes: client.notes ?? null,
     });
     setFormError('');
@@ -64,7 +187,11 @@ export default function Clients() {
         name: form.name.trim(),
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
-        vatNumber: form.vatNumber?.trim() || null,
+        vatNumber: (form as any).vatNumber?.trim() || null,
+        taxCode: (form as any).taxCode?.trim() || null,
+        address: (form as any).address?.trim() || null,
+        pec: (form as any).pec?.trim() || null,
+        contactPerson: (form as any).contactPerson?.trim() || null,
         notes: form.notes?.trim() || null,
       };
       if (editingClient) {
@@ -92,6 +219,72 @@ export default function Clients() {
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportParseError('');
+    setImportRows(null);
+    setImportFileName(file.name);
+
+    try {
+      let raw: ParsedRow[];
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        raw = await parseXlsx(file);
+      } else if (file.name.endsWith('.xml')) {
+        raw = await parseXml(file);
+      } else {
+        setImportParseError(tc.importErrorParse);
+        return;
+      }
+      setImportRows(validateRows(raw));
+    } catch {
+      setImportParseError(tc.importErrorParse);
+    }
+    e.target.value = '';
+  };
+
+  const handleImportConfirm = async () => {
+    if (!importRows) return;
+    const validRows = importRows.filter((r) => !r.error);
+    if (validRows.length === 0) return;
+
+    setImporting(true);
+    try {
+      const res = await fetch('/api/clients/import', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows: validRows.map((r) => ({
+            name: r.name,
+            vatNumber: r.vatNumber || null,
+            taxCode: r.taxCode || null,
+            address: r.address || null,
+            pec: r.pec || null,
+            contactPerson: r.contactPerson || null,
+            email: r.email || null,
+            phone: r.phone || null,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error('server');
+      const result = await res.json();
+      qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
+      setImportOpen(false);
+      setImportRows(null);
+      setImportFileName('');
+      setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped), severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, msg: tc.importErrorServer, severity: 'error' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const validCount = importRows?.filter((r) => !r.error).length ?? 0;
+  const errorCount = importRows?.filter((r) => r.error).length ?? 0;
+
   return (
     <Box>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={3} flexWrap="wrap" gap={2}>
@@ -101,9 +294,14 @@ export default function Clients() {
             {clients.length} {tc.subtitle}
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
-          {tc.addClient}
-        </Button>
+        <Box display="flex" gap={1}>
+          <Button variant="outlined" startIcon={<Upload />} onClick={() => setImportOpen(true)}>
+            {tc.importClients}
+          </Button>
+          <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
+            {tc.addClient}
+          </Button>
+        </Box>
       </Box>
 
       <Box mb={2}>
@@ -122,9 +320,9 @@ export default function Clients() {
           <TableHead>
             <TableRow sx={{ bgcolor: 'grey.50' }}>
               <TableCell sx={{ fontWeight: 600 }}>{tc.colName}</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>{tc.colVat}</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>{tc.colEmail}</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>{tc.colPhone}</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>{tc.colVat}</TableCell>
               <TableCell sx={{ fontWeight: 600 }} align="right">{tc.actions}</TableCell>
             </TableRow>
           </TableHead>
@@ -139,25 +337,23 @@ export default function Clients() {
             {clients.map((client) => (
               <TableRow key={client.id} hover>
                 <TableCell>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={500}
-                      sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-                      onClick={() => setLocation(`/clients/${client.id}`)}
-                    >
-                      {client.name}
-                    </Typography>
-                  </Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={500}
+                    sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                    onClick={() => setLocation(`/clients/${client.id}`)}
+                  >
+                    {client.name}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">{(client as any).vatNumber ?? '—'}</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">{client.email ?? '—'}</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">{client.phone ?? '—'}</Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="text.secondary">{client.vatNumber ?? '—'}</Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title={tc.detailTitle}>
@@ -196,6 +392,36 @@ export default function Clients() {
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             />
             <TextField
+              label={tc.vatNumber}
+              fullWidth
+              value={(form as any).vatNumber ?? ''}
+              onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value || null } as any))}
+            />
+            <TextField
+              label={tc.taxCode}
+              fullWidth
+              value={(form as any).taxCode ?? ''}
+              onChange={e => setForm(f => ({ ...f, taxCode: e.target.value || null } as any))}
+            />
+            <TextField
+              label={tc.address}
+              fullWidth
+              value={(form as any).address ?? ''}
+              onChange={e => setForm(f => ({ ...f, address: e.target.value || null } as any))}
+            />
+            <TextField
+              label={tc.pec}
+              fullWidth
+              value={(form as any).pec ?? ''}
+              onChange={e => setForm(f => ({ ...f, pec: e.target.value || null } as any))}
+            />
+            <TextField
+              label={tc.contactPerson}
+              fullWidth
+              value={(form as any).contactPerson ?? ''}
+              onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value || null } as any))}
+            />
+            <TextField
               label={tc.email}
               fullWidth
               type="email"
@@ -207,12 +433,6 @@ export default function Clients() {
               fullWidth
               value={form.phone ?? ''}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value || null }))}
-            />
-            <TextField
-              label={tc.vatNumber}
-              fullWidth
-              value={form.vatNumber ?? ''}
-              onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value || null }))}
             />
             <TextField
               label={tc.notes}
@@ -246,6 +466,115 @@ export default function Clients() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importOpen} onClose={() => { setImportOpen(false); setImportRows(null); setImportFileName(''); setImportParseError(''); }} maxWidth="md" fullWidth>
+        <DialogTitle>{tc.importDialogTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {tc.importDialogSubtitle}
+          </Typography>
+          <Box mb={2} display="flex" flexDirection="column" gap={1}>
+            <Typography variant="caption" color="text.secondary">{tc.importTemplateHint}</Typography>
+            <Typography variant="caption" color="text.secondary">{tc.importXmlHint}</Typography>
+          </Box>
+
+          <input
+            type="file"
+            accept=".xlsx,.xls,.xml"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<FileUpload />}
+            onClick={() => fileInputRef.current?.click()}
+            sx={{ mb: 2 }}
+          >
+            {importFileName ? tc.importChangeFile : tc.importSelectFile}
+          </Button>
+          {importFileName && (
+            <Typography variant="body2" color="text.secondary" mb={1}>
+              {importFileName}
+            </Typography>
+          )}
+
+          {importParseError && <Alert severity="error" sx={{ mb: 2 }}>{importParseError}</Alert>}
+
+          {importRows && importRows.length > 0 && (
+            <>
+              <Box display="flex" alignItems="center" gap={2} mb={1}>
+                <Typography variant="subtitle2" fontWeight={600}>{tc.importPreviewTitle}</Typography>
+                <Chip label={tc.importPreviewCount(importRows.length)} size="small" color="primary" variant="outlined" />
+                {errorCount > 0 && (
+                  <Chip label={tc.importErrorCount(errorCount)} size="small" color="error" variant="outlined" />
+                )}
+              </Box>
+              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 340 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600, minWidth: 40 }}>#</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.name}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.vatNumber}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.taxCode}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.contactPerson}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.email}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.importColError}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {importRows.map((row) => (
+                      <TableRow
+                        key={row.rowIndex}
+                        sx={row.error ? { bgcolor: 'error.50', '& td': { color: 'error.main' } } : undefined}
+                      >
+                        <TableCell>{row.rowIndex}</TableCell>
+                        <TableCell>{row.name || '—'}</TableCell>
+                        <TableCell>{row.vatNumber || '—'}</TableCell>
+                        <TableCell>{row.taxCode || '—'}</TableCell>
+                        <TableCell>{row.contactPerson || '—'}</TableCell>
+                        <TableCell>{row.email || '—'}</TableCell>
+                        <TableCell>
+                          {row.error === 'missingName' && tc.importRowErrorMissingName}
+                          {row.error === 'missingVat' && tc.importRowErrorMissingVat}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+
+          {importing && <LinearProgress sx={{ mt: 2 }} />}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setImportOpen(false); setImportRows(null); setImportFileName(''); setImportParseError(''); }}>
+            {tc.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleImportConfirm}
+            disabled={!importRows || validCount === 0 || importing}
+          >
+            {importing ? tc.importImporting : `${tc.importConfirm}${validCount > 0 ? ` (${validCount})` : ''}`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar(s => ({ ...s, open: false }))}>
+          {snackbar.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

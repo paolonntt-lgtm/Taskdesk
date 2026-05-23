@@ -22,6 +22,18 @@ const PRIORITY_COLORS: Record<string, 'default' | 'warning' | 'error' | 'info'> 
   urgent: 'error',
 };
 
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <>
+      <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
+        {label}
+      </Typography>
+      <Typography variant="body2" mb={2} sx={{ wordBreak: 'break-word' }}>{value}</Typography>
+    </>
+  );
+}
+
 export default function ClientDetail() {
   const { t } = useLanguage();
   const tc = t.clients;
@@ -67,46 +79,15 @@ export default function ClientDetail() {
         <Grid item xs={12} md={4}>
           <Card variant="outlined">
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
-                {tc.name}
-              </Typography>
-              <Typography variant="body1" fontWeight={500} mb={2}>{client.name}</Typography>
-
-              {client.email && (
-                <>
-                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
-                    {tc.email}
-                  </Typography>
-                  <Typography variant="body2" mb={2}>{client.email}</Typography>
-                </>
-              )}
-
-              {client.phone && (
-                <>
-                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
-                    {tc.phone}
-                  </Typography>
-                  <Typography variant="body2" mb={2}>{client.phone}</Typography>
-                </>
-              )}
-
-              {client.vatNumber && (
-                <>
-                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
-                    {tc.vatNumber}
-                  </Typography>
-                  <Typography variant="body2" mb={2}>{client.vatNumber}</Typography>
-                </>
-              )}
-
-              {client.notes && (
-                <>
-                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
-                    {tc.notes}
-                  </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{client.notes}</Typography>
-                </>
-              )}
+              <InfoRow label={tc.name} value={client.name} />
+              <InfoRow label={tc.vatNumber} value={client.vatNumber} />
+              <InfoRow label={tc.taxCode} value={client.taxCode} />
+              <InfoRow label={tc.address} value={client.address} />
+              <InfoRow label={tc.pec} value={client.pec} />
+              <InfoRow label={tc.contactPerson} value={client.contactPerson} />
+              <InfoRow label={tc.email} value={client.email} />
+              <InfoRow label={tc.phone} value={client.phone} />
+              <InfoRow label={tc.notes} value={client.notes} />
             </CardContent>
           </Card>
         </Grid>
