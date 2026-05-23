@@ -524,8 +524,11 @@ export default function Clients() {
                       <TableCell sx={{ fontWeight: 600 }}>{tc.name}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.vatNumber}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.taxCode}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.address}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.pec}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.contactPerson}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.email}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.phone}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.importColError}</TableCell>
                     </TableRow>
                   </TableHead>
@@ -539,8 +542,11 @@ export default function Clients() {
                         <TableCell>{row.name || '—'}</TableCell>
                         <TableCell>{row.vatNumber || '—'}</TableCell>
                         <TableCell>{row.taxCode || '—'}</TableCell>
+                        <TableCell>{row.address || '—'}</TableCell>
+                        <TableCell>{row.pec || '—'}</TableCell>
                         <TableCell>{row.contactPerson || '—'}</TableCell>
                         <TableCell>{row.email || '—'}</TableCell>
+                        <TableCell>{row.phone || '—'}</TableCell>
                         <TableCell>
                           {row.error === 'missingName' && tc.importRowErrorMissingName}
                           {row.error === 'missingVat' && tc.importRowErrorMissingVat}
