@@ -209,8 +209,12 @@ export default function Clients() {
       }
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
       setDialogOpen(false);
-    } catch {
-      setFormError(tc.errorSaving);
+    } catch (err: any) {
+      if (err?.response?.status === 409 || err?.status === 409) {
+        setFormError(tc.errorDuplicateVat);
+      } else {
+        setFormError(tc.errorSaving);
+      }
     } finally {
       setSaving(false);
     }

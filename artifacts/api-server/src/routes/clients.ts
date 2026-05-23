@@ -62,6 +62,24 @@ router.post("/clients", requireAuth, requireAdmin, async (req, res): Promise<voi
     return;
   }
 
+  const vatNumber = parsed.data.vatNumber?.trim() || null;
+  if (vatNumber) {
+    const [existing] = await db
+      .select({ id: clientsTable.id })
+      .from(clientsTable)
+      .where(
+        and(
+          eq(clientsTable.organizationId, currentUser.organizationId),
+          ilike(clientsTable.vatNumber, vatNumber),
+        )
+      )
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: "Duplicate VAT number" });
+      return;
+    }
+  }
+
   const [client] = await db
     .insert(clientsTable)
     .values({ ...parsed.data, organizationId: currentUser.organizationId })
