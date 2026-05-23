@@ -11,6 +11,7 @@ import type { Client, ClientInput } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 
 const emptyForm: ClientInput = {
@@ -126,6 +127,8 @@ export default function Clients() {
   const tc = t.clients;
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [search, setSearch] = useState('');
   const { data: clients = [], isLoading } = useListClients({ search: search || undefined });
@@ -179,7 +182,7 @@ export default function Clients() {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name?.trim()) { setFormError(tc.errorRequired); return; }
+    if (!form.name?.trim() || !(form as any).vatNumber?.trim()) { setFormError(tc.errorRequired); return; }
     setSaving(true);
     setFormError('');
     try {
@@ -274,7 +277,7 @@ export default function Clients() {
       setImportOpen(false);
       setImportRows(null);
       setImportFileName('');
-      setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped), severity: 'success' });
+      setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped + errorCount), severity: 'success' });
     } catch {
       setSnackbar({ open: true, msg: tc.importErrorServer, severity: 'error' });
     } finally {
@@ -295,9 +298,11 @@ export default function Clients() {
           </Typography>
         </Box>
         <Box display="flex" gap={1}>
-          <Button variant="outlined" startIcon={<Upload />} onClick={() => setImportOpen(true)}>
-            {tc.importClients}
-          </Button>
+          {isAdmin && (
+            <Button variant="outlined" startIcon={<Upload />} onClick={() => setImportOpen(true)}>
+              {tc.importClients}
+            </Button>
+          )}
           <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
             {tc.addClient}
           </Button>
