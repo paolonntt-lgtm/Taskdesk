@@ -70,7 +70,7 @@ router.post("/invites/:token/register", requireSameOrigin, async (req, res): Pro
   }
 
   const [invite] = await db.select().from(inviteTokensTable)
-    .where(eq(inviteTokensTable.token, token));
+    .where(eq(inviteTokensTable.token, String(token)));
 
   if (!invite || new Date() > invite.expiresAt) {
     res.status(410).json({ message: "Link non valido o scaduto" });
@@ -108,7 +108,7 @@ router.post("/invites/:token/register", requireSameOrigin, async (req, res): Pro
 
   await db.update(inviteTokensTable)
     .set({ usedAt: new Date(), usedById: user.id })
-    .where(eq(inviteTokensTable.token, token));
+    .where(eq(inviteTokensTable.token, String(token)));
 
   const sessionId = await createSession(user.id);
   res.setHeader(

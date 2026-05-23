@@ -12,6 +12,18 @@ const app: Express = express();
 // other IP-based middleware see the real client IP from X-Forwarded-For.
 app.set("trust proxy", 1);
 
+// Force HTTPS in production: redirect any plain-HTTP request before it
+// reaches any route handler. `req.secure` is reliable here because
+// `trust proxy 1` is set above, so Express reads X-Forwarded-Proto correctly.
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    if (!req.secure) {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 // Normalise URLs: strip any newline / carriage-return characters that some
 // webhook senders (e.g. Cloudflare Workers) accidentally append to the path,
 // causing Express to return 404 on an otherwise valid route.
