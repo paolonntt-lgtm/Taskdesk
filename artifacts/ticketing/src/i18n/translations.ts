@@ -111,6 +111,9 @@ const it = {
     widgetChartPriority: 'Grafico: Per Priorità',
     widgetChartLocation: 'Grafico: Per Sede',
     widgetChartAssignee: 'Grafico: Per Operatore',
+    widgetAcquisition: 'Acquisizione',
+    acquisitionSignupsByDay: 'Nuovi account ultimi 14 giorni',
+    acquisitionBySource: 'Per sorgente',
   },
   ticketList: {
     title: 'Tutti i Ticket',
@@ -955,6 +958,9 @@ const en: typeof it = {
     widgetChartPriority: 'Chart: By Priority',
     widgetChartLocation: 'Chart: By Location',
     widgetChartAssignee: 'Chart: By Assignee',
+    widgetAcquisition: 'Acquisition',
+    acquisitionSignupsByDay: 'New accounts — last 14 days',
+    acquisitionBySource: 'By source',
   },
   ticketList: {
     title: 'All Tickets',

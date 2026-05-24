@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable } from "@workspace/db";
+import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -469,6 +469,32 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
     openers: openers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
     commenters: commenters.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
     resolvers: resolvers.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) })),
+  });
+});
+
+router.get("/stats/acquisition", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
+  const signupsByDay = await db
+    .select({
+      date: sql<string>`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)`,
+    })
+    .from(organizationsTable)
+    .where(gte(organizationsTable.createdAt, sql`now() - interval '14 days'`))
+    .groupBy(sql`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
+    .orderBy(sql`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')`);
+
+  const bySource = await db
+    .select({
+      source: organizationsTable.utmSource,
+      count: sql<number>`count(*)`,
+    })
+    .from(organizationsTable)
+    .groupBy(organizationsTable.utmSource)
+    .orderBy(sql`count(*) desc`);
+
+  res.json({
+    signupsByDay: signupsByDay.map((r) => ({ date: r.date, count: Number(r.count) })),
+    bySource: bySource.map((r) => ({ source: r.source, count: Number(r.count) })),
   });
 });
 

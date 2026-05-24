@@ -19,6 +19,21 @@ export interface SuccessResponse {
   message?: string;
 }
 
+export type AcquisitionStatsSignupsByDayItem = {
+  date: string;
+  count: number;
+};
+
+export type AcquisitionStatsBySourceItem = {
+  source: string | null;
+  count: number;
+};
+
+export interface AcquisitionStats {
+  signupsByDay: AcquisitionStatsSignupsByDayItem[];
+  bySource: AcquisitionStatsBySourceItem[];
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

@@ -38,6 +38,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -565,6 +566,66 @@ interface WidgetMeta {
   component: React.FC;
 }
 
+function AcquisitionWidget() {
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
+  const { data, isLoading } = useQuery<{
+    signupsByDay: { date: string; count: number }[];
+    bySource: { source: string | null; count: number }[];
+  }>({
+    queryKey: ['acquisition-stats'],
+    queryFn: () => fetch('/api/stats/acquisition', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 60_000,
+    enabled: isSuperAdmin,
+  });
+
+  if (!isSuperAdmin) return null;
+
+  if (isLoading || !data) {
+    return (
+      <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress size={24} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', p: 2, '&:last-child': { pb: 2 } }}>
+        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {t.dashboard.widgetAcquisition}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
+          {t.dashboard.acquisitionSignupsByDay}
+        </Typography>
+        <Box sx={{ flex: 1, minHeight: 120 }}>
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={data.signupsByDay} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
+              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+              <RechartTooltip />
+              <Bar dataKey="count" fill="#1976d2" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+        <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
+          {t.dashboard.acquisitionBySource}
+        </Typography>
+        <Box display="flex" flexWrap="wrap" gap={0.5}>
+          {data.bySource.length === 0 && (
+            <Typography variant="caption" color="text.secondary">—</Typography>
+          )}
+          {data.bySource.map(({ source, count }) => (
+            <Chip key={source ?? 'direct'} size="small" label={`${source ?? 'direct'}: ${count}`} variant="outlined" />
+          ))}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'stat-open',      labelKey: 'widgetStatOpen',      defaultLayout: { x: 0, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatOpenWidget },
   { id: 'stat-resolved',  labelKey: 'widgetStatResolved',  defaultLayout: { x: 3, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatResolvedWidget },
@@ -580,6 +641,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget },
   { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget },
   { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
+  { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
@@ -680,6 +742,10 @@ function AddWidgetDialog({
 
 export default function Dashboard() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const effectiveRegistry = WIDGET_REGISTRY.filter(
+    (w) => w.id !== 'acquisition' || !!(user as unknown as Record<string, unknown>)?.isSuperAdmin,
+  );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -723,7 +789,7 @@ export default function Dashboard() {
   }, []);
 
   const addWidget = useCallback((id: string) => {
-    const meta = WIDGET_REGISTRY.find((w) => w.id === id);
+    const meta = effectiveRegistry.find((w) => w.id === id);
     if (!meta) return;
     setLayout((prev) => {
       if (prev.find((l) => l.i === id)) return prev;
@@ -739,7 +805,7 @@ export default function Dashboard() {
     setVisibleIds(DEFAULT_VISIBLE_IDS);
   }, []);
 
-  const hiddenWidgets = WIDGET_REGISTRY.filter((w) => !visibleIds.includes(w.id));
+  const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
   const activeLayout: LayoutItem[] = layout.filter((l) => visibleIds.includes(l.i));
 
@@ -826,7 +892,7 @@ export default function Dashboard() {
         style={{ minHeight: 200 }}
       >
         {visibleIds.map((id) => {
-          const meta = WIDGET_REGISTRY.find((w) => w.id === id);
+          const meta = effectiveRegistry.find((w) => w.id === id);
           if (!meta) return null;
           const Cmp = meta.component;
           return (

@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./acquisitionStats";
+export * from "./acquisitionStatsBySourceItem";
+export * from "./acquisitionStatsSignupsByDayItem";
 export * from "./activityLogWithUser";
 export * from "./attachment";
 export * from "./botChatMessage";

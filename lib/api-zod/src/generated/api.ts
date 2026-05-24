@@ -1051,6 +1051,24 @@ export const GetDueSoonTicketsResponse = zod.array(
 );
 
 /**
+ * @summary Get signup acquisition stats (superadmin only)
+ */
+export const GetAcquisitionStatsResponse = zod.object({
+  signupsByDay: zod.array(
+    zod.object({
+      date: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  bySource: zod.array(
+    zod.object({
+      source: zod.string().nullable(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Send a message to the AI bot (SSE streaming)
  */
 

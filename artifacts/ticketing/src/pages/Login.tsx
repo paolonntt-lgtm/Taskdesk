@@ -84,7 +84,19 @@ export default function Login() {
       const res = await fetch('/api/auth/register', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, organizationName: organizationName.trim() }),
+        body: JSON.stringify((() => {
+          const base: Record<string, string> = { name, email, password, organizationName: organizationName.trim() };
+          try {
+            const raw = sessionStorage.getItem('td_utm');
+            if (raw) {
+              const utm = JSON.parse(raw) as Record<string, string>;
+              if (utm.utm_source) base.utmSource = utm.utm_source;
+              if (utm.utm_medium) base.utmMedium = utm.utm_medium;
+              if (utm.utm_campaign) base.utmCampaign = utm.utm_campaign;
+            }
+          } catch {}
+          return base;
+        })()),
       });
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }

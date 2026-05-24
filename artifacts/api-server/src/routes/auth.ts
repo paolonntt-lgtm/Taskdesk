@@ -123,9 +123,16 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
     return;
   }
 
+  const utmSource = typeof req.body.utmSource === "string" && req.body.utmSource ? req.body.utmSource : null;
+  const utmMedium = typeof req.body.utmMedium === "string" && req.body.utmMedium ? req.body.utmMedium : null;
+  const utmCampaign = typeof req.body.utmCampaign === "string" && req.body.utmCampaign ? req.body.utmCampaign : null;
+
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
     onboardingDone: false,
+    utmSource,
+    utmMedium,
+    utmCampaign,
   }).returning();
 
   // Seed default settings for the new organization

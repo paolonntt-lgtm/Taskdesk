@@ -963,6 +963,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/TicketWithDetails"
 
+  /stats/acquisition:
+    get:
+      operationId: getAcquisitionStats
+      tags: [stats]
+      summary: Get signup acquisition stats (superadmin only)
+      responses:
+        "200":
+          description: Acquisition stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcquisitionStats"
+        "403":
+          description: Forbidden
+
   /bot/chat:
     post:
       operationId: botChat
@@ -1394,6 +1409,32 @@ components:
           type: string
       required:
         - success
+
+    AcquisitionStats:
+      type: object
+      properties:
+        signupsByDay:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              count:
+                type: integer
+            required: [date, count]
+        bySource:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: string
+                nullable: true
+              count:
+                type: integer
+            required: [source, count]
+      required: [signupsByDay, bySource]
 
     LoginRequest:
       type: object

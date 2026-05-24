@@ -16,6 +16,9 @@ export const organizationsTable = pgTable("organizations", {
   businessType: text("business_type"),
   clientsEnabled: boolean("clients_enabled").default(true).notNull(),
   onboardingDone: boolean("onboarding_done").default(false).notNull(),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

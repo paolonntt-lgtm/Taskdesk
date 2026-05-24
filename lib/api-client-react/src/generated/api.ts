@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AcquisitionStats,
   ActivityLogWithUser,
   Attachment,
   BotChatRequest,
@@ -3424,6 +3425,81 @@ export function useGetDueSoonTickets<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDueSoonTicketsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get signup acquisition stats (superadmin only)
+ */
+export const getGetAcquisitionStatsUrl = () => {
+  return `/api/stats/acquisition`;
+};
+
+export const getAcquisitionStats = async (
+  options?: RequestInit,
+): Promise<AcquisitionStats> => {
+  return customFetch<AcquisitionStats>(getGetAcquisitionStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAcquisitionStatsQueryKey = () => {
+  return [`/api/stats/acquisition`] as const;
+};
+
+export const getGetAcquisitionStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAcquisitionStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAcquisitionStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAcquisitionStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAcquisitionStats>>
+  > = ({ signal }) => getAcquisitionStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAcquisitionStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAcquisitionStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAcquisitionStats>>
+>;
+export type GetAcquisitionStatsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get signup acquisition stats (superadmin only)
+ */
+
+export function useGetAcquisitionStats<
+  TData = Awaited<ReturnType<typeof getAcquisitionStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAcquisitionStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAcquisitionStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

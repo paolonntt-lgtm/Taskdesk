@@ -331,6 +331,20 @@ export default function Landing() {
   };
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const utm: Record<string, string> = {};
+      (["utm_source", "utm_medium", "utm_campaign"] as const).forEach((key) => {
+        const val = params.get(key);
+        if (val) utm[key] = val;
+      });
+      if (Object.keys(utm).length > 0) {
+        sessionStorage.setItem("td_utm", JSON.stringify(utm));
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     const thresholds: ScrollDepthPct[] = [25, 50, 75, 100];
     const fired = new Set<number>();
 
