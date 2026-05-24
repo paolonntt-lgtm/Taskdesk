@@ -15,7 +15,6 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      {/* When adding a new route here, also add it to sitemap-routes.ts */}
       <Route path="/" component={Landing} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />

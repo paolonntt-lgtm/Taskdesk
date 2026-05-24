@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { sitemapPlugin } from "./vite-plugin-sitemap";
-import { SITEMAP_ROUTES, SITEMAP_BASE_URL } from "./sitemap-routes";
+import { SITEMAP_ROUTE_META, SITEMAP_BASE_URL } from "./sitemap-routes";
 
 // PORT and BASE_PATH are provided by the workflow at dev time.
 // During a production build (vite build) they are not set — use safe defaults
@@ -18,7 +18,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
-    sitemapPlugin(SITEMAP_ROUTES, SITEMAP_BASE_URL),
+    sitemapPlugin({
+      appRouterPath: path.resolve(import.meta.dirname, "src/App.tsx"),
+      routeMeta: SITEMAP_ROUTE_META,
+      baseUrl: SITEMAP_BASE_URL,
+    }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
