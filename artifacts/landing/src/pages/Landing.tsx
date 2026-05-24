@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLanguage } from "@/i18n";
+import { trackCta, type CtaLocation } from "@/lib/analytics";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -324,7 +325,10 @@ export default function Landing() {
     { icon: "📊", color: "bg-orange-50 text-orange-600 border-orange-100", title: t.features.items.stats.title,     desc: t.features.items.stats.desc },
   ];
 
-  const handleCta = () => { window.location.href = APP_URL; };
+  const handleCta = (location: CtaLocation, planName?: string) => {
+    trackCta(location, planName);
+    window.location.href = APP_URL;
+  };
 
   const steps = lang === "it" ? [
     { n: "1", icon: "✏️", title: "Apri un ticket", desc: "Titolo, categoria, priorità. In 10 secondi il problema è tracciato e visibile a chi serve." },
@@ -387,10 +391,10 @@ export default function Landing() {
                 <DropdownMenuItem onClick={() => setLang('en')} className={lang === 'en' ? 'bg-muted font-medium' : ''}>English</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <a href={APP_URL} className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 bg-white">
+            <a href={APP_URL} onClick={() => trackCta("navbar")} className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 bg-white">
               {t.nav.login}
             </a>
-            <a href={APP_URL} className="hidden sm:inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-200 transition-colors">
+            <a href={APP_URL} onClick={() => trackCta("navbar")} className="hidden sm:inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-200 transition-colors">
               {t.hero.cta} →
             </a>
           </div>
@@ -429,7 +433,7 @@ export default function Landing() {
 
                 <div className="ld-fade-up-3 flex flex-col sm:flex-row gap-4 mb-6">
                   <button
-                    onClick={handleCta}
+                    onClick={() => handleCta("hero")}
                     className="px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300 flex items-center justify-center gap-2"
                   >
                     {t.hero.cta} →
@@ -530,7 +534,7 @@ export default function Landing() {
             <ScrollReveal delay={0.2}>
               <div className="text-center mt-14">
                 <button
-                  onClick={handleCta}
+                  onClick={() => handleCta("how_it_works")}
                   className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
                 >
                   {t.howItWorks.cta} →
@@ -571,7 +575,7 @@ export default function Landing() {
             <ScrollReveal delay={0.2}>
               <div className="text-center mt-14">
                 <button
-                  onClick={handleCta}
+                  onClick={() => handleCta("features")}
                   className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
                 >
                   {t.features.cta} →
@@ -620,7 +624,7 @@ export default function Landing() {
                     </div>
                     <div className="flex-1" />
                     <button
-                      onClick={handleCta}
+                      onClick={() => handleCta("pricing", plan.name)}
                       className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                         plan.highlight
                           ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100"
@@ -684,7 +688,7 @@ export default function Landing() {
                   {t.finalCta.headline}
                 </h2>
                 <p className="text-white/75 mb-10 text-lg max-w-lg mx-auto">{t.finalCta.sub}</p>
-                <button onClick={handleCta} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center gap-2">
+                <button onClick={() => handleCta("final")} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center gap-2">
                   {t.pricing.cta} →
                 </button>
                 <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-white/60">
