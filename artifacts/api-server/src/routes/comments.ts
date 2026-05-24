@@ -1,12 +1,16 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray, and, sql } from "drizzle-orm";
-import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
+import { ObjectStorageService } from "../lib/objectStorage";
+import { consumePendingUpload } from "../lib/pendingUploads";
+
+const objectStorageService = new ObjectStorageService();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -167,6 +171,40 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
 
   await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId);
 
+  // Validate and consume pending upload tokens for any email reply attachments
+  interface EmailReplyAttachment { objectPath: string; fileName: string; fileSize: number; mimeType: string; }
+  const emailReplyAttachments: EmailReplyAttachment[] = [];
+  if (req.body.sendToCustomer === true && Array.isArray(req.body.emailAttachments)) {
+    for (const att of req.body.emailAttachments as unknown[]) {
+      if (
+        att !== null && typeof att === "object" &&
+        typeof (att as any).objectPath === "string" &&
+        typeof (att as any).fileName === "string" &&
+        typeof (att as any).fileSize === "number" &&
+        typeof (att as any).mimeType === "string"
+      ) {
+        const { objectPath, fileName, fileSize, mimeType } = att as EmailReplyAttachment;
+        const owned = consumePendingUpload(objectPath, currentUser.id, orgId ?? null);
+        if (owned) emailReplyAttachments.push({ objectPath, fileName, fileSize, mimeType });
+      }
+    }
+  }
+
+  // Persist email reply attachments to ticket_attachments, linked to this comment
+  if (emailReplyAttachments.length > 0) {
+    await db.insert(ticketAttachmentsTable).values(
+      emailReplyAttachments.map((a) => ({
+        ticketId: id,
+        commentId: comment.id,
+        uploadedBy: currentUser.id,
+        objectPath: a.objectPath,
+        fileName: a.fileName,
+        fileSize: a.fileSize,
+        mimeType: a.mimeType,
+      }))
+    );
+  }
+
   // Send email reply to the original customer if requested
   if (req.body.sendToCustomer === true && ticket.resource && EMAIL_RE.test(ticket.resource)) {
     const toEmail = ticket.resource;
@@ -185,9 +223,24 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       appBaseUrl: appBaseUrl(),
     });
     const prevMessageId = ticket.emailMessageId ?? undefined;
+    const attachmentsForEmail = [...emailReplyAttachments];
     void (async () => {
       try {
         const replyTo = await getOrgInboundEmail(ticket.organizationId, ticket.inboundChannelId);
+
+        // Fetch file buffers for any attachments
+        const nodemailerAttachments: Array<{ filename: string; content: Buffer; contentType: string }> = [];
+        for (const att of attachmentsForEmail) {
+          try {
+            const objectFile = await objectStorageService.getObjectEntityFile(att.objectPath);
+            const [buffer] = await objectFile.download();
+            nodemailerAttachments.push({ filename: att.fileName, content: buffer as Buffer, contentType: att.mimeType });
+          } catch (fetchErr: unknown) {
+            const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+            logger.warn({ objectPath: att.objectPath, err: msg }, "Failed to fetch attachment for email reply");
+          }
+        }
+
         const result = await sendEmailForOrg(ticket.organizationId, {
           to: toEmail,
           subject,
@@ -195,6 +248,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
           text,
           ...(replyTo ? { replyTo } : {}),
           ...(prevMessageId ? { inReplyTo: prevMessageId, references: prevMessageId } : {}),
+          ...(nodemailerAttachments.length > 0 ? { attachments: nodemailerAttachments } : {}),
         });
         if (result.ok && result.messageId) {
           await db.update(ticketsTable)
@@ -211,7 +265,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       ticketId: id,
       userId: currentUser.id,
       actionType: "email_reply_sent",
-      actionDescription: `${currentUser.name} ha inviato una risposta via email a ${toEmail}`,
+      actionDescription: `${currentUser.name} ha inviato una risposta via email a ${toEmail}${emailReplyAttachments.length > 0 ? ` con ${emailReplyAttachments.length} allegato/i` : ""}`,
     });
   }
 

@@ -71,6 +71,12 @@ export async function getOrgSmtpConfig(orgId: number): Promise<SmtpConfig | null
   return getPlatformSmtpConfig();
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 interface SendEmailArgs {
   to: string;
   subject: string;
@@ -81,6 +87,8 @@ interface SendEmailArgs {
   inReplyTo?: string;
   /** Space-separated Message-IDs for the References header */
   references?: string;
+  /** File attachments to include in the outbound email */
+  attachments?: EmailAttachment[];
 }
 
 interface SendEmailResult {
@@ -119,6 +127,15 @@ export async function sendEmailForOrg(
       ...(args.replyTo ? { replyTo: args.replyTo } : {}),
       ...(args.inReplyTo ? { inReplyTo: args.inReplyTo } : {}),
       ...(args.references ? { references: args.references } : {}),
+      ...(args.attachments && args.attachments.length > 0
+        ? {
+            attachments: args.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType,
+            })),
+          }
+        : {}),
     });
     return { ok: true, messageId: info.messageId ?? undefined };
   } catch (err: any) {

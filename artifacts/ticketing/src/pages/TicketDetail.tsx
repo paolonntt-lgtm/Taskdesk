@@ -6,7 +6,7 @@ import {
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox, Autocomplete,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -99,6 +99,10 @@ export default function TicketDetail() {
   const [emailReplySending, setEmailReplySending] = useState(false);
   const [emailReplyError, setEmailReplyError] = useState<string | null>(null);
   const [emailReplySent, setEmailReplySent] = useState(false);
+  const [emailReplyAttachments, setEmailReplyAttachments] = useState<PendingAttachment[]>([]);
+  const [emailReplyUploading, setEmailReplyUploading] = useState(false);
+  const [emailReplyAttachError, setEmailReplyAttachError] = useState<string | null>(null);
+  const emailReplyFileInputRef = useRef<HTMLInputElement>(null);
 
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
@@ -355,6 +359,59 @@ export default function TicketDetail() {
 
   const isEmailResource = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((ticket as any)?.resource ?? '');
 
+  const EMAIL_REPLY_ALLOWED_TYPES = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+    'application/pdf',
+    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv',
+    'application/zip', 'application/x-zip-compressed',
+  ];
+  const EMAIL_REPLY_MAX_SIZE_MB = 20;
+
+  const handleEmailReplyFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    setEmailReplyAttachError(null);
+    for (const file of files) {
+      if (!EMAIL_REPLY_ALLOWED_TYPES.includes(file.type)) {
+        setEmailReplyAttachError(t.ticketDetail.emailReplyAttachTypeError);
+        return;
+      }
+      if (file.size > EMAIL_REPLY_MAX_SIZE_MB * 1024 * 1024) {
+        setEmailReplyAttachError(t.ticketDetail.emailReplyAttachSizeError.replace('{max}', String(EMAIL_REPLY_MAX_SIZE_MB)));
+        return;
+      }
+    }
+    setEmailReplyUploading(true);
+    try {
+      for (const file of files) {
+        const urlRes = await fetch('/api/storage/uploads/request-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type || 'application/octet-stream' }),
+        });
+        if (!urlRes.ok) throw new Error(t.ticketDetail.emailReplyAttachUploadError);
+        const { uploadURL, objectPath } = await urlRes.json();
+        const putRes = await fetch(uploadURL, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        });
+        if (!putRes.ok) throw new Error(t.ticketDetail.emailReplyAttachUploadError);
+        setEmailReplyAttachments((prev) => [
+          ...prev,
+          { objectPath, fileName: file.name, fileSize: file.size, mimeType: file.type || 'application/octet-stream' },
+        ]);
+      }
+    } catch {
+      setEmailReplyAttachError(t.ticketDetail.emailReplyAttachUploadError);
+    } finally {
+      setEmailReplyUploading(false);
+    }
+  };
+
   const submitEmailReply = async () => {
     if (!emailReplyBody.trim()) return;
     setEmailReplySending(true);
@@ -362,11 +419,20 @@ export default function TicketDetail() {
     try {
       const comment = await addComment.mutateAsync({
         id: ticketId,
-        data: { commentText: emailReplyBody.trim(), sendToCustomer: true } as any,
+        data: {
+          commentText: emailReplyBody.trim(),
+          sendToCustomer: true,
+          emailAttachments: emailReplyAttachments,
+        } as any,
       });
       queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
       queryClient.invalidateQueries({ queryKey: getListTicketCommentsQueryKey(ticketId) });
+      if (emailReplyAttachments.length > 0) {
+        queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+      }
       setEmailReplyBody('');
+      setEmailReplyAttachments([]);
+      setEmailReplyAttachError(null);
       setEmailReplyOpen(false);
       setEmailReplySent(true);
     } catch (err: any) {
@@ -1413,29 +1479,80 @@ export default function TicketDetail() {
                           disabled={emailReplySending}
                           sx={{ mt: 0.5 }}
                         />
+                        {/* Attached files list */}
+                        {emailReplyAttachments.length > 0 && (
+                          <Box display="flex" flexWrap="wrap" gap={0.75} mt={0.5}>
+                            {emailReplyAttachments.map((att) => (
+                              <Chip
+                                key={att.objectPath}
+                                icon={<AttachFile sx={{ fontSize: 14 }} />}
+                                label={att.fileName}
+                                size="small"
+                                onDelete={() => setEmailReplyAttachments((prev) => prev.filter((a) => a.objectPath !== att.objectPath))}
+                                deleteIcon={
+                                  <Tooltip title={t.ticketDetail.emailReplyRemoveAttachment}>
+                                    <CloseIcon sx={{ fontSize: 14 }} />
+                                  </Tooltip>
+                                }
+                                sx={{ maxWidth: 200 }}
+                              />
+                            ))}
+                          </Box>
+                        )}
+                        {emailReplyAttachError && (
+                          <Alert severity="warning" sx={{ py: 0.5 }} onClose={() => setEmailReplyAttachError(null)}>
+                            {emailReplyAttachError}
+                          </Alert>
+                        )}
                         {emailReplyError && (
                           <Alert severity="error" sx={{ py: 0.5 }}>
                             {emailReplyError}
                           </Alert>
                         )}
-                        <Box display="flex" gap={1} justifyContent="flex-end">
-                          <Button
-                            size="small"
-                            onClick={() => { setEmailReplyOpen(false); setEmailReplyBody(''); setEmailReplyError(null); }}
-                            disabled={emailReplySending}
-                          >
-                            {t.ticketDetail.emailReplyCancel}
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="info"
-                            size="small"
-                            startIcon={<EmailIcon />}
-                            onClick={submitEmailReply}
-                            disabled={!emailReplyBody.trim() || emailReplySending}
-                          >
-                            {emailReplySending ? t.ticketDetail.emailReplySending : t.ticketDetail.emailReplySend}
-                          </Button>
+                        {/* Hidden file input */}
+                        <input
+                          type="file"
+                          multiple
+                          ref={emailReplyFileInputRef}
+                          style={{ display: 'none' }}
+                          onChange={handleEmailReplyFileChange}
+                          accept={EMAIL_REPLY_ALLOWED_TYPES.join(',')}
+                        />
+                        <Box display="flex" gap={1} justifyContent="space-between" alignItems="center">
+                          <Tooltip title={t.ticketDetail.emailReplyAttach}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => emailReplyFileInputRef.current?.click()}
+                                disabled={emailReplySending || emailReplyUploading}
+                                color="default"
+                              >
+                                {emailReplyUploading
+                                  ? <CircularProgress size={16} />
+                                  : <AttachFile sx={{ fontSize: 18 }} />
+                                }
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Box display="flex" gap={1}>
+                            <Button
+                              size="small"
+                              onClick={() => { setEmailReplyOpen(false); setEmailReplyBody(''); setEmailReplyError(null); setEmailReplyAttachments([]); setEmailReplyAttachError(null); }}
+                              disabled={emailReplySending}
+                            >
+                              {t.ticketDetail.emailReplyCancel}
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="info"
+                              size="small"
+                              startIcon={<EmailIcon />}
+                              onClick={submitEmailReply}
+                              disabled={!emailReplyBody.trim() || emailReplySending || emailReplyUploading}
+                            >
+                              {emailReplySending ? t.ticketDetail.emailReplySending : t.ticketDetail.emailReplySend}
+                            </Button>
+                          </Box>
                         </Box>
                       </Box>
                     </Box>
