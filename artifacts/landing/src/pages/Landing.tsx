@@ -449,10 +449,15 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Right: animated chat mockup */}
+              {/* Right: animated chat mockup — desktop */}
               <div className="hidden lg:flex justify-end">
                 <TicketChatMockup lang={lang} />
               </div>
+            </div>
+
+            {/* Chat mockup — mobile/tablet (below copy) */}
+            <div className="lg:hidden flex justify-center mt-12">
+              <TicketChatMockup lang={lang} />
             </div>
           </div>
         </section>
@@ -532,126 +537,6 @@ export default function Landing() {
                 </button>
               </div>
             </ScrollReveal>
-          </div>
-        </section>
-
-        {/* ── Conversation showcase ── */}
-        <section aria-label="Conversazione" className="py-20 px-6 md:px-8 border-y border-gray-100" style={{ background: "linear-gradient(135deg, #f8faff 0%, #f5f3ff 100%)" }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <ScrollReveal>
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold mb-6 uppercase tracking-wide">
-                    💬 {lang === "it" ? "Conversazionale" : "Conversational"}
-                  </div>
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-5 leading-tight">
-                    {lang === "it" ? (
-                      <>"Ticket" è solo un'altra parola per <span className="ld-gradient-text">conversazione.</span></>
-                    ) : (
-                      <>"Ticket" is just another word for <span className="ld-gradient-text">conversation.</span></>
-                    )}
-                  </h2>
-                  <p className="text-gray-500 leading-relaxed mb-8">
-                    {lang === "it"
-                      ? "Ogni ticket è un thread dove il team commenta, risponde, allega file, menziona colleghi con @nome e segna la soluzione quando arriva. Tutto tracciato, tutto visibile."
-                      : "Every ticket is a thread where the team comments, replies, attaches files, mentions colleagues with @name, and marks the solution when it arrives. Everything tracked, everything visible."}
-                  </p>
-                  <ul className="space-y-3">
-                    {(lang === "it" ? [
-                      "Commenti ricchi con formattazione (grassetto, codice, liste)",
-                      "@menzioni per coinvolgere le persone giuste",
-                      "Risposte annidate per conversazioni ordinate",
-                      "👍 Mi piace per confermare senza scrivere",
-                      "✅ Soluzione marcata con evidenza visiva",
-                    ] : [
-                      "Rich comments with formatting (bold, code, lists)",
-                      "@mentions to involve the right people",
-                      "Nested replies for structured conversations",
-                      "👍 Like to confirm without writing",
-                      "✅ Solution marked with visual prominence",
-                    ]).map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <span className="text-blue-500 font-bold mt-0.5 shrink-0">✓</span>
-                        <span className="text-sm text-gray-700">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal delay={0.1}>
-                <div className="flex justify-center lg:justify-end">
-                  {/* Static comment cards */}
-                  <div className="w-full max-w-sm space-y-3">
-                    {/* Normal comment */}
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">SL</div>
-                        <span className="font-semibold text-sm text-blue-600 hover:underline cursor-pointer">Sonny LoSpecchio</span>
-                      </div>
-                      <p className="text-sm text-gray-800 leading-snug">
-                        {lang === "it"
-                          ? <>Ho eseguito il self-test. Nessuna risposta. Serve <MentionPill name="IT Support" /></>
-                          : <>Tried a printer self-test. No response. Need <MentionPill name="IT Support" /></>
-                        }
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-xs text-gray-400">5/8/2026, 9:49:01 AM</span>
-                        <span className="text-xs text-gray-400 cursor-pointer hover:text-blue-500">{lang === "it" ? "Rispondi" : "Reply"}</span>
-                        <span className="text-xs text-yellow-500">👍</span>
-                        <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full border border-green-400 text-green-600">
-                          ✓ {lang === "it" ? "Segna soluzione" : "Mark as solution"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Solution comment */}
-                    <div className="rounded-2xl overflow-hidden">
-                      <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1" style={{ background: "#f0fdf4" }}>
-                        <span className="text-green-600 text-sm">✅</span>
-                        <span className="text-xs font-bold text-green-700">Solution</span>
-                      </div>
-                      <div className="px-4 pt-1 pb-3 border border-green-200" style={{ background: "linear-gradient(135deg, #f0fdf4, #dcfce7)" }}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">TS</div>
-                          <span className="font-semibold text-sm text-blue-600">Thomas Shelby</span>
-                        </div>
-                        <p className="text-sm text-gray-800 leading-snug">
-                          {lang === "it"
-                            ? "La stampante è andata offline dopo l'aggiornamento Windows. Reinstallato il driver USB e riavviato il print spooler. Ora funziona correttamente."
-                            : "The printer went offline after the Windows update. Reinstalled the USB driver and restarted the print spooler. Now working correctly."}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-xs text-gray-400">5/8/2026, 9:51:07 AM</span>
-                          <span className="text-xs text-yellow-500">👍</span>
-                          <span className="ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-blue-600 text-white">
-                            ✓ {lang === "it" ? "Rimuovi soluzione" : "Remove solution"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Reply */}
-                    <div className="ml-8 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 border-l-4 border-l-gray-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center text-white text-xs font-bold">MS</div>
-                        <span className="font-semibold text-sm text-blue-600">Marla Singer</span>
-                      </div>
-                      <p className="text-sm text-gray-800 leading-snug">
-                        <MentionPill name="Thomas Shelby" />{" "}
-                        {lang === "it"
-                          ? "Confermato, le ricevute si stampano di nuovo normalmente!"
-                          : "Confirmed, the receipts are printing normally again!"}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-xs text-gray-400">5/8/2026, 9:53:57 AM</span>
-                        <span className="text-xs font-bold text-blue-600">👍 1</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
           </div>
         </section>
 
