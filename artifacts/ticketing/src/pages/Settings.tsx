@@ -7,9 +7,10 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Link } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -828,10 +829,10 @@ export default function Settings() {
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
           <Tab label={t.settings.tabProfile} />
           <Tab label={t.settings.tabNotifications} />
-          {isAdmin && <Tab label={t.settings.tabSystem} />}
-          {isAdmin && <Tab label={t.settings.tabTicketStatuses} />}
-          {isAdmin && <Tab label={t.settings.tabKnowledgeBase} />}
-          {isAdmin && <Tab label={t.settings.tabInboundEmail} icon={<MailOutline sx={{ fontSize: 16 }} />} iconPosition="start" />}
+          {isAdmin && <Tab label={t.settings.tabOrganization} />}
+          {isAdmin && <Tab label={t.settings.tabBilling} />}
+          {isAdmin && <Tab label={t.settings.tabTickets} />}
+          {isAdmin && <Tab label={t.settings.tabTools} />}
         </Tabs>
       </Box>
 
@@ -1077,58 +1078,29 @@ export default function Settings() {
             </Box>
           </Section>
 
-          <Section title={t.settings.billingTitle} icon={<Receipt color="primary" />}>
+          <Section title={t.settings.manageUsersLink} icon={<People color="primary" />}>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              {t.settings.billingNote}
+              {t.settings.manageUsersLinkHint}
             </Typography>
-            {billingMsg && (
-              <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>
-            )}
-            <Box display="flex" flexDirection="column" gap={2}>
-              <TextField size="small" fullWidth label={t.settings.billingRagioneSociale} value={billing.ragioneSociale}
-                onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
-              <Box display="flex" gap={2}>
-                <TextField size="small" fullWidth label={t.settings.billingPiva} value={billing.piva}
-                  onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving}
-                  placeholder="IT12345678901" />
-                <TextField size="small" fullWidth label={t.settings.billingCodFiscale} value={billing.codiceFiscale}
-                  onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
-              </Box>
-              <TextField size="small" fullWidth label={t.settings.billingIndirizzo} value={billing.indirizzo}
-                onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
-              <Box display="flex" gap={2}>
-                <TextField size="small" label={t.settings.billingCap} value={billing.cap} sx={{ width: 120 }}
-                  onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
-                <TextField size="small" fullWidth label={t.settings.billingCitta} value={billing.citta}
-                  onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
-                <TextField size="small" label={t.settings.billingProv} value={billing.provincia} sx={{ width: 90 }}
-                  onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
-                  inputProps={{ maxLength: 2 }} placeholder="PE" />
-              </Box>
-              <Divider />
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                {t.settings.billingElectronic}
-              </Typography>
-              <Box display="flex" gap={2}>
-                <TextField size="small" fullWidth label={t.settings.billingSdi} value={billing.sdiCode}
-                  onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
-                  placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
-                <TextField size="small" fullWidth label={t.settings.billingPec} type="email" value={billing.pec}
-                  onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
-                  placeholder="azienda@pec.it" />
-              </Box>
-              <Box display="flex" justifyContent="flex-end">
-                <Button
-                  variant="contained"
-                  startIcon={billingSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-                  onClick={saveBilling}
-                  disabled={billingSaving}
-                >
-                  {billingSaving ? t.settings.saving : t.settings.saveSyncStripe}
-                </Button>
-              </Box>
-            </Box>
+            <Link href="/users" style={{ textDecoration: 'none' }}>
+              <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>
+                {t.settings.manageUsersLink}
+              </Button>
+            </Link>
           </Section>
+
+          {((user as any)?.clientsEnabled !== false) && (
+            <Section title={t.settings.manageClientsLink} icon={<Business color="primary" />}>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {t.settings.manageClientsLinkHint}
+              </Typography>
+              <Link href="/clients" style={{ textDecoration: 'none' }}>
+                <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>
+                  {t.settings.manageClientsLink}
+                </Button>
+              </Link>
+            </Section>
+          )}
 
           {adminMsg && (
             <Alert severity={adminMsg.type} sx={{ mb: 2 }} onClose={() => setAdminMsg(null)}>
@@ -1173,16 +1145,81 @@ export default function Settings() {
         </TabPanel>
       )}
 
-      {/* ── TICKET STATUSES + KNOWLEDGE BASE + EMAIL (admin only) ── */}
+      {/* ── FATTURAZIONE / TICKET / STRUMENTI (admin only) ── */}
       {isAdmin && (
         <>
           <TabPanel value={tab} index={3}>
-            <TicketStatusesTab />
+            <Section title={t.settings.subscriptionSectionTitle} icon={<Receipt color="primary" />}>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {t.settings.subscriptionSectionNote}
+              </Typography>
+              <Link href="/billing" style={{ textDecoration: 'none' }}>
+                <Button variant="contained" startIcon={<OpenInNew fontSize="small" />}>
+                  {t.settings.goToSubscription}
+                </Button>
+              </Link>
+            </Section>
+            <Section title={t.settings.billingTitle} icon={<Receipt color="primary" />}>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {t.settings.billingNote}
+              </Typography>
+              {billingMsg && (
+                <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>
+              )}
+              <Box display="flex" flexDirection="column" gap={2}>
+                <TextField size="small" fullWidth label={t.settings.billingRagioneSociale} value={billing.ragioneSociale}
+                  onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
+                <Box display="flex" gap={2}>
+                  <TextField size="small" fullWidth label={t.settings.billingPiva} value={billing.piva}
+                    onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving}
+                    placeholder="IT12345678901" />
+                  <TextField size="small" fullWidth label={t.settings.billingCodFiscale} value={billing.codiceFiscale}
+                    onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
+                </Box>
+                <TextField size="small" fullWidth label={t.settings.billingIndirizzo} value={billing.indirizzo}
+                  onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
+                <Box display="flex" gap={2}>
+                  <TextField size="small" label={t.settings.billingCap} value={billing.cap} sx={{ width: 120 }}
+                    onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
+                  <TextField size="small" fullWidth label={t.settings.billingCitta} value={billing.citta}
+                    onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
+                  <TextField size="small" label={t.settings.billingProv} value={billing.provincia} sx={{ width: 90 }}
+                    onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
+                    inputProps={{ maxLength: 2 }} placeholder="PE" />
+                </Box>
+                <Divider />
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  {t.settings.billingElectronic}
+                </Typography>
+                <Box display="flex" gap={2}>
+                  <TextField size="small" fullWidth label={t.settings.billingSdi} value={billing.sdiCode}
+                    onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
+                    placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
+                  <TextField size="small" fullWidth label={t.settings.billingPec} type="email" value={billing.pec}
+                    onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
+                    placeholder="azienda@pec.it" />
+                </Box>
+                <Box display="flex" justifyContent="flex-end">
+                  <Button
+                    variant="contained"
+                    startIcon={billingSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                    onClick={saveBilling}
+                    disabled={billingSaving}
+                  >
+                    {billingSaving ? t.settings.saving : t.settings.saveSyncStripe}
+                  </Button>
+                </Box>
+              </Box>
+            </Section>
           </TabPanel>
           <TabPanel value={tab} index={4}>
-            <KnowledgeBaseTab />
+            <TicketStatusesTab />
+            <Box mt={4} />
+            <InboundAddressesSection />
           </TabPanel>
           <TabPanel value={tab} index={5}>
+            <KnowledgeBaseTab />
+            <Box mt={4} />
             <EmailChannelsTab />
           </TabPanel>
         </>
@@ -1948,35 +1985,6 @@ function EmailChannelsTab() {
 
   return (
     <>
-      {/* ── How email works intro ── */}
-      <Paper variant="outlined" sx={{ borderRadius: 2, p: 3, mb: 4 }}>
-        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-          {t.settings.emailTabHowItWorksTitle}
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 1 }}>
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <Box sx={{ mt: 0.25, flexShrink: 0, width: 32, height: 32, borderRadius: 1.5, bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AlternateEmail sx={{ fontSize: 18, color: '#fff' }} />
-            </Box>
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>{t.settings.emailTabMode1Title}</Typography>
-              <Typography variant="body2" color="text.secondary">{t.settings.emailTabMode1Desc}</Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <Box sx={{ mt: 0.25, flexShrink: 0, width: 32, height: 32, borderRadius: 1.5, bgcolor: 'success.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Send sx={{ fontSize: 18, color: '#fff' }} />
-            </Box>
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>{t.settings.emailTabMode2Title}</Typography>
-              <Typography variant="body2" color="text.secondary">{t.settings.emailTabMode2Desc}</Typography>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
-
-      <InboundAddressesSection />
-      <Box mt={4} />
     <Section title={t.settings.emailChannels} icon={<MailOutline color="primary" />}>
       <Typography variant="body2" color="text.secondary" mb={3}>
         {t.settings.imapNote}
