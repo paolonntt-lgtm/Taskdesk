@@ -6,13 +6,22 @@
  * Usage:
  *   pnpm --filter @workspace/scripts run verify-sitemaps
  *   pnpm --filter @workspace/scripts run verify-sitemaps -- https://taskdesk.it
- *   pnpm --filter @workspace/scripts run verify-sitemaps -- http://localhost:80
+ *   # Local build (robots.txt points to canonical host, not localhost):
+ *   pnpm --filter @workspace/scripts run verify-sitemaps -- http://localhost:8765 --allow-canonical-mismatch
  */
 
 import { XMLParser } from "fast-xml-parser";
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
-const BASE_URL = (args[0] ?? "https://taskdesk.it").replace(/\/$/, "");
+const BASE_URL = (args.find((a) => !a.startsWith("--")) ?? "https://taskdesk.it").replace(/\/$/, "");
+
+/**
+ * When true, the robots.txt Sitemap directive only needs to be a valid absolute
+ * URL ending with /sitemap-index.xml (the host does not need to match BASE_URL).
+ * Use this flag when testing against a local build where robots.txt still
+ * references the canonical production host.
+ */
+const ALLOW_CANONICAL_MISMATCH = args.includes("--allow-canonical-mismatch");
 
 interface CheckResult {
   name: string;
@@ -68,13 +77,16 @@ function checkXml(
 }
 
 /**
- * Verify that robots.txt contains a Sitemap directive whose value:
- *  - is an absolute URL (starts with http:// or https://)
- *  - ends with /sitemap-index.xml
+ * Verify the robots.txt Sitemap directive.
  *
- * We do NOT require the host to match BASE_URL because robots.txt always
- * declares the canonical production URL even when the script is run against
- * a local build or a staging host.
+ * Strict mode (default, ALLOW_CANONICAL_MISMATCH=false):
+ *   The directive value must exactly equal `${BASE_URL}/sitemap-index.xml`.
+ *   Use this for production deploy verification.
+ *
+ * Lax mode (--allow-canonical-mismatch):
+ *   The directive value just needs to be an absolute URL ending with
+ *   /sitemap-index.xml.  Use this when testing against localhost while
+ *   robots.txt still declares the canonical production host.
  */
 function checkRobotsDirective(body: string): string | null {
   const lines = body.split(/\r?\n/);
@@ -82,8 +94,13 @@ function checkRobotsDirective(body: string): string | null {
     const m = line.match(/^Sitemap:\s*(.+)$/i);
     if (!m) continue;
     const url = m[1].trim();
-    if (/^https?:\/\/.+\/sitemap-index\.xml$/.test(url)) return null;
-    return `Sitemap directive found but does not point to sitemap-index.xml: "${url}"`;
+    if (ALLOW_CANONICAL_MISMATCH) {
+      if (/^https?:\/\/.+\/sitemap-index\.xml$/.test(url)) return null;
+      return `Sitemap directive does not point to sitemap-index.xml: "${url}"`;
+    }
+    const expected = `${BASE_URL}/sitemap-index.xml`;
+    if (url === expected) return null;
+    return `Sitemap directive is "${url}", expected "${expected}"`;
   }
   return `no "Sitemap: ..." directive found in robots.txt`;
 }
@@ -135,7 +152,9 @@ const CHECKS: Array<{
     validate: (s) => (s === 200 ? null : `HTTP ${s}`),
   },
   {
-    name: "robots.txt — Sitemap directive is an absolute URL ending with /sitemap-index.xml",
+    name: ALLOW_CANONICAL_MISMATCH
+      ? "robots.txt — Sitemap directive is a valid absolute URL pointing to sitemap-index.xml"
+      : `robots.txt — Sitemap directive matches ${BASE_URL}/sitemap-index.xml`,
     url: `${BASE_URL}/robots.txt`,
     validate: (_, body) => checkRobotsDirective(body),
   },
