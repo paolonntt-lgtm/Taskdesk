@@ -85,23 +85,6 @@ function useInView(threshold = 0.15) {
   return { ref, visible };
 }
 
-function CountUp({ to, suffix = "", prefix = "" }: { to: number; suffix?: string; prefix?: string }) {
-  const { ref, visible } = useInView();
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!visible) return;
-    let cur = 0;
-    const step = to / 50;
-    const id = setInterval(() => {
-      cur = Math.min(cur + step, to);
-      setVal(Math.round(cur));
-      if (cur >= to) clearInterval(id);
-    }, 20);
-    return () => clearInterval(id);
-  }, [visible, to]);
-  return <span ref={ref}>{prefix}{val}{suffix}</span>;
-}
-
 function ScrollReveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const { ref, visible } = useInView();
   return (
@@ -140,54 +123,56 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
 
   const messages = lang === "it" ? [
     {
-      author: "Marla S.", color: "bg-violet-500", initials: "MS",
-      text: "Ho controllato il terminale POS, lancia un errore ogni volta che prova a stampare. Potrebbe essere la termica scollegata",
-      time: "09:41",
+      author: "Carla M.", color: "bg-violet-500", initials: "CM",
+      text: "Salve, ho bisogno della documentazione per la dichiarazione dei redditi. Mancano ancora le certificazioni uniche dell'anno scorso.",
+      time: "10:12",
     },
     {
-      author: "Sonny L.", color: "bg-orange-500", initials: "SL",
-      text: null, mention: "IT Support",
-      textBefore: "Ho eseguito il self-test direttamente dal dispositivo. Nessuna risposta. Serve",
-      time: "09:49",
+      author: "Sara L.", color: "bg-orange-500", initials: "SL",
+      text: null, mention: "Luca B.",
+      textBefore: "Ho preso in carico la pratica.",
+      textAfter: "puoi recuperare le CU dal cassetto fiscale?",
+      time: "10:18",
     },
     {
-      author: "Thomas S.", color: "bg-blue-600", initials: "TS",
+      author: "Luca B.", color: "bg-blue-600", initials: "LB",
       isSolution: true,
-      text: "La stampante è andata offline dopo l'aggiornamento Windows notturno. Rimosso e reinstallato il driver USB, poi riavviato il servizio print spooler. La stampante ora funziona correttamente.",
-      time: "09:51",
+      text: "CU recuperate e allegate. Ho verificato tutto — i dati sono corretti. Pratica pronta per la compilazione della dichiarazione.",
+      time: "10:31",
     },
     {
-      author: "Marla S.", color: "bg-violet-500", initials: "MS",
-      text: null, mention: "Thomas S.",
+      author: "Carla M.", color: "bg-violet-500", initials: "CM",
+      text: null, mention: "Sara L.",
       textBefore: "",
-      textAfter: "Confermato, le ricevute si stampano di nuovo normalmente!",
-      time: "09:53",
+      textAfter: "Perfetto, grazie mille! Posso procedere con la firma?",
+      time: "10:34",
       liked: true,
     },
   ] : [
     {
-      author: "Marla S.", color: "bg-violet-500", initials: "MS",
-      text: "Checked the POS terminal, it throws an error every time it tries to print. Might be the thermal printer disconnected",
-      time: "09:41",
+      author: "Carla M.", color: "bg-violet-500", initials: "CM",
+      text: "Hi, I need the documentation for my tax return. I'm still missing last year's income certificates.",
+      time: "10:12",
     },
     {
-      author: "Sonny L.", color: "bg-orange-500", initials: "SL",
-      text: null, mention: "IT Support",
-      textBefore: "Tried a printer self-test directly from the device. No response at all. Need",
-      time: "09:49",
+      author: "Sara L.", color: "bg-orange-500", initials: "SL",
+      text: null, mention: "Luca B.",
+      textBefore: "I've picked up the request.",
+      textAfter: "can you pull the certificates from the tax portal?",
+      time: "10:18",
     },
     {
-      author: "Thomas S.", color: "bg-blue-600", initials: "TS",
+      author: "Luca B.", color: "bg-blue-600", initials: "LB",
       isSolution: true,
-      text: "The printer went offline after the overnight Windows update. Removed and reinstalled the USB printer driver, then restarted the print spooler service. Printer is now working correctly.",
-      time: "09:51",
+      text: "Certificates retrieved and attached. I've checked everything — the data is correct. Request is ready for the tax return filing.",
+      time: "10:31",
     },
     {
-      author: "Marla S.", color: "bg-violet-500", initials: "MS",
-      text: null, mention: "Thomas S.",
+      author: "Carla M.", color: "bg-violet-500", initials: "CM",
+      text: null, mention: "Sara L.",
       textBefore: "",
-      textAfter: "Confirmed, the receipts are printing normally again!",
-      time: "09:53",
+      textAfter: "Perfect, thank you! Can I go ahead and sign?",
+      time: "10:34",
       liked: true,
     },
   ];
@@ -207,22 +192,25 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
   }, [visibleMessages]);
 
   const title = lang === "it"
-    ? "#2 — POS principale ha smesso di stampare ricevute"
-    : "#2 — Main Register POS stopped printing receipts";
+    ? "#5 — Documenti mancanti per dichiarazione dei redditi"
+    : "#5 — Missing documents for tax return filing";
 
   return (
     <div className="ld-float bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
         <div className="text-xs text-gray-400 font-semibold mb-1 uppercase tracking-wide">
-          {lang === "it" ? "Ticket" : "Ticket"}
+          {lang === "it" ? "Pratica" : "Request"}
         </div>
         <div className="font-bold text-gray-900 text-sm leading-snug mb-2">{title}</div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
-            {lang === "it" ? "Risolto" : "Resolved"}
+            {lang === "it" ? "Risolta" : "Resolved"}
           </span>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-yellow-300 text-yellow-700">
-            {lang === "it" ? "Media" : "Medium"}
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-orange-300 text-orange-700">
+            {lang === "it" ? "Alta" : "High"}
+          </span>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-blue-200 text-blue-600">
+            {lang === "it" ? "Fiscale" : "Tax"}
           </span>
         </div>
       </div>
@@ -239,7 +227,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
               {m.isSolution && (
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-green-600 text-xs">✅</span>
-                  <span className="text-xs font-bold text-green-700">Solution</span>
+                  <span className="text-xs font-bold text-green-700">{lang === "it" ? "Soluzione" : "Solution"}</span>
                 </div>
               )}
               <div
@@ -272,11 +260,11 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
                 )}
                 {m.isSolution ? (
                   <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white flex items-center gap-1">
-                    ✓ {lang === "it" ? "Rimuovi soluzione" : "Remove solution"}
+                    ✓ {lang === "it" ? "Soluzione" : "Solution"}
                   </span>
                 ) : (
                   <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full border border-green-400 text-green-600 flex items-center gap-1 cursor-pointer">
-                    ✓ {lang === "it" ? "Segna soluzione" : "Mark as solution"}
+                    ✓ {lang === "it" ? "Segna soluzione" : "Mark solved"}
                   </span>
                 )}
               </div>
@@ -312,10 +300,10 @@ export default function Landing() {
   const { lang, setLang, t } = useLanguage();
 
   const tickerItems = [
-    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media",
-    "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
-    t.hero.trialBadge, "⭐ 4.9/5 soddisfazione media",
-    "🚀 Setup in 5 minuti", `💶 Da ${t.pricing.price}${t.pricing.unit}`, "🔒 GDPR Compliant",
+    t.hero.trialBadge, t.ticker.rating,
+    t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
+    t.hero.trialBadge, t.ticker.rating,
+    t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
   ];
 
   const featureCards = [
@@ -352,16 +340,16 @@ export default function Landing() {
       const scrolled = window.scrollY + window.innerHeight;
       const total = document.documentElement.scrollHeight;
       const pct = (scrolled / total) * 100;
-      for (const t of thresholds) {
-        if (pct >= t && !fired.has(t)) {
-          fired.add(t);
-          trackScrollDepth(t);
+      for (const th of thresholds) {
+        if (pct >= th && !fired.has(th)) {
+          fired.add(th);
+          trackScrollDepth(th);
         }
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    const sectionIds = ["proof-bar", "how", "features", "pricing", "final-cta"];
+    const sectionIds = ["who-uses", "pain", "testimonials", "how", "features", "pricing", "final-cta"];
     const viewed = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -386,30 +374,21 @@ export default function Landing() {
     };
   }, []);
 
-  const steps = lang === "it" ? [
-    { n: "1", icon: "✏️", title: "Apri un ticket", desc: "Titolo, categoria, priorità. In 10 secondi il problema è tracciato e visibile a chi serve." },
-    { n: "2", icon: "💬", title: "Il team risponde", desc: "Commenti in tempo reale, @menzioni, allegati e 👍 — come una chat, ma organizzata." },
-    { n: "3", icon: "✅", title: "Segna la soluzione", desc: "Chi risolve marca il commento giusto come soluzione. Il ticket si chiude. Tutti lo sanno." },
-  ] : [
-    { n: "1", icon: "✏️", title: "Open a ticket", desc: "Title, category, priority. In 10 seconds the issue is tracked and visible to everyone who needs it." },
-    { n: "2", icon: "💬", title: "Team replies", desc: "Real-time comments, @mentions, attachments and 👍 — like a chat, but organised." },
-    { n: "3", icon: "✅", title: "Mark the solution", desc: "Whoever solves it marks the right comment as a solution. The ticket closes. Everyone knows." },
-  ];
-
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
       <Helmet>
         <html lang={lang} />
-        <title>TaskDesk — Software Ticketing Aziendale | Da €9/mese</title>
-        <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile. Gestisci richieste di supporto come una chat: commenti, @menzioni e soluzioni marcate. Da €9/mese." />
+        <title>{t.seo.title}</title>
+        <meta name="description" content={t.seo.description} />
+        <meta name="keywords" content={t.seo.keywords} />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://taskdesk.it/" />
         <meta property="og:url" content="https://taskdesk.it/" />
-        <meta property="og:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
-        <meta property="og:description" content="Gestisci i ticket aziendali come una chat. Commenti, @menzioni, soluzioni marcate. Da €9/mese tutto incluso." />
+        <meta property="og:title" content={t.seo.ogTitle} />
+        <meta property="og:description" content={t.seo.ogDescription} />
         <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
-        <meta name="twitter:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
-        <meta name="twitter:description" content="Ticket aziendali come una chat. Commenti, @menzioni, soluzioni marcate. Da €9/mese." />
+        <meta name="twitter:title" content={t.seo.twitterTitle} />
+        <meta name="twitter:description" content={t.seo.twitterDescription} />
         <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
       </Helmet>
       <style>{ANIMATIONS}</style>
@@ -499,13 +478,16 @@ export default function Landing() {
                   </a>
                 </div>
 
-                <div className="ld-fade-up-4 text-sm text-gray-400 font-medium">
-                  {t.hero.microProof.split(" · ").map((item, i, arr) => (
-                    <span key={i}>
-                      <span className="text-green-500 font-bold">✓</span>{" "}{item}
-                      {i < arr.length - 1 && <span className="mx-2 text-gray-200">·</span>}
-                    </span>
-                  ))}
+                <div className="ld-fade-up-4 flex flex-col gap-2">
+                  <div className="text-sm text-gray-400 font-medium">
+                    {t.hero.microProof.split(" · ").map((item, i, arr) => (
+                      <span key={i}>
+                        <span className="text-green-500 font-bold">✓</span>{" "}{item}
+                        {i < arr.length - 1 && <span className="mx-2 text-gray-200">·</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 italic">{t.hero.reassurance}</p>
                 </div>
               </div>
 
@@ -522,22 +504,90 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Proof bar ── */}
-        <section id="proof-bar" aria-label="Vantaggi" className="py-10 border-y border-gray-100 bg-white">
-          <div className="max-w-5xl mx-auto px-6 md:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              {[
-                { icon: "🚀", label: t.proofBar.setup },
-                { icon: "🔒", label: t.proofBar.gdpr },
-                { icon: "🎁", label: t.proofBar.trial },
-                { icon: "✌️", label: t.proofBar.cancel },
-              ].map(({ icon, label }) => (
-                <div key={label} className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-2xl">
-                    {icon}
+        {/* ── Chi usa TaskDesk ── */}
+        <section id="who-uses" aria-label="Chi usa TaskDesk" className="py-24 px-6 md:px-8 border-b border-gray-100">
+          <div className="max-w-6xl mx-auto">
+            <ScrollReveal>
+              <div className="text-center mb-14">
+                <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4 leading-tight">
+                  {t.whoUses.title}
+                </h2>
+                <p className="text-gray-400 text-lg max-w-xl mx-auto">{t.whoUses.subtitle}</p>
+              </div>
+            </ScrollReveal>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {t.whoUses.profiles.map((profile, i) => (
+                <ScrollReveal key={i} delay={i * 0.1}>
+                  <div className="ld-card-hover bg-white rounded-2xl border border-gray-100 p-8 h-full shadow-sm cursor-default">
+                    <div className="text-4xl mb-4">{profile.icon}</div>
+                    <h3 className="font-black text-xl mb-2 text-gray-900">{profile.title}</h3>
+                    <p className="text-gray-700 font-medium mb-3 text-sm leading-relaxed">{profile.desc}</p>
+                    <p className="text-gray-400 text-sm leading-relaxed">{profile.detail}</p>
                   </div>
-                  <span className="text-sm font-semibold text-gray-700">{label}</span>
-                </div>
+                </ScrollReveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Il problema ── */}
+        <section id="pain" aria-label="Il problema" className="py-24 px-6 md:px-8" style={{ background: "linear-gradient(135deg, #fef9f0 0%, #fdf4ff 100%)" }}>
+          <div className="max-w-5xl mx-auto">
+            <ScrollReveal>
+              <div className="text-center mb-14">
+                <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4 leading-tight text-gray-900">
+                  {t.pain.title}
+                </h2>
+                <p className="text-gray-500 text-lg max-w-xl mx-auto">{t.pain.subtitle}</p>
+              </div>
+            </ScrollReveal>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {t.pain.cards.map((card, i) => (
+                <ScrollReveal key={i} delay={i * 0.1}>
+                  <div className="bg-white rounded-2xl border border-orange-100 p-7 h-full shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl mb-5">
+                      {card.icon}
+                    </div>
+                    <h3 className="font-bold text-base mb-2 text-gray-900">{card.title}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">{card.desc}</p>
+                  </div>
+                </ScrollReveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Testimonial bar ── */}
+        <section id="testimonials" aria-label="Testimonianze" className="py-20 px-6 md:px-8 border-y border-gray-100 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <ScrollReveal>
+              <div className="flex justify-center mb-10">
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-50 border border-yellow-100 text-yellow-700 text-sm font-bold">
+                  {t.testimonials.ratingLabel}
+                </span>
+              </div>
+            </ScrollReveal>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {t.testimonials.items.map((item, i) => (
+                <ScrollReveal key={i} delay={i * 0.1}>
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-7 h-full flex flex-col gap-5">
+                    <p className="text-gray-700 text-sm leading-relaxed flex-1">
+                      &ldquo;{item.text}&rdquo;
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${item.color}`}>
+                        {item.initials}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">{item.name}</div>
+                        <div className="text-xs text-gray-400">{item.role}</div>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollReveal>
               ))}
             </div>
           </div>
@@ -557,17 +607,16 @@ export default function Landing() {
                 </h2>
                 <p className="text-gray-400 text-lg max-w-md mx-auto">
                   {lang === "it"
-                    ? "Dal problema alla soluzione, tutto in un unico thread conversazionale."
-                    : "From problem to solution — all in one conversational thread."}
+                    ? "Dal caos delle richieste alla pratica risolta — tutto tracciato."
+                    : "From chaotic requests to resolved tasks — everything tracked."}
                 </p>
               </div>
             </ScrollReveal>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-              {/* connecting line on desktop */}
               <div className="absolute top-10 left-[calc(16.6%+1rem)] right-[calc(16.6%+1rem)] h-0.5 bg-gradient-to-r from-blue-200 via-violet-200 to-green-200 hidden md:block pointer-events-none" />
 
-              {steps.map((s, i) => (
+              {t.howItWorks.steps.map((s, i) => (
                 <ScrollReveal key={i} delay={i * 0.1}>
                   <div className="relative flex flex-col items-center text-center">
                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl mb-5 shadow-md z-10 relative ${
@@ -601,7 +650,7 @@ export default function Landing() {
         </section>
 
         {/* ── Features ── */}
-        <section id="features" aria-label="Funzionalità" className="py-28 px-6 md:px-8">
+        <section id="features" aria-label="Funzionalità" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
           <div className="max-w-6xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-20">
@@ -643,7 +692,7 @@ export default function Landing() {
         </section>
 
         {/* ── Pricing ── */}
-        <section id="pricing" aria-label="Prezzi" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
+        <section id="pricing" aria-label="Prezzi" className="py-28 px-6 md:px-8">
           <div className="max-w-7xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-14 max-w-3xl mx-auto">
@@ -714,7 +763,7 @@ export default function Landing() {
         </section>
 
         {/* ── FAQ ── */}
-        <section id="faq" aria-label="Domande frequenti" className="py-28 px-6 md:px-8">
+        <section id="faq" aria-label="Domande frequenti" className="py-28 px-6 md:px-8 bg-gray-50 border-t border-gray-100">
           <div className="max-w-3xl mx-auto">
             <ScrollReveal>
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-center mb-16">{t.faq.title}</h2>
