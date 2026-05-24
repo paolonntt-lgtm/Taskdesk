@@ -189,6 +189,29 @@ export class ObjectStorageService {
     return normalizedPath;
   }
 
+  /**
+   * Upload a Buffer directly to private object storage under a sub-path relative
+   * to PRIVATE_OBJECT_DIR. Returns the normalized `/objects/<subPath>` path
+   * that can be stored in the DB and used with getObjectEntityFile().
+   *
+   * @param subPath  Path segment appended after PRIVATE_OBJECT_DIR, e.g.
+   *                 "inbound/1/42/uuid-filename.pdf"
+   * @param buffer   File content to upload
+   * @param mimeType Content-Type for the stored object
+   */
+  async uploadBuffer(subPath: string, buffer: Buffer, mimeType: string): Promise<string> {
+    let entityDir = this.getPrivateObjectDir();
+    if (!entityDir.endsWith("/")) {
+      entityDir = `${entityDir}/`;
+    }
+    const fullPath = `${entityDir}${subPath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType: mimeType, resumable: false });
+    return `/objects/${subPath}`;
+  }
+
   async canAccessObjectEntity({
     userId,
     objectFile,

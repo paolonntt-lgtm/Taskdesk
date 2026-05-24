@@ -1,9 +1,68 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { createNotificationsForTicket, createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
+import { ObjectStorageService } from "./objectStorage";
+import { randomUUID } from "crypto";
+
+export interface InboundAttachment {
+  filename: string;
+  mimeType: string;
+  data: Buffer;
+  oversized: boolean;
+}
+
+const objectStorage = new ObjectStorageService();
+
+/**
+ * Saves inbound email attachments to object storage and inserts rows into
+ * ticket_attachments. Oversized files are skipped but a warning line is
+ * returned so the caller can append it to the ticket/comment body.
+ * Individual errors do not abort the process — they are logged and skipped.
+ *
+ * @returns Array of warning lines (one per oversized/failed attachment) to
+ *          append to the ticket description or comment text.
+ */
+async function saveInboundAttachments(
+  ticketId: number,
+  commentId: number | null,
+  orgId: number | null,
+  systemUserId: number,
+  attachments: InboundAttachment[],
+): Promise<string[]> {
+  const warnings: string[] = [];
+
+  for (const att of attachments) {
+    if (att.oversized) {
+      warnings.push(`⚠️ Allegato '${att.filename}' non salvato: dimensione superiore al limite di 10 MB`);
+      continue;
+    }
+
+    try {
+      const orgSegment = orgId != null ? String(orgId) : "0";
+      const safeFilename = att.filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
+      const subPath = `inbound/${orgSegment}/${ticketId}/${randomUUID()}-${safeFilename}`;
+
+      const objectPath = await objectStorage.uploadBuffer(subPath, att.data, att.mimeType);
+
+      await db.insert(ticketAttachmentsTable).values({
+        ticketId,
+        commentId,
+        uploadedBy: systemUserId,
+        objectPath,
+        fileName: att.filename,
+        fileSize: att.data.length,
+        mimeType: att.mimeType,
+      });
+    } catch (err) {
+      logger.warn({ err, filename: att.filename, ticketId }, "Failed to save inbound attachment");
+    }
+  }
+
+  return warnings;
+}
 
 function buildChannelAddress(ch: { token: string; slug: string | null }): string {
   return ch.slug ?? `tickets-${ch.token}`;
@@ -96,6 +155,8 @@ export interface EmailTicketInput {
   fromName: string;
   subject: string;
   bodyText: string;
+  /** Attachments extracted from the inbound email MIME payload */
+  attachments?: InboundAttachment[];
   orgId?: number | null;
   /** Message-ID header of the incoming email (RFC 2822) */
   messageId?: string;
@@ -117,7 +178,7 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId } = input;
+  const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId } = input;
 
   let systemUser: { id: number; organizationId: number | null; name: string } | null = null;
 
@@ -236,6 +297,21 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     })
     .returning();
 
+  // Save inbound attachments (fire-and-forget errors; oversized ones return warning lines)
+  if (attachments && attachments.length > 0) {
+    try {
+      const warnings = await saveInboundAttachments(ticket.id, null, orgId, systemUser.id, attachments);
+      if (warnings.length > 0) {
+        const updatedDescription = [description, "", ...warnings].join("\n");
+        await db.update(ticketsTable)
+          .set({ description: updatedDescription })
+          .where(eq(ticketsTable.id, ticket.id));
+      }
+    } catch (err) {
+      logger.warn({ err, ticketId: ticket.id }, "Error saving inbound attachments for new ticket");
+    }
+  }
+
   const activityDescParts = [`Ticket creato automaticamente da email di ${fromName} <${fromEmail}>`];
   if (autoAssignedUserId) {
     const [assignedUser] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, autoAssignedUserId));
@@ -305,6 +381,7 @@ async function threadReplyAsComment(
   fromName: string,
   bodyText: string,
   matchReason: string,
+  attachments?: InboundAttachment[],
 ): Promise<void> {
   if (ticket.status === "closed") {
     await db.update(ticketsTable).set({ status: "open", updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
@@ -327,6 +404,21 @@ async function threadReplyAsComment(
     .insert(ticketCommentsTable)
     .values({ ticketId: ticket.id, authorId: systemUserId, commentText })
     .returning();
+
+  // Save inbound attachments linked to this comment
+  if (attachments && attachments.length > 0) {
+    try {
+      const warnings = await saveInboundAttachments(ticket.id, comment.id, systemUserOrgId, systemUserId, attachments);
+      if (warnings.length > 0) {
+        const updatedCommentText = [commentText, "", ...warnings].join("\n");
+        await db.update(ticketCommentsTable)
+          .set({ commentText: updatedCommentText })
+          .where(eq(ticketCommentsTable.id, comment.id));
+      }
+    } catch (err) {
+      logger.warn({ err, ticketId: ticket.id, commentId: comment.id }, "Error saving inbound attachments for comment");
+    }
+  }
 
   await db.update(ticketsTable).set({ updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
 
@@ -360,7 +452,7 @@ async function threadReplyAsComment(
  * Otherwise, creates a new ticket.
  */
 export async function processInboundEmail(input: EmailTicketInput): Promise<void> {
-  const { fromEmail, fromName, subject, bodyText, orgId: targetOrgId, inReplyTo, references, conversationId } = input;
+  const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, inReplyTo, references, conversationId } = input;
 
   let systemUser: { id: number; organizationId: number | null } | null = null;
   if (targetOrgId) {
@@ -399,7 +491,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
         .limit(1);
 
       if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
-        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "[#N] subject match");
+        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "[#N] subject match", attachments);
         return;
       }
     }
@@ -428,7 +520,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
           .limit(1);
 
         if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
-          await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "In-Reply-To/References header match");
+          await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "In-Reply-To/References header match", attachments);
           return;
         }
       }
@@ -448,7 +540,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
         .limit(1);
 
       if (ticket && ticket.resource && ticket.resource.toLowerCase() === fromEmail.toLowerCase()) {
-        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "conversationId match");
+        await threadReplyAsComment(ticket, systemUser.id, orgId, fromEmail, fromName, bodyText, "conversationId match", attachments);
         return;
       }
     }
@@ -474,7 +566,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
 
       for (const candidate of candidates) {
         if (normaliseSubject(candidate.title) === normSubject) {
-          await threadReplyAsComment(candidate, systemUser.id, orgId, fromEmail, fromName, bodyText, "subject fallback match");
+          await threadReplyAsComment(candidate, systemUser.id, orgId, fromEmail, fromName, bodyText, "subject fallback match", attachments);
           return;
         }
       }

@@ -2,61 +2,267 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, inboundEmailChannelsTable } from "@workspace/db";
 import { processInboundEmail } from "../lib/ticketFromEmail";
+import type { InboundAttachment } from "../lib/ticketFromEmail";
 
 const router: IRouter = Router();
 
-/**
- * Extracts plain-text content from a raw MIME multipart body.
- * If the string contains MIME boundaries, returns only the text/plain part.
- * Otherwise returns the string as-is.
- */
-function extractPlainFromMime(raw: string): string {
-  // Detect a MIME boundary: lines starting with "--" followed by alphanumeric chars
-  const boundaryMatch = raw.match(/^--([A-Za-z0-9_+/=\-]{6,})/m);
-  if (!boundaryMatch) {
-    // Single-part: strip any leading MIME headers (header block ends at first blank line)
-    const blankLine = raw.search(/\r?\n\r?\n/);
-    if (blankLine !== -1 && /^[\w-]+:/m.test(raw.slice(0, blankLine))) {
-      return raw.slice(blankLine).trim();
-    }
-    return raw;
-  }
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
 
-  const boundary = boundaryMatch[1].trim();
-  // Split on --boundary (escaping special regex chars)
-  const escaped = boundary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = raw.split(new RegExp(`--${escaped}(?:--)?\\s*`));
+const ALLOWED_MIME_PREFIXES = [
+  "image/",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument",
+  "application/vnd.ms-",
+  "application/vnd.oasis.opendocument",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-zip",
+  "application/rtf",
+  "application/json",
+];
 
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    // Each part: headers, blank line, body
-    const headerEnd = trimmed.search(/\r?\n\r?\n/);
-    if (headerEnd === -1) continue;
-    const headers = trimmed.slice(0, headerEnd).toLowerCase();
-    const partBody = trimmed.slice(headerEnd).trim();
-    if (headers.includes("content-type: text/plain")) {
-      return partBody;
-    }
-  }
-
-  // Fallback: return everything that isn't a boundary/header line
-  return raw
-    .split("\n")
-    .filter((l) => !l.startsWith("--") && !/^[\w-]+:\s/.test(l))
-    .join("\n")
-    .trim();
+function isMimeAllowed(mimeType: string): boolean {
+  const mt = mimeType.toLowerCase().split(";")[0].trim();
+  return ALLOWED_MIME_PREFIXES.some((p) => mt.startsWith(p));
 }
 
-function extractText(body: any): string {
-  const raw = (
+// ---------------------------------------------------------------------------
+// MIME parsing helpers
+// ---------------------------------------------------------------------------
+
+function parseHeaders(headerBlock: string): Record<string, string> {
+  const unfolded = headerBlock.replace(/\r?\n[ \t]+/g, " ");
+  const headers: Record<string, string> = {};
+  for (const line of unfolded.split(/\r?\n/)) {
+    const idx = line.indexOf(":");
+    if (idx > 0) {
+      headers[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
+    }
+  }
+  return headers;
+}
+
+function extractBoundary(contentType: string): string | null {
+  const m = /boundary="?([^";]+)"?/i.exec(contentType);
+  return m ? m[1].trim() : null;
+}
+
+function decodeQuotedPrintable(input: string): string {
+  return input
+    .replace(/=\r?\n/g, "")
+    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+function decodeBodyText(raw: string, encoding: string): string {
+  const enc = encoding.toLowerCase().trim();
+  if (enc === "base64") {
+    try {
+      return Buffer.from(raw.replace(/\s/g, ""), "base64").toString("utf8");
+    } catch {
+      return raw;
+    }
+  }
+  if (enc === "quoted-printable") {
+    return decodeQuotedPrintable(raw);
+  }
+  return raw;
+}
+
+function decodeBodyBuffer(raw: string, encoding: string): Buffer {
+  const enc = encoding.toLowerCase().trim();
+  if (enc === "base64") {
+    try {
+      return Buffer.from(raw.replace(/\s/g, ""), "base64");
+    } catch {
+      return Buffer.alloc(0);
+    }
+  }
+  return Buffer.from(raw, "utf8");
+}
+
+function extractFilename(headerValue: string): string {
+  const m =
+    /filename\*=UTF-8''([^\s;]+)/i.exec(headerValue) ||
+    /filename\*=([^\s;]+)/i.exec(headerValue) ||
+    /filename="([^"]+)"/i.exec(headerValue) ||
+    /filename=([^\s;]+)/i.exec(headerValue);
+  if (m) {
+    try {
+      return decodeURIComponent(m[1].trim().replace(/^["']|["']$/g, ""));
+    } catch {
+      return m[1].trim().replace(/^["']|["']$/g, "");
+    }
+  }
+  return "";
+}
+
+interface RawMimePart {
+  headers: Record<string, string>;
+  body: string;
+}
+
+function splitIntoParts(body: string, boundary: string): RawMimePart[] {
+  const escaped = boundary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const splitRe = new RegExp(`(?:^|\\r?\\n)--${escaped}(?:--)?[ \\t]*(?:\\r?\\n|$)`);
+  const chunks = body.split(splitRe);
+  const parts: RawMimePart[] = [];
+  for (const chunk of chunks) {
+    if (!chunk.trim()) continue;
+    const sep = chunk.search(/\r?\n\r?\n/);
+    if (sep === -1) continue;
+    const headerBlock = chunk.slice(0, sep);
+    const partBody = chunk.slice(sep + 1).replace(/^\r?\n/, "");
+    parts.push({ headers: parseHeaders(headerBlock), body: partBody });
+  }
+  return parts;
+}
+
+interface CollectedData {
+  textParts: string[];
+  htmlParts: string[];
+  attachments: Array<{ filename: string; mimeType: string; rawBody: string; encoding: string }>;
+}
+
+function collectRecursive(headers: Record<string, string>, body: string, out: CollectedData): void {
+  const ct = (headers["content-type"] || "").trim();
+  const cd = (headers["content-disposition"] || "").trim();
+  const cte = (headers["content-transfer-encoding"] || "").toLowerCase().trim();
+  const baseType = ct.split(";")[0].trim().toLowerCase();
+
+  if (baseType.startsWith("multipart/")) {
+    const boundary = extractBoundary(ct);
+    if (!boundary) return;
+    const subParts = splitIntoParts(body, boundary);
+    for (const sub of subParts) {
+      collectRecursive(sub.headers, sub.body, out);
+    }
+    return;
+  }
+
+  const isAttachment = /\battachment\b/i.test(cd);
+
+  if (isAttachment) {
+    const filename =
+      extractFilename(cd) ||
+      extractFilename(ct) ||
+      "attachment";
+    out.attachments.push({ filename, mimeType: baseType || "application/octet-stream", rawBody: body, encoding: cte });
+    return;
+  }
+
+  if (baseType === "text/plain") {
+    out.textParts.push(decodeBodyText(body, cte));
+    return;
+  }
+
+  if (baseType === "text/html") {
+    const decoded = decodeBodyText(body, cte);
+    out.htmlParts.push(decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    return;
+  }
+}
+
+/**
+ * Parse a raw MIME string (full message or body-only) into plain text and
+ * a list of attachment descriptors. Handles nested multipart structures.
+ */
+function parseMimeMessage(raw: string): { text: string; rawAttachments: CollectedData["attachments"] } {
+  const out: CollectedData = { textParts: [], htmlParts: [], attachments: [] };
+
+  // Try to parse as a complete MIME message (headers + blank line + body)
+  const blankIdx = raw.search(/\r?\n\r?\n/);
+  if (blankIdx !== -1 && /^[\w-]+:/m.test(raw.slice(0, blankIdx))) {
+    const headerBlock = raw.slice(0, blankIdx);
+    const body = raw.slice(blankIdx + 1).replace(/^\r?\n/, "");
+    const headers = parseHeaders(headerBlock);
+    collectRecursive(headers, body, out);
+  } else {
+    // Try direct boundary split (body-only multipart)
+    const boundaryMatch = raw.match(/^--([A-Za-z0-9_+/=\-]{6,})/m);
+    if (boundaryMatch) {
+      const boundary = boundaryMatch[1].trim();
+      const subParts = splitIntoParts(raw, boundary);
+      for (const sub of subParts) {
+        collectRecursive(sub.headers, sub.body, out);
+      }
+    }
+  }
+
+  const text = out.textParts.length > 0
+    ? out.textParts.join("\n").trim()
+    : out.htmlParts.length > 0
+    ? out.htmlParts.join("\n").trim()
+    : "";
+
+  return { text, rawAttachments: out.attachments };
+}
+
+/**
+ * Extracts plain text and attachment list from a webhook payload.
+ * Tries provider-supplied parsed fields first, then falls back to raw MIME parsing.
+ */
+function extractTextAndAttachments(body: any): { text: string; attachments: InboundAttachment[] } {
+  const attachments: InboundAttachment[] = [];
+
+  // --- 1. Provider-supplied text field + provider-supplied attachments array ---
+  const providerText: string = (
     body?.text ||
     body?.body_text ||
     body?.plain ||
-    body?.body ||
     ""
   ).trim();
-  return extractPlainFromMime(raw);
+
+  // Some providers (Postmark, SendGrid, etc.) supply parsed attachment arrays
+  const providerAttachments: any[] = Array.isArray(body?.attachments) ? body.attachments : [];
+
+  for (const att of providerAttachments) {
+    const filename: string = (att?.filename || att?.name || att?.FileName || "attachment").trim();
+    const mimeType: string = (att?.content_type || att?.ContentType || att?.type || "application/octet-stream")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    const contentB64: string = att?.content || att?.data || att?.Content || "";
+
+    if (!isMimeAllowed(mimeType)) continue;
+
+    const data = contentB64 ? Buffer.from(contentB64.replace(/\s/g, ""), "base64") : Buffer.alloc(0);
+    const oversized = data.length > MAX_ATTACHMENT_BYTES;
+    attachments.push({ filename, mimeType, data: oversized ? Buffer.alloc(0) : data, oversized });
+  }
+
+  // If we got provider text and at least some attachment signal, use provider text
+  if (providerText) {
+    // Still check the raw body for attachments the provider may have missed
+    const rawMime: string = (body?.body || body?.rawMail || "").trim();
+    if (rawMime && attachments.length === 0) {
+      const { rawAttachments } = parseMimeMessage(rawMime);
+      for (const ra of rawAttachments) {
+        if (!isMimeAllowed(ra.mimeType)) continue;
+        const data = decodeBodyBuffer(ra.rawBody, ra.encoding);
+        const oversized = data.length > MAX_ATTACHMENT_BYTES;
+        attachments.push({ filename: ra.filename, mimeType: ra.mimeType, data: oversized ? Buffer.alloc(0) : data, oversized });
+      }
+    }
+    return { text: providerText, attachments };
+  }
+
+  // --- 2. Fall back to raw MIME parsing ---
+  const rawMime: string = (body?.body || body?.rawMail || body?.body_text || "").trim();
+  if (rawMime) {
+    const { text, rawAttachments } = parseMimeMessage(rawMime);
+    for (const ra of rawAttachments) {
+      if (!isMimeAllowed(ra.mimeType)) continue;
+      const data = decodeBodyBuffer(ra.rawBody, ra.encoding);
+      const oversized = data.length > MAX_ATTACHMENT_BYTES;
+      attachments.push({ filename: ra.filename, mimeType: ra.mimeType, data: oversized ? Buffer.alloc(0) : data, oversized });
+    }
+    return { text: text || rawMime, attachments };
+  }
+
+  return { text: "", attachments: [] };
 }
 
 function extractField(body: any, ...keys: string[]): string {
@@ -127,6 +333,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     subject: body?.subject ?? body?.Subject ?? "(missing)",
     hasText: !!(body?.text || body?.body_text || body?.plain || body?.body),
     hasHeaders: !!body?.headers,
+    hasProviderAttachments: Array.isArray(body?.attachments) ? body.attachments.length : 0,
   }, "Inbound email webhook received");
 
   // Extract sender — handle "Name <email>" format
@@ -134,7 +341,10 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const { email: fromEmail, name: fromNameParsed } = parseEmailAddress(rawFrom);
   const fromName = extractField(body, "from_name", "sender_name", "name") || fromNameParsed || fromEmail;
   const subject = extractField(body, "subject", "Subject") || "Support request";
-  const bodyText = extractText(body);
+
+  const { text: bodyText, attachments } = extractTextAndAttachments(body);
+
+  req.log.info({ attachmentCount: attachments.length, oversized: attachments.filter(a => a.oversized).length }, "Inbound email: extracted attachments");
 
   // Email headers for threading
   const headers: Record<string, string> = body?.headers ?? {};
@@ -202,6 +412,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
       fromName,
       subject,
       bodyText,
+      attachments,
       orgId: resolvedOrgId,
       messageId: messageId || undefined,
       inReplyTo: inReplyTo || undefined,
