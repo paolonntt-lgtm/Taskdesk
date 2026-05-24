@@ -374,6 +374,50 @@ export default function Landing() {
     };
   }, []);
 
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "TaskDesk",
+        "url": "https://taskdesk.it",
+        "logo": "https://taskdesk.it/taskdesk-logo.png",
+        "sameAs": [],
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "TaskDesk",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "description": t.seo.description,
+        "offers": {
+          "@type": "AggregateOffer",
+          "lowPrice": "9",
+          "highPrice": "149",
+          "priceCurrency": "EUR",
+          "offerCount": "4",
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "bestRating": "5",
+          "ratingCount": "47",
+        },
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": t.faq.items.map((item) => ({
+          "@type": "Question",
+          "name": item.q,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": item.a,
+          },
+        })),
+      },
+    ],
+  });
+
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
       <Helmet>
@@ -390,6 +434,7 @@ export default function Landing() {
         <meta name="twitter:title" content={t.seo.twitterTitle} />
         <meta name="twitter:description" content={t.seo.twitterDescription} />
         <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+        <script type="application/ld+json">{jsonLd}</script>
       </Helmet>
       <style>{ANIMATIONS}</style>
 
