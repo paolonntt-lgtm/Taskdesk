@@ -322,10 +322,10 @@ export default function StickyNotesLayer() {
                   variant="standard"
                   placeholder={t.stickyNotes.placeholder}
                   value={textVal}
-                  onChange={(e) => handleTextChange(note, e.target.value)}
+                  onChange={isOwner ? (e) => handleTextChange(note, e.target.value) : undefined}
                   onMouseDown={(e) => e.stopPropagation()}
-                  InputProps={{ disableUnderline: true, style: { fontSize: 13 } }}
-                  sx={{ "& textarea": { userSelect: "text", cursor: "text" } }}
+                  InputProps={{ disableUnderline: true, style: { fontSize: 13 }, readOnly: !isOwner }}
+                  sx={{ "& textarea": { userSelect: "text", cursor: isOwner ? "text" : "default" } }}
                 />
               </Box>
 

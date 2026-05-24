@@ -47,7 +47,7 @@ function isNoteVisibleTo(
 ): boolean {
   if (note.visibility === "private") return note.createdBy === userId;
   if (note.visibility === "group") {
-    return !!note.targetGroupName && userGroups.includes(note.targetGroupName);
+    return note.createdBy === userId || (!!note.targetGroupName && userGroups.includes(note.targetGroupName));
   }
   if (note.visibility === "users") {
     const ids = parseTargetUserIds(note.targetUserIds);
