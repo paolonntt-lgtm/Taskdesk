@@ -27,6 +27,7 @@ import emailChannelsRouter from "./emailChannels";
 import bugReportRouter from "./bugReport";
 import onboardingRouter from "./onboarding";
 import clientsRouter from "./clients";
+import stickyNotesRouter from "./stickyNotes";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(emailChannelsRouter);
 router.use(bugReportRouter);
 router.use(onboardingRouter);
 router.use(clientsRouter);
+router.use(stickyNotesRouter);
 
 export default router;

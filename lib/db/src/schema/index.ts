@@ -15,3 +15,4 @@ export * from "./sessions";
 export * from "./email_channels";
 export * from "./inbound_email_channels";
 export * from "./clients";
+export * from "./sticky_notes";

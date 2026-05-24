@@ -21,6 +21,7 @@ import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
 import Onboarding from "./pages/Onboarding";
+import StickyNotesLayer from "./components/StickyNotesLayer";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import type { User } from "@workspace/api-client-react";
@@ -154,6 +155,8 @@ function AppShell() {
                   setUser({ ...user, onboardingDone: true, businessType } as any);
                 }} />
               ) : (
+                <>
+                <StickyNotesLayer />
                 <Layout>
                   <Switch>
                     <Route path="/" component={Dashboard} />
@@ -179,6 +182,7 @@ function AppShell() {
                     <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
                   </Switch>
                 </Layout>
+                </>
               )}
             </Route>
           </Switch>

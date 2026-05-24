@@ -31,6 +31,8 @@ tags:
     description: Knowledge base articles management
   - name: clients
     description: Client management
+  - name: stickyNotes
+    description: Global sticky notes
 
 paths:
   /healthz:
@@ -1252,6 +1254,117 @@ paths:
         "404":
           description: Not found
 
+  /sticky-notes:
+    get:
+      operationId: listStickyNotes
+      tags: [stickyNotes]
+      summary: List sticky notes visible to the current user
+      responses:
+        "200":
+          description: List of sticky notes with user state merged
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StickyNote"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createStickyNote
+      tags: [stickyNotes]
+      summary: Create a new sticky note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StickyNoteInput"
+      responses:
+        "201":
+          description: Created sticky note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StickyNote"
+        "401":
+          description: Unauthorized
+
+  /sticky-notes/{id}:
+    patch:
+      operationId: updateStickyNote
+      tags: [stickyNotes]
+      summary: Update a sticky note (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StickyNoteInput"
+      responses:
+        "200":
+          description: Updated sticky note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StickyNote"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteStickyNote
+      tags: [stickyNotes]
+      summary: Delete a sticky note (creator or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /sticky-notes/{id}/state:
+    put:
+      operationId: updateStickyNoteState
+      tags: [stickyNotes]
+      summary: Save per-user position and closed state
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StickyNoteStateInput"
+      responses:
+        "200":
+          description: State saved
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -2119,3 +2232,83 @@ components:
         - imported
         - skipped
         - errors
+
+    StickyNote:
+      type: object
+      properties:
+        id:
+          type: integer
+        organizationId:
+          type: integer
+          nullable: true
+        createdBy:
+          type: integer
+        text:
+          type: string
+        color:
+          type: string
+        visibility:
+          type: string
+        targetGroupName:
+          type: string
+          nullable: true
+        targetUserIds:
+          type: array
+          items:
+            type: integer
+        posX:
+          type: integer
+        posY:
+          type: integer
+        closed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - createdBy
+        - text
+        - color
+        - visibility
+        - targetUserIds
+        - posX
+        - posY
+        - closed
+        - createdAt
+        - updatedAt
+
+    StickyNoteInput:
+      type: object
+      properties:
+        text:
+          type: string
+        color:
+          type: string
+        visibility:
+          type: string
+        targetGroupName:
+          type: string
+          nullable: true
+        targetUserIds:
+          type: array
+          items:
+            type: integer
+          nullable: true
+
+    StickyNoteStateInput:
+      type: object
+      properties:
+        positionX:
+          type: integer
+        positionY:
+          type: integer
+        closed:
+          type: boolean
+      required:
+        - positionX
+        - positionY
+        - closed
