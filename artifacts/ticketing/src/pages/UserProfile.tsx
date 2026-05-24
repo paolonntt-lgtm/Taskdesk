@@ -8,9 +8,12 @@ import { useParams, useLocation, Link } from 'wouter';
 import { useGetUser, useListTickets } from '@workspace/api-client-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { getStatusColor, getPriorityColor } from './Dashboard';
+import { getPriorityColor } from './Dashboard';
+import { useTicketStatuses } from '../hooks/useTicketStatuses';
 
 function TicketCard({ ticket, dateLocale, t, onNavigate }: { ticket: any; dateLocale: string; t: any; onNavigate: (id: number) => void }) {
+  const { getLabelForKey, getColorForKey } = useTicketStatuses();
+  const statusColor = getColorForKey(ticket.status);
   return (
     <Card
       variant="outlined"
@@ -27,7 +30,11 @@ function TicketCard({ ticket, dateLocale, t, onNavigate }: { ticket: any; dateLo
           #{ticket.ticketNumber ?? ticket.id}
         </Typography>
         <Box display="flex" gap={0.5} flexWrap="wrap" justifyContent="flex-end">
-          <Chip label={t.status[ticket.status] ?? ticket.status} size="small" color={getStatusColor(ticket.status) as any} />
+          <Chip
+            label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
+            size="small"
+            sx={statusColor ? { bgcolor: statusColor, color: '#fff' } : undefined}
+          />
           <Chip label={t.priority[ticket.priority] ?? ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
         </Box>
       </Box>

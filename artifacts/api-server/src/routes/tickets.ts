@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -197,6 +197,16 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     .where(orgIdForNum != null ? eq(ticketsTable.organizationId, orgIdForNum) : sql`organization_id IS NULL`);
   const nextTicketNumber = (Number(maxNum) || 0) + 1;
 
+  // Use the org's default status if configured, otherwise fall back to "open"
+  let defaultStatusKey = "open";
+  if (orgIdForNum != null) {
+    const [defaultStatus] = await db
+      .select({ key: ticketStatusesTable.key })
+      .from(ticketStatusesTable)
+      .where(and(eq(ticketStatusesTable.organizationId, orgIdForNum), eq(ticketStatusesTable.isDefault, true)));
+    if (defaultStatus) defaultStatusKey = defaultStatus.key;
+  }
+
   const [ticket] = await db.insert(ticketsTable).values({
     title,
     description,
@@ -204,7 +214,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     location: location ?? "",
     resource: resource ?? null,
     priority,
-    status: "open",
+    status: defaultStatusKey,
     createdBy: currentUser.id,
     organizationId: currentUser.organizationId,
     ticketNumber: nextTicketNumber,
@@ -324,10 +334,15 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const parsed = UpdateTicketBody.safeParse(req.body);
+  // Extract status before zod parse so custom org statuses aren't rejected by legacy enum
+  const { status: rawStatus, ...bodyWithoutStatus } = req.body ?? {};
+  const parsed = UpdateTicketBody.safeParse(bodyWithoutStatus);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: parsed.error.message });
     return;
+  }
+  if (rawStatus !== undefined) {
+    (parsed.data as any).status = rawStatus;
   }
 
   const [existing] = await db.select().from(ticketsTable).where(
@@ -384,17 +399,48 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
       };
   const activityLogs: { actionType: string; actionDescription: string }[] = [];
+  let statusChangeLabel: string | undefined;
+  let newIsClosed = false;
 
   if (updates.status && updates.status !== existing.status) {
-    const statusLabels: Record<string, string> = {
-      open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+    // Validate status against org's ticket_statuses table
+    const fallbackLabels: Record<string, string> = {
+      open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
     };
+    let oldLabel = fallbackLabels[existing.status] ?? existing.status;
+    let newLabel = fallbackLabels[updates.status] ?? updates.status;
+    newIsClosed = updates.status === "closed" || updates.status === "resolved";
+
+    if (orgId != null) {
+      const orgStatuses = await db
+        .select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isClosed: ticketStatusesTable.isClosed })
+        .from(ticketStatusesTable)
+        .where(eq(ticketStatusesTable.organizationId, orgId));
+      const statusMap = new Map(orgStatuses.map((s) => [s.key, s]));
+
+      // Validate that the new status exists in org's statuses (if org has custom statuses configured)
+      if (statusMap.size > 0 && !statusMap.has(updates.status)) {
+        res.status(400).json({ error: "Invalid status", message: `Status "${updates.status}" is not valid for this organization` });
+        return;
+      }
+
+      if (statusMap.has(existing.status)) oldLabel = statusMap.get(existing.status)!.label;
+      if (statusMap.has(updates.status)) {
+        const newStatusRow = statusMap.get(updates.status)!;
+        newLabel = newStatusRow.label;
+        newIsClosed = newStatusRow.isClosed;
+      }
+    }
+
+    statusChangeLabel = newLabel;
     activityLogs.push({
       actionType: "status_changed",
-      actionDescription: `Stato cambiato da "${statusLabels[existing.status] ?? existing.status}" a "${statusLabels[updates.status] ?? updates.status}"`,
+      actionDescription: `Stato cambiato da "${oldLabel}" a "${newLabel}"`,
     });
-    if (updates.status === "closed" || updates.status === "resolved") {
+    if (newIsClosed) {
       (updates as any).closedAt = new Date();
+    } else if (existing.closedAt) {
+      (updates as any).closedAt = null;
     }
   }
 
@@ -469,11 +515,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (activityLogs.some((l) => l.actionType === "status_changed")) {
-    const statusLabels: Record<string, string> = { open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso" };
-    const statusLabel = statusLabels[updates.status!] ?? updates.status!;
-    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${id} in "${statusLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
+    const notifLabel = statusChangeLabel ?? updates.status!;
+    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${id} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
 
-    if (updates.status === "closed" && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
+    if (newIsClosed && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
       const customerEmail = existing.resource;
       const ticketNum = existing.ticketNumber ?? existing.id;
       void (async () => {

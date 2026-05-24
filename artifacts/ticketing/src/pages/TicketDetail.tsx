@@ -21,6 +21,7 @@ import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle } from '../components/RichCommentEditor';
@@ -41,7 +42,6 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   );
 }
 
-const STATUS_OPTIONS = ['open', 'waiting', 'resolved', 'closed'] as const;
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
 
 const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n([\s\S]*)$/;
@@ -59,6 +59,7 @@ export default function TicketDetail() {
   const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { statuses: orgStatuses, isClosedKey, getLabelForKey, getColorForKey } = useTicketStatuses();
 
   const [tabValue, setTabValue] = useState(0);
   const [newComment, setNewComment] = useState('');
@@ -222,7 +223,7 @@ export default function TicketDetail() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === ticket.status) return;
-    if (newStatus === 'resolved') {
+    if (isClosedKey(newStatus) && !isClosedKey(ticket.status)) {
       setResolutionNote('');
       setResolutionDialog(true);
       return;
@@ -233,9 +234,10 @@ export default function TicketDetail() {
   };
 
   const confirmResolved = async (note: string) => {
+    const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
     const updated = await updateTicket.mutateAsync({
       id: ticketId,
-      data: { status: 'resolved' as any, resolutionNote: note || null } as any,
+      data: { status: resolvedKey as any, resolutionNote: note || null } as any,
     });
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
@@ -584,23 +586,41 @@ export default function TicketDetail() {
                 {t.ticketDetail.statusLabel}
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={0.5}>
-                {STATUS_OPTIONS.map((s) => (
-                  <Chip
-                    key={s}
-                    label={t.status[s] || s}
-                    size="small"
-                    color={ticket.status === s ? (getStatusColor(s) as any) : 'default'}
-                    variant={ticket.status === s ? 'filled' : 'outlined'}
-                    onClick={() => handleStatusChange(s)}
-                    disabled={updateTicket.isPending}
-                    sx={{ cursor: 'pointer', fontWeight: ticket.status === s ? 700 : 400 }}
-                  />
-                ))}
+                {orgStatuses.map((s) => {
+                  const isActive = ticket.status === s.key;
+                  const customColor = s.color;
+                  return (
+                    <Chip
+                      key={s.key}
+                      label={s.label}
+                      size="small"
+                      variant={isActive ? 'filled' : 'outlined'}
+                      onClick={() => handleStatusChange(s.key)}
+                      disabled={updateTicket.isPending}
+                      {...(isActive && customColor
+                        ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700 } }
+                        : isActive
+                        ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700 } }
+                        : { sx: { cursor: 'pointer', fontWeight: 400 } })}
+                    />
+                  );
+                })}
               </Box>
             </Box>
           ) : (
             <Box display="flex" gap={1} mb={1}>
-              <Chip label={t.status[ticket.status] || ticket.status} color={getStatusColor(ticket.status) as any} size="small" />
+              {(() => {
+                const customColor = getColorForKey(ticket.status);
+                return (
+                  <Chip
+                    label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
+                    size="small"
+                    {...(customColor
+                      ? { sx: { bgcolor: customColor, color: 'white' } }
+                      : { color: getStatusColor(ticket.status) as any })}
+                  />
+                );
+              })()}
             </Box>
           )}
 

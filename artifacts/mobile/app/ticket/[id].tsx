@@ -11,6 +11,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPatch, apiPost, PRIORITY_COLORS } from "@/utils/api";
+import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -29,12 +30,11 @@ interface Comment {
   author: { name: string }; createdAt: string;
 }
 
-const STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"];
-
 export default function TicketDetailScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { t, lang } = useLanguage();
+  const { statuses: orgStatuses, isClosedKey, getLabelForKey } = useTicketStatuses();
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
   const s = styles(colors);
@@ -60,7 +60,7 @@ export default function TicketDetailScreen() {
 
   const handleStatusChange = async (status: string) => {
     if (!ticket || ticket.status === status) return;
-    if (status === "resolved") {
+    if (isClosedKey(status) && !isClosedKey(ticket.status)) {
       setResolutionNote("");
       setResolutionModal(true);
       return;
@@ -79,9 +79,10 @@ export default function TicketDetailScreen() {
   const confirmResolved = async (note: string) => {
     setResolving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const closedStatusKey = orgStatuses.find((s) => s.isClosed)?.key ?? "resolved";
     try {
       await apiPatch(`/tickets/${id}`, {
-        status: "resolved",
+        status: closedStatusKey,
         resolutionNote: note || null,
       });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -203,14 +204,14 @@ export default function TicketDetailScreen() {
             <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={s.statusRow}>
-                {STATUSES.map((st) => (
+                {orgStatuses.map((st) => (
                   <TouchableOpacity
-                    key={st}
-                    style={[s.statusBtn, ticket.status === st && s.statusBtnActive]}
-                    onPress={() => handleStatusChange(st)}
+                    key={st.key}
+                    style={[s.statusBtn, ticket.status === st.key && s.statusBtnActive]}
+                    onPress={() => handleStatusChange(st.key)}
                   >
-                    <Text style={[s.statusBtnText, ticket.status === st && s.statusBtnTextActive]}>
-                      {t.status[st] ?? st}
+                    <Text style={[s.statusBtnText, ticket.status === st.key && s.statusBtnTextActive]}>
+                      {st.label}
                     </Text>
                   </TouchableOpacity>
                 ))}

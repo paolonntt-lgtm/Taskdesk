@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, ticketsTable, ticketCommentsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { db, usersTable, ticketsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketStatusesTable, getDefaultStatuses } from "@workspace/db";
 import { hashPassword } from "./auth";
 
 const router: IRouter = Router();
@@ -44,6 +44,13 @@ router.post("/seed-demo", async (req: Request, res: Response): Promise<void> => 
     group: "IT",
     isActive: true,
   }).returning();
+
+  if (admin.organizationId) {
+    const orgStatuses = getDefaultStatuses('it_support');
+    await db.insert(ticketStatusesTable).values(
+      orgStatuses.map((s) => ({ ...s, organizationId: admin.organizationId! }))
+    ).onConflictDoNothing();
+  }
 
   const [tech] = await db.insert(usersTable).values({
     name: "Giulia Ferrari",

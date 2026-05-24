@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet, PRIORITY_COLORS } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 
 interface Ticket {
   id: number;
@@ -25,12 +26,11 @@ interface Ticket {
   assignee?: { name: string } | null;
 }
 
-const STATUS_OPTIONS = ["", "open", "in_progress", "waiting", "resolved", "closed"];
-
 export default function TicketsScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { statuses: orgStatuses, getLabelForKey } = useTicketStatuses();
   const s = styles(colors);
   const params = useLocalSearchParams<{ status?: string; priority?: string }>();
 
@@ -91,7 +91,7 @@ export default function TicketsScreen() {
         </View>
         <View style={s.cardBottom}>
           <View style={s.statusBadge}>
-            <Text style={s.statusText}>{t.status[item.status] ?? item.status}</Text>
+            <Text style={s.statusText}>{getLabelForKey(item.status) || t.status[item.status] || item.status}</Text>
           </View>
           <View style={s.cardBottomRight}>
             {hasNote && (
@@ -128,14 +128,23 @@ export default function TicketsScreen() {
       </View>
 
       <View style={s.filtersRow}>
-        {STATUS_OPTIONS.map((st) => (
+        <TouchableOpacity
+          key=""
+          style={[s.filterBtn, statusFilter === "" && !priorityFilter && s.filterBtnActive]}
+          onPress={() => { setStatusFilter(""); setPriorityFilter(""); }}
+        >
+          <Text style={[s.filterText, statusFilter === "" && !priorityFilter && s.filterTextActive]}>
+            {t.tickets.all}
+          </Text>
+        </TouchableOpacity>
+        {orgStatuses.map((st) => (
           <TouchableOpacity
-            key={st}
-            style={[s.filterBtn, statusFilter === st && !priorityFilter && s.filterBtnActive]}
-            onPress={() => { setStatusFilter(st); setPriorityFilter(""); }}
+            key={st.key}
+            style={[s.filterBtn, statusFilter === st.key && !priorityFilter && s.filterBtnActive]}
+            onPress={() => { setStatusFilter(st.key); setPriorityFilter(""); }}
           >
-            <Text style={[s.filterText, statusFilter === st && !priorityFilter && s.filterTextActive]}>
-              {st === "" ? t.tickets.all : (t.status[st] ?? st)}
+            <Text style={[s.filterText, statusFilter === st.key && !priorityFilter && s.filterTextActive]}>
+              {st.label}
             </Text>
           </TouchableOpacity>
         ))}

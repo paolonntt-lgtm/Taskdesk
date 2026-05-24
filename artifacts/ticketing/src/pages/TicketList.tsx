@@ -14,8 +14,7 @@ import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
-
-const VALID_STATUSES = ['open', 'waiting', 'resolved', 'closed'];
+import { useTicketStatuses } from '../hooks/useTicketStatuses';
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -34,8 +33,12 @@ export default function TicketList() {
   const queryClient = useQueryClient();
 
   // ── Derive ALL filter values from the URL query string ──────────────────
+  const { statuses: orgStatuses, getLabelForKey, getColorForKey } = useTicketStatuses();
+
   const urlParams = new URLSearchParams(searchStr);
-  const status   = VALID_STATUSES.includes(urlParams.get('status') ?? '') ? urlParams.get('status')! : 'all';
+  const statusParam = urlParams.get('status') ?? '';
+  const validStatuses = orgStatuses.map((s) => s.key);
+  const status = (statusParam && (validStatuses.includes(statusParam) || validStatuses.length === 0)) ? statusParam : 'all';
   const priority = VALID_PRIORITIES.includes(urlParams.get('priority') ?? '') ? urlParams.get('priority')! : 'all';
   const location = urlParams.get('location') ?? 'all';
   const category = urlParams.get('category') ?? 'all';
@@ -273,10 +276,9 @@ export default function TicketList() {
               onChange={(e) => setParam('status', e.target.value)}
             >
               <MenuItem value="all">{t.ticketList.allStatuses}</MenuItem>
-              <MenuItem value="open">{t.status.open}</MenuItem>
-              <MenuItem value="waiting">{t.status.waiting}</MenuItem>
-              <MenuItem value="resolved">{t.status.resolved}</MenuItem>
-              <MenuItem value="closed">{t.status.closed}</MenuItem>
+              {orgStatuses.map((s) => (
+                <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>
+              ))}
             </TextField>
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
@@ -534,7 +536,18 @@ export default function TicketList() {
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        <Chip label={t.status[ticket.status] || ticket.status} size="small" color={getStatusColor(ticket.status) as any} />
+                        {(() => {
+                          const customColor = getColorForKey(ticket.status);
+                          return (
+                            <Chip
+                              label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
+                              size="small"
+                              {...(customColor
+                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
+                                : { color: getStatusColor(ticket.status) as any })}
+                            />
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />

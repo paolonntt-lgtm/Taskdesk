@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable } from "@workspace/db";
+import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray, asc } from "drizzle-orm";
+import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable } from "@workspace/db";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -45,16 +45,31 @@ router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   const orgFilter = orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined;
 
-  const rows = await db.select({
-    name: ticketsTable.status,
-    count: sql<number>`count(*)`,
-  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status);
+  const [rows, statuses] = await Promise.all([
+    db.select({
+      name: ticketsTable.status,
+      count: sql<number>`count(*)`,
+    }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status),
+    orgId != null
+      ? db.select().from(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, orgId)).orderBy(asc(ticketStatusesTable.sortOrder))
+      : Promise.resolve([]),
+  ]);
 
-  const labels: Record<string, string> = {
-    open: "Aperto", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
+  const statusMap = new Map(statuses.map((s) => [s.key, s]));
+
+  const fallbackLabels: Record<string, string> = {
+    open: "Aperto", in_progress: "In lavorazione", waiting: "In attesa", resolved: "Risolto", closed: "Chiuso"
   };
 
-  res.json(rows.map((r) => ({ name: labels[r.name] ?? r.name, count: Number(r.count) })));
+  res.json(rows.map((r) => {
+    const custom = statusMap.get(r.name);
+    return {
+      name: custom?.label ?? fallbackLabels[r.name] ?? r.name,
+      count: Number(r.count),
+      color: custom?.color ?? null,
+      key: r.name,
+    };
+  }));
 });
 
 router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> => {

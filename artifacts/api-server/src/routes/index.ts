@@ -28,6 +28,7 @@ import bugReportRouter from "./bugReport";
 import onboardingRouter from "./onboarding";
 import clientsRouter from "./clients";
 import stickyNotesRouter from "./stickyNotes";
+import ticketStatusesRouter from "./ticketStatuses";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(bugReportRouter);
 router.use(onboardingRouter);
 router.use(clientsRouter);
 router.use(stickyNotesRouter);
+router.use(ticketStatusesRouter);
 
 export default router;

@@ -39,6 +39,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTicketStatuses } from '../hooks/useTicketStatuses';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -139,6 +140,7 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dueBadge = showDueBadge && ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
+  const { getLabelForKey, getColorForKey } = useTicketStatuses();
 
   return (
     <Box component={Link} href={`/tickets/${ticket.id}`} sx={{
@@ -195,8 +197,16 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
           <Chip label={dueBadge.label} size="small" color={dueBadge.color}
             sx={{ fontSize: '0.62rem', height: 20, fontWeight: 'bold' }} />
         )}
-        <Chip label={t.status[ticket.status] || ticket.status} size="small"
-          color={getStatusColor(ticket.status) as any} sx={{ fontSize: '0.62rem', height: 20 }} />
+        <Chip
+          label={getLabelForKey(ticket.status) || t.status[ticket.status as keyof typeof t.status] || ticket.status}
+          size="small"
+          sx={{
+            fontSize: '0.62rem', height: 20,
+            bgcolor: getColorForKey(ticket.status) ?? undefined,
+            color: getColorForKey(ticket.status) ? '#fff' : undefined,
+          }}
+          color={getColorForKey(ticket.status) ? undefined : (getStatusColor(ticket.status) as any)}
+        />
         {!isMobile && (
           <Chip label={t.priority[ticket.priority] || ticket.priority} size="small"
             variant="outlined" color={getPriorityColor(ticket.priority) as any}

@@ -10,6 +10,8 @@ import {
 import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TabPanelProps { children?: React.ReactNode; index: number; value: number; }
 function TabPanel({ children, value, index }: TabPanelProps) {
@@ -332,6 +334,203 @@ function ListEditor({
   );
 }
 
+function TicketStatusesTab() {
+  const { t } = useLanguage();
+  const ts = t.ticketStatuses;
+  const queryClient = useQueryClient();
+  const { statuses, isLoading } = useTicketStatuses();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TicketStatus | null>(null);
+  const [formLabel, setFormLabel] = useState('');
+  const [formColor, setFormColor] = useState('#1976d2');
+  const [formIsDefault, setFormIsDefault] = useState(false);
+  const [formIsClosed, setFormIsClosed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<TicketStatus | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['ticket-statuses'] });
+
+  const openAdd = () => {
+    setEditTarget(null);
+    setFormLabel('');
+    setFormColor('#1976d2');
+    setFormIsDefault(false);
+    setFormIsClosed(false);
+    setFormError(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (s: TicketStatus) => {
+    setEditTarget(s);
+    setFormLabel(s.label);
+    setFormColor(s.color ?? '#1976d2');
+    setFormIsDefault(s.isDefault);
+    setFormIsClosed(s.isClosed);
+    setFormError(null);
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formLabel.trim()) { setFormError(ts.errorRequired); return; }
+    setSaving(true);
+    setFormError(null);
+    try {
+      const body = { label: formLabel.trim(), color: formColor, isDefault: formIsDefault, isClosed: formIsClosed };
+      const url = editTarget ? `/api/settings/ticket-statuses/${editTarget.id}` : '/api/settings/ticket-statuses';
+      const method = editTarget ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json(); setFormError(d.message || ts.errorSave); return; }
+      invalidate();
+      setDialogOpen(false);
+      setMsg({ type: 'success', text: editTarget ? 'Salvato.' : 'Stato creato.' });
+    } catch { setFormError(ts.errorSave); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/settings/ticket-statuses/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) {
+        const d = await res.json();
+        if (d.ticketCount !== undefined) { setDeleteError(ts.deleteInUseError(d.ticketCount)); }
+        else { setDeleteError(d.message || ts.errorDelete); }
+        return;
+      }
+      invalidate();
+      setDeleteTarget(null);
+      setMsg({ type: 'success', text: 'Eliminato.' });
+    } catch { setDeleteError(ts.errorDelete); }
+    finally { setDeleting(false); }
+  };
+
+  const handleMove = async (id: number, direction: 'up' | 'down') => {
+    const sorted = [...statuses].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex((s) => s.id === id);
+    if (direction === 'up' && idx <= 0) return;
+    if (direction === 'down' && idx >= sorted.length - 1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const newOrder = sorted.map((s, i) => {
+      if (i === idx) return { id: s.id, sortOrder: sorted[swapIdx].sortOrder };
+      if (i === swapIdx) return { id: s.id, sortOrder: sorted[idx].sortOrder };
+      return { id: s.id, sortOrder: s.sortOrder };
+    });
+    try {
+      await fetch('/api/settings/ticket-statuses/reorder', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: newOrder }),
+      });
+      invalidate();
+    } catch { setMsg({ type: 'error', text: ts.errorSave }); }
+  };
+
+  const sorted = [...statuses].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+        <Box>
+          <Typography variant="h6" fontWeight="bold">{ts.title}</Typography>
+          <Typography variant="body2" color="text.secondary">{ts.subtitle}</Typography>
+        </Box>
+        <Button startIcon={<Add />} variant="contained" size="small" onClick={openAdd}>{ts.addStatus}</Button>
+      </Box>
+
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+
+      {isLoading ? (
+        <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
+      ) : sorted.length === 0 ? (
+        <Typography color="text.secondary">{ts.noStatuses}</Typography>
+      ) : (
+        <Stack spacing={1}>
+          {sorted.map((s, idx) => (
+            <Paper key={s.id} variant="outlined" sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: s.color ?? '#bbb', flexShrink: 0 }} />
+              <Typography fontWeight={600} sx={{ flex: 1 }}>{s.label}</Typography>
+              {s.isDefault && <Chip label={ts.defaultBadge} size="small" color="primary" />}
+              {s.isClosed && <Chip label={ts.closedBadge} size="small" color="default" />}
+              <Tooltip title={ts.moveUp}><span><IconButton size="small" onClick={() => handleMove(s.id, 'up')} disabled={idx === 0}><ExpandLess fontSize="small" /></IconButton></span></Tooltip>
+              <Tooltip title={ts.moveDown}><span><IconButton size="small" onClick={() => handleMove(s.id, 'down')} disabled={idx === sorted.length - 1}><ExpandMore fontSize="small" /></IconButton></span></Tooltip>
+              <Tooltip title="Modifica"><IconButton size="small" onClick={() => openEdit(s)}><EditOutlined fontSize="small" /></IconButton></Tooltip>
+              <Tooltip title={ts.delete}><IconButton size="small" color="error" onClick={() => { setDeleteTarget(s); setDeleteError(null); }}><Delete fontSize="small" /></IconButton></Tooltip>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{editTarget ? ts.editStatus : ts.addStatus}</DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            {formError && <Alert severity="error">{formError}</Alert>}
+            <TextField
+              label={ts.labelField}
+              value={formLabel}
+              onChange={(e) => setFormLabel(e.target.value)}
+              size="small" fullWidth autoFocus
+            />
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{ts.colorField}</Typography>
+              <Box display="flex" alignItems="center" gap={1.5}>
+                <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: formColor, border: '1px solid', borderColor: 'divider' }} />
+                <input type="color" value={formColor} onChange={(e) => setFormColor(e.target.value)} style={{ width: 36, height: 32, border: 'none', padding: 0, cursor: 'pointer', background: 'none' }} />
+                <Typography variant="caption" color="text.secondary">{formColor}</Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="body2" fontWeight={500}>{ts.isDefaultField}</Typography>
+                <Typography variant="caption" color="text.secondary">{ts.isDefaultHint}</Typography>
+              </Box>
+              <Switch checked={formIsDefault} onChange={(e) => setFormIsDefault(e.target.checked)} />
+            </Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="body2" fontWeight={500}>{ts.isClosedField}</Typography>
+                <Typography variant="caption" color="text.secondary">{ts.isClosedHint}</Typography>
+              </Box>
+              <Switch checked={formIsClosed} onChange={(e) => setFormIsClosed(e.target.checked)} />
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>{ts.cancel}</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
+            {saving ? ts.saving : ts.save}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{ts.deleteConfirmTitle}</DialogTitle>
+        <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 1 }}>{deleteError}</Alert>}
+          <Typography>{deleteTarget ? ts.deleteConfirmText(deleteTarget.label) : ''}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>{ts.cancel}</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
+            {deleting ? ts.deleting : ts.delete}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 export default function Settings() {
   const { user, updateUser } = useAuth();
   const { t, lang } = useLanguage();
@@ -630,6 +829,7 @@ export default function Settings() {
           <Tab label={t.settings.tabProfile} />
           <Tab label={t.settings.tabNotifications} />
           {isAdmin && <Tab label={t.settings.tabSystem} />}
+          {isAdmin && <Tab label={t.settings.tabTicketStatuses} />}
           {isAdmin && <Tab label={t.settings.tabKnowledgeBase} />}
           {isAdmin && <Tab label={t.settings.tabInboundEmail} icon={<MailOutline sx={{ fontSize: 16 }} />} iconPosition="start" />}
         </Tabs>
@@ -973,13 +1173,16 @@ export default function Settings() {
         </TabPanel>
       )}
 
-      {/* ── KNOWLEDGE BASE (admin only) ── */}
+      {/* ── TICKET STATUSES + KNOWLEDGE BASE + EMAIL (admin only) ── */}
       {isAdmin && (
         <>
           <TabPanel value={tab} index={3}>
-            <KnowledgeBaseTab />
+            <TicketStatusesTab />
           </TabPanel>
           <TabPanel value={tab} index={4}>
+            <KnowledgeBaseTab />
+          </TabPanel>
+          <TabPanel value={tab} index={5}>
             <EmailChannelsTab />
           </TabPanel>
         </>

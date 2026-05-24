@@ -1,6 +1,41 @@
-import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable, settingsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { db, usersTable, ticketsTable, ticketCommentsTable, ticketActivityLogsTable, ticketInternalNotesTable, settingsTable, inboundEmailChannelsTable, ticketStatusesTable, organizationsTable } from "@workspace/db";
+import { getDefaultStatuses } from "@workspace/db";
+import { eq, notInArray } from "drizzle-orm";
 import { hashPassword } from "../routes/auth";
 import { logger } from "./logger";
+
+export async function backfillOrgTicketStatuses(): Promise<void> {
+  try {
+    // Find all orgs that already have ticket statuses
+    const orgsWithStatuses = await db
+      .selectDistinct({ orgId: ticketStatusesTable.organizationId })
+      .from(ticketStatusesTable);
+
+    const orgsWithStatusIds = orgsWithStatuses.map((r) => r.orgId);
+
+    // Find all orgs that don't have ticket statuses yet
+    const baseOrgQuery = db.select({ id: organizationsTable.id, businessType: organizationsTable.businessType }).from(organizationsTable);
+    const orgsToSeed = orgsWithStatusIds.length > 0
+      ? await baseOrgQuery.where(notInArray(organizationsTable.id, orgsWithStatusIds))
+      : await baseOrgQuery;
+
+    if (orgsToSeed.length === 0) return;
+
+    logger.info({ count: orgsToSeed.length }, "Backfilling ticket statuses for orgs without them");
+
+    for (const org of orgsToSeed) {
+      const businessType = org.businessType ?? "it_support";
+      const defaults = getDefaultStatuses(businessType as any);
+      await db.insert(ticketStatusesTable).values(
+        defaults.map((s) => ({ ...s, organizationId: org.id }))
+      ).onConflictDoNothing();
+    }
+
+    logger.info("Ticket status backfill complete");
+  } catch (err) {
+    logger.error({ err }, "Ticket status backfill failed");
+  }
+}
 
 export async function seedIfEmpty(): Promise<void> {
   const existing = await db.select().from(usersTable);
@@ -220,8 +255,16 @@ export async function seedIfEmpty(): Promise<void> {
     { ticketId: tickets[6].id, authorId: admin.id, noteText: "Numero seriale POS: TRX-2024-0891. Contratto assistenza attivo fino a dicembre 2025.", createdAt: now },
   ]);
 
-  // Seed default groups for org 1 (orgKey format: org_<orgId>_groups)
+  // Seed ticket statuses for the org
   const orgId = admin.organizationId;
+  if (orgId != null) {
+    const defaultStatuses = getDefaultStatuses("it_support");
+    await db.insert(ticketStatusesTable).values(
+      defaultStatuses.map((s) => ({ ...s, organizationId: orgId }))
+    ).onConflictDoNothing();
+  }
+
+  // Seed default groups for org 1 (orgKey format: org_<orgId>_groups)
   if (orgId != null) {
     await db
       .insert(settingsTable)
