@@ -4,6 +4,7 @@ import {
   Select, MenuItem, FormControl, InputLabel, Chip, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, Autocomplete,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -56,6 +57,7 @@ async function apiFetch(path: string, opts?: RequestInit) {
 export default function StickyNotesLayer() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const theme = useTheme();
   const qc = useQueryClient();
 
   const { data: notes = [] } = useQuery<NoteDisplay[]>({
@@ -504,7 +506,8 @@ export default function StickyNotesLayer() {
         </Box>
       )}
 
-      {/* Sticky-note create FAB — sits above the bot FAB (bottom:24 + 56px height + 8px gap = 88) */}
+      {/* Sticky-note create FAB — sits above the bot FAB (bottom:24 + 56px FAB height + 8px gap = 88).
+          zIndex above theme.zIndex.modal so it stays visible when the bot chat dialog is open. */}
       <Tooltip title={t.stickyNotes.createTooltip} placement="left">
         <Fab
           size="small"
@@ -513,7 +516,7 @@ export default function StickyNotesLayer() {
             position: "fixed",
             bottom: 88,
             right: 24,
-            zIndex: 1201,
+            zIndex: theme.zIndex.modal + 100,
             bgcolor: "#fef9c3",
             color: "text.primary",
             border: "2px solid #fde047",
