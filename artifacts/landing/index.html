@@ -13,23 +13,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <meta name="theme-color" content="#2563eb" />
 
-    <title>TaskDesk — Software Ticketing Aziendale | Da €9/mese</title>
-    <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile. Gestisci richieste di supporto, assegna ticket, monitora priorità. Da €9/mese tutto incluso. Prova gratuita 7 giorni, nessuna carta di credito." />
+    <title>TaskDesk — Software Ticketing Aziendale | Da €15/mese</title>
+    <meta name="description" content="TaskDesk è il sistema di ticketing aziendale semplice e accessibile. Gestisci richieste di supporto, assegna ticket, monitora priorità. Da €15/mese tutto incluso. Prova gratuita 7 giorni, nessuna carta di credito." />
     <meta name="keywords" content="software ticketing, gestione ticket aziendale, helpdesk, supporto tecnico, ticket management, sistema ticket, helpdesk Italia, gestione richieste aziendali" />
     <meta name="author" content="TaskDesk" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://taskdesk.it/" />
 
-    <!-- Hreflang: sito bilingue -->
-    <link rel="alternate" hreflang="it" href="https://taskdesk.it/" />
-    <link rel="alternate" hreflang="en" href="https://taskdesk.it/" />
-    <link rel="alternate" hreflang="x-default" href="https://taskdesk.it/" />
+    <!--
+      Static fallback canonical and hreflang for search-engine crawlers that
+      read the raw HTML before JavaScript executes.  Helmet (in Landing.tsx)
+      overwrites these at runtime with the correct per-page values.
+      The default points to /it/ because / redirects there.
+    -->
+    <link rel="canonical" href="https://taskdesk.it/it/" />
+    <link rel="alternate" hreflang="it" href="https://taskdesk.it/it/" />
+    <link rel="alternate" hreflang="en" href="https://taskdesk.it/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://taskdesk.it/it/" />
 
     <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://taskdesk.it/" />
-    <meta property="og:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
-    <meta property="og:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Nessun setup infinito, nessun contratto. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+    <meta property="og:url" content="https://taskdesk.it/it/" />
+    <meta property="og:title" content="TaskDesk — Software Ticketing Aziendale | Da €15/mese" />
+    <meta property="og:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Nessun setup infinito, nessun contratto. Da €15/mese tutto incluso, prova gratuita 7 giorni." />
     <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -40,8 +45,8 @@
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="TaskDesk — Software Ticketing Aziendale | Da €9/mese" />
-    <meta name="twitter:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Da €9/mese tutto incluso, prova gratuita 7 giorni." />
+    <meta name="twitter:title" content="TaskDesk — Software Ticketing Aziendale | Da €15/mese" />
+    <meta name="twitter:description" content="Gestisci i ticket aziendali in modo semplice e veloce. Da €15/mese tutto incluso, prova gratuita 7 giorni." />
     <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
     <meta name="twitter:image:alt" content="TaskDesk — Software di ticketing aziendale" />
 
@@ -56,7 +61,7 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "TaskDesk",
-      "url": "https://taskdesk.it/",
+      "url": "https://taskdesk.it/it/",
       "description": "Sistema di ticketing aziendale semplice e accessibile",
       "inLanguage": ["it", "en"]
     }
@@ -68,7 +73,7 @@
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "TaskDesk",
-      "url": "https://taskdesk.it/",
+      "url": "https://taskdesk.it/it/",
       "logo": {
         "@type": "ImageObject",
         "url": "https://taskdesk.it/taskdesk-logo.png"
@@ -100,12 +105,12 @@
         {
           "@type": "Offer",
           "name": "Starter",
-          "price": "9.00",
+          "price": "15.00",
           "priceCurrency": "EUR",
           "description": "Per piccoli team fino a 5 utenti",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
-            "price": "9.00",
+            "price": "15.00",
             "priceCurrency": "EUR",
             "unitText": "mese"
           }
@@ -149,7 +154,7 @@
       ],
       "screenshot": "https://taskdesk.it/opengraph.jpg",
       "inLanguage": "it",
-      "url": "https://taskdesk.it/",
+      "url": "https://taskdesk.it/it/",
       "aggregateRating": {
         "@type": "AggregateRating",
         "ratingValue": "4.9",
@@ -170,7 +175,7 @@
           "name": "C'è un periodo di prova gratuita?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €9/mese."
+            "text": "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €15/mese."
           }
         },
         {
@@ -202,7 +207,7 @@
           "name": "Quanto costa TaskDesk?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "TaskDesk parte da €9/mese per il piano Starter (fino a 5 utenti). Il piano Team è €25/mese (fino a 15 utenti), Business €69/mese (fino a 50 utenti), Enterprise €149/mese (utenti illimitati). Tutti i piani includono 7 giorni di prova gratuita senza carta di credito."
+            "text": "TaskDesk parte da €15/mese per il piano Starter (fino a 5 utenti). Il piano Team è €25/mese (fino a 15 utenti), Business €69/mese (fino a 50 utenti), Enterprise €149/mese (utenti illimitati). Tutti i piani includono 7 giorni di prova gratuita senza carta di credito."
           }
         }
       ]
