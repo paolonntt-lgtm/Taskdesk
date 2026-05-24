@@ -9,6 +9,8 @@
  *   pnpm --filter @workspace/scripts run verify-sitemaps -- http://localhost:80
  */
 
+import { XMLParser } from "fast-xml-parser";
+
 const args = process.argv.slice(2).filter((a) => a !== "--");
 const BASE_URL = (args[0] ?? "https://taskdesk.it").replace(/\/$/, "");
 
@@ -24,15 +26,38 @@ async function fetchText(url: string): Promise<{ status: number; body: string }>
   return { status: res.status, body };
 }
 
+const xmlParser = new XMLParser({ ignoreAttributes: false });
+
+/**
+ * Parse body as XML and return an error string on failure, or null on success.
+ * Uses fast-xml-parser so actual XML syntax errors are caught.
+ */
+function parseXml(body: string): { parsed: unknown; error: string | null } {
+  try {
+    const parsed = xmlParser.parse(body);
+    return { parsed, error: null };
+  } catch (err) {
+    return {
+      parsed: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Validate an XML response: parse it, then check for expected top-level keys.
+ */
 function checkXml(
   body: string,
-  opts: { rootElement: string; mustContain?: string[] },
+  opts: { requiredKey: string; mustContain?: string[] },
 ): string | null {
-  if (!body.trimStart().startsWith("<?xml")) {
-    return "response does not start with <?xml declaration";
+  const { parsed, error } = parseXml(body);
+  if (error) return `XML parse error: ${error}`;
+  if (typeof parsed !== "object" || parsed === null) {
+    return "parsed XML is not an object";
   }
-  if (!body.includes(`<${opts.rootElement}`)) {
-    return `missing root element <${opts.rootElement}>`;
+  if (!(opts.requiredKey in (parsed as Record<string, unknown>))) {
+    return `missing root element <${opts.requiredKey}>`;
   }
   for (const fragment of opts.mustContain ?? []) {
     if (!body.includes(fragment)) {
@@ -40,6 +65,27 @@ function checkXml(
     }
   }
   return null;
+}
+
+/**
+ * Verify that robots.txt contains a Sitemap directive whose value:
+ *  - is an absolute URL (starts with http:// or https://)
+ *  - ends with /sitemap-index.xml
+ *
+ * We do NOT require the host to match BASE_URL because robots.txt always
+ * declares the canonical production URL even when the script is run against
+ * a local build or a staging host.
+ */
+function checkRobotsDirective(body: string): string | null {
+  const lines = body.split(/\r?\n/);
+  for (const line of lines) {
+    const m = line.match(/^Sitemap:\s*(.+)$/i);
+    if (!m) continue;
+    const url = m[1].trim();
+    if (/^https?:\/\/.+\/sitemap-index\.xml$/.test(url)) return null;
+    return `Sitemap directive found but does not point to sitemap-index.xml: "${url}"`;
+  }
+  return `no "Sitemap: ..." directive found in robots.txt`;
 }
 
 const CHECKS: Array<{
@@ -53,11 +99,11 @@ const CHECKS: Array<{
     validate: (s) => (s === 200 ? null : `HTTP ${s}`),
   },
   {
-    name: "sitemap-index.xml — valid XML, references both language sitemaps",
+    name: "sitemap-index.xml — valid XML with <sitemapindex> root, references both language sitemaps",
     url: `${BASE_URL}/sitemap-index.xml`,
     validate: (_, body) =>
       checkXml(body, {
-        rootElement: "sitemapindex",
+        requiredKey: "sitemapindex",
         mustContain: ["sitemap-it.xml", "sitemap-en.xml"],
       }),
   },
@@ -67,10 +113,10 @@ const CHECKS: Array<{
     validate: (s) => (s === 200 ? null : `HTTP ${s}`),
   },
   {
-    name: "sitemap-it.xml — valid XML with <url> entries",
+    name: "sitemap-it.xml — valid XML with <urlset> root and <url> entries",
     url: `${BASE_URL}/sitemap-it.xml`,
     validate: (_, body) =>
-      checkXml(body, { rootElement: "urlset", mustContain: ["<url>", "<loc>"] }),
+      checkXml(body, { requiredKey: "urlset", mustContain: ["<url>", "<loc>"] }),
   },
   {
     name: "sitemap-en.xml — HTTP 200",
@@ -78,10 +124,10 @@ const CHECKS: Array<{
     validate: (s) => (s === 200 ? null : `HTTP ${s}`),
   },
   {
-    name: "sitemap-en.xml — valid XML with <url> entries",
+    name: "sitemap-en.xml — valid XML with <urlset> root and <url> entries",
     url: `${BASE_URL}/sitemap-en.xml`,
     validate: (_, body) =>
-      checkXml(body, { rootElement: "urlset", mustContain: ["<url>", "<loc>"] }),
+      checkXml(body, { requiredKey: "urlset", mustContain: ["<url>", "<loc>"] }),
   },
   {
     name: "robots.txt — HTTP 200",
@@ -89,17 +135,14 @@ const CHECKS: Array<{
     validate: (s) => (s === 200 ? null : `HTTP ${s}`),
   },
   {
-    name: "robots.txt — Sitemap directive points to sitemap-index.xml",
+    name: "robots.txt — Sitemap directive is an absolute URL ending with /sitemap-index.xml",
     url: `${BASE_URL}/robots.txt`,
-    validate: (_, body) =>
-      body.includes("Sitemap:") && body.includes("sitemap-index.xml")
-        ? null
-        : "missing 'Sitemap: .../sitemap-index.xml' directive",
+    validate: (_, body) => checkRobotsDirective(body),
   },
 ];
 
 async function runChecks(): Promise<void> {
-  const SEPARATOR = "─".repeat(62);
+  const SEPARATOR = "─".repeat(66);
 
   console.log(`\nTaskDesk sitemap smoke-test`);
   console.log(`Target: ${BASE_URL}`);
