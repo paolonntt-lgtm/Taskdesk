@@ -25,25 +25,46 @@ function discoverRoutes(filePath: string): string[] {
   return [...new Set(paths)];
 }
 
-function buildSitemapXml(
+/**
+ * Resolve the canonical URL for a route in a given language.
+ * Falls back to `baseUrl + path` when no language-specific override exists.
+ */
+function resolveUrl(
+  path: string,
+  meta: SitemapRouteMeta,
+  baseUrl: string,
+  lang: "it" | "en",
+): string {
+  return meta.urls?.[lang] ?? `${baseUrl}${path}`;
+}
+
+/**
+ * Build a language-specific sitemap XML string.
+ * Each <url> points to the language variant of that page and includes
+ * xhtml:link hreflang alternates for both languages.
+ */
+function buildLanguageSitemapXml(
   routes: string[],
   routeMeta: Record<string, SitemapRouteMeta>,
   baseUrl: string,
+  lang: "it" | "en",
 ): string {
   const lastmod = new Date().toISOString().slice(0, 10);
+  const otherLang: "it" | "en" = lang === "it" ? "en" : "it";
 
   const urls = routes
     .filter((path) => !routeMeta[path]?.exclude)
     .map((path) => {
       const meta = routeMeta[path] ?? {};
-      const loc = `${baseUrl}${path}`;
-      const alts =
-        meta.hreflang
-          ?.map(
-            (h) =>
-              `    <xhtml:link rel="alternate" hreflang="${h.lang}" href="${h.href}" />`,
-          )
-          .join("\n") ?? "";
+      const loc = resolveUrl(path, meta, baseUrl, lang);
+      const altSelf = resolveUrl(path, meta, baseUrl, lang);
+      const altOther = resolveUrl(path, meta, baseUrl, otherLang);
+
+      const alts = [
+        `    <xhtml:link rel="alternate" hreflang="${lang}" href="${altSelf}" />`,
+        `    <xhtml:link rel="alternate" hreflang="${otherLang}" href="${altOther}" />`,
+        `    <xhtml:link rel="alternate" hreflang="x-default" href="${altSelf}" />`,
+      ].join("\n");
 
       return [
         "  <url>",
@@ -51,7 +72,7 @@ function buildSitemapXml(
         `    <lastmod>${lastmod}</lastmod>`,
         `    <changefreq>${meta.changefreq ?? "monthly"}</changefreq>`,
         `    <priority>${(meta.priority ?? 0.5).toFixed(1)}</priority>`,
-        ...(alts ? [alts] : []),
+        alts,
         "  </url>",
       ].join("\n");
     })
@@ -70,13 +91,43 @@ function buildSitemapXml(
 }
 
 /**
- * Vite plugin that generates sitemap.xml at build time by:
+ * Build the sitemap index XML that references the two language sitemaps.
+ */
+function buildSitemapIndexXml(baseUrl: string): string {
+  const lastmod = new Date().toISOString().slice(0, 10);
+
+  const sitemaps = ["sitemap-it.xml", "sitemap-en.xml"]
+    .map((name) =>
+      [
+        "  <sitemap>",
+        `    <loc>${baseUrl}/${name}</loc>`,
+        `    <lastmod>${lastmod}</lastmod>`,
+        "  </sitemap>",
+      ].join("\n"),
+    )
+    .join("\n\n");
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    "",
+    sitemaps,
+    "",
+    "</sitemapindex>",
+    "",
+  ].join("\n");
+}
+
+/**
+ * Vite plugin that generates per-language sitemaps and a sitemap index at
+ * build time by:
  * 1. Scanning `appRouterPath` for <Route path="..." /> declarations.
  * 2. Merging discovered paths with optional metadata from `routeMeta`.
- * 3. Emitting the XML asset into the output directory.
+ * 3. Emitting sitemap-it.xml, sitemap-en.xml, and sitemap-index.xml.
  *
  * Adding a new <Route> to App.tsx is all that is needed for it to appear
- * in the next deployed sitemap.  Metadata customisation is optional.
+ * in the next deployed sitemaps.  Per-language URL overrides and metadata
+ * customisation are optional via sitemap-routes.ts.
  */
 export function sitemapPlugin(options: SitemapPluginOptions): Plugin {
   return {
@@ -84,8 +135,14 @@ export function sitemapPlugin(options: SitemapPluginOptions): Plugin {
     apply: "build",
     generateBundle() {
       const routes = discoverRoutes(options.appRouterPath);
-      const xml = buildSitemapXml(routes, options.routeMeta, options.baseUrl);
-      this.emitFile({ type: "asset", fileName: "sitemap.xml", source: xml });
+
+      const itXml = buildLanguageSitemapXml(routes, options.routeMeta, options.baseUrl, "it");
+      const enXml = buildLanguageSitemapXml(routes, options.routeMeta, options.baseUrl, "en");
+      const indexXml = buildSitemapIndexXml(options.baseUrl);
+
+      this.emitFile({ type: "asset", fileName: "sitemap-it.xml",    source: itXml });
+      this.emitFile({ type: "asset", fileName: "sitemap-en.xml",    source: enXml });
+      this.emitFile({ type: "asset", fileName: "sitemap-index.xml", source: indexXml });
     },
   };
 }
