@@ -77,6 +77,10 @@ interface SendEmailArgs {
   html: string;
   text?: string;
   replyTo?: string;
+  /** RFC 2822 Message-ID of the email being replied to, for threading */
+  inReplyTo?: string;
+  /** Space-separated Message-IDs for the References header */
+  references?: string;
 }
 
 interface SendEmailResult {
@@ -113,6 +117,8 @@ export async function sendEmailForOrg(
       html: args.html,
       text: args.text,
       ...(args.replyTo ? { replyTo: args.replyTo } : {}),
+      ...(args.inReplyTo ? { inReplyTo: args.inReplyTo } : {}),
+      ...(args.references ? { references: args.references } : {}),
     });
     return { ok: true, messageId: info.messageId ?? undefined };
   } catch (err: any) {

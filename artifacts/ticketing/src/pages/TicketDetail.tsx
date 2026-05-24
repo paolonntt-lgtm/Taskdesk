@@ -94,6 +94,11 @@ export default function TicketDetail() {
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(true);
+  const [emailReplyOpen, setEmailReplyOpen] = useState(false);
+  const [emailReplyBody, setEmailReplyBody] = useState('');
+  const [emailReplySending, setEmailReplySending] = useState(false);
+  const [emailReplyError, setEmailReplyError] = useState<string | null>(null);
+  const [emailReplySent, setEmailReplySent] = useState(false);
 
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
@@ -349,6 +354,27 @@ export default function TicketDetail() {
   };
 
   const isEmailResource = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((ticket as any)?.resource ?? '');
+
+  const submitEmailReply = async () => {
+    if (!emailReplyBody.trim()) return;
+    setEmailReplySending(true);
+    setEmailReplyError(null);
+    try {
+      const comment = await addComment.mutateAsync({
+        id: ticketId,
+        data: { commentText: emailReplyBody.trim(), sendToCustomer: true } as any,
+      });
+      queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+      queryClient.invalidateQueries({ queryKey: getListTicketCommentsQueryKey(ticketId) });
+      setEmailReplyBody('');
+      setEmailReplyOpen(false);
+      setEmailReplySent(true);
+    } catch (err: any) {
+      setEmailReplyError(err?.message || err?.error || t.ticketDetail.emailReplyErrorPrefix);
+    } finally {
+      setEmailReplySending(false);
+    }
+  };
 
   const submitComment = async () => {
     if (!newComment.trim() && pendingAttachments.length === 0) return;
@@ -731,6 +757,18 @@ export default function TicketDetail() {
                         {ticket.resource}
                       </Typography>
                     </Box>
+                    {ticket.status !== 'closed' && (
+                      <Button
+                        startIcon={<MailOutline />}
+                        size="small"
+                        variant="outlined"
+                        color="info"
+                        sx={{ mt: 1, fontSize: '0.75rem' }}
+                        onClick={() => { setEmailReplyOpen(true); setTabValue(0); }}
+                      >
+                        {t.ticketDetail.replyViaEmail}
+                      </Button>
+                    )}
                   </Box>
                 )}
                 {ticket.inboundChannelName && (
@@ -1337,6 +1375,72 @@ export default function TicketDetail() {
                       </Box>
                     </Box>
                   )}
+                  {/* Email reply compose panel */}
+                  {emailReplyOpen && ticket.status !== 'closed' && isEmailResource && (
+                    <Box mt={2} sx={{ border: '1px solid', borderColor: 'info.300', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ bgcolor: 'info.50', px: 2, py: 1, borderBottom: '1px solid', borderColor: 'info.200', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EmailIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                        <Typography variant="caption" fontWeight={600} color="info.dark">
+                          {t.ticketDetail.replyViaEmail}
+                        </Typography>
+                      </Box>
+                      <Box px={2} py={1.5} display="flex" flexDirection="column" gap={1}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>
+                            {t.ticketDetail.emailReplyTo}:
+                          </Typography>
+                          <Typography variant="caption" fontWeight={600} color="info.main">
+                            {(ticket as any).resource}
+                          </Typography>
+                        </Box>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>
+                            {t.ticketDetail.emailReplySubject}:
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Re: [#{ticket.ticketNumber ?? ticket.id}] {ticket.title}
+                          </Typography>
+                        </Box>
+                        <TextField
+                          multiline
+                          minRows={4}
+                          maxRows={12}
+                          fullWidth
+                          size="small"
+                          value={emailReplyBody}
+                          onChange={(e) => setEmailReplyBody(e.target.value)}
+                          placeholder={t.ticketDetail.emailReplyBodyPlaceholder}
+                          disabled={emailReplySending}
+                          sx={{ mt: 0.5 }}
+                        />
+                        {emailReplyError && (
+                          <Alert severity="error" sx={{ py: 0.5 }}>
+                            {emailReplyError}
+                          </Alert>
+                        )}
+                        <Box display="flex" gap={1} justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            onClick={() => { setEmailReplyOpen(false); setEmailReplyBody(''); setEmailReplyError(null); }}
+                            disabled={emailReplySending}
+                          >
+                            {t.ticketDetail.emailReplyCancel}
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="info"
+                            size="small"
+                            startIcon={<EmailIcon />}
+                            onClick={submitEmailReply}
+                            disabled={!emailReplyBody.trim() || emailReplySending}
+                          >
+                            {emailReplySending ? t.ticketDetail.emailReplySending : t.ticketDetail.emailReplySend}
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
+
                   {ticket.status === 'closed' ? (
                     <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
                       {t.ticketDetail.closedTicketComment}
@@ -1511,6 +1615,18 @@ export default function TicketDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ── Email reply sent confirmation ── */}
+      <Snackbar
+        open={emailReplySent}
+        autoHideDuration={4000}
+        onClose={() => setEmailReplySent(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>
+          {t.ticketDetail.emailReplySentOk}
+        </Alert>
+      </Snackbar>
 
       {/* ── Reaction error feedback ── */}
       <Snackbar

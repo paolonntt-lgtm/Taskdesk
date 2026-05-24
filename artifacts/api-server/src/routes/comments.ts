@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray, and, sql } from "drizzle-orm";
 import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable } from "@workspace/db";
+import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -183,8 +184,35 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       operatorName: currentUser.name,
       appBaseUrl: appBaseUrl(),
     });
-    const replyTo = await getOrgInboundEmail(ticket.organizationId, ticket.inboundChannelId);
-    void sendEmailForOrg(ticket.organizationId, { to: toEmail, subject, html, text, ...(replyTo ? { replyTo } : {}) });
+    const prevMessageId = ticket.emailMessageId ?? undefined;
+    void (async () => {
+      try {
+        const replyTo = await getOrgInboundEmail(ticket.organizationId, ticket.inboundChannelId);
+        const result = await sendEmailForOrg(ticket.organizationId, {
+          to: toEmail,
+          subject,
+          html,
+          text,
+          ...(replyTo ? { replyTo } : {}),
+          ...(prevMessageId ? { inReplyTo: prevMessageId, references: prevMessageId } : {}),
+        });
+        if (result.ok && result.messageId) {
+          await db.update(ticketsTable)
+            .set({ emailMessageId: result.messageId })
+            .where(eq(ticketsTable.id, id));
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn({ ticketId: id, err: msg }, "Failed to send operator email reply");
+      }
+    })();
+    // Log the email dispatch as a separate activity entry
+    await db.insert(ticketActivityLogsTable).values({
+      ticketId: id,
+      userId: currentUser.id,
+      actionType: "email_reply_sent",
+      actionDescription: `${currentUser.name} ha inviato una risposta via email a ${toEmail}`,
+    });
   }
 
   // Send targeted notifications to mentioned users
