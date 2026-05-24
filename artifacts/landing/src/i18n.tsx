@@ -18,14 +18,22 @@ interface Translations {
     secondaryCta: string;
     trialBadge: string;
     trialNote: string;
+    microProof: string;
   };
   problem: {
     title: string;
     description: string;
   };
+  proofBar: {
+    setup: string;
+    gdpr: string;
+    trial: string;
+    cancel: string;
+  };
   features: {
     title: string;
     subtitle: string;
+    cta: string;
     items: {
       creation: { title: string; desc: string };
       priority: { title: string; desc: string };
@@ -37,12 +45,16 @@ interface Translations {
       fast: { title: string; desc: string };
     };
   };
+  howItWorks: {
+    cta: string;
+  };
   pricing: {
     title: string;
     price: string;
     unit: string;
     subtitle: string;
     trialLabel: string;
+    trialHeader: string;
     perMonth: string;
     mostPopular: string;
     seatsSuffix: string;
@@ -64,6 +76,13 @@ interface Translations {
     title: string;
     items: Array<{ q: string; a: string }>;
   };
+  finalCta: {
+    headline: string;
+    sub: string;
+    proof1: string;
+    proof2: string;
+    proof3: string;
+  };
   footer: {
     text: string;
   };
@@ -78,22 +97,30 @@ const translations: Record<Language, Translations> = {
       login: "Accedi",
     },
     hero: {
-      title: "I ticket aziendali che funzionano come una chat.",
-      titleLine1: "Ticket aziendali",
-      titleLine2: "come una chat.",
-      subtitle: "Apri un ticket in 10 secondi. Il team commenta, si menziona a vicenda e segna la soluzione — tutto in un unico thread conversazionale.",
+      title: "Il tuo team risolve i ticket — non li insegue.",
+      titleLine1: "Il tuo team risolve i ticket",
+      titleLine2: "— non li insegue.",
+      subtitle: "Apri un ticket in 10 secondi. Il team commenta, si menziona a vicenda e segna la soluzione. Niente email perse, niente richieste dimenticate.",
       cta: "Inizia la prova gratuita",
       secondaryCta: "Scopri come funziona",
       trialBadge: "7 giorni gratis",
       trialNote: "Nessuna carta di credito richiesta",
+      microProof: "7 giorni gratis · Nessuna carta · Cancella quando vuoi",
     },
     problem: {
       title: "I software enterprise sono gonfiati, costosi e lenti.",
       description: "Abbiamo eliminato il superfluo. Solo ciò che serve per gestire le richieste della tua azienda in modo impeccabile, con l'eleganza di un design essenziale."
     },
+    proofBar: {
+      setup: "Setup in 5 minuti",
+      gdpr: "GDPR Compliant",
+      trial: "7 giorni gratis",
+      cancel: "Nessun vincolo contrattuale",
+    },
     features: {
       title: "Tutto quello che serve. Niente di più.",
       subtitle: "Strumenti essenziali progettati con cura maniacale per la massima efficienza.",
+      cta: "Inizia la prova gratuita",
       items: {
         creation: {
           title: "Creazione e Assegnazione",
@@ -104,16 +131,16 @@ const translations: Record<Language, Translations> = {
           desc: "Tieni sempre sotto controllo cosa è urgente e cosa è già in lavorazione."
         },
         history: {
-          title: "Commenti e Thread",
-          desc: "Ogni ticket è una conversazione: risposte annidate, allegati e @menzioni per coinvolgere le persone giuste."
+          title: "Commenti in thread",
+          desc: "Ogni ticket è una conversazione: risposte, allegati e @menzioni per coinvolgere chi serve, senza email disperse."
         },
         solution: {
-          title: "Soluzione Marcata",
-          desc: "Chi risolve marca il commento giusto come soluzione. Tutti vedono subito cosa ha funzionato."
+          title: "Soluzione marcata",
+          desc: "Chi risolve marca il commento giusto come soluzione. Tutti vedono subito cosa ha funzionato — niente ambiguità."
         },
         stats: {
           title: "Report e Statistiche",
-          desc: "Dati chiari e leggibili per capire come sta performando il tuo team.",
+          desc: "Dashboard chiara per capire come sta performando il tuo team: trend, categorie, tempi di risposta.",
           bullets: [
             "Grafici per stato, priorità e categoria",
             "Trend ticket degli ultimi 30 giorni",
@@ -125,8 +152,8 @@ const translations: Record<Language, Translations> = {
           desc: "Gestisci Sede A, Sede B e oltre, tutto da un'unica piattaforma centralizzata."
         },
         roles: {
-          title: "Accesso Basato su Ruoli",
-          desc: "Admin per chi gestisce, User per chi richiede. Semplice e sicuro."
+          title: "Ruoli e Permessi",
+          desc: "Admin per chi gestisce, User per chi richiede. Controllo preciso su chi vede e fa cosa."
         },
         fast: {
           title: "Semplice e Veloce",
@@ -134,12 +161,16 @@ const translations: Record<Language, Translations> = {
         }
       }
     },
+    howItWorks: {
+      cta: "Inizia la prova gratuita",
+    },
     pricing: {
       title: "Un piano per ogni team. Trasparente, senza sorprese.",
       price: "€9",
       unit: "/mese",
       subtitle: "Prezzo fisso per team, non per utente. Cambi piano quando vuoi.",
       trialLabel: "7 giorni di prova gratuita inclusi — nessuna carta di credito",
+      trialHeader: "Prima prova gratis, poi scegli il piano",
       perMonth: "/mese",
       mostPopular: "Più scelto",
       seatsSuffix: "utenti inclusi",
@@ -171,6 +202,13 @@ const translations: Record<Language, Translations> = {
         { q: "È adatto alla mia azienda?", a: "Se hai bisogno di mettere ordine nelle richieste interne o dei clienti senza setup complicati e senza spendere una fortuna, sì. TaskDesk è progettato per essere semplice da avviare e facile da usare ogni giorno." }
       ]
     },
+    finalCta: {
+      headline: "Pronto a smettere di rincorrere i ticket?",
+      sub: "Inizia subito — i primi 7 giorni sono gratis, senza carta di credito.",
+      proof1: "Nessuna carta di credito",
+      proof2: "Setup in 5 minuti",
+      proof3: "GDPR compliant",
+    },
     footer: {
       text: "© 2025 TaskDesk. Il design essenziale per il business italiano."
     },
@@ -183,22 +221,30 @@ const translations: Record<Language, Translations> = {
       login: "Login",
     },
     hero: {
-      title: "Business tickets that work like a chat.",
-      titleLine1: "Business tickets",
-      titleLine2: "that work like a chat.",
-      subtitle: "Open a ticket in 10 seconds. The team comments, mentions each other, and marks the solution — all in one conversational thread.",
+      title: "Your team solves tickets — it doesn't chase them.",
+      titleLine1: "Your team solves tickets",
+      titleLine2: "— it doesn't chase them.",
+      subtitle: "Open a ticket in 10 seconds. The team comments, mentions each other, and marks the solution. No lost emails, no forgotten requests.",
       cta: "Start free trial",
       secondaryCta: "See how it works",
       trialBadge: "7 days free",
       trialNote: "No credit card required",
+      microProof: "7 days free · No credit card · Cancel anytime",
     },
     problem: {
       title: "Enterprise software is bloated, expensive, and slow.",
       description: "We removed the excess. Only what you need to manage your company's requests flawlessly, with the elegance of essential design."
     },
+    proofBar: {
+      setup: "5-min setup",
+      gdpr: "GDPR Compliant",
+      trial: "7 days free",
+      cancel: "No commitment",
+    },
     features: {
       title: "Everything you need. Nothing you don't.",
       subtitle: "Essential tools designed with obsessive care for maximum efficiency.",
+      cta: "Start free trial",
       items: {
         creation: {
           title: "Ticket Creation & Assignment",
@@ -209,16 +255,16 @@ const translations: Record<Language, Translations> = {
           desc: "Always keep track of what's urgent and what's currently being worked on."
         },
         history: {
-          title: "Comments & Threads",
-          desc: "Every ticket is a conversation: nested replies, attachments and @mentions to involve the right people."
+          title: "Threaded Comments",
+          desc: "Every ticket is a conversation: replies, attachments and @mentions to involve the right people — without scattered emails."
         },
         solution: {
           title: "Marked Solution",
-          desc: "Whoever resolves it marks the right comment as the solution. Everyone sees immediately what worked."
+          desc: "Whoever resolves it marks the right comment as the solution. Everyone sees immediately what worked — no ambiguity."
         },
         stats: {
           title: "Reports & Statistics",
-          desc: "Clear and readable data to understand how your team is performing.",
+          desc: "Clear dashboard to understand how your team is performing: trends, categories, response times.",
           bullets: [
             "Charts by status, priority and category",
             "Ticket trend over the last 30 days",
@@ -230,8 +276,8 @@ const translations: Record<Language, Translations> = {
           desc: "Manage Location A, Location B and beyond, all from a single centralized platform."
         },
         roles: {
-          title: "Role-Based Access",
-          desc: "Admin for those who manage, User for those who request. Simple and secure."
+          title: "Roles & Permissions",
+          desc: "Admin for those who manage, User for those who request. Precise control over who sees and does what."
         },
         fast: {
           title: "Simple & Fast",
@@ -239,12 +285,16 @@ const translations: Record<Language, Translations> = {
         }
       }
     },
+    howItWorks: {
+      cta: "Start free trial",
+    },
     pricing: {
       title: "A plan for every team. Transparent, no surprises.",
       price: "€9",
       unit: "/month",
       subtitle: "Flat price per team, not per user. Switch plans anytime.",
       trialLabel: "7-day free trial included — no credit card required",
+      trialHeader: "Try free first, then pick your plan",
       perMonth: "/month",
       mostPopular: "Most popular",
       seatsSuffix: "users included",
@@ -275,6 +325,13 @@ const translations: Record<Language, Translations> = {
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties. You can cancel at any time from your account area." },
         { q: "Is it suitable for my company?", a: "If you are an SME that needs to bring order to internal or customer requests without spending a fortune, yes." }
       ]
+    },
+    finalCta: {
+      headline: "Ready to stop chasing tickets?",
+      sub: "Start now — the first 7 days are free, no credit card required.",
+      proof1: "No credit card",
+      proof2: "5-min setup",
+      proof3: "GDPR compliant",
     },
     footer: {
       text: "© 2025 TaskDesk. Essential design for business."

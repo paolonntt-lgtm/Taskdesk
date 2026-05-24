@@ -322,8 +322,6 @@ export default function Landing() {
     { icon: "💬", color: "bg-violet-50 text-violet-600 border-violet-100", title: t.features.items.history.title,   desc: t.features.items.history.desc },
     { icon: "✅", color: "bg-green-50 text-green-600 border-green-100",    title: t.features.items.solution.title,  desc: t.features.items.solution.desc },
     { icon: "📊", color: "bg-orange-50 text-orange-600 border-orange-100", title: t.features.items.stats.title,     desc: t.features.items.stats.desc },
-    { icon: "🔐", color: "bg-pink-50 text-pink-600 border-pink-100",       title: t.features.items.roles.title,     desc: t.features.items.roles.desc },
-    { icon: "🏢", color: "bg-teal-50 text-teal-600 border-teal-100",       title: t.features.items.multi.title,     desc: t.features.items.multi.desc },
   ];
 
   const handleCta = () => { window.location.href = APP_URL; };
@@ -429,7 +427,7 @@ export default function Landing() {
                   {t.hero.subtitle}
                 </p>
 
-                <div className="ld-fade-up-3 flex flex-col sm:flex-row gap-4 mb-10">
+                <div className="ld-fade-up-3 flex flex-col sm:flex-row gap-4 mb-6">
                   <button
                     onClick={handleCta}
                     className="px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300 flex items-center justify-center gap-2"
@@ -441,12 +439,13 @@ export default function Landing() {
                   </a>
                 </div>
 
-                <div className="ld-fade-up-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
-                  <span><span className="text-green-500 font-bold">✓</span> {t.hero.trialNote}</span>
-                  <span className="text-gray-200 hidden sm:inline">•</span>
-                  <span><span className="text-green-500 font-bold">✓</span> {lang === "it" ? "Da" : "From"} {t.pricing.price}{t.pricing.unit}</span>
-                  <span className="text-gray-200 hidden sm:inline">•</span>
-                  <span><span className="text-green-500 font-bold">✓</span> {lang === "it" ? "Nessun setup" : "No setup"}</span>
+                <div className="ld-fade-up-4 text-sm text-gray-400 font-medium">
+                  {t.hero.microProof.split(" · ").map((item, i, arr) => (
+                    <span key={i}>
+                      <span className="text-green-500 font-bold">✓</span>{" "}{item}
+                      {i < arr.length - 1 && <span className="mx-2 text-gray-200">·</span>}
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -458,20 +457,21 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Stats bar ── */}
-        <section aria-label="Statistiche" className="py-14 border-y border-gray-100 bg-gray-50">
+        {/* ── Proof bar ── */}
+        <section aria-label="Vantaggi" className="py-10 border-y border-gray-100 bg-white">
           <div className="max-w-5xl mx-auto px-6 md:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               {[
-                { to: 10,  s: "s",  label: lang === "it" ? "Per aprire un ticket"      : "To open a ticket", p: false },
-                { to: 98,  s: "%",  label: lang === "it" ? "Soddisfazione clienti"      : "Client satisfaction" },
-                { to: 9,   s: "",   label: lang === "it" ? "€/mese, piano Starter"       : "€/month, Starter plan", p: true },
-              ].map(({ to, s, label, p }) => (
-                <div key={label}>
-                  <div className="text-4xl md:text-5xl font-black ld-gradient-text">
-                    {p ? "€" : ""}<CountUp to={to} suffix={s} />
+                { icon: "🚀", label: t.proofBar.setup },
+                { icon: "🔒", label: t.proofBar.gdpr },
+                { icon: "🎁", label: t.proofBar.trial },
+                { icon: "✌️", label: t.proofBar.cancel },
+              ].map(({ icon, label }) => (
+                <div key={label} className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-2xl">
+                    {icon}
                   </div>
-                  <div className="text-sm text-gray-400 font-medium mt-2">{label}</div>
+                  <span className="text-sm font-semibold text-gray-700">{label}</span>
                 </div>
               ))}
             </div>
@@ -521,6 +521,17 @@ export default function Landing() {
                 </ScrollReveal>
               ))}
             </div>
+
+            <ScrollReveal delay={0.2}>
+              <div className="text-center mt-14">
+                <button
+                  onClick={handleCta}
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
+                >
+                  {t.howItWorks.cta} →
+                </button>
+              </div>
+            </ScrollReveal>
           </div>
         </section>
 
@@ -658,7 +669,7 @@ export default function Landing() {
               </div>
             </ScrollReveal>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {featureCards.map((f, i) => (
                 <ScrollReveal key={i} delay={i * 0.08}>
                   <div className="ld-card-hover bg-white rounded-2xl border border-gray-100 p-8 h-full cursor-default shadow-sm">
@@ -671,6 +682,18 @@ export default function Landing() {
                 </ScrollReveal>
               ))}
             </div>
+
+            <ScrollReveal delay={0.2}>
+              <div className="text-center mt-14">
+                <button
+                  onClick={handleCta}
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
+                >
+                  {t.features.cta} →
+                </button>
+                <p className="text-sm text-gray-400 mt-3">{t.hero.microProof}</p>
+              </div>
+            </ScrollReveal>
           </div>
         </section>
 
@@ -680,14 +703,15 @@ export default function Landing() {
             <ScrollReveal>
               <div className="text-center mb-14 max-w-3xl mx-auto">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold mb-6">
-                  {t.pricing.trialLabel}
+                  🎁 {t.pricing.trialLabel}
                 </div>
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5 leading-tight">{t.pricing.title}</h2>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-3 leading-tight">{t.pricing.title}</h2>
+                <p className="text-xl font-semibold text-blue-600 mb-3">{t.pricing.trialHeader}</p>
                 <p className="text-lg text-gray-400">{t.pricing.subtitle}</p>
               </div>
             </ScrollReveal>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {t.pricing.plans.map((plan, idx) => (
                 <ScrollReveal key={plan.name} delay={idx * 0.06}>
                   <div className={`relative h-full bg-white rounded-2xl p-7 flex flex-col ld-card-hover ${
@@ -771,18 +795,18 @@ export default function Landing() {
             <div className="max-w-4xl mx-auto rounded-3xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #1d4ed8, #7c3aed, #1d4ed8)" }}>
               <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
               <div className="relative p-12 md:p-16 text-center text-white">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 border border-white/20 text-sm font-semibold mb-8">
-                  🚀 {t.hero.trialBadge} — {t.hero.trialNote}
-                </div>
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-5 leading-tight">
-                  {t.hero.titleLine1}
-                  <br />
-                  {t.hero.titleLine2}
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight">
+                  {t.finalCta.headline}
                 </h2>
-                <p className="text-white/70 mb-10 text-lg">{t.pricing.subtitle}</p>
-                <button onClick={handleCta} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl flex items-center gap-2 mx-auto">
+                <p className="text-white/75 mb-10 text-lg max-w-lg mx-auto">{t.finalCta.sub}</p>
+                <button onClick={handleCta} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center gap-2">
                   {t.pricing.cta} →
                 </button>
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-white/60">
+                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof1}</span>
+                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof2}</span>
+                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof3}</span>
+                </div>
               </div>
             </div>
           </ScrollReveal>
