@@ -60,6 +60,35 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS clients_enabled BOOLEAN NOT NULL DEFAULT true;
     `);
 
+    // Create sticky_notes table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sticky_notes (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        text TEXT NOT NULL DEFAULT '',
+        color VARCHAR(32) NOT NULL DEFAULT 'yellow',
+        visibility VARCHAR(32) NOT NULL DEFAULT 'private',
+        target_group_name VARCHAR(128),
+        target_user_ids TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // Create sticky_note_user_states table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sticky_note_user_states (
+        note_id INTEGER NOT NULL REFERENCES sticky_notes(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        position_x INTEGER NOT NULL DEFAULT 120,
+        position_y INTEGER NOT NULL DEFAULT 120,
+        closed BOOLEAN NOT NULL DEFAULT false,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (note_id, user_id)
+      );
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

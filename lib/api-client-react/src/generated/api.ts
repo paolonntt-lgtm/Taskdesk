@@ -49,6 +49,9 @@ import type {
   SaveAttachmentBody,
   StatGroup,
   StatGroupWithName,
+  StickyNote,
+  StickyNoteInput,
+  StickyNoteStateInput,
   SuccessResponse,
   TicketWithDetails,
   ToggleReactionBody,
@@ -4369,4 +4372,423 @@ export const useDeleteClient = <
   TContext
 > => {
   return useMutation(getDeleteClientMutationOptions(options));
+};
+
+/**
+ * @summary List sticky notes visible to the current user
+ */
+export const getListStickyNotesUrl = () => {
+  return `/api/sticky-notes`;
+};
+
+export const listStickyNotes = async (
+  options?: RequestInit,
+): Promise<StickyNote[]> => {
+  return customFetch<StickyNote[]>(getListStickyNotesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListStickyNotesQueryKey = () => {
+  return [`/api/sticky-notes`] as const;
+};
+
+export const getListStickyNotesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStickyNotes>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStickyNotes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListStickyNotesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listStickyNotes>>> = ({
+    signal,
+  }) => listStickyNotes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStickyNotes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStickyNotesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStickyNotes>>
+>;
+export type ListStickyNotesQueryError = ErrorType<void>;
+
+/**
+ * @summary List sticky notes visible to the current user
+ */
+
+export function useListStickyNotes<
+  TData = Awaited<ReturnType<typeof listStickyNotes>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStickyNotes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStickyNotesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new sticky note
+ */
+export const getCreateStickyNoteUrl = () => {
+  return `/api/sticky-notes`;
+};
+
+export const createStickyNote = async (
+  stickyNoteInput: StickyNoteInput,
+  options?: RequestInit,
+): Promise<StickyNote> => {
+  return customFetch<StickyNote>(getCreateStickyNoteUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stickyNoteInput),
+  });
+};
+
+export const getCreateStickyNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStickyNote>>,
+    TError,
+    { data: BodyType<StickyNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStickyNote>>,
+  TError,
+  { data: BodyType<StickyNoteInput> },
+  TContext
+> => {
+  const mutationKey = ["createStickyNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStickyNote>>,
+    { data: BodyType<StickyNoteInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createStickyNote(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStickyNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStickyNote>>
+>;
+export type CreateStickyNoteMutationBody = BodyType<StickyNoteInput>;
+export type CreateStickyNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a new sticky note
+ */
+export const useCreateStickyNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStickyNote>>,
+    TError,
+    { data: BodyType<StickyNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStickyNote>>,
+  TError,
+  { data: BodyType<StickyNoteInput> },
+  TContext
+> => {
+  return useMutation(getCreateStickyNoteMutationOptions(options));
+};
+
+/**
+ * @summary Update a sticky note (creator only)
+ */
+export const getUpdateStickyNoteUrl = (id: number) => {
+  return `/api/sticky-notes/${id}`;
+};
+
+export const updateStickyNote = async (
+  id: number,
+  stickyNoteInput: StickyNoteInput,
+  options?: RequestInit,
+): Promise<StickyNote> => {
+  return customFetch<StickyNote>(getUpdateStickyNoteUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stickyNoteInput),
+  });
+};
+
+export const getUpdateStickyNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStickyNote>>,
+    TError,
+    { id: number; data: BodyType<StickyNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStickyNote>>,
+  TError,
+  { id: number; data: BodyType<StickyNoteInput> },
+  TContext
+> => {
+  const mutationKey = ["updateStickyNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStickyNote>>,
+    { id: number; data: BodyType<StickyNoteInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateStickyNote(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStickyNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStickyNote>>
+>;
+export type UpdateStickyNoteMutationBody = BodyType<StickyNoteInput>;
+export type UpdateStickyNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a sticky note (creator only)
+ */
+export const useUpdateStickyNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStickyNote>>,
+    TError,
+    { id: number; data: BodyType<StickyNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStickyNote>>,
+  TError,
+  { id: number; data: BodyType<StickyNoteInput> },
+  TContext
+> => {
+  return useMutation(getUpdateStickyNoteMutationOptions(options));
+};
+
+/**
+ * @summary Delete a sticky note (creator or admin)
+ */
+export const getDeleteStickyNoteUrl = (id: number) => {
+  return `/api/sticky-notes/${id}`;
+};
+
+export const deleteStickyNote = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteStickyNoteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStickyNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStickyNote>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStickyNote>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStickyNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStickyNote>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteStickyNote(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStickyNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStickyNote>>
+>;
+
+export type DeleteStickyNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a sticky note (creator or admin)
+ */
+export const useDeleteStickyNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStickyNote>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStickyNote>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteStickyNoteMutationOptions(options));
+};
+
+/**
+ * @summary Save per-user position and closed state
+ */
+export const getUpdateStickyNoteStateUrl = (id: number) => {
+  return `/api/sticky-notes/${id}/state`;
+};
+
+export const updateStickyNoteState = async (
+  id: number,
+  stickyNoteStateInput: StickyNoteStateInput,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUpdateStickyNoteStateUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stickyNoteStateInput),
+  });
+};
+
+export const getUpdateStickyNoteStateMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStickyNoteState>>,
+    TError,
+    { id: number; data: BodyType<StickyNoteStateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStickyNoteState>>,
+  TError,
+  { id: number; data: BodyType<StickyNoteStateInput> },
+  TContext
+> => {
+  const mutationKey = ["updateStickyNoteState"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStickyNoteState>>,
+    { id: number; data: BodyType<StickyNoteStateInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateStickyNoteState(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStickyNoteStateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStickyNoteState>>
+>;
+export type UpdateStickyNoteStateMutationBody = BodyType<StickyNoteStateInput>;
+export type UpdateStickyNoteStateMutationError = ErrorType<void>;
+
+/**
+ * @summary Save per-user position and closed state
+ */
+export const useUpdateStickyNoteState = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStickyNoteState>>,
+    TError,
+    { id: number; data: BodyType<StickyNoteStateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStickyNoteState>>,
+  TError,
+  { id: number; data: BodyType<StickyNoteStateInput> },
+  TContext
+> => {
+  return useMutation(getUpdateStickyNoteStateMutationOptions(options));
 };

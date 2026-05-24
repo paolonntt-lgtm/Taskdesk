@@ -1282,3 +1282,85 @@ export const UpdateClientResponse = zod.object({
 export const DeleteClientParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List sticky notes visible to the current user
+ */
+export const ListStickyNotesResponseItem = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  createdBy: zod.number(),
+  text: zod.string(),
+  color: zod.string(),
+  visibility: zod.string(),
+  targetGroupName: zod.string().nullish(),
+  targetUserIds: zod.array(zod.number()),
+  posX: zod.number(),
+  posY: zod.number(),
+  closed: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListStickyNotesResponse = zod.array(ListStickyNotesResponseItem);
+
+/**
+ * @summary Create a new sticky note
+ */
+export const CreateStickyNoteBody = zod.object({
+  text: zod.string().optional(),
+  color: zod.string().optional(),
+  visibility: zod.string().optional(),
+  targetGroupName: zod.string().nullish(),
+  targetUserIds: zod.array(zod.number()).nullish(),
+});
+
+/**
+ * @summary Update a sticky note (creator only)
+ */
+export const UpdateStickyNoteParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateStickyNoteBody = zod.object({
+  text: zod.string().optional(),
+  color: zod.string().optional(),
+  visibility: zod.string().optional(),
+  targetGroupName: zod.string().nullish(),
+  targetUserIds: zod.array(zod.number()).nullish(),
+});
+
+export const UpdateStickyNoteResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  createdBy: zod.number(),
+  text: zod.string(),
+  color: zod.string(),
+  visibility: zod.string(),
+  targetGroupName: zod.string().nullish(),
+  targetUserIds: zod.array(zod.number()),
+  posX: zod.number(),
+  posY: zod.number(),
+  closed: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a sticky note (creator or admin)
+ */
+export const DeleteStickyNoteParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Save per-user position and closed state
+ */
+export const UpdateStickyNoteStateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateStickyNoteStateBody = zod.object({
+  positionX: zod.number(),
+  positionY: zod.number(),
+  closed: zod.boolean(),
+});

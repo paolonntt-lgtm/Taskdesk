@@ -80,6 +80,8 @@ export default function StickyNotesLayer() {
 
   const positions = useRef<Map<number, { x: number; y: number }>>(new Map());
   const [, forceRender] = useState(0);
+  const newNoteId = useRef<number | null>(null);
+  const textareaRefs = useRef<Map<number, HTMLTextAreaElement | null>>(new Map());
 
   useEffect(() => {
     notes.forEach((n) => {
@@ -154,6 +156,7 @@ export default function StickyNotesLayer() {
       const cx = Math.max(40, Math.min(window.innerWidth - 320, (window.innerWidth - 280) / 2));
       const cy = Math.max(40, Math.min(window.innerHeight - 250, (window.innerHeight - 220) / 2));
       positions.current.set(created.id, { x: cx, y: cy });
+      newNoteId.current = created.id;
       qc.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
@@ -177,6 +180,16 @@ export default function StickyNotesLayer() {
   const [editingText, setEditingText] = useState<Map<number, string>>(new Map());
   const textTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
+  useEffect(() => {
+    if (newNoteId.current == null) return;
+    const id = newNoteId.current;
+    const el = textareaRefs.current.get(id);
+    if (el) {
+      el.focus();
+      newNoteId.current = null;
+    }
+  }, [notes]);
+
   const handleTextChange = (note: NoteDisplay, val: string) => {
     setEditingText((prev) => new Map(prev).set(note.id, val));
     const ex = textTimers.current.get(note.id);
@@ -186,6 +199,15 @@ export default function StickyNotesLayer() {
       textTimers.current.delete(note.id);
     }, 1000);
     textTimers.current.set(note.id, t2);
+  };
+
+  const handleTextBlur = (note: NoteDisplay, val: string) => {
+    const timer = textTimers.current.get(note.id);
+    if (timer) {
+      clearTimeout(timer);
+      textTimers.current.delete(note.id);
+    }
+    updateMutation.mutate({ id: note.id, text: val });
   };
 
   const handleClose = (note: NoteDisplay) => {
@@ -323,7 +345,9 @@ export default function StickyNotesLayer() {
                   placeholder={t.stickyNotes.placeholder}
                   value={textVal}
                   onChange={isOwner ? (e) => handleTextChange(note, e.target.value) : undefined}
+                  onBlur={isOwner ? (e) => handleTextBlur(note, e.target.value) : undefined}
                   onMouseDown={(e) => e.stopPropagation()}
+                  inputRef={(el) => { textareaRefs.current.set(note.id, el); }}
                   InputProps={{ disableUnderline: true, style: { fontSize: 13 }, readOnly: !isOwner }}
                   sx={{ "& textarea": { userSelect: "text", cursor: isOwner ? "text" : "default" } }}
                 />

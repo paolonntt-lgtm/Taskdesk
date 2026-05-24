@@ -424,6 +424,36 @@ export interface ClientImportResult {
   errors: ClientImportResultErrorsItem[];
 }
 
+export interface StickyNote {
+  id: number;
+  organizationId?: number | null;
+  createdBy: number;
+  text: string;
+  color: string;
+  visibility: string;
+  targetGroupName?: string | null;
+  targetUserIds: number[];
+  posX: number;
+  posY: number;
+  closed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StickyNoteInput {
+  text?: string;
+  color?: string;
+  visibility?: string;
+  targetGroupName?: string | null;
+  targetUserIds?: number[] | null;
+}
+
+export interface StickyNoteStateInput {
+  positionX: number;
+  positionY: number;
+  closed: boolean;
+}
+
 export type CompleteOnboardingBodyBusinessType =
   (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];
 
