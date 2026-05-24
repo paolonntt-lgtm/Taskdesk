@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLanguage } from "@/i18n";
-import { trackCta, type CtaLocation } from "@/lib/analytics";
+import { trackCta, trackScrollDepth, trackSectionView, type CtaLocation, type ScrollDepthPct } from "@/lib/analytics";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -330,6 +330,48 @@ export default function Landing() {
     window.location.href = APP_URL;
   };
 
+  useEffect(() => {
+    const thresholds: ScrollDepthPct[] = [25, 50, 75, 100];
+    const fired = new Set<number>();
+
+    const onScroll = () => {
+      const scrolled = window.scrollY + window.innerHeight;
+      const total = document.documentElement.scrollHeight;
+      const pct = (scrolled / total) * 100;
+      for (const t of thresholds) {
+        if (pct >= t && !fired.has(t)) {
+          fired.add(t);
+          trackScrollDepth(t);
+        }
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    const sectionIds = ["proof-bar", "how", "features", "pricing", "final-cta"];
+    const viewed = new Set<string>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = entry.target.id;
+          if (entry.isIntersecting && !viewed.has(id)) {
+            viewed.add(id);
+            trackSectionView(id);
+          }
+        }
+      },
+      { threshold: 0.3 },
+    );
+    for (const id of sectionIds) {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
+
   const steps = lang === "it" ? [
     { n: "1", icon: "✏️", title: "Apri un ticket", desc: "Titolo, categoria, priorità. In 10 secondi il problema è tracciato e visibile a chi serve." },
     { n: "2", icon: "💬", title: "Il team risponde", desc: "Commenti in tempo reale, @menzioni, allegati e 👍 — come una chat, ma organizzata." },
@@ -467,7 +509,7 @@ export default function Landing() {
         </section>
 
         {/* ── Proof bar ── */}
-        <section aria-label="Vantaggi" className="py-10 border-y border-gray-100 bg-white">
+        <section id="proof-bar" aria-label="Vantaggi" className="py-10 border-y border-gray-100 bg-white">
           <div className="max-w-5xl mx-auto px-6 md:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               {[
@@ -679,7 +721,7 @@ export default function Landing() {
         </section>
 
         {/* ── CTA finale ── */}
-        <section aria-label="Inizia ora" className="py-28 px-6 md:px-8">
+        <section id="final-cta" aria-label="Inizia ora" className="py-28 px-6 md:px-8">
           <ScrollReveal>
             <div className="max-w-4xl mx-auto rounded-3xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #1d4ed8, #7c3aed, #1d4ed8)" }}>
               <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
