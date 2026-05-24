@@ -1,9 +1,12 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import { useLanguage } from "@/i18n";
 
 export default function CookiePolicy() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
+  const { lang } = useLanguage();
+  const canonicalUrl = `https://taskdesk.it/${lang}/cookie-policy`;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -11,7 +14,7 @@ export default function CookiePolicy() {
         <title>Cookie Policy — TaskDesk</title>
         <meta name="description" content="Informativa sull'uso dei cookie sul sito taskdesk.it ai sensi del D.Lgs. 196/2003 e della Direttiva ePrivacy." />
         <meta name="robots" content="noindex, follow" />
-        <link rel="canonical" href="https://taskdesk.it/cookie-policy" />
+        <link rel="canonical" href={canonicalUrl} />
       </Helmet>
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: 16 }}>

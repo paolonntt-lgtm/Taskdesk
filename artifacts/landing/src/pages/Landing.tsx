@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "wouter";
 import { useLanguage } from "@/i18n";
 import { trackCta, trackScrollDepth, trackSectionView, type CtaLocation, type ScrollDepthPct } from "@/lib/analytics";
 import {
@@ -11,6 +12,8 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
 import { InstallPrompt } from "@/components/InstallPrompt";
+
+const SITE_BASE = "https://taskdesk.it";
 
 const APP_URL = "/app/";
 
@@ -426,14 +429,17 @@ export default function Landing() {
         <meta name="description" content={t.seo.description} />
         <meta name="keywords" content={t.seo.keywords} />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://taskdesk.it/" />
-        <meta property="og:url" content="https://taskdesk.it/" />
+        <link rel="canonical" href={`${SITE_BASE}/${lang}/`} />
+        <link rel="alternate" hrefLang="it" href={`${SITE_BASE}/it/`} />
+        <link rel="alternate" hrefLang="en" href={`${SITE_BASE}/en/`} />
+        <link rel="alternate" hrefLang="x-default" href={`${SITE_BASE}/it/`} />
+        <meta property="og:url" content={`${SITE_BASE}/${lang}/`} />
         <meta property="og:title" content={t.seo.ogTitle} />
         <meta property="og:description" content={t.seo.ogDescription} />
-        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta property="og:image" content={`${SITE_BASE}/opengraph.jpg`} />
         <meta name="twitter:title" content={t.seo.twitterTitle} />
         <meta name="twitter:description" content={t.seo.twitterDescription} />
-        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta name="twitter:image" content={`${SITE_BASE}/opengraph.jpg`} />
         <script type="application/ld+json">{jsonLd}</script>
       </Helmet>
       <style>{ANIMATIONS}</style>
@@ -862,10 +868,10 @@ export default function Landing() {
             <p className="text-sm text-gray-400">{t.footer.text}</p>
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-2 border-t border-gray-100">
-            <a href="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</a>
-            <a href="/cookie-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cookie Policy</a>
-            <a href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Termini di Servizio</a>
-            <a href="/dpa" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Data Processing Agreement</a>
+            <Link href="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</Link>
+            <Link href="/cookie-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cookie Policy</Link>
+            <Link href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Termini di Servizio</Link>
+            <Link href="/dpa" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Data Processing Agreement</Link>
           </div>
         </div>
       </footer>

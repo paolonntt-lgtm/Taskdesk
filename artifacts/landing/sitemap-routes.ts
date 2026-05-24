@@ -25,20 +25,50 @@ export const SITEMAP_BASE_URL = "https://taskdesk.it";
  * excluded from the sitemap regardless of this config.
  */
 export const SITEMAP_ROUTE_META: Record<string, SitemapRouteMeta> = {
+  "/it": { exclude: true },
+  "/en": { exclude: true },
   "/": {
     changefreq: "monthly",
     priority: 1.0,
     urls: {
-      it: `${SITEMAP_BASE_URL}/`,
-      en: `${SITEMAP_BASE_URL}/`,
+      it: `${SITEMAP_BASE_URL}/it/`,
+      en: `${SITEMAP_BASE_URL}/en/`,
     },
     hreflang: [
-      { lang: "it", href: `${SITEMAP_BASE_URL}/` },
-      { lang: "en", href: `${SITEMAP_BASE_URL}/` },
+      { lang: "it", href: `${SITEMAP_BASE_URL}/it/` },
+      { lang: "en", href: `${SITEMAP_BASE_URL}/en/` },
     ],
   },
-  "/terms":          { changefreq: "yearly", priority: 0.3 },
-  "/privacy-policy": { changefreq: "yearly", priority: 0.3 },
-  "/cookie-policy":  { changefreq: "yearly", priority: 0.2 },
-  "/dpa":            { changefreq: "yearly", priority: 0.2 },
+  "/terms": {
+    changefreq: "yearly",
+    priority: 0.3,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/terms`,
+      en: `${SITEMAP_BASE_URL}/en/terms`,
+    },
+  },
+  "/privacy-policy": {
+    changefreq: "yearly",
+    priority: 0.3,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/privacy-policy`,
+      en: `${SITEMAP_BASE_URL}/en/privacy-policy`,
+    },
+  },
+  "/cookie-policy": {
+    changefreq: "yearly",
+    priority: 0.2,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/cookie-policy`,
+      en: `${SITEMAP_BASE_URL}/en/cookie-policy`,
+    },
+  },
+  "/dpa": {
+    changefreq: "yearly",
+    priority: 0.2,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/dpa`,
+      en: `${SITEMAP_BASE_URL}/en/dpa`,
+    },
+  },
 };

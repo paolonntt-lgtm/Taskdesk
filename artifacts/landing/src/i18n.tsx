@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, ReactNode } from "react";
+import { useLocation } from "wouter";
 
 type Language = "it" | "en";
 
@@ -551,11 +552,11 @@ const translations: Record<Language, Translations> = {
     faq: {
       title: "Frequently Asked Questions",
       items: [
-        { q: "Is it suitable for my accounting firm or agency?", a: "Yes — TaskDesk is designed exactly for this. Accounting firms, HR consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them to completion — no scattered emails or untraceable WhatsApp messages." },
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. After that you can pick the plan that fits your firm, starting at €15/month." },
-        { q: "Is there a setup fee?", a: "Absolutely not. The software is ready to use from the first login. You are up and running in minutes, with no training needed." },
-        { q: "Can I cancel at any time?", a: "Yes, there are no contractual obligations or cancellation penalties. You can cancel at any time from your account area." },
-        { q: "Can my clients access the system and submit requests?", a: "Today clients can be added as dedicated users — each client sees only their own requests. A simplified client portal feature is on the roadmap." },
+        { q: "Is it right for my accounting firm or agency?", a: "Yes, TaskDesk is designed exactly for this. Accounting firms, labour consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them through to completion — without scattered emails or untraceable WhatsApp messages." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €15/month." },
+        { q: "Is there a setup cost?", a: "Absolutely not. The software is ready to use from your first login. You are up and running in minutes, with no training needed." },
+        { q: "Can I cancel at any time?", a: "Yes, there are no contractual commitments or cancellation fees. You can cancel at any time from your account area." },
+        { q: "Can my clients access the system and submit requests?", a: "Today clients are added as dedicated users. Each client sees only their own requests. A simplified client portal feature is on the roadmap." },
       ]
     },
     finalCta: {
@@ -566,7 +567,7 @@ const translations: Record<Language, Translations> = {
       proof3: "GDPR compliant",
     },
     footer: {
-      text: "© 2025 TaskDesk. The request management system for firms and agencies."
+      text: "© 2025 TaskDesk. The request management system for Italian firms and agencies."
     },
     seo: {
       title: "TaskDesk — Software for Accounting Firms & Agencies | From €15/month",
@@ -595,7 +596,15 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Language>("it");
+  const [location, navigate] = useLocation();
+
+  const lang: Language = location.startsWith("/en") ? "en" : "it";
+
+  function setLang(newLang: Language) {
+    if (newLang === lang) return;
+    const newPath = location.replace(/^\/(it|en)/, `/${newLang}`);
+    navigate(newPath);
+  }
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t: translations[lang] }}>
