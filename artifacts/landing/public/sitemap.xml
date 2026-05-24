@@ -5,7 +5,7 @@
   <!-- Homepage -->
   <url>
     <loc>https://taskdesk.it/</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="it" href="https://taskdesk.it/" />
@@ -15,7 +15,7 @@
   <!-- Termini di Servizio -->
   <url>
     <loc>https://taskdesk.it/terms</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
@@ -23,7 +23,7 @@
   <!-- Privacy Policy -->
   <url>
     <loc>https://taskdesk.it/privacy-policy</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
@@ -31,7 +31,7 @@
   <!-- Cookie Policy -->
   <url>
     <loc>https://taskdesk.it/cookie-policy</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
@@ -39,7 +39,7 @@
   <!-- Data Processing Agreement -->
   <url>
     <loc>https://taskdesk.it/dpa</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
