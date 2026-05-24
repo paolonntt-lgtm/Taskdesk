@@ -96,6 +96,13 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE sticky_note_user_states ADD COLUMN IF NOT EXISTS height INTEGER;
     `);
 
+    // Add UTM tracking columns to organizations
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS utm_source TEXT;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS utm_medium TEXT;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS utm_campaign TEXT;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

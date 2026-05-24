@@ -743,8 +743,9 @@ function AddWidgetDialog({
 export default function Dashboard() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const effectiveRegistry = WIDGET_REGISTRY.filter(
-    (w) => w.id !== 'acquisition' || !!(user as unknown as Record<string, unknown>)?.isSuperAdmin,
+    (w) => w.id !== 'acquisition' || isSuperAdmin,
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -752,18 +753,26 @@ export default function Dashboard() {
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
+  const superadminDefaultLayout = (): LayoutItem[] => {
+    if (!isSuperAdmin) return DEFAULT_LAYOUT;
+    const acqMeta = WIDGET_REGISTRY.find((w) => w.id === 'acquisition');
+    return acqMeta ? [...DEFAULT_LAYOUT, { i: 'acquisition', ...acqMeta.defaultLayout }] : DEFAULT_LAYOUT;
+  };
+  const superadminDefaultVisibleIds = (): string[] =>
+    isSuperAdmin ? [...DEFAULT_VISIBLE_IDS, 'acquisition'] : DEFAULT_VISIBLE_IDS;
+
   const [layout, setLayout] = useState<LayoutItem[]>(() => {
     try {
       const saved = localStorage.getItem(LAYOUT_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_LAYOUT;
-    } catch { return DEFAULT_LAYOUT; }
+      return saved ? JSON.parse(saved) as LayoutItem[] : superadminDefaultLayout();
+    } catch { return superadminDefaultLayout(); }
   });
 
   const [visibleIds, setVisibleIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(VISIBLE_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_VISIBLE_IDS;
-    } catch { return DEFAULT_VISIBLE_IDS; }
+      return saved ? JSON.parse(saved) as string[] : superadminDefaultVisibleIds();
+    } catch { return superadminDefaultVisibleIds(); }
   });
 
   useEffect(() => {
@@ -801,9 +810,10 @@ export default function Dashboard() {
   }, []);
 
   const resetLayout = useCallback(() => {
-    setLayout(DEFAULT_LAYOUT);
-    setVisibleIds(DEFAULT_VISIBLE_IDS);
-  }, []);
+    setLayout(superadminDefaultLayout());
+    setVisibleIds(superadminDefaultVisibleIds());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin]);
 
   const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
