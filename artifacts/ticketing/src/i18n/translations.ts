@@ -822,6 +822,7 @@ const it = {
     selectUsers: 'Seleziona utenti...',
     noGroupsAvailable: 'Nessun gruppo disponibile',
     oversizeWarning: (name: string) => `⚠️ Allegato "${name}" non salvato: supera il limite di 10 MB`,
+    resizeTooltip: 'Ridimensiona',
   },
   entityTerms: {
     it_support: {
@@ -1665,6 +1666,7 @@ const en: typeof it = {
     selectUsers: 'Select users...',
     noGroupsAvailable: 'No groups available',
     oversizeWarning: (name: string) => `⚠️ Attachment "${name}" not saved: exceeds the 10 MB limit`,
+    resizeTooltip: 'Resize',
   },
   entityTerms: {
     it_support: {

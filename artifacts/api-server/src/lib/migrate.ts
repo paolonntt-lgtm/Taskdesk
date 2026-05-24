@@ -90,6 +90,12 @@ export async function runAppMigrations(): Promise<void> {
       );
     `);
 
+    // Add width/height columns to sticky_note_user_states for per-user resize persistence
+    await client.query(`
+      ALTER TABLE sticky_note_user_states ADD COLUMN IF NOT EXISTS width INTEGER;
+      ALTER TABLE sticky_note_user_states ADD COLUMN IF NOT EXISTS height INTEGER;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

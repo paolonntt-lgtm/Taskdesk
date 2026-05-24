@@ -38,6 +38,8 @@ interface NoteDisplay {
   targetUserIds: number[];
   posX: number;
   posY: number;
+  width: number | null;
+  height: number | null;
   closed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -79,14 +81,23 @@ export default function StickyNotesLayer() {
   }, [user]);
 
   const positions = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const sizes = useRef<Map<number, { w: number; h: number }>>(new Map());
   const [, forceRender] = useState(0);
   const newNoteId = useRef<number | null>(null);
   const textareaRefs = useRef<Map<number, HTMLTextAreaElement | null>>(new Map());
+
+  const DEFAULT_W = 280;
+  const DEFAULT_H = 180;
+  const MIN_W = 200;
+  const MIN_H = 120;
 
   useEffect(() => {
     notes.forEach((n) => {
       if (!positions.current.has(n.id)) {
         positions.current.set(n.id, { x: n.posX, y: n.posY });
+      }
+      if (!sizes.current.has(n.id)) {
+        sizes.current.set(n.id, { w: n.width ?? DEFAULT_W, h: n.height ?? DEFAULT_H });
       }
     });
   }, [notes]);
@@ -97,9 +108,15 @@ export default function StickyNotesLayer() {
     startPX: number; startPY: number;
   } | null>(null);
 
+  const resize = useRef<{
+    noteId: number;
+    startMX: number; startMY: number;
+    startW: number; startH: number;
+  } | null>(null);
+
   const saveStateTimer = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-  const saveState = useCallback((noteId: number, x: number, y: number, closed: boolean) => {
+  const saveState = useCallback((noteId: number, x: number, y: number, closed: boolean, w?: number, h?: number) => {
     const existing = saveStateTimer.current.get(noteId);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -107,7 +124,13 @@ export default function StickyNotesLayer() {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positionX: Math.round(x), positionY: Math.round(y), closed }),
+        body: JSON.stringify({
+          positionX: Math.round(x),
+          positionY: Math.round(y),
+          closed,
+          ...(w != null ? { width: Math.round(w) } : {}),
+          ...(h != null ? { height: Math.round(h) } : {}),
+        }),
       }).catch(() => {});
       saveStateTimer.current.delete(noteId);
     }, 600);
@@ -116,25 +139,47 @@ export default function StickyNotesLayer() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (resize.current) {
+        const { noteId, startMX, startMY, startW, startH } = resize.current;
+        const newW = Math.max(MIN_W, startW + (e.clientX - startMX));
+        const newH = Math.max(MIN_H, startH + (e.clientY - startMY));
+        sizes.current.set(noteId, { w: newW, h: newH });
+        forceRender((c) => c + 1);
+        return;
+      }
       if (!drag.current) return;
       const { noteId, startMX, startMY, startPX, startPY } = drag.current;
       const dx = e.clientX - startMX;
       const dy = e.clientY - startMY;
-      const newX = Math.max(0, Math.min(window.innerWidth - 280, startPX + dx));
-      const newY = Math.max(0, Math.min(window.innerHeight - 200, startPY + dy));
+      const sz = sizes.current.get(noteId) ?? { w: DEFAULT_W, h: DEFAULT_H };
+      const newX = Math.max(0, Math.min(window.innerWidth - sz.w, startPX + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - MIN_H, startPY + dy));
       positions.current.set(noteId, { x: newX, y: newY });
       forceRender((c) => c + 1);
     };
     const onUp = (e: MouseEvent) => {
+      if (resize.current) {
+        const { noteId, startMX, startMY, startW, startH } = resize.current;
+        const newW = Math.max(MIN_W, startW + (e.clientX - startMX));
+        const newH = Math.max(MIN_H, startH + (e.clientY - startMY));
+        sizes.current.set(noteId, { w: newW, h: newH });
+        const pos = positions.current.get(noteId) ?? { x: 100, y: 100 };
+        const note = notes.find((n) => n.id === noteId);
+        saveState(noteId, pos.x, pos.y, note?.closed ?? false, newW, newH);
+        resize.current = null;
+        forceRender((c) => c + 1);
+        return;
+      }
       if (!drag.current) return;
       const { noteId, startMX, startMY, startPX, startPY } = drag.current;
       const dx = e.clientX - startMX;
       const dy = e.clientY - startMY;
-      const newX = Math.max(0, Math.min(window.innerWidth - 280, startPX + dx));
-      const newY = Math.max(0, Math.min(window.innerHeight - 200, startPY + dy));
+      const sz = sizes.current.get(noteId) ?? { w: DEFAULT_W, h: DEFAULT_H };
+      const newX = Math.max(0, Math.min(window.innerWidth - sz.w, startPX + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - MIN_H, startPY + dy));
       positions.current.set(noteId, { x: newX, y: newY });
       const note = notes.find((n) => n.id === noteId);
-      saveState(noteId, newX, newY, note?.closed ?? false);
+      saveState(noteId, newX, newY, note?.closed ?? false, sz.w, sz.h);
       drag.current = null;
       forceRender((c) => c + 1);
     };
@@ -144,7 +189,7 @@ export default function StickyNotesLayer() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [notes, saveState]);
+  }, [notes, saveState, DEFAULT_W, DEFAULT_H, MIN_W, MIN_H]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiFetch("/api/sticky-notes", {
@@ -212,18 +257,20 @@ export default function StickyNotesLayer() {
 
   const handleClose = (note: NoteDisplay) => {
     const pos = positions.current.get(note.id) ?? { x: note.posX, y: note.posY };
+    const sz = sizes.current.get(note.id) ?? { w: note.width ?? DEFAULT_W, h: note.height ?? DEFAULT_H };
     qc.setQueryData<NoteDisplay[]>(QUERY_KEY, (old) =>
       (old ?? []).map((n) => n.id === note.id ? { ...n, closed: true } : n)
     );
-    saveState(note.id, pos.x, pos.y, true);
+    saveState(note.id, pos.x, pos.y, true, sz.w, sz.h);
   };
 
   const handleOpen = (note: NoteDisplay) => {
     const pos = positions.current.get(note.id) ?? { x: note.posX, y: note.posY };
+    const sz = sizes.current.get(note.id) ?? { w: note.width ?? DEFAULT_W, h: note.height ?? DEFAULT_H };
     qc.setQueryData<NoteDisplay[]>(QUERY_KEY, (old) =>
       (old ?? []).map((n) => n.id === note.id ? { ...n, closed: false } : n)
     );
-    saveState(note.id, pos.x, pos.y, false);
+    saveState(note.id, pos.x, pos.y, false, sz.w, sz.h);
   };
 
   if (!user) return null;
@@ -261,6 +308,10 @@ export default function StickyNotesLayer() {
           const isOwner = note.createdBy === (user as any).id;
           const textVal = editingText.has(note.id) ? editingText.get(note.id)! : note.text;
 
+          const sz = sizes.current.get(note.id) ?? { w: DEFAULT_W, h: DEFAULT_H };
+          const isResizing = resize.current?.noteId === note.id;
+          const isDragging = drag.current?.noteId === note.id;
+
           return (
             <Paper
               key={note.id}
@@ -269,7 +320,8 @@ export default function StickyNotesLayer() {
                 position: "absolute",
                 left: pos.x,
                 top: pos.y,
-                width: 280,
+                width: sz.w,
+                minHeight: sz.h,
                 bgcolor: col.bg,
                 border: `2px solid ${col.border}`,
                 borderRadius: 2,
@@ -277,8 +329,9 @@ export default function StickyNotesLayer() {
                 display: "flex",
                 flexDirection: "column",
                 userSelect: "none",
-                transition: drag.current?.noteId === note.id ? "none" : "box-shadow 0.15s",
-                boxShadow: drag.current?.noteId === note.id ? "0 8px 24px rgba(0,0,0,0.18)" : undefined,
+                transition: (isDragging || isResizing) ? "none" : "box-shadow 0.15s",
+                boxShadow: (isDragging || isResizing) ? "0 8px 24px rgba(0,0,0,0.18)" : undefined,
+                overflow: "hidden",
               }}
             >
               <Box
@@ -364,6 +417,48 @@ export default function StickyNotesLayer() {
                   onDelete={() => setDeleteConfirmId(note.id)}
                 />
               )}
+
+              {/* Resize handle — bottom-right corner, desktop only */}
+              <Tooltip title={t.stickyNotes.resizeTooltip} placement="top">
+                <Box
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    resize.current = {
+                      noteId: note.id,
+                      startMX: e.clientX,
+                      startMY: e.clientY,
+                      startW: sz.w,
+                      startH: sz.h,
+                    };
+                    forceRender((c) => c + 1);
+                  }}
+                  sx={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 18,
+                    height: 18,
+                    cursor: "se-resize",
+                    // Visual: two diagonal lines like a typical resize grip
+                    background: `linear-gradient(
+                      135deg,
+                      transparent 30%,
+                      ${col.border} 30%,
+                      ${col.border} 45%,
+                      transparent 45%,
+                      transparent 60%,
+                      ${col.border} 60%,
+                      ${col.border} 75%,
+                      transparent 75%
+                    )`,
+                    borderRadius: "0 0 8px 0",
+                    opacity: 0.7,
+                    "&:hover": { opacity: 1 },
+                    flexShrink: 0,
+                  }}
+                />
+              </Tooltip>
             </Paper>
           );
         })}
@@ -409,13 +504,14 @@ export default function StickyNotesLayer() {
         </Box>
       )}
 
+      {/* Sticky-note create FAB — sits above the bot FAB (bottom:24 + 56px height + 8px gap = 88) */}
       <Tooltip title={t.stickyNotes.createTooltip} placement="left">
         <Fab
           size="small"
           onClick={() => createMutation.mutate({ text: "", color: "yellow", visibility: "private" })}
           sx={{
             position: "fixed",
-            bottom: 24,
+            bottom: 88,
             right: 24,
             zIndex: 1201,
             bgcolor: "#fef9c3",

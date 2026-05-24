@@ -30,6 +30,8 @@ const StateBody = z.object({
   positionX: z.number().int(),
   positionY: z.number().int(),
   closed: z.boolean(),
+  width: z.number().int().min(200).optional().nullable(),
+  height: z.number().int().min(120).optional().nullable(),
 });
 
 function parseUserGroups(groups: string | null | undefined): string[] {
@@ -89,6 +91,8 @@ router.get("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
       targetUserIds: parseTargetUserIds(note.targetUserIds),
       posX: state?.positionX ?? 120,
       posY: state?.positionY ?? 120,
+      width: state?.width ?? null,
+      height: state?.height ?? null,
       closed: state?.closed ?? false,
     };
   });
@@ -124,6 +128,8 @@ router.post("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
     targetUserIds: targetUserIds ?? [],
     posX: 120,
     posY: 120,
+    width: null,
+    height: null,
     closed: false,
   });
 });
@@ -227,14 +233,14 @@ router.put("/sticky-notes/:id/state", requireAuth, async (req, res): Promise<voi
     return;
   }
 
-  const { positionX, positionY, closed } = parsed.data;
+  const { positionX, positionY, closed, width, height } = parsed.data;
 
   await db
     .insert(stickyNoteUserStatesTable)
-    .values({ noteId: id, userId, positionX, positionY, closed })
+    .values({ noteId: id, userId, positionX, positionY, width: width ?? null, height: height ?? null, closed })
     .onConflictDoUpdate({
       target: [stickyNoteUserStatesTable.noteId, stickyNoteUserStatesTable.userId],
-      set: { positionX, positionY, closed, updatedAt: new Date() },
+      set: { positionX, positionY, width: width ?? null, height: height ?? null, closed, updatedAt: new Date() },
     });
 
   res.json({ ok: true });
