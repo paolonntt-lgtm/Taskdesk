@@ -13,11 +13,25 @@ import { LanguageProvider } from "@/i18n";
 
 const queryClient = new QueryClient();
 
-function NavigateTo({ href }: { href: string }) {
+const LANG_STORAGE_KEY = "td_landing_lang";
+
+function getPreferredLang(): "en" | "it" {
+  try {
+    const saved = localStorage.getItem(LANG_STORAGE_KEY);
+    if (saved === "en" || saved === "it") return saved;
+  } catch {
+    // ignore storage errors
+  }
+  const browserLang = (navigator.language ?? "").toLowerCase();
+  return browserLang.startsWith("en") ? "en" : "it";
+}
+
+function LangRedirect({ suffix }: { suffix: string }) {
   const [, navigate] = useLocation();
   useEffect(() => {
-    navigate(href, { replace: true });
-  }, [href, navigate]);
+    const lang = getPreferredLang();
+    navigate(`/${lang}${suffix}`, { replace: true });
+  }, [suffix, navigate]);
   return null;
 }
 
@@ -44,19 +58,19 @@ function Router() {
         <PageRoutes />
       </Route>
       <Route path="/">
-        <NavigateTo href="/it/" />
+        <LangRedirect suffix="/" />
       </Route>
       <Route path="/privacy-policy">
-        <NavigateTo href="/it/privacy-policy" />
+        <LangRedirect suffix="/privacy-policy" />
       </Route>
       <Route path="/terms">
-        <NavigateTo href="/it/terms" />
+        <LangRedirect suffix="/terms" />
       </Route>
       <Route path="/dpa">
-        <NavigateTo href="/it/dpa" />
+        <LangRedirect suffix="/dpa" />
       </Route>
       <Route path="/cookie-policy">
-        <NavigateTo href="/it/cookie-policy" />
+        <LangRedirect suffix="/cookie-policy" />
       </Route>
       <Route component={NotFound} />
     </Switch>

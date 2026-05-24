@@ -602,6 +602,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   function setLang(newLang: Language) {
     if (newLang === lang) return;
+    try {
+      localStorage.setItem("td_landing_lang", newLang);
+    } catch {
+      // ignore storage errors
+    }
     const newPath = location.replace(/^\/(it|en)/, `/${newLang}`);
     navigate(newPath);
   }
