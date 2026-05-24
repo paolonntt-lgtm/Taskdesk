@@ -133,6 +133,7 @@ router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> =
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const currentUser = (req as any).currentUser;
+  const orgId: number | null = currentUser.organizationId ?? null;
   const parsed = UpdateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
@@ -142,7 +143,10 @@ router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> =
   const [existing] = await db
     .select()
     .from(stickyNotesTable)
-    .where(eq(stickyNotesTable.id, id));
+    .where(and(
+      eq(stickyNotesTable.id, id),
+      orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+    ));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
   if (existing.createdBy !== currentUser.id) {
@@ -176,11 +180,15 @@ router.delete("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> 
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const currentUser = (req as any).currentUser;
+  const orgId: number | null = currentUser.organizationId ?? null;
 
   const [existing] = await db
     .select()
     .from(stickyNotesTable)
-    .where(eq(stickyNotesTable.id, id));
+    .where(and(
+      eq(stickyNotesTable.id, id),
+      orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+    ));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
   if (existing.createdBy !== currentUser.id && currentUser.role !== "admin") {
@@ -188,7 +196,10 @@ router.delete("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
-  await db.delete(stickyNotesTable).where(eq(stickyNotesTable.id, id));
+  await db.delete(stickyNotesTable).where(and(
+    eq(stickyNotesTable.id, id),
+    orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+  ));
   res.json({ ok: true });
 });
 
@@ -206,7 +217,11 @@ router.put("/sticky-notes/:id/state", requireAuth, async (req, res): Promise<voi
     return;
   }
 
-  const [note] = await db.select().from(stickyNotesTable).where(eq(stickyNotesTable.id, id));
+  const orgId2: number | null = currentUser.organizationId ?? null;
+  const [note] = await db.select().from(stickyNotesTable).where(and(
+    eq(stickyNotesTable.id, id),
+    orgId2 != null ? eq(stickyNotesTable.organizationId, orgId2) : sql`organization_id IS NULL`,
+  ));
   if (!note || !isNoteVisibleTo(note, userId, userGroups)) {
     res.status(404).json({ error: "Not found" });
     return;

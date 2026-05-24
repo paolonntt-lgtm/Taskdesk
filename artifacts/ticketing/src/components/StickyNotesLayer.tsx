@@ -69,8 +69,8 @@ export default function StickyNotesLayer() {
   useEffect(() => {
     if (!user) return;
     fetch("/api/settings/groups", { credentials: "include" })
-      .then((r) => r.ok ? r.json() : [])
-      .then(setGroups)
+      .then((r) => r.ok ? r.json() : { value: [] })
+      .then((d) => setGroups(Array.isArray(d?.value) ? d.value : []))
       .catch(() => {});
     fetch("/api/users", { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
@@ -329,13 +329,14 @@ export default function StickyNotesLayer() {
                 />
               </Box>
 
-              {isOwner && (
+              {(isOwner || (user as any).role === "admin") && (
                 <VisibilitySettings
                   note={note}
+                  isOwner={isOwner}
                   groups={groups}
                   allUsers={allUsers}
                   t={t.stickyNotes}
-                  onUpdate={(data) => updateMutation.mutate({ id: note.id, ...data })}
+                  onUpdate={isOwner ? (data) => updateMutation.mutate({ id: note.id, ...data }) : undefined}
                   onDelete={() => setDeleteConfirmId(note.id)}
                 />
               )}
@@ -436,10 +437,11 @@ export default function StickyNotesLayer() {
 
 interface VisibilitySettingsProps {
   note: NoteDisplay;
+  isOwner: boolean;
   groups: string[];
   allUsers: UserOption[];
   t: any;
-  onUpdate: (data: any) => void;
+  onUpdate?: (data: any) => void;
   onDelete: () => void;
 }
 
@@ -456,7 +458,7 @@ function VisibilitySettings({ note, groups, allUsers, t, onUpdate, onDelete }: V
   }, [note.visibility, note.targetGroupName, note.targetUserIds]);
 
   const handleSave = () => {
-    onUpdate({
+    onUpdate?.({
       visibility,
       targetGroupName: visibility === "group" ? targetGroup || null : null,
       targetUserIds: visibility === "users" ? targetUserIds : null,
