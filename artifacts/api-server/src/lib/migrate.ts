@@ -76,16 +76,17 @@ export async function runAppMigrations(): Promise<void> {
       );
     `);
 
-    // Create sticky_note_user_states table
+    // Create sticky_note_user_states table (id PK + unique constraint matches Drizzle schema)
     await client.query(`
       CREATE TABLE IF NOT EXISTS sticky_note_user_states (
+        id SERIAL PRIMARY KEY,
         note_id INTEGER NOT NULL REFERENCES sticky_notes(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        position_x INTEGER NOT NULL DEFAULT 120,
-        position_y INTEGER NOT NULL DEFAULT 120,
+        position_x INTEGER NOT NULL DEFAULT 100,
+        position_y INTEGER NOT NULL DEFAULT 100,
         closed BOOLEAN NOT NULL DEFAULT false,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        PRIMARY KEY (note_id, user_id)
+        CONSTRAINT sticky_note_user_uniq UNIQUE (note_id, user_id)
       );
     `);
 
