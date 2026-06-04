@@ -7,7 +7,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPut } from "@/utils/api";
+import { apiGet, apiPut, apiPost } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
 type SectionKey = "groups" | "locations" | "categories";
@@ -46,6 +46,7 @@ export default function AdminSettingsScreen() {
   const [saving, setSaving] = useState<SectionKey | null>(null);
   const [modal, setModal] = useState<ModalState>(EMPTY_MODAL);
   const [nameError, setNameError] = useState("");
+  const [testPushLoading, setTestPushLoading] = useState(false);
 
   const dataMap: Record<SectionKey, string[]> = {
     groups,
@@ -159,6 +160,25 @@ export default function AdminSettingsScreen() {
     );
   };
 
+  const handleTestPush = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTestPushLoading(true);
+    try {
+      await apiPost("/notifications/test-push", {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("TaskDesk", t.adminSettings.testPushSuccess);
+    } catch (err: any) {
+      const msg: string = err?.message ?? "";
+      if (msg.includes("No push token")) {
+        Alert.alert(t.adminSettings.error, t.adminSettings.testPushNoToken);
+      } else {
+        Alert.alert(t.adminSettings.error, t.adminSettings.testPushError);
+      }
+    } finally {
+      setTestPushLoading(false);
+    }
+  };
+
   const SECTIONS: { key: SectionKey; label: string; icon: React.ComponentProps<typeof Feather>["name"]; color: string }[] = [
     { key: "groups", label: t.adminSettings.groups, icon: "briefcase", color: colors.primary },
     { key: "locations", label: t.adminSettings.locations, icon: "map-pin", color: "#0d9488" },
@@ -179,6 +199,30 @@ export default function AdminSettingsScreen() {
         contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 32 }]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={s.testPushSection}>
+          <View style={s.sectionTitleRow}>
+            <View style={[s.sectionIcon, { backgroundColor: "#f59e0b18" }]}>
+              <Feather name="bell" size={16} color="#f59e0b" />
+            </View>
+            <Text style={s.sectionTitle}>{t.adminSettings.testPushBtn}</Text>
+          </View>
+          <TouchableOpacity
+            style={[s.testPushBtn, testPushLoading && { opacity: 0.6 }]}
+            onPress={handleTestPush}
+            activeOpacity={0.8}
+            disabled={testPushLoading}
+          >
+            {testPushLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Feather name="send" size={15} color="#fff" />
+                <Text style={s.testPushBtnText}>{t.adminSettings.testPushBtn}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {SECTIONS.map((section) => {
           const items = dataMap[section.key];
           const isSaving = saving === section.key;
@@ -310,6 +354,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     content: { padding: 16, gap: 24 },
+
+    testPushSection: { gap: 10 },
+    testPushBtn: {
+      flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
+      gap: 8, backgroundColor: "#f59e0b",
+      paddingVertical: 13, borderRadius: 12,
+    },
+    testPushBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
     section: { gap: 10 },
     sectionHeader: {

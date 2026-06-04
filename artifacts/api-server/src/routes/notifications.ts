@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { db, notificationsTable, usersTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -72,6 +72,41 @@ router.delete("/notifications/push-token", requireAuth, async (req, res): Promis
     .set({ expoPushToken: null })
     .where(eq(usersTable.id, currentUser.id));
   res.json({ success: true });
+});
+
+router.post("/notifications/test-push", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const [user] = await db
+    .select({ expoPushToken: usersTable.expoPushToken })
+    .from(usersTable)
+    .where(eq(usersTable.id, currentUser.id));
+
+  if (!user?.expoPushToken) {
+    res.status(400).json({ error: "No push token registered for your account" });
+    return;
+  }
+
+  try {
+    const result = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify([{
+        to: user.expoPushToken,
+        sound: "default",
+        title: "TaskDesk",
+        body: "Push notifications are working correctly",
+        data: {},
+      }]),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!result.ok) {
+      res.status(502).json({ error: "Push delivery failed" });
+      return;
+    }
+    res.json({ success: true });
+  } catch {
+    res.status(502).json({ error: "Push delivery failed" });
+  }
 });
 
 export default router;

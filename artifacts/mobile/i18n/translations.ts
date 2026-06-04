@@ -194,6 +194,11 @@ const it = {
     namePlaceholder: 'Nome...',
     emptyName: 'Il nome non può essere vuoto.',
     itemsCount: 'elementi',
+    testPushBtn: 'Test notifiche push',
+    testPushSending: 'Invio in corso...',
+    testPushSuccess: 'Notifica inviata con successo!',
+    testPushNoToken: 'Nessun token push registrato per questo account. Apri l\'app mobile per registrarti.',
+    testPushError: 'Invio fallito.',
   },
   status: {
     open: 'Aperto',
@@ -404,6 +409,11 @@ const en: typeof it = {
     namePlaceholder: 'Name...',
     emptyName: 'Name cannot be empty.',
     itemsCount: 'items',
+    testPushBtn: 'Test push notifications',
+    testPushSending: 'Sending...',
+    testPushSuccess: 'Notification sent successfully!',
+    testPushNoToken: 'No push token registered for this account. Open the mobile app to register.',
+    testPushError: 'Delivery failed.',
   },
   status: {
     open: 'Open',
