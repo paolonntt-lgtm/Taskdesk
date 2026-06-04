@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { router } from "expo-router";
+import Constants from "expo-constants";
 import { apiFetch } from "@/utils/api";
 
 Notifications.setNotificationHandler({
@@ -14,8 +15,24 @@ Notifications.setNotificationHandler({
   }),
 });
 
+async function setupAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync("taskdesk-default", {
+    name: "TaskDesk",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    enableVibrate: true,
+    enableLights: true,
+    lightColor: "#0f62fe",
+    sound: "default",
+    showBadge: true,
+  });
+}
+
 async function registerForPushNotifications(): Promise<string | null> {
   if (Platform.OS === "web") return null;
+
+  await setupAndroidNotificationChannel();
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -27,7 +44,13 @@ async function registerForPushNotifications(): Promise<string | null> {
 
   if (finalStatus !== "granted") return null;
 
-  const tokenData = await Notifications.getExpoPushTokenAsync();
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
+
+  const tokenData = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : undefined
+  );
   return tokenData.data;
 }
 

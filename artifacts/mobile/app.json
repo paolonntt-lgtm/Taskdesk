@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TaskDesk Mobile",
+    "name": "TaskDesk",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,10 +14,25 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.taskdesk.mobile"
     },
     "android": {
-      "package": "com.taskdesk"
+      "package": "com.taskdesk.mobile",
+      "versionCode": 1,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0f62fe"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -37,13 +52,20 @@
           "icon": "./assets/images/icon.png",
           "color": "#0f62fe",
           "sounds": [],
-          "mode": "production"
+          "mode": "production",
+          "androidMode": "default",
+          "androidCollapsedTitle": "TaskDesk"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }
