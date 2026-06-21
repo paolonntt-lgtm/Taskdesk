@@ -1,11 +1,13 @@
 import { Router, type IRouter } from "express";
-import { eq, or, notLike, and } from "drizzle-orm";
+import { eq, or, notLike, and, inArray } from "drizzle-orm";
 import {
   db,
   usersTable,
   ticketsTable,
   notificationsTable,
   inviteTokensTable,
+  groupMembersTable,
+  groupsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
@@ -45,8 +47,33 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
       orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
     ))
     .orderBy(usersTable.name);
+
+  const memberships = users.length > 0
+    ? await db
+        .select({
+          userId: groupMembersTable.userId,
+          groupId: groupsTable.id,
+          groupName: groupsTable.name,
+        })
+        .from(groupMembersTable)
+        .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
+        .where(
+          and(
+            inArray(groupMembersTable.userId, users.map((u) => u.id)),
+            orgId != null ? eq(groupsTable.organizationId, orgId) : undefined,
+          )
+        )
+    : [];
+
+  const byUser = new Map<number, { id: number; name: string }[]>();
+  for (const m of memberships) {
+    const list = byUser.get(m.userId) ?? [];
+    list.push({ id: m.groupId, name: m.groupName });
+    byUser.set(m.userId, list);
+  }
+
   res.setHeader("Cache-Control", "private, max-age=60");
-  res.json(users);
+  res.json(users.map((u) => ({ ...u, groupMemberships: byUser.get(u.id) ?? [] })));
 });
 
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {

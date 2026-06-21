@@ -32,7 +32,6 @@ import {
   useMediaQuery,
   useTheme,
   Avatar,
-  Checkbox,
 } from '@mui/material';
 import {
   Add,
@@ -68,8 +67,6 @@ interface UserFormData {
   email: string;
   password: string;
   role: 'admin' | 'user';
-  group: string;
-  groups: string[];
   mainLocation: string;
 }
 
@@ -78,8 +75,6 @@ const emptyForm: UserFormData = {
   email: '',
   password: '',
   role: 'user',
-  group: '',
-  groups: [],
   mainLocation: '',
 };
 
@@ -112,7 +107,6 @@ export default function Users() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [groups, setGroups] = useState<string[]>([]);
   const [seatUsage, setSeatUsage] = useState<{
     usedSeats: number;
     planSeats: number | null;
@@ -162,15 +156,7 @@ export default function Users() {
     refreshSeatUsage();
   }, [users.length]);
 
-  const refreshGroups = () => {
-    fetch('/api/settings/groups', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setGroups(d.value ?? []))
-      .catch(() => {});
-  };
-
   const openCreate = () => {
-    refreshGroups();
     setEditTarget(null);
     setForm(emptyForm);
     setFormError(null);
@@ -178,17 +164,12 @@ export default function Users() {
   };
 
   const openEdit = (u: User) => {
-    refreshGroups();
     setEditTarget(u);
-    let parsedGroups: string[] = [];
-    try { parsedGroups = (u as any).groups ? JSON.parse((u as any).groups) : []; } catch { /* noop */ }
     setForm({
       name: u.name,
       email: u.email,
       password: '',
       role: u.role as 'admin' | 'user',
-      group: (u as any).group ?? '',
-      groups: parsedGroups,
       mainLocation: (u as any).mainLocation ?? '',
     });
     setFormError(null);
@@ -231,8 +212,6 @@ export default function Users() {
           name: form.name,
           email: form.email,
           role: form.role,
-          group: form.group || null,
-          groups: form.groups.length > 0 ? form.groups : null,
           mainLocation: form.mainLocation || null,
         } as any;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
@@ -242,8 +221,6 @@ export default function Users() {
           email: form.email,
           password: form.password,
           role: form.role,
-          group: form.group || null,
-          groups: form.groups.length > 0 ? form.groups : null,
           mainLocation: form.mainLocation || null,
         } as any;
         await createUser.mutateAsync({ data: body });
@@ -500,9 +477,9 @@ export default function Users() {
                         variant="outlined"
                         color={u.isAvailable !== false ? 'success' : 'default'}
                       />
-                      {(u as any).group && (
-                        <Chip label={(u as any).group} size="small" variant="outlined" />
-                      )}
+                      {((u as any).groupMemberships as { id: number; name: string }[] | undefined)?.map((g) => (
+                        <Chip key={g.id} label={g.name} size="small" variant="outlined" />
+                      ))}
                       {(u as any).mainLocation && (
                         <Chip label={(u as any).mainLocation} size="small" variant="outlined" />
                       )}
@@ -601,9 +578,11 @@ export default function Users() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {(u as any).group || '—'}
-                        </Typography>
+                        {((u as any).groupMemberships as { id: number; name: string }[] | undefined)?.length
+                          ? ((u as any).groupMemberships as { id: number; name: string }[]).map((g) => (
+                              <Chip key={g.id} label={g.name} size="small" variant="outlined" sx={{ mr: 0.5 }} />
+                            ))
+                          : <Typography variant="body2" color="text.secondary">—</Typography>}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
@@ -751,36 +730,6 @@ export default function Users() {
               >
                 <MenuItem value="user">{t.role.user}</MenuItem>
                 <MenuItem value="admin">{t.role.admin}</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>{ut.group}</InputLabel>
-              <Select
-                value={form.group}
-                label={ut.group}
-                onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
-              >
-                <MenuItem value=""><em>—</em></MenuItem>
-                {groups.map((g) => (
-                  <MenuItem key={g} value={g}>{g}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Gruppi di appartenenza</InputLabel>
-              <Select
-                multiple
-                value={form.groups}
-                label="Gruppi di appartenenza"
-                onChange={(e) => setForm((f) => ({ ...f, groups: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[] }))}
-                renderValue={(selected) => (selected as string[]).join(', ')}
-              >
-                {groups.map((g) => (
-                  <MenuItem key={g} value={g}>
-                    <Checkbox checked={form.groups.includes(g)} size="small" />
-                    {g}
-                  </MenuItem>
-                ))}
               </Select>
             </FormControl>
             <TextField
