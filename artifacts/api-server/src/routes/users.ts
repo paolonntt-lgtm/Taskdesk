@@ -41,6 +41,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
     .from(usersTable)
     .where(and(
       notLike(usersTable.email, "deleted-%@deleted.local"),
+      eq(usersTable.isSystem, false),
       orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
     ))
     .orderBy(usersTable.name);

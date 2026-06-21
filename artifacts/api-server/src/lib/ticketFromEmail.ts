@@ -150,6 +150,46 @@ function parseReferences(references: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Finds the system user for an org, or creates one if it doesn't exist yet.
+ * The system user is the internal "robot" that owns tickets created via inbound email.
+ */
+async function getOrCreateSystemUser(
+  orgId: number | null,
+): Promise<{ id: number; organizationId: number | null; name: string }> {
+  if (orgId != null) {
+    const [existing] = await db
+      .select({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name })
+      .from(usersTable)
+      .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true)))
+      .limit(1);
+    if (existing) return existing;
+  }
+
+  const [anySystem] = await db
+    .select({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.isSystem, true))
+    .limit(1);
+  if (anySystem) return anySystem;
+
+  const [created] = await db
+    .insert(usersTable)
+    .values({
+      name: "Sistema",
+      email: `_sistema_${orgId ?? 0}@taskdesk.internal`,
+      passwordHash: "!",
+      role: "admin",
+      organizationId: orgId,
+      isActive: true,
+      isSystem: true,
+    })
+    .returning({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name });
+
+  logger.info({ orgId, systemUserId: created.id }, "Created system user for inbound email");
+  return created;
+}
+
 export interface EmailTicketInput {
   fromEmail: string;
   fromName: string;
@@ -170,6 +210,8 @@ export interface EmailTicketInput {
   channelId?: number | null;
   /** Inbound forwarding channel ID (inbound_email_channels table) */
   inboundChannelId?: number | null;
+  /** True when the email arrived wrapped in a PEC (Posta Elettronica Certificata) envelope */
+  isPec?: boolean;
 }
 
 export interface EmailTicketResult {
@@ -178,29 +220,10 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId } = input;
+  const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId, isPec } = input;
 
-  let systemUser: { id: number; organizationId: number | null; name: string } | null = null;
-
-  if (targetOrgId) {
-    const [u] = await db
-      .select({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name })
-      .from(usersTable)
-      .where(and(eq(usersTable.organizationId, targetOrgId), eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-      .limit(1);
-    systemUser = u ?? null;
-  }
-
-  if (!systemUser) {
-    const [u] = await db
-      .select({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name })
-      .from(usersTable)
-      .where(and(eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-      .limit(1);
-    systemUser = u ?? null;
-  }
-
-  if (!systemUser) throw new Error("No admin user found to create inbound ticket");
+  const systemUser = await getOrCreateSystemUser(targetOrgId ?? null);
+  if (!systemUser) throw new Error("No system user found or created for inbound ticket");
 
   const orgId = systemUser.organizationId;
 
@@ -214,10 +237,12 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const senderLabel = fromName && fromName !== fromEmail
     ? `${fromName} <${fromEmail}>`
     : fromEmail;
+  const channelIcon = isPec ? "🔏" : "📧";
+  const channelLabel = isPec ? "Ricevuto via PEC da" : "Ricevuto via email da";
   const description = [
-    `📧 Received via email from: ${senderLabel}`,
+    `${channelIcon} ${channelLabel}: ${senderLabel}`,
     "",
-    bodyText || "(no body text)",
+    bodyText || "(nessun testo)",
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
@@ -454,23 +479,7 @@ async function threadReplyAsComment(
 export async function processInboundEmail(input: EmailTicketInput): Promise<void> {
   const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, inReplyTo, references, conversationId } = input;
 
-  let systemUser: { id: number; organizationId: number | null } | null = null;
-  if (targetOrgId) {
-    const [u] = await db
-      .select({ id: usersTable.id, organizationId: usersTable.organizationId })
-      .from(usersTable)
-      .where(and(eq(usersTable.organizationId, targetOrgId), eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-      .limit(1);
-    systemUser = u ?? null;
-  }
-  if (!systemUser) {
-    const [u] = await db
-      .select({ id: usersTable.id, organizationId: usersTable.organizationId })
-      .from(usersTable)
-      .where(and(eq(usersTable.role, "admin"), eq(usersTable.isActive, true)))
-      .limit(1);
-    systemUser = u ?? null;
-  }
+  const systemUser = await getOrCreateSystemUser(targetOrgId ?? null);
 
   if (systemUser) {
     const orgId = systemUser.organizationId;

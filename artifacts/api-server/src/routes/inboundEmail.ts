@@ -566,6 +566,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
       inReplyTo: inReplyTo || undefined,
       references: references || undefined,
       inboundChannelId: resolvedChannelId,
+      isPec: !!overrideSubject,
     });
     req.log.info({ from: fromEmail, orgId: resolvedOrgId, inboundChannelId: resolvedChannelId }, "Inbound email processed successfully");
     res.status(200).json({ ok: true });
