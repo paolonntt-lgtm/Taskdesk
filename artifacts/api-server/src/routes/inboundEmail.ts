@@ -200,12 +200,149 @@ function parseMimeMessage(raw: string): { text: string; rawAttachments: Collecte
   return { text, rawAttachments: out.attachments };
 }
 
+// ---------------------------------------------------------------------------
+// PEC (Posta Elettronica Certificata) support
+// ---------------------------------------------------------------------------
+
+type PecUnwrapResult =
+  | { isPec: false }
+  | { isPec: true; isReceipt: true }
+  | { isPec: true; isReceipt: false; text: string; attachments: InboundAttachment[]; subject: string | null };
+
+/**
+ * Detects and unwraps PEC (certified email) envelopes.
+ *
+ * PEC envelopes are identified by:
+ *   - X-Trasporto: posta-certificata (or posta-certificata-sicura) header
+ *   - Presence of daticert.xml or postacert.eml attachments
+ *
+ * PEC receipts (avvenuta-consegna, rilevazione-virus) are flagged for silent discard.
+ *
+ * When a PEC envelope is detected, the function extracts the original message from
+ * postacert.eml, parses it, and returns the real body text, subject, and attachments.
+ */
+function tryUnwrapPec(
+  rawMime: string,
+  providerHeaders: Record<string, string>,
+): PecUnwrapResult {
+  // Normalize X-Trasporto from provider-supplied headers (any case)
+  const providerXTrasporto = Object.entries(providerHeaders)
+    .find(([k]) => k.toLowerCase() === "x-trasporto")?.[1]
+    ?.toLowerCase()
+    .trim() ?? "";
+
+  // Also read from the raw MIME header block
+  let mimeXTrasporto = "";
+  if (rawMime) {
+    const blankIdx = rawMime.search(/\r?\n\r?\n/);
+    if (blankIdx !== -1 && /^[\w-]+:/m.test(rawMime.slice(0, blankIdx))) {
+      const mimeHeaders = parseHeaders(rawMime.slice(0, blankIdx));
+      mimeXTrasporto = (mimeHeaders["x-trasporto"] || "").toLowerCase().trim();
+    }
+  }
+
+  const xTrasporto = providerXTrasporto || mimeXTrasporto;
+
+  // Silently discard PEC receipts — they are not actionable messages
+  if (xTrasporto === "avvenuta-consegna" || xTrasporto === "rilevazione-virus") {
+    return { isPec: true, isReceipt: true };
+  }
+
+  const isPecByHeader =
+    xTrasporto === "posta-certificata" || xTrasporto === "posta-certificata-sicura";
+
+  // Parse the raw MIME to find PEC attachment signals even when the header is absent
+  let mimeRawAttachments: CollectedData["attachments"] = [];
+  if (rawMime) {
+    const { rawAttachments } = parseMimeMessage(rawMime);
+    mimeRawAttachments = rawAttachments;
+  }
+
+  // Require both the correct filename AND a compatible MIME type to avoid
+  // false-positive matches against other embedded RFC 822 messages (e.g. forwarded emails).
+  const postacertPart = mimeRawAttachments.find(
+    (a) =>
+      a.filename.toLowerCase() === "postacert.eml" &&
+      (a.mimeType === "message/rfc822" || a.mimeType === "application/octet-stream"),
+  );
+  const hasDaticertXml = mimeRawAttachments.some(
+    (a) => a.filename.toLowerCase() === "daticert.xml",
+  );
+
+  if (!isPecByHeader && !postacertPart && !hasDaticertXml) {
+    return { isPec: false };
+  }
+
+  // PEC envelope detected — extract original message from postacert.eml
+  if (!postacertPart) {
+    // We have PEC signals but no original message to unwrap — fall through
+    return { isPec: false };
+  }
+
+  const postacertRaw = decodeBodyText(postacertPart.rawBody, postacertPart.encoding);
+
+  // Extract subject from the original message's headers
+  let innerSubject: string | null = null;
+  const innerBlankIdx = postacertRaw.search(/\r?\n\r?\n/);
+  if (innerBlankIdx !== -1) {
+    const innerHeaders = parseHeaders(postacertRaw.slice(0, innerBlankIdx));
+    innerSubject = innerHeaders["subject"]?.trim() || null;
+  }
+
+  // Parse the original message body + attachments
+  const { text: innerText, rawAttachments: innerRawAttachments } = parseMimeMessage(postacertRaw);
+
+  // Build final attachments: skip daticert.xml; keep real attachments
+  const innerAttachments: InboundAttachment[] = [];
+  for (const ra of innerRawAttachments) {
+    if (ra.filename.toLowerCase() === "daticert.xml") continue;
+    if (!isMimeAllowed(ra.mimeType)) continue;
+    const data = decodeBodyBuffer(ra.rawBody, ra.encoding);
+    const oversized = data.length > MAX_ATTACHMENT_BYTES;
+    innerAttachments.push({
+      filename: ra.filename,
+      mimeType: ra.mimeType,
+      data: oversized ? Buffer.alloc(0) : data,
+      oversized,
+    });
+  }
+
+  return { isPec: true, isReceipt: false, text: innerText, attachments: innerAttachments, subject: innerSubject };
+}
+
 /**
  * Extracts plain text and attachment list from a webhook payload.
  * Tries provider-supplied parsed fields first, then falls back to raw MIME parsing.
+ * Handles PEC (Posta Elettronica Certificata) envelopes transparently.
  */
-function extractTextAndAttachments(body: any): { text: string; attachments: InboundAttachment[] } {
+function extractTextAndAttachments(body: any): {
+  text: string;
+  attachments: InboundAttachment[];
+  overrideSubject?: string;
+  discard?: boolean;
+} {
   const attachments: InboundAttachment[] = [];
+
+  // --- 0. PEC detection — run before any provider-text shortcut ---
+  // Use the raw MIME payload and provider-supplied headers to detect PEC envelopes.
+  const rawMimeForPec: string = (body?.body || body?.rawMail || "").trim();
+  const providerHeaders: Record<string, string> = (body?.headers && typeof body.headers === "object")
+    ? body.headers as Record<string, string>
+    : {};
+
+  const pecResult = tryUnwrapPec(rawMimeForPec, providerHeaders);
+
+  if (pecResult.isPec && pecResult.isReceipt) {
+    return { text: "", attachments: [], discard: true };
+  }
+
+  if (pecResult.isPec && !pecResult.isReceipt) {
+    return {
+      text: pecResult.text,
+      attachments: pecResult.attachments,
+      overrideSubject: pecResult.subject ?? undefined,
+    };
+  }
 
   // --- 1. Provider-supplied text field + provider-supplied attachments array ---
   const providerText: string = (
@@ -342,9 +479,20 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const fromName = extractField(body, "from_name", "sender_name", "name") || fromNameParsed || fromEmail;
   const subject = extractField(body, "subject", "Subject") || "Support request";
 
-  const { text: bodyText, attachments } = extractTextAndAttachments(body);
+  const { text: bodyText, attachments, overrideSubject, discard } = extractTextAndAttachments(body);
 
-  req.log.info({ attachmentCount: attachments.length, oversized: attachments.filter(a => a.oversized).length }, "Inbound email: extracted attachments");
+  if (discard) {
+    req.log.info({ from: fromEmail }, "Inbound email: PEC receipt discarded silently");
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  const effectiveSubject = overrideSubject || subject;
+
+  req.log.info(
+    { attachmentCount: attachments.length, oversized: attachments.filter(a => a.oversized).length, isPec: !!overrideSubject },
+    "Inbound email: extracted attachments",
+  );
 
   // Email headers for threading
   const headers: Record<string, string> = body?.headers ?? {};
@@ -410,7 +558,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     await processInboundEmail({
       fromEmail,
       fromName,
-      subject,
+      subject: effectiveSubject,
       bodyText,
       attachments,
       orgId: resolvedOrgId,
