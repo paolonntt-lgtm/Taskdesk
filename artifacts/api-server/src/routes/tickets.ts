@@ -357,14 +357,15 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  // Authorization: admins can update all fields; authors can update content fields only
-  if (!isAdmin && existing.createdBy !== currentUser.id) {
+  // Check group permissions for non-admins (must happen before the 403 gate)
+  const canChangeStatus = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
+
+  // Authorization: admins and users with change_status can act on any org ticket;
+  // regular users can only edit tickets they created
+  if (!isAdmin && !canChangeStatus && existing.createdBy !== currentUser.id) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-
-  // Check group permissions for non-admins
-  const canChangeStatus = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
 
   const updates: typeof parsed.data = isAdmin
     ? parsed.data
