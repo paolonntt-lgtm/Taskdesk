@@ -1,30 +1,17 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, ticketInternalNotesTable, ticketsTable, usersTable, ticketActivityLogsTable, settingsTable } from "@workspace/db";
-import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { db, ticketInternalNotesTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
+import { requireAuth } from "../middlewares/auth";
 import { AddTicketNoteBody } from "@workspace/api-zod";
+import { hasGroupPermission } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
-
-async function hasGroupPermission(currentUser: any, permission: string): Promise<boolean> {
-  if (currentUser.role === "admin") return true;
-  let userGroups: string[] = [];
-  try { userGroups = currentUser.groups ? JSON.parse(currentUser.groups) : []; } catch { return false; }
-  if (userGroups.length === 0 || currentUser.organizationId == null) return false;
-  const key = `org_${currentUser.organizationId}_group_permissions`;
-  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
-  if (!row) return false;
-  try {
-    const perms: Record<string, string[]> = JSON.parse(row.value);
-    return userGroups.some((g) => (perms[g] ?? []).includes(permission));
-  } catch { return false; }
-}
 
 async function requireNoteAccess(req: any, res: any, next: any): Promise<void> {
   const user = req.currentUser;
   if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const allowed = await hasGroupPermission(user, "add_notes");
-  if (!allowed) { res.status(403).json({ error: "Accesso negato: permesso note interne richiesto" }); return; }
+  const allowed = await hasGroupPermission(user.id, user.organizationId, "add_notes", user.role === "admin");
+  if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
   next();
 }
 

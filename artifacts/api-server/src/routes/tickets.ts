@@ -6,6 +6,7 @@ import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
+import { hasGroupPermission } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
 
@@ -363,21 +364,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   // Check group permissions for non-admins
-  const userGroups: string[] = (() => {
-    try { return currentUser.groups ? JSON.parse(currentUser.groups) : []; } catch { return []; }
-  })();
-
-  let canChangeStatus = isAdmin;
-  if (!isAdmin && userGroups.length > 0 && currentUser.organizationId != null) {
-    const gpKey = `org_${currentUser.organizationId}_group_permissions`;
-    const [gpRow] = await db.select().from(settingsTable).where(eq(settingsTable.key, gpKey));
-    if (gpRow) {
-      try {
-        const perms: Record<string, string[]> = JSON.parse(gpRow.value);
-        canChangeStatus = userGroups.some((g) => (perms[g] ?? []).includes("change_status"));
-      } catch { /* noop */ }
-    }
-  }
+  const canChangeStatus = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
 
   const updates: typeof parsed.data = isAdmin
     ? parsed.data
