@@ -555,7 +555,10 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
     }
 
     // --- 3. Subject fallback ---
-    const normSubject = normaliseSubject(subject);
+    // Only apply if the incoming subject has a reply prefix (Re:, Rif:, R:, Ant:, …).
+    // A fresh email that happens to share the same base subject always creates a new ticket.
+    const hasReplyPrefix = /^(re|fwd|fw|aw|sv|vs|r|rif|ant)[\s:]+/i.test(subject.trim());
+    const normSubject = hasReplyPrefix ? normaliseSubject(subject) : "";
     if (normSubject) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const fromEmailLower = fromEmail.toLowerCase();
