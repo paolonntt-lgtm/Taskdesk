@@ -261,7 +261,14 @@ function tryUnwrapPec(
   const xTrasporto = providerXTrasporto || mimeXTrasporto;
 
   // Silently discard PEC receipts — they are not actionable messages
-  if (xTrasporto === "avvenuta-consegna" || xTrasporto === "rilevazione-virus") {
+  const PEC_DISCARD_TYPES = new Set([
+    "avvenuta-consegna",
+    "errore-consegna",
+    "presa-in-carico",
+    "avvenuta-presa-in-carico",
+    "rilevazione-virus",
+  ]);
+  if (PEC_DISCARD_TYPES.has(xTrasporto)) {
     return { isPec: true, isReceipt: true };
   }
 
@@ -450,6 +457,50 @@ function extractLocalPart(address: string): string {
   return at > 0 ? address.slice(0, at).toLowerCase() : address.toLowerCase();
 }
 
+/**
+ * Detects automated / auto-reply messages that should never create a ticket.
+ * Checks RFC-standard headers, common mailer patterns, and PEC-specific subjects.
+ */
+function isAutoReply(headers: Record<string, string>, subject: string): boolean {
+  // RFC 3834 — Auto-Submitted header
+  const autoSubmitted = (headers["auto-submitted"] ?? "").toLowerCase().trim();
+  if (autoSubmitted && autoSubmitted !== "no") return true;
+
+  // Microsoft / Exchange suppress header
+  if (headers["x-auto-response-suppress"]) return true;
+
+  // Mailing-list / bulk precedence
+  const precedence = (headers["precedence"] ?? "").toLowerCase().trim();
+  if (["auto-reply", "bulk", "junk", "list"].includes(precedence)) return true;
+
+  // Subject-based patterns (PEC notifications, bounce messages, OOO)
+  const subj = subject.toLowerCase();
+  const AUTO_SUBJECT_PATTERNS = [
+    "messaggio pec inoltrato",
+    "anomalia messaggio",
+    "avvenuta consegna",
+    "presa in carico",
+    "ricevuta di accettazione",
+    "ricevuta di avvenuta",
+    "posta certificata",
+    "undeliverable",
+    "delivery failed",
+    "delivery status notification",
+    "mail delivery failed",
+    "non-delivery report",
+    "failure notice",
+    "automatic reply",
+    "auto: ",
+    "out of office",
+    "fuori ufficio",
+    "risposta automatica",
+    "mailer-daemon",
+  ];
+  if (AUTO_SUBJECT_PATTERNS.some((p) => subj.includes(p))) return true;
+
+  return false;
+}
+
 /** Extract inbound token from an address like tickets-abc123@inbound.taskdesk.it */
 function extractToken(localPart: string): string | null {
   const m = /^tickets-([a-f0-9]{8,32})$/i.exec(localPart);
@@ -516,6 +567,13 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const messageId = extractField(body, "messageId", "message_id", "MessageID") || headers["message-id"] || headers["Message-ID"] || "";
   const inReplyTo = extractField(body, "inReplyTo", "in_reply_to", "InReplyTo") || headers["in-reply-to"] || headers["In-Reply-To"] || "";
   const references = extractField(body, "references", "References") || headers["references"] || headers["References"] || "";
+
+  // Auto-reply / automated sender detection — discard before creating a ticket
+  if (isAutoReply(headers, effectiveSubject)) {
+    req.log.info({ from: fromEmail, subject: effectiveSubject }, "Inbound email: auto-reply/automated message discarded");
+    res.status(200).json({ ok: true });
+    return;
+  }
 
   if (!fromEmail) {
     req.log.warn({ bodyKeys: body ? Object.keys(body) : [] }, "Inbound email missing sender address");

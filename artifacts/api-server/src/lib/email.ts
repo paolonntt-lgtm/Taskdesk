@@ -124,6 +124,10 @@ export async function sendEmailForOrg(
       subject: args.subject,
       html: args.html,
       text: args.text,
+      headers: {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "All",
+      },
       ...(args.replyTo ? { replyTo: args.replyTo } : {}),
       ...(args.inReplyTo ? { inReplyTo: args.inReplyTo } : {}),
       ...(args.references ? { references: args.references } : {}),
