@@ -439,6 +439,24 @@ export interface ClientImportResult {
   errors: ClientImportResultErrorsItem[];
 }
 
+export interface GroupWithMembers {
+  id: number;
+  name: string;
+  organizationId?: number | null;
+  createdAt: string;
+  memberCount: number;
+  members: User[];
+}
+
+export interface GroupInput {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface GroupMemberInput {
+  userId: number;
+}
+
 export interface StickyNote {
   id: number;
   organizationId?: number | null;

@@ -8,6 +8,123 @@
 import * as zod from "zod";
 
 /**
+ * @summary List all groups for the current organization
+ */
+export const ListGroupsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  organizationId: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  memberCount: zod.number(),
+  members: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      email: zod.string(),
+      role: zod.enum(["admin", "user"]),
+      mainLocation: zod.string().nullish(),
+      group: zod.string().nullish(),
+      groups: zod.array(zod.string()).nullish(),
+      avatarUrl: zod.string().nullish(),
+      isActive: zod.boolean(),
+      isAvailable: zod.boolean(),
+      createdAt: zod.coerce.date(),
+      onboardingDone: zod.boolean().nullish(),
+      businessType: zod.string().nullish(),
+    }),
+  ),
+});
+export const ListGroupsResponse = zod.array(ListGroupsResponseItem);
+
+/**
+ * @summary Create a new group (admin only)
+ */
+
+export const CreateGroupBody = zod.object({
+  name: zod.string().min(1),
+});
+
+/**
+ * @summary Rename a group (admin only)
+ */
+export const UpdateGroupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateGroupBody = zod.object({
+  name: zod.string().min(1),
+});
+
+export const UpdateGroupResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  organizationId: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  memberCount: zod.number(),
+  members: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      email: zod.string(),
+      role: zod.enum(["admin", "user"]),
+      mainLocation: zod.string().nullish(),
+      group: zod.string().nullish(),
+      groups: zod.array(zod.string()).nullish(),
+      avatarUrl: zod.string().nullish(),
+      isActive: zod.boolean(),
+      isAvailable: zod.boolean(),
+      createdAt: zod.coerce.date(),
+      onboardingDone: zod.boolean().nullish(),
+      businessType: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a group (admin only)
+ */
+export const DeleteGroupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteGroupResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Add a user to a group (admin only)
+ */
+export const AddGroupMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AddGroupMemberBody = zod.object({
+  userId: zod.number(),
+});
+
+export const AddGroupMemberResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Remove a user from a group (admin only)
+ */
+export const RemoveGroupMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RemoveGroupMemberBody = zod.object({
+  userId: zod.number(),
+});
+
+export const RemoveGroupMemberResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({

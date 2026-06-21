@@ -29,6 +29,7 @@ import onboardingRouter from "./onboarding";
 import clientsRouter from "./clients";
 import stickyNotesRouter from "./stickyNotes";
 import ticketStatusesRouter from "./ticketStatuses";
+import groupsRouter from "./groups";
 
 const router: IRouter = Router();
 
@@ -62,5 +63,6 @@ router.use(onboardingRouter);
 router.use(clientsRouter);
 router.use(stickyNotesRouter);
 router.use(ticketStatusesRouter);
+router.use(groupsRouter);
 
 export default router;

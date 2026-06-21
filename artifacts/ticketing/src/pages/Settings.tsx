@@ -833,6 +833,7 @@ export default function Settings() {
           {isAdmin && <Tab label={t.settings.tabBilling} />}
           {isAdmin && <Tab label={t.settings.tabTickets} />}
           {isAdmin && <Tab label={t.settings.tabTools} />}
+          {isAdmin && <Tab label={t.settings.tabGroups} />}
         </Tabs>
       </Box>
 
@@ -1221,6 +1222,9 @@ export default function Settings() {
             <KnowledgeBaseTab />
             <Box mt={4} />
             <EmailChannelsTab />
+          </TabPanel>
+          <TabPanel value={tab} index={6}>
+            <GroupsManagementTab />
           </TabPanel>
         </>
       )}
@@ -2424,6 +2428,314 @@ function KnowledgeBaseTab() {
           >
             {deleting ? t.settings.saving : t.settings.kbDeleteAction}
           </Button>
+        </DialogActions>
+      </Dialog>
+    </Section>
+  );
+}
+
+interface GroupWithMembers {
+  id: number;
+  name: string;
+  organizationId?: number | null;
+  createdAt: string;
+  memberCount: number;
+  members: Array<{ id: number; name: string; email: string; role: string; avatarUrl?: string | null; isActive: boolean }>;
+}
+
+function GroupsManagementTab() {
+  const { t } = useLanguage();
+  const tg = t.groups;
+
+  const [groups, setGroups] = useState<GroupWithMembers[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [allUsers, setAllUsers] = useState<Array<{ id: number; name: string; email: string; avatarUrl?: string | null; isActive: boolean }>>([]);
+
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<GroupWithMembers | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<GroupWithMembers | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [membersTarget, setMembersTarget] = useState<GroupWithMembers | null>(null);
+  const [memberLoading, setMemberLoading] = useState(false);
+
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch('/api/groups', { credentials: 'include' });
+      if (res.ok) setGroups(await res.json());
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+    fetch('/api/users', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setAllUsers(data.filter((u: any) => u.isActive)))
+      .catch(() => {});
+  }, []);
+
+  const openCreate = () => {
+    setEditTarget(null);
+    setFormName('');
+    setFormError(null);
+    setNameDialogOpen(true);
+  };
+
+  const openRename = (g: GroupWithMembers) => {
+    setEditTarget(g);
+    setFormName(g.name);
+    setFormError(null);
+    setNameDialogOpen(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!formName.trim()) { setFormError(tg.errorRequired); return; }
+    setSaving(true);
+    setFormError(null);
+    try {
+      if (editTarget) {
+        const res = await fetch(`/api/groups/${editTarget.id}`, {
+          method: 'PUT', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: formName.trim() }),
+        });
+        if (!res.ok) { setFormError(tg.errorSaving); setSaving(false); return; }
+        const updated = await res.json();
+        setGroups((prev) => prev.map((g) => g.id === editTarget.id ? updated : g));
+        setMsg({ type: 'success', text: tg.successUpdated });
+      } else {
+        const res = await fetch('/api/groups', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: formName.trim() }),
+        });
+        if (!res.ok) { setFormError(tg.errorSaving); setSaving(false); return; }
+        const created = await res.json();
+        setGroups((prev) => [...prev, created]);
+        setMsg({ type: 'success', text: tg.successCreated });
+      }
+      setNameDialogOpen(false);
+    } catch { setFormError(tg.errorSaving); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/groups/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) { setDeleteError(tg.errorDeleting); setDeleting(false); return; }
+      setGroups((prev) => prev.filter((g) => g.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setMsg({ type: 'success', text: tg.successDeleted });
+    } catch { setDeleteError(tg.errorDeleting); }
+    finally { setDeleting(false); }
+  };
+
+  const openMembers = (g: GroupWithMembers) => {
+    setMembersTarget({ ...g });
+  };
+
+  const handleAddMember = async (userId: number) => {
+    if (!membersTarget) return;
+    setMemberLoading(true);
+    try {
+      const res = await fetch(`/api/groups/${membersTarget.id}/members`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) { setMsg({ type: 'error', text: tg.errorMember }); return; }
+      const user = allUsers.find((u) => u.id === userId);
+      if (user) {
+        const updatedMembers = [...membersTarget.members, { ...user, role: 'user', isActive: true }];
+        const updatedGroup = { ...membersTarget, members: updatedMembers, memberCount: updatedMembers.length };
+        setMembersTarget(updatedGroup);
+        setGroups((prev) => prev.map((g) => g.id === membersTarget.id ? updatedGroup : g));
+      }
+    } catch { setMsg({ type: 'error', text: tg.errorMember }); }
+    finally { setMemberLoading(false); }
+  };
+
+  const handleRemoveMember = async (userId: number) => {
+    if (!membersTarget) return;
+    setMemberLoading(true);
+    try {
+      const res = await fetch(`/api/groups/${membersTarget.id}/members`, {
+        method: 'DELETE', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) { setMsg({ type: 'error', text: tg.errorMember }); return; }
+      const updatedMembers = membersTarget.members.filter((m) => m.id !== userId);
+      const updatedGroup = { ...membersTarget, members: updatedMembers, memberCount: updatedMembers.length };
+      setMembersTarget(updatedGroup);
+      setGroups((prev) => prev.map((g) => g.id === membersTarget.id ? updatedGroup : g));
+    } catch { setMsg({ type: 'error', text: tg.errorMember }); }
+    finally { setMemberLoading(false); }
+  };
+
+  const memberIds = new Set(membersTarget?.members.map((m) => m.id) ?? []);
+  const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
+
+  return (
+    <Section title={tg.title} icon={<People color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>{tg.subtitle}</Typography>
+
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+
+      <Box display="flex" justifyContent="flex-end" mb={2}>
+        <Button variant="contained" startIcon={<Add />} size="small" onClick={openCreate}>
+          {tg.addGroup}
+        </Button>
+      </Box>
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" py={4}><CircularProgress size={28} /></Box>
+      ) : groups.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">{tg.noGroups}</Typography>
+      ) : (
+        <Stack spacing={1}>
+          {groups.map((g) => (
+            <Paper key={g.id} variant="outlined" sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <GroupIcon color="action" sx={{ flexShrink: 0 }} />
+              <Box flex={1}>
+                <Typography fontWeight={600}>{g.name}</Typography>
+                <Typography variant="caption" color="text.secondary">{tg.membersCount(g.memberCount)}</Typography>
+              </Box>
+              <Tooltip title={tg.manageMembers}>
+                <IconButton size="small" onClick={() => openMembers(g)}>
+                  <Person fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={tg.rename}>
+                <IconButton size="small" onClick={() => openRename(g)}>
+                  <EditOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={tg.deleteGroupTitle}>
+                <IconButton size="small" color="error" onClick={() => { setDeleteTarget(g); setDeleteError(null); }}>
+                  <Delete fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Create / Rename Dialog */}
+      <Dialog open={nameDialogOpen} onClose={() => setNameDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{editTarget ? tg.editGroup : tg.addGroup}</DialogTitle>
+        <DialogContent>
+          <Box mt={1}>
+            {formError && <Alert severity="error" sx={{ mb: 1.5 }}>{formError}</Alert>}
+            <TextField
+              label={tg.groupName}
+              placeholder={tg.groupNamePlaceholder}
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveName(); } }}
+              fullWidth autoFocus size="small"
+              disabled={saving}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNameDialogOpen(false)} disabled={saving}>{tg.cancel}</Button>
+          <Button variant="contained" onClick={handleSaveName} disabled={saving || !formName.trim()}>
+            {saving ? tg.saving : tg.save}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{tg.deleteGroupTitle}</DialogTitle>
+        <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 1 }}>{deleteError}</Alert>}
+          <Typography>{deleteTarget ? tg.deleteGroupConfirm(deleteTarget.name) : ''}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>{tg.cancel}</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
+            {deleting ? tg.saving : tg.deleteGroupAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manage Members Dialog */}
+      <Dialog open={!!membersTarget} onClose={() => setMembersTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{membersTarget ? tg.membersDialogTitle(membersTarget.name) : ''}</DialogTitle>
+        <DialogContent>
+          <Box>
+            {/* Current members */}
+            <Typography variant="subtitle2" fontWeight={700} mb={1}>{tg.manageMembers}</Typography>
+            {!membersTarget || membersTarget.members.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" mb={2}>{tg.noMembers}</Typography>
+            ) : (
+              <List dense disablePadding sx={{ mb: 2 }}>
+                {membersTarget.members.map((m) => (
+                  <ListItem key={m.id} disableGutters divider>
+                    <Avatar src={m.avatarUrl ?? undefined} sx={{ width: 28, height: 28, mr: 1.5, fontSize: 13 }}>
+                      {m.name[0]?.toUpperCase()}
+                    </Avatar>
+                    <ListItemText primary={m.name} secondary={m.email} />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={memberLoading}
+                        onClick={() => handleRemoveMember(m.id)}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+
+            {/* Add members */}
+            {nonMembers.length > 0 && (
+              <>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="subtitle2" fontWeight={700} mb={1}>{tg.addMembersTitle}</Typography>
+                <List dense disablePadding>
+                  {nonMembers.map((u) => (
+                    <ListItem key={u.id} disableGutters divider>
+                      <Avatar src={u.avatarUrl ?? undefined} sx={{ width: 28, height: 28, mr: 1.5, fontSize: 13 }}>
+                        {u.name[0]?.toUpperCase()}
+                      </Avatar>
+                      <ListItemText primary={u.name} secondary={u.email} />
+                      <ListItemSecondaryAction>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={memberLoading}
+                          onClick={() => handleAddMember(u.id)}
+                          startIcon={<Add />}
+                        >
+                          {tg.addMember}
+                        </Button>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMembersTarget(null)}>{tg.cancel}</Button>
         </DialogActions>
       </Dialog>
     </Section>

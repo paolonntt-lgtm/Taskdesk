@@ -17,3 +17,4 @@ export * from "./inbound_email_channels";
 export * from "./clients";
 export * from "./sticky_notes";
 export * from "./ticket_statuses";
+export * from "./groups";
