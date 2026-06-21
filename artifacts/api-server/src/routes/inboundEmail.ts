@@ -599,9 +599,13 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const inReplyTo = extractField(body, "inReplyTo", "in_reply_to", "InReplyTo") || headers["in-reply-to"] || headers["In-Reply-To"] || "";
   const references = extractField(body, "references", "References") || headers["references"] || headers["References"] || "";
 
-  // Auto-reply / automated sender detection — discard before creating a ticket
-  if (isAutoReply(headers, effectiveSubject)) {
-    req.log.info({ from: fromEmail, subject: effectiveSubject }, "Inbound email: auto-reply/automated message discarded");
+  // Auto-reply / automated sender detection — discard before creating a ticket.
+  // Check both the outer (PEC envelope) subject and the effective (inner) subject:
+  // when a PEC system wraps an outbound notification as "Messaggio PEC inoltrato",
+  // extractTextAndAttachments sets overrideSubject to the inner email's subject, so
+  // effectiveSubject alone would not match the outer PEC pattern.
+  if (isAutoReply(headers, subject) || isAutoReply(headers, effectiveSubject)) {
+    req.log.info({ from: fromEmail, subject: effectiveSubject, outerSubject: subject }, "Inbound email: auto-reply/automated message discarded");
     res.status(200).json({ ok: true });
     return;
   }
