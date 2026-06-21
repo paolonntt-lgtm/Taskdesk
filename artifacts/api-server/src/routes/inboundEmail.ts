@@ -501,6 +501,37 @@ function isAutoReply(headers: Record<string, string>, subject: string): boolean 
   return false;
 }
 
+/**
+ * Decodes MIME encoded-words (RFC 2047) found in email subjects.
+ * Handles Q (quoted-printable) and B (base64) encodings.
+ * Multiple adjacent encoded-words are concatenated without the separating whitespace.
+ */
+function decodeMimeWords(input: string): string {
+  const re = /=\?([^?]+)\?([BQbq])\?([^?]*)\?=/g;
+  let result = input;
+  let hasEncoded = re.test(input);
+  if (!hasEncoded) return input;
+
+  // Replace whitespace between adjacent encoded words first
+  const collapsed = input.replace(/(=\?[^?]+\?[BQbq]\?[^?]*\?=)\s+(=\?[^?]+\?[BQbq]\?[^?]*\?=)/g, "$1$2");
+  re.lastIndex = 0;
+
+  result = collapsed.replace(/=\?([^?]+)\?([BQbq])\?([^?]*)\?=/g, (_, _charset, enc, encoded) => {
+    try {
+      if (enc.toUpperCase() === "Q") {
+        const raw = encoded.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (_m: string, hex: string) =>
+          String.fromCharCode(parseInt(hex, 16))
+        );
+        return Buffer.from(raw, "binary").toString("utf8");
+      }
+      return Buffer.from(encoded, "base64").toString("utf8");
+    } catch {
+      return encoded;
+    }
+  });
+  return result.trim();
+}
+
 /** Extract inbound token from an address like tickets-abc123@inbound.taskdesk.it */
 function extractToken(localPart: string): string | null {
   const m = /^tickets-([a-f0-9]{8,32})$/i.exec(localPart);
@@ -545,7 +576,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const rawFrom = extractField(body, "from", "from_email", "sender_email", "From");
   const { email: fromEmail, name: fromNameParsed } = parseEmailAddress(rawFrom);
   const fromName = extractField(body, "from_name", "sender_name", "name") || fromNameParsed || fromEmail;
-  const subject = extractField(body, "subject", "Subject") || "Support request";
+  const subject = decodeMimeWords(extractField(body, "subject", "Subject") || "Support request");
 
   const { text: bodyText, attachments, overrideSubject, discard } = extractTextAndAttachments(body);
 
