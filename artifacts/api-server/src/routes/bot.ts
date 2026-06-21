@@ -200,37 +200,34 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
     };
   });
 
-  // KB articles — only available to admins
-  let articles: ContextResult[] = [];
-  if (isAdmin) {
-    const articleRows = await db.execute(sql`
-      SELECT
-        id,
-        title,
-        content,
-        ts_rank(
-          to_tsvector('italian', title || ' ' || content),
-          plainto_tsquery('italian', ${ftsQuery})
-        ) AS rank
-      FROM knowledge_articles
-      WHERE
-        organization_id = ${orgId}
-        AND (
-          to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
-          OR title ~* ${keywordRegex}
-          OR content ~* ${keywordRegex}
-        )
-      ORDER BY rank DESC
-      LIMIT 3
-    `);
+  // KB articles — available to all authenticated users of the organization
+  const articleRows = await db.execute(sql`
+    SELECT
+      id,
+      title,
+      content,
+      ts_rank(
+        to_tsvector('italian', title || ' ' || content),
+        plainto_tsquery('italian', ${ftsQuery})
+      ) AS rank
+    FROM knowledge_articles
+    WHERE
+      organization_id = ${orgId}
+      AND (
+        to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
+        OR title ~* ${keywordRegex}
+        OR content ~* ${keywordRegex}
+      )
+    ORDER BY rank DESC
+    LIMIT 3
+  `);
 
-    articles = (articleRows.rows as any[]).map((row) => ({
-      type: "article" as const,
-      title: row.title,
-      content: String(row.content).slice(0, 600),
-      rank: Number(row.rank),
-    }));
-  }
+  const articles: ContextResult[] = (articleRows.rows as any[]).map((row) => ({
+    type: "article" as const,
+    title: row.title,
+    content: String(row.content).slice(0, 600),
+    rank: Number(row.rank),
+  }));
 
   return { resolvedTickets, openTickets, articles };
 }
