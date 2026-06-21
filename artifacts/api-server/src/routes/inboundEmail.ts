@@ -160,7 +160,24 @@ function collectRecursive(headers: Record<string, string>, body: string, out: Co
 
   if (baseType === "text/html") {
     const decoded = decodeBodyText(body, cte);
-    out.htmlParts.push(decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    const text = decoded
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<\/tr>/gi, "\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    out.htmlParts.push(text);
     return;
   }
 }
