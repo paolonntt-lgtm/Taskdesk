@@ -65,7 +65,6 @@ export default function TicketDetail() {
   const [newComment, setNewComment] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
-  const [groupPerms, setGroupPerms] = useState<Record<string, string[]>>({});
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
@@ -120,12 +119,9 @@ export default function TicketDetail() {
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
 
-  // Group permission helpers (computed after ticket is loaded)
-  const userGroupsList: string[] = (() => {
-    try { return (currentUser as any)?.groups ? JSON.parse((currentUser as any).groups) : []; } catch { return []; }
-  })();
+  // Group permission helpers — reads from groupPermissions returned by /api/auth/me
   const hasGroupPerm = (perm: string) =>
-    userGroupsList.some((g) => (groupPerms[g] ?? []).includes(perm));
+    ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
   const canChangeStatusByGroup = hasGroupPerm('change_status');
   const canAccessNotes = currentUser?.role === 'admin' || hasGroupPerm('add_notes');
 
@@ -192,13 +188,6 @@ export default function TicketDetail() {
       .catch(() => {});
   }, [currentUser?.role]);
 
-  useEffect(() => {
-    if (!currentUser) return;
-    fetch('/api/settings/group-permissions', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setGroupPerms(d.value ?? {}))
-      .catch(() => {});
-  }, [currentUser]);
 
   useEffect(() => {
     fetch('/api/settings/categories', { credentials: 'include' })

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, usersTable, organizationsTable, settingsTable } from "@workspace/db";
+import { db, usersTable, organizationsTable, settingsTable, groupMembersTable, groupsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
@@ -227,7 +227,20 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(row);
+  // Collect all permissions the user has through group memberships
+  const memberships = await db
+    .select({ permissions: groupsTable.permissions })
+    .from(groupMembersTable)
+    .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
+    .where(eq(groupMembersTable.userId, userId));
+
+  const groupPermissions: string[] = [...new Set(
+    memberships.flatMap((m) => {
+      try { return JSON.parse(m.permissions ?? "[]") as string[]; } catch { return []; }
+    })
+  )];
+
+  res.json({ ...row, groupPermissions });
 });
 
 export default router;
