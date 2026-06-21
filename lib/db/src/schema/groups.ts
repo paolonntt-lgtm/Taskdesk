@@ -6,6 +6,7 @@ export const groupsTable = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   organizationId: integer("organization_id").references(() => organizationsTable.id),
+  permissions: text("permissions").default('[]'),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("groups_org_idx").on(t.organizationId),

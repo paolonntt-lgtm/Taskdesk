@@ -7,7 +7,7 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link } from 'wouter';
@@ -2165,6 +2165,7 @@ interface GroupWithMembers {
   name: string;
   organizationId?: number | null;
   createdAt: string;
+  permissions: string[];
   memberCount: number;
   members: Array<{ id: number; name: string; email: string; role: string; avatarUrl?: string | null; isActive: boolean }>;
 }
@@ -2191,6 +2192,10 @@ function GroupsManagementTab() {
 
   const [membersTarget, setMembersTarget] = useState<GroupWithMembers | null>(null);
   const [memberLoading, setMemberLoading] = useState(false);
+
+  const [permissionsTarget, setPermissionsTarget] = useState<GroupWithMembers | null>(null);
+  const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
+  const [permissionsSaving, setPermissionsSaving] = useState(false);
 
   const fetchGroups = async () => {
     try {
@@ -2310,6 +2315,35 @@ function GroupsManagementTab() {
     finally { setMemberLoading(false); }
   };
 
+  const openPermissions = (g: GroupWithMembers) => {
+    setPermissionsTarget(g);
+    setPermissionsDraft([...(g.permissions ?? [])]);
+  };
+
+  const togglePermission = (perm: string) => {
+    setPermissionsDraft((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsTarget) return;
+    setPermissionsSaving(true);
+    try {
+      const res = await fetch(`/api/groups/${permissionsTarget.id}/permissions`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: permissionsDraft }),
+      });
+      if (!res.ok) { setMsg({ type: 'error', text: tg.permError }); setPermissionsSaving(false); return; }
+      const updated = await res.json();
+      setGroups((prev) => prev.map((g) => g.id === permissionsTarget.id ? { ...g, permissions: updated.permissions } : g));
+      setPermissionsTarget(null);
+      setMsg({ type: 'success', text: tg.permSaved });
+    } catch { setMsg({ type: 'error', text: tg.permError }); }
+    finally { setPermissionsSaving(false); }
+  };
+
   const memberIds = new Set(membersTarget?.members.map((m) => m.id) ?? []);
   const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
 
@@ -2341,6 +2375,11 @@ function GroupsManagementTab() {
               <Tooltip title={tg.manageMembers}>
                 <IconButton size="small" onClick={() => openMembers(g)}>
                   <Person fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={tg.managePermissions}>
+                <IconButton size="small" onClick={() => openPermissions(g)} color={g.permissions?.length ? 'primary' : 'default'}>
+                  <SecurityOutlined fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title={tg.rename}>
@@ -2394,6 +2433,41 @@ function GroupsManagementTab() {
           <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>{tg.cancel}</Button>
           <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
             {deleting ? tg.saving : tg.deleteGroupAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Permissions Dialog */}
+      <Dialog open={!!permissionsTarget} onClose={() => setPermissionsTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{permissionsTarget ? tg.permissionsTitle : ''}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>{tg.permissionsNote}</Typography>
+          <Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permChangeStatus}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('change_status')}
+                onChange={() => togglePermission('change_status')}
+                disabled={permissionsSaving}
+              />
+            </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permAddNotes}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('add_notes')}
+                onChange={() => togglePermission('add_notes')}
+                disabled={permissionsSaving}
+              />
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPermissionsTarget(null)} disabled={permissionsSaving}>{tg.cancel}</Button>
+          <Button variant="contained" onClick={handleSavePermissions} disabled={permissionsSaving}>
+            {permissionsSaving ? tg.saving : tg.save}
           </Button>
         </DialogActions>
       </Dialog>

@@ -6,8 +6,25 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
+const ALLOWED_PERMISSIONS = ['change_status', 'add_notes'] as const;
+type GroupPermission = typeof ALLOWED_PERMISSIONS[number];
+
+function parsePermissions(raw: string | null | undefined): GroupPermission[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p): p is GroupPermission => ALLOWED_PERMISSIONS.includes(p as GroupPermission));
+  } catch {
+    return [];
+  }
+}
+
 const GroupInput = z.object({
   name: z.string().min(1).max(100),
+});
+
+const GroupPermissionsInput = z.object({
+  permissions: z.array(z.enum(ALLOWED_PERMISSIONS)),
 });
 
 const GroupMemberInput = z.object({
@@ -56,6 +73,7 @@ async function getGroupWithMembers(groupId: number, orgId: number | null) {
 
   return {
     ...group,
+    permissions: parsePermissions(group.permissions),
     memberCount: memberRows.length,
     members: memberRows,
   };
@@ -98,7 +116,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
 
   const result = groups.map((g) => {
     const members = membersByGroup.get(g.id) ?? [];
-    return { ...g, memberCount: members.length, members };
+    return { ...g, permissions: parsePermissions(g.permissions), memberCount: members.length, members };
   });
 
   res.json(result);
@@ -117,7 +135,7 @@ router.post("/groups", requireAuth, requireAdmin, async (req, res): Promise<void
     .values({ name: parsed.data.name.trim(), organizationId: currentUser.organizationId })
     .returning();
 
-  res.status(201).json({ ...group, memberCount: 0, members: [] });
+  res.status(201).json({ ...group, permissions: parsePermissions(group.permissions), memberCount: 0, members: [] });
 });
 
 router.put("/groups/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -148,6 +166,35 @@ router.put("/groups/:id", requireAuth, requireAdmin, async (req, res): Promise<v
 
   const withMembers = await getGroupWithMembers(id, currentUser.organizationId);
   res.json(withMembers);
+});
+
+router.patch("/groups/:id/permissions", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid group ID" }); return; }
+
+  const currentUser = (req as any).currentUser;
+  const parsed = GroupPermissionsInput.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const [updated] = await db
+    .update(groupsTable)
+    .set({ permissions: JSON.stringify(parsed.data.permissions) })
+    .where(
+      and(
+        eq(groupsTable.id, id),
+        currentUser.organizationId != null
+          ? eq(groupsTable.organizationId, currentUser.organizationId)
+          : undefined,
+      )
+    )
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Group not found" }); return; }
+
+  res.json({ ...updated, permissions: parsePermissions(updated.permissions) });
 });
 
 router.delete("/groups/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
