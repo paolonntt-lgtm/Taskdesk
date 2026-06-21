@@ -14,10 +14,14 @@ app.set("trust proxy", 1);
 
 // Force HTTPS in production: redirect external HTTP requests to HTTPS.
 // We only redirect when the proxy explicitly tells us the original request
-// was HTTP (X-Forwarded-Proto: http). This safely skips internal health-check
-// probes from Cloud Run, which arrive without that header and must get 200.
+// was HTTP (X-Forwarded-Proto: http). The healthcheck path is always exempted
+// because the Replit deployment proxy adds X-Forwarded-Proto: http even on
+// internal startup probes, and a 301 response fails the health check.
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
+    if (req.path === "/api/healthz") {
+      return next();
+    }
     if (req.headers["x-forwarded-proto"] === "http") {
       return res.redirect(301, `https://${req.headers.host}${req.url}`);
     }

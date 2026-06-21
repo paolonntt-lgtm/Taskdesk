@@ -1,0 +1,1 @@
+- [Replit proxy X-Forwarded-Proto on healthchecks](replit-proxy-healthcheck-header.md) — Replit deployment proxy adds X-Forwarded-Proto: http to startup probes, breaks HTTPS redirect.
