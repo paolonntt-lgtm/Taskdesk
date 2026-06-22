@@ -1,1 +1,2 @@
 - [Replit proxy X-Forwarded-Proto on healthchecks](replit-proxy-healthcheck-header.md) — Replit deployment proxy adds X-Forwarded-Proto: http to startup probes, breaks HTTPS redirect.
+- [Replit proxy strips Set-Cookie on 302 redirects](replit-proxy-cookie-on-redirect.md) — Deployment proxy removes Set-Cookie headers from 302 responses; cookies set on redirect are never received by the browser.
