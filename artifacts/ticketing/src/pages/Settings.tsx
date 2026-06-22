@@ -33,12 +33,34 @@ interface NotifPref { type: NotifType; inApp: boolean; browser: boolean; sound: 
 
 function NotificationPreferences() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [prefs, setPrefs] = useState<NotifPref[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [testPushStatus, setTestPushStatus] = useState<'idle' | 'sending' | 'success' | 'error' | 'no-token'>('idle');
+
+  const sendTestPush = async () => {
+    setTestPushStatus('sending');
+    try {
+      const res = await fetch('/api/notifications/test-push', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.status === 400) {
+        setTestPushStatus('no-token');
+      } else if (res.ok) {
+        setTestPushStatus('success');
+      } else {
+        setTestPushStatus('error');
+      }
+    } catch {
+      setTestPushStatus('error');
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -177,6 +199,36 @@ function NotificationPreferences() {
               disabled={saving}
             >
               {saving ? t.settings.saving : t.settings.save}
+            </Button>
+          </Box>
+        </>
+      )}
+
+      {isAdmin && (
+        <>
+          <Divider sx={{ my: 3 }} />
+          <Box>
+            <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+              <Send fontSize="small" color="primary" />
+              <Typography variant="subtitle1" fontWeight={700}>{t.settings.testPushTitle}</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.testPushNote}</Typography>
+            {testPushStatus === 'success' && (
+              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setTestPushStatus('idle')}>{t.settings.testPushSuccess}</Alert>
+            )}
+            {testPushStatus === 'error' && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setTestPushStatus('idle')}>{t.settings.testPushError}</Alert>
+            )}
+            {testPushStatus === 'no-token' && (
+              <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setTestPushStatus('idle')}>{t.settings.testPushNoToken}</Alert>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={testPushStatus === 'sending' ? <CircularProgress size={16} color="inherit" /> : <Send />}
+              onClick={sendTestPush}
+              disabled={testPushStatus === 'sending'}
+            >
+              {testPushStatus === 'sending' ? t.settings.testPushSending : t.settings.testPushButton}
             </Button>
           </Box>
         </>
