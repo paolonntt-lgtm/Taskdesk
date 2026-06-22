@@ -29,6 +29,22 @@ async function setupAndroidNotificationChannel(): Promise<void> {
   });
 }
 
+function resolveProjectId(): string | null {
+  const fromConfig =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
+
+  if (
+    !fromConfig ||
+    fromConfig === "YOUR_EAS_PROJECT_ID" ||
+    fromConfig.trim() === ""
+  ) {
+    return null;
+  }
+
+  return fromConfig as string;
+}
+
 async function registerForPushNotifications(): Promise<string | null> {
   if (Platform.OS === "web") return null;
 
@@ -42,16 +58,29 @@ async function registerForPushNotifications(): Promise<string | null> {
     finalStatus = status;
   }
 
-  if (finalStatus !== "granted") return null;
+  if (finalStatus !== "granted") {
+    console.warn("[PushNotifications] Permission not granted — status:", finalStatus);
+    return null;
+  }
 
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId;
+  const projectId = resolveProjectId();
 
-  const tokenData = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined
-  );
-  return tokenData.data;
+  if (!projectId) {
+    console.warn(
+      "[PushNotifications] EAS projectId is missing or still set to placeholder. " +
+        "Follow PLAY_STORE_SETUP.md Step 1 to run `eas init` and update app.json."
+    );
+    return null;
+  }
+
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log("[PushNotifications] Token obtained:", tokenData.data);
+    return tokenData.data;
+  } catch (err) {
+    console.error("[PushNotifications] Failed to get push token:", err);
+    return null;
+  }
 }
 
 async function saveTokenToServer(token: string): Promise<void> {
@@ -60,16 +89,16 @@ async function saveTokenToServer(token: string): Promise<void> {
       method: "POST",
       body: JSON.stringify({ token }),
     });
-  } catch {
-    // silently ignore — token will be retried on next login
+  } catch (err) {
+    console.warn("[PushNotifications] Failed to save token to server:", err);
   }
 }
 
 async function removeTokenFromServer(): Promise<void> {
   try {
     await apiFetch("/notifications/push-token", { method: "DELETE" });
-  } catch {
-    // silently ignore
+  } catch (err) {
+    console.warn("[PushNotifications] Failed to remove token from server:", err);
   }
 }
 
