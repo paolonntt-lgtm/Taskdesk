@@ -460,8 +460,16 @@ function extractLocalPart(address: string): string {
 /**
  * Detects automated / auto-reply messages that should never create a ticket.
  * Checks RFC-standard headers, common mailer patterns, and PEC-specific subjects.
+ *
+ * @param headers   - Email headers from the webhook payload.
+ * @param subject   - Effective (inner) subject after PEC extraction.
+ * @param outerSubject - Raw outer PEC envelope subject (before extraction), when available.
  */
-function isAutoReply(headers: Record<string, string>, subject: string): boolean {
+function isAutoReply(
+  headers: Record<string, string>,
+  subject: string,
+  outerSubject?: string,
+): boolean {
   // RFC 3834 — Auto-Submitted header
   const autoSubmitted = (headers["auto-submitted"] ?? "").toLowerCase().trim();
   if (autoSubmitted && autoSubmitted !== "no") return true;
@@ -473,16 +481,28 @@ function isAutoReply(headers: Record<string, string>, subject: string): boolean 
   const precedence = (headers["precedence"] ?? "").toLowerCase().trim();
   if (["auto-reply", "bulk", "junk", "list"].includes(precedence)) return true;
 
-  // Subject-based patterns (PEC notifications, bounce messages, OOO)
+  // TaskDesk-specific bounce detection: the outer PEC envelope subject contains
+  // "Richiesta #N risolta" or the ✅ emoji when the PEC system wraps one of our
+  // own outgoing "ticket resolved" notifications and bounces it back as inbound.
+  // We check the outer subject here because extractTextAndAttachments may have
+  // replaced the effective subject with the inner (still-encoded) PEC content.
+  const envelopeSubject = outerSubject ?? subject;
+  if (/richiesta\s*#\d+\s*risolta/i.test(envelopeSubject)) return true;
+  if (/\u2705/.test(envelopeSubject) && /risolta/i.test(envelopeSubject)) return true;
+
+  // Subject-based patterns for genuine auto-replies, bounce messages, and
+  // specific PEC receipt types that are always system-generated.
+  // NOTE: broad PEC patterns like "messaggio pec inoltrato", "anomalia messaggio",
+  // and "posta certificata" are intentionally omitted here — the legalmail.it PEC
+  // provider uses these as envelope wrappers for ALL forwarded messages (including
+  // legitimate business emails such as bank payment notifications), so matching on
+  // them would silently discard valid inbound email.
   const subj = subject.toLowerCase();
   const AUTO_SUBJECT_PATTERNS = [
-    "messaggio pec inoltrato",
-    "anomalia messaggio",
     "avvenuta consegna",
     "presa in carico",
     "ricevuta di accettazione",
     "ricevuta di avvenuta",
-    "posta certificata",
     "undeliverable",
     "delivery failed",
     "delivery status notification",
@@ -600,11 +620,11 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const references = extractField(body, "references", "References") || headers["references"] || headers["References"] || "";
 
   // Auto-reply / automated sender detection — discard before creating a ticket.
-  // Check both the outer (PEC envelope) subject and the effective (inner) subject:
-  // when a PEC system wraps an outbound notification as "Messaggio PEC inoltrato",
-  // extractTextAndAttachments sets overrideSubject to the inner email's subject, so
-  // effectiveSubject alone would not match the outer PEC pattern.
-  if (isAutoReply(headers, subject) || isAutoReply(headers, effectiveSubject)) {
+  // Pass the outer PEC envelope subject (subject) separately from the effective
+  // inner subject (effectiveSubject) so isAutoReply can apply the right checks
+  // to each: TaskDesk bounce detection on the envelope, general patterns on the
+  // inner content.
+  if (isAutoReply(headers, effectiveSubject, subject)) {
     req.log.info({ from: fromEmail, subject: effectiveSubject, outerSubject: subject }, "Inbound email: auto-reply/automated message discarded");
     res.status(200).json({ ok: true });
     return;
