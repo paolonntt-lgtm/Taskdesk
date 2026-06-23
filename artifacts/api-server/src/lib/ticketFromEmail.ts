@@ -7,12 +7,8 @@ import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { randomUUID } from "crypto";
 
-export interface InboundAttachment {
-  filename: string;
-  mimeType: string;
-  data: Buffer;
-  oversized: boolean;
-}
+import type { InboundAttachment } from "./pecUtils";
+export type { InboundAttachment };
 
 const objectStorage = new ObjectStorageService();
 

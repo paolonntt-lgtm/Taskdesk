@@ -3,335 +3,121 @@ import { eq } from "drizzle-orm";
 import { db, inboundEmailChannelsTable } from "@workspace/db";
 import { processInboundEmail } from "../lib/ticketFromEmail";
 import type { InboundAttachment } from "../lib/ticketFromEmail";
+import {
+  MAX_ATTACHMENT_BYTES,
+  isMimeAllowed,
+  parseMimeMessage,
+  decodeBodyText,
+  decodeBodyBuffer,
+  decodeMimeWords,
+  tryUnwrapPec,
+} from "../lib/pecUtils";
 
 const router: IRouter = Router();
 
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
-
-const ALLOWED_MIME_PREFIXES = [
-  "image/",
-  "application/pdf",
-  "text/plain",
-  "text/csv",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument",
-  "application/vnd.ms-",
-  "application/vnd.oasis.opendocument",
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/x-zip",
-  "application/rtf",
-  "application/json",
-];
-
-function isMimeAllowed(mimeType: string): boolean {
-  const mt = mimeType.toLowerCase().split(";")[0].trim();
-  return ALLOWED_MIME_PREFIXES.some((p) => mt.startsWith(p));
-}
-
 // ---------------------------------------------------------------------------
-// MIME parsing helpers
+// Webhook payload helpers
 // ---------------------------------------------------------------------------
 
-function parseHeaders(headerBlock: string): Record<string, string> {
-  const unfolded = headerBlock.replace(/\r?\n[ \t]+/g, " ");
-  const headers: Record<string, string> = {};
-  for (const line of unfolded.split(/\r?\n/)) {
-    const idx = line.indexOf(":");
-    if (idx > 0) {
-      headers[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
-    }
-  }
-  return headers;
-}
-
-function extractBoundary(contentType: string): string | null {
-  const m = /boundary="?([^";]+)"?/i.exec(contentType);
-  return m ? m[1].trim() : null;
-}
-
-function decodeQuotedPrintable(input: string): string {
-  return input
-    .replace(/=\r?\n/g, "")
-    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-}
-
-function decodeBodyText(raw: string, encoding: string): string {
-  const enc = encoding.toLowerCase().trim();
-  if (enc === "base64") {
-    try {
-      return Buffer.from(raw.replace(/\s/g, ""), "base64").toString("utf8");
-    } catch {
-      return raw;
-    }
-  }
-  if (enc === "quoted-printable") {
-    return decodeQuotedPrintable(raw);
-  }
-  return raw;
-}
-
-function decodeBodyBuffer(raw: string, encoding: string): Buffer {
-  const enc = encoding.toLowerCase().trim();
-  if (enc === "base64") {
-    try {
-      return Buffer.from(raw.replace(/\s/g, ""), "base64");
-    } catch {
-      return Buffer.alloc(0);
-    }
-  }
-  return Buffer.from(raw, "utf8");
-}
-
-function extractFilename(headerValue: string): string {
-  const m =
-    /filename\*=UTF-8''([^\s;]+)/i.exec(headerValue) ||
-    /filename\*=([^\s;]+)/i.exec(headerValue) ||
-    /filename="([^"]+)"/i.exec(headerValue) ||
-    /filename=([^\s;]+)/i.exec(headerValue);
-  if (m) {
-    try {
-      return decodeURIComponent(m[1].trim().replace(/^["']|["']$/g, ""));
-    } catch {
-      return m[1].trim().replace(/^["']|["']$/g, "");
-    }
+function extractField(body: any, ...keys: string[]): string {
+  for (const k of keys) {
+    if (body?.[k] && typeof body[k] === "string") return body[k].trim();
   }
   return "";
 }
 
-interface RawMimePart {
-  headers: Record<string, string>;
-  body: string;
+/** Parse "Name <email>" or "email" → { name, email } */
+function parseEmailAddress(raw: string): { email: string; name: string } {
+  const m = /^(.+?)\s*<([^>]+)>\s*$/.exec(raw.trim());
+  if (m) return { name: m[1].trim(), email: m[2].trim() };
+  return { name: raw.trim(), email: raw.trim() };
 }
 
-function splitIntoParts(body: string, boundary: string): RawMimePart[] {
-  const escaped = boundary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const splitRe = new RegExp(`(?:^|\\r?\\n)--${escaped}(?:--)?[ \\t]*(?:\\r?\\n|$)`);
-  const chunks = body.split(splitRe);
-  const parts: RawMimePart[] = [];
-  for (const chunk of chunks) {
-    if (!chunk.trim()) continue;
-    const sep = chunk.search(/\r?\n\r?\n/);
-    if (sep === -1) continue;
-    const headerBlock = chunk.slice(0, sep);
-    const partBody = chunk.slice(sep + 1).replace(/^\r?\n/, "");
-    parts.push({ headers: parseHeaders(headerBlock), body: partBody });
-  }
-  return parts;
+/** Extract all To: addresses from different provider payload shapes */
+function extractToAddresses(body: any): string[] {
+  if (Array.isArray(body?.to)) return body.to.map((a: any) => String(a));
+  if (typeof body?.to === "string") return [body.to];
+  if (Array.isArray(body?.ToFull)) return body.ToFull.map((a: any) => a?.Email ?? String(a));
+  if (typeof body?.To === "string") return [body.To];
+  // Resend format: envelope.to
+  if (Array.isArray(body?.envelope?.to)) return body.envelope.to;
+  return [];
 }
 
-interface CollectedData {
-  textParts: string[];
-  htmlParts: string[];
-  attachments: Array<{ filename: string; mimeType: string; rawBody: string; encoding: string }>;
+/** Extract local part (everything before @) from an email address */
+function extractLocalPart(address: string): string {
+  const at = address.indexOf("@");
+  return at > 0 ? address.slice(0, at).toLowerCase() : address.toLowerCase();
 }
 
-function collectRecursive(headers: Record<string, string>, body: string, out: CollectedData): void {
-  const ct = (headers["content-type"] || "").trim();
-  const cd = (headers["content-disposition"] || "").trim();
-  const cte = (headers["content-transfer-encoding"] || "").toLowerCase().trim();
-  const baseType = ct.split(";")[0].trim().toLowerCase();
-
-  if (baseType.startsWith("multipart/")) {
-    const boundary = extractBoundary(ct);
-    if (!boundary) return;
-    const subParts = splitIntoParts(body, boundary);
-    for (const sub of subParts) {
-      collectRecursive(sub.headers, sub.body, out);
-    }
-    return;
-  }
-
-  const isAttachment = /\battachment\b/i.test(cd);
-
-  if (isAttachment) {
-    const filename =
-      extractFilename(cd) ||
-      extractFilename(ct) ||
-      "attachment";
-    out.attachments.push({ filename, mimeType: baseType || "application/octet-stream", rawBody: body, encoding: cte });
-    return;
-  }
-
-  if (baseType === "text/plain") {
-    out.textParts.push(decodeBodyText(body, cte));
-    return;
-  }
-
-  if (baseType === "text/html") {
-    const decoded = decodeBodyText(body, cte);
-    const text = decoded
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<\/div>/gi, "\n")
-      .replace(/<\/li>/gi, "\n")
-      .replace(/<\/tr>/gi, "\n")
-      .replace(/<\/h[1-6]>/gi, "\n\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-      .replace(/[ \t]+/g, " ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    out.htmlParts.push(text);
-    return;
-  }
+/** Extract inbound token from an address like tickets-abc123@inbound.taskdesk.it */
+function extractToken(localPart: string): string | null {
+  const m = /^tickets-([a-f0-9]{8,32})$/i.exec(localPart);
+  return m ? m[1].toLowerCase() : null;
 }
 
 /**
- * Parse a raw MIME string (full message or body-only) into plain text and
- * a list of attachment descriptors. Handles nested multipart structures.
+ * Detects automated / auto-reply messages that should never create a ticket.
+ * Checks RFC-standard headers, common mailer patterns, and PEC-specific subjects.
+ *
+ * @param headers   - Email headers from the webhook payload.
+ * @param subject   - Effective (inner) subject after PEC extraction.
+ * @param outerSubject - Raw outer PEC envelope subject (before extraction), when available.
  */
-function parseMimeMessage(raw: string): { text: string; rawAttachments: CollectedData["attachments"] } {
-  const out: CollectedData = { textParts: [], htmlParts: [], attachments: [] };
+function isAutoReply(
+  headers: Record<string, string>,
+  subject: string,
+  outerSubject?: string,
+): boolean {
+  // RFC 3834 — Auto-Submitted header
+  const autoSubmitted = (headers["auto-submitted"] ?? "").toLowerCase().trim();
+  if (autoSubmitted && autoSubmitted !== "no") return true;
 
-  // Try to parse as a complete MIME message (headers + blank line + body)
-  const blankIdx = raw.search(/\r?\n\r?\n/);
-  if (blankIdx !== -1 && /^[\w-]+:/m.test(raw.slice(0, blankIdx))) {
-    const headerBlock = raw.slice(0, blankIdx);
-    const body = raw.slice(blankIdx + 1).replace(/^\r?\n/, "");
-    const headers = parseHeaders(headerBlock);
-    collectRecursive(headers, body, out);
-  } else {
-    // Try direct boundary split (body-only multipart)
-    const boundaryMatch = raw.match(/^--([A-Za-z0-9_+/=\-]{6,})/m);
-    if (boundaryMatch) {
-      const boundary = boundaryMatch[1].trim();
-      const subParts = splitIntoParts(raw, boundary);
-      for (const sub of subParts) {
-        collectRecursive(sub.headers, sub.body, out);
-      }
-    }
-  }
+  // Microsoft / Exchange suppress header
+  if (headers["x-auto-response-suppress"]) return true;
 
-  const text = out.textParts.length > 0
-    ? out.textParts.join("\n").trim()
-    : out.htmlParts.length > 0
-    ? out.htmlParts.join("\n").trim()
-    : "";
+  // Mailing-list / bulk precedence
+  const precedence = (headers["precedence"] ?? "").toLowerCase().trim();
+  if (["auto-reply", "bulk", "junk", "list"].includes(precedence)) return true;
 
-  return { text, rawAttachments: out.attachments };
-}
+  // TaskDesk-specific bounce detection: the outer PEC envelope subject contains
+  // "Richiesta #N risolta" or the ✅ emoji when the PEC system wraps one of our
+  // own outgoing "ticket resolved" notifications and bounces it back as inbound.
+  // We check the outer subject here because extractTextAndAttachments may have
+  // replaced the effective subject with the inner (still-encoded) PEC content.
+  const envelopeSubject = outerSubject ?? subject;
+  if (/richiesta\s*#\d+\s*risolta/i.test(envelopeSubject)) return true;
+  if (/\u2705/.test(envelopeSubject) && /risolta/i.test(envelopeSubject)) return true;
 
-// ---------------------------------------------------------------------------
-// PEC (Posta Elettronica Certificata) support
-// ---------------------------------------------------------------------------
+  // Subject-based patterns for genuine auto-replies, bounce messages, and
+  // specific PEC receipt types that are always system-generated.
+  // NOTE: broad PEC patterns like "messaggio pec inoltrato", "anomalia messaggio",
+  // and "posta certificata" are intentionally omitted here — the legalmail.it PEC
+  // provider uses these as envelope wrappers for ALL forwarded messages (including
+  // legitimate business emails such as bank payment notifications), so matching on
+  // them would silently discard valid inbound email.
+  const subj = subject.toLowerCase();
+  const AUTO_SUBJECT_PATTERNS = [
+    "avvenuta consegna",
+    "presa in carico",
+    "ricevuta di accettazione",
+    "ricevuta di avvenuta",
+    "undeliverable",
+    "delivery failed",
+    "delivery status notification",
+    "mail delivery failed",
+    "non-delivery report",
+    "failure notice",
+    "automatic reply",
+    "auto: ",
+    "out of office",
+    "fuori ufficio",
+    "risposta automatica",
+    "mailer-daemon",
+  ];
+  if (AUTO_SUBJECT_PATTERNS.some((p) => subj.includes(p))) return true;
 
-type PecUnwrapResult =
-  | { isPec: false }
-  | { isPec: true; isReceipt: true }
-  | { isPec: true; isReceipt: false; text: string; attachments: InboundAttachment[]; subject: string | null };
-
-/**
- * Detects and unwraps PEC (certified email) envelopes.
- *
- * PEC envelopes are identified by:
- *   - X-Trasporto: posta-certificata (or posta-certificata-sicura) header
- *   - Presence of daticert.xml or postacert.eml attachments
- *
- * PEC receipts (avvenuta-consegna, rilevazione-virus) are flagged for silent discard.
- *
- * When a PEC envelope is detected, the function extracts the original message from
- * postacert.eml, parses it, and returns the real body text, subject, and attachments.
- */
-function tryUnwrapPec(
-  rawMime: string,
-  providerHeaders: Record<string, string>,
-): PecUnwrapResult {
-  // Normalize X-Trasporto from provider-supplied headers (any case)
-  const providerXTrasporto = Object.entries(providerHeaders)
-    .find(([k]) => k.toLowerCase() === "x-trasporto")?.[1]
-    ?.toLowerCase()
-    .trim() ?? "";
-
-  // Also read from the raw MIME header block
-  let mimeXTrasporto = "";
-  if (rawMime) {
-    const blankIdx = rawMime.search(/\r?\n\r?\n/);
-    if (blankIdx !== -1 && /^[\w-]+:/m.test(rawMime.slice(0, blankIdx))) {
-      const mimeHeaders = parseHeaders(rawMime.slice(0, blankIdx));
-      mimeXTrasporto = (mimeHeaders["x-trasporto"] || "").toLowerCase().trim();
-    }
-  }
-
-  const xTrasporto = providerXTrasporto || mimeXTrasporto;
-
-  // Silently discard PEC receipts — they are not actionable messages
-  const PEC_DISCARD_TYPES = new Set([
-    "avvenuta-consegna",
-    "errore-consegna",
-    "presa-in-carico",
-    "avvenuta-presa-in-carico",
-    "rilevazione-virus",
-  ]);
-  if (PEC_DISCARD_TYPES.has(xTrasporto)) {
-    return { isPec: true, isReceipt: true };
-  }
-
-  const isPecByHeader =
-    xTrasporto === "posta-certificata" || xTrasporto === "posta-certificata-sicura";
-
-  // Parse the raw MIME to find PEC attachment signals even when the header is absent
-  let mimeRawAttachments: CollectedData["attachments"] = [];
-  if (rawMime) {
-    const { rawAttachments } = parseMimeMessage(rawMime);
-    mimeRawAttachments = rawAttachments;
-  }
-
-  // Require both the correct filename AND a compatible MIME type to avoid
-  // false-positive matches against other embedded RFC 822 messages (e.g. forwarded emails).
-  const postacertPart = mimeRawAttachments.find(
-    (a) =>
-      a.filename.toLowerCase() === "postacert.eml" &&
-      (a.mimeType === "message/rfc822" || a.mimeType === "application/octet-stream"),
-  );
-  const hasDaticertXml = mimeRawAttachments.some(
-    (a) => a.filename.toLowerCase() === "daticert.xml",
-  );
-
-  if (!isPecByHeader && !postacertPart && !hasDaticertXml) {
-    return { isPec: false };
-  }
-
-  // PEC envelope detected — extract original message from postacert.eml
-  if (!postacertPart) {
-    // We have PEC signals but no original message to unwrap — fall through
-    return { isPec: false };
-  }
-
-  const postacertRaw = decodeBodyText(postacertPart.rawBody, postacertPart.encoding);
-
-  // Extract subject from the original message's headers
-  let innerSubject: string | null = null;
-  const innerBlankIdx = postacertRaw.search(/\r?\n\r?\n/);
-  if (innerBlankIdx !== -1) {
-    const innerHeaders = parseHeaders(postacertRaw.slice(0, innerBlankIdx));
-    innerSubject = innerHeaders["subject"]?.trim() || null;
-  }
-
-  // Parse the original message body + attachments
-  const { text: innerText, rawAttachments: innerRawAttachments } = parseMimeMessage(postacertRaw);
-
-  // Build final attachments: skip daticert.xml; keep real attachments
-  const innerAttachments: InboundAttachment[] = [];
-  for (const ra of innerRawAttachments) {
-    if (ra.filename.toLowerCase() === "daticert.xml") continue;
-    if (!isMimeAllowed(ra.mimeType)) continue;
-    const data = decodeBodyBuffer(ra.rawBody, ra.encoding);
-    const oversized = data.length > MAX_ATTACHMENT_BYTES;
-    innerAttachments.push({
-      filename: ra.filename,
-      mimeType: ra.mimeType,
-      data: oversized ? Buffer.alloc(0) : data,
-      oversized,
-    });
-  }
-
-  return { isPec: true, isReceipt: false, text: innerText, attachments: innerAttachments, subject: innerSubject };
+  return false;
 }
 
 /**
@@ -424,138 +210,6 @@ function extractTextAndAttachments(body: any): {
   }
 
   return { text: "", attachments: [] };
-}
-
-function extractField(body: any, ...keys: string[]): string {
-  for (const k of keys) {
-    if (body?.[k] && typeof body[k] === "string") return body[k].trim();
-  }
-  return "";
-}
-
-/** Parse "Name <email>" or "email" → { name, email } */
-function parseEmailAddress(raw: string): { email: string; name: string } {
-  const m = /^(.+?)\s*<([^>]+)>\s*$/.exec(raw.trim());
-  if (m) return { name: m[1].trim(), email: m[2].trim() };
-  return { name: raw.trim(), email: raw.trim() };
-}
-
-/** Extract all To: addresses from different provider payload shapes */
-function extractToAddresses(body: any): string[] {
-  if (Array.isArray(body?.to)) return body.to.map((a: any) => String(a));
-  if (typeof body?.to === "string") return [body.to];
-  if (Array.isArray(body?.ToFull)) return body.ToFull.map((a: any) => a?.Email ?? String(a));
-  if (typeof body?.To === "string") return [body.To];
-  // Resend format: envelope.to
-  if (Array.isArray(body?.envelope?.to)) return body.envelope.to;
-  return [];
-}
-
-/** Extract local part (everything before @) from an email address */
-function extractLocalPart(address: string): string {
-  const at = address.indexOf("@");
-  return at > 0 ? address.slice(0, at).toLowerCase() : address.toLowerCase();
-}
-
-/**
- * Detects automated / auto-reply messages that should never create a ticket.
- * Checks RFC-standard headers, common mailer patterns, and PEC-specific subjects.
- *
- * @param headers   - Email headers from the webhook payload.
- * @param subject   - Effective (inner) subject after PEC extraction.
- * @param outerSubject - Raw outer PEC envelope subject (before extraction), when available.
- */
-function isAutoReply(
-  headers: Record<string, string>,
-  subject: string,
-  outerSubject?: string,
-): boolean {
-  // RFC 3834 — Auto-Submitted header
-  const autoSubmitted = (headers["auto-submitted"] ?? "").toLowerCase().trim();
-  if (autoSubmitted && autoSubmitted !== "no") return true;
-
-  // Microsoft / Exchange suppress header
-  if (headers["x-auto-response-suppress"]) return true;
-
-  // Mailing-list / bulk precedence
-  const precedence = (headers["precedence"] ?? "").toLowerCase().trim();
-  if (["auto-reply", "bulk", "junk", "list"].includes(precedence)) return true;
-
-  // TaskDesk-specific bounce detection: the outer PEC envelope subject contains
-  // "Richiesta #N risolta" or the ✅ emoji when the PEC system wraps one of our
-  // own outgoing "ticket resolved" notifications and bounces it back as inbound.
-  // We check the outer subject here because extractTextAndAttachments may have
-  // replaced the effective subject with the inner (still-encoded) PEC content.
-  const envelopeSubject = outerSubject ?? subject;
-  if (/richiesta\s*#\d+\s*risolta/i.test(envelopeSubject)) return true;
-  if (/\u2705/.test(envelopeSubject) && /risolta/i.test(envelopeSubject)) return true;
-
-  // Subject-based patterns for genuine auto-replies, bounce messages, and
-  // specific PEC receipt types that are always system-generated.
-  // NOTE: broad PEC patterns like "messaggio pec inoltrato", "anomalia messaggio",
-  // and "posta certificata" are intentionally omitted here — the legalmail.it PEC
-  // provider uses these as envelope wrappers for ALL forwarded messages (including
-  // legitimate business emails such as bank payment notifications), so matching on
-  // them would silently discard valid inbound email.
-  const subj = subject.toLowerCase();
-  const AUTO_SUBJECT_PATTERNS = [
-    "avvenuta consegna",
-    "presa in carico",
-    "ricevuta di accettazione",
-    "ricevuta di avvenuta",
-    "undeliverable",
-    "delivery failed",
-    "delivery status notification",
-    "mail delivery failed",
-    "non-delivery report",
-    "failure notice",
-    "automatic reply",
-    "auto: ",
-    "out of office",
-    "fuori ufficio",
-    "risposta automatica",
-    "mailer-daemon",
-  ];
-  if (AUTO_SUBJECT_PATTERNS.some((p) => subj.includes(p))) return true;
-
-  return false;
-}
-
-/**
- * Decodes MIME encoded-words (RFC 2047) found in email subjects.
- * Handles Q (quoted-printable) and B (base64) encodings.
- * Multiple adjacent encoded-words are concatenated without the separating whitespace.
- */
-function decodeMimeWords(input: string): string {
-  const re = /=\?([^?]+)\?([BQbq])\?([^?]*)\?=/g;
-  let result = input;
-  let hasEncoded = re.test(input);
-  if (!hasEncoded) return input;
-
-  // Replace whitespace between adjacent encoded words first
-  const collapsed = input.replace(/(=\?[^?]+\?[BQbq]\?[^?]*\?=)\s+(=\?[^?]+\?[BQbq]\?[^?]*\?=)/g, "$1$2");
-  re.lastIndex = 0;
-
-  result = collapsed.replace(/=\?([^?]+)\?([BQbq])\?([^?]*)\?=/g, (_, _charset, enc, encoded) => {
-    try {
-      if (enc.toUpperCase() === "Q") {
-        const raw = encoded.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (_m: string, hex: string) =>
-          String.fromCharCode(parseInt(hex, 16))
-        );
-        return Buffer.from(raw, "binary").toString("utf8");
-      }
-      return Buffer.from(encoded, "base64").toString("utf8");
-    } catch {
-      return encoded;
-    }
-  });
-  return result.trim();
-}
-
-/** Extract inbound token from an address like tickets-abc123@inbound.taskdesk.it */
-function extractToken(localPart: string): string | null {
-  const m = /^tickets-([a-f0-9]{8,32})$/i.exec(localPart);
-  return m ? m[1].toLowerCase() : null;
 }
 
 router.post("/inbound-email", async (req, res): Promise<void> => {
