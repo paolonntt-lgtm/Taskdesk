@@ -236,6 +236,22 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const body = req.body;
 
   // Log the raw payload structure for debugging (no sensitive content)
+  const rawMimeForLog: string = (body?.body || body?.rawMail || "").trim();
+  const headersForLog: Record<string, string> = (body?.headers && typeof body.headers === "object")
+    ? body.headers as Record<string, string>
+    : {};
+  const xTrasportoLog = Object.entries(headersForLog)
+    .find(([k]) => k.toLowerCase() === "x-trasporto")?.[1] ?? "(absent)";
+  // Also peek at X-Trasporto from the raw MIME headers
+  let mimeXTrasportoLog = "(absent)";
+  if (rawMimeForLog) {
+    const blankIdx = rawMimeForLog.search(/\r?\n\r?\n/);
+    if (blankIdx !== -1) {
+      const mimeHdrs = rawMimeForLog.slice(0, blankIdx);
+      const m = /^x-trasporto:\s*(.+)$/im.exec(mimeHdrs);
+      if (m) mimeXTrasportoLog = m[1].trim();
+    }
+  }
   req.log.info({
     bodyKeys: body ? Object.keys(body) : [],
     toRaw: body?.to ?? body?.To ?? body?.ToFull ?? body?.envelope?.to ?? "(missing)",
@@ -244,6 +260,9 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     hasText: !!(body?.text || body?.body_text || body?.plain || body?.body),
     hasHeaders: !!body?.headers,
     hasProviderAttachments: Array.isArray(body?.attachments) ? body.attachments.length : 0,
+    xTrasportoProvider: xTrasportoLog,
+    xTrasportoMime: mimeXTrasportoLog,
+    rawMimeBytes: rawMimeForLog.length,
   }, "Inbound email webhook received");
 
   // Extract sender — handle "Name <email>" format

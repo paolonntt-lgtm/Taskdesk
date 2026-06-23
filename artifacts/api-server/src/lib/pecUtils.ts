@@ -377,6 +377,7 @@ export function tryUnwrapPec(
 
   // Silently discard PEC receipts — they are not actionable messages
   const PEC_DISCARD_TYPES = new Set([
+    "accettazione",
     "avvenuta-consegna",
     "errore-consegna",
     "presa-in-carico",
