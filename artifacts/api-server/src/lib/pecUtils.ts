@@ -164,6 +164,15 @@ function collectRecursive(headers: Record<string, string>, body: string, out: Co
     return;
   }
 
+  // Embedded RFC 822 messages (message/rfc822) — collect as attachment regardless
+  // of content-disposition so unwrapPostacertChain can locate them even when
+  // legalmail embeds the original email inline instead of as postacert.eml.
+  if (baseType === "message/rfc822") {
+    const filename = extractFilename(cd) || extractFilename(ct) || "embedded.eml";
+    out.attachments.push({ filename, mimeType: baseType, rawBody: body, encoding: cte });
+    return;
+  }
+
   if (baseType === "text/html") {
     const decoded = decodeBodyText(body, cte);
     const text = decoded
@@ -318,9 +327,15 @@ function unwrapPostacertChain(
       (a.mimeType === "message/rfc822" || a.mimeType === "application/octet-stream"),
   );
 
-  if (!postacertPart) return null;
+  // Fallback: any message/rfc822 part (legalmail ANOMALIA MESSAGGIO embeds the
+  // original email as an inline RFC 822 message rather than as postacert.eml)
+  const rfc822Fallback = postacertPart ?? rawAttachments.find(
+    (a) => a.mimeType === "message/rfc822",
+  );
 
-  const postacertRaw = decodeBodyText(postacertPart.rawBody, postacertPart.encoding);
+  if (!rfc822Fallback) return null;
+
+  const postacertRaw = decodeBodyText(rfc822Fallback.rawBody, rfc822Fallback.encoding);
 
   // Recurse first: if the inner content is itself a PEC envelope, go deeper
   const deeper = unwrapPostacertChain(postacertRaw, depth + 1, maxDepth);

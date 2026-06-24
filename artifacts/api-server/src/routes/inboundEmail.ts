@@ -11,6 +11,7 @@ import {
   decodeBodyBuffer,
   decodeMimeWords,
   tryUnwrapPec,
+  cleanPecSubject,
 } from "../lib/pecUtils";
 
 const router: IRouter = Router();
@@ -279,7 +280,10 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     return;
   }
 
-  const effectiveSubject = overrideSubject || subject;
+  // Apply PEC subject cleaning even when the inner subject wasn't extracted
+  // (e.g. legalmail ANOMALIA MESSAGGIO without postacert.eml): strips prefixes
+  // like "POSTA CERTIFICATA:", "Messaggio PEC inoltrato", "[ANOMALIA MESSAGGIO: …]"
+  const effectiveSubject = overrideSubject || cleanPecSubject(subject);
 
   req.log.info(
     { attachmentCount: attachments.length, oversized: attachments.filter(a => a.oversized).length, isPec: !!overrideSubject },
