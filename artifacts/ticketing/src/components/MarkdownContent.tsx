@@ -11,6 +11,13 @@ function preprocessContent(text: string): string {
   let result = text.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[@${name}](#mention-${encodeURIComponent(name)})`);
   // Convert #123 ticket references to markdown links, but not inside existing links or code
   result = result.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
+  // Auto-link bare URLs that are not already inside a markdown link or code span
+  // Matches http(s):// URLs not preceded by ]( (already a link) or ` (code)
+  result = result.replace(/(?<![`\](\[])https?:\/\/[^\s<>"'`)\]]+/g, (url) => {
+    // Trim trailing punctuation that is likely not part of the URL
+    const trimmed = url.replace(/[.,;:!?]+$/, '');
+    return `[${trimmed}](${trimmed})`;
+  });
   return result;
 }
 

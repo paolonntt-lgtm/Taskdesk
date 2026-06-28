@@ -49,23 +49,90 @@ export function extractBoundary(contentType: string): string | null {
   return m ? m[1].trim() : null;
 }
 
-export function decodeQuotedPrintable(input: string): string {
-  return input
-    .replace(/=\r?\n/g, "")
-    .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+/**
+ * Map a charset name to a Node.js BufferEncoding.
+ * Node.js only supports a limited set; we map the most common email charsets.
+ */
+function toBufferEncoding(charset: string): BufferEncoding {
+  const c = charset.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (c === "utf8" || c === "utf8bom") return "utf8";
+  if (
+    c === "iso88591" ||
+    c === "latin1" ||
+    c === "ascii" ||
+    c === "usascii" ||
+    c === "iso885915" ||
+    c.startsWith("windows1252") ||
+    c.startsWith("cp1252")
+  ) return "latin1";
+  // Default to utf8 for anything unrecognised
+  return "utf8";
 }
 
-export function decodeBodyText(raw: string, encoding: string): string {
+/**
+ * Extract the charset parameter from a Content-Type header value.
+ * e.g. "text/plain; charset=iso-8859-1" → "iso-8859-1"
+ */
+export function extractCharset(contentType: string): string {
+  const m = /charset="?([^";]+)"?/i.exec(contentType);
+  return m ? m[1].trim() : "utf-8";
+}
+
+/**
+ * Decode a Quoted-Printable encoded string, respecting the declared charset
+ * of the MIME part (defaults to UTF-8).
+ *
+ * The previous implementation used String.fromCharCode() byte-by-byte, which
+ * produced mojibake for multi-byte UTF-8 sequences (e.g. • → â€¢).  We now
+ * collect the decoded bytes into a Buffer and let Node decode the whole thing.
+ */
+export function decodeQuotedPrintable(input: string, charset = "utf-8"): string {
+  // 1. Remove soft line breaks
+  const clean = input.replace(/=\r?\n/g, "");
+
+  // 2. Walk the string, collecting raw bytes
+  const bytes: number[] = [];
+  let i = 0;
+  while (i < clean.length) {
+    if (
+      clean[i] === "=" &&
+      i + 2 < clean.length &&
+      /[0-9A-Fa-f]{2}/.test(clean.slice(i + 1, i + 3))
+    ) {
+      bytes.push(parseInt(clean.slice(i + 1, i + 3), 16));
+      i += 3;
+    } else {
+      const cc = clean.charCodeAt(i);
+      if (cc < 128) {
+        bytes.push(cc);
+      } else {
+        // Non-ASCII character already in the source string — re-encode as UTF-8
+        const encoded = Buffer.from(clean[i], "utf8");
+        for (const b of encoded) bytes.push(b);
+      }
+      i++;
+    }
+  }
+
+  // 3. Decode the byte array with the declared charset
+  try {
+    return Buffer.from(bytes).toString(toBufferEncoding(charset));
+  } catch {
+    return Buffer.from(bytes).toString("utf8");
+  }
+}
+
+export function decodeBodyText(raw: string, encoding: string, charset = "utf-8"): string {
   const enc = encoding.toLowerCase().trim();
   if (enc === "base64") {
     try {
-      return Buffer.from(raw.replace(/\s/g, ""), "base64").toString("utf8");
+      return Buffer.from(raw.replace(/\s/g, ""), "base64").toString(toBufferEncoding(charset));
     } catch {
       return raw;
     }
   }
   if (enc === "quoted-printable") {
-    return decodeQuotedPrintable(raw);
+    return decodeQuotedPrintable(raw, charset);
   }
   return raw;
 }
@@ -160,7 +227,8 @@ function collectRecursive(headers: Record<string, string>, body: string, out: Co
   }
 
   if (baseType === "text/plain") {
-    out.textParts.push(decodeBodyText(body, cte));
+    const charset = extractCharset(ct);
+    out.textParts.push(decodeBodyText(body, cte, charset));
     return;
   }
 
@@ -174,7 +242,8 @@ function collectRecursive(headers: Record<string, string>, body: string, out: Co
   }
 
   if (baseType === "text/html") {
-    const decoded = decodeBodyText(body, cte);
+    const charset = extractCharset(ct);
+    const decoded = decodeBodyText(body, cte, charset);
     const text = decoded
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/p>/gi, "\n\n")
