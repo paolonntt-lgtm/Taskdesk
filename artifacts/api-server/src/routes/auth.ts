@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db, usersTable, organizationsTable, settingsTable, groupMembersTable, groupsTable } from "@workspace/db";
 import { createSession, destroySession, getSessionId, getCurrentUserId, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
@@ -227,12 +227,17 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  // Collect all permissions the user has through group memberships
+  // Collect all permissions the user has through group memberships (scoped to the user's org)
   const memberships = await db
     .select({ permissions: groupsTable.permissions })
     .from(groupMembersTable)
     .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
-    .where(eq(groupMembersTable.userId, userId));
+    .where(
+      and(
+        eq(groupMembersTable.userId, userId),
+        row.organizationId != null ? eq(groupsTable.organizationId, row.organizationId) : undefined,
+      )
+    );
 
   const groupPermissions: string[] = [...new Set(
     memberships.flatMap((m) => {

@@ -378,6 +378,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
+        ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
       }
     : {
         ...(parsed.data.title !== undefined && { title: parsed.data.title }),

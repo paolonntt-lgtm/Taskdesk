@@ -93,6 +93,7 @@ export default function TicketDetail() {
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(true);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
@@ -217,21 +218,29 @@ export default function TicketDetail() {
       setResolutionDialog(true);
       return;
     }
-    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
-    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    try {
+      const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
+      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    } catch (err: any) {
+      setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
+    }
   };
 
   const confirmResolved = async (note: string) => {
     const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
-    const updated = await updateTicket.mutateAsync({
-      id: ticketId,
-      data: { status: resolvedKey as any, resolutionNote: note || null } as any,
-    });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
-    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-    setResolutionDialog(false);
-    setResolutionNote('');
+    try {
+      const updated = await updateTicket.mutateAsync({
+        id: ticketId,
+        data: { status: resolvedKey as any, resolutionNote: note || null } as any,
+      });
+      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setResolutionDialog(false);
+      setResolutionNote('');
+    } catch (err: any) {
+      setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
+    }
   };
 
   const handlePriorityChange = async (newPriority: string) => {
@@ -1751,6 +1760,18 @@ export default function TicketDetail() {
       >
         <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>
           {t.ticketDetail.emailReplySentOk}
+        </Alert>
+      </Snackbar>
+
+      {/* ── Status change error feedback ── */}
+      <Snackbar
+        open={statusError != null}
+        autoHideDuration={5000}
+        onClose={() => setStatusError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setStatusError(null)} sx={{ width: '100%' }}>
+          {statusError}
         </Alert>
       </Snackbar>
 
