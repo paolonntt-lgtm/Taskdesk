@@ -1276,7 +1276,14 @@ interface InboundChannel {
   slug: string | null;
   defaultCategory: string | null;
   defaultGroup: string | null;
+  defaultAssignee: number | null;
   enabled: boolean;
+}
+
+interface SimpleUser {
+  id: number;
+  name: string;
+  email: string;
 }
 
 function InboundAddressesSection() {
@@ -1291,8 +1298,10 @@ function InboundAddressesSection() {
   const [formLabel, setFormLabel] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formGroup, setFormGroup] = useState('');
+  const [formAssignee, setFormAssignee] = useState<number | ''>('');
   const [formSlug, setFormSlug] = useState('');
   const [slugError, setSlugError] = useState('');
+  const [users, setUsers] = useState<SimpleUser[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<InboundChannel | null>(null);
@@ -1324,15 +1333,17 @@ function InboundAddressesSection() {
     load();
     fetch('/api/settings/categories', { credentials: 'include' }).then(r => r.json()).then(d => setCategories(d.value ?? [])).catch(() => {});
     fetch('/api/settings/groups', { credentials: 'include' }).then(r => r.json()).then(d => setGroups(d.value ?? [])).catch(() => {});
+    fetch('/api/users', { credentials: 'include' }).then(r => r.json()).then(d => setUsers(Array.isArray(d) ? d : (d.users ?? []))).catch(() => {});
   }, []);
 
   const openAdd = () => {
-    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup(''); setFormSlug(''); setSlugError('');
+    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup(''); setFormAssignee(''); setFormSlug(''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
   const openEdit = (ch: InboundChannel) => {
     setEditTarget(ch); setFormLabel(ch.label);
-    setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? ''); setFormSlug(ch.slug ?? ''); setSlugError('');
+    setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? '');
+    setFormAssignee(ch.defaultAssignee ?? ''); setFormSlug(ch.slug ?? ''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
 
@@ -1351,7 +1362,7 @@ function InboundAddressesSection() {
       const res = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null, slug: cleanSlug || null }),
+        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null, defaultAssignee: formAssignee || null, slug: cleanSlug || null }),
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.inboundAddressError }); return; }
@@ -1434,6 +1445,10 @@ function InboundAddressesSection() {
                       {ch.defaultGroup && (
                         <Chip label={ch.defaultGroup} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
                       )}
+                      {ch.defaultAssignee && (() => {
+                        const u = users.find(x => x.id === ch.defaultAssignee);
+                        return u ? <Chip label={u.name} size="small" variant="outlined" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} /> : null;
+                      })()}
                     </Box>
                     <Box display="flex" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
                       <Typography variant="caption" color="text.secondary"
@@ -1550,6 +1565,14 @@ function InboundAddressesSection() {
                 onChange={(e) => setFormGroup(e.target.value)}>
                 <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
                 {groups.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+              </TextField>
+              <TextField select label={t.settings.inboundDefaultAssignee} value={formAssignee} size="small" fullWidth
+                helperText={t.settings.inboundDefaultAssigneeHint}
+                onChange={(e) => setFormAssignee(e.target.value === '' ? '' : Number(e.target.value))}>
+                <MenuItem value="">{t.settings.imapRoutingNone}</MenuItem>
+                {users.filter(u => u.id).map((u) => (
+                  <MenuItem key={u.id} value={u.id}>{u.name} ({u.email})</MenuItem>
+                ))}
               </TextField>
             </Box>
           </DialogContent>

@@ -64,7 +64,7 @@ function buildChannelAddress(ch: { token: string; slug: string | null }): string
   return ch.slug ?? `tickets-${ch.token}`;
 }
 
-async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string; channelLocalPart?: string }> {
+async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string; defaultAssignee?: number | null; channelLocalPart?: string }> {
   if (!orgId || !inboundChannelId) return {};
 
   try {
@@ -74,6 +74,7 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
       return {
         defaultCategory: ch.defaultCategory ?? undefined,
         defaultGroup: ch.defaultGroup ?? undefined,
+        defaultAssignee: ch.defaultAssignee ?? null,
         channelLocalPart: buildChannelAddress(ch),
       };
     }
@@ -311,7 +312,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       organizationId: orgId,
       ticketNumber: nextTicketNumber,
       assignedToGroup: routing.defaultGroup ?? null,
-      assignedTo: autoAssignedUserId ?? null,
+      assignedTo: autoAssignedUserId ?? routing.defaultAssignee ?? null,
       emailMessageId: messageId ?? null,
       emailConversationId: conversationId ?? null,
       inboundChannelId: inboundChannelId ?? null,

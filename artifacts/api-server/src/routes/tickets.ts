@@ -360,9 +360,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   // Check group permissions for non-admins (must happen before the 403 gate)
   const canChangeStatus = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
 
-  // Authorization: admins and users with change_status can act on any org ticket;
+  // The ticket assignee can also change status / resolve, even without a group permission
+  const isAssignee = existing.assignedTo === currentUser.id;
+
+  // Authorization: admins, group-permission users, and the assigned person can act on any org ticket;
   // regular users can only edit tickets they created
-  if (!isAdmin && !canChangeStatus && existing.createdBy !== currentUser.id) {
+  if (!isAdmin && !canChangeStatus && !isAssignee && existing.createdBy !== currentUser.id) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
@@ -378,6 +381,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
+        ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
+      }
+    : isAssignee
+    ? {
+        // Assignee can change status and add a resolution note, but not reassign or reprioritise
+        ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
       }
     : {
