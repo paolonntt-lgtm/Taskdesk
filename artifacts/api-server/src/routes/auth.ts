@@ -93,8 +93,26 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
     `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
   );
 
+  // Fetch group permissions so the login response matches what auth/me returns.
+  // Without this, users would be missing groupPermissions until the next page reload.
+  const loginMemberships = await db
+    .select({ permissions: groupsTable.permissions })
+    .from(groupMembersTable)
+    .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
+    .where(
+      and(
+        eq(groupMembersTable.userId, row.id),
+        row.organizationId != null ? eq(groupsTable.organizationId, row.organizationId) : undefined,
+      )
+    );
+  const groupPermissions: string[] = [...new Set(
+    loginMemberships.flatMap((m) => {
+      try { return JSON.parse(m.permissions ?? "[]") as string[]; } catch { return []; }
+    })
+  )];
+
   const { passwordHash: _, ...safeUser } = row;
-  res.json({ user: safeUser, message: "Login effettuato" });
+  res.json({ user: { ...safeUser, groupPermissions }, message: "Login effettuato" });
 });
 
 router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
