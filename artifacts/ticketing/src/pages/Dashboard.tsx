@@ -6,7 +6,7 @@ import {
   Box, Card, CardContent, Typography, CircularProgress,
   Chip, Button, Avatar, useMediaQuery, useTheme, Divider,
   IconButton, Paper, Dialog, DialogTitle, DialogContent,
-  Tooltip,
+  Tooltip, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import {
   Schedule as ScheduleIcon,
@@ -23,6 +23,12 @@ import {
   RestartAlt as ResetIcon,
   Email as EmailIcon,
   AssignmentInd as AssignedIcon,
+  Group as GroupIcon,
+  Person as PersonIcon,
+  Settings as SettingsIcon,
+  ErrorOutline as OverdueListIcon,
+  FolderOpen as AllOpenIcon,
+  BarChart as WorkloadIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -502,6 +508,308 @@ function FeedAssignedWidget() {
   );
 }
 
+// ── OPEN TICKETS FEED ─────────────────────────────────────────────────────
+
+function FeedOpenWidget() {
+  const { t } = useLanguage();
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['all-open-tickets'],
+    queryFn: () => fetch('/api/tickets?status=open', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const tickets = data.slice(0, 20);
+  return (
+    <FeedCard
+      title={t.dashboard.widgetFeedOpen}
+      icon={<AllOpenIcon fontSize="small" color="primary" />}
+      tickets={tickets}
+      emptyMsg={t.dashboard.noOpenTickets}
+      viewAllHref="/tickets?status=open"
+    />
+  );
+}
+
+// ── OVERDUE TICKETS FEED ───────────────────────────────────────────────────
+
+function FeedOverdueWidget() {
+  const { t } = useLanguage();
+  const theme = useTheme();
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['overdue-tickets-feed'],
+    queryFn: () => fetch('/api/stats/overdue-tickets', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  return (
+    <FeedCard
+      title={t.dashboard.widgetFeedOverdue}
+      icon={<OverdueListIcon fontSize="small" color="warning" />}
+      tickets={data}
+      emptyMsg={t.dashboard.noOverdueTickets}
+      viewAllHref="/tickets"
+      showDueBadge
+      accentColor={data.length > 0 ? theme.palette.warning.main : undefined}
+    />
+  );
+}
+
+// ── WORKLOAD WIDGET ────────────────────────────────────────────────────────
+
+interface WorkloadRow { id: number; name: string; email: string; open: number; total: number; }
+
+function WorkloadWidget() {
+  const { t } = useLanguage();
+  const { data = [], isLoading } = useQuery<WorkloadRow[]>({
+    queryKey: ['assignee-workload'],
+    queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 30_000,
+  });
+
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+        <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1} flexShrink={0}>
+          <WorkloadIcon fontSize="small" color="action" />
+          <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+            {t.dashboard.widgetWorkload}
+          </Typography>
+        </Box>
+        <Divider sx={{ flexShrink: 0 }} />
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
+          ) : data.length === 0 ? (
+            <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.widgetWorkloadEmpty}</Typography></Box>
+          ) : (
+            <>
+              <Box display="grid" gridTemplateColumns="1fr auto auto" gap={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} px={2} py={0.75}>Operatore</Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} px={1.5} py={0.75} textAlign="center">{t.dashboard.workloadOpen}</Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} px={1.5} py={0.75} textAlign="center">{t.dashboard.workloadTotal}</Typography>
+              </Box>
+              {data.map((row, idx) => (
+                <Box key={row.id}
+                  component="a" href={`/tickets?assignedTo=${row.id}`}
+                  display="grid" gridTemplateColumns="1fr auto auto"
+                  sx={{
+                    textDecoration: 'none', color: 'inherit',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    borderBottom: idx < data.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box px={2} py={1} display="flex" alignItems="center" gap={1} minWidth={0}>
+                    <Avatar sx={{ width: 22, height: 22, fontSize: '0.6rem', bgcolor: 'primary.main', flexShrink: 0 }}>
+                      {row.name.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography variant="body2" noWrap fontSize="0.8rem">{row.name}</Typography>
+                  </Box>
+                  <Box px={1.5} py={1} display="flex" alignItems="center" justifyContent="center">
+                    <Chip label={row.open} size="small" color={row.open > 0 ? 'primary' : 'default'}
+                      sx={{ minWidth: 32, height: 20, fontSize: '0.7rem' }} />
+                  </Box>
+                  <Box px={1.5} py={1} display="flex" alignItems="center" justifyContent="center">
+                    <Typography variant="caption" color="text.secondary">{row.total}</Typography>
+                  </Box>
+                </Box>
+              ))}
+            </>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── TICKETS BY PERSON (configurable) ──────────────────────────────────────
+
+const PERSON_WIDGET_KEY = 'td_widget_person_id';
+
+function FeedPersonWidget() {
+  const { t } = useLanguage();
+  const [configOpen, setConfigOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    const v = localStorage.getItem(PERSON_WIDGET_KEY);
+    return v ? parseInt(v, 10) : null;
+  });
+  const [tempId, setTempId] = useState<number | ''>(selectedId ?? '');
+
+  const { data: users = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ['widget-users-list'],
+    queryFn: () => fetch('/api/users', { credentials: 'include' }).then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.users ?? [])),
+    staleTime: 60_000,
+  });
+
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['tickets-for-person', selectedId],
+    queryFn: () => selectedId
+      ? fetch(`/api/tickets?assignedTo=${selectedId}&status=open`, { credentials: 'include' }).then((r) => r.json())
+      : Promise.resolve([]),
+    enabled: selectedId != null,
+    staleTime: 30_000,
+  });
+
+  const selectedUser = users.find((u) => u.id === selectedId);
+
+  const handleSave = () => {
+    const id = typeof tempId === 'number' ? tempId : null;
+    setSelectedId(id);
+    if (id != null) localStorage.setItem(PERSON_WIDGET_KEY, String(id));
+    else localStorage.removeItem(PERSON_WIDGET_KEY);
+    setConfigOpen(false);
+  };
+
+  return (
+    <>
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1} flexShrink={0}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <PersonIcon fontSize="small" color="primary" />
+              <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+                {selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson}
+              </Typography>
+            </Box>
+            <Tooltip title={t.dashboard.configureWidget}>
+              <IconButton size="small" onClick={() => { setTempId(selectedId ?? ''); setConfigOpen(true); }}>
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Divider sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {!selectedId ? (
+              <Box px={2} py={3} textAlign="center">
+                <Typography variant="body2" color="text.secondary">{t.dashboard.noAgentSelected}</Typography>
+                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.configureWidget}
+                </Button>
+              </Box>
+            ) : data.length === 0 ? (
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
+            ) : (
+              data.slice(0, 15).map((ticket, idx) => (
+                <React.Fragment key={ticket.id}>
+                  <TicketRowItem ticket={ticket} />
+                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                </React.Fragment>
+              ))
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.dashboard.selectAgent}</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <InputLabel>{t.dashboard.selectAgent}</InputLabel>
+            <Select label={t.dashboard.selectAgent} value={tempId} onChange={(e) => setTempId(e.target.value === '' ? '' : Number(e.target.value))}>
+              <MenuItem value="">{t.settings?.imapRoutingNone || 'Nessuno'}</MenuItem>
+              {users.map((u) => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setConfigOpen(false)}>Annulla</Button>
+            <Button variant="contained" onClick={handleSave}>OK</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── TICKETS BY GROUP (configurable) ───────────────────────────────────────
+
+const GROUP_WIDGET_KEY = 'td_widget_group_name';
+
+function FeedGroupWidget() {
+  const { t } = useLanguage();
+  const [configOpen, setConfigOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>(() => localStorage.getItem(GROUP_WIDGET_KEY) ?? '');
+  const [tempGroup, setTempGroup] = useState<string>(selectedGroup);
+
+  const { data: groups = [] } = useQuery<string[]>({
+    queryKey: ['widget-groups-list'],
+    queryFn: () => fetch('/api/settings/groups', { credentials: 'include' }).then((r) => r.json()).then((d) => d.value ?? []),
+    staleTime: 60_000,
+  });
+
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['tickets-for-group', selectedGroup],
+    queryFn: () => selectedGroup
+      ? fetch(`/api/tickets?assignedToGroup=${encodeURIComponent(selectedGroup)}&status=open`, { credentials: 'include' }).then((r) => r.json())
+      : Promise.resolve([]),
+    enabled: !!selectedGroup,
+    staleTime: 30_000,
+  });
+
+  const handleSave = () => {
+    setSelectedGroup(tempGroup);
+    if (tempGroup) localStorage.setItem(GROUP_WIDGET_KEY, tempGroup);
+    else localStorage.removeItem(GROUP_WIDGET_KEY);
+    setConfigOpen(false);
+  };
+
+  return (
+    <>
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1} flexShrink={0}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <GroupIcon fontSize="small" color="secondary" />
+              <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+                {selectedGroup || t.dashboard.widgetFeedGroup}
+              </Typography>
+            </Box>
+            <Tooltip title={t.dashboard.configureWidget}>
+              <IconButton size="small" onClick={() => { setTempGroup(selectedGroup); setConfigOpen(true); }}>
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Divider sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {!selectedGroup ? (
+              <Box px={2} py={3} textAlign="center">
+                <Typography variant="body2" color="text.secondary">{t.dashboard.noGroupSelected}</Typography>
+                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.configureWidget}
+                </Button>
+              </Box>
+            ) : groups.length === 0 ? (
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noGroupsAvailable}</Typography></Box>
+            ) : data.length === 0 ? (
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
+            ) : (
+              data.slice(0, 15).map((ticket, idx) => (
+                <React.Fragment key={ticket.id}>
+                  <TicketRowItem ticket={ticket} />
+                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                </React.Fragment>
+              ))
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.dashboard.selectGroup}</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <InputLabel>{t.dashboard.selectGroup}</InputLabel>
+            <Select label={t.dashboard.selectGroup} value={tempGroup} onChange={(e) => setTempGroup(e.target.value)}>
+              <MenuItem value="">{t.settings?.imapRoutingNone || 'Nessuno'}</MenuItem>
+              {groups.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setConfigOpen(false)}>Annulla</Button>
+            <Button variant="contained" onClick={handleSave}>OK</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ── STAT WIDGET WRAPPERS (self-contained) ─────────────────────────────────
 
 function StatOpenWidget() {
@@ -559,7 +867,7 @@ function StatOverdueWidget() {
   return (
     <StatCard
       title={t.dashboard.overdue}
-      value={(stats as any)?.overdueTickets || 0}
+      value={stats?.overdueTickets || 0}
       color={theme.palette.warning.dark}
       bgColor={theme.palette.mode === 'dark' ? 'rgba(230,81,0,0.15)' : '#fff3e0'}
       icon={<OverdueIcon fontSize="small" />}
@@ -651,6 +959,11 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget },
   { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget },
   { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
+  { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 9, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
+  { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget },
+  { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
+  { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
+  { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 

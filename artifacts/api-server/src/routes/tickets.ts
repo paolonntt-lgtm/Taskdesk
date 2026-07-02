@@ -40,6 +40,8 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (resource) conditions.push(ilike(ticketsTable.resource, `%${resource}%`));
   if (assignedTo) conditions.push(eq(ticketsTable.assignedTo, parseInt(assignedTo, 10)));
   if (createdBy) conditions.push(eq(ticketsTable.createdBy, parseInt(createdBy, 10)));
+  const { assignedToGroup: groupFilter } = req.query as Record<string, string>;
+  if (groupFilter) conditions.push(eq(ticketsTable.assignedToGroup, groupFilter));
   if (dateFrom) conditions.push(gte(ticketsTable.createdAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
   if (emailOrigin === 'true') conditions.push(isNotNull(ticketsTable.inboundChannelId));

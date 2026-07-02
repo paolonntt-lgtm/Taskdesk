@@ -235,6 +235,72 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   })));
 });
 
+router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const rows = await db.select({
+    id: usersTable.id,
+    name: usersTable.name,
+    email: usersTable.email,
+    open: sql<number>`count(${ticketsTable.id}) filter (where ${ticketsTable.status} not in ('resolved','closed'))`,
+    total: sql<number>`count(${ticketsTable.id})`,
+  })
+    .from(usersTable)
+    .leftJoin(
+      ticketsTable,
+      orgId != null
+        ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+        : eq(ticketsTable.assignedTo, usersTable.id)
+    )
+    .where(
+      orgId != null
+        ? and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true))
+        : eq(usersTable.isActive, true)
+    )
+    .groupBy(usersTable.id, usersTable.name, usersTable.email)
+    .orderBy(sql`count(${ticketsTable.id}) filter (where ${ticketsTable.status} not in ('resolved','closed')) desc`);
+
+  res.json(rows.map((r) => ({ id: r.id, name: r.name, email: r.email, open: Number(r.open), total: Number(r.total) })));
+});
+
+router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const conditions: any[] = [
+    isNotNull(ticketsTable.dueAt),
+    lt(ticketsTable.dueAt, sql`now()`),
+    notInArray(ticketsTable.status, ["resolved", "closed"]),
+  ];
+  if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
+
+  const tickets = await db.select().from(ticketsTable)
+    .where(and(...conditions))
+    .orderBy(ticketsTable.dueAt)
+    .limit(20);
+
+  const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])] as number[];
+  const users = userIds.length > 0
+    ? await db.select({
+        id: usersTable.id, name: usersTable.name, email: usersTable.email,
+        role: usersTable.role, mainLocation: usersTable.mainLocation,
+        avatarUrl: usersTable.avatarUrl, createdAt: usersTable.createdAt,
+      }).from(usersTable).where(
+        orgId != null ? and(inArray(usersTable.id, userIds), eq(usersTable.organizationId, orgId)) : inArray(usersTable.id, userIds)
+      )
+    : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  res.json(tickets.map((t) => ({
+    ...t,
+    creator: userMap.get(t.createdBy)!,
+    assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
+    commentCount: 0,
+    noteCount: 0,
+  })));
+});
+
 router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;

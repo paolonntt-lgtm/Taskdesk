@@ -2166,6 +2166,8 @@ components:
           type: integer
         urgentTickets:
           type: integer
+        overdueTickets:
+          type: integer
         last7Days:
           type: integer
         last30Days:
@@ -2181,6 +2183,7 @@ components:
         - resolvedTickets
         - closedTickets
         - urgentTickets
+        - overdueTickets
         - last7Days
         - last30Days
 

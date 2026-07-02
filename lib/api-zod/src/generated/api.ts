@@ -902,6 +902,7 @@ export const GetDashboardStatsResponse = zod.object({
   resolvedTickets: zod.number(),
   closedTickets: zod.number(),
   urgentTickets: zod.number(),
+  overdueTickets: zod.number(),
   last7Days: zod.number(),
   last30Days: zod.number(),
   avgResolutionHours: zod.number().nullish(),

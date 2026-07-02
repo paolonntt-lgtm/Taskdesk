@@ -328,6 +328,7 @@ export interface DashboardStats {
   resolvedTickets: number;
   closedTickets: number;
   urgentTickets: number;
+  overdueTickets: number;
   last7Days: number;
   last30Days: number;
   avgResolutionHours?: number | null;
