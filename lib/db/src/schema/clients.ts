@@ -1,10 +1,11 @@
-import { pgTable, serial, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb, unique } from "drizzle-orm/pg-core";
 import { organizationsTable } from "./organizations";
 
 export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => organizationsTable.id),
   name: text("name").notNull(),
+  slug: text("slug"),
   email: text("email"),
   phone: text("phone"),
   vatNumber: text("vat_number"),
@@ -19,6 +20,8 @@ export const clientsTable = pgTable("clients", {
 }, (t) => [
   index("clients_org_idx").on(t.organizationId),
   index("clients_name_idx").on(t.name),
+  index("clients_slug_idx").on(t.slug),
+  unique("clients_slug_org_uniq").on(t.organizationId, t.slug),
 ]);
 
 export type Client = typeof clientsTable.$inferSelect;

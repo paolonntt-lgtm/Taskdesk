@@ -1276,6 +1276,7 @@ export const ListClientsResponseItem = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
@@ -1355,6 +1356,7 @@ export const GetClientResponse = zod
     id: zod.number(),
     organizationId: zod.number().nullish(),
     name: zod.string(),
+    slug: zod.string().nullish(),
     email: zod.string().nullish(),
     phone: zod.string().nullish(),
     vatNumber: zod.string().nullish(),
@@ -1416,6 +1418,7 @@ export const UpdateClientResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
@@ -1463,6 +1466,7 @@ export const UpdateClientLayoutResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
@@ -1482,6 +1486,167 @@ export const UpdateClientLayoutResponse = zod.object({
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
+
+/**
+ * @summary Resolve a client by its slug
+ */
+export const ResolveClientBySlugParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const ResolveClientBySlugResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  name: zod.string(),
+  slug: zod.string().nullish(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  layout: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        visible: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List notes for a client (admin only)
+ */
+export const ListClientNotesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListClientNotesResponseItem = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  organizationId: zod.number(),
+  authorId: zod.number(),
+  authorName: zod.string().nullish(),
+  body: zod.string(),
+  checklist: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        checked: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListClientNotesResponse = zod.array(ListClientNotesResponseItem);
+
+/**
+ * @summary Create a note for a client (admin only)
+ */
+export const CreateClientNoteParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateClientNoteBody = zod.object({
+  body: zod.string(),
+  checklist: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        checked: zod.boolean(),
+      }),
+    )
+    .nullish(),
+});
+
+/**
+ * @summary Update a client note body or checklist (admin only)
+ */
+export const UpdateClientNoteParams = zod.object({
+  id: zod.coerce.number(),
+  noteId: zod.coerce.number(),
+});
+
+export const UpdateClientNoteBody = zod.object({
+  body: zod.string(),
+  checklist: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        checked: zod.boolean(),
+      }),
+    )
+    .nullish(),
+});
+
+export const UpdateClientNoteResponse = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  organizationId: zod.number(),
+  authorId: zod.number(),
+  authorName: zod.string().nullish(),
+  body: zod.string(),
+  checklist: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        checked: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a client note (admin only)
+ */
+export const DeleteClientNoteParams = zod.object({
+  id: zod.coerce.number(),
+  noteId: zod.coerce.number(),
+});
+
+/**
+ * @summary List all client notes for the organization (admin only)
+ */
+export const ListAllClientNotesQueryParams = zod.object({
+  limit: zod.coerce.number().optional(),
+});
+
+export const ListAllClientNotesResponseItem = zod.object({
+  id: zod.number(),
+  clientId: zod.number(),
+  clientName: zod.string(),
+  clientSlug: zod.string().nullish(),
+  organizationId: zod.number(),
+  authorId: zod.number(),
+  authorName: zod.string().nullish(),
+  body: zod.string(),
+  checklist: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        text: zod.string(),
+        checked: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListAllClientNotesResponse = zod.array(
+  ListAllClientNotesResponseItem,
+);
 
 /**
  * @summary List sticky notes visible to the current user

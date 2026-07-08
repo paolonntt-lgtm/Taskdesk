@@ -31,6 +31,8 @@ tags:
     description: Knowledge base articles management
   - name: clients
     description: Client management
+  - name: clientNotes
+    description: Client notes console
   - name: stickyNotes
     description: Global sticky notes
   - name: groups
@@ -1471,6 +1473,170 @@ paths:
         "404":
           description: Not found
 
+  /clients/resolve/{slug}:
+    get:
+      operationId: resolveClientBySlug
+      tags: [clientNotes]
+      summary: Resolve a client by its slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Client found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /clients/{id}/notes:
+    get:
+      operationId: listClientNotes
+      tags: [clientNotes]
+      summary: List notes for a client (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientNote"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      operationId: createClientNote
+      tags: [clientNotes]
+      summary: Create a note for a client (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientNoteInput"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientNote"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /clients/{id}/notes/{noteId}:
+    patch:
+      operationId: updateClientNote
+      tags: [clientNotes]
+      summary: Update a client note body or checklist (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientNoteInput"
+      responses:
+        "200":
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientNote"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteClientNote
+      tags: [clientNotes]
+      summary: Delete a client note (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Note deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /client-notes:
+    get:
+      operationId: listAllClientNotes
+      tags: [clientNotes]
+      summary: List all client notes for the organization (admin only)
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notes with client info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientNoteWithClient"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
   /sticky-notes:
     get:
       operationId: listStickyNotes
@@ -2353,6 +2519,9 @@ components:
           nullable: true
         name:
           type: string
+        slug:
+          type: string
+          nullable: true
         email:
           type: string
           nullable: true
@@ -2491,6 +2660,130 @@ components:
         - imported
         - skipped
         - errors
+
+    ClientNote:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        organizationId:
+          type: integer
+        authorId:
+          type: integer
+        authorName:
+          type: string
+          nullable: true
+        body:
+          type: string
+        checklist:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              checked:
+                type: boolean
+            required:
+              - id
+              - text
+              - checked
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - organizationId
+        - authorId
+        - body
+        - createdAt
+        - updatedAt
+
+    ClientNoteInput:
+      type: object
+      properties:
+        body:
+          type: string
+        checklist:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              checked:
+                type: boolean
+            required:
+              - id
+              - text
+              - checked
+      required:
+        - body
+
+    ClientNoteWithClient:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        clientSlug:
+          type: string
+          nullable: true
+        organizationId:
+          type: integer
+        authorId:
+          type: integer
+        authorName:
+          type: string
+          nullable: true
+        body:
+          type: string
+        checklist:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              checked:
+                type: boolean
+            required:
+              - id
+              - text
+              - checked
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - clientName
+        - organizationId
+        - authorId
+        - body
+        - createdAt
+        - updatedAt
 
     GroupWithMembers:
       type: object

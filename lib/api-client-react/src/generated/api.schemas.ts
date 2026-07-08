@@ -397,6 +397,7 @@ export interface Client {
   id: number;
   organizationId?: number | null;
   name: string;
+  slug?: string | null;
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
@@ -444,6 +445,55 @@ export interface ClientImportResult {
   imported: number;
   skipped: number;
   errors: ClientImportResultErrorsItem[];
+}
+
+export type ClientNoteChecklistItem = {
+  id: string;
+  text: string;
+  checked: boolean;
+};
+
+export interface ClientNote {
+  id: number;
+  clientId: number;
+  organizationId: number;
+  authorId: number;
+  authorName?: string | null;
+  body: string;
+  checklist?: ClientNoteChecklistItem[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ClientNoteInputChecklistItem = {
+  id: string;
+  text: string;
+  checked: boolean;
+};
+
+export interface ClientNoteInput {
+  body: string;
+  checklist?: ClientNoteInputChecklistItem[] | null;
+}
+
+export type ClientNoteWithClientChecklistItem = {
+  id: string;
+  text: string;
+  checked: boolean;
+};
+
+export interface ClientNoteWithClient {
+  id: number;
+  clientId: number;
+  clientName: string;
+  clientSlug?: string | null;
+  organizationId: number;
+  authorId: number;
+  authorName?: string | null;
+  body: string;
+  checklist?: ClientNoteWithClientChecklistItem[] | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface GroupWithMembers {
@@ -575,4 +625,8 @@ export type UpdateClientLayoutBodyLayoutItem = {
 
 export type UpdateClientLayoutBody = {
   layout: UpdateClientLayoutBodyLayoutItem[];
+};
+
+export type ListAllClientNotesParams = {
+  limit?: number;
 };

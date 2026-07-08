@@ -57,6 +57,7 @@ import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
+import NotesConsole from './NotesConsole';
 
 const drawerWidth = 264;
 
@@ -269,6 +270,9 @@ export default function Layout({ children }: LayoutProps) {
           </ListItem>
         ))}
       </List>
+
+      {/* Notes console (admin only) */}
+      {user?.role === 'admin' && <NotesConsole />}
 
       {/* User card at bottom */}
       <Box sx={{ p: 2 }}>

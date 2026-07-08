@@ -22,6 +22,7 @@ import {
   useGetClient, useUpdateClient, getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
+import ClientNotesBlock from '../components/ClientNotesBlock';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -70,7 +71,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const BLOCK_IDS = ['company-info', 'linked-tickets'] as const;
+const BLOCK_IDS = ['company-info', 'linked-tickets', 'client-notes'] as const;
 type BlockId = typeof BLOCK_IDS[number];
 
 interface BlockConfig {
@@ -78,7 +79,7 @@ interface BlockConfig {
   visible: boolean;
 }
 
-const SHARED_LAYOUT_KEY = 'td_client_layout_v1_shared';
+const SHARED_LAYOUT_KEY = 'td_client_layout_v2_shared';
 
 function loadLayout(): BlockConfig[] {
   try {
@@ -345,6 +346,17 @@ export default function ClientDetail() {
   const activeLayout = editMode ? draftLayout : layout;
 
   const blockContent: Record<BlockId, React.ReactNode> = {
+    'client-notes': (
+      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
+        <CardContent>
+          {isAdmin ? (
+            <ClientNotesBlock clientId={clientId} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{(t as any).clientNotes?.noNotes}</Typography>
+          )}
+        </CardContent>
+      </Card>
+    ),
     'company-info': (
       <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
         <CardContent>
@@ -440,6 +452,7 @@ export default function ClientDetail() {
   const blockTitles: Record<BlockId, string> = {
     'company-info': tc.blockCompanyInfo,
     'linked-tickets': tc.blockLinkedTickets,
+    'client-notes': tc.blockNotes,
   };
 
   return (

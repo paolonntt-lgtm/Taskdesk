@@ -24,6 +24,9 @@ import type {
   Client,
   ClientImportResult,
   ClientInput,
+  ClientNote,
+  ClientNoteInput,
+  ClientNoteWithClient,
   CommentWithAuthor,
   CompleteOnboarding200,
   CompleteOnboardingBody,
@@ -42,6 +45,7 @@ import type {
   ImportClientsBody,
   KnowledgeArticle,
   KnowledgeArticleInput,
+  ListAllClientNotesParams,
   ListClientsParams,
   ListTicketsParams,
   LoginRequest,
@@ -5046,6 +5050,538 @@ export const useUpdateClientLayout = <
 > => {
   return useMutation(getUpdateClientLayoutMutationOptions(options));
 };
+
+/**
+ * @summary Resolve a client by its slug
+ */
+export const getResolveClientBySlugUrl = (slug: string) => {
+  return `/api/clients/resolve/${slug}`;
+};
+
+export const resolveClientBySlug = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<Client> => {
+  return customFetch<Client>(getResolveClientBySlugUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getResolveClientBySlugQueryKey = (slug: string) => {
+  return [`/api/clients/resolve/${slug}`] as const;
+};
+
+export const getResolveClientBySlugQueryOptions = <
+  TData = Awaited<ReturnType<typeof resolveClientBySlug>>,
+  TError = ErrorType<void>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof resolveClientBySlug>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getResolveClientBySlugQueryKey(slug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof resolveClientBySlug>>
+  > = ({ signal }) => resolveClientBySlug(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof resolveClientBySlug>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ResolveClientBySlugQueryResult = NonNullable<
+  Awaited<ReturnType<typeof resolveClientBySlug>>
+>;
+export type ResolveClientBySlugQueryError = ErrorType<void>;
+
+/**
+ * @summary Resolve a client by its slug
+ */
+
+export function useResolveClientBySlug<
+  TData = Awaited<ReturnType<typeof resolveClientBySlug>>,
+  TError = ErrorType<void>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof resolveClientBySlug>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getResolveClientBySlugQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List notes for a client (admin only)
+ */
+export const getListClientNotesUrl = (id: number) => {
+  return `/api/clients/${id}/notes`;
+};
+
+export const listClientNotes = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ClientNote[]> => {
+  return customFetch<ClientNote[]>(getListClientNotesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListClientNotesQueryKey = (id: number) => {
+  return [`/api/clients/${id}/notes`] as const;
+};
+
+export const getListClientNotesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listClientNotes>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientNotes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListClientNotesQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientNotes>>> = ({
+    signal,
+  }) => listClientNotes(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listClientNotes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListClientNotesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listClientNotes>>
+>;
+export type ListClientNotesQueryError = ErrorType<void>;
+
+/**
+ * @summary List notes for a client (admin only)
+ */
+
+export function useListClientNotes<
+  TData = Awaited<ReturnType<typeof listClientNotes>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientNotes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListClientNotesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a note for a client (admin only)
+ */
+export const getCreateClientNoteUrl = (id: number) => {
+  return `/api/clients/${id}/notes`;
+};
+
+export const createClientNote = async (
+  id: number,
+  clientNoteInput: ClientNoteInput,
+  options?: RequestInit,
+): Promise<ClientNote> => {
+  return customFetch<ClientNote>(getCreateClientNoteUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(clientNoteInput),
+  });
+};
+
+export const getCreateClientNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createClientNote>>,
+    TError,
+    { id: number; data: BodyType<ClientNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createClientNote>>,
+  TError,
+  { id: number; data: BodyType<ClientNoteInput> },
+  TContext
+> => {
+  const mutationKey = ["createClientNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createClientNote>>,
+    { id: number; data: BodyType<ClientNoteInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createClientNote(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateClientNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createClientNote>>
+>;
+export type CreateClientNoteMutationBody = BodyType<ClientNoteInput>;
+export type CreateClientNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a note for a client (admin only)
+ */
+export const useCreateClientNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createClientNote>>,
+    TError,
+    { id: number; data: BodyType<ClientNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createClientNote>>,
+  TError,
+  { id: number; data: BodyType<ClientNoteInput> },
+  TContext
+> => {
+  return useMutation(getCreateClientNoteMutationOptions(options));
+};
+
+/**
+ * @summary Update a client note body or checklist (admin only)
+ */
+export const getUpdateClientNoteUrl = (id: number, noteId: number) => {
+  return `/api/clients/${id}/notes/${noteId}`;
+};
+
+export const updateClientNote = async (
+  id: number,
+  noteId: number,
+  clientNoteInput: ClientNoteInput,
+  options?: RequestInit,
+): Promise<ClientNote> => {
+  return customFetch<ClientNote>(getUpdateClientNoteUrl(id, noteId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(clientNoteInput),
+  });
+};
+
+export const getUpdateClientNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientNote>>,
+    TError,
+    { id: number; noteId: number; data: BodyType<ClientNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateClientNote>>,
+  TError,
+  { id: number; noteId: number; data: BodyType<ClientNoteInput> },
+  TContext
+> => {
+  const mutationKey = ["updateClientNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateClientNote>>,
+    { id: number; noteId: number; data: BodyType<ClientNoteInput> }
+  > = (props) => {
+    const { id, noteId, data } = props ?? {};
+
+    return updateClientNote(id, noteId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateClientNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateClientNote>>
+>;
+export type UpdateClientNoteMutationBody = BodyType<ClientNoteInput>;
+export type UpdateClientNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a client note body or checklist (admin only)
+ */
+export const useUpdateClientNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientNote>>,
+    TError,
+    { id: number; noteId: number; data: BodyType<ClientNoteInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateClientNote>>,
+  TError,
+  { id: number; noteId: number; data: BodyType<ClientNoteInput> },
+  TContext
+> => {
+  return useMutation(getUpdateClientNoteMutationOptions(options));
+};
+
+/**
+ * @summary Delete a client note (admin only)
+ */
+export const getDeleteClientNoteUrl = (id: number, noteId: number) => {
+  return `/api/clients/${id}/notes/${noteId}`;
+};
+
+export const deleteClientNote = async (
+  id: number,
+  noteId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteClientNoteUrl(id, noteId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteClientNoteMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteClientNote>>,
+    TError,
+    { id: number; noteId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteClientNote>>,
+  TError,
+  { id: number; noteId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteClientNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteClientNote>>,
+    { id: number; noteId: number }
+  > = (props) => {
+    const { id, noteId } = props ?? {};
+
+    return deleteClientNote(id, noteId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteClientNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteClientNote>>
+>;
+
+export type DeleteClientNoteMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a client note (admin only)
+ */
+export const useDeleteClientNote = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteClientNote>>,
+    TError,
+    { id: number; noteId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteClientNote>>,
+  TError,
+  { id: number; noteId: number },
+  TContext
+> => {
+  return useMutation(getDeleteClientNoteMutationOptions(options));
+};
+
+/**
+ * @summary List all client notes for the organization (admin only)
+ */
+export const getListAllClientNotesUrl = (params?: ListAllClientNotesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/client-notes?${stringifiedParams}`
+    : `/api/client-notes`;
+};
+
+export const listAllClientNotes = async (
+  params?: ListAllClientNotesParams,
+  options?: RequestInit,
+): Promise<ClientNoteWithClient[]> => {
+  return customFetch<ClientNoteWithClient[]>(getListAllClientNotesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAllClientNotesQueryKey = (
+  params?: ListAllClientNotesParams,
+) => {
+  return [`/api/client-notes`, ...(params ? [params] : [])] as const;
+};
+
+export const getListAllClientNotesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAllClientNotes>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListAllClientNotesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAllClientNotes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListAllClientNotesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAllClientNotes>>
+  > = ({ signal }) => listAllClientNotes(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAllClientNotes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAllClientNotesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAllClientNotes>>
+>;
+export type ListAllClientNotesQueryError = ErrorType<void>;
+
+/**
+ * @summary List all client notes for the organization (admin only)
+ */
+
+export function useListAllClientNotes<
+  TData = Awaited<ReturnType<typeof listAllClientNotes>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListAllClientNotesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAllClientNotes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAllClientNotesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List sticky notes visible to the current user

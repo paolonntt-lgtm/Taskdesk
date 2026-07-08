@@ -18,3 +18,4 @@ export * from "./clients";
 export * from "./sticky_notes";
 export * from "./ticket_statuses";
 export * from "./groups";
+export * from "./client_notes";

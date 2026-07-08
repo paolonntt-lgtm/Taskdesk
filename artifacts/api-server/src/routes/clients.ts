@@ -1,10 +1,40 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, inArray, asc, desc } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable } from "@workspace/db";
+import { eq, and, ilike, or, asc, desc, ne } from "drizzle-orm";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 
 const router: IRouter = Router();
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "client";
+}
+
+async function generateUniqueSlug(name: string, orgId: number, excludeId?: number): Promise<string> {
+  const base = slugify(name);
+  let slug = base;
+  let counter = 2;
+  while (true) {
+    const conditions: any[] = [
+      eq(clientsTable.organizationId, orgId),
+      eq(clientsTable.slug, slug),
+    ];
+    if (excludeId !== undefined) conditions.push(ne(clientsTable.id, excludeId));
+    const [existing] = await db
+      .select({ id: clientsTable.id })
+      .from(clientsTable)
+      .where(and(...conditions))
+      .limit(1);
+    if (!existing) return slug;
+    slug = `${base}-${counter++}`;
+  }
+}
 
 const ClientBody = z.object({
   name: z.string().min(1),
@@ -34,6 +64,50 @@ const ClientsQuerySchema = z.object({
   search: z.string().optional(),
   sort: z.enum(["name", "createdAt"]).optional().default("name"),
   order: z.enum(["asc", "desc"]).optional().default("asc"),
+});
+
+const ClientNoteBody = z.object({
+  body: z.string(),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string(),
+        text: z.string(),
+        checked: z.boolean(),
+      })
+    )
+    .optional()
+    .nullable(),
+});
+
+router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const limitRaw = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+  const limit = isNaN(limitRaw) || limitRaw < 1 || limitRaw > 200 ? 50 : limitRaw;
+
+  const notes = await db
+    .select({
+      id: clientNotesTable.id,
+      clientId: clientNotesTable.clientId,
+      clientName: clientsTable.name,
+      clientSlug: clientsTable.slug,
+      organizationId: clientNotesTable.organizationId,
+      authorId: clientNotesTable.authorId,
+      authorName: usersTable.name,
+      body: clientNotesTable.body,
+      checklist: clientNotesTable.checklist,
+      createdAt: clientNotesTable.createdAt,
+      updatedAt: clientNotesTable.updatedAt,
+    })
+    .from(clientNotesTable)
+    .innerJoin(clientsTable, eq(clientNotesTable.clientId, clientsTable.id))
+    .leftJoin(usersTable, eq(clientNotesTable.authorId, usersTable.id))
+    .where(eq(clientNotesTable.organizationId, orgId))
+    .orderBy(desc(clientNotesTable.createdAt))
+    .limit(limit);
+
+  res.json(notes);
 });
 
 router.get("/clients", requireAuth, async (req, res): Promise<void> => {
@@ -95,9 +169,11 @@ router.post("/clients", requireAuth, requireAdmin, async (req, res): Promise<voi
     }
   }
 
+  const slug = await generateUniqueSlug(parsed.data.name, currentUser.organizationId);
+
   const [client] = await db
     .insert(clientsTable)
-    .values({ ...parsed.data, organizationId: currentUser.organizationId })
+    .values({ ...parsed.data, organizationId: currentUser.organizationId, slug })
     .returning();
 
   res.status(201).json(client);
@@ -158,9 +234,12 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
       continue;
     }
 
+    const slug = await generateUniqueSlug(name, currentUser.organizationId);
+
     await db.insert(clientsTable).values({
       organizationId: currentUser.organizationId,
       name,
+      slug,
       vatNumber,
       taxCode: row.taxCode?.trim() || null,
       address: row.address?.trim() || null,
@@ -178,6 +257,25 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
   res.json({ imported, skipped, duplicates, errors });
 });
 
+router.get("/clients/resolve/:slug", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(
+      and(
+        eq(clientsTable.organizationId, currentUser.organizationId),
+        eq(clientsTable.slug, slug),
+      )
+    )
+    .limit(1);
+
+  if (!client) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(client);
+});
+
 router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -190,6 +288,15 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)));
 
   if (!client) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (!client.slug) {
+    const slug = await generateUniqueSlug(client.name, currentUser.organizationId, client.id);
+    await db
+      .update(clientsTable)
+      .set({ slug })
+      .where(eq(clientsTable.id, client.id));
+    client.slug = slug;
+  }
 
   const tickets = await db
     .select({
@@ -259,6 +366,147 @@ router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res):
 
   if (!client) { res.status(404).json({ error: "Not found" }); return; }
   res.json(client);
+});
+
+router.get("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [client] = await db
+    .select({ id: clientsTable.id })
+    .from(clientsTable)
+    .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
+    .limit(1);
+  if (!client) { res.status(404).json({ error: "Not found" }); return; }
+
+  const notes = await db
+    .select({
+      id: clientNotesTable.id,
+      clientId: clientNotesTable.clientId,
+      organizationId: clientNotesTable.organizationId,
+      authorId: clientNotesTable.authorId,
+      authorName: usersTable.name,
+      body: clientNotesTable.body,
+      checklist: clientNotesTable.checklist,
+      createdAt: clientNotesTable.createdAt,
+      updatedAt: clientNotesTable.updatedAt,
+    })
+    .from(clientNotesTable)
+    .leftJoin(usersTable, eq(clientNotesTable.authorId, usersTable.id))
+    .where(
+      and(
+        eq(clientNotesTable.clientId, id),
+        eq(clientNotesTable.organizationId, currentUser.organizationId),
+      )
+    )
+    .orderBy(desc(clientNotesTable.createdAt));
+
+  res.json(notes);
+});
+
+router.post("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [clientRow] = await db
+    .select({ id: clientsTable.id })
+    .from(clientsTable)
+    .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
+    .limit(1);
+  if (!clientRow) { res.status(404).json({ error: "Not found" }); return; }
+
+  const parsed = ClientNoteBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const [note] = await db
+    .insert(clientNotesTable)
+    .values({
+      clientId: id,
+      organizationId: currentUser.organizationId,
+      authorId: currentUser.id,
+      body: parsed.data.body,
+      checklist: parsed.data.checklist ?? null,
+    })
+    .returning();
+
+  const [author] = await db
+    .select({ name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, note.authorId))
+    .limit(1);
+
+  res.status(201).json({ ...note, authorName: author?.name ?? null });
+});
+
+router.patch("/clients/:id/notes/:noteId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;
+  const id = parseInt(rawId, 10);
+  const noteId = parseInt(rawNote, 10);
+  if (isNaN(id) || isNaN(noteId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const parsed = ClientNoteBody.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const updateData: Record<string, any> = {};
+  if (parsed.data.body !== undefined) updateData.body = parsed.data.body;
+  if (parsed.data.checklist !== undefined) updateData.checklist = parsed.data.checklist;
+
+  const [note] = await db
+    .update(clientNotesTable)
+    .set(updateData)
+    .where(
+      and(
+        eq(clientNotesTable.id, noteId),
+        eq(clientNotesTable.clientId, id),
+        eq(clientNotesTable.organizationId, currentUser.organizationId),
+      )
+    )
+    .returning();
+
+  if (!note) { res.status(404).json({ error: "Not found" }); return; }
+
+  const [author] = await db
+    .select({ name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, note.authorId))
+    .limit(1);
+
+  res.json({ ...note, authorName: author?.name ?? null });
+});
+
+router.delete("/clients/:id/notes/:noteId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;
+  const id = parseInt(rawId, 10);
+  const noteId = parseInt(rawNote, 10);
+  if (isNaN(id) || isNaN(noteId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [deleted] = await db
+    .delete(clientNotesTable)
+    .where(
+      and(
+        eq(clientNotesTable.id, noteId),
+        eq(clientNotesTable.clientId, id),
+        eq(clientNotesTable.organizationId, currentUser.organizationId),
+      )
+    )
+    .returning();
+
+  if (!deleted) { res.status(404).json({ error: "Not found" }); return; }
+  res.status(204).send();
 });
 
 router.delete("/clients/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
