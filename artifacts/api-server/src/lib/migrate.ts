@@ -108,6 +108,11 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE clients ADD COLUMN IF NOT EXISTS layout JSONB;
     `);
 
+    // Add shared layout column to organizations for org-wide client block layout
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS client_shared_layout JSONB;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

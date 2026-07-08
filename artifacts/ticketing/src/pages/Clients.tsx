@@ -198,7 +198,7 @@ export default function Clients() {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name?.trim() || !(form as any).vatNumber?.trim()) { setFormError(tc.errorRequired); return; }
+    if (!form.name?.trim()) { setFormError(tc.errorRequired); return; }
     setSaving(true);
     setFormError('');
     try {

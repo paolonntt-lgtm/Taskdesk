@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 
 export const organizationsTable = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -16,6 +16,7 @@ export const organizationsTable = pgTable("organizations", {
   businessType: text("business_type"),
   clientsEnabled: boolean("clients_enabled").default(true).notNull(),
   onboardingDone: boolean("onboarding_done").default(false).notNull(),
+  clientSharedLayout: jsonb("client_shared_layout"),
   utmSource: text("utm_source"),
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),

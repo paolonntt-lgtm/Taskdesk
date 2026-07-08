@@ -265,6 +265,29 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   res.json({ name: updated.name, businessType: updated.businessType, clientsEnabled: updated.clientsEnabled });
 });
 
+// ── CLIENT SHARED LAYOUT ───────────────────────────────────────────────────
+
+router.get("/settings/client-layout", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  const [org] = await db.select({ clientSharedLayout: organizationsTable.clientSharedLayout })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, currentUser.organizationId));
+  if (!org) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  res.json({ layout: org.clientSharedLayout ?? null });
+});
+
+router.patch("/settings/client-layout", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { layout } = req.body ?? {};
+  if (!Array.isArray(layout)) { res.status(400).json({ message: "Layout non valido" }); return; }
+  const currentUser = (req as any).currentUser;
+  if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  await db.update(organizationsTable)
+    .set({ clientSharedLayout: layout } as any)
+    .where(eq(organizationsTable.id, currentUser.organizationId));
+  res.json({ layout });
+});
+
 // ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────
 
 router.get("/settings/outbound-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {

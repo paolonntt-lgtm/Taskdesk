@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  useGetClient, useUpdateClient, useUpdateClientLayout, getListClientsQueryKey,
+  useGetClient, useUpdateClient, getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -78,9 +78,11 @@ interface BlockConfig {
   visible: boolean;
 }
 
-function loadLayout(clientId: number): BlockConfig[] {
+const SHARED_LAYOUT_KEY = 'td_client_layout_v1_shared';
+
+function loadLayout(): BlockConfig[] {
   try {
-    const raw = localStorage.getItem(`td_client_layout_v1_${clientId}`);
+    const raw = localStorage.getItem(SHARED_LAYOUT_KEY);
     if (!raw) return defaultLayout();
     const parsed: BlockConfig[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaultLayout();
@@ -96,9 +98,9 @@ function defaultLayout(): BlockConfig[] {
   return BLOCK_IDS.map((id) => ({ id, visible: true }));
 }
 
-function saveLayout(clientId: number, layout: BlockConfig[]) {
+function saveLayout(layout: BlockConfig[]) {
   try {
-    localStorage.setItem(`td_client_layout_v1_${clientId}`, JSON.stringify(layout));
+    localStorage.setItem(SHARED_LAYOUT_KEY, JSON.stringify(layout));
   } catch {}
 }
 
@@ -192,9 +194,7 @@ export default function ClientDetail() {
 
   const { data, isLoading, isError } = useGetClient(clientId);
   const updateClient = useUpdateClient();
-  const updateClientLayout = useUpdateClientLayout();
-
-  const [layout, setLayout] = useState<BlockConfig[]>(() => loadLayout(clientId));
+  const [layout, setLayout] = useState<BlockConfig[]>(() => loadLayout());
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<BlockConfig[]>([]);
 
@@ -212,18 +212,17 @@ export default function ClientDetail() {
   );
 
   useEffect(() => {
-    setLayout(loadLayout(clientId));
-  }, [clientId]);
-
-  useEffect(() => {
-    if (!data) return;
-    const apiLayout = (data as any).layout as BlockConfig[] | null | undefined;
-    if (!Array.isArray(apiLayout) || apiLayout.length === 0) return;
-    const valid = apiLayout.filter((b) => BLOCK_IDS.includes(b.id as BlockId));
-    if (valid.length !== BLOCK_IDS.length) return;
-    setLayout(valid);
-    saveLayout(clientId, valid);
-  }, [data, clientId]);
+    fetch('/api/settings/client-layout', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || !Array.isArray(d.layout) || d.layout.length === 0) return;
+        const valid = (d.layout as BlockConfig[]).filter((b) => BLOCK_IDS.includes(b.id as BlockId));
+        if (valid.length !== BLOCK_IDS.length) return;
+        setLayout(valid);
+        saveLayout(valid);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleEnterEditMode = useCallback(() => {
     setDraftLayout([...layout]);
@@ -237,14 +236,19 @@ export default function ClientDetail() {
 
   const handleSaveLayout = useCallback(async () => {
     setLayout(draftLayout);
-    saveLayout(clientId, draftLayout);
+    saveLayout(draftLayout);
     setEditMode(false);
     setDraftLayout([]);
     try {
-      await updateClientLayout.mutateAsync({ id: clientId, data: { layout: draftLayout } });
+      await fetch('/api/settings/client-layout', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout: draftLayout }),
+      });
     } catch {
     }
-  }, [draftLayout, clientId, updateClientLayout]);
+  }, [draftLayout]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
