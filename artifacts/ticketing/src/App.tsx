@@ -131,7 +131,7 @@ function AppShell() {
     setLocation("/login");
   };
 
-  const updateUser = (updated: User) => setUser(updated);
+  const updateUser = (updated: User) => setUser((prev) => prev ? { ...prev, ...updated } : updated);
 
   return (
     <ColorModeContext.Provider value={colorModeCtx}>
