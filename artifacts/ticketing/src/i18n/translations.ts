@@ -209,6 +209,7 @@ const it = {
     inboundChannelLabel: 'Canale email',
     createdBy: 'Creato da',
     dueAtLabel: 'Scadenza',
+    dueAtClear: 'Rimuovi scadenza',
     closedOn: 'Chiuso il',
     resolutionNoteLabel: 'Note di risoluzione',
     resolutionNotePlaceholder: 'Descrivi come è stato risolto il problema...',
@@ -943,6 +944,11 @@ const it = {
     formatBulletList: 'Elenco puntato',
     formatDefaultText: 'testo',
     mentionClientPlaceholder: 'Nessun cliente trovato',
+    mentionSortLabel: 'Ordina',
+    mentionSortNameAsc: 'A→Z',
+    mentionSortNameDesc: 'Z→A',
+    mentionSortRecentDesc: 'Più recente',
+    mentionSortRecentAsc: 'Meno recente',
   },
   entityTerms: {
     it_support: {
@@ -1173,6 +1179,7 @@ const en: typeof it = {
     inboundChannelLabel: 'Email channel',
     createdBy: 'Created by',
     dueAtLabel: 'Due date',
+    dueAtClear: 'Remove due date',
     closedOn: 'Closed on',
     resolutionNoteLabel: 'Resolution note',
     resolutionNotePlaceholder: 'Describe how the issue was resolved...',
@@ -1907,6 +1914,11 @@ const en: typeof it = {
     formatBulletList: 'Bullet list',
     formatDefaultText: 'text',
     mentionClientPlaceholder: 'No clients found',
+    mentionSortLabel: 'Sort',
+    mentionSortNameAsc: 'A→Z',
+    mentionSortNameDesc: 'Z→A',
+    mentionSortRecentDesc: 'Most recent',
+    mentionSortRecentAsc: 'Least recent',
   },
   entityTerms: {
     it_support: {

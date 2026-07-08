@@ -4,7 +4,7 @@ import {
   Box, Fab, Tooltip, Paper, IconButton, TextField, Typography,
   Select, MenuItem, FormControl, InputLabel, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, Autocomplete,
-  List, ListItemButton, ListItemText,
+  List, ListItemButton, ListItemText, ToggleButtonGroup, ToggleButton,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
@@ -303,6 +303,16 @@ export default function StickyNotesLayer() {
 
   const [mention, setMention] = useState<MentionState | null>(null);
   const [mentionPos, setMentionPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [mentionSort, setMentionSort] = useState<{ sort: 'name' | 'createdAt'; order: 'asc' | 'desc' }>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('mentionSort') || '{}');
+      const sort = saved.sort === 'createdAt' ? 'createdAt' : 'name';
+      const order = saved.order === 'desc' ? 'desc' : 'asc';
+      return { sort, order };
+    } catch {
+      return { sort: 'name', order: 'asc' };
+    }
+  });
 
   useEffect(() => {
     if (newNoteId.current == null) return;
@@ -344,7 +354,7 @@ export default function StickyNotesLayer() {
     if (match) {
       const query = match[1];
       const startIndex = cursor - match[0].length;
-      fetch(`/api/clients?search=${encodeURIComponent(query)}`, { credentials: "include" })
+      fetch(`/api/clients?search=${encodeURIComponent(query)}&sort=${mentionSort.sort}&order=${mentionSort.order}`, { credentials: "include" })
         .then((r) => (r.ok ? r.json() : []))
         .then((clients: any[]) => {
           setMention({
@@ -713,11 +723,45 @@ export default function StickyNotesLayer() {
             top: mentionPos.top,
             left: mentionPos.left,
             width: mentionPos.width,
-            maxHeight: 240,
+            maxHeight: 280,
             overflowY: "auto",
             zIndex: theme.zIndex.modal + 200,
           }}
         >
+          <Box
+            sx={{ px: 1, pt: 0.75, pb: 0.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 0.75 }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+              {t.stickyNotes.mentionSortLabel}
+            </Typography>
+            <ToggleButtonGroup
+              value={`${mentionSort.sort}:${mentionSort.order}`}
+              exclusive
+              size="small"
+              onChange={(_, v) => {
+                if (!v) return;
+                const [s, o] = v.split(":") as ["name" | "createdAt", "asc" | "desc"];
+                const newSort = { sort: s, order: o };
+                setMentionSort(newSort);
+                localStorage.setItem("mentionSort", JSON.stringify(newSort));
+                if (mention) {
+                  fetch(`/api/clients?search=${encodeURIComponent(mention.query)}&sort=${s}&order=${o}`, { credentials: "include" })
+                    .then((r) => (r.ok ? r.json() : []))
+                    .then((clients: any[]) =>
+                      setMention({ ...mention, results: clients.slice(0, 8).map((c: any) => ({ id: c.id, name: c.name })), selectedIdx: 0 })
+                    )
+                    .catch(() => {});
+                }
+              }}
+              sx={{ "& .MuiToggleButton-root": { py: 0.2, px: 0.5, fontSize: 11, lineHeight: 1.4 } }}
+            >
+              <ToggleButton value="name:asc">{t.stickyNotes.mentionSortNameAsc}</ToggleButton>
+              <ToggleButton value="name:desc">{t.stickyNotes.mentionSortNameDesc}</ToggleButton>
+              <ToggleButton value="createdAt:desc">{t.stickyNotes.mentionSortRecentDesc}</ToggleButton>
+              <ToggleButton value="createdAt:asc">{t.stickyNotes.mentionSortRecentAsc}</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
           <List dense disablePadding>
             {mention.results.map((c, idx) => (
               <ListItemButton

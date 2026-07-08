@@ -77,6 +77,7 @@ export default function TicketDetail() {
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
+  const [dueEditVal, setDueEditVal] = useState<string>('');
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
   const inlineEditorRef = useRef<RichCommentEditorHandle>(null);
@@ -208,6 +209,12 @@ export default function TicketDetail() {
     }
   }, [ticket]);
 
+  useEffect(() => {
+    if (!ticket) return;
+    const d = (ticket as any).dueAt;
+    setDueEditVal(d ? new Date(d).toISOString().slice(0, 16) : '');
+  }, [ticket]);
+
   if (isLoading || !ticket) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
   }
@@ -256,6 +263,15 @@ export default function TicketDetail() {
     queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setAssignAnchor(null);
+  };
+
+  const handleDueAtChange = async (val: string) => {
+    const updated = await updateTicket.mutateAsync({
+      id: ticketId,
+      data: { dueAt: val ? new Date(val) as any : null } as any,
+    });
+    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
   };
 
   const handleGroupChange = async (val: string) => {
@@ -893,7 +909,38 @@ export default function TicketDetail() {
             )}
 
             {/* Due date */}
-            {(ticket as any).dueAt && (
+            {isAdmin ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  {t.ticketDetail.dueAtLabel}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <TextField
+                    type="datetime-local"
+                    size="small"
+                    value={dueEditVal}
+                    onChange={(e) => setDueEditVal(e.target.value)}
+                    onBlur={() => handleDueAtChange(dueEditVal)}
+                    inputProps={{ style: { fontSize: 13 } }}
+                    sx={{ minWidth: 190 }}
+                    disabled={updateTicket.isPending}
+                  />
+                  {dueEditVal && (
+                    <Tooltip title={t.ticketDetail.dueAtClear}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={updateTicket.isPending}
+                          onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            ) : (ticket as any).dueAt ? (
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.ticketDetail.dueAtLabel}
@@ -902,7 +949,7 @@ export default function TicketDetail() {
                   {new Date((ticket as any).dueAt).toLocaleString(dateLocale)}
                 </Typography>
               </Box>
-            )}
+            ) : null}
 
             {/* Closed on + resolver */}
             {ticket.closedAt && (

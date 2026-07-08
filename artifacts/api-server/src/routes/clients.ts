@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, inArray } from "drizzle-orm";
+import { eq, and, ilike, or, inArray, asc, desc } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
@@ -33,6 +33,8 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   const search = req.query.search as string | undefined;
+  const sortParam = req.query.sort as string | undefined;
+  const orderParam = req.query.order as string | undefined;
 
   const conditions = [orgId != null ? eq(clientsTable.organizationId, orgId) : undefined].filter(Boolean) as any[];
 
@@ -45,11 +47,14 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
     );
   }
 
+  const sortCol = sortParam === 'createdAt' ? clientsTable.createdAt : clientsTable.name;
+  const orderFn = orderParam === 'desc' ? desc(sortCol) : asc(sortCol);
+
   const clients = await db
     .select()
     .from(clientsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(clientsTable.name);
+    .orderBy(orderFn);
 
   res.json(clients);
 });
