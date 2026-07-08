@@ -596,7 +596,7 @@ export default function Settings() {
   const [, navigate] = useLocation();
   const urlSection = new URLSearchParams(rawSearch).get('section') ?? 'profile';
   const activeSection = !isAdmin && !['profile', 'notifications'].includes(urlSection) ? 'profile' : urlSection;
-  const setSection = (s: string) => navigate(`/settings?section=${s}`, { replace: true } as any);
+  const setSection = (s: string) => navigate(`/settings?section=${s}`);
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -1141,16 +1141,14 @@ export default function Settings() {
                 <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.categoriesNote}</Typography>
                 <ListEditor placeholder={t.settings.addCategoryPlaceholder} items={categories} onSave={saveCategories} saving={catSaving} />
               </Section>
+              <Box mt={4} />
+              <InboundAddressesSection />
             </>
           )}
 
           {/* ── EMAIL & CHANNELS (admin) ── */}
           {isAdmin && activeSection === 'email' && (
-            <>
-              <EmailChannelsTab />
-              <Box mt={4} />
-              <InboundAddressesSection />
-            </>
+            <EmailChannelsTab />
           )}
 
           {/* ── KNOWLEDGE BASE (admin) ── */}
