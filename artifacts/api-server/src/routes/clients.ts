@@ -83,10 +83,13 @@ const ClientNoteBody = z.object({
 router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
-  const limitRaw = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-  const limit = isNaN(limitRaw) || limitRaw < 1 || limitRaw > 200 ? 50 : limitRaw;
+  // Support optional offset-based pagination; no server-side limit when not specified
+  const limitRaw = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+  const offsetRaw = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+  const limit = limitRaw != null && !isNaN(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : undefined;
+  const offset = offsetRaw != null && !isNaN(offsetRaw) && offsetRaw >= 0 ? offsetRaw : undefined;
 
-  const notes = await db
+  const baseQuery = db
     .select({
       id: clientNotesTable.id,
       clientId: clientNotesTable.clientId,
@@ -104,8 +107,11 @@ router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise
     .innerJoin(clientsTable, eq(clientNotesTable.clientId, clientsTable.id))
     .leftJoin(usersTable, eq(clientNotesTable.authorId, usersTable.id))
     .where(eq(clientNotesTable.organizationId, orgId))
-    .orderBy(desc(clientNotesTable.createdAt))
-    .limit(limit);
+    .orderBy(desc(clientNotesTable.createdAt));
+
+  const notes = await (limit != null
+    ? offset != null ? baseQuery.limit(limit).offset(offset) : baseQuery.limit(limit)
+    : offset != null ? baseQuery.offset(offset) : baseQuery);
 
   res.json(notes);
 });
@@ -470,7 +476,42 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
     }
     updateData.body = parsed.data.body;
   }
-  if (parsed.data.checklist !== undefined) updateData.checklist = parsed.data.checklist;
+  if (parsed.data.checklist !== undefined) {
+    if (currentUser.role !== 'admin') {
+      // Non-admins may only toggle the `checked` field on existing items.
+      // Fetch the stored checklist and validate structure is unchanged.
+      const [stored] = await db
+        .select({ checklist: clientNotesTable.checklist, organizationId: clientNotesTable.organizationId })
+        .from(clientNotesTable)
+        .where(
+          and(
+            eq(clientNotesTable.id, noteId),
+            eq(clientNotesTable.clientId, id),
+            eq(clientNotesTable.organizationId, currentUser.organizationId),
+          )
+        )
+        .limit(1);
+
+      if (!stored) { res.status(404).json({ error: "Not found" }); return; }
+
+      const storedList: Array<{ id: string; text: string; checked: boolean }> = (stored.checklist as any) ?? [];
+      const incomingList: Array<{ id: string; text: string; checked: boolean }> = (parsed.data.checklist as any) ?? [];
+
+      // Validate: same number of items, same IDs, same text — only `checked` may differ
+      const structurallyValid =
+        incomingList.length === storedList.length &&
+        incomingList.every((incoming, idx) => {
+          const existing = storedList[idx];
+          return existing && incoming.id === existing.id && incoming.text === existing.text;
+        });
+
+      if (!structurallyValid) {
+        res.status(403).json({ error: "Forbidden: non-admins may only toggle checklist item state" });
+        return;
+      }
+    }
+    updateData.checklist = parsed.data.checklist;
+  }
 
   const [note] = await db
     .update(clientNotesTable)

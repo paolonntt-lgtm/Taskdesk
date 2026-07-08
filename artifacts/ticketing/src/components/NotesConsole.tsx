@@ -289,6 +289,7 @@ export default function NotesConsole() {
                             {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
                               dateStyle: 'short', timeStyle: 'short',
                             })}
+                            {note.authorName && ` · ${note.authorName}`}
                           </Typography>
                         </Box>
                         <Typography
