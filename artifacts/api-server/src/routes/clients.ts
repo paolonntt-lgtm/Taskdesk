@@ -127,6 +127,8 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
       or(
         ilike(clientsTable.name, `%${search.trim()}%`),
         ilike(clientsTable.email, `%${search.trim()}%`),
+        ilike(clientsTable.vatNumber, `%${search.trim()}%`),
+        ilike(clientsTable.taxCode, `%${search.trim()}%`),
       )
     );
   }
@@ -445,7 +447,7 @@ router.post("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): P
   res.status(201).json({ ...note, authorName: author?.name ?? null });
 });
 
-router.patch("/clients/:id/notes/:noteId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
-  Divider, CircularProgress, Alert, Tooltip, Dialog,
-  DialogTitle, DialogContent, DialogActions, Chip,
+  Divider, CircularProgress, Tooltip, Dialog,
+  DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
 import {
-  Add, Delete, CheckBoxOutlineBlank, CheckBox, AddTask,
+  Add, Delete, AddTask,
 } from '@mui/icons-material';
 import {
   useListClientNotes,
@@ -42,16 +42,29 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
 
+  // New note form state
   const [body, setBody] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [showChecklist, setShowChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
+  // Inline add-checklist-item state per-note
+  const [addingToNote, setAddingToNote] = useState<number | null>(null);
+  const [inlineChecklistText, setInlineChecklistText] = useState('');
+
+  // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Toast
+  const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
+    open: false, severity: 'success', msg: '',
+  });
+  const showToast = (severity: 'success' | 'error', msg: string) =>
+    setToast({ open: true, severity, msg });
+
+  // ── New note form handlers ──────────────────────────────────────────────
   const handleAddChecklistItem = () => {
     if (!newChecklistText.trim()) return;
     setChecklist((prev) => [
@@ -61,7 +74,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     setNewChecklistText('');
   };
 
-  const handleToggleChecklistItem = (itemId: string) => {
+  const handleToggleNewChecklistItem = (itemId: string) => {
     setChecklist((prev) =>
       prev.map((item) =>
         item.id === itemId ? { ...item, checked: !item.checked } : item
@@ -69,13 +82,12 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     );
   };
 
-  const handleRemoveChecklistItem = (itemId: string) => {
+  const handleRemoveNewChecklistItem = (itemId: string) => {
     setChecklist((prev) => prev.filter((item) => item.id !== itemId));
   };
 
   const handleSave = async () => {
-    if (!body.trim()) { setError(tc.errorRequired); return; }
-    setError(null);
+    if (!body.trim()) { showToast('error', tc.errorRequired); return; }
     setSaving(true);
     try {
       await createNote.mutateAsync({
@@ -89,15 +101,18 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
       setChecklist([]);
       setShowChecklist(false);
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      showToast('success', tc.saveNote);
     } catch {
-      setError(tc.errorSave);
+      showToast('error', tc.errorSave);
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Existing note checklist toggle ──────────────────────────────────────
   const handleToggleNoteChecklistItem = async (
     noteId: number,
+    noteBody: string,
     noteChecklist: ChecklistItem[],
     itemId: string
   ) => {
@@ -108,22 +123,49 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
       await updateNote.mutateAsync({
         id: clientId,
         noteId,
-        data: { body: notes.find((n: any) => n.id === noteId)?.body ?? '', checklist: updated },
+        data: { body: noteBody, checklist: updated },
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
     } catch {
-      // silent
+      showToast('error', tc.errorSave);
     }
   };
 
+  // ── Inline add checklist item to existing note ──────────────────────────
+  const handleAddInlineChecklistItem = async (
+    noteId: number,
+    noteBody: string,
+    noteChecklist: ChecklistItem[]
+  ) => {
+    if (!inlineChecklistText.trim()) return;
+    const updated = [
+      ...noteChecklist,
+      { id: genId(), text: inlineChecklistText.trim(), checked: false },
+    ];
+    try {
+      await updateNote.mutateAsync({
+        id: clientId,
+        noteId,
+        data: { body: noteBody, checklist: updated },
+      });
+      qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      setInlineChecklistText('');
+      setAddingToNote(null);
+    } catch {
+      showToast('error', tc.errorSave);
+    }
+  };
+
+  // ── Delete note ─────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (deleteTarget == null) return;
     setDeleting(true);
     try {
       await deleteNote.mutateAsync({ id: clientId, noteId: deleteTarget });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      showToast('success', tc.deleteNote);
     } catch {
-      // silent
+      showToast('error', tc.errorDelete);
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
@@ -140,7 +182,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
 
   return (
     <Box>
-      {/* Add note form */}
+      {/* New note form */}
       <Box
         sx={{
           mb: 2,
@@ -151,7 +193,6 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
           bgcolor: 'background.paper',
         }}
       >
-        {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
         <TextField
           fullWidth
           multiline
@@ -170,12 +211,15 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
                 <Checkbox
                   size="small"
                   checked={item.checked}
-                  onChange={() => handleToggleChecklistItem(item.id)}
+                  onChange={() => handleToggleNewChecklistItem(item.id)}
                 />
-                <Typography variant="body2" sx={{ flex: 1, textDecoration: item.checked ? 'line-through' : 'none' }}>
+                <Typography
+                  variant="body2"
+                  sx={{ flex: 1, textDecoration: item.checked ? 'line-through' : 'none' }}
+                >
                   {item.text}
                 </Typography>
-                <IconButton size="small" onClick={() => handleRemoveChecklistItem(item.id)}>
+                <IconButton size="small" onClick={() => handleRemoveNewChecklistItem(item.id)}>
                   <Delete fontSize="small" />
                 </IconButton>
               </Box>
@@ -217,27 +261,29 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
         </Box>
       </Box>
 
-      {/* Notes list */}
+      {/* Existing notes */}
       {notes.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
           {tc.noNotes}
         </Typography>
       ) : (
-        notes.map((note: any) => (
-          <Box
-            key={note.id}
-            sx={{
-              mb: 1.5,
-              p: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: '12px',
-              bgcolor: 'background.paper',
-              position: 'relative',
-            }}
-          >
-            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-              <Box>
+        (notes as any[]).map((note) => {
+          const noteChecklist: ChecklistItem[] = note.checklist ?? [];
+          const completedCount = noteChecklist.filter((i) => i.checked).length;
+          return (
+            <Box
+              key={note.id}
+              sx={{
+                mb: 1.5,
+                p: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '12px',
+                bgcolor: 'background.paper',
+              }}
+            >
+              {/* Header */}
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                 <Typography variant="caption" color="text.secondary">
                   {note.authorName && `${tc.noteBy} ${note.authorName} · `}
                   {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
@@ -245,46 +291,87 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
                     timeStyle: 'short',
                   })}
                 </Typography>
+                <Tooltip title={tc.deleteNote}>
+                  <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
-              <Tooltip title={tc.deleteNote}>
-                <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Tooltip>
+
+              {/* Body */}
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
+                {note.body}
+              </Typography>
+
+              {/* Checklist items */}
+              {noteChecklist.length > 0 && (
+                <Box mt={1}>
+                  <Divider sx={{ mb: 1 }} />
+                  {noteChecklist.map((item) => (
+                    <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
+                      <Checkbox
+                        size="small"
+                        checked={item.checked}
+                        onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          textDecoration: item.checked ? 'line-through' : 'none',
+                          color: item.checked ? 'text.disabled' : 'text.primary',
+                        }}
+                      >
+                        {item.text}
+                      </Typography>
+                    </Box>
+                  ))}
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    {completedCount}/{noteChecklist.length}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Inline add checklist item */}
+              {addingToNote === note.id ? (
+                <Box display="flex" gap={1} mt={1}>
+                  <TextField
+                    size="small"
+                    autoFocus
+                    placeholder={tc.checklistItemPlaceholder}
+                    value={inlineChecklistText}
+                    onChange={(e) => setInlineChecklistText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
+                      if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
+                    }}
+                    sx={{ flex: 1 }}
+                  />
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
+                    disabled={!inlineChecklistText.trim()}
+                  >
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Tooltip title={tc.addChecklistItem}>
+                  <IconButton
+                    size="small"
+                    sx={{ mt: 0.5, color: 'text.disabled' }}
+                    onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
+                  >
+                    <AddTask fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
-
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: note.checklist?.length ? 1 : 0 }}>
-              {note.body}
-            </Typography>
-
-            {note.checklist && note.checklist.length > 0 && (
-              <Box mt={1}>
-                <Divider sx={{ mb: 1 }} />
-                {(note.checklist as ChecklistItem[]).map((item) => (
-                  <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
-                    <Checkbox
-                      size="small"
-                      checked={item.checked}
-                      onChange={() => handleToggleNoteChecklistItem(note.id, note.checklist, item.id)}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{ textDecoration: item.checked ? 'line-through' : 'none', color: item.checked ? 'text.disabled' : 'text.primary' }}
-                    >
-                      {item.text}
-                    </Typography>
-                  </Box>
-                ))}
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                  {(note.checklist as ChecklistItem[]).filter((i) => i.checked).length}/{note.checklist.length}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        ))
+          );
+        })
       )}
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation dialog */}
       <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{tc.deleteNote}</DialogTitle>
         <DialogContent>
@@ -297,6 +384,18 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Toast */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3000}
+        onClose={() => setToast((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={toast.severity} onClose={() => setToast((p) => ({ ...p, open: false }))}>
+          {toast.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
