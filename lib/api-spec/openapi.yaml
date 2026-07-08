@@ -1423,6 +1423,54 @@ paths:
         "404":
           description: Not found
 
+  /clients/{id}/layout:
+    patch:
+      operationId: updateClientLayout
+      tags: [clients]
+      summary: Persist the block layout for a client dashboard (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                layout:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      visible:
+                        type: boolean
+                    required:
+                      - id
+                      - visible
+              required:
+                - layout
+      responses:
+        "200":
+          description: Layout saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /sticky-notes:
     get:
       operationId: listStickyNotes
@@ -2329,6 +2377,19 @@ components:
         notes:
           type: string
           nullable: true
+        layout:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              visible:
+                type: boolean
+            required:
+              - id
+              - visible
         createdAt:
           type: string
           format: date-time

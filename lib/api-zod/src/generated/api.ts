@@ -1284,6 +1284,14 @@ export const ListClientsResponseItem = zod.object({
   pec: zod.string().nullish(),
   contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
+  layout: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        visible: zod.boolean(),
+      }),
+    )
+    .nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1355,6 +1363,14 @@ export const GetClientResponse = zod
     pec: zod.string().nullish(),
     contactPerson: zod.string().nullish(),
     notes: zod.string().nullish(),
+    layout: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          visible: zod.boolean(),
+        }),
+      )
+      .nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   })
@@ -1408,6 +1424,14 @@ export const UpdateClientResponse = zod.object({
   pec: zod.string().nullish(),
   contactPerson: zod.string().nullish(),
   notes: zod.string().nullish(),
+  layout: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        visible: zod.boolean(),
+      }),
+    )
+    .nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1417,6 +1441,46 @@ export const UpdateClientResponse = zod.object({
  */
 export const DeleteClientParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Persist the block layout for a client dashboard (admin only)
+ */
+export const UpdateClientLayoutParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateClientLayoutBody = zod.object({
+  layout: zod.array(
+    zod.object({
+      id: zod.string(),
+      visible: zod.boolean(),
+    }),
+  ),
+});
+
+export const UpdateClientLayoutResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number().nullish(),
+  name: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  vatNumber: zod.string().nullish(),
+  taxCode: zod.string().nullish(),
+  address: zod.string().nullish(),
+  pec: zod.string().nullish(),
+  contactPerson: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  layout: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        visible: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
 });
 
 /**

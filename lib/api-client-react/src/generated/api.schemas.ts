@@ -388,6 +388,11 @@ export interface KnowledgeArticleInput {
   category?: string | null;
 }
 
+export type ClientLayoutItem = {
+  id: string;
+  visible: boolean;
+};
+
 export interface Client {
   id: number;
   organizationId?: number | null;
@@ -400,6 +405,7 @@ export interface Client {
   pec?: string | null;
   contactPerson?: string | null;
   notes?: string | null;
+  layout?: ClientLayoutItem[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -560,4 +566,13 @@ export type GetClient200TicketsItem = {
 
 export type GetClient200 = Client & {
   tickets?: GetClient200TicketsItem[];
+};
+
+export type UpdateClientLayoutBodyLayoutItem = {
+  id: string;
+  visible: boolean;
+};
+
+export type UpdateClientLayoutBody = {
+  layout: UpdateClientLayoutBodyLayoutItem[];
 };

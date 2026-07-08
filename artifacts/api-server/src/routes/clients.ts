@@ -233,6 +233,32 @@ router.patch("/clients/:id", requireAuth, requireAdmin, async (req, res): Promis
   res.json(client);
 });
 
+const LayoutBody = z.object({
+  layout: z.array(z.object({ id: z.string(), visible: z.boolean() })),
+});
+
+router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const parsed = LayoutBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const [client] = await db
+    .update(clientsTable)
+    .set({ layout: parsed.data.layout })
+    .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
+    .returning();
+
+  if (!client) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(client);
+});
+
 router.delete("/clients/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

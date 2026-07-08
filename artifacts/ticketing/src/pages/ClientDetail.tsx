@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  useGetClient, useUpdateClient, getListClientsQueryKey,
+  useGetClient, useUpdateClient, useUpdateClientLayout, getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -192,6 +192,7 @@ export default function ClientDetail() {
 
   const { data, isLoading, isError } = useGetClient(clientId);
   const updateClient = useUpdateClient();
+  const updateClientLayout = useUpdateClientLayout();
 
   const [layout, setLayout] = useState<BlockConfig[]>(() => loadLayout(clientId));
   const [editMode, setEditMode] = useState(false);
@@ -214,6 +215,16 @@ export default function ClientDetail() {
     setLayout(loadLayout(clientId));
   }, [clientId]);
 
+  useEffect(() => {
+    if (!data) return;
+    const apiLayout = (data as any).layout as BlockConfig[] | null | undefined;
+    if (!Array.isArray(apiLayout) || apiLayout.length === 0) return;
+    const valid = apiLayout.filter((b) => BLOCK_IDS.includes(b.id as BlockId));
+    if (valid.length !== BLOCK_IDS.length) return;
+    setLayout(valid);
+    saveLayout(clientId, valid);
+  }, [data, clientId]);
+
   const handleEnterEditMode = useCallback(() => {
     setDraftLayout([...layout]);
     setEditMode(true);
@@ -224,12 +235,16 @@ export default function ClientDetail() {
     setDraftLayout([]);
   }, []);
 
-  const handleSaveLayout = useCallback(() => {
+  const handleSaveLayout = useCallback(async () => {
     setLayout(draftLayout);
     saveLayout(clientId, draftLayout);
     setEditMode(false);
     setDraftLayout([]);
-  }, [draftLayout, clientId]);
+    try {
+      await updateClientLayout.mutateAsync({ id: clientId, data: { layout: draftLayout } });
+    } catch {
+    }
+  }, [draftLayout, clientId, updateClientLayout]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;

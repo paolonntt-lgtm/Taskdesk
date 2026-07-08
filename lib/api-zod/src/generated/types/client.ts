@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { ClientLayoutItem } from "./clientLayoutItem";
 
 export interface Client {
   id: number;
@@ -18,6 +19,7 @@ export interface Client {
   pec?: string | null;
   contactPerson?: string | null;
   notes?: string | null;
+  layout?: ClientLayoutItem[] | null;
   createdAt: Date;
   updatedAt: Date;
 }

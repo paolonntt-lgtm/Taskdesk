@@ -61,6 +61,7 @@ import type {
   ToggleReactionBody,
   ToggleReactionResponse,
   TrendPoint,
+  UpdateClientLayoutBody,
   UpdateCommentBody,
   UpdateOrganizationSettings200,
   UpdateOrganizationSettingsBody,
@@ -4957,6 +4958,93 @@ export const useDeleteClient = <
   TContext
 > => {
   return useMutation(getDeleteClientMutationOptions(options));
+};
+
+/**
+ * @summary Persist the block layout for a client dashboard (admin only)
+ */
+export const getUpdateClientLayoutUrl = (id: number) => {
+  return `/api/clients/${id}/layout`;
+};
+
+export const updateClientLayout = async (
+  id: number,
+  updateClientLayoutBody: UpdateClientLayoutBody,
+  options?: RequestInit,
+): Promise<Client> => {
+  return customFetch<Client>(getUpdateClientLayoutUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateClientLayoutBody),
+  });
+};
+
+export const getUpdateClientLayoutMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientLayout>>,
+    TError,
+    { id: number; data: BodyType<UpdateClientLayoutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateClientLayout>>,
+  TError,
+  { id: number; data: BodyType<UpdateClientLayoutBody> },
+  TContext
+> => {
+  const mutationKey = ["updateClientLayout"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateClientLayout>>,
+    { id: number; data: BodyType<UpdateClientLayoutBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateClientLayout(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateClientLayoutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateClientLayout>>
+>;
+export type UpdateClientLayoutMutationBody = BodyType<UpdateClientLayoutBody>;
+export type UpdateClientLayoutMutationError = ErrorType<void>;
+
+/**
+ * @summary Persist the block layout for a client dashboard (admin only)
+ */
+export const useUpdateClientLayout = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientLayout>>,
+    TError,
+    { id: number; data: BodyType<UpdateClientLayoutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateClientLayout>>,
+  TError,
+  { id: number; data: BodyType<UpdateClientLayoutBody> },
+  TContext
+> => {
+  return useMutation(getUpdateClientLayoutMutationOptions(options));
 };
 
 /**

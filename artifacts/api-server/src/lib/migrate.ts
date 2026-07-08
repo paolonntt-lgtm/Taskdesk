@@ -103,6 +103,11 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS utm_campaign TEXT;
     `);
 
+    // Add layout column to clients for team-shared dashboard block order/visibility
+    await client.query(`
+      ALTER TABLE clients ADD COLUMN IF NOT EXISTS layout JSONB;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
