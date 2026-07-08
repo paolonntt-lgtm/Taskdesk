@@ -27,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle } from '../components/RichCommentEditor';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
+import ChecklistSection from '../components/ChecklistSection';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -1038,6 +1039,8 @@ export default function TicketDetail() {
               })()}
             </Box>
           </Card>
+
+          <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>

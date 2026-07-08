@@ -19,6 +19,8 @@ tags:
     description: Internal notes
   - name: activity
     description: Activity logs
+  - name: checklists
+    description: Ticket checklists
   - name: users
     description: User management
   - name: notifications
@@ -902,6 +904,208 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NoteWithAuthor"
+
+  /tickets/{ticketId}/checklists:
+    get:
+      operationId: listTicketChecklists
+      tags: [checklists]
+      summary: List checklists with items for a ticket
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of checklists with items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChecklistWithItems"
+        "404":
+          description: Ticket not found
+    post:
+      operationId: createChecklist
+      tags: [checklists]
+      summary: Create a checklist on a ticket
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChecklistBody"
+      responses:
+        "201":
+          description: Checklist created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistWithItems"
+        "404":
+          description: Ticket not found
+
+  /tickets/{ticketId}/checklists/{checklistId}:
+    patch:
+      operationId: updateChecklist
+      tags: [checklists]
+      summary: Rename or reorder a checklist
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checklistId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChecklistBody"
+      responses:
+        "200":
+          description: Updated checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistWithItems"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteChecklist
+      tags: [checklists]
+      summary: Delete a checklist
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checklistId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Checklist deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+
+  /tickets/{ticketId}/checklists/{checklistId}/items:
+    post:
+      operationId: addChecklistItem
+      tags: [checklists]
+      summary: Add an item to a checklist
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checklistId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChecklistItemBody"
+      responses:
+        "201":
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistItem"
+        "404":
+          description: Not found
+
+  /tickets/{ticketId}/checklists/{checklistId}/items/{itemId}:
+    patch:
+      operationId: updateChecklistItem
+      tags: [checklists]
+      summary: Update a checklist item (text, checked, position)
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checklistId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChecklistItemBody"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteChecklistItem
+      tags: [checklists]
+      summary: Delete a checklist item
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checklistId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
 
   /tickets/{id}/activity:
     get:
@@ -2907,3 +3111,103 @@ components:
         - positionX
         - positionY
         - closed
+
+    ChecklistItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        checklistId:
+          type: integer
+        orgId:
+          type: integer
+          nullable: true
+        text:
+          type: string
+        checked:
+          type: boolean
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - checklistId
+        - text
+        - checked
+        - position
+        - createdAt
+        - updatedAt
+
+    ChecklistWithItems:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        orgId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
+      required:
+        - id
+        - ticketId
+        - title
+        - position
+        - createdAt
+        - updatedAt
+        - items
+
+    CreateChecklistBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+      required:
+        - title
+
+    UpdateChecklistBody:
+      type: object
+      properties:
+        title:
+          type: string
+        position:
+          type: integer
+
+    CreateChecklistItemBody:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+      required:
+        - text
+
+    UpdateChecklistItemBody:
+      type: object
+      properties:
+        text:
+          type: string
+        checked:
+          type: boolean
+        position:
+          type: integer

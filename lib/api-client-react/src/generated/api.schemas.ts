@@ -544,6 +544,49 @@ export interface StickyNoteStateInput {
   closed: boolean;
 }
 
+export interface ChecklistItem {
+  id: number;
+  checklistId: number;
+  orgId?: number | null;
+  text: string;
+  checked: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistWithItems {
+  id: number;
+  ticketId: number;
+  orgId?: number | null;
+  title: string;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+  items: ChecklistItem[];
+}
+
+export interface CreateChecklistBody {
+  /** @minLength 1 */
+  title: string;
+}
+
+export interface UpdateChecklistBody {
+  title?: string;
+  position?: number;
+}
+
+export interface CreateChecklistItemBody {
+  /** @minLength 1 */
+  text: string;
+}
+
+export interface UpdateChecklistItemBody {
+  text?: string;
+  checked?: boolean;
+  position?: number;
+}
+
 export type CompleteOnboardingBodyBusinessType =
   (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];
 

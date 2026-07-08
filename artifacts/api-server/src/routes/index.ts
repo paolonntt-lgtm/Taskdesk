@@ -30,6 +30,7 @@ import clientsRouter from "./clients";
 import stickyNotesRouter from "./stickyNotes";
 import ticketStatusesRouter from "./ticketStatuses";
 import groupsRouter from "./groups";
+import checklistsRouter from "./checklists";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,6 @@ router.use(clientsRouter);
 router.use(stickyNotesRouter);
 router.use(ticketStatusesRouter);
 router.use(groupsRouter);
+router.use(checklistsRouter);
 
 export default router;

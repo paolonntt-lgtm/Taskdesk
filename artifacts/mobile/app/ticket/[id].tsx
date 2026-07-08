@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, TextInput, ActivityIndicator,
-  Alert, Platform, Modal, KeyboardAvoidingView,
+  Alert, Platform, Modal, KeyboardAvoidingView, Pressable,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPatch, apiPost, PRIORITY_COLORS } from "@/utils/api";
+import { apiGet, apiPatch, apiPost, apiDelete, PRIORITY_COLORS } from "@/utils/api";
 import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -46,6 +46,18 @@ export default function TicketDetailScreen() {
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolving, setResolving] = useState(false);
 
+  const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [addingChecklist, setAddingChecklist] = useState(false);
+  const [savingChecklist, setSavingChecklist] = useState(false);
+  const [newItemTexts, setNewItemTexts] = useState<Record<number, string>>({});
+  const [addingItemFor, setAddingItemFor] = useState<number | null>(null);
+  const [savingItem, setSavingItem] = useState(false);
+  const [togglingItem, setTogglingItem] = useState<number | null>(null);
+  const [checklistsExpanded, setChecklistsExpanded] = useState<Record<number, boolean>>({});
+  const [editingItem, setEditingItem] = useState<{ clId: number; itemId: number; text: string } | null>(null);
+  const [savingEditItem, setSavingEditItem] = useState(false);
+  const [reorderingItem, setReorderingItem] = useState<number | null>(null);
+
   const { data: ticket, isLoading, refetch: refetchTicket } = useQuery({
     queryKey: ["ticket", id],
     queryFn: () => apiGet<Ticket>(`/tickets/${id}`),
@@ -57,6 +69,124 @@ export default function TicketDetailScreen() {
     queryFn: () => apiGet<Comment[]>(`/tickets/${id}/comments`),
     enabled: !!id,
   });
+
+  interface ChecklistItemType { id: number; text: string; checked: boolean; position: number; }
+  interface ChecklistType { id: number; title: string; items: ChecklistItemType[]; position: number; }
+
+  const { data: checklists = [], refetch: refetchChecklists } = useQuery({
+    queryKey: ["ticket-checklists", id],
+    queryFn: () => apiGet<ChecklistType[]>(`/tickets/${id}/checklists`),
+    enabled: !!id,
+  });
+
+  const handleCreateChecklist = async () => {
+    if (!newChecklistTitle.trim()) return;
+    setSavingChecklist(true);
+    try {
+      await apiPost(`/tickets/${id}/checklists`, { title: newChecklistTitle.trim() });
+      setNewChecklistTitle("");
+      setAddingChecklist(false);
+      refetchChecklists();
+    } catch (e: any) {
+      Alert.alert(t.checklist.deleteChecklist, e.message ?? t.checklist.itemError);
+    } finally {
+      setSavingChecklist(false);
+    }
+  };
+
+  const handleDeleteChecklist = async (clId: number) => {
+    Alert.alert(
+      t.checklist.deleteChecklist,
+      t.checklist.deleteChecklistConfirm,
+      [
+        { text: t.checklist.cancel, style: "cancel" },
+        {
+          text: t.checklist.deleteChecklistAction,
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiDelete(`/tickets/${id}/checklists/${clId}`);
+              refetchChecklists();
+            } catch {
+              Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleItem = async (clId: number, itemId: number, checked: boolean) => {
+    setTogglingItem(itemId);
+    try {
+      await apiPatch(`/tickets/${id}/checklists/${clId}/items/${itemId}`, { checked: !checked });
+      refetchChecklists();
+    } catch {
+      Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+    } finally {
+      setTogglingItem(null);
+    }
+  };
+
+  const handleAddItem = async (clId: number) => {
+    const text = newItemTexts[clId]?.trim();
+    if (!text) return;
+    setSavingItem(true);
+    try {
+      await apiPost(`/tickets/${id}/checklists/${clId}/items`, { text });
+      setNewItemTexts((prev) => ({ ...prev, [clId]: "" }));
+      setAddingItemFor(null);
+      refetchChecklists();
+    } catch {
+      Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const handleDeleteItem = async (clId: number, itemId: number) => {
+    try {
+      await apiDelete(`/tickets/${id}/checklists/${clId}/items/${itemId}`);
+      refetchChecklists();
+    } catch {
+      Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+    }
+  };
+
+  const handleSaveEditItem = async () => {
+    if (!editingItem || !editingItem.text.trim()) return;
+    setSavingEditItem(true);
+    try {
+      await apiPatch(`/tickets/${id}/checklists/${editingItem.clId}/items/${editingItem.itemId}`, { text: editingItem.text.trim() });
+      setEditingItem(null);
+      refetchChecklists();
+    } catch {
+      Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+    } finally {
+      setSavingEditItem(false);
+    }
+  };
+
+  const handleReorderItem = async (clId: number, itemId: number, direction: 'up' | 'down', items: Array<{ id: number; position: number }>) => {
+    const sorted = [...items].sort((a, b) => a.position - b.position);
+    const idx = sorted.findIndex((i) => i.id === itemId);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const current = sorted[idx];
+    const neighbor = sorted[swapIdx];
+    setReorderingItem(itemId);
+    try {
+      await Promise.all([
+        apiPatch(`/tickets/${id}/checklists/${clId}/items/${current.id}`, { position: neighbor.position }),
+        apiPatch(`/tickets/${id}/checklists/${clId}/items/${neighbor.id}`, { position: current.position }),
+      ]);
+      refetchChecklists();
+    } catch {
+      Alert.alert(t.checklist.deleteChecklist, t.checklist.itemError);
+    } finally {
+      setReorderingItem(null);
+    }
+  };
 
   const handleStatusChange = async (status: string) => {
     if (!ticket || ticket.status === status) return;
@@ -219,6 +349,232 @@ export default function TicketDetailScreen() {
             </ScrollView>
           </View>
         )}
+
+        {/* ── Checklists ── */}
+        <View style={s.section}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <Text style={s.sectionTitle}>{t.checklist.sectionTitle}</Text>
+            {isAdmin && !addingChecklist && (
+              <TouchableOpacity onPress={() => setAddingChecklist(true)}>
+                <Feather name="plus-circle" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {addingChecklist && (
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+              <TextInput
+                style={[s.commentInput, { flex: 1, minHeight: 40 }]}
+                value={newChecklistTitle}
+                onChangeText={setNewChecklistTitle}
+                placeholder={t.checklist.checklistTitlePlaceholder}
+                placeholderTextColor={colors.mutedForeground}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={[s.sendBtn, (!newChecklistTitle.trim() || savingChecklist) && s.sendBtnDisabled]}
+                onPress={handleCreateChecklist}
+                disabled={!newChecklistTitle.trim() || savingChecklist}
+              >
+                {savingChecklist ? (
+                  <ActivityIndicator color={colors.primaryForeground} size="small" />
+                ) : (
+                  <Feather name="check" size={18} color={colors.primaryForeground} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.sendBtn, { backgroundColor: colors.muted }]}
+                onPress={() => { setAddingChecklist(false); setNewChecklistTitle(""); }}
+              >
+                <Feather name="x" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {(checklists as ChecklistType[]).length === 0 && !addingChecklist && (
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: "Inter_400Regular" }}>
+              {t.checklist.noChecklists}
+            </Text>
+          )}
+
+          {(checklists as ChecklistType[]).map((cl) => {
+            const items = cl.items ?? [];
+            const total = items.length;
+            const done = items.filter((i) => i.checked).length;
+            const expanded = checklistsExpanded[cl.id] !== false;
+            const progressPct = total === 0 ? 0 : done / total;
+
+            return (
+              <View key={cl.id} style={{ backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 10, overflow: "hidden" }}>
+                {/* Checklist header */}
+                <Pressable
+                  style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
+                  onPress={() => setChecklistsExpanded((prev) => ({ ...prev, [cl.id]: !expanded }))}
+                >
+                  <Feather name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" }}>
+                    {cl.title}
+                  </Text>
+                  {isAdmin && (
+                    <TouchableOpacity onPress={() => handleDeleteChecklist(cl.id)} hitSlop={8}>
+                      <Feather name="trash-2" size={16} color={colors.destructive} />
+                    </TouchableOpacity>
+                  )}
+                </Pressable>
+
+                {/* Progress bar */}
+                {total > 0 && (
+                  <View style={{ paddingHorizontal: 12, paddingBottom: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flex: 1, height: 5, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden" }}>
+                      <View style={{ width: `${progressPct * 100}%`, height: "100%", backgroundColor: done === total ? colors.success : colors.primary, borderRadius: 3 }} />
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                      {t.checklist.progress(done, total)}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Items */}
+                {expanded && (
+                  <View style={{ paddingHorizontal: 8, paddingBottom: 8 }}>
+                    {[...items].sort((a, b) => a.position - b.position).map((item, itemIdx, sortedItems) => {
+                      const isEditingThis = editingItem?.itemId === item.id && editingItem?.clId === cl.id;
+                      return (
+                        <View key={item.id} style={{ paddingVertical: 4 }}>
+                          {isEditingThis ? (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                style={[s.commentInput, { flex: 1, minHeight: 36, maxHeight: 80 }]}
+                                value={editingItem!.text}
+                                onChangeText={(v) => setEditingItem((prev) => prev ? { ...prev, text: v } : null)}
+                                autoFocus
+                                returnKeyType="done"
+                                onSubmitEditing={handleSaveEditItem}
+                              />
+                              <TouchableOpacity
+                                style={[s.sendBtn, { width: 36, height: 36 }, (!editingItem?.text.trim() || savingEditItem) && s.sendBtnDisabled]}
+                                onPress={handleSaveEditItem}
+                                disabled={!editingItem?.text.trim() || savingEditItem}
+                              >
+                                {savingEditItem ? (
+                                  <ActivityIndicator color={colors.primaryForeground} size="small" />
+                                ) : (
+                                  <Feather name="check" size={14} color={colors.primaryForeground} />
+                                )}
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[s.sendBtn, { width: 36, height: 36, backgroundColor: colors.muted }]}
+                                onPress={() => setEditingItem(null)}
+                              >
+                                <Feather name="x" size={14} color={colors.mutedForeground} />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                              <TouchableOpacity
+                                onPress={() => handleToggleItem(cl.id, item.id, item.checked)}
+                                disabled={togglingItem === item.id}
+                                hitSlop={8}
+                                style={{ marginRight: 8 }}
+                              >
+                                {togglingItem === item.id ? (
+                                  <ActivityIndicator size="small" color={colors.primary} />
+                                ) : (
+                                  <Feather
+                                    name={item.checked ? "check-square" : "square"}
+                                    size={18}
+                                    color={item.checked ? colors.success : colors.mutedForeground}
+                                  />
+                                )}
+                              </TouchableOpacity>
+                              <Text style={{
+                                flex: 1, fontSize: 13, fontFamily: "Inter_400Regular",
+                                color: item.checked ? colors.mutedForeground : colors.foreground,
+                                textDecorationLine: item.checked ? "line-through" : "none",
+                              }}>
+                                {item.text}
+                              </Text>
+                              {isAdmin && (
+                                <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                                  <TouchableOpacity
+                                    onPress={() => handleReorderItem(cl.id, item.id, 'up', items)}
+                                    hitSlop={8}
+                                    disabled={itemIdx === 0 || reorderingItem === item.id}
+                                  >
+                                    <Feather name="chevron-up" size={14} color={itemIdx === 0 ? colors.muted : colors.mutedForeground} />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => handleReorderItem(cl.id, item.id, 'down', items)}
+                                    hitSlop={8}
+                                    disabled={itemIdx === sortedItems.length - 1 || reorderingItem === item.id}
+                                  >
+                                    <Feather name="chevron-down" size={14} color={itemIdx === sortedItems.length - 1 ? colors.muted : colors.mutedForeground} />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => setEditingItem({ clId: cl.id, itemId: item.id, text: item.text })}
+                                    hitSlop={8}
+                                  >
+                                    <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity onPress={() => handleDeleteItem(cl.id, item.id)} hitSlop={8}>
+                                    <Feather name="x" size={14} color={colors.destructive} />
+                                  </TouchableOpacity>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+
+                    {/* Add item */}
+                    {isAdmin && (
+                      addingItemFor === cl.id ? (
+                        <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+                          <TextInput
+                            style={[s.commentInput, { flex: 1, minHeight: 38, maxHeight: 80 }]}
+                            value={newItemTexts[cl.id] ?? ""}
+                            onChangeText={(v) => setNewItemTexts((prev) => ({ ...prev, [cl.id]: v }))}
+                            placeholder={t.checklist.addItemPlaceholder}
+                            placeholderTextColor={colors.mutedForeground}
+                            autoFocus
+                          />
+                          <TouchableOpacity
+                            style={[s.sendBtn, { width: 38, height: 38 }, (!newItemTexts[cl.id]?.trim() || savingItem) && s.sendBtnDisabled]}
+                            onPress={() => handleAddItem(cl.id)}
+                            disabled={!newItemTexts[cl.id]?.trim() || savingItem}
+                          >
+                            {savingItem ? (
+                              <ActivityIndicator color={colors.primaryForeground} size="small" />
+                            ) : (
+                              <Feather name="check" size={16} color={colors.primaryForeground} />
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[s.sendBtn, { width: 38, height: 38, backgroundColor: colors.muted }]}
+                            onPress={() => setAddingItemFor(null)}
+                          >
+                            <Feather name="x" size={16} color={colors.mutedForeground} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, paddingVertical: 4 }}
+                          onPress={() => setAddingItemFor(cl.id)}
+                        >
+                          <Feather name="plus" size={14} color={colors.primary} />
+                          <Text style={{ fontSize: 13, color: colors.primary, fontFamily: "Inter_500Medium" }}>
+                            {t.checklist.addItem}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t.ticketDetail.comments} ({comments.length})</Text>

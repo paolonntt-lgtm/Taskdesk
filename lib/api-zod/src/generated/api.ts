@@ -819,6 +819,149 @@ export const AddTicketNoteBody = zod.object({
 });
 
 /**
+ * @summary List checklists with items for a ticket
+ */
+export const ListTicketChecklistsParams = zod.object({
+  ticketId: zod.coerce.number(),
+});
+
+export const ListTicketChecklistsResponseItem = zod.object({
+  id: zod.number(),
+  ticketId: zod.number(),
+  orgId: zod.number().nullish(),
+  title: zod.string(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      checklistId: zod.number(),
+      orgId: zod.number().nullish(),
+      text: zod.string(),
+      checked: zod.boolean(),
+      position: zod.number(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+export const ListTicketChecklistsResponse = zod.array(
+  ListTicketChecklistsResponseItem,
+);
+
+/**
+ * @summary Create a checklist on a ticket
+ */
+export const CreateChecklistParams = zod.object({
+  ticketId: zod.coerce.number(),
+});
+
+export const CreateChecklistBody = zod.object({
+  title: zod.string().min(1),
+});
+
+/**
+ * @summary Rename or reorder a checklist
+ */
+export const UpdateChecklistParams = zod.object({
+  ticketId: zod.coerce.number(),
+  checklistId: zod.coerce.number(),
+});
+
+export const UpdateChecklistBody = zod.object({
+  title: zod.string().optional(),
+  position: zod.number().optional(),
+});
+
+export const UpdateChecklistResponse = zod.object({
+  id: zod.number(),
+  ticketId: zod.number(),
+  orgId: zod.number().nullish(),
+  title: zod.string(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      checklistId: zod.number(),
+      orgId: zod.number().nullish(),
+      text: zod.string(),
+      checked: zod.boolean(),
+      position: zod.number(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a checklist
+ */
+export const DeleteChecklistParams = zod.object({
+  ticketId: zod.coerce.number(),
+  checklistId: zod.coerce.number(),
+});
+
+export const DeleteChecklistResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Add an item to a checklist
+ */
+export const AddChecklistItemParams = zod.object({
+  ticketId: zod.coerce.number(),
+  checklistId: zod.coerce.number(),
+});
+
+export const AddChecklistItemBody = zod.object({
+  text: zod.string().min(1),
+});
+
+/**
+ * @summary Update a checklist item (text, checked, position)
+ */
+export const UpdateChecklistItemParams = zod.object({
+  ticketId: zod.coerce.number(),
+  checklistId: zod.coerce.number(),
+  itemId: zod.coerce.number(),
+});
+
+export const UpdateChecklistItemBody = zod.object({
+  text: zod.string().optional(),
+  checked: zod.boolean().optional(),
+  position: zod.number().optional(),
+});
+
+export const UpdateChecklistItemResponse = zod.object({
+  id: zod.number(),
+  checklistId: zod.number(),
+  orgId: zod.number().nullish(),
+  text: zod.string(),
+  checked: zod.boolean(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a checklist item
+ */
+export const DeleteChecklistItemParams = zod.object({
+  ticketId: zod.coerce.number(),
+  checklistId: zod.coerce.number(),
+  itemId: zod.coerce.number(),
+});
+
+export const DeleteChecklistItemResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
  * @summary List activity log for a ticket
  */
 export const ListTicketActivityParams = zod.object({
