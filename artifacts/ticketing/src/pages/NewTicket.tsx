@@ -76,9 +76,13 @@ export default function NewTicket() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
+      const finalTitle = selectedClient
+        ? `${selectedClient.name}: ${formData.title}`
+        : formData.title;
       const result = await createTicket.mutateAsync({
         data: {
-          title: formData.title,
+          title: finalTitle,
           description: formData.description,
           category: formData.category,
           location: formData.location || undefined,

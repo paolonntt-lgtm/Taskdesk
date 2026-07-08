@@ -944,11 +944,10 @@ const it = {
     formatBulletList: 'Elenco puntato',
     formatDefaultText: 'testo',
     mentionClientPlaceholder: 'Nessun cliente trovato',
-    mentionSortLabel: 'Ordina',
-    mentionSortNameAsc: 'A→Z',
-    mentionSortNameDesc: 'Z→A',
-    mentionSortRecentDesc: 'Più recente',
-    mentionSortRecentAsc: 'Meno recente',
+    sortAZ: 'A→Z',
+    sortZA: 'Z→A',
+    sortNewest: 'Più recente',
+    sortOldest: 'Meno recente',
   },
   entityTerms: {
     it_support: {
@@ -1914,11 +1913,10 @@ const en: typeof it = {
     formatBulletList: 'Bullet list',
     formatDefaultText: 'text',
     mentionClientPlaceholder: 'No clients found',
-    mentionSortLabel: 'Sort',
-    mentionSortNameAsc: 'A→Z',
-    mentionSortNameDesc: 'Z→A',
-    mentionSortRecentDesc: 'Most recent',
-    mentionSortRecentAsc: 'Least recent',
+    sortAZ: 'A→Z',
+    sortZA: 'Z→A',
+    sortNewest: 'Most recent',
+    sortOldest: 'Least recent',
   },
   entityTerms: {
     it_support: {

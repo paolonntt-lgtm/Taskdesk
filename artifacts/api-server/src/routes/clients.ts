@@ -29,12 +29,21 @@ const ImportRow = z.object({
   phone: z.string().optional().nullable(),
 });
 
+const ClientsQuerySchema = z.object({
+  search: z.string().optional(),
+  sort: z.enum(["name", "createdAt"]).optional().default("name"),
+  order: z.enum(["asc", "desc"]).optional().default("asc"),
+});
+
 router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
-  const search = req.query.search as string | undefined;
-  const sortParam = req.query.sort as string | undefined;
-  const orderParam = req.query.order as string | undefined;
+  const parsed = ClientsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query parameters" });
+    return;
+  }
+  const { search, sort, order } = parsed.data;
 
   const conditions = [orgId != null ? eq(clientsTable.organizationId, orgId) : undefined].filter(Boolean) as any[];
 
@@ -47,14 +56,14 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
     );
   }
 
-  const sortCol = sortParam === 'createdAt' ? clientsTable.createdAt : clientsTable.name;
-  const orderFn = orderParam === 'desc' ? desc(sortCol) : asc(sortCol);
+  const sortCol = sort === "createdAt" ? clientsTable.createdAt : clientsTable.name;
+  const orderFn = order === "desc" ? desc : asc;
 
   const clients = await db
     .select()
     .from(clientsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(orderFn);
+    .orderBy(orderFn(sortCol));
 
   res.json(clients);
 });

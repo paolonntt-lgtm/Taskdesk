@@ -303,16 +303,47 @@ export default function StickyNotesLayer() {
 
   const [mention, setMention] = useState<MentionState | null>(null);
   const [mentionPos, setMentionPos] = useState<{ top: number; left: number; width: number } | null>(null);
-  const [mentionSort, setMentionSort] = useState<{ sort: 'name' | 'createdAt'; order: 'asc' | 'desc' }>(() => {
+
+  type MentionSortKey = "name_asc" | "name_desc" | "createdAt_desc" | "createdAt_asc";
+  const MENTION_SORT_LS_KEY = "stickyNoteMentionSort";
+
+  const [mentionSort, setMentionSort] = useState<MentionSortKey>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('mentionSort') || '{}');
-      const sort = saved.sort === 'createdAt' ? 'createdAt' : 'name';
-      const order = saved.order === 'desc' ? 'desc' : 'asc';
-      return { sort, order };
-    } catch {
-      return { sort: 'name', order: 'asc' };
-    }
+      const v = localStorage.getItem(MENTION_SORT_LS_KEY);
+      if (v === "name_asc" || v === "name_desc" || v === "createdAt_desc" || v === "createdAt_asc") return v as MentionSortKey;
+    } catch { /* ignore */ }
+    return "name_asc";
   });
+
+  const buildSortParams = useCallback((s: MentionSortKey) => {
+    const [sort, order] = s.split("_") as [string, string];
+    return `sort=${sort}&order=${order}`;
+  }, []);
+
+  const handleMentionSortChange = (_: React.MouseEvent, val: MentionSortKey | null) => {
+    if (!val) return;
+    setMentionSort(val);
+    try { localStorage.setItem(MENTION_SORT_LS_KEY, val); } catch { /* ignore */ }
+  };
+
+  const mentionRef = useRef<MentionState | null>(null);
+  mentionRef.current = mention;
+
+  useEffect(() => {
+    const m = mentionRef.current;
+    if (!m) return;
+    fetch(`/api/clients?search=${encodeURIComponent(m.query)}&${buildSortParams(mentionSort)}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((clients: any[]) => {
+        setMention((prev) => prev ? {
+          ...prev,
+          results: clients.slice(0, 8).map((c: any) => ({ id: c.id, name: c.name })),
+          selectedIdx: 0,
+        } : null);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentionSort]);
 
   useEffect(() => {
     if (newNoteId.current == null) return;
@@ -354,7 +385,7 @@ export default function StickyNotesLayer() {
     if (match) {
       const query = match[1];
       const startIndex = cursor - match[0].length;
-      fetch(`/api/clients?search=${encodeURIComponent(query)}&sort=${mentionSort.sort}&order=${mentionSort.order}`, { credentials: "include" })
+      fetch(`/api/clients?search=${encodeURIComponent(query)}&${buildSortParams(mentionSort)}`, { credentials: "include" })
         .then((r) => (r.ok ? r.json() : []))
         .then((clients: any[]) => {
           setMention({
@@ -729,37 +760,32 @@ export default function StickyNotesLayer() {
           }}
         >
           <Box
-            sx={{ px: 1, pt: 0.75, pb: 0.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", gap: 0.75 }}
+            sx={{ px: 0.75, pt: 0.75, pb: 0.5, borderBottom: "1px solid", borderColor: "divider" }}
             onMouseDown={(e) => e.preventDefault()}
           >
-            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-              {t.stickyNotes.mentionSortLabel}
-            </Typography>
             <ToggleButtonGroup
-              value={`${mentionSort.sort}:${mentionSort.order}`}
+              value={mentionSort}
               exclusive
+              onChange={handleMentionSortChange}
               size="small"
-              onChange={(_, v) => {
-                if (!v) return;
-                const [s, o] = v.split(":") as ["name" | "createdAt", "asc" | "desc"];
-                const newSort = { sort: s, order: o };
-                setMentionSort(newSort);
-                localStorage.setItem("mentionSort", JSON.stringify(newSort));
-                if (mention) {
-                  fetch(`/api/clients?search=${encodeURIComponent(mention.query)}&sort=${s}&order=${o}`, { credentials: "include" })
-                    .then((r) => (r.ok ? r.json() : []))
-                    .then((clients: any[]) =>
-                      setMention({ ...mention, results: clients.slice(0, 8).map((c: any) => ({ id: c.id, name: c.name })), selectedIdx: 0 })
-                    )
-                    .catch(() => {});
-                }
-              }}
-              sx={{ "& .MuiToggleButton-root": { py: 0.2, px: 0.5, fontSize: 11, lineHeight: 1.4 } }}
+              sx={{ flexWrap: "wrap", gap: 0.25 }}
             >
-              <ToggleButton value="name:asc">{t.stickyNotes.mentionSortNameAsc}</ToggleButton>
-              <ToggleButton value="name:desc">{t.stickyNotes.mentionSortNameDesc}</ToggleButton>
-              <ToggleButton value="createdAt:desc">{t.stickyNotes.mentionSortRecentDesc}</ToggleButton>
-              <ToggleButton value="createdAt:asc">{t.stickyNotes.mentionSortRecentAsc}</ToggleButton>
+              {(
+                [
+                  ["name_asc", t.stickyNotes.sortAZ],
+                  ["name_desc", t.stickyNotes.sortZA],
+                  ["createdAt_desc", t.stickyNotes.sortNewest],
+                  ["createdAt_asc", t.stickyNotes.sortOldest],
+                ] as [string, string][]
+              ).map(([val, label]) => (
+                <ToggleButton
+                  key={val}
+                  value={val}
+                  sx={{ py: 0.2, px: 0.75, fontSize: 11, lineHeight: 1.4, textTransform: "none", minWidth: 0 }}
+                >
+                  {label}
+                </ToggleButton>
+              ))}
             </ToggleButtonGroup>
           </Box>
           <List dense disablePadding>
