@@ -27,6 +27,8 @@ export const stickyNoteUserStatesTable = pgTable("sticky_note_user_states", {
   width: integer("width"),
   height: integer("height"),
   closed: boolean("closed").notNull().default(false),
+  closedPositionX: integer("closed_position_x"),
+  closedPositionY: integer("closed_position_y"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   unique("sticky_note_user_uniq").on(t.noteId, t.userId),

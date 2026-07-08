@@ -32,6 +32,8 @@ const StateBody = z.object({
   closed: z.boolean(),
   width: z.number().int().min(200).optional().nullable(),
   height: z.number().int().min(120).optional().nullable(),
+  closedPositionX: z.number().int().optional().nullable(),
+  closedPositionY: z.number().int().optional().nullable(),
 });
 
 function parseUserGroups(groups: string | null | undefined): string[] {
@@ -94,6 +96,8 @@ router.get("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
       width: state?.width ?? null,
       height: state?.height ?? null,
       closed: state?.closed ?? false,
+      closedPosX: state?.closedPositionX ?? null,
+      closedPosY: state?.closedPositionY ?? null,
     };
   });
 
@@ -233,14 +237,32 @@ router.put("/sticky-notes/:id/state", requireAuth, async (req, res): Promise<voi
     return;
   }
 
-  const { positionX, positionY, closed, width, height } = parsed.data;
+  const { positionX, positionY, closed, width, height, closedPositionX, closedPositionY } = parsed.data;
+  const hasClosedPos = "closedPositionX" in req.body && "closedPositionY" in req.body;
 
   await db
     .insert(stickyNoteUserStatesTable)
-    .values({ noteId: id, userId, positionX, positionY, width: width ?? null, height: height ?? null, closed })
+    .values({
+      noteId: id,
+      userId,
+      positionX,
+      positionY,
+      width: width ?? null,
+      height: height ?? null,
+      closed,
+      ...(hasClosedPos ? { closedPositionX: closedPositionX ?? null, closedPositionY: closedPositionY ?? null } : {}),
+    })
     .onConflictDoUpdate({
       target: [stickyNoteUserStatesTable.noteId, stickyNoteUserStatesTable.userId],
-      set: { positionX, positionY, width: width ?? null, height: height ?? null, closed, updatedAt: new Date() },
+      set: {
+        positionX,
+        positionY,
+        width: width ?? null,
+        height: height ?? null,
+        closed,
+        updatedAt: new Date(),
+        ...(hasClosedPos ? { closedPositionX: closedPositionX ?? null, closedPositionY: closedPositionY ?? null } : {}),
+      },
     });
 
   res.json({ ok: true });

@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Box, Fab, Tooltip, Paper, IconButton, TextField, Typography,
-  Select, MenuItem, FormControl, InputLabel, Chip, Dialog,
+  Select, MenuItem, FormControl, InputLabel, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, Autocomplete,
+  List, ListItemButton, ListItemText,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
@@ -14,9 +16,14 @@ import GroupIcon from "@mui/icons-material/Group";
 import PeopleIcon from "@mui/icons-material/People";
 import PublicIcon from "@mui/icons-material/Public";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
+import { wrapSelection, insertLinePrefix, renderStickyNoteText } from "../lib/stickyNoteFormat";
 
 const COLORS: Record<string, { bg: string; border: string }> = {
   yellow: { bg: "#fef9c3", border: "#fde047" },
@@ -42,11 +49,22 @@ interface NoteDisplay {
   width: number | null;
   height: number | null;
   closed: boolean;
+  closedPosX: number | null;
+  closedPosY: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
 interface UserOption { id: number; name: string; email: string; }
+interface ClientOption { id: number; name: string; }
+
+interface MentionState {
+  noteId: number;
+  query: string;
+  startIndex: number;
+  results: ClientOption[];
+  selectedIdx: number;
+}
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(path, { credentials: "include", ...opts });
@@ -87,11 +105,17 @@ export default function StickyNotesLayer() {
   const [, forceRender] = useState(0);
   const newNoteId = useRef<number | null>(null);
   const textareaRefs = useRef<Map<number, HTMLTextAreaElement | null>>(new Map());
+  const textWrapperRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
 
   const DEFAULT_W = 280;
   const DEFAULT_H = 180;
   const MIN_W = 200;
   const MIN_H = 120;
+
+  const DOCK_ITEM_W = 220;
+  const DOCK_ITEM_H = 42;
+  const DOCK_GAP = 8;
+  const DOCK_MARGIN = 16;
 
   useEffect(() => {
     notes.forEach((n) => {
@@ -116,9 +140,25 @@ export default function StickyNotesLayer() {
     startW: number; startH: number;
   } | null>(null);
 
+  const closedPositions = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const closedDrag = useRef<{
+    noteId: number;
+    startMX: number; startMY: number;
+    startPX: number; startPY: number;
+    moved: boolean;
+  } | null>(null);
+
   const saveStateTimer = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-  const saveState = useCallback((noteId: number, x: number, y: number, closed: boolean, w?: number, h?: number) => {
+  const saveState = useCallback((
+    noteId: number,
+    x: number,
+    y: number,
+    closed: boolean,
+    w?: number,
+    h?: number,
+    closedPos?: { x: number; y: number },
+  ) => {
     const existing = saveStateTimer.current.get(noteId);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -132,6 +172,7 @@ export default function StickyNotesLayer() {
           closed,
           ...(w != null ? { width: Math.round(w) } : {}),
           ...(h != null ? { height: Math.round(h) } : {}),
+          ...(closedPos ? { closedPositionX: Math.round(closedPos.x), closedPositionY: Math.round(closedPos.y) } : {}),
         }),
       }).catch(() => {});
       saveStateTimer.current.delete(noteId);
@@ -141,6 +182,17 @@ export default function StickyNotesLayer() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (closedDrag.current) {
+        const { noteId, startMX, startMY, startPX, startPY } = closedDrag.current;
+        const dx = e.clientX - startMX;
+        const dy = e.clientY - startMY;
+        if (Math.abs(dx) + Math.abs(dy) > 4) closedDrag.current.moved = true;
+        const newX = Math.max(0, Math.min(window.innerWidth - DOCK_ITEM_W, startPX + dx));
+        const newY = Math.max(0, Math.min(window.innerHeight - DOCK_ITEM_H, startPY + dy));
+        closedPositions.current.set(noteId, { x: newX, y: newY });
+        forceRender((c) => c + 1);
+        return;
+      }
       if (resize.current) {
         const { noteId, startMX, startMY, startW, startH } = resize.current;
         const newW = Math.max(MIN_W, startW + (e.clientX - startMX));
@@ -160,6 +212,27 @@ export default function StickyNotesLayer() {
       forceRender((c) => c + 1);
     };
     const onUp = (e: MouseEvent) => {
+      if (closedDrag.current) {
+        const { noteId, startMX, startMY, startPX, startPY, moved } = closedDrag.current;
+        const dx = e.clientX - startMX;
+        const dy = e.clientY - startMY;
+        const newX = Math.max(0, Math.min(window.innerWidth - DOCK_ITEM_W, startPX + dx));
+        const newY = Math.max(0, Math.min(window.innerHeight - DOCK_ITEM_H, startPY + dy));
+        closedPositions.current.set(noteId, { x: newX, y: newY });
+        closedDrag.current = null;
+        const note = notes.find((n) => n.id === noteId);
+        if (note) {
+          if (!moved) {
+            handleOpen(note);
+          } else {
+            const openPos = positions.current.get(noteId) ?? { x: note.posX, y: note.posY };
+            const sz = sizes.current.get(noteId) ?? { w: note.width ?? DEFAULT_W, h: note.height ?? DEFAULT_H };
+            saveState(noteId, openPos.x, openPos.y, true, sz.w, sz.h, { x: newX, y: newY });
+          }
+        }
+        forceRender((c) => c + 1);
+        return;
+      }
       if (resize.current) {
         const { noteId, startMX, startMY, startW, startH } = resize.current;
         const newW = Math.max(MIN_W, startW + (e.clientX - startMX));
@@ -191,7 +264,8 @@ export default function StickyNotesLayer() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [notes, saveState, DEFAULT_W, DEFAULT_H, MIN_W, MIN_H]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes, saveState, DEFAULT_W, DEFAULT_H, MIN_W, MIN_H, DOCK_ITEM_W, DOCK_ITEM_H]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiFetch("/api/sticky-notes", {
@@ -227,6 +301,9 @@ export default function StickyNotesLayer() {
   const [editingText, setEditingText] = useState<Map<number, string>>(new Map());
   const textTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
+  const [mention, setMention] = useState<MentionState | null>(null);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
   useEffect(() => {
     if (newNoteId.current == null) return;
     const id = newNoteId.current;
@@ -236,6 +313,14 @@ export default function StickyNotesLayer() {
       newNoteId.current = null;
     }
   }, [notes]);
+
+  useEffect(() => {
+    if (!mention || mention.results.length === 0) { setMentionPos(null); return; }
+    const el = textWrapperRefs.current.get(mention.noteId);
+    if (!el) { setMentionPos(null); return; }
+    const rect = el.getBoundingClientRect();
+    setMentionPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(200, rect.width) });
+  }, [mention]);
 
   const handleTextChange = (note: NoteDisplay, val: string) => {
     setEditingText((prev) => new Map(prev).set(note.id, val));
@@ -248,6 +333,80 @@ export default function StickyNotesLayer() {
     textTimers.current.set(note.id, t2);
   };
 
+  const closeMention = useCallback(() => setMention(null), []);
+
+  const handleTextInputChange = (note: NoteDisplay, e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    handleTextChange(note, val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursor);
+    const match = textBefore.match(/@([^\s@]*)$/);
+    if (match) {
+      const query = match[1];
+      const startIndex = cursor - match[0].length;
+      fetch(`/api/clients?search=${encodeURIComponent(query)}`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((clients: any[]) => {
+          setMention({
+            noteId: note.id,
+            query,
+            startIndex,
+            results: clients.slice(0, 8).map((c: any) => ({ id: c.id, name: c.name })),
+            selectedIdx: 0,
+          });
+        })
+        .catch(() => closeMention());
+    } else if (mention?.noteId === note.id) {
+      closeMention();
+    }
+  };
+
+  const insertClientMention = useCallback((note: NoteDisplay, client: ClientOption) => {
+    if (!mention || mention.noteId !== note.id) return;
+    const ta = textareaRefs.current.get(note.id);
+    const currentVal = editingText.has(note.id) ? editingText.get(note.id)! : note.text;
+    const cursor = ta?.selectionStart ?? currentVal.length;
+    const before = currentVal.slice(0, mention.startIndex);
+    const after = currentVal.slice(cursor);
+    const tag = `@[${client.name}]`;
+    const newVal = before + tag + " " + after;
+    handleTextChange(note, newVal);
+    closeMention();
+    setTimeout(() => {
+      if (ta) {
+        ta.focus();
+        const pos = mention.startIndex + tag.length + 1;
+        ta.setSelectionRange(pos, pos);
+      }
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mention, editingText, closeMention]);
+
+  const handleTextKeyDown = (note: NoteDisplay, e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mention && mention.noteId === note.id && mention.results.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMention((m) => m ? { ...m, selectedIdx: Math.min(m.selectedIdx + 1, m.results.length - 1) } : null);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMention((m) => m ? { ...m, selectedIdx: Math.max(m.selectedIdx - 1, 0) } : null);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const client = mention.results[mention.selectedIdx];
+        if (client) insertClientMention(note, client);
+        return;
+      }
+      if (e.key === "Escape") {
+        closeMention();
+        return;
+      }
+    }
+  };
+
   const handleTextBlur = (note: NoteDisplay, val: string) => {
     const timer = textTimers.current.get(note.id);
     if (timer) {
@@ -255,6 +414,7 @@ export default function StickyNotesLayer() {
       textTimers.current.delete(note.id);
     }
     updateMutation.mutate({ id: note.id, text: val });
+    if (mention?.noteId === note.id) closeMention();
   };
 
   const handleClose = (note: NoteDisplay) => {
@@ -273,6 +433,11 @@ export default function StickyNotesLayer() {
       (old ?? []).map((n) => n.id === note.id ? { ...n, closed: false } : n)
     );
     saveState(note.id, pos.x, pos.y, false, sz.w, sz.h);
+  };
+
+  const action = (note: NoteDisplay, fn: (ta: HTMLTextAreaElement) => void) => {
+    const ta = textareaRefs.current.get(note.id);
+    if (ta) fn(ta);
   };
 
   if (!user) return null;
@@ -390,22 +555,96 @@ export default function StickyNotesLayer() {
                 </Tooltip>
               </Box>
 
-              <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                <TextField
-                  multiline
-                  minRows={3}
-                  maxRows={10}
-                  fullWidth
-                  variant="standard"
-                  placeholder={t.stickyNotes.placeholder}
-                  value={textVal}
-                  onChange={isOwner ? (e) => handleTextChange(note, e.target.value) : undefined}
-                  onBlur={isOwner ? (e) => handleTextBlur(note, e.target.value) : undefined}
+              {isOwner && (
+                <Box
+                  sx={{
+                    display: "flex", alignItems: "center", gap: 0.25,
+                    px: 1, pt: 0.5,
+                    borderBottom: `1px solid ${col.border}`,
+                    flexWrap: "wrap",
+                  }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  inputRef={(el) => { textareaRefs.current.set(note.id, el); }}
-                  InputProps={{ disableUnderline: true, style: { fontSize: 13 }, readOnly: !isOwner }}
-                  sx={{ "& textarea": { userSelect: "text", cursor: isOwner ? "text" : "default" } }}
-                />
+                >
+                  <Tooltip title={t.stickyNotes.formatBold}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        action(note, (ta) => wrapSelection(ta, "**", "**", t.stickyNotes.formatDefaultText, (v) => handleTextChange(note, v)));
+                      }}
+                    >
+                      <FormatBoldIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t.stickyNotes.formatItalic}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        action(note, (ta) => wrapSelection(ta, "*", "*", t.stickyNotes.formatDefaultText, (v) => handleTextChange(note, v)));
+                      }}
+                    >
+                      <FormatItalicIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t.stickyNotes.formatUnderline}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        action(note, (ta) => wrapSelection(ta, "~", "~", t.stickyNotes.formatDefaultText, (v) => handleTextChange(note, v)));
+                      }}
+                    >
+                      <FormatUnderlinedIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t.stickyNotes.formatBulletList}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        action(note, (ta) => insertLinePrefix(ta, "- ", (v) => handleTextChange(note, v)));
+                      }}
+                    >
+                      <FormatListBulletedIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
+
+              <Box
+                sx={{ p: 1.5, flexGrow: 1 }}
+                ref={(el: HTMLDivElement | null) => { textWrapperRefs.current.set(note.id, el); }}
+              >
+                {isOwner ? (
+                  <TextField
+                    multiline
+                    minRows={3}
+                    maxRows={10}
+                    fullWidth
+                    variant="standard"
+                    placeholder={t.stickyNotes.placeholder}
+                    value={textVal}
+                    onChange={(e) => handleTextInputChange(note, e as React.ChangeEvent<HTMLTextAreaElement>)}
+                    onKeyDown={(e) => handleTextKeyDown(note, e as unknown as React.KeyboardEvent<HTMLTextAreaElement>)}
+                    onBlur={(e) => handleTextBlur(note, e.target.value)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    inputRef={(el) => { textareaRefs.current.set(note.id, el); }}
+                    InputProps={{ disableUnderline: true, style: { fontSize: 13 } }}
+                    sx={{ "& textarea": { userSelect: "text", cursor: "text" } }}
+                  />
+                ) : (
+                  <Box
+                    onMouseDown={(e) => e.stopPropagation()}
+                    sx={{ fontSize: 13, userSelect: "text", minHeight: 24, color: textVal.trim() ? "text.primary" : "text.secondary" }}
+                  >
+                    {textVal.trim() ? renderStickyNoteText(textVal) : t.stickyNotes.placeholder}
+                  </Box>
+                )}
               </Box>
 
               {(isOwner || (user as any).role === "admin") && (
@@ -466,40 +705,101 @@ export default function StickyNotesLayer() {
         })}
       </Box>
 
+      {mention && mention.results.length > 0 && mentionPos && createPortal(
+        <Paper
+          elevation={6}
+          sx={{
+            position: "fixed",
+            top: mentionPos.top,
+            left: mentionPos.left,
+            width: mentionPos.width,
+            maxHeight: 240,
+            overflowY: "auto",
+            zIndex: theme.zIndex.modal + 200,
+          }}
+        >
+          <List dense disablePadding>
+            {mention.results.map((c, idx) => (
+              <ListItemButton
+                key={c.id}
+                selected={idx === mention.selectedIdx}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const note = notes.find((n) => n.id === mention.noteId);
+                  if (note) insertClientMention(note, c);
+                }}
+              >
+                <ListItemText primary={c.name} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Paper>,
+        document.body,
+      )}
+
       {closedNotes.length > 0 && (
         <Box
           sx={{
             position: "fixed",
-            bottom: 80,
-            left: 16,
+            inset: 0,
+            pointerEvents: "none",
             zIndex: 1201,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 0.75,
-            maxWidth: "calc(100vw - 200px)",
-            pointerEvents: "auto",
           }}
         >
-          {closedNotes.map((note) => {
+          {closedNotes.map((note, idx) => {
+            if (!closedPositions.current.has(note.id)) {
+              const defaultX = window.innerWidth - DOCK_ITEM_W - DOCK_MARGIN;
+              const defaultY = window.innerHeight - DOCK_MARGIN - DOCK_ITEM_H - idx * (DOCK_ITEM_H + DOCK_GAP) - 64;
+              closedPositions.current.set(note.id, {
+                x: note.closedPosX ?? defaultX,
+                y: note.closedPosY ?? defaultY,
+              });
+            }
+            const pos = closedPositions.current.get(note.id)!;
             const col = COLORS[note.color] ?? COLORS.yellow;
-            const preview = note.text.trim().slice(0, 30) || "…";
+            const preview = note.text.replace(/[*_~]/g, "").replace(/@\[([^\]]+)\]/g, "@$1").trim().slice(0, 34) || t.stickyNotes.placeholder;
+            const isDraggingThis = closedDrag.current?.noteId === note.id;
+
             return (
               <Tooltip key={note.id} title={t.stickyNotes.open} placement="top">
-                <Chip
-                  label={preview}
-                  size="small"
-                  icon={<Box sx={{ color: "text.secondary", display: "flex", alignItems: "center", pl: 0.5 }}>
-                    <OpenInFullIcon sx={{ fontSize: 12 }} />
-                  </Box>}
-                  onClick={() => handleOpen(note)}
+                <Paper
+                  elevation={3}
                   sx={{
+                    position: "absolute",
+                    left: pos.x,
+                    top: pos.y,
+                    width: DOCK_ITEM_W,
+                    height: DOCK_ITEM_H,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    px: 1,
                     bgcolor: col.bg,
                     border: `1px solid ${col.border}`,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    "&:hover": { bgcolor: col.border },
+                    borderRadius: 1.5,
+                    pointerEvents: "auto",
+                    cursor: isDraggingThis ? "grabbing" : "grab",
+                    userSelect: "none",
+                    boxShadow: isDraggingThis ? "0 8px 20px rgba(0,0,0,0.2)" : undefined,
+                    transition: isDraggingThis ? "none" : "box-shadow 0.15s",
                   }}
-                />
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    closedDrag.current = {
+                      noteId: note.id,
+                      startMX: e.clientX, startMY: e.clientY,
+                      startPX: pos.x, startPY: pos.y,
+                      moved: false,
+                    };
+                    forceRender((c) => c + 1);
+                  }}
+                >
+                  <DragIndicatorIcon sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }} />
+                  <Typography variant="body2" noWrap sx={{ flex: 1, fontSize: 12.5 }}>
+                    {preview}
+                  </Typography>
+                  <OpenInFullIcon sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} />
+                </Paper>
               </Tooltip>
             );
           })}
@@ -546,6 +846,7 @@ export default function StickyNotesLayer() {
               if (deleteConfirmId !== null) {
                 deleteMutation.mutate(deleteConfirmId);
                 positions.current.delete(deleteConfirmId);
+                closedPositions.current.delete(deleteConfirmId);
               }
               setDeleteConfirmId(null);
             }}

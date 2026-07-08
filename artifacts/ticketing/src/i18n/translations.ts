@@ -937,6 +937,12 @@ const it = {
     noGroupsAvailable: 'Nessun gruppo disponibile',
     oversizeWarning: (name: string) => `⚠️ Allegato "${name}" non salvato: supera il limite di 10 MB`,
     resizeTooltip: 'Ridimensiona',
+    formatBold: 'Grassetto',
+    formatItalic: 'Corsivo',
+    formatUnderline: 'Sottolineato',
+    formatBulletList: 'Elenco puntato',
+    formatDefaultText: 'testo',
+    mentionClientPlaceholder: 'Nessun cliente trovato',
   },
   entityTerms: {
     it_support: {
@@ -1895,6 +1901,12 @@ const en: typeof it = {
     noGroupsAvailable: 'No groups available',
     oversizeWarning: (name: string) => `⚠️ Attachment "${name}" not saved: exceeds the 10 MB limit`,
     resizeTooltip: 'Resize',
+    formatBold: 'Bold',
+    formatItalic: 'Italic',
+    formatUnderline: 'Underline',
+    formatBulletList: 'Bullet list',
+    formatDefaultText: 'text',
+    mentionClientPlaceholder: 'No clients found',
   },
   entityTerms: {
     it_support: {
