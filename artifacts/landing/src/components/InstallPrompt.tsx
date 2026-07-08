@@ -8,6 +8,14 @@ interface BeforeInstallPromptEvent extends Event {
 
 const DISMISSED_KEY = "taskdesk-install-dismissed";
 
+function isDismissedThisSession() {
+  try {
+    return sessionStorage.getItem(DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
 }
@@ -26,7 +34,7 @@ export function InstallPrompt() {
 
   useEffect(() => {
     if (isInStandaloneMode()) return;
-    if (localStorage.getItem(DISMISSED_KEY)) return;
+    if (isDismissedThisSession()) return;
 
     if (isIOS()) {
       setTimeout(() => {
@@ -47,7 +55,11 @@ export function InstallPrompt() {
 
   const dismiss = () => {
     setVisible(false);
-    localStorage.setItem(DISMISSED_KEY, "1");
+    try {
+      sessionStorage.setItem(DISMISSED_KEY, "1");
+    } catch {
+      // sessionStorage unavailable (e.g. private mode) — dismissal just won't persist for the session.
+    }
   };
 
   const install = async () => {
