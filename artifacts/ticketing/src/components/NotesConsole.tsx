@@ -3,7 +3,7 @@ import {
   Box, Typography, TextField, IconButton, Paper, Tooltip,
   Popper, List, ListItem, ListItemButton, ListItemText,
   CircularProgress, Chip, Collapse, ClickAwayListener,
-  Snackbar, Alert, Link, Divider,
+  Snackbar, Alert, Divider, Button,
 } from '@mui/material';
 import {
   EditNote, Send, ExpandLess, KeyboardArrowDown, OpenInNew,
@@ -26,9 +26,11 @@ export default function NotesConsole() {
   const [body, setBody] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
+  const [selectedClientSlug, setSelectedClientSlug] = useState<string | null>(null);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [historyLimit, setHistoryLimit] = useState(10);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
@@ -39,7 +41,7 @@ export default function NotesConsole() {
   const anchorRef = useRef<HTMLDivElement>(null);
 
   const { data: clients = [] } = useListClients({ search: mentionSearch || undefined });
-  const { data: recentNotes = [] } = useListAllClientNotes({ limit: 8 } as any);
+  const { data: allRecentNotes = [] } = useListAllClientNotes();
 
   const createNote = useCreateClientNote();
 
@@ -47,10 +49,7 @@ export default function NotesConsole() {
   const parseMention = (text: string): { slug: string; cleanBody: string } | null => {
     const match = text.match(/@([\w.\-]+)/);
     if (!match) return null;
-    return {
-      slug: match[1],
-      cleanBody: text.replace(match[0], '').trim(),
-    };
+    return { slug: match[1], cleanBody: text.replace(match[0], '').trim() };
   };
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -69,20 +68,23 @@ export default function NotesConsole() {
     setMentionOpen(false);
   };
 
-  const handleSelectClient = (clientId: number, clientName: string) => {
+  const handleSelectClient = (clientId: number, clientName: string, clientSlug: string | null) => {
     setSelectedClientId(clientId);
     setSelectedClientName(clientName);
+    setSelectedClientSlug(clientSlug);
     setMentionOpen(false);
-    // Strip the @... text typed so far
+    // Replace the typed @... fragment with @slug token in the body
     const atIdx = body.lastIndexOf('@');
     if (atIdx !== -1) {
-      setBody(body.slice(0, atIdx));
+      const slugToken = clientSlug ? `@${clientSlug} ` : `@${clientName} `;
+      setBody(body.slice(0, atIdx) + slugToken);
     }
   };
 
   const handleClearClient = () => {
     setSelectedClientId(null);
     setSelectedClientName(null);
+    setSelectedClientSlug(null);
   };
 
   const handleSubmit = async () => {
@@ -92,13 +94,14 @@ export default function NotesConsole() {
     let clientId = selectedClientId;
     let noteBody = trimmedBody;
 
-    // If no client selected via autocomplete, try to resolve @slug from body text
+    // If no client pre-selected via chip, try to resolve @slug from body text
     if (!clientId) {
       const mentioned = parseMention(trimmedBody);
       if (mentioned) {
         try {
           const resolved = await resolveClientBySlug(mentioned.slug);
           clientId = (resolved as any).id;
+          // Remove the @slug token from the note body
           noteBody = mentioned.cleanBody || trimmedBody;
         } catch {
           showToast('error', tc.consoleNoClient);
@@ -107,6 +110,12 @@ export default function NotesConsole() {
       } else {
         showToast('error', tc.errorRequired);
         return;
+      }
+    } else {
+      // Strip @slug token from body text when client was pre-selected via autocomplete
+      const slug = selectedClientSlug;
+      if (slug && noteBody.includes(`@${slug}`)) {
+        noteBody = noteBody.replace(`@${slug}`, '').trim();
       }
     }
 
@@ -121,6 +130,7 @@ export default function NotesConsole() {
       setBody('');
       setSelectedClientId(null);
       setSelectedClientName(null);
+      setSelectedClientSlug(null);
       showToast('success', tc.consoleSubmit);
     } catch {
       showToast('error', tc.errorSave);
@@ -140,6 +150,8 @@ export default function NotesConsole() {
   };
 
   const filteredClients = (clients as any[]).slice(0, 8);
+  const recentNotes = (allRecentNotes as any[]).slice(0, historyLimit);
+  const hasMore = (allRecentNotes as any[]).length > historyLimit;
 
   return (
     <Box ref={anchorRef}>
@@ -147,8 +159,7 @@ export default function NotesConsole() {
         sx={{
           borderTop: '1px solid',
           borderColor: 'divider',
-          pt: 1.5,
-          px: 1.5,
+          pt: 1.5, px: 1.5,
           pb: open ? 1 : 1.5,
         }}
       >
@@ -176,7 +187,7 @@ export default function NotesConsole() {
             {/* Selected client chip */}
             {selectedClientName ? (
               <Chip
-                label={`@${selectedClientName}`}
+                label={`@${selectedClientSlug ?? selectedClientName}`}
                 size="small"
                 color="primary"
                 variant="outlined"
@@ -189,14 +200,10 @@ export default function NotesConsole() {
               </Typography>
             )}
 
-            {/* Input box with mention popper */}
+            {/* Input with @mention popper */}
             <Box position="relative">
               <TextField
-                fullWidth
-                multiline
-                minRows={2}
-                maxRows={5}
-                size="small"
+                fullWidth multiline minRows={2} maxRows={5} size="small"
                 placeholder={tc.consolePlaceholder}
                 value={body}
                 onChange={handleBodyChange}
@@ -216,12 +223,12 @@ export default function NotesConsole() {
                       {filteredClients.map((c: any) => (
                         <ListItem key={c.id} disablePadding>
                           <ListItemButton
-                            onClick={() => handleSelectClient(c.id, c.name)}
+                            onClick={() => handleSelectClient(c.id, c.name, c.slug ?? null)}
                             sx={{ py: 0.75, px: 1.5 }}
                           >
                             <ListItemText
                               primary={c.name}
-                              secondary={c.slug ? `@${c.slug}` : undefined}
+                              secondary={c.slug ? `@${c.slug}` : c.vatNumber ?? undefined}
                               primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                               secondaryTypographyProps={{ variant: 'caption' }}
                             />
@@ -234,13 +241,12 @@ export default function NotesConsole() {
               </Popper>
             </Box>
 
-            {/* Submit button */}
+            {/* Submit */}
             <Box display="flex" justifyContent="flex-end" mt={0.75}>
               <Tooltip title="Ctrl+Enter">
                 <span>
                   <IconButton
-                    size="small"
-                    color="primary"
+                    size="small" color="primary"
                     onClick={handleSubmit}
                     disabled={saving || !body.trim()}
                   >
@@ -250,21 +256,18 @@ export default function NotesConsole() {
               </Tooltip>
             </Box>
 
-            {/* History panel */}
-            {(recentNotes as any[]).length > 0 && (
+            {/* History panel — full org audit log, paginated locally */}
+            {recentNotes.length > 0 && (
               <Box mt={1}>
                 <Divider sx={{ mb: 1 }} />
                 <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
                   {tc.historyTitle}
                 </Typography>
-                {(recentNotes as any[]).map((note: any) => (
+                {recentNotes.map((note: any) => (
                   <Box
                     key={note.id}
                     sx={{
-                      mb: 0.75,
-                      px: 1.25,
-                      py: 0.75,
-                      borderRadius: '8px',
+                      mb: 0.75, px: 1.25, py: 0.75, borderRadius: '8px',
                       bgcolor: 'action.hover',
                       '&:hover': { bgcolor: 'action.selected' },
                     }}
@@ -274,7 +277,7 @@ export default function NotesConsole() {
                         <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
                           {note.clientName && (
                             <Chip
-                              label={`@${note.clientName}`}
+                              label={`@${note.clientSlug ?? note.clientName}`}
                               size="small"
                               variant="outlined"
                               color="primary"
@@ -284,8 +287,7 @@ export default function NotesConsole() {
                           )}
                           <Typography variant="caption" color="text.disabled" noWrap>
                             {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
-                              dateStyle: 'short',
-                              timeStyle: 'short',
+                              dateStyle: 'short', timeStyle: 'short',
                             })}
                           </Typography>
                         </Box>
@@ -318,6 +320,15 @@ export default function NotesConsole() {
                     </Box>
                   </Box>
                 ))}
+                {hasMore && (
+                  <Button
+                    size="small"
+                    sx={{ mt: 0.5, fontSize: '0.72rem' }}
+                    onClick={() => setHistoryLimit((l) => l + 10)}
+                  >
+                    {lang === 'en' ? 'Load more' : 'Carica altri'}
+                  </Button>
+                )}
               </Box>
             )}
           </Box>

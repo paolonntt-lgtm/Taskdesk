@@ -349,11 +349,7 @@ export default function ClientDetail() {
     'client-notes': (
       <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
         <CardContent>
-          {isAdmin ? (
-            <ClientNotesBlock clientId={clientId} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{(t as any).clientNotes?.noNotes}</Typography>
-          )}
+          <ClientNotesBlock clientId={clientId} isAdmin={isAdmin} />
         </CardContent>
       </Card>
     ),

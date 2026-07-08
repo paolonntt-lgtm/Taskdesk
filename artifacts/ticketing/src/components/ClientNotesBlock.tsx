@@ -4,9 +4,7 @@ import {
   Divider, CircularProgress, Tooltip, Dialog,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
-import {
-  Add, Delete, AddTask,
-} from '@mui/icons-material';
+import { Add, Delete, AddTask } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -25,13 +23,14 @@ interface ChecklistItem {
 
 interface ClientNotesBlockProps {
   clientId: number;
+  isAdmin: boolean;
 }
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
+export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
@@ -42,18 +41,18 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
 
-  // New note form state
+  // New note form (admin only)
   const [body, setBody] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [showChecklist, setShowChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Inline add-checklist-item state per-note
+  // Inline add-checklist-item to existing note (admin only)
   const [addingToNote, setAddingToNote] = useState<number | null>(null);
   const [inlineChecklistText, setInlineChecklistText] = useState('');
 
-  // Delete confirmation
+  // Delete confirmation (admin only)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -64,21 +63,16 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
   const showToast = (severity: 'success' | 'error', msg: string) =>
     setToast({ open: true, severity, msg });
 
-  // ── New note form handlers ──────────────────────────────────────────────
+  // ── New note form handlers (admin only) ────────────────────────────────
   const handleAddChecklistItem = () => {
     if (!newChecklistText.trim()) return;
-    setChecklist((prev) => [
-      ...prev,
-      { id: genId(), text: newChecklistText.trim(), checked: false },
-    ]);
+    setChecklist((prev) => [...prev, { id: genId(), text: newChecklistText.trim(), checked: false }]);
     setNewChecklistText('');
   };
 
   const handleToggleNewChecklistItem = (itemId: string) => {
     setChecklist((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, checked: !item.checked } : item
-      )
+      prev.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)
     );
   };
 
@@ -92,10 +86,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     try {
       await createNote.mutateAsync({
         id: clientId,
-        data: {
-          body: body.trim(),
-          checklist: checklist.length > 0 ? checklist : null,
-        },
+        data: { body: body.trim(), checklist: checklist.length > 0 ? checklist : null },
       });
       setBody('');
       setChecklist([]);
@@ -109,7 +100,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     }
   };
 
-  // ── Existing note checklist toggle ──────────────────────────────────────
+  // ── Checklist toggle (any authenticated user) ──────────────────────────
   const handleToggleNoteChecklistItem = async (
     noteId: number,
     noteBody: string,
@@ -123,7 +114,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
       await updateNote.mutateAsync({
         id: clientId,
         noteId,
-        data: { body: noteBody, checklist: updated },
+        data: { checklist: updated } as any,
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
     } catch {
@@ -131,17 +122,14 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     }
   };
 
-  // ── Inline add checklist item to existing note ──────────────────────────
+  // ── Inline add checklist item to existing note (admin only) ────────────
   const handleAddInlineChecklistItem = async (
     noteId: number,
     noteBody: string,
     noteChecklist: ChecklistItem[]
   ) => {
     if (!inlineChecklistText.trim()) return;
-    const updated = [
-      ...noteChecklist,
-      { id: genId(), text: inlineChecklistText.trim(), checked: false },
-    ];
+    const updated = [...noteChecklist, { id: genId(), text: inlineChecklistText.trim(), checked: false }];
     try {
       await updateNote.mutateAsync({
         id: clientId,
@@ -156,7 +144,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
     }
   };
 
-  // ── Delete note ─────────────────────────────────────────────────────────
+  // ── Delete note (admin only) ───────────────────────────────────────────
   const handleDelete = async () => {
     if (deleteTarget == null) return;
     setDeleting(true);
@@ -182,86 +170,64 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
 
   return (
     <Box>
-      {/* New note form */}
-      <Box
-        sx={{
-          mb: 2,
-          p: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: '12px',
-          bgcolor: 'background.paper',
-        }}
-      >
-        <TextField
-          fullWidth
-          multiline
-          minRows={2}
-          placeholder={tc.addNotePlaceholder}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          size="small"
-          sx={{ mb: 1 }}
-        />
+      {/* New note form — admin only */}
+      {isAdmin && (
+        <Box
+          sx={{
+            mb: 2, p: 2, border: '1px solid', borderColor: 'divider',
+            borderRadius: '12px', bgcolor: 'background.paper',
+          }}
+        >
+          <TextField
+            fullWidth multiline minRows={2}
+            placeholder={tc.addNotePlaceholder}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            size="small" sx={{ mb: 1 }}
+          />
 
-        {showChecklist && (
-          <Box sx={{ mb: 1.5 }}>
-            {checklist.map((item) => (
-              <Box key={item.id} display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                <Checkbox
-                  size="small"
-                  checked={item.checked}
-                  onChange={() => handleToggleNewChecklistItem(item.id)}
+          {showChecklist && (
+            <Box sx={{ mb: 1.5 }}>
+              {checklist.map((item) => (
+                <Box key={item.id} display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                  <Checkbox size="small" checked={item.checked} onChange={() => handleToggleNewChecklistItem(item.id)} />
+                  <Typography variant="body2" sx={{ flex: 1, textDecoration: item.checked ? 'line-through' : 'none' }}>
+                    {item.text}
+                  </Typography>
+                  <IconButton size="small" onClick={() => handleRemoveNewChecklistItem(item.id)}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              <Box display="flex" gap={1} mt={0.5}>
+                <TextField
+                  size="small" placeholder={tc.checklistItemPlaceholder}
+                  value={newChecklistText}
+                  onChange={(e) => setNewChecklistText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddChecklistItem(); } }}
+                  sx={{ flex: 1 }}
                 />
-                <Typography
-                  variant="body2"
-                  sx={{ flex: 1, textDecoration: item.checked ? 'line-through' : 'none' }}
-                >
-                  {item.text}
-                </Typography>
-                <IconButton size="small" onClick={() => handleRemoveNewChecklistItem(item.id)}>
-                  <Delete fontSize="small" />
+                <IconButton size="small" onClick={handleAddChecklistItem} disabled={!newChecklistText.trim()}>
+                  <Add fontSize="small" />
                 </IconButton>
               </Box>
-            ))}
-            <Box display="flex" gap={1} mt={0.5}>
-              <TextField
-                size="small"
-                placeholder={tc.checklistItemPlaceholder}
-                value={newChecklistText}
-                onChange={(e) => setNewChecklistText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddChecklistItem(); } }}
-                sx={{ flex: 1 }}
-              />
-              <IconButton size="small" onClick={handleAddChecklistItem} disabled={!newChecklistText.trim()}>
-                <Add fontSize="small" />
-              </IconButton>
             </Box>
+          )}
+
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Tooltip title={tc.addChecklistItem}>
+              <IconButton size="small" onClick={() => setShowChecklist((v) => !v)} color={showChecklist ? 'primary' : 'default'}>
+                <AddTask fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Button variant="contained" size="small" onClick={handleSave} disabled={saving || !body.trim()}>
+              {saving ? tc.savingNote : tc.saveNote}
+            </Button>
           </Box>
-        )}
-
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Tooltip title={tc.addChecklistItem}>
-            <IconButton
-              size="small"
-              onClick={() => setShowChecklist((v) => !v)}
-              color={showChecklist ? 'primary' : 'default'}
-            >
-              <AddTask fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleSave}
-            disabled={saving || !body.trim()}
-          >
-            {saving ? tc.savingNote : tc.saveNote}
-          </Button>
         </Box>
-      </Box>
+      )}
 
-      {/* Existing notes */}
+      {/* Notes list */}
       {notes.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
           {tc.noNotes}
@@ -270,16 +236,13 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
         (notes as any[]).map((note) => {
           const noteChecklist: ChecklistItem[] = note.checklist ?? [];
           const completedCount = noteChecklist.filter((i) => i.checked).length;
+
           return (
             <Box
               key={note.id}
               sx={{
-                mb: 1.5,
-                p: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: '12px',
-                bgcolor: 'background.paper',
+                mb: 1.5, p: 2, border: '1px solid', borderColor: 'divider',
+                borderRadius: '12px', bgcolor: 'background.paper',
               }}
             >
               {/* Header */}
@@ -287,15 +250,16 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
                 <Typography variant="caption" color="text.secondary">
                   {note.authorName && `${tc.noteBy} ${note.authorName} · `}
                   {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
+                    dateStyle: 'short', timeStyle: 'short',
                   })}
                 </Typography>
-                <Tooltip title={tc.deleteNote}>
-                  <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {isAdmin && (
+                  <Tooltip title={tc.deleteNote}>
+                    <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
 
               {/* Body */}
@@ -303,7 +267,7 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
                 {note.body}
               </Typography>
 
-              {/* Checklist items */}
+              {/* Checklist — visible to all, toggle available to all */}
               {noteChecklist.length > 0 && (
                 <Box mt={1}>
                   <Divider sx={{ mb: 1 }} />
@@ -331,59 +295,61 @@ export default function ClientNotesBlock({ clientId }: ClientNotesBlockProps) {
                 </Box>
               )}
 
-              {/* Inline add checklist item */}
-              {addingToNote === note.id ? (
-                <Box display="flex" gap={1} mt={1}>
-                  <TextField
-                    size="small"
-                    autoFocus
-                    placeholder={tc.checklistItemPlaceholder}
-                    value={inlineChecklistText}
-                    onChange={(e) => setInlineChecklistText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
-                      if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
-                    }}
-                    sx={{ flex: 1 }}
-                  />
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
-                    disabled={!inlineChecklistText.trim()}
-                  >
-                    <Add fontSize="small" />
-                  </IconButton>
-                </Box>
-              ) : (
-                <Tooltip title={tc.addChecklistItem}>
-                  <IconButton
-                    size="small"
-                    sx={{ mt: 0.5, color: 'text.disabled' }}
-                    onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
-                  >
-                    <AddTask fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+              {/* Inline add checklist item — admin only */}
+              {isAdmin && (
+                addingToNote === note.id ? (
+                  <Box display="flex" gap={1} mt={1}>
+                    <TextField
+                      size="small" autoFocus
+                      placeholder={tc.checklistItemPlaceholder}
+                      value={inlineChecklistText}
+                      onChange={(e) => setInlineChecklistText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
+                        if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      size="small" color="primary"
+                      onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
+                      disabled={!inlineChecklistText.trim()}
+                    >
+                      <Add fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Tooltip title={tc.addChecklistItem}>
+                    <IconButton
+                      size="small"
+                      sx={{ mt: 0.5, color: 'text.disabled' }}
+                      onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
+                    >
+                      <AddTask fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )
               )}
             </Box>
           );
         })
       )}
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>{tc.deleteNote}</DialogTitle>
-        <DialogContent>
-          <Typography>{tc.deleteNoteConfirm}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>{tc.deleteNoteCancel}</Button>
-          <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
-            {tc.deleteNoteAction}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Delete confirmation — admin only */}
+      {isAdmin && (
+        <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+          <DialogTitle>{tc.deleteNote}</DialogTitle>
+          <DialogContent>
+            <Typography>{tc.deleteNoteConfirm}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteTarget(null)}>{tc.deleteNoteCancel}</Button>
+            <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
+              {tc.deleteNoteAction}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Toast */}
       <Snackbar

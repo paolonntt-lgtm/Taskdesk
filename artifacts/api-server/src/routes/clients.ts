@@ -370,7 +370,7 @@ router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res):
   res.json(client);
 });
 
-router.get("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.get("/clients/:id/notes", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -462,7 +462,14 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
   }
 
   const updateData: Record<string, any> = {};
-  if (parsed.data.body !== undefined) updateData.body = parsed.data.body;
+  // Only admins can update the note body text; any authenticated user can update checklist state
+  if (parsed.data.body !== undefined) {
+    if (currentUser.role !== 'admin') {
+      res.status(403).json({ error: "Forbidden: only admins can edit note text" });
+      return;
+    }
+    updateData.body = parsed.data.body;
+  }
   if (parsed.data.checklist !== undefined) updateData.checklist = parsed.data.checklist;
 
   const [note] = await db
