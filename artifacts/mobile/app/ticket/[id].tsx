@@ -494,33 +494,35 @@ export default function TicketDetailScreen() {
                               }}>
                                 {item.text}
                               </Text>
-                              {isAdmin && (
-                                <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-                                  <TouchableOpacity
-                                    onPress={() => handleReorderItem(cl.id, item.id, 'up', items)}
-                                    hitSlop={8}
-                                    disabled={itemIdx === 0 || reorderingItem === item.id}
-                                  >
-                                    <Feather name="chevron-up" size={14} color={itemIdx === 0 ? colors.muted : colors.mutedForeground} />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    onPress={() => handleReorderItem(cl.id, item.id, 'down', items)}
-                                    hitSlop={8}
-                                    disabled={itemIdx === sortedItems.length - 1 || reorderingItem === item.id}
-                                  >
-                                    <Feather name="chevron-down" size={14} color={itemIdx === sortedItems.length - 1 ? colors.muted : colors.mutedForeground} />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    onPress={() => setEditingItem({ clId: cl.id, itemId: item.id, text: item.text })}
-                                    hitSlop={8}
-                                  >
-                                    <Feather name="edit-2" size={14} color={colors.mutedForeground} />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity onPress={() => handleDeleteItem(cl.id, item.id)} hitSlop={8}>
-                                    <Feather name="x" size={14} color={colors.destructive} />
-                                  </TouchableOpacity>
-                                </View>
-                              )}
+                              <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                                {isAdmin && (
+                                  <>
+                                    <TouchableOpacity
+                                      onPress={() => handleReorderItem(cl.id, item.id, 'up', items)}
+                                      hitSlop={8}
+                                      disabled={itemIdx === 0 || reorderingItem === item.id}
+                                    >
+                                      <Feather name="chevron-up" size={14} color={itemIdx === 0 ? colors.muted : colors.mutedForeground} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      onPress={() => handleReorderItem(cl.id, item.id, 'down', items)}
+                                      hitSlop={8}
+                                      disabled={itemIdx === sortedItems.length - 1 || reorderingItem === item.id}
+                                    >
+                                      <Feather name="chevron-down" size={14} color={itemIdx === sortedItems.length - 1 ? colors.muted : colors.mutedForeground} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      onPress={() => setEditingItem({ clId: cl.id, itemId: item.id, text: item.text })}
+                                      hitSlop={8}
+                                    >
+                                      <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+                                    </TouchableOpacity>
+                                  </>
+                                )}
+                                <TouchableOpacity onPress={() => handleDeleteItem(cl.id, item.id)} hitSlop={8}>
+                                  <Feather name="x" size={14} color={colors.destructive} />
+                                </TouchableOpacity>
+                              </View>
                             </View>
                           )}
                         </View>
@@ -528,46 +530,44 @@ export default function TicketDetailScreen() {
                     })}
 
                     {/* Add item */}
-                    {isAdmin && (
-                      addingItemFor === cl.id ? (
-                        <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
-                          <TextInput
-                            style={[s.commentInput, { flex: 1, minHeight: 38, maxHeight: 80 }]}
-                            value={newItemTexts[cl.id] ?? ""}
-                            onChangeText={(v) => setNewItemTexts((prev) => ({ ...prev, [cl.id]: v }))}
-                            placeholder={t.checklist.addItemPlaceholder}
-                            placeholderTextColor={colors.mutedForeground}
-                            autoFocus
-                          />
-                          <TouchableOpacity
-                            style={[s.sendBtn, { width: 38, height: 38 }, (!newItemTexts[cl.id]?.trim() || savingItem) && s.sendBtnDisabled]}
-                            onPress={() => handleAddItem(cl.id)}
-                            disabled={!newItemTexts[cl.id]?.trim() || savingItem}
-                          >
-                            {savingItem ? (
-                              <ActivityIndicator color={colors.primaryForeground} size="small" />
-                            ) : (
-                              <Feather name="check" size={16} color={colors.primaryForeground} />
-                            )}
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[s.sendBtn, { width: 38, height: 38, backgroundColor: colors.muted }]}
-                            onPress={() => setAddingItemFor(null)}
-                          >
-                            <Feather name="x" size={16} color={colors.mutedForeground} />
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
+                    {addingItemFor === cl.id ? (
+                      <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+                        <TextInput
+                          style={[s.commentInput, { flex: 1, minHeight: 38, maxHeight: 80 }]}
+                          value={newItemTexts[cl.id] ?? ""}
+                          onChangeText={(v) => setNewItemTexts((prev) => ({ ...prev, [cl.id]: v }))}
+                          placeholder={t.checklist.addItemPlaceholder}
+                          placeholderTextColor={colors.mutedForeground}
+                          autoFocus
+                        />
                         <TouchableOpacity
-                          style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, paddingVertical: 4 }}
-                          onPress={() => setAddingItemFor(cl.id)}
+                          style={[s.sendBtn, { width: 38, height: 38 }, (!newItemTexts[cl.id]?.trim() || savingItem) && s.sendBtnDisabled]}
+                          onPress={() => handleAddItem(cl.id)}
+                          disabled={!newItemTexts[cl.id]?.trim() || savingItem}
                         >
-                          <Feather name="plus" size={14} color={colors.primary} />
-                          <Text style={{ fontSize: 13, color: colors.primary, fontFamily: "Inter_500Medium" }}>
-                            {t.checklist.addItem}
-                          </Text>
+                          {savingItem ? (
+                            <ActivityIndicator color={colors.primaryForeground} size="small" />
+                          ) : (
+                            <Feather name="check" size={16} color={colors.primaryForeground} />
+                          )}
                         </TouchableOpacity>
-                      )
+                        <TouchableOpacity
+                          style={[s.sendBtn, { width: 38, height: 38, backgroundColor: colors.muted }]}
+                          onPress={() => setAddingItemFor(null)}
+                        >
+                          <Feather name="x" size={16} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, paddingVertical: 4 }}
+                        onPress={() => setAddingItemFor(cl.id)}
+                      >
+                        <Feather name="plus" size={14} color={colors.primary} />
+                        <Text style={{ fontSize: 13, color: colors.primary, fontFamily: "Inter_500Medium" }}>
+                          {t.checklist.addItem}
+                        </Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 )}

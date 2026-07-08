@@ -303,79 +303,77 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                   >
                     {item.text}
                   </Typography>
-                  {isAdmin && (
-                    <Box className="item-actions" sx={{ display: 'flex', opacity: 0, transition: 'opacity 0.15s' }}>
-                      <Tooltip title={ct.moveUp}>
-                        <span>
-                          <IconButton size="small" onClick={() => handleReorderItem(item.id, 'up')} disabled={items.indexOf(item) === 0 || updateItem.isPending}>
-                            <ArrowUpward sx={{ fontSize: 13 }} />
+                  <Box className="item-actions" sx={{ display: 'flex', opacity: 0, transition: 'opacity 0.15s' }}>
+                    {isAdmin && (
+                      <>
+                        <Tooltip title={ct.moveUp}>
+                          <span>
+                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'up')} disabled={items.indexOf(item) === 0 || updateItem.isPending}>
+                              <ArrowUpward sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={ct.moveDown}>
+                          <span>
+                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'down')} disabled={items.indexOf(item) === itemCount - 1 || updateItem.isPending}>
+                              <ArrowDownward sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={ct.renameItem}>
+                          <IconButton
+                            size="small"
+                            onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }}
+                          >
+                            <EditOutlined sx={{ fontSize: 14 }} />
                           </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title={ct.moveDown}>
-                        <span>
-                          <IconButton size="small" onClick={() => handleReorderItem(item.id, 'down')} disabled={items.indexOf(item) === itemCount - 1 || updateItem.isPending}>
-                            <ArrowDownward sx={{ fontSize: 13 }} />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title={ct.renameItem}>
-                        <IconButton
-                          size="small"
-                          onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }}
-                        >
-                          <EditOutlined sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={ct.deleteItem}>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteItem(item.id)}
-                        >
-                          <Delete sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )}
+                        </Tooltip>
+                      </>
+                    )}
+                    <Tooltip title={ct.deleteItem}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteItem(item.id)}
+                      >
+                        <Delete sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </>
               )}
             </Box>
           ))}
 
           {/* Add item row */}
-          {isAdmin && (
-            <>
-              {addingItem ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pl: 0.5 }}>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder={ct.addItemPlaceholder}
-                    value={newItemText}
-                    onChange={(e) => setNewItemText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setNewItemText(''); } }}
-                    autoFocus
-                    disabled={addItem.isPending}
-                  />
-                  <Button size="small" variant="contained" onClick={handleAddItem} disabled={!newItemText.trim() || addItem.isPending}>
-                    {addItem.isPending ? <CircularProgress size={14} color="inherit" /> : ct.save}
-                  </Button>
-                  <Button size="small" onClick={() => { setAddingItem(false); setNewItemText(''); }}>
-                    {ct.cancel}
-                  </Button>
-                </Box>
-              ) : (
-                <Button
-                  size="small"
-                  startIcon={<Add />}
-                  onClick={() => setAddingItem(true)}
-                  sx={{ mt: 0.5, ml: 0.5 }}
-                >
-                  {ct.addItem}
-                </Button>
-              )}
-            </>
+          {addingItem ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pl: 0.5 }}>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder={ct.addItemPlaceholder}
+                value={newItemText}
+                onChange={(e) => setNewItemText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setNewItemText(''); } }}
+                autoFocus
+                disabled={addItem.isPending}
+              />
+              <Button size="small" variant="contained" onClick={handleAddItem} disabled={!newItemText.trim() || addItem.isPending}>
+                {addItem.isPending ? <CircularProgress size={14} color="inherit" /> : ct.save}
+              </Button>
+              <Button size="small" onClick={() => { setAddingItem(false); setNewItemText(''); }}>
+                {ct.cancel}
+              </Button>
+            </Box>
+          ) : (
+            <Button
+              size="small"
+              startIcon={<Add />}
+              onClick={() => setAddingItem(true)}
+              sx={{ mt: 0.5, ml: 0.5 }}
+            >
+              {ct.addItem}
+            </Button>
           )}
         </Box>
       </Collapse>
