@@ -27,6 +27,7 @@ const ImportRow = z.object({
   contactPerson: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 const ClientsQuerySchema = z.object({
@@ -167,6 +168,7 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
       contactPerson: row.contactPerson?.trim() || null,
       email: row.email?.trim() || null,
       phone: row.phone?.trim() || null,
+      notes: row.notes?.trim() || null,
     });
 
     existingVats.add(vatNumber.toLowerCase());

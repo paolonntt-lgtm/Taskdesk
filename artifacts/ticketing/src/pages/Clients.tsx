@@ -36,6 +36,7 @@ interface ParsedRow {
   contactPerson: string;
   email: string;
   phone: string;
+  notes: string;
   error?: string;
 }
 
@@ -48,17 +49,26 @@ function parseXlsx(file: File): Promise<ParsedRow[]> {
         const wb = XLSX.read(data, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const json: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const rows: ParsedRow[] = json.map((row, i) => ({
-          rowIndex: i + 2,
-          name: (row['Nome'] ?? row['name'] ?? '').toString().trim(),
-          vatNumber: (row['PartitaIVA'] ?? row['Partita IVA'] ?? row['vatNumber'] ?? '').toString().trim(),
-          taxCode: (row['CodiceFiscale'] ?? row['Codice Fiscale'] ?? row['taxCode'] ?? '').toString().trim(),
-          address: (row['Indirizzo'] ?? row['address'] ?? '').toString().trim(),
-          pec: (row['PEC'] ?? row['pec'] ?? '').toString().trim(),
-          contactPerson: (row['Referente'] ?? row['contactPerson'] ?? '').toString().trim(),
-          email: (row['Email'] ?? row['email'] ?? '').toString().trim(),
-          phone: (row['Telefono'] ?? row['phone'] ?? '').toString().trim(),
-        }));
+        const rows: ParsedRow[] = json.map((row, i) => {
+          const street = (row['Indirizzo'] ?? row['address'] ?? '').toString().trim();
+          const city   = (row['Comune'] ?? '').toString().trim();
+          const cap    = (row['CAP'] ?? '').toString().trim();
+          const prov   = (row['Provincia'] ?? '').toString().trim();
+          const cityLine = [cap, city, prov ? `(${prov})` : ''].filter(Boolean).join(' ');
+          const address = [street, cityLine].filter(Boolean).join(', ');
+          return {
+            rowIndex: i + 2,
+            name: (row['Denominazione'] ?? row['Nome'] ?? row['name'] ?? '').toString().trim(),
+            vatNumber: (row['P.IVA/TAX ID'] ?? row['PartitaIVA'] ?? row['Partita IVA'] ?? row['vatNumber'] ?? row['PIVA'] ?? '').toString().trim(),
+            taxCode: (row['Codice Fiscale'] ?? row['CodiceFiscale'] ?? row['taxCode'] ?? row['CF'] ?? '').toString().trim(),
+            address,
+            pec: (row['Indirizzo PEC'] ?? row['PEC'] ?? row['pec'] ?? '').toString().trim(),
+            contactPerson: (row['Referente'] ?? row['contactPerson'] ?? '').toString().trim(),
+            email: (row['Indirizzo e-mail'] ?? row['Email'] ?? row['email'] ?? '').toString().trim(),
+            phone: (row['Telefono'] ?? row['phone'] ?? '').toString().trim(),
+            notes: (row['Note'] ?? row['notes'] ?? '').toString().trim(),
+          };
+        });
         resolve(rows);
       } catch {
         reject(new Error('parse_error'));
@@ -95,14 +105,15 @@ function parseXml(file: File): Promise<ParsedRow[]> {
 
         const rows: ParsedRow[] = items.map((el, i) => ({
           rowIndex: i + 1,
-          name: get(el, 'Nome', 'Name', 'nome', 'name'),
+          name: get(el, 'Denominazione', 'Nome', 'Name', 'nome', 'name'),
           vatNumber: get(el, 'PartitaIVA', 'Partita_IVA', 'vatNumber', 'PIva', 'PIVA'),
           taxCode: get(el, 'CodiceFiscale', 'Codice_Fiscale', 'taxCode', 'CF'),
           address: get(el, 'Indirizzo', 'Address', 'indirizzo', 'address'),
-          pec: get(el, 'PEC', 'pec'),
+          pec: get(el, 'IndirizzoP_EC', 'PEC', 'pec'),
           contactPerson: get(el, 'Referente', 'contactPerson', 'referente'),
-          email: get(el, 'Email', 'email', 'Mail', 'mail'),
+          email: get(el, 'IndirizzoEmail', 'Email', 'email', 'Mail', 'mail'),
           phone: get(el, 'Telefono', 'Phone', 'telefono', 'phone', 'Tel'),
+          notes: get(el, 'Note', 'notes', 'note'),
         }));
         resolve(rows);
       } catch {
@@ -279,6 +290,7 @@ export default function Clients() {
             contactPerson: r.contactPerson || null,
             email: r.email || null,
             phone: r.phone || null,
+            notes: r.notes || null,
           })),
         }),
       });
