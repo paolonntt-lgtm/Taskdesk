@@ -10,7 +10,7 @@ import {
 import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Link } from 'wouter';
+import { Link, useSearch, useLocation } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -587,9 +587,16 @@ function TicketStatusesTab() {
 export default function Settings() {
   const { user, updateUser } = useAuth();
   const { t, lang } = useLanguage();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isAdmin = user?.role === 'admin';
 
-  const [tab, setTab] = useState(0);
+  // URL-based section routing
+  const rawSearch = useSearch();
+  const [, navigate] = useLocation();
+  const urlSection = new URLSearchParams(rawSearch).get('section') ?? 'profile';
+  const activeSection = !isAdmin && !['profile', 'notifications'].includes(urlSection) ? 'profile' : urlSection;
+  const setSection = (s: string) => navigate(`/settings?section=${s}`, { replace: true } as any);
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -708,7 +715,6 @@ export default function Settings() {
         const MAX_BYTES = 1.4 * 1024 * 1024;
         const canvas = document.createElement('canvas');
         let { width, height } = img;
-        // Scale down if too large
         const MAX_DIM = 1024;
         if (width > MAX_DIM || height > MAX_DIM) {
           const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
@@ -719,7 +725,6 @@ export default function Settings() {
         canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, width, height);
-        // Try decreasing quality until under threshold
         let quality = 0.85;
         let dataUrl = canvas.toDataURL('image/jpeg', quality);
         while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.1) {
@@ -740,7 +745,6 @@ export default function Settings() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Hard cap at 10MB to avoid hanging the browser
     if (file.size > 10 * 1024 * 1024) {
       setProfileMsg({ type: 'error', text: 'Immagine troppo grande. Massimo 10 MB.' });
       return;
@@ -847,405 +851,364 @@ export default function Settings() {
     }
   };
 
+  // Sidebar navigation items
+  const personalNav = [
+    { id: 'profile', label: t.settings.navProfile, icon: <Person fontSize="small" /> },
+    { id: 'notifications', label: t.settings.navNotifications, icon: <NotificationsActive fontSize="small" /> },
+  ];
+  const orgNav = [
+    { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
+    { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
+    { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
+    { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
+    { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
+    { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
+  ];
+
+  const renderSidebarItem = (item: { id: string; label: string; icon: React.ReactNode }) => {
+    const active = activeSection === item.id;
+    return (
+      <Box
+        key={item.id}
+        onClick={() => setSection(item.id)}
+        sx={{
+          display: 'flex', alignItems: 'center', gap: 1.25,
+          px: 1.5, py: 0.875, mb: 0.25, borderRadius: 1.5, cursor: 'pointer',
+          bgcolor: active ? 'action.selected' : 'transparent',
+          color: active ? 'primary.main' : 'text.primary',
+          borderLeft: '2px solid',
+          borderLeftColor: active ? 'primary.main' : 'transparent',
+          '&:hover': { bgcolor: active ? 'action.selected' : 'action.hover' },
+          transition: 'all 0.15s',
+        }}
+      >
+        <Box sx={{ color: active ? 'primary.main' : 'text.secondary', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          {item.icon}
+        </Box>
+        <Typography variant="body2" fontWeight={active ? 600 : 400} sx={{ color: 'inherit' }}>
+          {item.label}
+        </Typography>
+      </Box>
+    );
+  };
+
   return (
-    <Box maxWidth={720} mx="auto">
+    <Box maxWidth={1000} mx="auto">
       <Typography variant="h5" fontWeight="bold" gutterBottom mb={3}>
         {t.settings.title}
       </Typography>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-          <Tab label={t.settings.tabProfile} />
-          <Tab label={t.settings.tabNotifications} />
-          {isAdmin && <Tab label={t.settings.tabOrganization} />}
-          {isAdmin && <Tab label={t.settings.tabBilling} />}
-          {isAdmin && <Tab label={t.settings.tabTickets} />}
-          {isAdmin && <Tab label={t.settings.tabTools} />}
-          {isAdmin && <Tab label={t.settings.tabGroups} />}
-        </Tabs>
-      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+        {/* ── SIDEBAR (desktop only) ── */}
+        <Box sx={{
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          width: 220,
+          flexShrink: 0,
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          pr: 1,
+          mr: 3,
+          pt: 0.5,
+          position: 'sticky',
+          top: 72,
+          alignSelf: 'flex-start',
+        }}>
+          <Typography variant="overline" color="text.disabled" sx={{ px: 1.5, mb: 0.5, display: 'block', fontWeight: 700, letterSpacing: 1, fontSize: '0.65rem' }}>
+            {t.settings.sidebarPersonal}
+          </Typography>
+          {personalNav.map(renderSidebarItem)}
 
-      {/* ── PROFILO ── */}
-      <TabPanel value={tab} index={0}>
-        <Section title={t.settings.personalData} icon={<Person color="primary" />}>
-          {profileMsg && (
-            <Alert severity={profileMsg.type} sx={{ mb: 2 }} onClose={() => setProfileMsg(null)}>
-              {profileMsg.text}
-            </Alert>
-          )}
-
-          {/* Avatar */}
-          <Box display="flex" alignItems="center" gap={2} mb={3}>
-            <Box position="relative">
-              <Avatar
-                src={avatarUrl || undefined}
-                sx={{ width: 72, height: 72, fontSize: 28 }}
-              >
-                {!avatarUrl && (user?.name?.[0] ?? '?').toUpperCase()}
-              </Avatar>
-              <IconButton
-                size="small"
-                onClick={() => fileInputRef.current?.click()}
-                sx={{
-                  position: 'absolute',
-                  bottom: -4,
-                  right: -4,
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  width: 26,
-                  height: 26,
-                  '&:hover': { bgcolor: 'primary.dark' },
-                }}
-              >
-                <PhotoCamera sx={{ fontSize: 14 }} />
-              </IconButton>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleAvatarChange}
-              />
-            </Box>
-            <Box>
-              <Typography variant="body2" fontWeight={600}>{user?.name}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t.settings.clickIconToChangePhoto}
+          {isAdmin && (
+            <>
+              <Divider sx={{ my: 1.5 }} />
+              <Typography variant="overline" color="text.disabled" sx={{ px: 1.5, mb: 0.5, display: 'block', fontWeight: 700, letterSpacing: 1, fontSize: '0.65rem' }}>
+                {t.settings.sidebarOrganization}
               </Typography>
-              {avatarUrl && (
-                <Box mt={0.5}>
-                  <Button
-                    size="small"
-                    color="error"
-                    sx={{ p: 0, minWidth: 0, fontSize: '0.7rem' }}
-                    onClick={() => setAvatarUrl('')}
-                  >
-                    {t.settings.removePhoto}
-                  </Button>
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          <Box display="flex" flexDirection="column" gap={2}>
-            <TextField
-              label={t.settings.name}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label={t.settings.email}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label="Numero di cellulare"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              fullWidth
-              placeholder="Es: +39 333 1234567"
-              InputProps={{ startAdornment: <Phone sx={{ mr: 1, color: 'text.secondary', fontSize: 18 }} /> }}
-            />
-            <Box display="flex" alignItems="center" gap={1}>
-              <Chip
-                size="small"
-                label={user?.role === 'admin' ? t.role.admin : t.role.user}
-                color={user?.role === 'admin' ? 'secondary' : 'default'}
-                variant="outlined"
-              />
-              <Typography variant="caption" color="text.secondary">{t.settings.roleNote}</Typography>
-            </Box>
-            <Box display="flex" justifyContent="flex-end">
-              <Button
-                variant="contained"
-                startIcon={profileSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-                onClick={saveProfile}
-                disabled={profileSaving}
-              >
-                {profileSaving ? t.settings.saving : t.settings.save}
-              </Button>
-            </Box>
-          </Box>
-        </Section>
-
-        <Section title={t.settings.changePassword} icon={<Lock color="primary" />}>
-          {pwMsg && (
-            <Alert severity={pwMsg.type} sx={{ mb: 2 }} onClose={() => setPwMsg(null)}>
-              {pwMsg.text}
-            </Alert>
+              {orgNav.map(renderSidebarItem)}
+            </>
           )}
-          <Box display="flex" flexDirection="column" gap={2}>
+        </Box>
+
+        {/* ── CONTENT AREA ── */}
+        <Box flex={1} minWidth={0} sx={{ width: { xs: '100%', md: 'auto' } }}>
+          {/* Mobile: Select dropdown */}
+          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3 }}>
             <TextField
-              label={t.settings.currentPassword}
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+              select
+              size="small"
               fullWidth
-              autoComplete="current-password"
-            />
-            <TextField
-              label={t.settings.newPassword}
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              fullWidth
-              autoComplete="new-password"
-              helperText={t.settings.passwordHint}
-            />
-            <TextField
-              label={t.settings.confirmNewPassword}
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              fullWidth
-              autoComplete="new-password"
-              error={confirmPassword.length > 0 && newPassword !== confirmPassword}
-              helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? t.settings.passwordMismatch : ''}
-            />
-            <Box display="flex" justifyContent="flex-end">
-              <Button
-                variant="contained"
-                startIcon={pwSaving ? <CircularProgress size={16} color="inherit" /> : <Lock />}
-                onClick={savePassword}
-                disabled={pwSaving || !currentPassword || !newPassword}
-              >
-                {pwSaving ? t.settings.saving : t.settings.changePasswordBtn}
-              </Button>
-            </Box>
+              value={activeSection}
+              onChange={(e) => setSection(e.target.value)}
+            >
+              <MenuItem disabled sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'text.disabled', opacity: '1 !important', py: 0.5 }}>
+                — {t.settings.sidebarPersonal} —
+              </MenuItem>
+              {personalNav.map((item) => (
+                <MenuItem key={item.id} value={item.id}>{item.label}</MenuItem>
+              ))}
+              {isAdmin && [
+                <MenuItem key="__div_org" disabled sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'text.disabled', opacity: '1 !important', py: 0.5 }}>
+                  — {t.settings.sidebarOrganization} —
+                </MenuItem>,
+                ...orgNav.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>{item.label}</MenuItem>
+                )),
+              ]}
+            </TextField>
           </Box>
-        </Section>
-      </TabPanel>
 
-      {/* ── NOTIFICHE ── */}
-      <TabPanel value={tab} index={1}>
-        <NotificationPreferences />
-      </TabPanel>
-
-      {/* ── SISTEMA (admin only) ── */}
-      {isAdmin && (
-        <TabPanel value={tab} index={2}>
-          <Section title={t.settings.orgNameTitle} icon={<Business color="primary" />}>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              {t.settings.orgNameNote}
-            </Typography>
-            {orgMsg && (
-              <Alert severity={orgMsg.type} sx={{ mb: 2 }} onClose={() => setOrgMsg(null)}>{orgMsg.text}</Alert>
-            )}
-            <Box display="flex" flexDirection="column" gap={2}>
-              <Box display="flex" gap={2} alignItems="flex-start">
-                <TextField
-                  size="small"
-                  fullWidth
-                  label={t.settings.orgNameLabel}
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  disabled={orgSaving}
-                  inputProps={{ maxLength: 100 }}
-                />
-                <Button
-                  variant="contained"
-                  startIcon={orgSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-                  onClick={saveOrgName}
-                  disabled={orgSaving || orgName.trim().length < 2}
-                  sx={{ whiteSpace: 'nowrap' }}
-                >
-                  {orgSaving ? t.settings.saving : t.settings.save}
-                </Button>
-              </Box>
-              <Box sx={{ maxWidth: 340 }}>
-                <TextField
-                  select
-                  size="small"
-                  fullWidth
-                  label={t.settings.orgBusinessTypeLabel}
-                  value={orgBusinessType}
-                  onChange={(e) => setOrgBusinessType(e.target.value)}
-                  disabled={orgSaving}
-                  helperText={t.settings.orgBusinessTypeHint}
-                >
-                  <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
-                  {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-                {orgBusinessType && (() => {
-                  const et = (t.entityTerms as Record<string, any>)[orgBusinessType];
-                  return et ? (
-                    <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
-                      <Typography variant="caption" color="text.secondary">
-                        {t.settings.orgBusinessTypePreviewLabel}
-                      </Typography>
-                      <Chip label={et.singular} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
-                      <Chip label={et.plural} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <Box display="flex" flexDirection="column" gap={1} mt={1}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Switch
-                    checked={orgClientsEnabled}
-                    onChange={(e) => setOrgClientsEnabled(e.target.checked)}
-                    disabled={orgSaving}
-                    size="small"
-                  />
-                  <Box>
-                    <Typography variant="body2" fontWeight={500}>{t.settings.orgClientsEnabledLabel}</Typography>
-                    <Typography variant="caption" color="text.secondary">{t.settings.orgClientsEnabledHint}</Typography>
-                  </Box>
-                </Box>
-                {!orgClientsEnabled && (
-                  <Alert severity="warning" sx={{ py: 0.5 }}>
-                    {t.settings.orgClientsDisabledWarning}
+          {/* ── PROFILE & SECURITY ── */}
+          {activeSection === 'profile' && (
+            <>
+              <Section title={t.settings.personalData} icon={<Person color="primary" />}>
+                {profileMsg && (
+                  <Alert severity={profileMsg.type} sx={{ mb: 2 }} onClose={() => setProfileMsg(null)}>
+                    {profileMsg.text}
                   </Alert>
                 )}
-              </Box>
-            </Box>
-          </Section>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <Box position="relative">
+                    <Avatar src={avatarUrl || undefined} sx={{ width: 72, height: 72, fontSize: 28 }}>
+                      {!avatarUrl && (user?.name?.[0] ?? '?').toUpperCase()}
+                    </Avatar>
+                    <IconButton
+                      size="small"
+                      onClick={() => fileInputRef.current?.click()}
+                      sx={{ position: 'absolute', bottom: -4, right: -4, bgcolor: 'primary.main', color: 'white', width: 26, height: 26, '&:hover': { bgcolor: 'primary.dark' } }}
+                    >
+                      <PhotoCamera sx={{ fontSize: 14 }} />
+                    </IconButton>
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>{user?.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{t.settings.clickIconToChangePhoto}</Typography>
+                    {avatarUrl && (
+                      <Box mt={0.5}>
+                        <Button size="small" color="error" sx={{ p: 0, minWidth: 0, fontSize: '0.7rem' }} onClick={() => setAvatarUrl('')}>
+                          {t.settings.removePhoto}
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <TextField label={t.settings.name} value={name} onChange={(e) => setName(e.target.value)} fullWidth />
+                  <TextField label={t.settings.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+                  <TextField
+                    label="Numero di cellulare"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    fullWidth
+                    placeholder="Es: +39 333 1234567"
+                    InputProps={{ startAdornment: <Phone sx={{ mr: 1, color: 'text.secondary', fontSize: 18 }} /> }}
+                  />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Chip size="small" label={user?.role === 'admin' ? t.role.admin : t.role.user} color={user?.role === 'admin' ? 'secondary' : 'default'} variant="outlined" />
+                    <Typography variant="caption" color="text.secondary">{t.settings.roleNote}</Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button variant="contained" startIcon={profileSaving ? <CircularProgress size={16} color="inherit" /> : <Save />} onClick={saveProfile} disabled={profileSaving}>
+                      {profileSaving ? t.settings.saving : t.settings.save}
+                    </Button>
+                  </Box>
+                </Box>
+              </Section>
 
-          <Section title={t.settings.manageUsersLink} icon={<People color="primary" />}>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              {t.settings.manageUsersLinkHint}
-            </Typography>
-            <Link href="/users" style={{ textDecoration: 'none' }}>
-              <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>
-                {t.settings.manageUsersLink}
-              </Button>
-            </Link>
-          </Section>
-
-          {((user as any)?.clientsEnabled !== false) && (
-            <Section title={t.settings.manageClientsLink} icon={<Business color="primary" />}>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {t.settings.manageClientsLinkHint}
-              </Typography>
-              <Link href="/clients" style={{ textDecoration: 'none' }}>
-                <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>
-                  {t.settings.manageClientsLink}
-                </Button>
-              </Link>
-            </Section>
+              <Section title={t.settings.changePassword} icon={<Lock color="primary" />}>
+                {pwMsg && (
+                  <Alert severity={pwMsg.type} sx={{ mb: 2 }} onClose={() => setPwMsg(null)}>{pwMsg.text}</Alert>
+                )}
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <TextField label={t.settings.currentPassword} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} fullWidth autoComplete="current-password" />
+                  <TextField label={t.settings.newPassword} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} fullWidth autoComplete="new-password" helperText={t.settings.passwordHint} />
+                  <TextField
+                    label={t.settings.confirmNewPassword}
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    fullWidth
+                    autoComplete="new-password"
+                    error={confirmPassword.length > 0 && newPassword !== confirmPassword}
+                    helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? t.settings.passwordMismatch : ''}
+                  />
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button variant="contained" startIcon={pwSaving ? <CircularProgress size={16} color="inherit" /> : <Lock />} onClick={savePassword} disabled={pwSaving || !currentPassword || !newPassword}>
+                      {pwSaving ? t.settings.saving : t.settings.changePasswordBtn}
+                    </Button>
+                  </Box>
+                </Box>
+              </Section>
+            </>
           )}
 
-          {adminMsg && (
-            <Alert severity={adminMsg.type} sx={{ mb: 2 }} onClose={() => setAdminMsg(null)}>
-              {adminMsg.text}
-            </Alert>
-          )}
+          {/* ── NOTIFICATIONS ── */}
+          {activeSection === 'notifications' && <NotificationPreferences />}
 
-          <Section title={t.settings.manageLocations} icon={<LocationOn color="primary" />}>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              {t.settings.locationsNote}
-            </Typography>
-            <ListEditor
-              placeholder={t.settings.addLocationPlaceholder}
-              items={locations}
-              onSave={saveLocations}
-              saving={locSaving}
-            />
-          </Section>
-
-          <Section title={t.settings.manageCategories} icon={<Category color="primary" />}>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              {t.settings.categoriesNote}
-            </Typography>
-            <ListEditor
-              placeholder={t.settings.addCategoryPlaceholder}
-              items={categories}
-              onSave={saveCategories}
-              saving={catSaving}
-            />
-          </Section>
-
-        </TabPanel>
-      )}
-
-      {/* ── FATTURAZIONE / TICKET / STRUMENTI (admin only) ── */}
-      {isAdmin && (
-        <>
-          <TabPanel value={tab} index={3}>
-            <Section title={t.settings.subscriptionSectionTitle} icon={<Receipt color="primary" />}>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {t.settings.subscriptionSectionNote}
-              </Typography>
-              <Link href="/billing" style={{ textDecoration: 'none' }}>
-                <Button variant="contained" startIcon={<OpenInNew fontSize="small" />}>
-                  {t.settings.goToSubscription}
-                </Button>
-              </Link>
-            </Section>
-            <Section title={t.settings.billingTitle} icon={<Receipt color="primary" />}>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {t.settings.billingNote}
-              </Typography>
-              {billingMsg && (
-                <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>
-              )}
+          {/* ── GENERAL (admin) ── */}
+          {isAdmin && activeSection === 'general' && (
+            <Section title={t.settings.orgNameTitle} icon={<Business color="primary" />}>
+              <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.orgNameNote}</Typography>
+              {orgMsg && <Alert severity={orgMsg.type} sx={{ mb: 2 }} onClose={() => setOrgMsg(null)}>{orgMsg.text}</Alert>}
               <Box display="flex" flexDirection="column" gap={2}>
-                <TextField size="small" fullWidth label={t.settings.billingRagioneSociale} value={billing.ragioneSociale}
-                  onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
-                <Box display="flex" gap={2}>
-                  <TextField size="small" fullWidth label={t.settings.billingPiva} value={billing.piva}
-                    onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving}
-                    placeholder="IT12345678901" />
-                  <TextField size="small" fullWidth label={t.settings.billingCodFiscale} value={billing.codiceFiscale}
-                    onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
-                </Box>
-                <TextField size="small" fullWidth label={t.settings.billingIndirizzo} value={billing.indirizzo}
-                  onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
-                <Box display="flex" gap={2}>
-                  <TextField size="small" label={t.settings.billingCap} value={billing.cap} sx={{ width: 120 }}
-                    onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
-                  <TextField size="small" fullWidth label={t.settings.billingCitta} value={billing.citta}
-                    onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
-                  <TextField size="small" label={t.settings.billingProv} value={billing.provincia} sx={{ width: 90 }}
-                    onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
-                    inputProps={{ maxLength: 2 }} placeholder="PE" />
-                </Box>
-                <Divider />
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  {t.settings.billingElectronic}
-                </Typography>
-                <Box display="flex" gap={2}>
-                  <TextField size="small" fullWidth label={t.settings.billingSdi} value={billing.sdiCode}
-                    onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
-                    placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
-                  <TextField size="small" fullWidth label={t.settings.billingPec} type="email" value={billing.pec}
-                    onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
-                    placeholder="azienda@pec.it" />
-                </Box>
-                <Box display="flex" justifyContent="flex-end">
+                <Box display="flex" gap={2} alignItems="flex-start">
+                  <TextField
+                    size="small" fullWidth label={t.settings.orgNameLabel} value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)} disabled={orgSaving} inputProps={{ maxLength: 100 }}
+                  />
                   <Button
                     variant="contained"
-                    startIcon={billingSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
-                    onClick={saveBilling}
-                    disabled={billingSaving}
+                    startIcon={orgSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                    onClick={saveOrgName}
+                    disabled={orgSaving || orgName.trim().length < 2}
+                    sx={{ whiteSpace: 'nowrap' }}
                   >
-                    {billingSaving ? t.settings.saving : t.settings.saveSyncStripe}
+                    {orgSaving ? t.settings.saving : t.settings.save}
                   </Button>
+                </Box>
+                <Box sx={{ maxWidth: 340 }}>
+                  <TextField
+                    select size="small" fullWidth label={t.settings.orgBusinessTypeLabel}
+                    value={orgBusinessType} onChange={(e) => setOrgBusinessType(e.target.value)}
+                    disabled={orgSaving} helperText={t.settings.orgBusinessTypeHint}
+                  >
+                    <MenuItem value="">{t.settings.orgBusinessTypeNone}</MenuItem>
+                    {(t.settings.orgBusinessTypeOptions as { value: string; label: string }[]).map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                    ))}
+                  </TextField>
+                  {orgBusinessType && (() => {
+                    const et = (t.entityTerms as Record<string, any>)[orgBusinessType];
+                    return et ? (
+                      <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
+                        <Typography variant="caption" color="text.secondary">{t.settings.orgBusinessTypePreviewLabel}</Typography>
+                        <Chip label={et.singular} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
+                        <Chip label={et.plural} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />
+                      </Box>
+                    ) : null;
+                  })()}
+                </Box>
+                <Box display="flex" flexDirection="column" gap={1} mt={1}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Switch checked={orgClientsEnabled} onChange={(e) => setOrgClientsEnabled(e.target.checked)} disabled={orgSaving} size="small" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{t.settings.orgClientsEnabledLabel}</Typography>
+                      <Typography variant="caption" color="text.secondary">{t.settings.orgClientsEnabledHint}</Typography>
+                    </Box>
+                  </Box>
+                  {!orgClientsEnabled && (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>{t.settings.orgClientsDisabledWarning}</Alert>
+                  )}
                 </Box>
               </Box>
             </Section>
-          </TabPanel>
-          <TabPanel value={tab} index={4}>
-            <TicketStatusesTab />
-            <Box mt={4} />
-            <InboundAddressesSection />
-          </TabPanel>
-          <TabPanel value={tab} index={5}>
-            <KnowledgeBaseTab />
-            <Box mt={4} />
-            <EmailChannelsTab />
-          </TabPanel>
-          <TabPanel value={tab} index={6}>
-            <GroupsManagementTab />
-          </TabPanel>
-        </>
-      )}
+          )}
+
+          {/* ── USERS & GROUPS (admin) ── */}
+          {isAdmin && activeSection === 'users' && (
+            <>
+              <Section title={t.settings.manageUsersLink} icon={<People color="primary" />}>
+                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageUsersLinkHint}</Typography>
+                <Link href="/users" style={{ textDecoration: 'none' }}>
+                  <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageUsersLink}</Button>
+                </Link>
+              </Section>
+              {((user as any)?.clientsEnabled !== false) && (
+                <Section title={t.settings.manageClientsLink} icon={<Business color="primary" />}>
+                  <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageClientsLinkHint}</Typography>
+                  <Link href="/clients" style={{ textDecoration: 'none' }}>
+                    <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageClientsLink}</Button>
+                  </Link>
+                </Section>
+              )}
+              <GroupsManagementTab />
+            </>
+          )}
+
+          {/* ── TICKETS (admin) ── */}
+          {isAdmin && activeSection === 'tickets' && (
+            <>
+              <TicketStatusesTab />
+              <Box mt={4} />
+              {adminMsg && <Alert severity={adminMsg.type} sx={{ mb: 2 }} onClose={() => setAdminMsg(null)}>{adminMsg.text}</Alert>}
+              <Section title={t.settings.manageLocations} icon={<LocationOn color="primary" />}>
+                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.locationsNote}</Typography>
+                <ListEditor placeholder={t.settings.addLocationPlaceholder} items={locations} onSave={saveLocations} saving={locSaving} />
+              </Section>
+              <Section title={t.settings.manageCategories} icon={<Category color="primary" />}>
+                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.categoriesNote}</Typography>
+                <ListEditor placeholder={t.settings.addCategoryPlaceholder} items={categories} onSave={saveCategories} saving={catSaving} />
+              </Section>
+            </>
+          )}
+
+          {/* ── EMAIL & CHANNELS (admin) ── */}
+          {isAdmin && activeSection === 'email' && (
+            <>
+              <EmailChannelsTab />
+              <Box mt={4} />
+              <InboundAddressesSection />
+            </>
+          )}
+
+          {/* ── KNOWLEDGE BASE (admin) ── */}
+          {isAdmin && activeSection === 'knowledge' && <KnowledgeBaseTab />}
+
+          {/* ── BILLING (admin) ── */}
+          {isAdmin && activeSection === 'billing' && (
+            <>
+              <Section title={t.settings.subscriptionSectionTitle} icon={<Receipt color="primary" />}>
+                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.subscriptionSectionNote}</Typography>
+                <Link href="/billing" style={{ textDecoration: 'none' }}>
+                  <Button variant="contained" startIcon={<OpenInNew fontSize="small" />}>{t.settings.goToSubscription}</Button>
+                </Link>
+              </Section>
+              <Section title={t.settings.billingTitle} icon={<Receipt color="primary" />}>
+                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.billingNote}</Typography>
+                {billingMsg && <Alert severity={billingMsg.type} sx={{ mb: 2 }} onClose={() => setBillingMsg(null)}>{billingMsg.text}</Alert>}
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <TextField size="small" fullWidth label={t.settings.billingRagioneSociale} value={billing.ragioneSociale}
+                    onChange={(e) => setBilling((b) => ({ ...b, ragioneSociale: e.target.value }))} disabled={billingSaving} />
+                  <Box display="flex" gap={2}>
+                    <TextField size="small" fullWidth label={t.settings.billingPiva} value={billing.piva}
+                      onChange={(e) => setBilling((b) => ({ ...b, piva: e.target.value }))} disabled={billingSaving} placeholder="IT12345678901" />
+                    <TextField size="small" fullWidth label={t.settings.billingCodFiscale} value={billing.codiceFiscale}
+                      onChange={(e) => setBilling((b) => ({ ...b, codiceFiscale: e.target.value }))} disabled={billingSaving} />
+                  </Box>
+                  <TextField size="small" fullWidth label={t.settings.billingIndirizzo} value={billing.indirizzo}
+                    onChange={(e) => setBilling((b) => ({ ...b, indirizzo: e.target.value }))} disabled={billingSaving} />
+                  <Box display="flex" gap={2}>
+                    <TextField size="small" label={t.settings.billingCap} value={billing.cap} sx={{ width: 120 }}
+                      onChange={(e) => setBilling((b) => ({ ...b, cap: e.target.value }))} disabled={billingSaving} />
+                    <TextField size="small" fullWidth label={t.settings.billingCitta} value={billing.citta}
+                      onChange={(e) => setBilling((b) => ({ ...b, citta: e.target.value }))} disabled={billingSaving} />
+                    <TextField size="small" label={t.settings.billingProv} value={billing.provincia} sx={{ width: 90 }}
+                      onChange={(e) => setBilling((b) => ({ ...b, provincia: e.target.value }))} disabled={billingSaving}
+                      inputProps={{ maxLength: 2 }} placeholder="PE" />
+                  </Box>
+                  <Divider />
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>{t.settings.billingElectronic}</Typography>
+                  <Box display="flex" gap={2}>
+                    <TextField size="small" fullWidth label={t.settings.billingSdi} value={billing.sdiCode}
+                      onChange={(e) => setBilling((b) => ({ ...b, sdiCode: e.target.value }))} disabled={billingSaving}
+                      placeholder="7 caratteri" inputProps={{ maxLength: 7 }} />
+                    <TextField size="small" fullWidth label={t.settings.billingPec} type="email" value={billing.pec}
+                      onChange={(e) => setBilling((b) => ({ ...b, pec: e.target.value }))} disabled={billingSaving}
+                      placeholder="azienda@pec.it" />
+                  </Box>
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button variant="contained" startIcon={billingSaving ? <CircularProgress size={16} color="inherit" /> : <Save />} onClick={saveBilling} disabled={billingSaving}>
+                      {billingSaving ? t.settings.saving : t.settings.saveSyncStripe}
+                    </Button>
+                  </Box>
+                </Box>
+              </Section>
+            </>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 }
