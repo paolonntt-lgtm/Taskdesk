@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
@@ -139,6 +139,23 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     : [];
   const clientMap = new Map(clientRows.map((c) => [c.id, c]));
 
+  // Batch-fetch checklist progress (total and checked items) per ticket
+  const ticketIds = tickets.map((t) => t.id);
+  const checklistStats = ticketIds.length > 0
+    ? await db
+        .select({
+          ticketId: ticketChecklistsTable.ticketId,
+          checklistCount: sql<number>`count(distinct ${ticketChecklistsTable.id})`,
+          total: sql<number>`count(${ticketChecklistItemsTable.id})`,
+          checked: sql<number>`count(${ticketChecklistItemsTable.id}) filter (where ${ticketChecklistItemsTable.checked} = true)`,
+        })
+        .from(ticketChecklistsTable)
+        .leftJoin(ticketChecklistItemsTable, eq(ticketChecklistItemsTable.checklistId, ticketChecklistsTable.id))
+        .where(inArray(ticketChecklistsTable.ticketId, ticketIds))
+        .groupBy(ticketChecklistsTable.ticketId)
+    : [];
+  const checklistMap = new Map(checklistStats.map((s) => [s.ticketId, { checklistCount: Number(s.checklistCount), total: Number(s.total), checked: Number(s.checked) }]));
+
   const result = tickets.map((t) => ({
     ...buildTicketWithDetails(
       t,
@@ -150,6 +167,9 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
       t.clientId ? (clientMap.get(t.clientId) ?? null) : null
     ),
     hasSolution: solutionSet.has(t.id),
+    checklistCount: checklistMap.get(t.id)?.checklistCount ?? 0,
+    checklistTotal: checklistMap.get(t.id)?.total ?? 0,
+    checklistChecked: checklistMap.get(t.id)?.checked ?? 0,
   }));
 
   res.setHeader("Cache-Control", "no-store");

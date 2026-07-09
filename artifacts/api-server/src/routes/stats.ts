@@ -1,7 +1,30 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray, asc } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
+
+async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
+  if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
+  const ticketIds = tickets.map((t) => t.id);
+  const stats = await db
+    .select({
+      ticketId: ticketChecklistsTable.ticketId,
+      checklistCount: sql<number>`count(distinct ${ticketChecklistsTable.id})`,
+      total: sql<number>`count(${ticketChecklistItemsTable.id})`,
+      checked: sql<number>`count(${ticketChecklistItemsTable.id}) filter (where ${ticketChecklistItemsTable.checked} = true)`,
+    })
+    .from(ticketChecklistsTable)
+    .leftJoin(ticketChecklistItemsTable, eq(ticketChecklistItemsTable.checklistId, ticketChecklistsTable.id))
+    .where(inArray(ticketChecklistsTable.ticketId, ticketIds))
+    .groupBy(ticketChecklistsTable.ticketId);
+  const map = new Map(stats.map((s) => [s.ticketId, { checklistCount: Number(s.checklistCount), total: Number(s.total), checked: Number(s.checked) }]));
+  return tickets.map((t) => ({
+    ...t,
+    checklistCount: map.get(t.id)?.checklistCount ?? 0,
+    checklistTotal: map.get(t.id)?.total ?? 0,
+    checklistChecked: map.get(t.id)?.checked ?? 0,
+  }));
+}
 
 const router: IRouter = Router();
 
@@ -184,7 +207,8 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  res.json(tickets.map((t) => ({
+  const withChecklist = await addChecklistProgress(tickets);
+  res.json(withChecklist.map((t) => ({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
@@ -226,7 +250,8 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  res.json(tickets.map((t) => ({
+  const withChecklist = await addChecklistProgress(tickets);
+  res.json(withChecklist.map((t) => ({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
@@ -292,7 +317,8 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  res.json(tickets.map((t) => ({
+  const withChecklist = await addChecklistProgress(tickets);
+  res.json(withChecklist.map((t) => ({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
@@ -485,7 +511,8 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  res.json(tickets.map((t) => ({
+  const withChecklist = await addChecklistProgress(tickets);
+  res.json(withChecklist.map((t) => ({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,

@@ -531,7 +531,17 @@ export default function TicketList() {
                               <EmailIcon sx={{ fontSize: 15, color: 'info.main', flexShrink: 0 }} />
                             </Tooltip>
                           )}
-                          {ticket.title}
+                          <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>{ticket.title}</Box>
+                          {(ticket as any).checklistCount > 0 && (
+                            <Tooltip title={t.ticketList.checklistProgressTooltip((ticket as any).checklistChecked, (ticket as any).checklistTotal)} placement="top" arrow>
+                              <Chip
+                                label={`✓ ${(ticket as any).checklistChecked}/${(ticket as any).checklistTotal}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600, flexShrink: 0, cursor: 'inherit', borderColor: 'text.disabled', color: 'text.secondary' }}
+                              />
+                            </Tooltip>
+                          )}
                         </Box>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>

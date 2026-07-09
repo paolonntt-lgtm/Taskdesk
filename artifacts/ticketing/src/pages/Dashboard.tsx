@@ -131,6 +131,7 @@ type TicketRow = {
   id: number; title: string; status: string; priority: string;
   category?: string | null; dueAt?: string | null; ticketNumber?: number | null;
   inboundChannelId?: number | null;
+  checklistCount?: number | null; checklistTotal?: number | null; checklistChecked?: number | null;
 };
 
 function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
@@ -202,6 +203,16 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
         {dueBadge && (
           <Chip label={dueBadge.label} size="small" color={dueBadge.color}
             sx={{ fontSize: '0.62rem', height: 20, fontWeight: 'bold' }} />
+        )}
+        {!isMobile && (ticket.checklistCount ?? 0) > 0 && (
+          <Tooltip title={t.ticketList.checklistProgressTooltip(ticket.checklistChecked ?? 0, ticket.checklistTotal ?? 0)} placement="top" arrow>
+            <Chip
+              label={`✓ ${ticket.checklistChecked ?? 0}/${ticket.checklistTotal}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: '0.62rem', height: 20, fontWeight: 600, cursor: 'inherit', borderColor: 'text.disabled', color: 'text.secondary' }}
+            />
+          </Tooltip>
         )}
         <Chip
           label={getLabelForKey(ticket.status) || t.status[ticket.status as keyof typeof t.status] || ticket.status}

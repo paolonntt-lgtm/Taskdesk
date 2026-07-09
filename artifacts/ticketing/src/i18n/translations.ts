@@ -178,6 +178,7 @@ const it = {
     emailBadgeTooltip: 'Ticket ricevuto via email',
     clientFilter: 'Cliente',
     allClients: 'Tutti i clienti',
+    checklistProgressTooltip: (checked: number, total: number) => `Checklist: ${checked}/${total} completat${checked === 1 ? 'a' : 'e'}`,
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -1220,6 +1221,7 @@ const en: typeof it = {
     emailBadgeTooltip: 'Ticket received via email',
     clientFilter: 'Client',
     allClients: 'All clients',
+    checklistProgressTooltip: (checked: number, total: number) => `Checklist: ${checked}/${total} item${total === 1 ? '' : 's'} completed`,
   },
   ticketDetail: {
     backToList: 'All tickets',
