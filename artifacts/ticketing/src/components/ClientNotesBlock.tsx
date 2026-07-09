@@ -284,15 +284,13 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     <Box>
       {/* ── Month chip navigation ─────────────────────────────────── */}
       {availableMonths.length > 0 && (
+        <Box sx={{ pt: 1.5, pl: 1, mb: 2 }}>
         <Box
           sx={{
             display: 'flex',
             gap: 0.75,
             overflowX: 'auto',
-            pt: 1,
             pb: 0.5,
-            pl: 1,
-            mb: 2,
             scrollbarWidth: 'none',
             '&::-webkit-scrollbar': { display: 'none' },
           }}
@@ -324,6 +322,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
               </Badge>
             );
           })}
+        </Box>
         </Box>
       )}
 
