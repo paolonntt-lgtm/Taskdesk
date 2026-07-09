@@ -428,7 +428,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       messages,
       stream: true,
       max_completion_tokens: 800,
