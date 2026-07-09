@@ -387,9 +387,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // A self-assign attempt: user wants to assign the ticket to themselves (or remove their own assignment).
   // This must bypass the creator-only gate so any authenticated user can self-assign an unassigned ticket.
+  // A ticket assigned to a group is NOT eligible for self-assign (only admins can reassign from a group).
   const requestedAssignedTo = parsed.data.assignedTo;
   const isSelfAssignAttempt =
     requestedAssignedTo !== undefined &&
+    !existing.assignedToGroup &&
     (
       (requestedAssignedTo === currentUser.id && (existing.assignedTo === null || existing.assignedTo === currentUser.id)) ||
       (requestedAssignedTo === null && existing.assignedTo === currentUser.id)
@@ -438,14 +440,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // Allow non-admin users to self-assign or remove their own assignment
   if (!isAdmin && parsed.data.assignedTo !== undefined) {
-    const requestedAssignedTo = parsed.data.assignedTo;
+    const reqAssignedTo = parsed.data.assignedTo;
+    // Self-assign: ticket must not be assigned to a group, and either unassigned or already self-assigned
     const canSelfAssign =
-      requestedAssignedTo === currentUser.id &&
+      !existing.assignedToGroup &&
+      reqAssignedTo === currentUser.id &&
       (existing.assignedTo === null || existing.assignedTo === currentUser.id);
+    // Remove own assignment: only if currently the assignee
     const canRemoveSelf =
-      requestedAssignedTo === null && existing.assignedTo === currentUser.id;
+      reqAssignedTo === null && existing.assignedTo === currentUser.id;
     if (canSelfAssign || canRemoveSelf) {
-      (updates as any).assignedTo = requestedAssignedTo;
+      (updates as any).assignedTo = reqAssignedTo;
     }
   }
 
