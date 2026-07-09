@@ -4,7 +4,7 @@ import {
   Divider, CircularProgress, Tooltip, Dialog,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
-import { Add, Delete, AddTask } from '@mui/icons-material';
+import { Delete } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -30,32 +30,86 @@ function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// All keys are stored without diacritics — normalize() strips accents at lookup time.
+// Each unique (deduplicated) string is listed once.
 const MONTH_MAP: Record<string, number> = {
-  gennaio: 1,
-  january: 1,
-  febbraio: 2,
-  february: 2,
-  marzo: 3,
-  march: 3,
-  aprile: 4,
-  april: 4,
-  maggio: 5,
-  may: 5,
-  giugno: 6,
-  june: 6,
-  luglio: 7,
-  july: 7,
-  agosto: 8,
-  august: 8,
-  settembre: 9,
-  september: 9,
-  ottobre: 10,
-  october: 10,
-  novembre: 11,
-  november: 11,
-  dicembre: 12,
-  december: 12,
+  // January
+  gennaio: 1, january: 1, janvier: 1, enero: 1, januar: 1, janeiro: 1,
+  // February
+  febbraio: 2, february: 2, fevrier: 2, febrero: 2, februar: 2, fevereiro: 2,
+  // March — marzo shared by IT+ES; marz=DE; mars=FR; marco=PT
+  marzo: 3, march: 3, mars: 3, marz: 3, marco: 3,
+  // April — abril shared by ES+PT
+  aprile: 4, april: 4, avril: 4, abril: 4,
+  // May — mai shared by FR+DE; maio=PT
+  maggio: 5, may: 5, mai: 5, mayo: 5, maio: 5,
+  // June
+  giugno: 6, june: 6, juin: 6, junio: 6, juni: 6, junho: 6,
+  // July
+  luglio: 7, july: 7, juillet: 7, julio: 7, juli: 7, julho: 7,
+  // August — agosto shared by IT+ES+PT; august shared by EN+DE
+  agosto: 8, august: 8, aout: 8,
+  // September
+  settembre: 9, september: 9, septembre: 9, septiembre: 9, setembro: 9,
+  // October
+  ottobre: 10, october: 10, octobre: 10, octubre: 10, oktober: 10, outubro: 10,
+  // November — novembre shared by IT+FR; november shared by EN+DE
+  novembre: 11, november: 11, noviembre: 11, novembro: 11,
+  // December
+  dicembre: 12, december: 12, decembre: 12, diciembre: 12, dezember: 12, dezembro: 12,
+  // Common abbreviations
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8,
+  sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+  gen: 1, mag: 5, giu: 6, lug: 7, ago: 8, set: 9, ott: 10, dic: 12,
 };
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function fuzzyMatchMonth(raw: string): number | null {
+  const key = normalize(raw);
+
+  // Exact match first (on normalized form)
+  for (const [name, num] of Object.entries(MONTH_MAP)) {
+    if (normalize(name) === key) return num;
+  }
+
+  // Find closest candidate within edit distance threshold
+  const unique = new Map<string, number>();
+  for (const [name, num] of Object.entries(MONTH_MAP)) {
+    unique.set(normalize(name), num);
+  }
+
+  let best: number | null = null;
+  let bestDist = Infinity;
+  const threshold = Math.max(2, Math.floor(key.length / 3));
+
+  for (const [name, num] of unique) {
+    if (Math.abs(name.length - key.length) > threshold + 1) continue;
+    const d = levenshtein(key, name);
+    if (d < bestDist) {
+      bestDist = d;
+      best = num;
+    }
+  }
+
+  return bestDist <= threshold ? best : null;
+}
 
 const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})/i;
 
@@ -72,12 +126,12 @@ function parseHashtag(text: string): HashtagParseResult | HashtagParseError | nu
   const match = HASHTAG_REGEX.exec(text);
   if (!match) return null;
 
-  const monthRaw = match[1].toLowerCase();
+  const monthRaw = match[1];
   const yearRaw = match[2];
 
-  const monthNum = MONTH_MAP[monthRaw];
+  const monthNum = fuzzyMatchMonth(monthRaw);
   if (!monthNum) {
-    return { badMonth: match[1] };
+    return { badMonth: monthRaw };
   }
 
   const year = yearRaw.length === 2 ? `20${yearRaw}` : yearRaw;
@@ -101,6 +155,14 @@ function formatMonthHeading(yyyyMM: string, locale: string): string {
   return d.toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT', { month: 'long', year: 'numeric' });
 }
 
+function bodyToChecklist(text: string): ChecklistItem[] {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => ({ id: genId(), text: line, checked: false }));
+}
+
 export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
@@ -113,14 +175,8 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const deleteNote = useDeleteClientNote();
 
   const [body, setBody] = useState('');
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [newChecklistText, setNewChecklistText] = useState('');
-  const [showChecklist, setShowChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
-
-  const [addingToNote, setAddingToNote] = useState<number | null>(null);
-  const [inlineChecklistText, setInlineChecklistText] = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -141,22 +197,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
-  const handleAddChecklistItem = () => {
-    if (!newChecklistText.trim()) return;
-    setChecklist((prev) => [...prev, { id: genId(), text: newChecklistText.trim(), checked: false }]);
-    setNewChecklistText('');
-  };
-
-  const handleToggleNewChecklistItem = (itemId: string) => {
-    setChecklist((prev) =>
-      prev.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)
-    );
-  };
-
-  const handleRemoveNewChecklistItem = (itemId: string) => {
-    setChecklist((prev) => prev.filter((item) => item.id !== itemId));
-  };
-
   const handleSave = async () => {
     if (!body.trim()) { showToast('error', tc.errorRequired); return; }
     if (hashtagError) return;
@@ -170,19 +210,19 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       monthOverride = result.monthOverride;
     }
 
+    const checklist = bodyToChecklist(finalBody);
+
     setSaving(true);
     try {
       await createNote.mutateAsync({
         id: clientId,
         data: {
-          body: finalBody,
+          body: '',
           checklist: checklist.length > 0 ? checklist : null,
           monthOverride,
         } as any,
       });
       setBody('');
-      setChecklist([]);
-      setShowChecklist(false);
       setHashtagError(null);
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       showToast('success', tc.saveNote);
@@ -209,27 +249,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
         data: { checklist: updated } as any,
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
-    } catch {
-      showToast('error', tc.errorSave);
-    }
-  };
-
-  const handleAddInlineChecklistItem = async (
-    noteId: number,
-    noteBody: string,
-    noteChecklist: ChecklistItem[]
-  ) => {
-    if (!inlineChecklistText.trim()) return;
-    const updated = [...noteChecklist, { id: genId(), text: inlineChecklistText.trim(), checked: false }];
-    try {
-      await updateNote.mutateAsync({
-        id: clientId,
-        noteId,
-        data: { body: noteBody, checklist: updated },
-      });
-      qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
-      setInlineChecklistText('');
-      setAddingToNote(null);
     } catch {
       showToast('error', tc.errorSave);
     }
@@ -300,40 +319,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
             </Typography>
           )}
 
-          {showChecklist && (
-            <Box sx={{ mb: 1.5 }}>
-              {checklist.map((item) => (
-                <Box key={item.id} display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                  <Checkbox size="small" checked={item.checked} onChange={() => handleToggleNewChecklistItem(item.id)} />
-                  <Typography variant="body2" sx={{ flex: 1, textDecoration: item.checked ? 'line-through' : 'none' }}>
-                    {item.text}
-                  </Typography>
-                  <IconButton size="small" onClick={() => handleRemoveNewChecklistItem(item.id)}>
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))}
-              <Box display="flex" gap={1} mt={0.5}>
-                <TextField
-                  size="small" placeholder={tc.checklistItemPlaceholder}
-                  value={newChecklistText}
-                  onChange={(e) => setNewChecklistText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddChecklistItem(); } }}
-                  sx={{ flex: 1 }}
-                />
-                <IconButton size="small" onClick={handleAddChecklistItem} disabled={!newChecklistText.trim()}>
-                  <Add fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-          )}
-
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Tooltip title={tc.addChecklistItem}>
-              <IconButton size="small" onClick={() => setShowChecklist((v) => !v)} color={showChecklist ? 'primary' : 'default'}>
-                <AddTask fontSize="small" />
-              </IconButton>
-            </Tooltip>
+          <Box display="flex" justifyContent="flex-end">
             <Button
               variant="contained" size="small"
               onClick={handleSave}
@@ -396,25 +382,29 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                     )}
                   </Box>
 
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
-                    {note.body}
-                  </Typography>
+                  {note.body ? (
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
+                      {note.body}
+                    </Typography>
+                  ) : null}
 
                   {noteChecklist.length > 0 && (
-                    <Box mt={1}>
-                      <Divider sx={{ mb: 1 }} />
+                    <Box mt={note.body ? 1 : 0}>
+                      {note.body ? <Divider sx={{ mb: 1 }} /> : null}
                       {noteChecklist.map((item: ChecklistItem) => (
                         <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
                           <Checkbox
                             size="small"
                             checked={item.checked}
                             onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                            disabled={!isAdmin}
                           />
                           <Typography
                             variant="body2"
                             sx={{
                               textDecoration: item.checked ? 'line-through' : 'none',
                               color: item.checked ? 'text.disabled' : 'text.primary',
+                              flex: 1,
                             }}
                           >
                             {item.text}
@@ -425,41 +415,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                         {completedCount}/{noteChecklist.length}
                       </Typography>
                     </Box>
-                  )}
-
-                  {isAdmin && (
-                    addingToNote === note.id ? (
-                      <Box display="flex" gap={1} mt={1}>
-                        <TextField
-                          size="small" autoFocus
-                          placeholder={tc.checklistItemPlaceholder}
-                          value={inlineChecklistText}
-                          onChange={(e) => setInlineChecklistText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
-                            if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
-                          }}
-                          sx={{ flex: 1 }}
-                        />
-                        <IconButton
-                          size="small" color="primary"
-                          onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
-                          disabled={!inlineChecklistText.trim()}
-                        >
-                          <Add fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    ) : (
-                      <Tooltip title={tc.addChecklistItem}>
-                        <IconButton
-                          size="small"
-                          sx={{ mt: 0.5, color: 'text.disabled' }}
-                          onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
-                        >
-                          <AddTask fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )
                   )}
                 </Box>
               );
