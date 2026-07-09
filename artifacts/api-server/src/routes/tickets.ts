@@ -424,13 +424,18 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
         ...(parsed.data.dueAt !== undefined && { dueAt: parsed.data.dueAt }),
       }
-    : {
+    : existing.createdBy === currentUser.id
+    ? {
+        // Ticket creator can edit content fields but not reassign or reprioritise
         ...(parsed.data.title !== undefined && { title: parsed.data.title }),
         ...(parsed.data.description !== undefined && { description: parsed.data.description }),
         ...(parsed.data.category !== undefined && { category: parsed.data.category }),
         ...(parsed.data.location !== undefined && { location: parsed.data.location }),
         ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
-      };
+      }
+    : {};
+    // ^ Self-assign-only path: no fields allowed except assignedTo (patched below)
+
   // Allow non-admin users to self-assign or remove their own assignment
   if (!isAdmin && parsed.data.assignedTo !== undefined) {
     const requestedAssignedTo = parsed.data.assignedTo;
