@@ -307,7 +307,19 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                 badgeContent={m.count}
                 color="primary"
                 anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-                sx={{ flexShrink: 0 }}
+                sx={{
+                  flexShrink: 0,
+                  '& .MuiBadge-badge': {
+                    bgcolor: 'background.paper',
+                    color: 'primary.main',
+                    border: '1.5px solid',
+                    borderColor: 'primary.main',
+                    fontWeight: 700,
+                    minWidth: 18,
+                    height: 18,
+                    fontSize: '0.65rem',
+                  },
+                }}
               >
                 <Chip
                   label={m.label}
