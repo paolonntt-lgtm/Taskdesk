@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
   CircularProgress, Tooltip, Dialog, Avatar, Chip,
-  LinearProgress, Collapse,
+  LinearProgress,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
-import { Delete, Add, NoteAdd } from '@mui/icons-material';
+import { Delete, NoteAdd } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -129,7 +129,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     [groupedNotes, effectiveMonth],
   );
 
-  const [formOpen, setFormOpen] = useState(false);
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
@@ -180,7 +179,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       });
       setBody('');
       setHashtagError(null);
-      setFormOpen(false);
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       showToast('success', tc.saveNote);
     } catch {
@@ -188,12 +186,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    setBody('');
-    setHashtagError(null);
-    setFormOpen(false);
   };
 
   const handleToggleNoteChecklistItem = async (
@@ -429,63 +421,43 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
         </Box>
       )}
 
-      {/* ── Collapsible add-note form (admin only) ────────────────── */}
+      {/* ── Add-note form (admin only) ────────────────────────────── */}
       {isAdmin && (
-        <Box>
-          <Collapse in={formOpen} unmountOnExit>
-            <Box
-              sx={{
-                mb: 1.5,
-                p: 2,
-                border: '1px solid',
-                borderColor: 'primary.main',
-                borderRadius: 2,
-                bgcolor: 'background.paper',
-              }}
-            >
-              <TextField
-                fullWidth
-                multiline
-                minRows={3}
-                placeholder={tc.addNotePlaceholder}
-                value={body}
-                onChange={(e) => handleBodyChange(e.target.value)}
-                size="small"
-                sx={{ mb: 1 }}
-                autoFocus
-              />
-              {hashtagError && (
-                <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
-                  {hashtagError}
-                </Typography>
-              )}
-              <Box display="flex" justifyContent="flex-end" gap={1}>
-                <Button size="small" onClick={handleCancel}>
-                  {tc.deleteNoteCancel}
-                </Button>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleSave}
-                  disabled={saving || !body.trim() || !!hashtagError}
-                >
-                  {saving ? tc.savingNote : tc.saveNote}
-                </Button>
-              </Box>
-            </Box>
-          </Collapse>
-
-          {!formOpen && (
-            <Button
-              startIcon={<Add />}
-              size="small"
-              variant="outlined"
-              onClick={() => setFormOpen(true)}
-              sx={{ borderStyle: 'dashed' }}
-            >
-              {tc.addNoteBtn}
-            </Button>
+        <Box
+          sx={{
+            mt: 1,
+            p: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 2,
+            bgcolor: 'background.paper',
+          }}
+        >
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            placeholder={tc.addNotePlaceholder}
+            value={body}
+            onChange={(e) => handleBodyChange(e.target.value)}
+            size="small"
+            sx={{ mb: 1 }}
+          />
+          {hashtagError && (
+            <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
+              {hashtagError}
+            </Typography>
           )}
+          <Box display="flex" justifyContent="flex-end">
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSave}
+              disabled={saving || !body.trim() || !!hashtagError}
+            >
+              {saving ? tc.savingNote : tc.saveNote}
+            </Button>
+          </Box>
         </Box>
       )}
 
