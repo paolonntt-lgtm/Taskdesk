@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx';
 
 const emptyForm: ClientInput = {
   name: '',
+  alias: null,
   email: null,
   phone: null,
   vatNumber: null,
@@ -184,6 +185,7 @@ export default function Clients() {
     setEditingClient(client);
     setForm({
       name: client.name,
+      alias: (client as any).alias ?? null,
       email: client.email ?? null,
       phone: client.phone ?? null,
       vatNumber: (client as any).vatNumber ?? null,
@@ -204,6 +206,7 @@ export default function Clients() {
     try {
       const payload = {
         name: form.name.trim(),
+        alias: (form as any).alias?.trim() || null,
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
         vatNumber: (form as any).vatNumber?.trim() || null,
@@ -420,6 +423,14 @@ export default function Clients() {
               fullWidth
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            />
+            <TextField
+              label={tc.alias}
+              fullWidth
+              value={(form as any).alias ?? ''}
+              onChange={e => setForm(f => ({ ...f, alias: e.target.value || null } as any))}
+              placeholder={tc.aliasPlaceholder}
+              helperText={tc.aliasPlaceholder}
             />
             <TextField
               label={tc.vatNumber}

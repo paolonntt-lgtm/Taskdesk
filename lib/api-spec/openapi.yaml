@@ -2723,6 +2723,9 @@ components:
           nullable: true
         name:
           type: string
+        alias:
+          type: string
+          nullable: true
         slug:
           type: string
           nullable: true
@@ -2781,6 +2784,9 @@ components:
         name:
           type: string
           minLength: 1
+        alias:
+          type: string
+          nullable: true
         email:
           type: string
           format: email

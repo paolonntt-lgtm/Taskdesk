@@ -1425,6 +1425,7 @@ export const ListClientsResponseItem = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  alias: zod.string().nullish(),
   slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
@@ -1453,6 +1454,7 @@ export const ListClientsResponse = zod.array(ListClientsResponseItem);
 
 export const CreateClientBody = zod.object({
   name: zod.string().min(1),
+  alias: zod.string().nullish(),
   email: zod.string().email().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
@@ -1505,6 +1507,7 @@ export const GetClientResponse = zod
     id: zod.number(),
     organizationId: zod.number().nullish(),
     name: zod.string(),
+    alias: zod.string().nullish(),
     slug: zod.string().nullish(),
     email: zod.string().nullish(),
     phone: zod.string().nullish(),
@@ -1553,6 +1556,7 @@ export const UpdateClientParams = zod.object({
 
 export const UpdateClientBody = zod.object({
   name: zod.string().min(1),
+  alias: zod.string().nullish(),
   email: zod.string().email().nullish(),
   phone: zod.string().nullish(),
   vatNumber: zod.string().nullish(),
@@ -1567,6 +1571,7 @@ export const UpdateClientResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  alias: zod.string().nullish(),
   slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
@@ -1615,6 +1620,7 @@ export const UpdateClientLayoutResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  alias: zod.string().nullish(),
   slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
@@ -1647,6 +1653,7 @@ export const ResolveClientBySlugResponse = zod.object({
   id: zod.number(),
   organizationId: zod.number().nullish(),
   name: zod.string(),
+  alias: zod.string().nullish(),
   slug: zod.string().nullish(),
   email: zod.string().nullish(),
   phone: zod.string().nullish(),

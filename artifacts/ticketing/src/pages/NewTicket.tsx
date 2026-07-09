@@ -133,7 +133,7 @@ export default function NewTicket() {
     try {
       const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
       const finalTitle = selectedClient
-        ? `${selectedClient.name}: ${formData.title}`
+        ? `${(selectedClient as any).alias || selectedClient.name}: ${formData.title}`
         : formData.title;
       const result = await createTicket.mutateAsync({
         data: {

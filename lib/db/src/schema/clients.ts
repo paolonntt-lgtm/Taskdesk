@@ -5,6 +5,7 @@ export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => organizationsTable.id),
   name: text("name").notNull(),
+  alias: text("alias"),
   slug: text("slug"),
   email: text("email"),
   phone: text("phone"),

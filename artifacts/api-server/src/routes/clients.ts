@@ -38,6 +38,7 @@ async function generateUniqueSlug(name: string, orgId: number, excludeId?: numbe
 
 const ClientBody = z.object({
   name: z.string().min(1),
+  alias: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   vatNumber: z.string().optional().nullable(),

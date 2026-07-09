@@ -397,6 +397,7 @@ export interface Client {
   id: number;
   organizationId?: number | null;
   name: string;
+  alias?: string | null;
   slug?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -414,6 +415,7 @@ export interface Client {
 export interface ClientInput {
   /** @minLength 1 */
   name: string;
+  alias?: string | null;
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
