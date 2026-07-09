@@ -98,7 +98,9 @@ export default function ConsoleHistoryTab() {
         >
           <MenuItem value="">{ts.consoleHistoryAllAuthors}</MenuItem>
           {activeUsers.map((u: any) => (
-            <MenuItem key={u.id} value={String(u.id)}>{u.name}</MenuItem>
+            <MenuItem key={u.id} value={String(u.id)}>
+            {(() => { const p = u.name.trim().split(/\s+/); return p.length > 1 ? `${p.slice(-1)[0]} ${p.slice(0, -1).join(' ')}` : u.name; })()}
+          </MenuItem>
           ))}
         </TextField>
 
