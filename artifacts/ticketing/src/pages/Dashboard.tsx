@@ -32,6 +32,9 @@ import {
   NoteAlt as ClientNotesIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Category as CategoryIcon,
+  FilterList as FilterListIcon,
+  PeopleAlt as PeopleAltIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -1082,6 +1085,215 @@ function StatOverdueWidget() {
   );
 }
 
+// ── TICKETS BY CATEGORY (configurable) ────────────────────────────────────
+
+const CATEGORY_WIDGET_KEY = 'td_widget_category';
+
+function FeedCategoryWidget() {
+  const { t } = useLanguage();
+  const [configOpen, setConfigOpen] = useState(false);
+  const [selected, setSelected] = useState<string>(() => localStorage.getItem(CATEGORY_WIDGET_KEY) ?? '');
+  const [temp, setTemp] = useState<string>(selected);
+
+  const { data: categories = [] } = useQuery<string[]>({
+    queryKey: ['widget-categories-list'],
+    queryFn: () => fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then((d) => d.value ?? []),
+    staleTime: 60_000,
+  });
+
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['tickets-for-category', selected],
+    queryFn: () => selected
+      ? fetch(`/api/tickets?category=${encodeURIComponent(selected)}`, { credentials: 'include' }).then((r) => r.json())
+      : Promise.resolve([]),
+    enabled: !!selected,
+    staleTime: 30_000,
+  });
+
+  const handleSave = () => {
+    setSelected(temp);
+    if (temp) localStorage.setItem(CATEGORY_WIDGET_KEY, temp);
+    else localStorage.removeItem(CATEGORY_WIDGET_KEY);
+    setConfigOpen(false);
+  };
+
+  return (
+    <>
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1} flexShrink={0}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <CategoryIcon fontSize="small" color="primary" />
+              <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+                {selected || t.dashboard.widgetFeedCategory}
+              </Typography>
+              {selected && data.length > 0 && (
+                <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              )}
+            </Box>
+            <Tooltip title={t.dashboard.configureWidget}>
+              <IconButton size="small" onClick={() => { setTemp(selected); setConfigOpen(true); }}>
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Divider sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {!selected ? (
+              <Box px={2} py={3} textAlign="center">
+                <Typography variant="body2" color="text.secondary">{t.dashboard.noCategorySelected}</Typography>
+                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.configureWidget}
+                </Button>
+              </Box>
+            ) : data.length === 0 ? (
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForCategory}</Typography></Box>
+            ) : (
+              data.slice(0, 15).map((ticket, idx) => (
+                <React.Fragment key={ticket.id}>
+                  <TicketRowItem ticket={ticket} />
+                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                </React.Fragment>
+              ))
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.dashboard.selectCategory}</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <InputLabel>{t.dashboard.selectCategory}</InputLabel>
+            <Select label={t.dashboard.selectCategory} value={temp} onChange={(e) => setTemp(e.target.value)}>
+              <MenuItem value="">—</MenuItem>
+              {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setConfigOpen(false)}>Annulla</Button>
+            <Button variant="contained" onClick={handleSave}>OK</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── TICKETS BY STATUS (configurable) ──────────────────────────────────────
+
+const STATUS_WIDGET_KEY = 'td_widget_status';
+
+function FeedStatusWidget() {
+  const { t } = useLanguage();
+  const [configOpen, setConfigOpen] = useState(false);
+  const [selected, setSelected] = useState<string>(() => localStorage.getItem(STATUS_WIDGET_KEY) ?? '');
+  const [temp, setTemp] = useState<string>(selected);
+
+  const { statuses } = useTicketStatuses();
+
+  const { data = [] } = useQuery<TicketRow[]>({
+    queryKey: ['tickets-for-status', selected],
+    queryFn: () => selected
+      ? fetch(`/api/tickets?status=${encodeURIComponent(selected)}`, { credentials: 'include' }).then((r) => r.json())
+      : Promise.resolve([]),
+    enabled: !!selected,
+    staleTime: 30_000,
+  });
+
+  const selectedLabel = statuses.find((s) => s.key === selected)?.label ?? selected;
+
+  const handleSave = () => {
+    setSelected(temp);
+    if (temp) localStorage.setItem(STATUS_WIDGET_KEY, temp);
+    else localStorage.removeItem(STATUS_WIDGET_KEY);
+    setConfigOpen(false);
+  };
+
+  return (
+    <>
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" px={2} pt={2} pb={1} flexShrink={0}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <FilterListIcon fontSize="small" color="primary" />
+              <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+                {selected ? selectedLabel : t.dashboard.widgetFeedStatus}
+              </Typography>
+              {selected && data.length > 0 && (
+                <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              )}
+            </Box>
+            <Tooltip title={t.dashboard.configureWidget}>
+              <IconButton size="small" onClick={() => { setTemp(selected); setConfigOpen(true); }}>
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Divider sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {!selected ? (
+              <Box px={2} py={3} textAlign="center">
+                <Typography variant="body2" color="text.secondary">{t.dashboard.noStatusSelected}</Typography>
+                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.configureWidget}
+                </Button>
+              </Box>
+            ) : data.length === 0 ? (
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForStatus}</Typography></Box>
+            ) : (
+              data.slice(0, 15).map((ticket, idx) => (
+                <React.Fragment key={ticket.id}>
+                  <TicketRowItem ticket={ticket} />
+                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                </React.Fragment>
+              ))
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.dashboard.selectStatus}</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <InputLabel>{t.dashboard.selectStatus}</InputLabel>
+            <Select label={t.dashboard.selectStatus} value={temp} onChange={(e) => setTemp(e.target.value)}>
+              <MenuItem value="">—</MenuItem>
+              {statuses.map((s) => <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setConfigOpen(false)}>Annulla</Button>
+            <Button variant="contained" onClick={handleSave}>OK</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── ALL ASSIGNED TICKETS ───────────────────────────────────────────────────
+
+function FeedAllAssignedWidget() {
+  const { t } = useLanguage();
+  const { data = [] } = useQuery<(TicketRow & { assignedTo?: number | null })[]>({
+    queryKey: ['all-assigned-open-tickets'],
+    queryFn: () => fetch('/api/tickets', { credentials: 'include' }).then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const tickets = data
+    .filter((tk) => tk.assignedTo != null && !['resolved', 'closed'].includes(tk.status))
+    .slice(0, 20);
+  return (
+    <FeedCard
+      title={t.dashboard.widgetFeedAllAssigned}
+      icon={<PeopleAltIcon fontSize="small" color="primary" />}
+      tickets={tickets}
+      emptyMsg={t.dashboard.noAssignedTickets}
+      viewAllHref="/tickets"
+    />
+  );
+}
+
 // ── WIDGET REGISTRY ───────────────────────────────────────────────────────
 
 interface WidgetMeta {
@@ -1174,6 +1386,9 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
   { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 41, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 50, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
+  { id: 'feed-category',  labelKey: 'widgetFeedCategory',  defaultLayout: { x: 0, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedCategoryWidget },
+  { id: 'feed-status',    labelKey: 'widgetFeedStatus',    defaultLayout: { x: 4, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedStatusWidget },
+  { id: 'feed-all-assigned', labelKey: 'widgetFeedAllAssigned', defaultLayout: { x: 8, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAllAssignedWidget },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
