@@ -929,6 +929,7 @@ const it = {
     openConsole: 'Note Clienti',
     invalidMonth: (name: string) => `Mese non riconosciuto: «${name}» — scrivi es. #agosto26`,
     monthHashtagHint: 'Usa #mese26 o #mese2026 per assegnare la nota a un mese specifico',
+    allMonths: 'Tutti i mesi',
   },
   groups: {
     tabLabel: 'Gruppi',
@@ -1983,6 +1984,7 @@ const en: typeof it = {
     openConsole: 'Client Notes',
     invalidMonth: (name: string) => `Unrecognized month: «${name}» — try e.g. #august26`,
     monthHashtagHint: 'Use #month26 or #month2026 to assign the note to a specific month',
+    allMonths: 'All months',
   },
   groups: {
     tabLabel: 'Groups',

@@ -3,6 +3,7 @@ import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
   Divider, CircularProgress, Tooltip, Dialog,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
+  Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import { Delete } from '@mui/icons-material';
 import {
@@ -62,6 +63,9 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const createNote = useCreateClientNote();
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
+
+  const currentMonthKey = useMemo(() => monthKeyFromDate(new Date().toISOString()), []);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
 
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
@@ -177,6 +181,17 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     return groups;
   }, [notes]);
 
+  const availableMonths = useMemo(
+    () => groupedNotes.map(g => ({ key: g.key, label: formatMonthHeading(g.key, lang) })),
+    [groupedNotes, lang]
+  );
+
+  const effectiveMonth = availableMonths.some(m => m.key === selectedMonth) ? selectedMonth : '';
+
+  const visibleGroups = effectiveMonth
+    ? groupedNotes.filter(g => g.key === effectiveMonth)
+    : groupedNotes;
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" py={3}>
@@ -220,12 +235,30 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
         </Box>
       )}
 
+      {availableMonths.length > 1 && (
+        <Box mb={2}>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>{tc.allMonths}</InputLabel>
+            <Select
+              label={tc.allMonths}
+              value={effectiveMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+            >
+              <MenuItem value=""><em>{tc.allMonths}</em></MenuItem>
+              {availableMonths.map(m => (
+                <MenuItem key={m.key} value={m.key}>{m.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
+
       {notes.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
           {tc.noNotes}
         </Typography>
       ) : (
-        groupedNotes.map(({ key, notes: groupNotes }) => (
+        visibleGroups.map(({ key, notes: groupNotes }) => (
           <Box key={key}>
             <Box display="flex" alignItems="center" gap={1} mb={1.5}>
               <Typography
