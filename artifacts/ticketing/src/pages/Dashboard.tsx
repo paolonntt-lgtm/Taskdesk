@@ -786,7 +786,7 @@ function ClientNotesWidget() {
             rows.map((row, idx) => (
               <Box
                 key={row.id}
-                component="a"
+                component={Link}
                 href={`/clients/${row.id}`}
                 display="flex"
                 alignItems="center"
