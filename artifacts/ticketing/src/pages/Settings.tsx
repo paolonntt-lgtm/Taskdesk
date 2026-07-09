@@ -614,6 +614,8 @@ export default function Settings() {
 
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [defaultCategory, setDefaultCategory] = useState<string>('');
+  const [defaultCatSaving, setDefaultCatSaving] = useState(false);
   const [locSaving, setLocSaving] = useState(false);
   const [catSaving, setCatSaving] = useState(false);
   const [adminMsg, setAdminMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -638,6 +640,8 @@ export default function Settings() {
       .then((r) => r.json()).then((d) => setLocations(d.value ?? [])).catch(() => {});
     fetch('/api/settings/categories', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setCategories(d.value ?? [])).catch(() => {});
+    fetch('/api/settings/default-category', { credentials: 'include' })
+      .then((r) => r.json()).then((d) => setDefaultCategory(d.value ?? '')).catch(() => {});
     fetch('/api/settings/organization', { credentials: 'include' })
       .then((r) => r.json()).then((d) => { setOrgName(d.name ?? ''); if (d.businessType) setOrgBusinessType(d.businessType); setOrgClientsEnabled(d.clientsEnabled !== false); }).catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
@@ -843,11 +847,34 @@ export default function Settings() {
       });
       const data = await res.json();
       if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
-      setCategories(data.value);
+      const sorted = [...(data.value as string[])].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+      setCategories(sorted);
+      if (defaultCategory && !sorted.includes(defaultCategory)) {
+        setDefaultCategory('');
+      }
     } catch {
       setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
     } finally {
       setCatSaving(false);
+    }
+  };
+
+  const saveDefaultCategory = async (val: string) => {
+    setDefaultCatSaving(true);
+    try {
+      const res = await fetch('/api/settings/default-category', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: val || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAdminMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      setDefaultCategory(data.value ?? '');
+    } catch {
+      setAdminMsg({ type: 'error', text: 'Errore di rete. Riprova.' });
+    } finally {
+      setDefaultCatSaving(false);
     }
   };
 
@@ -1140,6 +1167,26 @@ export default function Settings() {
               <Section title={t.settings.manageCategories} icon={<Category color="primary" />}>
                 <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.categoriesNote}</Typography>
                 <ListEditor placeholder={t.settings.addCategoryPlaceholder} items={categories} onSave={saveCategories} saving={catSaving} />
+                {categories.length > 0 && (
+                  <Box mt={3} display="flex" alignItems="center" gap={2} flexWrap="wrap">
+                    <TextField
+                      select
+                      size="small"
+                      label={t.settings.defaultCategoryLabel}
+                      value={defaultCategory}
+                      onChange={(e) => saveDefaultCategory(e.target.value)}
+                      disabled={defaultCatSaving}
+                      sx={{ minWidth: 220 }}
+                      helperText={t.settings.defaultCategoryHint}
+                    >
+                      <MenuItem value=""><em>{t.settings.defaultCategoryNone}</em></MenuItem>
+                      {categories.map((c) => (
+                        <MenuItem key={c} value={c}>{c}</MenuItem>
+                      ))}
+                    </TextField>
+                    {defaultCatSaving && <CircularProgress size={18} />}
+                  </Box>
+                )}
               </Section>
               <Box mt={4} />
               <InboundAddressesSection />

@@ -47,12 +47,19 @@ export default function NewTicket() {
   });
 
   useEffect(() => {
-    fetch('/api/settings/categories', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => {
-        const cats = d.value ?? [];
+    let defaultCat: string | null = null;
+    Promise.all([
+      fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()),
+      fetch('/api/settings/default-category', { credentials: 'include' }).then((r) => r.json()),
+    ])
+      .then(([catsData, defData]) => {
+        const cats: string[] = catsData.value ?? [];
+        defaultCat = defData.value ?? null;
         setCategories(cats);
-        if (!formData.category && cats.length > 0) setFormData((f) => ({ ...f, category: cats[0] }));
+        if (!formData.category && cats.length > 0) {
+          const preselect = (defaultCat && cats.includes(defaultCat)) ? defaultCat : cats[0];
+          setFormData((f) => ({ ...f, category: preselect }));
+        }
       })
       .catch(() => {});
     fetch('/api/settings/locations', { credentials: 'include' })

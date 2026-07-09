@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, ActivityIndicator,
@@ -9,7 +9,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiPost, CATEGORIES, PRIORITIES, LOCATIONS } from "@/utils/api";
+import { apiPost, apiGet, PRIORITIES, LOCATIONS } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -25,11 +25,28 @@ export default function NewTicketScreen() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [category, setCategory] = useState("");
   const [location, setLocation] = useState(LOCATIONS[0]);
   const [priority, setPriority] = useState("medium");
   const [resource, setResource] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      apiGet<{ value: string[] }>("/settings/categories"),
+      apiGet<{ value: string | null }>("/settings/default-category"),
+    ])
+      .then(([catsData, defData]) => {
+        const cats = catsData.value ?? [];
+        const sorted = [...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        setCategories(sorted);
+        const defaultCat = defData.value;
+        const preselect = (defaultCat && sorted.includes(defaultCat)) ? defaultCat : sorted[0] ?? "";
+        setCategory(preselect);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -96,7 +113,7 @@ export default function NewTicketScreen() {
         <Text style={s.label}>{t.newTicket.category}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
           <View style={s.chips}>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <TouchableOpacity
                 key={c}
                 style={[s.chip, category === c && s.chipActive]}

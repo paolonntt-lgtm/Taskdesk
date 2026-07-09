@@ -70,7 +70,8 @@ export default function AdminSettingsScreen() {
       ]);
       setGroups(g.value ?? []);
       setLocations(l.value ?? []);
-      setCategories(c.value ?? []);
+      const cats = c.value ?? [];
+      setCategories([...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
     } catch {
       Alert.alert(t.adminSettings.error, t.adminSettings.errorSave);
     } finally {

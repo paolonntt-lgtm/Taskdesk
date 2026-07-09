@@ -46,6 +46,35 @@ router.get("/settings/categories", requireAuth, async (req, res): Promise<void> 
   const currentUser = (req as any).currentUser;
   const key = orgKey(currentUser.organizationId, "categories");
   const value = await getSetting(key, DEFAULT_CATEGORIES);
+  const sorted = [...value].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  res.json({ value: sorted });
+});
+
+router.get("/settings/default-category", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "default_category");
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  const value = row ? row.value : null;
+  res.json({ value });
+});
+
+router.put("/settings/default-category", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { value } = req.body ?? {};
+  if (value !== null && typeof value !== "string") {
+    res.status(400).json({ message: "Valore non valido" });
+    return;
+  }
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "default_category");
+  if (!value) {
+    await db.delete(settingsTable).where(eq(settingsTable.key, key));
+    res.json({ value: null });
+    return;
+  }
+  await db
+    .insert(settingsTable)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value } });
   res.json({ value });
 });
 
@@ -74,11 +103,12 @@ router.put("/settings/categories", requireAuth, requireAdmin, async (req, res): 
   const currentUser = (req as any).currentUser;
   const key = orgKey(currentUser.organizationId, "categories");
   const cleaned = value.map((v: string) => v.trim()).filter(Boolean);
+  const sorted = [...cleaned].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   await db
     .insert(settingsTable)
-    .values({ key, value: JSON.stringify(cleaned) })
-    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(cleaned) } });
-  res.json({ value: cleaned });
+    .values({ key, value: JSON.stringify(sorted) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(sorted) } });
+  res.json({ value: sorted });
 });
 
 router.get("/settings/groups", requireAuth, async (req, res): Promise<void> => {
