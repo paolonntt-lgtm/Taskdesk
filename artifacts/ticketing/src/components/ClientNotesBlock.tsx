@@ -284,13 +284,15 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     <Box>
       {/* ── Month chip navigation ─────────────────────────────────── */}
       {availableMonths.length > 0 && (
-        <Box sx={{ pt: 1.5, pl: 1, mb: 2 }}>
         <Box
           sx={{
             display: 'flex',
             gap: 0.75,
             overflowX: 'auto',
-            pb: 0.5,
+            pt: 2,
+            pb: 1,
+            pl: 1,
+            mb: 1,
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(0,0,0,0.2) transparent',
             '&::-webkit-scrollbar': { height: 4 },
@@ -307,19 +309,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                 badgeContent={m.count}
                 color="primary"
                 anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-                sx={{
-                  flexShrink: 0,
-                  '& .MuiBadge-badge': {
-                    bgcolor: 'background.paper',
-                    color: 'primary.main',
-                    border: '1.5px solid',
-                    borderColor: 'primary.main',
-                    fontWeight: 700,
-                    minWidth: 18,
-                    height: 18,
-                    fontSize: '0.65rem',
-                  },
-                }}
+                sx={{ flexShrink: 0 }}
               >
                 <Chip
                   label={m.label}
@@ -337,7 +327,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
               </Badge>
             );
           })}
-        </Box>
         </Box>
       )}
 
