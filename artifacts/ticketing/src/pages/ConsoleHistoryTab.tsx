@@ -66,7 +66,12 @@ export default function ConsoleHistoryTab() {
   });
 
   const notes = rawNotes as any[];
-  const activeUsers = (users as any[]).filter((u) => u.active !== false);
+  const activeUsers = (users as any[])
+    .filter((u) => u.active !== false)
+    .sort((a: any, b: any) => {
+      const lastName = (name: string) => name.trim().split(/\s+/).slice(-1)[0] ?? name;
+      return lastName(a.name).localeCompare(lastName(b.name), undefined, { sensitivity: 'base' });
+    });
 
   return (
     <Section title={ts.consoleHistoryTitle} icon={<History color="primary" />}>
@@ -97,25 +102,26 @@ export default function ConsoleHistoryTab() {
           ))}
         </TextField>
 
-        <TextField
-          size="small"
-          type="date"
-          label={ts.consoleHistoryDateFrom}
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          sx={{ minWidth: 140, flex: '0 0 auto' }}
-        />
-
-        <TextField
-          size="small"
-          type="date"
-          label={ts.consoleHistoryDateTo}
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          sx={{ minWidth: 140, flex: '0 0 auto' }}
-        />
+        <Box display="flex" gap={1} flex="0 0 auto">
+          <TextField
+            size="small"
+            type="date"
+            label={ts.consoleHistoryDateFrom}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 140 }}
+          />
+          <TextField
+            size="small"
+            type="date"
+            label={ts.consoleHistoryDateTo}
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 140 }}
+          />
+        </Box>
 
         {hasFilters && (
           <Button
