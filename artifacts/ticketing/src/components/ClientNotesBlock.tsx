@@ -5,7 +5,7 @@ import {
   LinearProgress,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
-import { Delete, NoteAdd } from '@mui/icons-material';
+import { Delete, Add, NoteAdd, Edit } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -133,6 +133,10 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
 
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editBody, setEditBody] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -206,6 +210,48 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
     } catch {
       showToast('error', tc.errorSave);
+    }
+  };
+
+  const noteToEditableText = (note: any): string => {
+    const checklist: ChecklistItem[] = note.checklist ?? [];
+    if (checklist.length > 0) {
+      return checklist.map((item: ChecklistItem) => item.text).join('\n');
+    }
+    return note.body ?? '';
+  };
+
+  const openEditNote = (note: any) => {
+    setEditingNoteId(note.id);
+    setEditBody(noteToEditableText(note));
+  };
+
+  const handleEditCancel = () => {
+    setEditingNoteId(null);
+    setEditBody('');
+  };
+
+  const handleEditSave = async (note: any) => {
+    if (!editBody.trim()) { showToast('error', tc.errorRequired); return; }
+    const checklist = bodyToChecklist(editBody);
+    setEditSaving(true);
+    try {
+      await updateNote.mutateAsync({
+        id: clientId,
+        noteId: note.id,
+        data: {
+          body: '',
+          checklist: checklist.length > 0 ? checklist : null,
+        } as any,
+      });
+      qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      setEditingNoteId(null);
+      setEditBody('');
+      showToast('success', tc.editNoteSave);
+    } catch {
+      showToast('error', tc.errorEdit);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -340,86 +386,128 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                     </Typography>
                   </Box>
                   {isAdmin && (
-                    <Tooltip title={tc.deleteNote}>
-                      <IconButton
-                        size="small"
-                        onClick={() => setDeleteTarget(note.id)}
-                        sx={{ color: 'error.main', flexShrink: 0, ml: 1 }}
-                      >
-                        <Delete sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>
+                      <Tooltip title={tc.editNote}>
+                        <IconButton
+                          size="small"
+                          onClick={() => openEditNote(note)}
+                          disabled={editingNoteId === note.id}
+                          sx={{ color: 'primary.main' }}
+                        >
+                          <Edit sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={tc.deleteNote}>
+                        <IconButton
+                          size="small"
+                          onClick={() => setDeleteTarget(note.id)}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <Delete sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   )}
                 </Box>
 
                 {/* Note body */}
                 <Box sx={{ px: 2, py: 1.5 }}>
-                  {note.body ? (
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1.5 : 0 }}>
-                      {note.body}
-                    </Typography>
-                  ) : null}
-
-                  {noteChecklist.length > 0 && (
+                  {editingNoteId === note.id ? (
                     <Box>
-                      {/* Progress bar */}
-                      <Box display="flex" alignItems="center" gap={1} mb={1}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={progress}
-                          sx={{ flex: 1, height: 6, borderRadius: 3 }}
-                          color={progress === 100 ? 'success' : 'primary'}
-                        />
-                        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {t.checklist.progress(completedCount, noteChecklist.length)}
-                        </Typography>
-                      </Box>
-
-                      {/* Checklist items */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                        {noteChecklist.map((item: ChecklistItem) => (
-                          <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
-                            {item.checked && item.checkedByName ? (
-                              <Tooltip
-                                title={t.checklist.checkedBy(
-                                  item.checkedByName,
-                                  item.checkedAt
-                                    ? new Date(item.checkedAt).toLocaleString(localeStr, { dateStyle: 'short', timeStyle: 'short' })
-                                    : '',
-                                )}
-                                arrow
-                              >
-                                <Checkbox
-                                  size="small"
-                                  checked={item.checked}
-                                  onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
-                                  disabled={!isAdmin}
-                                  sx={{ p: 0.25 }}
-                                />
-                              </Tooltip>
-                            ) : (
-                              <Checkbox
-                                size="small"
-                                checked={item.checked}
-                                onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
-                                disabled={!isAdmin}
-                                sx={{ p: 0.25 }}
-                              />
-                            )}
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                textDecoration: item.checked ? 'line-through' : 'none',
-                                color: item.checked ? 'text.disabled' : 'text.primary',
-                                flex: 1,
-                              }}
-                            >
-                              {item.text}
-                            </Typography>
-                          </Box>
-                        ))}
+                      <TextField
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                        size="small"
+                        sx={{ mb: 1 }}
+                        autoFocus
+                      />
+                      <Box display="flex" justifyContent="flex-end" gap={1}>
+                        <Button size="small" onClick={handleEditCancel} disabled={editSaving}>
+                          {tc.editNoteCancel}
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleEditSave(note)}
+                          disabled={editSaving || !editBody.trim()}
+                        >
+                          {editSaving ? tc.editNoteSaving : tc.editNoteSave}
+                        </Button>
                       </Box>
                     </Box>
+                  ) : (
+                    <>
+                      {note.body ? (
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1.5 : 0 }}>
+                          {note.body}
+                        </Typography>
+                      ) : null}
+
+                      {noteChecklist.length > 0 && (
+                        <Box>
+                          {/* Progress bar */}
+                          <Box display="flex" alignItems="center" gap={1} mb={1}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={progress}
+                              sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                              color={progress === 100 ? 'success' : 'primary'}
+                            />
+                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                              {t.checklist.progress(completedCount, noteChecklist.length)}
+                            </Typography>
+                          </Box>
+
+                          {/* Checklist items */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                            {noteChecklist.map((item: ChecklistItem) => (
+                              <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
+                                {item.checked && item.checkedByName ? (
+                                  <Tooltip
+                                    title={t.checklist.checkedBy(
+                                      item.checkedByName,
+                                      item.checkedAt
+                                        ? new Date(item.checkedAt).toLocaleString(localeStr, { dateStyle: 'short', timeStyle: 'short' })
+                                        : '',
+                                    )}
+                                    arrow
+                                  >
+                                    <Checkbox
+                                      size="small"
+                                      checked={item.checked}
+                                      onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                      disabled={!isAdmin}
+                                      sx={{ p: 0.25 }}
+                                    />
+                                  </Tooltip>
+                                ) : (
+                                  <Checkbox
+                                    size="small"
+                                    checked={item.checked}
+                                    onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                    disabled={!isAdmin}
+                                    sx={{ p: 0.25 }}
+                                  />
+                                )}
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textDecoration: item.checked ? 'line-through' : 'none',
+                                    color: item.checked ? 'text.disabled' : 'text.primary',
+                                    flex: 1,
+                                  }}
+                                >
+                                  {item.text}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </>
                   )}
                 </Box>
               </Box>

@@ -965,6 +965,11 @@ const it = {
     invalidMonth: (name: string) => `Mese non riconosciuto: «${name}» — scrivi es. #agosto26`,
     monthHashtagHint: 'Usa #mese26 o #mese2026 per assegnare la nota a un mese specifico',
     allMonths: 'Tutti i mesi',
+    editNote: 'Modifica nota',
+    editNoteCancel: 'Annulla',
+    editNoteSave: 'Salva',
+    editNoteSaving: 'Salvataggio...',
+    errorEdit: 'Errore durante il salvataggio. Riprova.',
   },
   groups: {
     tabLabel: 'Gruppi',
@@ -2055,6 +2060,11 @@ const en: typeof it = {
     invalidMonth: (name: string) => `Unrecognized month: «${name}» — try e.g. #august26`,
     monthHashtagHint: 'Use #month26 or #month2026 to assign the note to a specific month',
     allMonths: 'All months',
+    editNote: 'Edit note',
+    editNoteCancel: 'Cancel',
+    editNoteSave: 'Save',
+    editNoteSaving: 'Saving...',
+    errorEdit: 'Error saving edit. Please try again.',
   },
   groups: {
     tabLabel: 'Groups',
