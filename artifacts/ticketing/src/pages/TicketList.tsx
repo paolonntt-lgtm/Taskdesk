@@ -476,15 +476,15 @@ export default function TicketList() {
                     />
                   </TableCell>
                 )}
-                {col('id', t.ticketList.colId)}
+                {col('id', t.ticketList.colId, { width: 56 })}
                 {col('title', t.ticketList.colTitle)}
-                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
-                {col('status', t.ticketList.colStatus)}
-                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
-                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
-                {showClient && col('client', t.ticketList.colClient, { display: { xs: 'none', xl: 'table-cell' } })}
-                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
-                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
+                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 130 })}
+                {col('status', t.ticketList.colStatus, { width: 108 })}
+                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 96 })}
+                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 130 })}
+                {showClient && col('client', t.ticketList.colClient, { display: { xs: 'none', xl: 'table-cell' }, width: 140 })}
+                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
+                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' }, width: 88 })}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -518,8 +518,8 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ maxWidth: { xs: 140, sm: 250, md: 320 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: 56 }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ maxWidth: { xs: 160, sm: 300, md: 420 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         <Box display="flex" alignItems="center" gap={0.75}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
@@ -566,19 +566,23 @@ export default function TicketList() {
                         {ticket.assignee?.name || '—'}
                       </TableCell>
                       {showClient && (
-                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ display: { xs: 'none', xl: 'table-cell' }, width: 140, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {(ticket as any).client ? (
                             isAdmin ? (
-                              <Typography
-                                variant="body2"
-                                component="span"
-                                sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                                onClick={(e) => { e.stopPropagation(); navigate(`/clients/${(ticket as any).clientId}`); }}
-                              >
-                                {(ticket as any).client.name}
-                              </Typography>
+                              <Tooltip title={(ticket as any).client.name} placement="top" disableHoverListener={(ticket as any).client.name.length <= 18}>
+                                <Typography
+                                  variant="body2"
+                                  component="span"
+                                  sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' }, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/clients/${(ticket as any).clientId}`); }}
+                                >
+                                  {(ticket as any).client.name}
+                                </Typography>
+                              </Tooltip>
                             ) : (
-                              <Typography variant="body2" component="span">{(ticket as any).client.name}</Typography>
+                              <Tooltip title={(ticket as any).client.name} placement="top" disableHoverListener={(ticket as any).client.name.length <= 18}>
+                                <Typography variant="body2" component="span" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(ticket as any).client.name}</Typography>
+                              </Tooltip>
                             )
                           ) : '—'}
                         </TableCell>
