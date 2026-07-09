@@ -8,4 +8,8 @@
 
 export type ListAllClientNotesParams = {
   limit?: number;
+  search?: string;
+  authorId?: number;
+  dateFrom?: Date;
+  dateTo?: Date;
 };

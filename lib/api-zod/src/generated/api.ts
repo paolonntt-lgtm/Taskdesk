@@ -1793,6 +1793,10 @@ export const DeleteClientNoteParams = zod.object({
  */
 export const ListAllClientNotesQueryParams = zod.object({
   limit: zod.coerce.number().optional(),
+  search: zod.coerce.string().optional(),
+  authorId: zod.coerce.number().optional(),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
 });
 
 export const ListAllClientNotesResponseItem = zod.object({

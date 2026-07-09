@@ -7,12 +7,13 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link, useSearch, useLocation } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
+import ConsoleHistoryTab from './ConsoleHistoryTab';
 
 interface TabPanelProps { children?: React.ReactNode; index: number; value: number; }
 function TabPanel({ children, value, index }: TabPanelProps) {
@@ -890,6 +891,7 @@ export default function Settings() {
     { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
+    { id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> },
   ];
 
   const renderSidebarItem = (item: { id: string; label: string; icon: React.ReactNode }) => {
@@ -1200,6 +1202,9 @@ export default function Settings() {
 
           {/* ── KNOWLEDGE BASE (admin) ── */}
           {isAdmin && activeSection === 'knowledge' && <KnowledgeBaseTab />}
+
+          {/* ── CONSOLE LOG (admin) ── */}
+          {isAdmin && activeSection === 'console' && <ConsoleHistoryTab />}
 
           {/* ── BILLING (admin) ── */}
           {isAdmin && activeSection === 'billing' && (

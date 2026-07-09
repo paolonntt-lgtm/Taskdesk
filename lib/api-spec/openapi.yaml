@@ -1827,6 +1827,28 @@ paths:
           required: false
           schema:
             type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: authorId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: List of notes with client info

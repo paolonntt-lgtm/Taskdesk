@@ -682,4 +682,8 @@ export type UpdateClientLayoutBody = {
 
 export type ListAllClientNotesParams = {
   limit?: number;
+  search?: string;
+  authorId?: number;
+  dateFrom?: string;
+  dateTo?: string;
 };

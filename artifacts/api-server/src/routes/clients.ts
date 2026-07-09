@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, asc, desc, ne } from "drizzle-orm";
+import { eq, and, ilike, or, asc, desc, ne, gte, lt } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
@@ -87,11 +87,27 @@ const ClientNoteBody = z.object({
 router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
-  // Support optional offset-based pagination; no server-side limit when not specified
+
   const limitRaw = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
   const offsetRaw = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
   const limit = limitRaw != null && !isNaN(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : undefined;
   const offset = offsetRaw != null && !isNaN(offsetRaw) && offsetRaw >= 0 ? offsetRaw : undefined;
+
+  const search = typeof req.query.search === 'string' && req.query.search.trim() ? req.query.search.trim() : undefined;
+  const authorIdRaw = req.query.authorId ? parseInt(req.query.authorId as string, 10) : undefined;
+  const authorId = authorIdRaw != null && !isNaN(authorIdRaw) ? authorIdRaw : undefined;
+  const dateFrom = typeof req.query.dateFrom === 'string' && req.query.dateFrom ? req.query.dateFrom : undefined;
+  const dateTo = typeof req.query.dateTo === 'string' && req.query.dateTo ? req.query.dateTo : undefined;
+
+  const conditions: ReturnType<typeof eq>[] = [eq(clientNotesTable.organizationId, orgId) as ReturnType<typeof eq>];
+  if (search) conditions.push(ilike(clientNotesTable.body, `%${search}%`) as ReturnType<typeof eq>);
+  if (authorId != null) conditions.push(eq(clientNotesTable.authorId, authorId));
+  if (dateFrom) conditions.push(gte(clientNotesTable.createdAt, new Date(dateFrom)) as ReturnType<typeof eq>);
+  if (dateTo) {
+    const end = new Date(dateTo);
+    end.setDate(end.getDate() + 1);
+    conditions.push(lt(clientNotesTable.createdAt, end) as ReturnType<typeof eq>);
+  }
 
   const baseQuery = db
     .select({
@@ -111,7 +127,7 @@ router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise
     .from(clientNotesTable)
     .innerJoin(clientsTable, eq(clientNotesTable.clientId, clientsTable.id))
     .leftJoin(usersTable, eq(clientNotesTable.authorId, usersTable.id))
-    .where(eq(clientNotesTable.organizationId, orgId))
+    .where(and(...conditions))
     .orderBy(desc(clientNotesTable.createdAt));
 
   const notes = await (limit != null
