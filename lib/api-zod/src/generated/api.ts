@@ -1800,6 +1800,10 @@ export const ListAllClientNotesResponseItem = zod.object({
       }),
     )
     .nullish(),
+  monthOverride: zod
+    .string()
+    .nullish()
+    .describe("YYYY-MM override for which month this note appears under"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

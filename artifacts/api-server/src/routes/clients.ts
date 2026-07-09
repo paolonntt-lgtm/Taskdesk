@@ -101,6 +101,7 @@ router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise
       authorName: usersTable.name,
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
+      monthOverride: clientNotesTable.monthOverride,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
     })

@@ -674,7 +674,7 @@ function ClientNotesWidget() {
     const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
-      const noteMonth = ((note as unknown as Record<string, unknown>).monthOverride as string | null | undefined) ?? note.createdAt.slice(0, 7);
+      const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       if (noteMonth !== currentMonth) continue;
       if (!note.clientId) continue;
       const existing = map.get(note.clientId);

@@ -2981,6 +2981,10 @@ components:
               - id
               - text
               - checked
+        monthOverride:
+          type: string
+          nullable: true
+          description: "YYYY-MM override for which month this note appears under"
         createdAt:
           type: string
           format: date-time

@@ -17,6 +17,8 @@ export interface ClientNoteWithClient {
   authorName?: string | null;
   body: string;
   checklist?: ClientNoteWithClientChecklistItem[] | null;
+  /** YYYY-MM override for which month this note appears under */
+  monthOverride?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
