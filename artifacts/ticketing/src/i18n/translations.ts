@@ -133,6 +133,7 @@ const it = {
     widgetWorkloadEmpty: 'Nessun operatore con ticket assegnati.',
     widgetClientNotes: 'Note Clienti',
     widgetClientNotesEmpty: 'Nessun cliente con note questo mese.',
+    widgetClientNotesMonth: 'Questo mese',
   },
   ticketList: {
     title: 'Tutti i Ticket',
@@ -1190,6 +1191,7 @@ const en: typeof it = {
     widgetWorkloadEmpty: 'No agents with assigned tickets.',
     widgetClientNotes: 'Client Notes',
     widgetClientNotesEmpty: 'No clients with notes this month.',
+    widgetClientNotesMonth: 'This month',
   },
   ticketList: {
     title: 'All Tickets',

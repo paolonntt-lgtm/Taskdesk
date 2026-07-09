@@ -697,6 +697,9 @@ function ClientNotesWidget() {
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
             {t.dashboard.widgetClientNotes}
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+            {t.dashboard.widgetClientNotesMonth}
+          </Typography>
           {!isLoading && rows.length > 0 && (
             <Chip
               label={rows.length}
@@ -1019,6 +1022,7 @@ interface WidgetMeta {
   labelKey: string;
   defaultLayout: Omit<LayoutItem, 'i'>;
   component: React.FC;
+  requireAdmin?: boolean;
 }
 
 function AcquisitionWidget() {
@@ -1101,7 +1105,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
-  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget, requireAdmin: true },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 
@@ -1205,8 +1209,9 @@ export default function Dashboard() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const effectiveRegistry = WIDGET_REGISTRY.filter(
-    (w) => w.id !== 'acquisition' || isSuperAdmin,
+    (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin),
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
