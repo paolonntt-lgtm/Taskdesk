@@ -29,6 +29,7 @@ import {
   ErrorOutline as OverdueListIcon,
   FolderOpen as AllOpenIcon,
   BarChart as WorkloadIcon,
+  NoteAlt as ClientNotesIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -39,7 +40,7 @@ import {
   useGetDashboardStats, useGetMyTickets, useGetDueSoonTickets,
   useGetRecentTickets, useGetStatsByStatus, useGetStatsByCategory,
   useGetStatsByLocation, useGetStatsByPriority, useGetStatsByAssignee,
-  useGetTicketTrend,
+  useGetTicketTrend, useListAllClientNotes,
 } from '@workspace/api-client-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -663,6 +664,93 @@ function WorkloadWidget() {
   );
 }
 
+// ── CLIENT NOTES THIS MONTH ───────────────────────────────────────────────
+
+function ClientNotesWidget() {
+  const { t } = useLanguage();
+  const { data: allNotes = [], isLoading } = useListAllClientNotes();
+
+  const rows = React.useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    const map = new Map<number, { name: string; slug: string | null; count: number }>();
+    for (const note of allNotes) {
+      const noteMonth = ((note as unknown as Record<string, unknown>).monthOverride as string | null | undefined) ?? note.createdAt.slice(0, 7);
+      if (noteMonth !== currentMonth) continue;
+      if (!note.clientId) continue;
+      const existing = map.get(note.clientId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(note.clientId, { name: note.clientName ?? String(note.clientId), slug: note.clientSlug ?? null, count: 1 });
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, { name, slug, count }]) => ({ id, name, slug, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [allNotes]);
+
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
+        <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1} flexShrink={0}>
+          <ClientNotesIcon fontSize="small" color="action" />
+          <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
+            {t.dashboard.widgetClientNotes}
+          </Typography>
+          {!isLoading && rows.length > 0 && (
+            <Chip
+              label={rows.length}
+              size="small"
+              color="primary"
+              sx={{ height: 18, fontSize: '0.65rem' }}
+            />
+          )}
+        </Box>
+        <Divider sx={{ flexShrink: 0 }} />
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
+          ) : rows.length === 0 ? (
+            <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.widgetClientNotesEmpty}</Typography></Box>
+          ) : (
+            rows.map((row, idx) => (
+              <Box
+                key={row.id}
+                component="a"
+                href={`/clients/${row.id}`}
+                display="flex"
+                alignItems="center"
+                gap={1}
+                px={2}
+                py={1}
+                sx={{
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  borderBottom: idx < rows.length - 1 ? '1px solid' : 'none',
+                  borderColor: 'divider',
+                }}
+              >
+                <Avatar sx={{ width: 22, height: 22, fontSize: '0.6rem', bgcolor: 'primary.main', flexShrink: 0 }}>
+                  {row.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography variant="body2" noWrap fontSize="0.8rem" sx={{ flex: 1 }}>{row.name}</Typography>
+                <Chip
+                  label={row.count}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ minWidth: 32, height: 20, fontSize: '0.7rem' }}
+                />
+              </Box>
+            ))
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── TICKETS BY PERSON (configurable) ──────────────────────────────────────
 
 const PERSON_WIDGET_KEY = 'td_widget_person_id';
@@ -1013,6 +1101,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 
