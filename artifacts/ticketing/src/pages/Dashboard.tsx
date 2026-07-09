@@ -480,7 +480,7 @@ function ChartAssigneeWidget() {
 
 function FeedMyWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetMyTickets();
+  const { data = [] } = useGetMyTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
   return (
     <FeedCard
@@ -495,7 +495,7 @@ function FeedMyWidget() {
 
 function FeedDueWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetDueSoonTickets();
+  const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).slice(0, 10);
   return (
     <FeedCard
@@ -512,7 +512,7 @@ function FeedDueWidget() {
 
 function FeedRecentWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetRecentTickets();
+  const { data = [] } = useGetRecentTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).slice(0, 10);
   return (
     <FeedCard
@@ -955,7 +955,7 @@ function FeedGroupWidget() {
 function StatOpenWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.openTickets}
@@ -971,7 +971,7 @@ function StatOpenWidget() {
 function StatResolvedWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.resolved}
@@ -987,7 +987,7 @@ function StatResolvedWidget() {
 function StatUrgentWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.urgent}
@@ -1003,7 +1003,7 @@ function StatUrgentWidget() {
 function StatOverdueWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.overdue}

@@ -139,7 +139,7 @@ export default function TicketList() {
     createdBy:  userFilter !== 'all' && userFilterType === 'createdBy'  ? parseInt(userFilter, 10) : undefined,
     emailOrigin: emailOrigin || undefined,
     clientId: clientIdFilter !== 'all' ? parseInt(clientIdFilter, 10) : undefined,
-  });
+  }, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
 
   // Clear selection when tickets change (e.g. after delete or filter)
   useEffect(() => { setSelectedIds(new Set()); }, [tickets]);
