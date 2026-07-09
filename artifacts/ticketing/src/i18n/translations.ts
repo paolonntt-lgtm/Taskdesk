@@ -132,8 +132,7 @@ const it = {
     noGroupsAvailable: 'Nessun gruppo configurato.',
     widgetWorkloadEmpty: 'Nessun operatore con ticket assegnati.',
     widgetClientNotes: 'Note Clienti',
-    widgetClientNotesEmpty: 'Nessun cliente con note questo mese.',
-    widgetClientNotesMonth: 'Questo mese',
+    widgetClientNotesEmpty: 'Nessun cliente con note.',
   },
   ticketList: {
     title: 'Tutti i Ticket',
@@ -1195,8 +1194,7 @@ const en: typeof it = {
     noGroupsAvailable: 'No groups configured.',
     widgetWorkloadEmpty: 'No agents with assigned tickets.',
     widgetClientNotes: 'Client Notes',
-    widgetClientNotesEmpty: 'No clients with notes this month.',
-    widgetClientNotesMonth: 'This month',
+    widgetClientNotesEmpty: 'No clients with notes.',
   },
   ticketList: {
     title: 'All Tickets',

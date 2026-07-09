@@ -30,6 +30,8 @@ import {
   FolderOpen as AllOpenIcon,
   BarChart as WorkloadIcon,
   NoteAlt as ClientNotesIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -666,16 +668,38 @@ function WorkloadWidget() {
 
 // ── CLIENT NOTES THIS MONTH ───────────────────────────────────────────────
 
+function formatWidgetMonth(yyyyMM: string, lang: string): string {
+  const [year, month] = yyyyMM.split('-');
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', { month: 'long', year: 'numeric' });
+}
+
 function ClientNotesWidget() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { data: allNotes = [], isLoading } = useListAllClientNotes();
 
+  const currentMonth = React.useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [selectedMonth, setSelectedMonth] = React.useState<string>(currentMonth);
+
+  const availableMonths = React.useMemo(() => {
+    const monthSet = new Set<string>();
+    for (const note of allNotes) {
+      if (!note.clientId) continue;
+      const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
+      monthSet.add(noteMonth);
+    }
+    return Array.from(monthSet).sort();
+  }, [allNotes]);
+
+  const effectiveMonth = availableMonths.includes(selectedMonth)
+    ? selectedMonth
+    : (availableMonths[availableMonths.length - 1] ?? currentMonth);
+
   const rows = React.useMemo(() => {
-    const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
-      if (noteMonth !== currentMonth) continue;
+      if (noteMonth !== effectiveMonth) continue;
       if (!note.clientId) continue;
       const existing = map.get(note.clientId);
       if (existing) {
@@ -687,7 +711,16 @@ function ClientNotesWidget() {
     return Array.from(map.entries())
       .map(([id, { name, slug, count }]) => ({ id, name, slug, count }))
       .sort((a, b) => b.count - a.count);
-  }, [allNotes]);
+  }, [allNotes, effectiveMonth]);
+
+  const monthLabel = React.useMemo(
+    () => formatWidgetMonth(effectiveMonth, lang),
+    [effectiveMonth, lang],
+  );
+
+  const monthIdx = availableMonths.indexOf(effectiveMonth);
+  const hasPrev = monthIdx > 0;
+  const hasNext = monthIdx >= 0 && monthIdx < availableMonths.length - 1;
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -697,15 +730,49 @@ function ClientNotesWidget() {
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
             {t.dashboard.widgetClientNotes}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-            {t.dashboard.widgetClientNotesMonth}
-          </Typography>
+          {!isLoading && availableMonths.length > 0 && (
+            <Box display="flex" alignItems="center" gap={0.25} sx={{ ml: 0.5 }}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.25 }}
+                disabled={!hasPrev}
+                onClick={() => setSelectedMonth(availableMonths[monthIdx - 1])}
+              >
+                <ChevronLeftIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <Select
+                size="small"
+                value={effectiveMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                sx={{
+                  fontSize: '0.72rem',
+                  '& .MuiSelect-select': { py: 0.25, px: 1 },
+                  '& fieldset': { border: 'none' },
+                  minWidth: 110,
+                }}
+              >
+                {availableMonths.map((m) => (
+                  <MenuItem key={m} value={m} sx={{ fontSize: '0.8rem' }}>
+                    {formatWidgetMonth(m, lang)}
+                  </MenuItem>
+                ))}
+              </Select>
+              <IconButton
+                size="small"
+                sx={{ p: 0.25 }}
+                disabled={!hasNext}
+                onClick={() => setSelectedMonth(availableMonths[monthIdx + 1])}
+              >
+                <ChevronRightIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
+          )}
           {!isLoading && rows.length > 0 && (
             <Chip
               label={rows.length}
               size="small"
               color="primary"
-              sx={{ height: 18, fontSize: '0.65rem' }}
+              sx={{ height: 18, fontSize: '0.65rem', ml: 'auto' }}
             />
           )}
         </Box>
@@ -1105,7 +1172,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
-  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget, requireAdmin: true },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget, requireAdmin: true },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 
