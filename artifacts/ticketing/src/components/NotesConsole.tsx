@@ -18,6 +18,18 @@ import {
 import { useLocation } from 'wouter';
 import { parseHashtag } from '../lib/clientNoteHashtag';
 
+function genId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function bodyToChecklist(text: string) {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => ({ id: genId(), text: line, checked: false }));
+}
+
 export default function NotesConsole() {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
@@ -143,9 +155,14 @@ export default function NotesConsole() {
 
     setSaving(true);
     try {
+      const checklist = bodyToChecklist(noteBody);
       await createNote.mutateAsync({
         id: clientId!,
-        data: { body: noteBody, checklist: null, monthOverride } as any,
+        data: {
+          body: '',
+          checklist: checklist.length > 0 ? checklist : null,
+          monthOverride,
+        } as any,
       });
       setBody('');
       setHashtagError(null);
