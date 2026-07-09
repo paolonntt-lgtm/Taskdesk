@@ -291,7 +291,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
             overflowX: 'auto',
             pt: 2,
             pb: 1,
-            pl: 1,
+            pl: 2,
             mb: 1,
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(0,0,0,0.2) transparent',
