@@ -298,10 +298,14 @@ function ChartTrendWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { data, isLoading } = useGetTicketTrend(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.volume}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.volume}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -324,10 +328,14 @@ function ChartTrendWidget() {
 function ChartStatusWidget() {
   const { t } = useLanguage();
   const { data, isLoading } = useGetStatsByStatus(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.byStatus}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.byStatus}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -351,10 +359,14 @@ function ChartCategoryWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { data, isLoading } = useGetStatsByCategory(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.byCategory}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.byCategory}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -377,10 +389,14 @@ function ChartPriorityWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { data, isLoading } = useGetStatsByPriority(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.byPriority}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.byPriority}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -403,10 +419,14 @@ function ChartLocationWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { data, isLoading } = useGetStatsByLocation(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.byLocation}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.byLocation}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -429,10 +449,14 @@ function ChartAssigneeWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { data, isLoading } = useGetStatsByAssignee(CHART_OPTS);
+  const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', pb: '16px !important' }}>
-        <Typography variant="h6" fontWeight="bold" mb={1} fontSize="0.95rem">{t.reports.byAssignee}</Typography>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <Typography variant="h6" fontWeight="bold" fontSize="0.95rem">{t.reports.byAssignee}</Typography>
+          {!isLoading && total > 0 && <Chip label={total} size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+        </Box>
         <Box flex={1} minHeight={0}>
           {isLoading ? <ChartLoader /> : (
             <ResponsiveContainer width="100%" height="100%">
@@ -583,6 +607,14 @@ function WorkloadWidget() {
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
             {t.dashboard.widgetWorkload}
           </Typography>
+          {!isLoading && data.length > 0 && (
+            <Chip
+              label={data.reduce((s, r) => s + r.open, 0)}
+              size="small"
+              color="primary"
+              sx={{ height: 18, fontSize: '0.65rem' }}
+            />
+          )}
         </Box>
         <Divider sx={{ flexShrink: 0 }} />
         <Box sx={{ flex: 1, overflowY: 'auto' }}>
@@ -679,6 +711,9 @@ function FeedPersonWidget() {
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
                 {selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson}
               </Typography>
+              {selectedId && data.length > 0 && (
+                <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              )}
             </Box>
             <Tooltip title={t.dashboard.configureWidget}>
               <IconButton size="small" onClick={() => { setTempId(selectedId ?? ''); setConfigOpen(true); }}>
@@ -770,6 +805,9 @@ function FeedGroupWidget() {
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
                 {selectedGroup || t.dashboard.widgetFeedGroup}
               </Typography>
+              {selectedGroup && data.length > 0 && (
+                <Chip label={data.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              )}
             </Box>
             <Tooltip title={t.dashboard.configureWidget}>
               <IconButton size="small" onClick={() => { setTempGroup(selectedGroup); setConfigOpen(true); }}>
