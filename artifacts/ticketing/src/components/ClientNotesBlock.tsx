@@ -5,7 +5,7 @@ import {
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
-import { Delete } from '@mui/icons-material';
+import { Delete, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -178,7 +178,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       keyMap.get(key)!.push(note);
     }
 
-    groups.sort((a, b) => b.key.localeCompare(a.key));
+    groups.sort((a, b) => a.key.localeCompare(b.key));
 
     return groups;
   }, [notes]);
@@ -238,7 +238,17 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       )}
 
       {availableMonths.length > 1 && (
-        <Box mb={2}>
+        <Box mb={2} display="flex" alignItems="center" gap={0.5}>
+          <IconButton
+            size="small"
+            disabled={!effectiveMonth || availableMonths.findIndex(m => m.key === effectiveMonth) <= 0}
+            onClick={() => {
+              const idx = availableMonths.findIndex(m => m.key === effectiveMonth);
+              if (idx > 0) setSelectedMonth(availableMonths[idx - 1].key);
+            }}
+          >
+            <ChevronLeft fontSize="small" />
+          </IconButton>
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>{tc.allMonths}</InputLabel>
             <Select
@@ -252,6 +262,16 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
               ))}
             </Select>
           </FormControl>
+          <IconButton
+            size="small"
+            disabled={!effectiveMonth || availableMonths.findIndex(m => m.key === effectiveMonth) >= availableMonths.length - 1}
+            onClick={() => {
+              const idx = availableMonths.findIndex(m => m.key === effectiveMonth);
+              if (idx < availableMonths.length - 1) setSelectedMonth(availableMonths[idx + 1].key);
+            }}
+          >
+            <ChevronRight fontSize="small" />
+          </IconButton>
         </Box>
       )}
 
