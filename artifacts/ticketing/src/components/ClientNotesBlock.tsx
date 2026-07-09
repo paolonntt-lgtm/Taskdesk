@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
-  CircularProgress, Tooltip, Dialog, Avatar, Chip, Badge,
+  CircularProgress, Tooltip, Dialog, Avatar, Chip,
   LinearProgress, Collapse,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
@@ -261,26 +261,20 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
             const isSelected = m.key === effectiveMonth;
             const isCurrent = m.key === currentMonthKey;
             return (
-              <Badge
+              <Chip
                 key={m.key}
-                badgeContent={m.count}
-                color="primary"
-                sx={{ flexShrink: 0 }}
-              >
-                <Chip
-                  label={m.label}
-                  size="small"
-                  onClick={() => setSelectedMonth(m.key)}
-                  variant={isSelected ? 'filled' : 'outlined'}
-                  color={isSelected ? 'primary' : 'default'}
-                  sx={{
-                    fontWeight: isCurrent ? 700 : 400,
-                    borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
-                    cursor: 'pointer',
-                    mr: 0.5,
-                  }}
-                />
-              </Badge>
+                label={`${m.label} · ${m.count}`}
+                size="small"
+                onClick={() => setSelectedMonth(m.key)}
+                variant={isSelected ? 'filled' : 'outlined'}
+                color={isSelected ? 'primary' : 'default'}
+                sx={{
+                  flexShrink: 0,
+                  fontWeight: isCurrent ? 700 : 400,
+                  borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
+                  cursor: 'pointer',
+                }}
+              />
             );
           })}
         </Box>
