@@ -1160,20 +1160,20 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-my',        labelKey: 'widgetFeedMy',        defaultLayout: { x: 0, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedMyWidget },
   { id: 'feed-due',       labelKey: 'widgetFeedDue',       defaultLayout: { x: 4, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedDueWidget },
   { id: 'feed-recent',    labelKey: 'widgetFeedRecent',    defaultLayout: { x: 8, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedRecentWidget },
-  { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget },
-  { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 9, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget },
-  { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 9, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget },
-  { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget },
-  { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget },
-  { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget },
-  { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 9, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
-  { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 9, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
-  { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget },
-  { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
-  { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
-  { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 9, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
+  { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget },
+  { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 4, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget },
+  { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
+  { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
+  { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
   { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget, requireAdmin: true },
-  { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 18, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
+  { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget },
+  { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget },
+  { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget },
+  { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget },
+  { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget },
+  { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
+  { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 41, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
+  { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 50, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
@@ -1182,8 +1182,8 @@ const DEFAULT_LAYOUT: LayoutItem[] = WIDGET_REGISTRY
   .filter((w) => DEFAULT_VISIBLE_IDS.includes(w.id))
   .map((w) => ({ i: w.id, ...w.defaultLayout }));
 
-const LAYOUT_KEY = 'td_dashboard_layout_v3';
-const VISIBLE_KEY = 'td_dashboard_visible_v3';
+const LAYOUT_KEY = 'td_dashboard_layout_v4';
+const VISIBLE_KEY = 'td_dashboard_visible_v4';
 
 // ── WIDGET SHELL (drag handle + remove) ──────────────────────────────────
 
@@ -1429,8 +1429,7 @@ export default function Dashboard() {
         isDraggable={editMode}
         isResizable={editMode}
         draggableHandle=".drag-handle"
-        compactType={null}
-        preventCollision={true}
+        compactType="vertical"
         onLayoutChange={handleLayoutChange}
         style={{ minHeight: 200 }}
       >
