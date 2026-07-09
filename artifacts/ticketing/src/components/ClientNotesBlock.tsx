@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
-  Divider, CircularProgress, Tooltip, Dialog,
+  CircularProgress, Tooltip, Dialog, Avatar, Chip, Badge,
+  LinearProgress, Collapse,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
-  Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
-import { Delete, ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { Delete, Add, NoteAdd } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
@@ -41,10 +41,11 @@ function monthKeyFromDate(iso: string): string {
   return `${y}-${m}`;
 }
 
-function formatMonthHeading(yyyyMM: string, locale: string): string {
+function formatMonthShort(yyyyMM: string, locale: string): string {
   const [year, month] = yyyyMM.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
-  return d.toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT', { month: 'long', year: 'numeric' });
+  const short = d.toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT', { month: 'short', year: '2-digit' });
+  return short.charAt(0).toUpperCase() + short.slice(1);
 }
 
 function bodyToChecklist(text: string): ChecklistItem[] {
@@ -53,6 +54,25 @@ function bodyToChecklist(text: string): ChecklistItem[] {
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .map(line => ({ id: genId(), text: line, checked: false }));
+}
+
+const AVATAR_PALETTE = [
+  '#1565c0', '#6a1b9a', '#2e7d32', '#c62828',
+  '#00838f', '#e65100', '#4527a0', '#ad1457',
+];
+
+function authorAvatarColor(name: string | null | undefined): string {
+  if (!name) return '#9e9e9e';
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+}
+
+function authorInitials(name: string | null | undefined): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 }
 
 export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlockProps) {
@@ -67,8 +87,49 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const deleteNote = useDeleteClientNote();
 
   const currentMonthKey = useMemo(() => monthKeyFromDate(new Date().toISOString()), []);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
 
+  const groupedNotes = useMemo(() => {
+    const typedNotes = notes as any[];
+    const groups: { key: string; notes: any[] }[] = [];
+    const keyMap = new Map<string, any[]>();
+    for (const note of typedNotes) {
+      const key = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+      if (!keyMap.has(key)) {
+        keyMap.set(key, []);
+        groups.push({ key, notes: keyMap.get(key)! });
+      }
+      keyMap.get(key)!.push(note);
+    }
+    groups.sort((a, b) => b.key.localeCompare(a.key));
+    return groups;
+  }, [notes]);
+
+  const availableMonths = useMemo(
+    () => groupedNotes.map(g => ({
+      key: g.key,
+      label: formatMonthShort(g.key, lang),
+      count: g.notes.length,
+    })),
+    [groupedNotes, lang],
+  );
+
+  const defaultMonth = useMemo(
+    () => availableMonths[0]?.key ?? currentMonthKey,
+    [availableMonths, currentMonthKey],
+  );
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => defaultMonth);
+
+  const effectiveMonth = availableMonths.some(m => m.key === selectedMonth)
+    ? selectedMonth
+    : (availableMonths[0]?.key ?? '');
+
+  const visibleNotes = useMemo(
+    () => groupedNotes.find(g => g.key === effectiveMonth)?.notes ?? [],
+    [groupedNotes, effectiveMonth],
+  );
+
+  const [formOpen, setFormOpen] = useState(false);
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
@@ -119,6 +180,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       });
       setBody('');
       setHashtagError(null);
+      setFormOpen(false);
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       showToast('success', tc.saveNote);
     } catch {
@@ -128,14 +190,20 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
+  const handleCancel = () => {
+    setBody('');
+    setHashtagError(null);
+    setFormOpen(false);
+  };
+
   const handleToggleNoteChecklistItem = async (
     noteId: number,
     noteBody: string,
     noteChecklist: ChecklistItem[],
-    itemId: string
+    itemId: string,
   ) => {
     const updated = noteChecklist.map((item) =>
-      item.id === itemId ? { ...item, checked: !item.checked } : item
+      item.id === itemId ? { ...item, checked: !item.checked } : item,
     );
     try {
       await updateNote.mutateAsync({
@@ -164,36 +232,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
-  const groupedNotes = useMemo(() => {
-    const typedNotes = notes as any[];
-    const groups: { key: string; notes: any[] }[] = [];
-    const keyMap = new Map<string, any[]>();
-
-    for (const note of typedNotes) {
-      const key = note.monthOverride ?? monthKeyFromDate(note.createdAt);
-      if (!keyMap.has(key)) {
-        keyMap.set(key, []);
-        groups.push({ key, notes: keyMap.get(key)! });
-      }
-      keyMap.get(key)!.push(note);
-    }
-
-    groups.sort((a, b) => a.key.localeCompare(b.key));
-
-    return groups;
-  }, [notes]);
-
-  const availableMonths = useMemo(
-    () => groupedNotes.map(g => ({ key: g.key, label: formatMonthHeading(g.key, lang) })),
-    [groupedNotes, lang]
-  );
-
-  const effectiveMonth = availableMonths.some(m => m.key === selectedMonth) ? selectedMonth : '';
-
-  const visibleGroups = effectiveMonth
-    ? groupedNotes.filter(g => g.key === effectiveMonth)
-    : groupedNotes;
-
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" py={3}>
@@ -202,190 +240,262 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     );
   }
 
+  const localeStr = lang === 'en' ? 'en-US' : 'it-IT';
+
   return (
     <Box>
-      {isAdmin && (
+      {/* ── Month chip navigation ─────────────────────────────────── */}
+      {availableMonths.length > 0 && (
         <Box
           sx={{
-            mb: 2, p: 2, border: '1px solid', borderColor: 'divider',
-            borderRadius: '12px', bgcolor: 'background.paper',
+            display: 'flex',
+            gap: 0.75,
+            overflowX: 'auto',
+            pb: 0.5,
+            mb: 2,
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
           }}
         >
-          <TextField
-            fullWidth multiline minRows={2}
-            placeholder={tc.addNotePlaceholder}
-            value={body}
-            onChange={(e) => handleBodyChange(e.target.value)}
-            size="small" sx={{ mb: 1 }}
-          />
-
-          {hashtagError && (
-            <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
-              {hashtagError}
-            </Typography>
-          )}
-
-          <Box display="flex" justifyContent="flex-end">
-            <Button
-              variant="contained" size="small"
-              onClick={handleSave}
-              disabled={saving || !body.trim() || !!hashtagError}
-            >
-              {saving ? tc.savingNote : tc.saveNote}
-            </Button>
-          </Box>
+          {availableMonths.map((m) => {
+            const isSelected = m.key === effectiveMonth;
+            const isCurrent = m.key === currentMonthKey;
+            return (
+              <Badge
+                key={m.key}
+                badgeContent={m.count}
+                color="primary"
+                sx={{ flexShrink: 0 }}
+              >
+                <Chip
+                  label={m.label}
+                  size="small"
+                  onClick={() => setSelectedMonth(m.key)}
+                  variant={isSelected ? 'filled' : 'outlined'}
+                  color={isSelected ? 'primary' : 'default'}
+                  sx={{
+                    fontWeight: isCurrent ? 700 : 400,
+                    borderStyle: isCurrent && !isSelected ? 'dashed' : 'solid',
+                    cursor: 'pointer',
+                    mr: 0.5,
+                  }}
+                />
+              </Badge>
+            );
+          })}
         </Box>
       )}
 
-      {availableMonths.length > 1 && (
-        <Box mb={2} display="flex" alignItems="center" gap={0.5}>
-          <IconButton
-            size="small"
-            disabled={!effectiveMonth || availableMonths.findIndex(m => m.key === effectiveMonth) <= 0}
-            onClick={() => {
-              const idx = availableMonths.findIndex(m => m.key === effectiveMonth);
-              if (idx > 0) setSelectedMonth(availableMonths[idx - 1].key);
-            }}
-          >
-            <ChevronLeft fontSize="small" />
-          </IconButton>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>{tc.allMonths}</InputLabel>
-            <Select
-              label={tc.allMonths}
-              value={effectiveMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-            >
-              <MenuItem value=""><em>{tc.allMonths}</em></MenuItem>
-              {availableMonths.map(m => (
-                <MenuItem key={m.key} value={m.key}>{m.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <IconButton
-            size="small"
-            disabled={!effectiveMonth || availableMonths.findIndex(m => m.key === effectiveMonth) >= availableMonths.length - 1}
-            onClick={() => {
-              const idx = availableMonths.findIndex(m => m.key === effectiveMonth);
-              if (idx < availableMonths.length - 1) setSelectedMonth(availableMonths[idx + 1].key);
-            }}
-          >
-            <ChevronRight fontSize="small" />
-          </IconButton>
-        </Box>
-      )}
-
+      {/* ── Note list ────────────────────────────────────────────── */}
       {notes.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-          {tc.noNotes}
-        </Typography>
+        <Box py={4} textAlign="center">
+          <NoteAdd sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+          <Typography variant="body2" color="text.secondary">{tc.noNotes}</Typography>
+        </Box>
+      ) : visibleNotes.length === 0 ? (
+        <Box py={4} textAlign="center">
+          <NoteAdd sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+          <Typography variant="body2" color="text.secondary">{tc.noNotesForMonth}</Typography>
+        </Box>
       ) : (
-        visibleGroups.map(({ key, notes: groupNotes }) => (
-          <Box key={key}>
-            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
-              <Typography
-                variant="caption"
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+          {visibleNotes.map((note: any) => {
+            const noteChecklist: ChecklistItem[] = note.checklist ?? [];
+            const completedCount = noteChecklist.filter((i: ChecklistItem) => i.checked).length;
+            const progress = noteChecklist.length > 0 ? (completedCount / noteChecklist.length) * 100 : 0;
+
+            return (
+              <Box
+                key={note.id}
                 sx={{
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: 'text.secondary',
-                  whiteSpace: 'nowrap',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  bgcolor: 'background.paper',
                 }}
               >
-                {formatMonthHeading(key, lang)}
-              </Typography>
-              <Divider sx={{ flex: 1 }} />
-            </Box>
-
-            {groupNotes.map((note) => {
-              const noteChecklist: ChecklistItem[] = note.checklist ?? [];
-              const completedCount = noteChecklist.filter((i: ChecklistItem) => i.checked).length;
-
-              return (
+                {/* Note header */}
                 <Box
-                  key={note.id}
-                  sx={{
-                    mb: 1.5, p: 2, border: '1px solid', borderColor: 'divider',
-                    borderRadius: '12px', bgcolor: 'background.paper',
-                  }}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}
                 >
-                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                    <Typography variant="caption" color="text.secondary">
-                      {note.authorName && `${tc.noteBy} ${note.authorName} · `}
-                      {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
-                        dateStyle: 'short', timeStyle: 'short',
+                  <Box display="flex" alignItems="center" gap={1} minWidth={0}>
+                    <Avatar
+                      sx={{
+                        width: 26,
+                        height: 26,
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        bgcolor: authorAvatarColor(note.authorName),
+                        flexShrink: 0,
+                      }}
+                    >
+                      {authorInitials(note.authorName)}
+                    </Avatar>
+                    <Typography variant="caption" fontWeight={600} noWrap>
+                      {note.authorName ?? '—'}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled">·</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      {new Date(note.createdAt).toLocaleString(localeStr, {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
                       })}
                     </Typography>
-                    {isAdmin && (
-                      <Tooltip title={tc.deleteNote}>
-                        <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </Box>
+                  {isAdmin && (
+                    <Tooltip title={tc.deleteNote}>
+                      <IconButton
+                        size="small"
+                        onClick={() => setDeleteTarget(note.id)}
+                        sx={{ color: 'error.main', flexShrink: 0, ml: 1 }}
+                      >
+                        <Delete sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
 
+                {/* Note body */}
+                <Box sx={{ px: 2, py: 1.5 }}>
                   {note.body ? (
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1.5 : 0 }}>
                       {note.body}
                     </Typography>
                   ) : null}
 
                   {noteChecklist.length > 0 && (
-                    <Box mt={note.body ? 1 : 0}>
-                      {note.body ? <Divider sx={{ mb: 1 }} /> : null}
-                      {noteChecklist.map((item: ChecklistItem) => (
-                        <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
-                          {item.checked && item.checkedByName ? (
-                            <Tooltip
-                              title={t.checklist.checkedBy(
-                                item.checkedByName,
-                                item.checkedAt
-                                  ? new Date(item.checkedAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })
-                                  : ''
-                              )}
-                              arrow
-                            >
+                    <Box>
+                      {/* Progress bar */}
+                      <Box display="flex" alignItems="center" gap={1} mb={1}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={progress}
+                          sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                          color={progress === 100 ? 'success' : 'primary'}
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {t.checklist.progress(completedCount, noteChecklist.length)}
+                        </Typography>
+                      </Box>
+
+                      {/* Checklist items */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                        {noteChecklist.map((item: ChecklistItem) => (
+                          <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
+                            {item.checked && item.checkedByName ? (
+                              <Tooltip
+                                title={t.checklist.checkedBy(
+                                  item.checkedByName,
+                                  item.checkedAt
+                                    ? new Date(item.checkedAt).toLocaleString(localeStr, { dateStyle: 'short', timeStyle: 'short' })
+                                    : '',
+                                )}
+                                arrow
+                              >
+                                <Checkbox
+                                  size="small"
+                                  checked={item.checked}
+                                  onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                  disabled={!isAdmin}
+                                  sx={{ p: 0.25 }}
+                                />
+                              </Tooltip>
+                            ) : (
                               <Checkbox
                                 size="small"
                                 checked={item.checked}
                                 onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
                                 disabled={!isAdmin}
+                                sx={{ p: 0.25 }}
                               />
-                            </Tooltip>
-                          ) : (
-                            <Checkbox
-                              size="small"
-                              checked={item.checked}
-                              onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
-                              disabled={!isAdmin}
-                            />
-                          )}
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              textDecoration: item.checked ? 'line-through' : 'none',
-                              color: item.checked ? 'text.disabled' : 'text.primary',
-                              flex: 1,
-                            }}
-                          >
-                            {item.text}
-                          </Typography>
-                        </Box>
-                      ))}
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        {completedCount}/{noteChecklist.length}
-                      </Typography>
+                            )}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                textDecoration: item.checked ? 'line-through' : 'none',
+                                color: item.checked ? 'text.disabled' : 'text.primary',
+                                flex: 1,
+                              }}
+                            >
+                              {item.text}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
                     </Box>
                   )}
                 </Box>
-              );
-            })}
-          </Box>
-        ))
+              </Box>
+            );
+          })}
+        </Box>
       )}
 
+      {/* ── Collapsible add-note form (admin only) ────────────────── */}
+      {isAdmin && (
+        <Box>
+          <Collapse in={formOpen} unmountOnExit>
+            <Box
+              sx={{
+                mb: 1.5,
+                p: 2,
+                border: '1px solid',
+                borderColor: 'primary.main',
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                placeholder={tc.addNotePlaceholder}
+                value={body}
+                onChange={(e) => handleBodyChange(e.target.value)}
+                size="small"
+                sx={{ mb: 1 }}
+                autoFocus
+              />
+              {hashtagError && (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
+                  {hashtagError}
+                </Typography>
+              )}
+              <Box display="flex" justifyContent="flex-end" gap={1}>
+                <Button size="small" onClick={handleCancel}>
+                  {tc.deleteNoteCancel}
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleSave}
+                  disabled={saving || !body.trim() || !!hashtagError}
+                >
+                  {saving ? tc.savingNote : tc.saveNote}
+                </Button>
+              </Box>
+            </Box>
+          </Collapse>
+
+          {!formOpen && (
+            <Button
+              startIcon={<Add />}
+              size="small"
+              variant="outlined"
+              onClick={() => setFormOpen(true)}
+              sx={{ borderStyle: 'dashed' }}
+            >
+              {tc.addNoteBtn}
+            </Button>
+          )}
+        </Box>
+      )}
+
+      {/* ── Delete confirmation dialog ────────────────────────────── */}
       {isAdmin && (
         <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
           <DialogTitle>{tc.deleteNote}</DialogTitle>
