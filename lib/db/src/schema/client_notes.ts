@@ -9,7 +9,7 @@ export const clientNotesTable = pgTable("client_notes", {
   organizationId: integer("organization_id").notNull().references(() => organizationsTable.id),
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   body: text("body").notNull().default(""),
-  checklist: jsonb("checklist").$type<Array<{ id: string; text: string; checked: boolean }>>(),
+  checklist: jsonb("checklist").$type<Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }>>(),
   monthOverride: varchar("month_override", { length: 7 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

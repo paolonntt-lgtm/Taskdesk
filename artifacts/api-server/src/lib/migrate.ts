@@ -113,6 +113,13 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS client_shared_layout JSONB;
     `);
 
+    // Add checkedById and checkedAt to ticket_checklist_items for "checked by" tooltip
+    await client.query(`
+      ALTER TABLE ticket_checklist_items
+        ADD COLUMN IF NOT EXISTS checked_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

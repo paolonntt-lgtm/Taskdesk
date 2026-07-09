@@ -1,6 +1,7 @@
 import { pgTable, serial, integer, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { ticketsTable } from "./tickets";
 import { organizationsTable } from "./organizations";
+import { usersTable } from "./users";
 
 export const ticketChecklistsTable = pgTable("ticket_checklists", {
   id: serial("id").primaryKey(),
@@ -21,6 +22,8 @@ export const ticketChecklistItemsTable = pgTable("ticket_checklist_items", {
   text: text("text").notNull(),
   checked: boolean("checked").notNull().default(false),
   position: integer("position").notNull().default(0),
+  checkedById: integer("checked_by_id").references(() => usersTable.id, { onDelete: "set null" }),
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

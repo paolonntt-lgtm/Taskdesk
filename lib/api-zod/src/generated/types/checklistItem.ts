@@ -13,6 +13,8 @@ export interface ChecklistItem {
   text: string;
   checked: boolean;
   position: number;
+  checkedByName?: string | null;
+  checkedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

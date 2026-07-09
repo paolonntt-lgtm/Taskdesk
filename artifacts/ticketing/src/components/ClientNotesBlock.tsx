@@ -21,6 +21,8 @@ interface ChecklistItem {
   id: string;
   text: string;
   checked: boolean;
+  checkedByName?: string | null;
+  checkedAt?: string | null;
 }
 
 interface ClientNotesBlockProps {
@@ -315,12 +317,31 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                       {note.body ? <Divider sx={{ mb: 1 }} /> : null}
                       {noteChecklist.map((item: ChecklistItem) => (
                         <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
-                          <Checkbox
-                            size="small"
-                            checked={item.checked}
-                            onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
-                            disabled={!isAdmin}
-                          />
+                          {item.checked && item.checkedByName ? (
+                            <Tooltip
+                              title={t.checklist.checkedBy(
+                                item.checkedByName,
+                                item.checkedAt
+                                  ? new Date(item.checkedAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })
+                                  : ''
+                              )}
+                              arrow
+                            >
+                              <Checkbox
+                                size="small"
+                                checked={item.checked}
+                                onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                disabled={!isAdmin}
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Checkbox
+                              size="small"
+                              checked={item.checked}
+                              onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                              disabled={!isAdmin}
+                            />
+                          )}
                           <Typography
                             variant="body2"
                             sx={{

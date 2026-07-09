@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc, inArray } from "drizzle-orm";
-import { db, ticketsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable } from "@workspace/db";
+import { db, ticketsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 
@@ -33,12 +33,24 @@ async function buildChecklistWithItems(checklistId: number) {
     .from(ticketChecklistsTable)
     .where(eq(ticketChecklistsTable.id, checklistId));
   if (!checklist) return null;
-  const items = await db
-    .select()
+  const rawItems = await db
+    .select({
+      id: ticketChecklistItemsTable.id,
+      checklistId: ticketChecklistItemsTable.checklistId,
+      orgId: ticketChecklistItemsTable.orgId,
+      text: ticketChecklistItemsTable.text,
+      checked: ticketChecklistItemsTable.checked,
+      position: ticketChecklistItemsTable.position,
+      checkedAt: ticketChecklistItemsTable.checkedAt,
+      checkedByName: usersTable.name,
+      createdAt: ticketChecklistItemsTable.createdAt,
+      updatedAt: ticketChecklistItemsTable.updatedAt,
+    })
     .from(ticketChecklistItemsTable)
+    .leftJoin(usersTable, eq(ticketChecklistItemsTable.checkedById, usersTable.id))
     .where(eq(ticketChecklistItemsTable.checklistId, checklistId))
     .orderBy(asc(ticketChecklistItemsTable.position), asc(ticketChecklistItemsTable.id));
-  return { ...checklist, items };
+  return { ...checklist, items: rawItems };
 }
 
 function parseParam(p: string | string[]): number {
@@ -68,8 +80,20 @@ router.get("/tickets/:ticketId/checklists", requireAuth, async (req, res): Promi
 
   const checklistIds = checklists.map((cl) => cl.id);
   const items = await db
-    .select()
+    .select({
+      id: ticketChecklistItemsTable.id,
+      checklistId: ticketChecklistItemsTable.checklistId,
+      orgId: ticketChecklistItemsTable.orgId,
+      text: ticketChecklistItemsTable.text,
+      checked: ticketChecklistItemsTable.checked,
+      position: ticketChecklistItemsTable.position,
+      checkedAt: ticketChecklistItemsTable.checkedAt,
+      checkedByName: usersTable.name,
+      createdAt: ticketChecklistItemsTable.createdAt,
+      updatedAt: ticketChecklistItemsTable.updatedAt,
+    })
     .from(ticketChecklistItemsTable)
+    .leftJoin(usersTable, eq(ticketChecklistItemsTable.checkedById, usersTable.id))
     .where(inArray(ticketChecklistItemsTable.checklistId, checklistIds))
     .orderBy(asc(ticketChecklistItemsTable.position), asc(ticketChecklistItemsTable.id));
 
@@ -231,18 +255,45 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
   if (!existingItem) { res.status(404).json({ error: "Item not found" }); return; }
 
   const isAdmin = currentUser.role === "admin";
-  const updates: { text?: string; checked?: boolean; position?: number } = {};
-  if (parsed.data.checked !== undefined) updates.checked = parsed.data.checked;
+  const updates: { text?: string; checked?: boolean; position?: number; checkedById?: number | null; checkedAt?: Date | null } = {};
+  if (parsed.data.checked !== undefined) {
+    updates.checked = parsed.data.checked;
+    if (parsed.data.checked !== existingItem.checked) {
+      if (parsed.data.checked) {
+        updates.checkedById = currentUser.id;
+        updates.checkedAt = new Date();
+      } else {
+        updates.checkedById = null;
+        updates.checkedAt = null;
+      }
+    }
+  }
   if (isAdmin) {
     if (parsed.data.text !== undefined) updates.text = parsed.data.text;
     if (parsed.data.position !== undefined) updates.position = parsed.data.position;
   }
 
-  const [updatedItem] = await db
+  await db
     .update(ticketChecklistItemsTable)
     .set(updates)
-    .where(eq(ticketChecklistItemsTable.id, itemId))
-    .returning();
+    .where(eq(ticketChecklistItemsTable.id, itemId));
+
+  const [updatedItem] = await db
+    .select({
+      id: ticketChecklistItemsTable.id,
+      checklistId: ticketChecklistItemsTable.checklistId,
+      orgId: ticketChecklistItemsTable.orgId,
+      text: ticketChecklistItemsTable.text,
+      checked: ticketChecklistItemsTable.checked,
+      position: ticketChecklistItemsTable.position,
+      checkedAt: ticketChecklistItemsTable.checkedAt,
+      checkedByName: usersTable.name,
+      createdAt: ticketChecklistItemsTable.createdAt,
+      updatedAt: ticketChecklistItemsTable.updatedAt,
+    })
+    .from(ticketChecklistItemsTable)
+    .leftJoin(usersTable, eq(ticketChecklistItemsTable.checkedById, usersTable.id))
+    .where(eq(ticketChecklistItemsTable.id, itemId));
 
   if (parsed.data.checked !== undefined && parsed.data.checked !== existingItem.checked) {
     const actionDescription = parsed.data.checked

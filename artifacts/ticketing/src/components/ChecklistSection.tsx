@@ -259,14 +259,35 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                 '&:hover .item-actions': { opacity: 1 },
               }}
             >
-              <Checkbox
-                size="small"
-                checked={item.checked}
-                onChange={() => handleToggleItem(item.id, item.checked)}
-                icon={<CheckBoxOutlineBlank fontSize="small" />}
-                sx={{ p: 0.5 }}
-                disabled={editingItemId === item.id}
-              />
+              {item.checked && item.checkedByName ? (
+                <Tooltip
+                  title={ct.checkedBy(
+                    item.checkedByName,
+                    item.checkedAt
+                      ? new Date(item.checkedAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+                      : ''
+                  )}
+                  arrow
+                >
+                  <Checkbox
+                    size="small"
+                    checked={item.checked}
+                    onChange={() => handleToggleItem(item.id, item.checked)}
+                    icon={<CheckBoxOutlineBlank fontSize="small" />}
+                    sx={{ p: 0.5 }}
+                    disabled={editingItemId === item.id}
+                  />
+                </Tooltip>
+              ) : (
+                <Checkbox
+                  size="small"
+                  checked={item.checked}
+                  onChange={() => handleToggleItem(item.id, item.checked)}
+                  icon={<CheckBoxOutlineBlank fontSize="small" />}
+                  sx={{ p: 0.5 }}
+                  disabled={editingItemId === item.id}
+                />
+              )}
 
               {editingItemId === item.id ? (
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5, ml: 0.5 }}>

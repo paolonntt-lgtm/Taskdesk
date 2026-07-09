@@ -75,6 +75,8 @@ const ClientNoteBody = z.object({
         id: z.string(),
         text: z.string(),
         checked: z.boolean(),
+        checkedByName: z.string().nullable().optional(),
+        checkedAt: z.string().nullable().optional(),
       })
     )
     .optional()
@@ -498,8 +500,8 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
 
       if (!stored) { res.status(404).json({ error: "Not found" }); return; }
 
-      const storedList: Array<{ id: string; text: string; checked: boolean }> = (stored.checklist as any) ?? [];
-      const incomingList: Array<{ id: string; text: string; checked: boolean }> = (parsed.data.checklist as any) ?? [];
+      const storedList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (stored.checklist as any) ?? [];
+      const incomingList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (parsed.data.checklist as any) ?? [];
 
       // Validate: same number of items, same IDs, same text — only `checked` may differ
       const structurallyValid =
@@ -513,8 +515,49 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
         res.status(403).json({ error: "Forbidden: non-admins may only toggle checklist item state" });
         return;
       }
+
+      // Server-side: set/clear checkedByName and checkedAt based on toggle direction
+      const [userRow] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, currentUser.id)).limit(1);
+      const userName = userRow?.name ?? null;
+      const enriched = incomingList.map((incoming, idx) => {
+        const existing = storedList[idx];
+        if (incoming.checked && !existing.checked) {
+          return { ...incoming, checkedByName: userName, checkedAt: new Date().toISOString() };
+        } else if (!incoming.checked && existing.checked) {
+          return { ...incoming, checkedByName: null, checkedAt: null };
+        }
+        return { ...incoming, checkedByName: existing.checkedByName ?? null, checkedAt: existing.checkedAt ?? null };
+      });
+      updateData.checklist = enriched;
+    } else {
+      // Admin path: also enforce server-side checkedByName/checkedAt
+      const [storedNote] = await db
+        .select({ checklist: clientNotesTable.checklist })
+        .from(clientNotesTable)
+        .where(
+          and(
+            eq(clientNotesTable.id, noteId),
+            eq(clientNotesTable.clientId, id),
+            eq(clientNotesTable.organizationId, currentUser.organizationId),
+          )
+        )
+        .limit(1);
+      const storedList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (storedNote?.checklist as any) ?? [];
+      const incomingList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (parsed.data.checklist as any) ?? [];
+      const [userRow] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, currentUser.id)).limit(1);
+      const userName = userRow?.name ?? null;
+      const storedMap = new Map(storedList.map(s => [s.id, s]));
+      const enriched = incomingList.map((incoming) => {
+        const existing = storedMap.get(incoming.id);
+        if (incoming.checked && (!existing || !existing.checked)) {
+          return { ...incoming, checkedByName: userName, checkedAt: new Date().toISOString() };
+        } else if (!incoming.checked && existing?.checked) {
+          return { ...incoming, checkedByName: null, checkedAt: null };
+        }
+        return { ...incoming, checkedByName: existing?.checkedByName ?? null, checkedAt: existing?.checkedAt ?? null };
+      });
+      updateData.checklist = enriched;
     }
-    updateData.checklist = parsed.data.checklist;
   }
 
   const [note] = await db

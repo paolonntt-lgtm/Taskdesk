@@ -557,6 +557,8 @@ export interface ChecklistItem {
   text: string;
   checked: boolean;
   position: number;
+  checkedByName?: string | null;
+  checkedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

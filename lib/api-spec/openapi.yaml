@@ -3140,6 +3140,13 @@ components:
           type: boolean
         position:
           type: integer
+        checkedByName:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time

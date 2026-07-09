@@ -284,6 +284,7 @@ const it = {
     itemError: "Errore durante l'operazione. Riprova.",
     collapse: 'Comprimi',
     expand: 'Espandi',
+    checkedBy: (name: string, date: string) => `Completato da ${name} · ${date}`,
   },
   richEditor: {
     bold: 'Grassetto (Ctrl+B)',
@@ -1342,6 +1343,7 @@ const en: typeof it = {
     itemError: 'Error performing operation. Please try again.',
     collapse: 'Collapse',
     expand: 'Expand',
+    checkedBy: (name: string, date: string) => `Completed by ${name} · ${date}`,
   },
   richEditor: {
     bold: 'Bold (Ctrl+B)',
