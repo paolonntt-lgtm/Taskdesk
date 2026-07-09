@@ -461,6 +461,8 @@ export interface ClientNote {
   authorName?: string | null;
   body: string;
   checklist?: ClientNoteChecklistItem[] | null;
+  /** YYYY-MM override for which month this note appears under */
+  monthOverride?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -473,6 +475,8 @@ export type ClientNoteInputChecklistItem = {
 
 export interface ClientNoteInput {
   body: string;
+  /** YYYY-MM month override parsed from hashtag */
+  monthOverride?: string | null;
   checklist?: ClientNoteInputChecklistItem[] | null;
 }
 

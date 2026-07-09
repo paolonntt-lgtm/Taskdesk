@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, jsonb, timestamp, index, varchar } from "drizzle-orm/pg-core";
 import { organizationsTable } from "./organizations";
 import { usersTable } from "./users";
 import { clientsTable } from "./clients";
@@ -10,6 +10,7 @@ export const clientNotesTable = pgTable("client_notes", {
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   body: text("body").notNull().default(""),
   checklist: jsonb("checklist").$type<Array<{ id: string; text: string; checked: boolean }>>(),
+  monthOverride: varchar("month_override", { length: 7 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

@@ -2897,6 +2897,10 @@ components:
               - id
               - text
               - checked
+        monthOverride:
+          type: string
+          nullable: true
+          description: "YYYY-MM override for which month this note appears under"
         createdAt:
           type: string
           format: date-time
@@ -2917,6 +2921,10 @@ components:
       properties:
         body:
           type: string
+        monthOverride:
+          type: string
+          nullable: true
+          description: "YYYY-MM month override parsed from hashtag"
         checklist:
           type: array
           nullable: true

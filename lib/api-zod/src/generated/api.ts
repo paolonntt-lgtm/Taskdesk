@@ -1685,6 +1685,10 @@ export const ListClientNotesResponseItem = zod.object({
       }),
     )
     .nullish(),
+  monthOverride: zod
+    .string()
+    .nullish()
+    .describe("YYYY-MM override for which month this note appears under"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1699,6 +1703,10 @@ export const CreateClientNoteParams = zod.object({
 
 export const CreateClientNoteBody = zod.object({
   body: zod.string(),
+  monthOverride: zod
+    .string()
+    .nullish()
+    .describe("YYYY-MM month override parsed from hashtag"),
   checklist: zod
     .array(
       zod.object({
@@ -1720,6 +1728,10 @@ export const UpdateClientNoteParams = zod.object({
 
 export const UpdateClientNoteBody = zod.object({
   body: zod.string(),
+  monthOverride: zod
+    .string()
+    .nullish()
+    .describe("YYYY-MM month override parsed from hashtag"),
   checklist: zod
     .array(
       zod.object({
@@ -1747,6 +1759,10 @@ export const UpdateClientNoteResponse = zod.object({
       }),
     )
     .nullish(),
+  monthOverride: zod
+    .string()
+    .nullish()
+    .describe("YYYY-MM override for which month this note appears under"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

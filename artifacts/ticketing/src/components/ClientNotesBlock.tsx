@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box, Typography, TextField, Button, IconButton, Checkbox,
   Divider, CircularProgress, Tooltip, Dialog,
@@ -30,6 +30,77 @@ function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const MONTH_MAP: Record<string, number> = {
+  gennaio: 1,
+  january: 1,
+  febbraio: 2,
+  february: 2,
+  marzo: 3,
+  march: 3,
+  aprile: 4,
+  april: 4,
+  maggio: 5,
+  may: 5,
+  giugno: 6,
+  june: 6,
+  luglio: 7,
+  july: 7,
+  agosto: 8,
+  august: 8,
+  settembre: 9,
+  september: 9,
+  ottobre: 10,
+  october: 10,
+  novembre: 11,
+  november: 11,
+  dicembre: 12,
+  december: 12,
+};
+
+const HASHTAG_REGEX = /#([a-zA-Z\u00C0-\u024F]+)(\d{2,4})/i;
+
+interface HashtagParseResult {
+  monthOverride: string;
+  strippedBody: string;
+}
+
+interface HashtagParseError {
+  badMonth: string;
+}
+
+function parseHashtag(text: string): HashtagParseResult | HashtagParseError | null {
+  const match = HASHTAG_REGEX.exec(text);
+  if (!match) return null;
+
+  const monthRaw = match[1].toLowerCase();
+  const yearRaw = match[2];
+
+  const monthNum = MONTH_MAP[monthRaw];
+  if (!monthNum) {
+    return { badMonth: match[1] };
+  }
+
+  const year = yearRaw.length === 2 ? `20${yearRaw}` : yearRaw;
+  const monthStr = String(monthNum).padStart(2, '0');
+  const monthOverride = `${year}-${monthStr}`;
+
+  const strippedBody = text.replace(match[0], '').replace(/\s{2,}/g, ' ').trim();
+  return { monthOverride, strippedBody };
+}
+
+function monthKeyFromDate(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function formatMonthHeading(yyyyMM: string, locale: string): string {
+  const [year, month] = yyyyMM.split('-');
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT', { month: 'long', year: 'numeric' });
+}
+
 export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
@@ -41,29 +112,35 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
 
-  // New note form (admin only)
   const [body, setBody] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [showChecklist, setShowChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hashtagError, setHashtagError] = useState<string | null>(null);
 
-  // Inline add-checklist-item to existing note (admin only)
   const [addingToNote, setAddingToNote] = useState<number | null>(null);
   const [inlineChecklistText, setInlineChecklistText] = useState('');
 
-  // Delete confirmation (admin only)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Toast
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
   });
   const showToast = (severity: 'success' | 'error', msg: string) =>
     setToast({ open: true, severity, msg });
 
-  // ── New note form handlers (admin only) ────────────────────────────────
+  const handleBodyChange = (value: string) => {
+    setBody(value);
+    const result = parseHashtag(value);
+    if (result && 'badMonth' in result) {
+      setHashtagError(tc.invalidMonth(result.badMonth));
+    } else {
+      setHashtagError(null);
+    }
+  };
+
   const handleAddChecklistItem = () => {
     if (!newChecklistText.trim()) return;
     setChecklist((prev) => [...prev, { id: genId(), text: newChecklistText.trim(), checked: false }]);
@@ -82,15 +159,31 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
 
   const handleSave = async () => {
     if (!body.trim()) { showToast('error', tc.errorRequired); return; }
+    if (hashtagError) return;
+
+    const result = parseHashtag(body);
+    let finalBody = body.trim();
+    let monthOverride: string | null = null;
+
+    if (result && 'monthOverride' in result) {
+      finalBody = result.strippedBody;
+      monthOverride = result.monthOverride;
+    }
+
     setSaving(true);
     try {
       await createNote.mutateAsync({
         id: clientId,
-        data: { body: body.trim(), checklist: checklist.length > 0 ? checklist : null },
+        data: {
+          body: finalBody,
+          checklist: checklist.length > 0 ? checklist : null,
+          monthOverride,
+        } as any,
       });
       setBody('');
       setChecklist([]);
       setShowChecklist(false);
+      setHashtagError(null);
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       showToast('success', tc.saveNote);
     } catch {
@@ -100,7 +193,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
-  // ── Checklist toggle (any authenticated user) ──────────────────────────
   const handleToggleNoteChecklistItem = async (
     noteId: number,
     noteBody: string,
@@ -122,7 +214,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
-  // ── Inline add checklist item to existing note (admin only) ────────────
   const handleAddInlineChecklistItem = async (
     noteId: number,
     noteBody: string,
@@ -144,7 +235,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
-  // ── Delete note (admin only) ───────────────────────────────────────────
   const handleDelete = async () => {
     if (deleteTarget == null) return;
     setDeleting(true);
@@ -160,6 +250,25 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     }
   };
 
+  const groupedNotes = useMemo(() => {
+    const typedNotes = notes as any[];
+    const groups: { key: string; notes: any[] }[] = [];
+    const keyMap = new Map<string, any[]>();
+
+    for (const note of typedNotes) {
+      const key = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+      if (!keyMap.has(key)) {
+        keyMap.set(key, []);
+        groups.push({ key, notes: keyMap.get(key)! });
+      }
+      keyMap.get(key)!.push(note);
+    }
+
+    groups.sort((a, b) => b.key.localeCompare(a.key));
+
+    return groups;
+  }, [notes]);
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" py={3}>
@@ -170,7 +279,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
 
   return (
     <Box>
-      {/* New note form — admin only */}
       {isAdmin && (
         <Box
           sx={{
@@ -182,9 +290,15 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
             fullWidth multiline minRows={2}
             placeholder={tc.addNotePlaceholder}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => handleBodyChange(e.target.value)}
             size="small" sx={{ mb: 1 }}
           />
+
+          {hashtagError && (
+            <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>
+              {hashtagError}
+            </Typography>
+          )}
 
           {showChecklist && (
             <Box sx={{ mb: 1.5 }}>
@@ -220,122 +334,140 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                 <AddTask fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Button variant="contained" size="small" onClick={handleSave} disabled={saving || !body.trim()}>
+            <Button
+              variant="contained" size="small"
+              onClick={handleSave}
+              disabled={saving || !body.trim() || !!hashtagError}
+            >
               {saving ? tc.savingNote : tc.saveNote}
             </Button>
           </Box>
         </Box>
       )}
 
-      {/* Notes list */}
       {notes.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
           {tc.noNotes}
         </Typography>
       ) : (
-        (notes as any[]).map((note) => {
-          const noteChecklist: ChecklistItem[] = note.checklist ?? [];
-          const completedCount = noteChecklist.filter((i) => i.checked).length;
-
-          return (
-            <Box
-              key={note.id}
-              sx={{
-                mb: 1.5, p: 2, border: '1px solid', borderColor: 'divider',
-                borderRadius: '12px', bgcolor: 'background.paper',
-              }}
-            >
-              {/* Header */}
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                <Typography variant="caption" color="text.secondary">
-                  {note.authorName && `${tc.noteBy} ${note.authorName} · `}
-                  {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
-                    dateStyle: 'short', timeStyle: 'short',
-                  })}
-                </Typography>
-                {isAdmin && (
-                  <Tooltip title={tc.deleteNote}>
-                    <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-
-              {/* Body */}
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
-                {note.body}
+        groupedNotes.map(({ key, notes: groupNotes }) => (
+          <Box key={key}>
+            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'text.secondary',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatMonthHeading(key, lang)}
               </Typography>
+              <Divider sx={{ flex: 1 }} />
+            </Box>
 
-              {/* Checklist — visible to all, toggle available to all */}
-              {noteChecklist.length > 0 && (
-                <Box mt={1}>
-                  <Divider sx={{ mb: 1 }} />
-                  {noteChecklist.map((item) => (
-                    <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
-                      <Checkbox
-                        size="small"
-                        checked={item.checked}
-                        onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          textDecoration: item.checked ? 'line-through' : 'none',
-                          color: item.checked ? 'text.disabled' : 'text.primary',
-                        }}
-                      >
-                        {item.text}
+            {groupNotes.map((note) => {
+              const noteChecklist: ChecklistItem[] = note.checklist ?? [];
+              const completedCount = noteChecklist.filter((i: ChecklistItem) => i.checked).length;
+
+              return (
+                <Box
+                  key={note.id}
+                  sx={{
+                    mb: 1.5, p: 2, border: '1px solid', borderColor: 'divider',
+                    borderRadius: '12px', bgcolor: 'background.paper',
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                    <Typography variant="caption" color="text.secondary">
+                      {note.authorName && `${tc.noteBy} ${note.authorName} · `}
+                      {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
+                        dateStyle: 'short', timeStyle: 'short',
+                      })}
+                    </Typography>
+                    {isAdmin && (
+                      <Tooltip title={tc.deleteNote}>
+                        <IconButton size="small" onClick={() => setDeleteTarget(note.id)} sx={{ color: 'error.main' }}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1 : 0 }}>
+                    {note.body}
+                  </Typography>
+
+                  {noteChecklist.length > 0 && (
+                    <Box mt={1}>
+                      <Divider sx={{ mb: 1 }} />
+                      {noteChecklist.map((item: ChecklistItem) => (
+                        <Box key={item.id} display="flex" alignItems="center" gap={0.5}>
+                          <Checkbox
+                            size="small"
+                            checked={item.checked}
+                            onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              textDecoration: item.checked ? 'line-through' : 'none',
+                              color: item.checked ? 'text.disabled' : 'text.primary',
+                            }}
+                          >
+                            {item.text}
+                          </Typography>
+                        </Box>
+                      ))}
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                        {completedCount}/{noteChecklist.length}
                       </Typography>
                     </Box>
-                  ))}
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    {completedCount}/{noteChecklist.length}
-                  </Typography>
-                </Box>
-              )}
+                  )}
 
-              {/* Inline add checklist item — admin only */}
-              {isAdmin && (
-                addingToNote === note.id ? (
-                  <Box display="flex" gap={1} mt={1}>
-                    <TextField
-                      size="small" autoFocus
-                      placeholder={tc.checklistItemPlaceholder}
-                      value={inlineChecklistText}
-                      onChange={(e) => setInlineChecklistText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
-                        if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
-                      }}
-                      sx={{ flex: 1 }}
-                    />
-                    <IconButton
-                      size="small" color="primary"
-                      onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
-                      disabled={!inlineChecklistText.trim()}
-                    >
-                      <Add fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ) : (
-                  <Tooltip title={tc.addChecklistItem}>
-                    <IconButton
-                      size="small"
-                      sx={{ mt: 0.5, color: 'text.disabled' }}
-                      onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
-                    >
-                      <AddTask fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )
-              )}
-            </Box>
-          );
-        })
+                  {isAdmin && (
+                    addingToNote === note.id ? (
+                      <Box display="flex" gap={1} mt={1}>
+                        <TextField
+                          size="small" autoFocus
+                          placeholder={tc.checklistItemPlaceholder}
+                          value={inlineChecklistText}
+                          onChange={(e) => setInlineChecklistText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); handleAddInlineChecklistItem(note.id, note.body, noteChecklist); }
+                            if (e.key === 'Escape') { setAddingToNote(null); setInlineChecklistText(''); }
+                          }}
+                          sx={{ flex: 1 }}
+                        />
+                        <IconButton
+                          size="small" color="primary"
+                          onClick={() => handleAddInlineChecklistItem(note.id, note.body, noteChecklist)}
+                          disabled={!inlineChecklistText.trim()}
+                        >
+                          <Add fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : (
+                      <Tooltip title={tc.addChecklistItem}>
+                        <IconButton
+                          size="small"
+                          sx={{ mt: 0.5, color: 'text.disabled' }}
+                          onClick={() => { setAddingToNote(note.id); setInlineChecklistText(''); }}
+                        >
+                          <AddTask fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        ))
       )}
 
-      {/* Delete confirmation — admin only */}
       {isAdmin && (
         <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
           <DialogTitle>{tc.deleteNote}</DialogTitle>
@@ -351,7 +483,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
         </Dialog>
       )}
 
-      {/* Toast */}
       <Snackbar
         open={toast.open}
         autoHideDuration={3000}

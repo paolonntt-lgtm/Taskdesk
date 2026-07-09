@@ -9,5 +9,7 @@ import type { ClientNoteInputChecklistItem } from "./clientNoteInputChecklistIte
 
 export interface ClientNoteInput {
   body: string;
+  /** YYYY-MM month override parsed from hashtag */
+  monthOverride?: string | null;
   checklist?: ClientNoteInputChecklistItem[] | null;
 }

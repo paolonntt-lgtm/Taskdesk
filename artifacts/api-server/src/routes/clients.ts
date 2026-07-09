@@ -68,6 +68,7 @@ const ClientsQuerySchema = z.object({
 
 const ClientNoteBody = z.object({
   body: z.string(),
+  monthOverride: z.string().regex(/^\d{4}-\d{2}$/).optional().nullable(),
   checklist: z
     .array(
       z.object({
@@ -398,6 +399,7 @@ router.get("/clients/:id/notes", requireAuth, async (req, res): Promise<void> =>
       authorName: usersTable.name,
       body: clientNotesTable.body,
       checklist: clientNotesTable.checklist,
+      monthOverride: clientNotesTable.monthOverride,
       createdAt: clientNotesTable.createdAt,
       updatedAt: clientNotesTable.updatedAt,
     })
@@ -441,6 +443,7 @@ router.post("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): P
       authorId: currentUser.id,
       body: parsed.data.body,
       checklist: parsed.data.checklist ?? null,
+      monthOverride: parsed.data.monthOverride ?? null,
     })
     .returning();
 
