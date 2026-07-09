@@ -407,9 +407,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       }
     : isAssignee
     ? {
-        // Assignee can change status and add a resolution note, but not reassign or reprioritise
+        // Assignee can change status, add a resolution note, and set/clear the due date
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
+        ...(parsed.data.dueAt !== undefined && { dueAt: parsed.data.dueAt }),
       }
     : {
         ...(parsed.data.title !== undefined && { title: parsed.data.title }),
@@ -418,6 +419,19 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.location !== undefined && { location: parsed.data.location }),
         ...(parsed.data.resource !== undefined && { resource: parsed.data.resource }),
       };
+  // Allow non-admin users to self-assign or remove their own assignment
+  if (!isAdmin && parsed.data.assignedTo !== undefined) {
+    const requestedAssignedTo = parsed.data.assignedTo;
+    const canSelfAssign =
+      requestedAssignedTo === currentUser.id &&
+      (existing.assignedTo === null || existing.assignedTo === currentUser.id);
+    const canRemoveSelf =
+      requestedAssignedTo === null && existing.assignedTo === currentUser.id;
+    if (canSelfAssign || canRemoveSelf) {
+      (updates as any).assignedTo = requestedAssignedTo;
+    }
+  }
+
   const activityLogs: { actionType: string; actionDescription: string }[] = [];
   let statusChangeLabel: string | undefined;
   let newIsClosed = false;

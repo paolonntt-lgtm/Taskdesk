@@ -258,6 +258,8 @@ const it = {
     emailReplyAttachTypeError: 'Tipo file non supportato',
     emailReplyAttachSizeError: 'Il file supera il limite di {max} MB',
     emailReplyAttachUploadError: 'Errore nel caricamento del file',
+    selfAssign: 'Assegnami',
+    removeSelfAssign: 'Rimuovi',
   },
   checklist: {
     sectionTitle: 'Checklist',
@@ -1319,6 +1321,8 @@ const en: typeof it = {
     emailReplyAttachTypeError: 'File type not supported',
     emailReplyAttachSizeError: 'File exceeds the {max} MB limit',
     emailReplyAttachUploadError: 'Error uploading file',
+    selfAssign: 'Assign to me',
+    removeSelfAssign: 'Unassign me',
   },
   checklist: {
     sectionTitle: 'Checklists',

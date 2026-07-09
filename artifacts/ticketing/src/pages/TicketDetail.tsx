@@ -521,6 +521,8 @@ export default function TicketDetail() {
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
+  const canSelfAssign = !isAdmin && !assignedGroup && !assignee;
+  const canRemoveSelf = !isAdmin && isAssignee;
   const closerActivity = [...(activities ?? [])].reverse().find(
     (a: any) => a.actionType === 'status_changed' &&
       (a.actionDescription?.includes('Risolto') || a.actionDescription?.includes('Chiuso') ||
@@ -819,7 +821,7 @@ export default function TicketDetail() {
                   </Popover>
                 </>
               ) : (assignee || assignedGroup) ? (
-                <Box display="flex" alignItems="center" gap={1}>
+                <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                   {assignee && (
                     <Avatar
                       src={assignee.avatarUrl ?? undefined}
@@ -831,9 +833,35 @@ export default function TicketDetail() {
                   <Typography variant="body2">
                     {assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name}
                   </Typography>
+                  {canRemoveSelf && (
+                    <Button
+                      size="small"
+                      color="error"
+                      variant="text"
+                      sx={{ minWidth: 0, px: 0.5, fontSize: '0.72rem' }}
+                      disabled={updateTicket.isPending}
+                      onClick={() => handleAssigneeChange('')}
+                    >
+                      {t.ticketDetail.removeSelfAssign}
+                    </Button>
+                  )}
                 </Box>
               ) : (
-                <Typography variant="body2" color="text.disabled">—</Typography>
+                <Box>
+                  {canSelfAssign ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.72rem' }}
+                      disabled={updateTicket.isPending}
+                      onClick={() => handleAssigneeChange(String(currentUser?.id))}
+                    >
+                      {t.ticketDetail.selfAssign}
+                    </Button>
+                  ) : (
+                    <Typography variant="body2" color="text.disabled">—</Typography>
+                  )}
+                </Box>
               )}
             </Box>
 
@@ -930,7 +958,7 @@ export default function TicketDetail() {
             )}
 
             {/* Due date */}
-            {isAdmin ? (
+            {(isAdmin || isAssignee) ? (
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                   {t.ticketDetail.dueAtLabel}
