@@ -72,7 +72,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const BLOCK_IDS = ['company-info', 'linked-tickets', 'client-notes', 'fixed-notes'] as const;
+const BLOCK_IDS = ['company-info', 'fixed-notes', 'client-notes', 'linked-tickets'] as const;
 type BlockId = typeof BLOCK_IDS[number];
 
 interface BlockConfig {
