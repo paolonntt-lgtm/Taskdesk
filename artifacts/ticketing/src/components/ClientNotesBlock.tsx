@@ -100,7 +100,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       }
       keyMap.get(key)!.push(note);
     }
-    groups.sort((a, b) => b.key.localeCompare(a.key));
+    groups.sort((a, b) => a.key.localeCompare(b.key));
     return groups;
   }, [notes]);
 
@@ -114,7 +114,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   );
 
   const defaultMonth = useMemo(
-    () => availableMonths[0]?.key ?? currentMonthKey,
+    () => availableMonths[availableMonths.length - 1]?.key ?? currentMonthKey,
     [availableMonths, currentMonthKey],
   );
 
@@ -122,7 +122,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
 
   const effectiveMonth = availableMonths.some(m => m.key === selectedMonth)
     ? selectedMonth
-    : (availableMonths[0]?.key ?? '');
+    : (availableMonths[availableMonths.length - 1]?.key ?? '');
 
   const visibleNotes = useMemo(
     () => groupedNotes.find(g => g.key === effectiveMonth)?.notes ?? [],
@@ -291,8 +291,11 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
             gap: 0.75,
             overflowX: 'auto',
             pb: 0.5,
-            scrollbarWidth: 'none',
-            '&::-webkit-scrollbar': { display: 'none' },
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(0,0,0,0.2) transparent',
+            '&::-webkit-scrollbar': { height: 4 },
+            '&::-webkit-scrollbar-thumb': { background: 'rgba(0,0,0,0.2)', borderRadius: 2 },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
           }}
         >
           {availableMonths.map((m) => {
