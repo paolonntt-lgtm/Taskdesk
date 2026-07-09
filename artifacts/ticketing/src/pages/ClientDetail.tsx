@@ -23,6 +23,7 @@ import {
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
 import ClientNotesBlock from '../components/ClientNotesBlock';
+import FixedNotesBlock from '../components/FixedNotesBlock';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -71,7 +72,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const BLOCK_IDS = ['company-info', 'linked-tickets', 'client-notes'] as const;
+const BLOCK_IDS = ['company-info', 'linked-tickets', 'client-notes', 'fixed-notes'] as const;
 type BlockId = typeof BLOCK_IDS[number];
 
 interface BlockConfig {
@@ -87,9 +88,11 @@ function loadLayout(): BlockConfig[] {
     if (!raw) return defaultLayout();
     const parsed: BlockConfig[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaultLayout();
-    const valid = parsed.filter((b) => BLOCK_IDS.includes(b.id));
-    if (valid.length !== BLOCK_IDS.length) return defaultLayout();
-    return valid;
+    const valid = parsed.filter((b) => BLOCK_IDS.includes(b.id as BlockId));
+    if (valid.length === 0) return defaultLayout();
+    const storedIds = new Set<string>(valid.map((b) => b.id));
+    const missing = BLOCK_IDS.filter((id) => !storedIds.has(id)).map((id) => ({ id, visible: true }));
+    return [...valid, ...missing];
   } catch {
     return defaultLayout();
   }
@@ -218,9 +221,12 @@ export default function ClientDetail() {
       .then((d) => {
         if (!d || !Array.isArray(d.layout) || d.layout.length === 0) return;
         const valid = (d.layout as BlockConfig[]).filter((b) => BLOCK_IDS.includes(b.id as BlockId));
-        if (valid.length !== BLOCK_IDS.length) return;
-        setLayout(valid);
-        saveLayout(valid);
+        if (valid.length === 0) return;
+        const storedIds = new Set<string>(valid.map((b) => b.id));
+        const missing = BLOCK_IDS.filter((id) => !storedIds.has(id)).map((id) => ({ id, visible: true }));
+        const merged = [...valid, ...missing];
+        setLayout(merged);
+        saveLayout(merged);
       })
       .catch(() => {});
   }, []);
@@ -346,6 +352,17 @@ export default function ClientDetail() {
   const activeLayout = editMode ? draftLayout : layout;
 
   const blockContent: Record<BlockId, React.ReactNode> = {
+    'fixed-notes': (
+      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
+        <CardContent>
+          <FixedNotesBlock
+            clientId={clientId}
+            initialNotes={(client as any).notes ?? null}
+            isAdmin={isAdmin}
+          />
+        </CardContent>
+      </Card>
+    ),
     'client-notes': (
       <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
         <CardContent>
@@ -367,7 +384,6 @@ export default function ClientDetail() {
               <InfoRow label={tc.contactPerson} value={client.contactPerson} />
               <InfoRow label={tc.email} value={client.email} />
               <InfoRow label={tc.phone} value={client.phone} />
-              <InfoRow label={tc.notes} value={client.notes} />
             </Grid>
           </Grid>
         </CardContent>
@@ -449,6 +465,7 @@ export default function ClientDetail() {
     'company-info': tc.blockCompanyInfo,
     'linked-tickets': tc.blockLinkedTickets,
     'client-notes': tc.blockNotes,
+    'fixed-notes': tc.blockFixedNotes,
   };
 
   return (
