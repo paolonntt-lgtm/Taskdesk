@@ -23,7 +23,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { getStatusColor, getPriorityColor } from './Dashboard';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle } from '../components/RichCommentEditor';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
@@ -116,6 +116,13 @@ export default function TicketDetail() {
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
   const { data: clientsList = [] } = useListClients(undefined, { query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
+  const { data: workload = [] } = useQuery<{ id: number; open: number }[]>({
+    queryKey: ['assignee-workload'],
+    queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then(r => r.json()),
+    staleTime: 30_000,
+    enabled: currentUser?.role === 'admin',
+  });
+  const openByUser = Object.fromEntries(workload.map(w => [w.id, w.open]));
   const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
 
   const updateTicket = useUpdateTicket();
@@ -771,7 +778,14 @@ export default function TicketDetail() {
                                   }}
                                 />
                               </Tooltip>
-                              <Typography variant="body2">{u.name}</Typography>
+                              <Box flex={1} display="flex" alignItems="center" justifyContent="space-between" minWidth={0}>
+                                <Typography variant="body2">{u.name}</Typography>
+                                {(openByUser[u.id] ?? 0) > 0 && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>
+                                    {openByUser[u.id]} {lang === 'it' ? 'aperti' : 'open'}
+                                  </Typography>
+                                )}
+                              </Box>
                             </Box>
                           ))}
                         </Box>

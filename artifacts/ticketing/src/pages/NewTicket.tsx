@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
-  ToggleButton, ToggleButtonGroup, Autocomplete,
+  ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
+  DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
 } from '@mui/material';
-import { Person, Group } from '@mui/icons-material';
-import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { Person, Group, AddCircle as AddCircleIcon } from '@mui/icons-material';
+import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
@@ -32,6 +33,48 @@ export default function NewTicket() {
 
   const urlParams = new URLSearchParams(search);
   const { data: clientsList = [] } = useListClients();
+
+  const { data: workload = [] } = useQuery<{ id: number; name: string; open: number; total: number }[]>({
+    queryKey: ['assignee-workload'],
+    queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then(r => r.json()),
+    staleTime: 30_000,
+    enabled: currentUser?.role === 'admin',
+  });
+  const openByUser = Object.fromEntries(workload.map(w => [w.id, w.open]));
+
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddName, setQuickAddName] = useState('');
+  const [quickAddEmail, setQuickAddEmail] = useState('');
+  const [quickAddPhone, setQuickAddPhone] = useState('');
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
+
+  const handleQuickAddClient = async () => {
+    if (!quickAddName.trim()) return;
+    setQuickAddSaving(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: quickAddName.trim(),
+          email: quickAddEmail.trim() || null,
+          phone: quickAddPhone.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const newClient = await res.json();
+      queryClient.setQueryData(getListClientsQueryKey(), (old: any) =>
+        Array.isArray(old) ? [...old, newClient] : [newClient]
+      );
+      setFormData(f => ({ ...f, clientId: String(newClient.id) }));
+      setQuickAddOpen(false);
+    } catch {
+      // silent
+    } finally {
+      setQuickAddSaving(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     title: urlParams.get('title') || '',
@@ -212,17 +255,31 @@ export default function NewTicket() {
                 />
               </Grid>
 
-              {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
+              {(currentUser as any)?.clientsEnabled !== false && (clientsList.length > 0 || currentUser?.role === 'admin') && (
                 <Grid item xs={12} sm={6}>
-                  <Autocomplete
-                    options={clientsList}
-                    getOptionLabel={(o) => o.name}
-                    value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
-                    onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
-                    renderInput={(params) => (
-                      <TextField {...params} label={t.clients.clientField} />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Autocomplete
+                      sx={{ flex: 1 }}
+                      options={clientsList}
+                      getOptionLabel={(o) => o.name}
+                      value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
+                      onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
+                      noOptionsText={t.newTicket.noClientFound}
+                      renderInput={(params) => (
+                        <TextField {...params} label={t.clients.clientField} />
+                      )}
+                    />
+                    {currentUser?.role === 'admin' && (
+                      <Tooltip title={t.newTicket.quickAddClient}>
+                        <IconButton
+                          onClick={() => { setQuickAddName(''); setQuickAddEmail(''); setQuickAddPhone(''); setQuickAddOpen(true); }}
+                          color="primary"
+                        >
+                          <AddCircleIcon />
+                        </IconButton>
+                      </Tooltip>
                     )}
-                  />
+                  </Box>
                 </Grid>
               )}
 
@@ -252,9 +309,21 @@ export default function NewTicket() {
                         sx={{ minWidth: 200 }}
                       >
                         <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
-                        {users?.map(u => (
-                          <MenuItem key={u.id} value={u.id.toString()}>{u.name}</MenuItem>
-                        ))}
+                        {users?.map(u => {
+                          const open = openByUser[u.id];
+                          return (
+                            <MenuItem key={u.id} value={u.id.toString()}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center" width="100%" gap={2}>
+                                <span>{u.name}</span>
+                                {open > 0 && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                                    {open} {t.newTicket.openTickets}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </MenuItem>
+                          );
+                        })}
                       </TextField>
                     ) : (
                       <TextField
@@ -292,6 +361,49 @@ export default function NewTicket() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Quick-add client dialog */}
+      <Dialog open={quickAddOpen} onClose={() => !quickAddSaving && setQuickAddOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.newTicket.quickAddClientTitle}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <TextField
+            label={`${t.clients?.name ?? 'Nome'} *`}
+            value={quickAddName}
+            onChange={e => setQuickAddName(e.target.value)}
+            fullWidth
+            autoFocus
+            disabled={quickAddSaving}
+          />
+          <TextField
+            label={`${t.clients?.email ?? 'Email'} (${lang === 'it' ? 'opzionale' : 'optional'})`}
+            type="email"
+            value={quickAddEmail}
+            onChange={e => setQuickAddEmail(e.target.value)}
+            fullWidth
+            disabled={quickAddSaving}
+          />
+          <TextField
+            label={`${t.clients?.phone ?? 'Telefono'} (${lang === 'it' ? 'opzionale' : 'optional'})`}
+            value={quickAddPhone}
+            onChange={e => setQuickAddPhone(e.target.value)}
+            fullWidth
+            disabled={quickAddSaving}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setQuickAddOpen(false)} disabled={quickAddSaving}>
+            {t.newTicket.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleQuickAddClient}
+            disabled={!quickAddName.trim() || quickAddSaving}
+            startIcon={quickAddSaving ? <CircularProgress size={16} /> : undefined}
+          >
+            {quickAddSaving ? t.newTicket.quickAddClientSaving : t.newTicket.quickAddClientSave}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
