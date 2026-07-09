@@ -16,6 +16,7 @@ import {
   resolveClientBySlug,
 } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
+import { parseHashtag } from '../lib/clientNoteHashtag';
 
 export default function NotesConsole() {
   const { t, lang } = useLanguage();
@@ -30,6 +31,7 @@ export default function NotesConsole() {
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hashtagError, setHashtagError] = useState<string | null>(null);
   const [historyLimit, setHistoryLimit] = useState(10);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
@@ -55,6 +57,13 @@ export default function NotesConsole() {
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setBody(val);
+
+    const hashResult = parseHashtag(val);
+    if (hashResult && 'badMonth' in hashResult) {
+      setHashtagError(tc.invalidMonth(hashResult.badMonth));
+    } else {
+      setHashtagError(null);
+    }
 
     const atIdx = val.lastIndexOf('@');
     if (atIdx !== -1) {
@@ -90,6 +99,7 @@ export default function NotesConsole() {
   const handleSubmit = async () => {
     const trimmedBody = body.trim();
     if (!trimmedBody) { showToast('error', tc.errorRequired); return; }
+    if (hashtagError) return;
 
     let clientId = selectedClientId;
     let noteBody = trimmedBody;
@@ -121,13 +131,24 @@ export default function NotesConsole() {
 
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
+    // Extract monthOverride from hashtag shortcut
+    const hashResult = parseHashtag(noteBody);
+    let monthOverride: string | null = null;
+    if (hashResult && 'monthOverride' in hashResult) {
+      monthOverride = hashResult.monthOverride;
+      noteBody = hashResult.strippedBody;
+    }
+
+    if (!noteBody) { showToast('error', tc.errorRequired); return; }
+
     setSaving(true);
     try {
       await createNote.mutateAsync({
         id: clientId!,
-        data: { body: noteBody, checklist: null },
+        data: { body: noteBody, checklist: null, monthOverride } as any,
       });
       setBody('');
+      setHashtagError(null);
       setSelectedClientId(null);
       setSelectedClientName(null);
       setSelectedClientSlug(null);
@@ -241,6 +262,17 @@ export default function NotesConsole() {
               </Popper>
             </Box>
 
+            {/* Hashtag error / hint */}
+            {hashtagError ? (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, fontSize: '0.72rem' }}>
+                {hashtagError}
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+                {tc.monthHashtagHint}
+              </Typography>
+            )}
+
             {/* Submit */}
             <Box display="flex" justifyContent="flex-end" mt={0.75}>
               <Tooltip title="Ctrl+Enter">
@@ -248,7 +280,7 @@ export default function NotesConsole() {
                   <IconButton
                     size="small" color="primary"
                     onClick={handleSubmit}
-                    disabled={saving || !body.trim()}
+                    disabled={saving || !body.trim() || !!hashtagError}
                   >
                     {saving ? <CircularProgress size={16} /> : <Send fontSize="small" />}
                   </IconButton>
