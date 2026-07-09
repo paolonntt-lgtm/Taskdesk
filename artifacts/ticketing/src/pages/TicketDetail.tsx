@@ -45,6 +45,12 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
 
+function toLocalDatetimeInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n([\s\S]*)$/;
 function parseCustomerReply(text: string): { name: string; email: string; body: string } | null {
   const m = CUSTOMER_REPLY_RE.exec(text);
@@ -220,7 +226,7 @@ export default function TicketDetail() {
   useEffect(() => {
     if (!ticket) return;
     const d = (ticket as any).dueAt;
-    setDueEditVal(d ? new Date(d).toISOString().slice(0, 16) : '');
+    setDueEditVal(d ? toLocalDatetimeInput(d) : '');
   }, [ticket]);
 
   if (isLoading || !ticket) {

@@ -13,6 +13,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 
+function toLocalDatetimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function NewTicket() {
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -251,7 +256,7 @@ export default function NewTicket() {
                   value={formData.dueAt}
                   onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
                   InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+                  inputProps={{ min: toLocalDatetimeInput(new Date()) }}
                 />
               </Grid>
 
