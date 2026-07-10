@@ -140,6 +140,12 @@ router.get("/client-notes", requireAuth, async (req, res): Promise<void> => {
 router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const parsed = ClientsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid query parameters" });
@@ -147,7 +153,7 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   }
   const { search, sort, order } = parsed.data;
 
-  const conditions = [orgId != null ? eq(clientsTable.organizationId, orgId) : undefined].filter(Boolean) as any[];
+  const conditions: any[] = [eq(clientsTable.organizationId, orgId)];
 
   if (search && search.trim()) {
     conditions.push(

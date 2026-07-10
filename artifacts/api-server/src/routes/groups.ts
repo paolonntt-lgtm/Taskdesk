@@ -46,14 +46,14 @@ const userFields = {
   createdAt: usersTable.createdAt,
 };
 
-async function getGroupWithMembers(groupId: number, orgId: number | null) {
+async function getGroupWithMembers(groupId: number, orgId: number) {
   const [group] = await db
     .select()
     .from(groupsTable)
     .where(
       and(
         eq(groupsTable.id, groupId),
-        orgId != null ? eq(groupsTable.organizationId, orgId) : undefined,
+        eq(groupsTable.organizationId, orgId),
       )
     );
 
@@ -67,7 +67,7 @@ async function getGroupWithMembers(groupId: number, orgId: number | null) {
     .where(
       and(
         eq(groupMembersTable.groupId, groupId),
-        orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+        eq(usersTable.organizationId, orgId),
       )
     );
 
@@ -83,10 +83,15 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const groups = await db
     .select()
     .from(groupsTable)
-    .where(orgId != null ? eq(groupsTable.organizationId, orgId) : undefined)
+    .where(eq(groupsTable.organizationId, orgId))
     .orderBy(groupsTable.name);
 
   if (groups.length === 0) {
@@ -103,7 +108,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
     .where(
       and(
         inArray(groupMembersTable.groupId, groupIds),
-        orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+        eq(usersTable.organizationId, orgId),
       )
     );
 
@@ -155,9 +160,7 @@ router.put("/groups/:id", requireAuth, requireAdmin, async (req, res): Promise<v
     .where(
       and(
         eq(groupsTable.id, id),
-        currentUser.organizationId != null
-          ? eq(groupsTable.organizationId, currentUser.organizationId)
-          : undefined,
+        eq(groupsTable.organizationId, currentUser.organizationId),
       )
     )
     .returning();
@@ -185,9 +188,7 @@ router.patch("/groups/:id/permissions", requireAuth, requireAdmin, async (req, r
     .where(
       and(
         eq(groupsTable.id, id),
-        currentUser.organizationId != null
-          ? eq(groupsTable.organizationId, currentUser.organizationId)
-          : undefined,
+        eq(groupsTable.organizationId, currentUser.organizationId),
       )
     )
     .returning();
@@ -208,9 +209,7 @@ router.delete("/groups/:id", requireAuth, requireAdmin, async (req, res): Promis
     .where(
       and(
         eq(groupsTable.id, id),
-        currentUser.organizationId != null
-          ? eq(groupsTable.organizationId, currentUser.organizationId)
-          : undefined,
+        eq(groupsTable.organizationId, currentUser.organizationId),
       )
     )
     .returning();
@@ -240,7 +239,7 @@ router.post("/groups/:id/members", requireAuth, requireAdmin, async (req, res): 
     .where(
       and(
         eq(groupsTable.id, id),
-        orgId != null ? eq(groupsTable.organizationId, orgId) : undefined,
+        eq(groupsTable.organizationId, orgId),
       )
     );
   if (!group) { res.status(404).json({ error: "Group not found" }); return; }
@@ -252,7 +251,7 @@ router.post("/groups/:id/members", requireAuth, requireAdmin, async (req, res): 
     .where(
       and(
         eq(usersTable.id, parsed.data.userId),
-        orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+        eq(usersTable.organizationId, orgId),
       )
     );
   if (!targetUser) { res.status(404).json({ error: "User not found" }); return; }
@@ -285,7 +284,7 @@ router.delete("/groups/:id/members", requireAuth, requireAdmin, async (req, res)
     .where(
       and(
         eq(groupsTable.id, id),
-        orgId != null ? eq(groupsTable.organizationId, orgId) : undefined,
+        eq(groupsTable.organizationId, orgId),
       )
     );
   if (!group) { res.status(404).json({ error: "Group not found" }); return; }
@@ -297,7 +296,7 @@ router.delete("/groups/:id/members", requireAuth, requireAdmin, async (req, res)
     .where(
       and(
         eq(usersTable.id, parsed.data.userId),
-        orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+        eq(usersTable.organizationId, orgId),
       )
     );
   if (!targetUser) { res.status(404).json({ error: "User not found" }); return; }

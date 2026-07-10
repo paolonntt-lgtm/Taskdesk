@@ -30,6 +30,12 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     res.status(403).json({ error: "Admin access required" });
     return;
   }
+  // Non-superadmin admins must belong to an organization; an org-less admin
+  // account has no tenant scope and must not be treated as tenant-admin.
+  if (!user.isSuperAdmin && user.organizationId == null) {
+    res.status(403).json({ error: "Admin account has no organization" });
+    return;
+  }
   next();
 }
 

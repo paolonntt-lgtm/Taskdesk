@@ -38,13 +38,18 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const users = await db
     .select(userFields)
     .from(usersTable)
     .where(and(
       notLike(usersTable.email, "deleted-%@deleted.local"),
       eq(usersTable.isSystem, false),
-      orgId != null ? eq(usersTable.organizationId, orgId) : undefined,
+      eq(usersTable.organizationId, orgId),
     ))
     .orderBy(usersTable.name);
 
@@ -60,7 +65,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
         .where(
           and(
             inArray(groupMembersTable.userId, users.map((u) => u.id)),
-            orgId != null ? eq(groupsTable.organizationId, orgId) : undefined,
+            eq(groupsTable.organizationId, orgId),
           )
         )
     : [];
@@ -125,12 +130,16 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
+
+  if (currentUser.organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const [user] = await db.select(userFields).from(usersTable).where(
     and(
       eq(usersTable.id, id),
-      currentUser.organizationId != null
-        ? eq(usersTable.organizationId, currentUser.organizationId)
-        : undefined
+      eq(usersTable.organizationId, currentUser.organizationId),
     )
   );
   if (!user) {
@@ -154,6 +163,12 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
+
+  if (currentUser.organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const isAdmin = currentUser.role === "admin";
   const isSelf = currentUser.id === id;
 
@@ -198,9 +213,7 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     .set(updates)
     .where(and(
       eq(usersTable.id, id),
-      currentUser.organizationId != null
-        ? eq(usersTable.organizationId, currentUser.organizationId)
-        : undefined
+      eq(usersTable.organizationId, currentUser.organizationId),
     ))
     .returning(userFields);
 
@@ -239,9 +252,7 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
     .from(usersTable)
     .where(and(
       eq(usersTable.id, id),
-      currentUser.organizationId != null
-        ? eq(usersTable.organizationId, currentUser.organizationId)
-        : undefined
+      eq(usersTable.organizationId, currentUser.organizationId),
     ));
 
   if (!target) {

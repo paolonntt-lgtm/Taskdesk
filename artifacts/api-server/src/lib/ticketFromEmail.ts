@@ -150,6 +150,8 @@ function parseReferences(references: string): string[] {
 /**
  * Finds the system user for an org, or creates one if it doesn't exist yet.
  * The system user is the internal "robot" that owns tickets created via inbound email.
+ * Never falls back to a system user from a different organization — that would
+ * silently route inbound mail into the wrong tenant.
  */
 async function getOrCreateSystemUser(
   orgId: number | null,
@@ -161,29 +163,50 @@ async function getOrCreateSystemUser(
       .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true)))
       .limit(1);
     if (existing) return existing;
+
+    // No system user for this org yet — create one scoped to this org.
+    // Do NOT fall back to a system user from another org: doing so would
+    // replace targetOrgId with a different org's id throughout the pipeline,
+    // causing cross-tenant ticket creation.
+    const [created] = await db
+      .insert(usersTable)
+      .values({
+        name: "Sistema",
+        email: `_sistema_${orgId}@taskdesk.internal`,
+        passwordHash: "!",
+        role: "admin",
+        organizationId: orgId,
+        isActive: true,
+        isSystem: true,
+      })
+      .returning({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name });
+
+    logger.info({ orgId, systemUserId: created.id }, "Created system user for inbound email");
+    return created;
   }
 
-  const [anySystem] = await db
+  // orgId is null — look for a null-org system user or create one
+  const [existing] = await db
     .select({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name })
     .from(usersTable)
-    .where(eq(usersTable.isSystem, true))
+    .where(and(sql`organization_id IS NULL`, eq(usersTable.isSystem, true)))
     .limit(1);
-  if (anySystem) return anySystem;
+  if (existing) return existing;
 
   const [created] = await db
     .insert(usersTable)
     .values({
       name: "Sistema",
-      email: `_sistema_${orgId ?? 0}@taskdesk.internal`,
+      email: `_sistema_0@taskdesk.internal`,
       passwordHash: "!",
       role: "admin",
-      organizationId: orgId,
+      organizationId: null,
       isActive: true,
       isSystem: true,
     })
     .returning({ id: usersTable.id, organizationId: usersTable.organizationId, name: usersTable.name });
 
-  logger.info({ orgId, systemUserId: created.id }, "Created system user for inbound email");
+  logger.info({ orgId: null, systemUserId: created.id }, "Created system user for inbound email (no org)");
   return created;
 }
 

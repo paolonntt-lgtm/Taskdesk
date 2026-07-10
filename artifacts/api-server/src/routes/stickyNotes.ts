@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, stickyNotesTable, stickyNoteUserStatesTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
@@ -65,12 +65,18 @@ router.get("/sticky-notes", requireAuth, requireAdmin, async (req, res): Promise
   const currentUser = (req as any).currentUser;
   const userId: number = currentUser.id;
   const orgId: number | null = currentUser.organizationId ?? null;
+
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
   const userGroups = parseUserGroups(currentUser.groups);
 
   const allNotes = await db
     .select()
     .from(stickyNotesTable)
-    .where(orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`)
+    .where(eq(stickyNotesTable.organizationId, orgId))
     .orderBy(stickyNotesTable.createdAt);
 
   const visible = allNotes.filter((n) => isNoteVisibleTo(n, userId, userGroups));
@@ -150,12 +156,14 @@ router.patch("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): P
     return;
   }
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const [existing] = await db
     .select()
     .from(stickyNotesTable)
     .where(and(
       eq(stickyNotesTable.id, id),
-      orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+      eq(stickyNotesTable.organizationId, orgId),
     ));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -192,12 +200,14 @@ router.delete("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): 
   const currentUser = (req as any).currentUser;
   const orgId: number | null = currentUser.organizationId ?? null;
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const [existing] = await db
     .select()
     .from(stickyNotesTable)
     .where(and(
       eq(stickyNotesTable.id, id),
-      orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+      eq(stickyNotesTable.organizationId, orgId),
     ));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -208,7 +218,7 @@ router.delete("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): 
 
   await db.delete(stickyNotesTable).where(and(
     eq(stickyNotesTable.id, id),
-    orgId != null ? eq(stickyNotesTable.organizationId, orgId) : sql`organization_id IS NULL`,
+    eq(stickyNotesTable.organizationId, orgId),
   ));
   res.json({ ok: true });
 });
@@ -228,9 +238,10 @@ router.put("/sticky-notes/:id/state", requireAuth, requireAdmin, async (req, res
   }
 
   const orgId2: number | null = currentUser.organizationId ?? null;
+  if (orgId2 == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const [note] = await db.select().from(stickyNotesTable).where(and(
     eq(stickyNotesTable.id, id),
-    orgId2 != null ? eq(stickyNotesTable.organizationId, orgId2) : sql`organization_id IS NULL`,
+    eq(stickyNotesTable.organizationId, orgId2),
   ));
   if (!note || !isNoteVisibleTo(note, userId, userGroups)) {
     res.status(404).json({ error: "Not found" });
