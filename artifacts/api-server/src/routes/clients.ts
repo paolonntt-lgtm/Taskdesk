@@ -84,7 +84,7 @@ const ClientNoteBody = z.object({
     .nullable(),
 });
 
-router.get("/client-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.get("/client-notes", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
@@ -436,7 +436,7 @@ router.get("/clients/:id/notes", requireAuth, async (req, res): Promise<void> =>
   res.json(notes);
 });
 
-router.post("/clients/:id/notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.post("/clients/:id/notes", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
