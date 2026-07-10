@@ -142,7 +142,12 @@ type TicketRow = {
 };
 
 function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
-  const diffDays = Math.ceil((new Date(dueAt).getTime() - Date.now()) / 86400000);
+  const due = new Date(dueAt);
+  const now = new Date();
+  // Use local calendar days to avoid UTC-boundary artefacts (e.g. midnight UTC ≠ midnight local)
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+  const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diffDays = Math.round((dueDay - todayDay) / 86400000);
   if (diffDays < 0) return { label: t.dashboard.overdueLabel, color: 'error' };
   if (diffDays === 0) return { label: t.dashboard.dueToday, color: 'error' };
   if (diffDays === 1) return { label: t.dashboard.dueTomorrow, color: 'warning' };
