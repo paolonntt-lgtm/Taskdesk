@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, stickyNotesTable, stickyNoteUserStatesTable, usersTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 
@@ -61,7 +61,7 @@ function isNoteVisibleTo(
   return false;
 }
 
-router.get("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
+router.get("/sticky-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const userId: number = currentUser.id;
   const orgId: number | null = currentUser.organizationId ?? null;
@@ -104,7 +104,7 @@ router.get("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.post("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
+router.post("/sticky-notes", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const parsed = CreateBody.safeParse(req.body);
   if (!parsed.success) {
@@ -138,7 +138,7 @@ router.post("/sticky-notes", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
-router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> => {
+router.patch("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
@@ -185,7 +185,7 @@ router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> =
   });
 });
 
-router.delete("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
@@ -213,7 +213,7 @@ router.delete("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> 
   res.json({ ok: true });
 });
 
-router.put("/sticky-notes/:id/state", requireAuth, async (req, res): Promise<void> => {
+router.put("/sticky-notes/:id/state", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
