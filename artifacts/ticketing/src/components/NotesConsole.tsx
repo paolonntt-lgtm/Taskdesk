@@ -187,7 +187,7 @@ export default function NotesConsole() {
     }
   };
 
-  const filteredClients = (clients as any[]).slice(0, 8);
+  const filteredClients = (clients as any[]).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' })).slice(0, 8);
   const recentNotes = (allRecentNotes as any[]).slice(0, historyLimit);
   const hasMore = (allRecentNotes as any[]).length > historyLimit;
 
