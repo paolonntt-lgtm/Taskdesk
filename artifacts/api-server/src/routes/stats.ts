@@ -64,17 +64,28 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
+function parseValidDays(raw: unknown): 7 | 30 | 90 | null {
+  const n = parseInt(String(raw));
+  if (n === 7 || n === 30 || n === 90) return n;
+  return null;
+}
+
 router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
+  const validDays = parseValidDays(req.query.days);
+  const conditions = validDays
+    ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
+    : orgFilter;
+
   const [rows, statuses] = await Promise.all([
     db.select({
       name: ticketsTable.status,
       count: sql<number>`count(*)`,
-    }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status),
+    }).from(ticketsTable).where(conditions).groupBy(ticketsTable.status),
     db.select().from(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, orgId)).orderBy(asc(ticketStatusesTable.sortOrder)),
   ]);
 
@@ -101,10 +112,15 @@ router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> =>
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
+  const validDays = parseValidDays(req.query.days);
+  const conditions = validDays
+    ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
+    : orgFilter;
+
   const rows = await db.select({
     name: ticketsTable.category,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.category);
+  }).from(ticketsTable).where(conditions).groupBy(ticketsTable.category);
 
   res.json(rows.map((r) => ({ name: r.name, count: Number(r.count) })));
 });
@@ -115,10 +131,15 @@ router.get("/stats/by-location", requireAuth, async (req, res): Promise<void> =>
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
+  const validDays = parseValidDays(req.query.days);
+  const conditions = validDays
+    ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
+    : orgFilter;
+
   const rows = await db.select({
     name: ticketsTable.location,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.location);
+  }).from(ticketsTable).where(conditions).groupBy(ticketsTable.location);
 
   res.json(rows.map((r) => ({ name: r.name, count: Number(r.count) })));
 });
@@ -129,10 +150,15 @@ router.get("/stats/by-priority", requireAuth, async (req, res): Promise<void> =>
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
+  const validDays = parseValidDays(req.query.days);
+  const conditions = validDays
+    ? and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
+    : orgFilter;
+
   const rows = await db.select({
     name: ticketsTable.priority,
     count: sql<number>`count(*)`,
-  }).from(ticketsTable).where(orgFilter).groupBy(ticketsTable.priority);
+  }).from(ticketsTable).where(conditions).groupBy(ticketsTable.priority);
 
   const labels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
 
@@ -144,16 +170,18 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
+  const validDays = parseValidDays(req.query.days);
+  const joinCondition = validDays
+    ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId), gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
+    : and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId));
+
   const rows = await db.select({
     id: usersTable.id,
     name: usersTable.name,
     count: sql<number>`count(${ticketsTable.id})`,
   })
     .from(usersTable)
-    .leftJoin(
-      ticketsTable,
-      and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
-    )
+    .leftJoin(ticketsTable, joinCondition)
     .where(eq(usersTable.organizationId, orgId))
     .groupBy(usersTable.id, usersTable.name)
     .having(sql`count(${ticketsTable.id}) > 0`);
@@ -167,12 +195,14 @@ router.get("/stats/trend", requireAuth, async (req, res): Promise<void> => {
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
+  const validDays = parseValidDays(req.query.days) ?? 30;
+
   const rows = await db.select({
     date: sql<string>`date_trunc('day', created_at)::date::text`,
     count: sql<number>`count(*)`,
   })
     .from(ticketsTable)
-    .where(and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '30 days'`)))
+    .where(and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`)))
     .groupBy(sql`date_trunc('day', created_at)`)
     .orderBy(sql`date_trunc('day', created_at)`);
 

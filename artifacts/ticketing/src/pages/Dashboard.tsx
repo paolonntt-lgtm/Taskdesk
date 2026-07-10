@@ -5,8 +5,9 @@ import 'react-grid-layout/css/styles.css';
 import {
   Box, Card, CardContent, Typography, CircularProgress,
   Chip, Button, Avatar, useMediaQuery, useTheme, Divider,
-  IconButton, Paper, Dialog, DialogTitle, DialogContent,
+  IconButton, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   Tooltip, Select, MenuItem, FormControl, InputLabel,
+  Switch, FormControlLabel, Checkbox, ListItemText,
 } from '@mui/material';
 import {
   Schedule as ScheduleIcon,
@@ -58,6 +59,55 @@ const ReactGridLayout = WidthProvider(GridLayout);
 const CHART_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 const POLL_MS = 30_000;
 const CHART_OPTS = { query: { staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any };
+
+// ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────
+
+const SETTINGS_KEY = 'td_dashboard_settings_v1';
+
+type AllWidgetSettings = Record<string, Record<string, unknown>>;
+
+const WidgetSettingsContext = React.createContext<{
+  all: AllWidgetSettings;
+  set: (widgetId: string, s: Record<string, unknown>) => void;
+}>({ all: {}, set: () => {} });
+
+function WidgetSettingsProvider({ children }: { children: React.ReactNode }) {
+  const [all, setAll] = React.useState<AllWidgetSettings>(() => {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') as AllWidgetSettings; }
+    catch { return {}; }
+  });
+  const set = React.useCallback((widgetId: string, s: Record<string, unknown>) => {
+    setAll((prev) => {
+      const next = { ...prev, [widgetId]: s };
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  return (
+    <WidgetSettingsContext.Provider value={{ all, set }}>
+      {children}
+    </WidgetSettingsContext.Provider>
+  );
+}
+
+function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, defaults: T): [T, (s: T) => void] {
+  const ctx = React.useContext(WidgetSettingsContext);
+  const saved = ctx.all[widgetId];
+  const settings = (saved ? { ...defaults, ...saved } : defaults) as T;
+  const setFn = React.useCallback((s: T) => ctx.set(widgetId, s as Record<string, unknown>), [ctx, widgetId]);
+  return [settings, setFn];
+}
+
+const FEED_SETTINGS_DEFAULTS = {
+  statusFilter: [] as string[],
+  priorityFilter: [] as string[],
+  colorByStatus: false,
+  maxItems: '10',
+};
+type FeedSettings = typeof FEED_SETTINGS_DEFAULTS;
+
+const CHART_SETTINGS_DEFAULTS = { days: '30' };
+type ChartSettings = typeof CHART_SETTINGS_DEFAULTS;
 
 // ── EXPORTS used by other pages ───────────────────────────────────────────
 
@@ -154,12 +204,19 @@ function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | '
   return { label: `${diffDays} ${t.dashboard.dueInDays}`, color: 'warning' };
 }
 
-function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; showDueBadge?: boolean }) {
+function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: { ticket: TicketRow; showDueBadge?: boolean; colorByStatus?: boolean }) {
   const { t } = useLanguage();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dueBadge = showDueBadge && ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
   const { getLabelForKey, getColorForKey } = useTicketStatuses();
+
+  const rowBg = colorByStatus
+    ? ticket.status === 'open' ? (theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.08)' : 'rgba(37,99,235,0.05)')
+      : ticket.status === 'waiting' ? (theme.palette.mode === 'dark' ? 'rgba(124,58,237,0.08)' : 'rgba(124,58,237,0.05)')
+      : ticket.status === 'resolved' ? (theme.palette.mode === 'dark' ? 'rgba(5,150,105,0.08)' : 'rgba(5,150,105,0.05)')
+      : undefined
+    : undefined;
 
   return (
     <Box component={Link} href={`/tickets/${ticket.id}`} sx={{
@@ -167,6 +224,7 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
       px: { xs: 1.5, sm: 2 }, py: { xs: 1, sm: 1.25 },
       textDecoration: 'none', color: 'inherit', cursor: 'pointer',
       '&:hover': { bgcolor: 'action.hover' }, overflow: 'hidden',
+      ...(rowBg ? { bgcolor: rowBg } : {}),
     }}>
       {!isMobile && (
         ticket.inboundChannelId ? (
@@ -249,10 +307,10 @@ function TicketRowItem({ ticket, showDueBadge = false }: { ticket: TicketRow; sh
 // ── FEED CARD ─────────────────────────────────────────────────────────────
 
 function FeedCard({
-  title, icon, tickets, emptyMsg, viewAllHref, showDueBadge = false, accentColor,
+  title, icon, tickets, emptyMsg, viewAllHref, showDueBadge = false, accentColor, colorByStatus = false,
 }: {
   title: string; icon: React.ReactNode; tickets: TicketRow[];
-  emptyMsg: string; viewAllHref?: string; showDueBadge?: boolean; accentColor?: string;
+  emptyMsg: string; viewAllHref?: string; showDueBadge?: boolean; accentColor?: string; colorByStatus?: boolean;
 }) {
   const { t } = useLanguage();
   return (
@@ -285,7 +343,7 @@ function FeedCard({
           ) : (
             tickets.map((ticket, idx) => (
               <React.Fragment key={ticket.id}>
-                <TicketRowItem ticket={ticket} showDueBadge={showDueBadge} />
+                <TicketRowItem ticket={ticket} showDueBadge={showDueBadge} colorByStatus={colorByStatus} />
                 {idx < tickets.length - 1 && <Divider sx={{ mx: 2 }} />}
               </React.Fragment>
             ))
@@ -309,7 +367,13 @@ function ChartLoader() {
 function ChartTrendWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const { data, isLoading } = useGetTicketTrend(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-trend', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ date: string; count: number }[]>({
+    queryKey: ['ticket-trend', days],
+    queryFn: () => fetch(`/api/stats/trend?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -339,7 +403,13 @@ function ChartTrendWidget() {
 
 function ChartStatusWidget() {
   const { t } = useLanguage();
-  const { data, isLoading } = useGetStatsByStatus(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-status', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ name: string; count: number }[]>({
+    queryKey: ['stats-by-status', days],
+    queryFn: () => fetch(`/api/stats/by-status?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -370,7 +440,13 @@ function ChartStatusWidget() {
 function ChartCategoryWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const { data, isLoading } = useGetStatsByCategory(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-category', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ name: string; count: number }[]>({
+    queryKey: ['stats-by-category', days],
+    queryFn: () => fetch(`/api/stats/by-category?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -400,7 +476,13 @@ function ChartCategoryWidget() {
 function ChartPriorityWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const { data, isLoading } = useGetStatsByPriority(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-priority', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ name: string; count: number }[]>({
+    queryKey: ['stats-by-priority', days],
+    queryFn: () => fetch(`/api/stats/by-priority?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -430,7 +512,13 @@ function ChartPriorityWidget() {
 function ChartLocationWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const { data, isLoading } = useGetStatsByLocation(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-location', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ name: string; count: number }[]>({
+    queryKey: ['stats-by-location', days],
+    queryFn: () => fetch(`/api/stats/by-location?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -460,7 +548,13 @@ function ChartLocationWidget() {
 function ChartAssigneeWidget() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const { data, isLoading } = useGetStatsByAssignee(CHART_OPTS);
+  const [settings] = useWidgetSettings<ChartSettings>('chart-assignee', CHART_SETTINGS_DEFAULTS);
+  const days = parseInt(settings.days) || 30;
+  const { data, isLoading } = useQuery<{ name: string; count: number }[]>({
+    queryKey: ['stats-by-assignee', days],
+    queryFn: () => fetch(`/api/stats/by-assignee?days=${days}`, { credentials: 'include' }).then((r) => r.json()),
+    staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false,
+  });
   const total = data?.reduce((s, d) => s + d.count, 0) ?? 0;
   return (
     <Card sx={{ height: '100%' }}>
@@ -487,12 +581,29 @@ function ChartAssigneeWidget() {
   );
 }
 
+// ── FEED SETTINGS HELPER ──────────────────────────────────────────────────
+
+function applyFeedSettings(tickets: TicketRow[], settings: FeedSettings, defaultExcludeResolved = false): TicketRow[] {
+  let result = tickets;
+  if (settings.statusFilter.length > 0) {
+    result = result.filter((tk) => settings.statusFilter.includes(tk.status));
+  } else if (defaultExcludeResolved) {
+    result = result.filter((tk) => !['resolved', 'closed'].includes(tk.status));
+  }
+  if (settings.priorityFilter.length > 0) {
+    result = result.filter((tk) => settings.priorityFilter.includes(tk.priority));
+  }
+  const max = parseInt(settings.maxItems) || 10;
+  return max === 0 ? result : result.slice(0, max);
+}
+
 // ── FEED WIDGET WRAPPERS (self-contained) ─────────────────────────────────
 
 function FeedMyWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-my', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetMyTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
-  const tickets = (data as TicketRow[]).filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
+  const tickets = applyFeedSettings(data as TicketRow[], settings, true);
   return (
     <FeedCard
       title={t.dashboard.myTickets}
@@ -500,14 +611,16 @@ function FeedMyWidget() {
       tickets={tickets}
       emptyMsg={t.dashboard.noAssignedTickets}
       viewAllHref="/tickets"
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
 
 function FeedDueWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-due', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
-  const tickets = (data as TicketRow[]).slice(0, 10);
+  const tickets = applyFeedSettings(data as TicketRow[], settings);
   return (
     <FeedCard
       title={t.dashboard.dueSoon}
@@ -517,6 +630,7 @@ function FeedDueWidget() {
       viewAllHref="/tickets?status=open"
       showDueBadge
       accentColor={tickets.length > 0 ? 'warning.main' : undefined}
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -538,6 +652,7 @@ function FeedRecentWidget() {
 
 function FeedAssignedWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-assigned', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['assigned-to-me'],
     queryFn: () => fetch('/api/stats/assigned-to-me', { credentials: 'include' }).then((r) => r.json()),
@@ -545,7 +660,7 @@ function FeedAssignedWidget() {
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
   });
-  const tickets = data.filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
+  const tickets = applyFeedSettings(data, settings, true);
   return (
     <FeedCard
       title={t.dashboard.widgetFeedAssigned}
@@ -553,6 +668,7 @@ function FeedAssignedWidget() {
       tickets={tickets}
       emptyMsg={t.dashboard.noAssignedToMe}
       viewAllHref="/tickets"
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -561,6 +677,7 @@ function FeedAssignedWidget() {
 
 function FeedOpenWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-open', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['all-open-tickets'],
     queryFn: () => fetch('/api/tickets?status=open', { credentials: 'include' }).then((r) => r.json()),
@@ -568,7 +685,7 @@ function FeedOpenWidget() {
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
   });
-  const tickets = data.slice(0, 20);
+  const tickets = applyFeedSettings(data, settings);
   return (
     <FeedCard
       title={t.dashboard.widgetFeedOpen}
@@ -576,6 +693,7 @@ function FeedOpenWidget() {
       tickets={tickets}
       emptyMsg={t.dashboard.noOpenTickets}
       viewAllHref="/tickets?status=open"
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -585,6 +703,7 @@ function FeedOpenWidget() {
 function FeedOverdueWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-overdue', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['overdue-tickets-feed'],
     queryFn: () => fetch('/api/stats/overdue-tickets', { credentials: 'include' }).then((r) => r.json()),
@@ -592,15 +711,17 @@ function FeedOverdueWidget() {
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
   });
+  const tickets = applyFeedSettings(data, settings);
   return (
     <FeedCard
       title={t.dashboard.widgetFeedOverdue}
       icon={<OverdueListIcon fontSize="small" color="warning" />}
-      tickets={data}
+      tickets={tickets}
       emptyMsg={t.dashboard.noOverdueTickets}
       viewAllHref="/tickets"
       showDueBadge
-      accentColor={data.length > 0 ? theme.palette.warning.main : undefined}
+      accentColor={tickets.length > 0 ? theme.palette.warning.main : undefined}
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -699,6 +820,7 @@ function isClientNoteOpen(note: any): boolean {
 
 function ClientNotesWidget() {
   const { t, lang } = useLanguage();
+  const [settings] = useWidgetSettings<ClientNotesSettings>('client-notes', CLIENT_NOTES_SETTINGS_DEFAULTS);
   const { data: allNotes = [], isLoading } = useListAllClientNotes();
 
   const currentMonth = React.useMemo(() => new Date().toISOString().slice(0, 7), []);
@@ -733,10 +855,12 @@ function ClientNotesWidget() {
         map.set(note.clientId, { name: note.clientName ?? String(note.clientId), slug: note.clientSlug ?? null, count: 1 });
       }
     }
-    return Array.from(map.entries())
+    const sorted = Array.from(map.entries())
       .map(([id, { name, slug, count }]) => ({ id, name, slug, count }))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  }, [allNotes, effectiveMonth]);
+    const maxItems = parseInt(settings.maxItems, 10);
+    return maxItems > 0 ? sorted.slice(0, maxItems) : sorted;
+  }, [allNotes, effectiveMonth, settings.maxItems]);
 
   const monthLabel = React.useMemo(
     () => formatWidgetMonth(effectiveMonth, lang),
@@ -821,6 +945,14 @@ function ClientNotesWidget() {
                 sx={{
                   textDecoration: 'none',
                   color: 'inherit',
+                  bgcolor: settings.colorByStatus
+                    ? row.count >= 5
+                      ? 'warning.light'
+                      : row.count >= 2
+                        ? 'info.light'
+                        : 'success.light'
+                    : undefined,
+                  opacity: settings.colorByStatus ? 0.92 : 1,
                   '&:hover': { bgcolor: 'action.hover' },
                   borderBottom: idx < rows.length - 1 ? '1px solid' : 'none',
                   borderColor: 'divider',
@@ -877,6 +1009,7 @@ function FeedPersonWidget() {
   });
 
   const selectedUser = users.find((u) => u.id === selectedId);
+  const [settings] = useWidgetSettings<FeedSettings>('feed-person', FEED_SETTINGS_DEFAULTS);
 
   const handleSave = () => {
     const id = typeof tempId === 'number' ? tempId : null;
@@ -885,6 +1018,8 @@ function FeedPersonWidget() {
     else localStorage.removeItem(PERSON_WIDGET_KEY);
     setConfigOpen(false);
   };
+
+  const displayTickets = applyFeedSettings(data, settings);
 
   return (
     <>
@@ -896,8 +1031,8 @@ function FeedPersonWidget() {
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
                 {selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson}
               </Typography>
-              {selectedId && data.length > 0 && (
-                <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              {selectedId && displayTickets.length > 0 && (
+                <Chip label={displayTickets.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
               )}
             </Box>
             <Tooltip title={t.dashboard.configureWidget}>
@@ -915,13 +1050,13 @@ function FeedPersonWidget() {
                   {t.dashboard.configureWidget}
                 </Button>
               </Box>
-            ) : data.length === 0 ? (
+            ) : displayTickets.length === 0 ? (
               <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
             ) : (
-              data.slice(0, 15).map((ticket, idx) => (
+              displayTickets.map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
-                  <TicketRowItem ticket={ticket} />
-                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                  <TicketRowItem ticket={ticket} colorByStatus={settings.colorByStatus} />
+                  {idx < displayTickets.length - 1 && <Divider sx={{ mx: 2 }} />}
                 </React.Fragment>
               ))
             )}
@@ -975,12 +1110,16 @@ function FeedGroupWidget() {
     refetchIntervalInBackground: false,
   });
 
+  const [settings] = useWidgetSettings<FeedSettings>('feed-group', FEED_SETTINGS_DEFAULTS);
+
   const handleSave = () => {
     setSelectedGroup(tempGroup);
     if (tempGroup) localStorage.setItem(GROUP_WIDGET_KEY, tempGroup);
     else localStorage.removeItem(GROUP_WIDGET_KEY);
     setConfigOpen(false);
   };
+
+  const displayTickets = applyFeedSettings(data, settings);
 
   return (
     <>
@@ -992,8 +1131,8 @@ function FeedGroupWidget() {
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
                 {selectedGroup || t.dashboard.widgetFeedGroup}
               </Typography>
-              {selectedGroup && data.length > 0 && (
-                <Chip label={data.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
+              {selectedGroup && displayTickets.length > 0 && (
+                <Chip label={displayTickets.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
               )}
             </Box>
             <Tooltip title={t.dashboard.configureWidget}>
@@ -1013,13 +1152,13 @@ function FeedGroupWidget() {
               </Box>
             ) : groups.length === 0 ? (
               <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noGroupsAvailable}</Typography></Box>
-            ) : data.length === 0 ? (
+            ) : displayTickets.length === 0 ? (
               <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
             ) : (
-              data.slice(0, 15).map((ticket, idx) => (
+              displayTickets.map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
-                  <TicketRowItem ticket={ticket} />
-                  {idx < data.length - 1 && <Divider sx={{ mx: 2 }} />}
+                  <TicketRowItem ticket={ticket} colorByStatus={settings.colorByStatus} />
+                  {idx < displayTickets.length - 1 && <Divider sx={{ mx: 2 }} />}
                 </React.Fragment>
               ))
             )}
@@ -1323,13 +1462,82 @@ function FeedAllAssignedWidget() {
 
 // ── WIDGET REGISTRY ───────────────────────────────────────────────────────
 
+interface WidgetSettingOption {
+  value: string;
+  labelKey: string;
+}
+
+interface WidgetSettingField {
+  key: string;
+  labelKey: string;
+  type: 'multiselect' | 'select' | 'toggle';
+  options?: WidgetSettingOption[];
+  defaultValue: unknown;
+}
+
 interface WidgetMeta {
   id: string;
   labelKey: string;
   defaultLayout: Omit<LayoutItem, 'i'>;
   component: React.FC;
   requireAdmin?: boolean;
+  settingsSchema?: WidgetSettingField[];
 }
+
+const FEED_SETTINGS_SCHEMA: WidgetSettingField[] = [
+  { key: 'statusFilter', labelKey: 'wsStatusFilter', type: 'multiselect', defaultValue: [] },
+  {
+    key: 'priorityFilter', labelKey: 'wsPriorityFilter', type: 'multiselect',
+    options: [
+      { value: 'low', labelKey: 'wsPriorityLow' },
+      { value: 'medium', labelKey: 'wsPriorityMedium' },
+      { value: 'high', labelKey: 'wsPriorityHigh' },
+      { value: 'urgent', labelKey: 'wsPriorityUrgent' },
+    ],
+    defaultValue: [],
+  },
+  { key: 'colorByStatus', labelKey: 'wsColorByStatus', type: 'toggle', defaultValue: false },
+  {
+    key: 'maxItems', labelKey: 'wsMaxItems', type: 'select',
+    options: [
+      { value: '5', labelKey: 'wsMaxItems5' },
+      { value: '10', labelKey: 'wsMaxItems10' },
+      { value: '20', labelKey: 'wsMaxItems20' },
+      { value: '0', labelKey: 'wsMaxItemsAll' },
+    ],
+    defaultValue: '10',
+  },
+];
+
+
+const CLIENT_NOTES_SETTINGS_DEFAULTS = { maxItems: '10' as string, colorByStatus: false as boolean };
+type ClientNotesSettings = typeof CLIENT_NOTES_SETTINGS_DEFAULTS;
+
+const CLIENT_NOTES_SETTINGS_SCHEMA: WidgetSettingField[] = [
+  { key: 'colorByStatus', labelKey: 'wsColorByStatus', type: 'toggle', defaultValue: false },
+  {
+    key: 'maxItems', labelKey: 'wsMaxItems', type: 'select',
+    options: [
+      { value: '5', labelKey: 'wsMaxItems5' },
+      { value: '10', labelKey: 'wsMaxItems10' },
+      { value: '20', labelKey: 'wsMaxItems20' },
+      { value: '0', labelKey: 'wsMaxItemsAll' },
+    ],
+    defaultValue: '10',
+  },
+];
+
+const CHART_SETTINGS_SCHEMA: WidgetSettingField[] = [
+  {
+    key: 'days', labelKey: 'wsTimeWindow', type: 'select',
+    options: [
+      { value: '7', labelKey: 'wsDays7' },
+      { value: '30', labelKey: 'wsDays30' },
+      { value: '90', labelKey: 'wsDays90' },
+    ],
+    defaultValue: '30',
+  },
+];
 
 function AcquisitionWidget() {
   const { t } = useLanguage();
@@ -1396,21 +1604,21 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'stat-resolved',  labelKey: 'widgetStatResolved',  defaultLayout: { x: 3, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatResolvedWidget },
   { id: 'stat-urgent',    labelKey: 'widgetStatUrgent',    defaultLayout: { x: 6, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatUrgentWidget },
   { id: 'stat-overdue',   labelKey: 'widgetStatOverdue',   defaultLayout: { x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatOverdueWidget },
-  { id: 'feed-my',        labelKey: 'widgetFeedMy',        defaultLayout: { x: 0, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedMyWidget },
-  { id: 'feed-due',       labelKey: 'widgetFeedDue',       defaultLayout: { x: 4, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedDueWidget },
+  { id: 'feed-my',        labelKey: 'widgetFeedMy',        defaultLayout: { x: 0, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedMyWidget,        settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'feed-due',       labelKey: 'widgetFeedDue',       defaultLayout: { x: 4, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedDueWidget,       settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-recent',    labelKey: 'widgetFeedRecent',    defaultLayout: { x: 8, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedRecentWidget },
-  { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget },
-  { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 4, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget },
-  { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
-  { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
-  { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
-  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget },
-  { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget },
-  { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget },
-  { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget },
-  { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget },
-  { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget },
-  { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget },
+  { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget,  settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 4, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget,      settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget,   settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget,    settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget,     settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget,   settingsSchema: CLIENT_NOTES_SETTINGS_SCHEMA },
+  { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget,    settingsSchema: CHART_SETTINGS_SCHEMA },
+  { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget,   settingsSchema: CHART_SETTINGS_SCHEMA },
+  { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
+  { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
+  { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
+  { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 41, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 50, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
   { id: 'feed-category',  labelKey: 'widgetFeedCategory',  defaultLayout: { x: 0, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedCategoryWidget },
@@ -1427,13 +1635,17 @@ const DEFAULT_LAYOUT: LayoutItem[] = WIDGET_REGISTRY
 const LAYOUT_KEY = 'td_dashboard_layout_v4';
 const VISIBLE_KEY = 'td_dashboard_visible_v4';
 
-// ── WIDGET SHELL (drag handle + remove) ──────────────────────────────────
+// ── WIDGET SHELL (drag handle + remove + settings gear) ──────────────────
 
 function WidgetShell({
-  editMode, label, onRemove, children,
+  editMode, label, onRemove, onOpenSettings, children,
 }: {
-  editMode: boolean; label: string; onRemove: () => void; children: React.ReactNode;
+  editMode: boolean; label: string; onRemove: () => void;
+  onOpenSettings?: () => void; children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
+  const hasSettings = !!onOpenSettings;
+
   return (
     <Box sx={{
       height: '100%', display: 'flex', flexDirection: 'column',
@@ -1442,7 +1654,7 @@ function WidgetShell({
       outlineColor: 'primary.main',
       outlineOffset: -1,
     }}>
-      {editMode && (
+      {editMode ? (
         <Paper
           elevation={0}
           className="drag-handle"
@@ -1458,18 +1670,154 @@ function WidgetShell({
           <Typography variant="caption" fontWeight={600} flex={1} noWrap fontSize="0.72rem">
             {label}
           </Typography>
-          <Tooltip title="Rimuovi widget">
+          {hasSettings && (
+            <Tooltip title={t.dashboard.wsTitle}>
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onOpenSettings!(); }}
+                sx={{ color: 'primary.contrastText', p: 0.25 }}>
+                <SettingsIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title={t.dashboard.removeWidget}>
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); onRemove(); }}
               sx={{ color: 'primary.contrastText', p: 0.25 }}>
               <CloseIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </Tooltip>
         </Paper>
-      )}
+      ) : hasSettings ? (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 0.5, py: 0.25, flexShrink: 0 }}>
+          <Tooltip title={t.dashboard.wsTitle}>
+            <IconButton size="small" onClick={onOpenSettings} sx={{ opacity: 0.35, '&:hover': { opacity: 1 } }}>
+              <SettingsIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ) : null}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         {children}
       </Box>
     </Box>
+  );
+}
+
+// ── WIDGET SETTINGS DIALOG ────────────────────────────────────────────────
+
+function WidgetSettingsDialog({
+  open, onClose, widgetId, meta,
+}: {
+  open: boolean; onClose: () => void; widgetId: string; meta: WidgetMeta | null;
+}) {
+  const { t } = useLanguage();
+  const { statuses } = useTicketStatuses();
+  const schema = meta?.settingsSchema ?? [];
+
+  const schemaDefaults = React.useMemo(() => {
+    const d: Record<string, unknown> = {};
+    for (const f of schema) d[f.key] = f.defaultValue;
+    return d;
+  }, [schema]);
+
+  const [saved, setSaved] = useWidgetSettings<Record<string, unknown>>(widgetId, schemaDefaults);
+  const [draft, setDraft] = React.useState<Record<string, unknown>>(saved);
+
+  React.useEffect(() => {
+    if (open) setDraft({ ...schemaDefaults, ...saved });
+  }, [open]);
+
+  const handleSave = () => {
+    setSaved(draft);
+    onClose();
+  };
+
+  const td = t.dashboard as Record<string, string>;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+        {td.wsTitle}
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 1 }}>
+        <Box display="flex" flexDirection="column" gap={2.5}>
+          {schema.map((field) => {
+            const value = draft[field.key] ?? field.defaultValue;
+
+            if (field.type === 'toggle') {
+              return (
+                <FormControlLabel
+                  key={field.key}
+                  control={
+                    <Switch
+                      checked={!!value}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, [field.key]: e.target.checked }))}
+                    />
+                  }
+                  label={<Typography variant="body2">{td[field.labelKey] ?? field.labelKey}</Typography>}
+                />
+              );
+            }
+
+            if (field.type === 'select') {
+              const opts = field.options ?? [];
+              return (
+                <FormControl key={field.key} fullWidth size="small">
+                  <InputLabel>{td[field.labelKey] ?? field.labelKey}</InputLabel>
+                  <Select
+                    label={td[field.labelKey] ?? field.labelKey}
+                    value={value as string}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  >
+                    {opts.map((o) => (
+                      <MenuItem key={o.value} value={o.value}>{td[o.labelKey] ?? o.value}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              );
+            }
+
+            if (field.type === 'multiselect') {
+              const selected = (value as string[]) || [];
+              const opts = field.key === 'statusFilter'
+                ? statuses.map((s) => ({ value: s.key, label: s.label }))
+                : (field.options ?? []).map((o) => ({ value: o.value, label: td[o.labelKey] ?? o.value }));
+
+              return (
+                <FormControl key={field.key} fullWidth size="small">
+                  <InputLabel>{td[field.labelKey] ?? field.labelKey}</InputLabel>
+                  <Select
+                    label={td[field.labelKey] ?? field.labelKey}
+                    multiple
+                    value={selected}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [field.key]: e.target.value as string[] }))}
+                    renderValue={(sel) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(sel as string[]).map((v) => (
+                          <Chip key={v} size="small" label={opts.find((o) => o.value === v)?.label ?? v} sx={{ height: 20 }} />
+                        ))}
+                      </Box>
+                    )}
+                  >
+                    {opts.map((o) => (
+                      <MenuItem key={o.value} value={o.value}>
+                        <Checkbox size="small" checked={selected.includes(o.value)} sx={{ p: 0.5 }} />
+                        <ListItemText primary={o.label} primaryTypographyProps={{ variant: 'body2' }} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              );
+            }
+
+            return null;
+          })}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose}>{td.wsCancel}</Button>
+        <Button variant="contained" onClick={handleSave}>{td.wsSave}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -1493,18 +1841,25 @@ function AddWidgetDialog({
             {t.dashboard.allWidgetsVisible}
           </Typography>
         ) : (
-          <Box display="flex" flexWrap="wrap" gap={1} pt={0.5}>
-            {hidden.map((w) => (
-              <Chip
-                key={w.id}
-                label={t.dashboard[w.labelKey] || w.id}
-                onClick={() => onAdd(w.id)}
-                icon={<AddIcon />}
-                variant="outlined"
-                clickable
-                color="primary"
-              />
-            ))}
+          <Box display="flex" flexDirection="column" gap={1.5} pt={0.5}>
+            <Box display="flex" flexWrap="wrap" gap={1}>
+              {hidden.map((w) => (
+                <Chip
+                  key={w.id}
+                  label={t.dashboard[w.labelKey] || w.id}
+                  onClick={() => onAdd(w.id)}
+                  icon={<AddIcon />}
+                  variant="outlined"
+                  clickable
+                  color="primary"
+                />
+              ))}
+            </Box>
+            {hidden.some((w) => w.settingsSchema?.length) && (
+              <Typography variant="caption" color="text.secondary">
+                {t.dashboard.wsConfigureNote}
+              </Typography>
+            )}
           </Box>
         )}
       </DialogContent>
@@ -1514,7 +1869,7 @@ function AddWidgetDialog({
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────
 
-export default function Dashboard() {
+function Dashboard() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
@@ -1527,6 +1882,7 @@ export default function Dashboard() {
 
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
 
   const superadminDefaultLayout = (): LayoutItem[] => {
     if (!isSuperAdmin) return DEFAULT_LAYOUT;
@@ -1679,12 +2035,14 @@ export default function Dashboard() {
           const meta = effectiveRegistry.find((w) => w.id === id);
           if (!meta) return null;
           const Cmp = meta.component;
+          const hasSettings = !!(meta.settingsSchema?.length);
           return (
             <div key={id}>
               <WidgetShell
                 editMode={editMode}
                 label={(t.dashboard as Record<string, string>)[meta.labelKey] || meta.id}
                 onRemove={() => removeWidget(id)}
+                onOpenSettings={hasSettings ? () => setSettingsWidgetId(id) : undefined}
               >
                 <Cmp />
               </WidgetShell>
@@ -1701,6 +2059,24 @@ export default function Dashboard() {
         onAdd={addWidget}
         t={t}
       />
+
+      {/* Widget Settings Dialog */}
+      <WidgetSettingsDialog
+        open={settingsWidgetId !== null}
+        onClose={() => setSettingsWidgetId(null)}
+        widgetId={settingsWidgetId ?? ''}
+        meta={effectiveRegistry.find((w) => w.id === settingsWidgetId) ?? null}
+      />
     </Box>
   );
 }
+
+function DashboardWithProvider() {
+  return (
+    <WidgetSettingsProvider>
+      <Dashboard />
+    </WidgetSettingsProvider>
+  );
+}
+
+export { DashboardWithProvider as default };
