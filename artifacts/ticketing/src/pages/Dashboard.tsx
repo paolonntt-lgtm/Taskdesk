@@ -637,7 +637,7 @@ function WorkloadWidget() {
               </Box>
               {data.map((row, idx) => (
                 <Box key={row.id}
-                  component="a" href={`/tickets?assignedTo=${row.id}`}
+                  component={Link} href={`/tickets?assignedTo=${row.id}`}
                   display="grid" gridTemplateColumns="1fr auto auto"
                   sx={{
                     textDecoration: 'none', color: 'inherit',
