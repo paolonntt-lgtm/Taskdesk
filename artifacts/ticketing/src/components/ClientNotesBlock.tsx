@@ -194,9 +194,9 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
 
   const handleToggleNoteChecklistItem = async (
     noteId: number,
-    noteBody: string,
     noteChecklist: ChecklistItem[],
     itemId: string,
+    clearBody?: boolean,
   ) => {
     const updated = noteChecklist.map((item) =>
       item.id === itemId ? { ...item, checked: !item.checked } : item,
@@ -205,7 +205,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       await updateNote.mutateAsync({
         id: clientId,
         noteId,
-        data: { checklist: updated } as any,
+        data: { checklist: updated, ...(clearBody ? { body: '' } : {}) } as any,
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
     } catch {
@@ -344,7 +344,12 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
           {visibleNotes.map((note: any) => {
-            const noteChecklist: ChecklistItem[] = note.checklist ?? [];
+            const rawChecklist: ChecklistItem[] = note.checklist ?? [];
+            // Legacy notes have body text but no checklist — synthesize items on-the-fly
+            const isLegacyNote = rawChecklist.length === 0 && !!note.body;
+            const noteChecklist: ChecklistItem[] = isLegacyNote
+              ? bodyToChecklist(note.body)
+              : rawChecklist;
             const completedCount = noteChecklist.filter((i: ChecklistItem) => i.checked).length;
             const progress = noteChecklist.length > 0 ? (completedCount / noteChecklist.length) * 100 : 0;
 
@@ -445,7 +450,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                     </Box>
                   ) : (
                     <>
-                      {note.body ? (
+                      {note.body && !isLegacyNote ? (
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: noteChecklist.length ? 1.5 : 0 }}>
                           {note.body}
                         </Typography>
@@ -483,7 +488,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                                     <Checkbox
                                       size="small"
                                       checked={item.checked}
-                                      onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                      onChange={() => handleToggleNoteChecklistItem(note.id, noteChecklist, item.id, isLegacyNote)}
                                       disabled={!isAdmin}
                                       sx={{ p: 0.25 }}
                                     />
@@ -492,7 +497,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                                   <Checkbox
                                     size="small"
                                     checked={item.checked}
-                                    onChange={() => handleToggleNoteChecklistItem(note.id, note.body, noteChecklist, item.id)}
+                                    onChange={() => handleToggleNoteChecklistItem(note.id, noteChecklist, item.id, isLegacyNote)}
                                     disabled={!isAdmin}
                                     sx={{ p: 0.25 }}
                                   />
