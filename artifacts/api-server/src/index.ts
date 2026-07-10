@@ -5,6 +5,7 @@ import { runAppMigrations } from "./lib/migrate";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { scheduleNightlyBackups } from "./routes/backup";
+import { startUploadCleanupJob } from "./lib/uploadCleanup";
 
 const rawPort = process.env["PORT"];
 
@@ -55,6 +56,7 @@ seedIfEmpty()
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();
+startUploadCleanupJob();
 
 app.listen(port, (err) => {
   if (err) {

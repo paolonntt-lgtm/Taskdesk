@@ -9,6 +9,7 @@ import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { consumePendingUpload } from "../lib/pendingUploads";
+import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "../lib/allowedMimeTypes";
 
 const objectStorageService = new ObjectStorageService();
 
@@ -183,9 +184,24 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
         typeof (att as any).fileSize === "number" &&
         typeof (att as any).mimeType === "string"
       ) {
-        const { objectPath, fileName, fileSize, mimeType } = att as EmailReplyAttachment;
+        const { objectPath, fileName } = att as EmailReplyAttachment;
+        // Reject active content types even on the email-reply path.
+        const claimedMime = (att as any).mimeType as string;
+        if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(claimedMime)) continue;
         const owned = consumePendingUpload(objectPath, currentUser.id, orgId ?? null);
-        if (owned) emailReplyAttachments.push({ objectPath, fileName, fileSize, mimeType });
+        if (!owned) continue;
+        // Verify actual GCS metadata — the signed URL gives no size/type
+        // guarantee. A caller could upload an oversized or dangerous payload
+        // after obtaining a URL for a small, allowed type.
+        try {
+          const { contentType: actualMime, size: actualSize } = await objectStorageService.getObjectEntityActualMetadata(objectPath);
+          if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(actualMime)) continue;
+          if (actualSize > MAX_UPLOAD_SIZE_BYTES) continue;
+          emailReplyAttachments.push({ objectPath, fileName, fileSize: actualSize, mimeType: actualMime });
+        } catch {
+          // If metadata fetch fails, skip the attachment rather than persisting unverified data.
+          logger.warn({ objectPath }, "Failed to verify email-reply attachment metadata; skipping");
+        }
       }
     }
   }

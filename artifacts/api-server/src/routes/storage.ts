@@ -9,6 +9,12 @@ import { db, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middlewares/auth";
 import { registerPendingUpload } from "../lib/pendingUploads";
+import {
+  ALLOWED_ATTACHMENT_MIME_TYPES,
+  MAX_UPLOAD_SIZE_BYTES,
+  ACTIVE_CONTENT_MIME_TYPES,
+} from "../lib/allowedMimeTypes";
+import { checkAndIncrementUploadRateLimit } from "../lib/uploadRateLimiter";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -33,12 +39,38 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
     const currentUser = (req as any).currentUser;
     const orgId: number | null = currentUser.organizationId ?? null;
 
+    // Per-user rate limit: even though each signed URL can technically receive
+    // an arbitrarily large upload (GCS PUT URLs carry no Content-Length
+    // constraint), limiting how many URLs a single user can obtain per window
+    // caps the total orphaned storage they can create per time period.
+    if (!checkAndIncrementUploadRateLimit(currentUser.id)) {
+      res.status(429).json({ error: "Too many upload requests. Please wait before uploading more files." });
+      return;
+    }
+
+    // Enforce server-side content-type allowlist — the browser UI already
+    // restricts file types, but callers can bypass the UI and call the API
+    // directly with any contentType value.
+    if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(contentType)) {
+      res.status(400).json({ error: "File type not allowed" });
+      return;
+    }
+
+    // Enforce a server-side size cap. The signed URL is issued before the
+    // file is uploaded, so this is the only place we can reject oversized
+    // requests before storage is consumed.
+    if (size > MAX_UPLOAD_SIZE_BYTES) {
+      res.status(400).json({ error: `File too large. Maximum allowed size is ${MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)} MB` });
+      return;
+    }
+
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
     // Bind the issued objectPath to the requesting user/org so the
     // attachment-creation handler can verify provenance server-side.
     registerPendingUpload(objectPath, currentUser.id, orgId);
+
 
     res.json(
       RequestUploadUrlResponse.parse({
@@ -111,7 +143,11 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
     }
 
     const attachmentQuery = db
-      .select({ id: ticketAttachmentsTable.id })
+      .select({
+        id: ticketAttachmentsTable.id,
+        fileName: ticketAttachmentsTable.fileName,
+        mimeType: ticketAttachmentsTable.mimeType,
+      })
       .from(ticketAttachmentsTable)
       .innerJoin(ticketsTable, eq(ticketsTable.id, ticketAttachmentsTable.ticketId));
 
@@ -136,6 +172,24 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+
+    // Always force download to prevent the browser from rendering the file
+    // inline under the TaskDesk origin, which would enable stored-XSS via
+    // malicious attachments (e.g. HTML or SVG files).
+    const safeFileName = (attachment.fileName ?? "attachment").replace(/[^\w.\-]/g, "_");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
+
+    // Derive the active-content check from the authoritative GCS Content-Type
+    // header (set via downloadObject which calls file.getMetadata()), NOT from
+    // the DB attachment.mimeType, which is caller-supplied at save time and
+    // could differ from what was actually stored in GCS.
+    const gcsContentType = response.headers.get("content-type") ?? "application/octet-stream";
+    if (ACTIVE_CONTENT_MIME_TYPES.has(gcsContentType)) {
+      res.setHeader("Content-Type", "application/octet-stream");
+    }
+
+    // Prevent content-sniffing that could bypass the Content-Type override.
+    res.setHeader("X-Content-Type-Options", "nosniff");
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);

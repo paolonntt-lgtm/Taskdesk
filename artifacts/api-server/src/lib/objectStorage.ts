@@ -128,6 +128,29 @@ export class ObjectStorageService {
     });
   }
 
+  /**
+   * Fetch the actual content-type and byte-size of a stored object directly
+   * from GCS metadata — authoritative values that reflect what was actually
+   * PUT to storage, independent of whatever the client claims.
+   *
+   * Used during attachment persistence to close the metadata-trust gap:
+   * a caller can request a signed URL for a safe type and then upload a
+   * dangerous payload; checking GCS metadata catches that mismatch.
+   */
+  async getObjectEntityActualMetadata(objectPath: string): Promise<{ contentType: string; size: number }> {
+    const objectFile = await this.getObjectEntityFile(objectPath);
+    const [meta] = await objectFile.getMetadata();
+    const contentType = (meta.contentType as string | undefined) ?? "application/octet-stream";
+    const rawSize = meta.size;
+    const size =
+      typeof rawSize === "string"
+        ? parseInt(rawSize, 10)
+        : typeof rawSize === "number"
+        ? rawSize
+        : 0;
+    return { contentType, size };
+  }
+
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
@@ -210,6 +233,52 @@ export class ObjectStorageService {
     const file = bucket.file(objectName);
     await file.save(buffer, { contentType: mimeType, resumable: false });
     return `/objects/${subPath}`;
+  }
+
+  /**
+   * List normalized `/objects/...` paths for files inside the `uploads/`
+   * subdirectory of PRIVATE_OBJECT_DIR that are older than `ageMs`
+   * milliseconds.  Used by the orphaned-upload cleanup job to find objects
+   * that were PUT to a presigned URL but never linked to a ticket attachment.
+   */
+  async listUploadCandidatesOlderThan(ageMs: number): Promise<string[]> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    let entityDir = privateObjectDir;
+    if (!entityDir.endsWith("/")) entityDir = `${entityDir}/`;
+
+    const uploadsFullPath = `${entityDir}uploads/`;
+    const { bucketName, objectName: uploadsPrefix } = parseObjectPath(uploadsFullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+
+    const [files] = await bucket.getFiles({ prefix: uploadsPrefix });
+
+    const { objectName: entityDirName } = parseObjectPath(entityDir);
+    const cutoff = Date.now() - ageMs;
+    const result: string[] = [];
+
+    for (const file of files) {
+      const [meta] = await file.getMetadata();
+      const timeCreated = meta.timeCreated as string | undefined;
+      const created = timeCreated ? new Date(timeCreated).getTime() : 0;
+      if (created > cutoff) continue;
+
+      // Reconstruct the normalized /objects/uploads/{uuid} path.
+      const entityId = file.name.startsWith(entityDirName)
+        ? file.name.slice(entityDirName.length)
+        : file.name;
+      result.push(`/objects/${entityId}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Delete the GCS object backing a normalized `/objects/...` path.
+   * Throws `ObjectNotFoundError` if the path cannot be resolved.
+   */
+  async deleteObjectEntityByPath(normalizedPath: string): Promise<void> {
+    const objectFile = await this.getObjectEntityFile(normalizedPath);
+    await objectFile.delete();
   }
 
   async canAccessObjectEntity({
