@@ -7,7 +7,7 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History, CloudDownload } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -585,6 +585,45 @@ function TicketStatusesTab() {
   );
 }
 
+function BackupSection() {
+  const { t } = useLanguage();
+  const ts = t.settings as any;
+  const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+
+  const handleBackup = async () => {
+    setStatus('running');
+    try {
+      const res = await fetch('/api/backup/trigger', { method: 'POST', credentials: 'include' });
+      setStatus(res.ok ? 'success' : 'error');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <Section title={ts.backupSectionTitle} icon={<CloudDownload color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>{ts.backupSectionNote}</Typography>
+      <Typography variant="body2" color="text.secondary" mb={3} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        🕑 {ts.backupScheduleNote}
+      </Typography>
+      {status === 'success' && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setStatus('idle')}>{ts.backupSuccess}</Alert>
+      )}
+      {status === 'error' && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setStatus('idle')}>{ts.backupError}</Alert>
+      )}
+      <Button
+        variant="contained"
+        startIcon={status === 'running' ? <CircularProgress size={16} color="inherit" /> : <CloudDownload />}
+        onClick={handleBackup}
+        disabled={status === 'running'}
+      >
+        {status === 'running' ? ts.backupRunning : ts.backupButton}
+      </Button>
+    </Section>
+  );
+}
+
 export default function Settings() {
   const { user, updateUser } = useAuth();
   const { t, lang } = useLanguage();
@@ -892,6 +931,7 @@ export default function Settings() {
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
     { id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> },
+    { id: 'backup', label: (t.settings as any).navBackup, icon: <CloudDownload fontSize="small" /> },
   ];
 
   const renderSidebarItem = (item: { id: string; label: string; icon: React.ReactNode }) => {
@@ -1205,6 +1245,9 @@ export default function Settings() {
 
           {/* ── CONSOLE LOG (admin) ── */}
           {isAdmin && activeSection === 'console' && <ConsoleHistoryTab />}
+
+          {/* ── BACKUP (admin) ── */}
+          {isAdmin && activeSection === 'backup' && <BackupSection />}
 
           {/* ── BILLING (admin) ── */}
           {isAdmin && activeSection === 'billing' && (
