@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import * as XLSX from 'xlsx';
+import { readSheet, type CellValue } from 'read-excel-file/browser';
 
 const emptyForm: ClientInput = {
   name: '',
@@ -41,43 +41,41 @@ interface ParsedRow {
   error?: string;
 }
 
-function parseXlsx(file: File): Promise<ParsedRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const json: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const rows: ParsedRow[] = json.map((row, i) => {
-          const street = (row['Indirizzo'] ?? row['address'] ?? '').toString().trim();
-          const city   = (row['Comune'] ?? '').toString().trim();
-          const cap    = (row['CAP'] ?? '').toString().trim();
-          const prov   = (row['Provincia'] ?? '').toString().trim();
-          const cityLine = [cap, city, prov ? `(${prov})` : ''].filter(Boolean).join(' ');
-          const address = [street, cityLine].filter(Boolean).join(', ');
-          return {
-            rowIndex: i + 2,
-            name: (row['Denominazione'] ?? row['Nome'] ?? row['name'] ?? '').toString().trim(),
-            vatNumber: (row['P.IVA/TAX ID'] ?? row['PartitaIVA'] ?? row['Partita IVA'] ?? row['vatNumber'] ?? row['PIVA'] ?? '').toString().trim(),
-            taxCode: (row['Codice Fiscale'] ?? row['CodiceFiscale'] ?? row['taxCode'] ?? row['CF'] ?? '').toString().trim(),
-            address,
-            pec: (row['Indirizzo PEC'] ?? row['PEC'] ?? row['pec'] ?? '').toString().trim(),
-            contactPerson: (row['Referente'] ?? row['contactPerson'] ?? '').toString().trim(),
-            email: (row['Indirizzo e-mail'] ?? row['Email'] ?? row['email'] ?? '').toString().trim(),
-            phone: (row['Telefono'] ?? row['phone'] ?? '').toString().trim(),
-            notes: (row['Note'] ?? row['notes'] ?? '').toString().trim(),
-          };
-        });
-        resolve(rows);
-      } catch {
-        reject(new Error('parse_error'));
+async function parseXlsx(file: File): Promise<ParsedRow[]> {
+  try {
+    const rawRows = await readSheet(file);
+    if (rawRows.length < 2) return [];
+    const headers = rawRows[0].map((h: CellValue) => String(h ?? '').trim());
+    const getCol = (row: CellValue[], ...names: string[]): string => {
+      for (const name of names) {
+        const idx = headers.indexOf(name);
+        if (idx !== -1 && row[idx] != null) return String(row[idx]).trim();
       }
+      return '';
     };
-    reader.onerror = () => reject(new Error('read_error'));
-    reader.readAsArrayBuffer(file);
-  });
+    return rawRows.slice(1).map((row: CellValue[], i: number) => {
+      const street   = getCol(row, 'Indirizzo', 'address');
+      const city     = getCol(row, 'Comune');
+      const cap      = getCol(row, 'CAP');
+      const prov     = getCol(row, 'Provincia');
+      const cityLine = [cap, city, prov ? `(${prov})` : ''].filter(Boolean).join(' ');
+      const address  = [street, cityLine].filter(Boolean).join(', ');
+      return {
+        rowIndex: i + 2,
+        name:          getCol(row, 'Denominazione', 'Nome', 'name'),
+        vatNumber:     getCol(row, 'P.IVA/TAX ID', 'PartitaIVA', 'Partita IVA', 'vatNumber', 'PIVA'),
+        taxCode:       getCol(row, 'Codice Fiscale', 'CodiceFiscale', 'taxCode', 'CF'),
+        address,
+        pec:           getCol(row, 'Indirizzo PEC', 'PEC', 'pec'),
+        contactPerson: getCol(row, 'Referente', 'contactPerson'),
+        email:         getCol(row, 'Indirizzo e-mail', 'Email', 'email'),
+        phone:         getCol(row, 'Telefono', 'phone'),
+        notes:         getCol(row, 'Note', 'notes'),
+      };
+    });
+  } catch {
+    throw new Error('parse_error');
+  }
 }
 
 function parseXml(file: File): Promise<ParsedRow[]> {
