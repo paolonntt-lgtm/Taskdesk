@@ -727,7 +727,7 @@ function ClientNotesWidget() {
     }
     return Array.from(map.entries())
       .map(([id, { name, slug, count }]) => ({ id, name, slug, count }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   }, [allNotes, effectiveMonth]);
 
   const monthLabel = React.useMemo(
