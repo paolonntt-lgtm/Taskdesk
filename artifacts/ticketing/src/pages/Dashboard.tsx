@@ -7,7 +7,7 @@ import {
   Chip, Button, Avatar, useMediaQuery, useTheme, Divider,
   IconButton, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   Tooltip, Select, MenuItem, FormControl, InputLabel,
-  Switch, FormControlLabel, Checkbox, ListItemText,
+  Switch, FormControlLabel, Checkbox, ListItemText, TextField,
 } from '@mui/material';
 import {
   Schedule as ScheduleIcon,
@@ -1730,9 +1730,10 @@ function WidgetShell({
 // ── WIDGET SETTINGS DIALOG ────────────────────────────────────────────────
 
 function WidgetSettingsDialog({
-  open, onClose, widgetId, meta,
+  open, onClose, widgetId, meta, customName, onCustomNameChange,
 }: {
   open: boolean; onClose: () => void; widgetId: string; meta: WidgetMeta | null;
+  customName: string; onCustomNameChange: (name: string) => void;
 }) {
   const { t } = useLanguage();
   const { statuses } = useTicketStatuses();
@@ -1752,13 +1753,18 @@ function WidgetSettingsDialog({
 
   const [saved, setSaved] = useWidgetSettings<Record<string, unknown>>(widgetId, schemaDefaults);
   const [draft, setDraft] = React.useState<Record<string, unknown>>(saved);
+  const [draftName, setDraftName] = React.useState(customName);
 
   React.useEffect(() => {
-    if (open) setDraft({ ...schemaDefaults, ...saved });
+    if (open) {
+      setDraft({ ...schemaDefaults, ...saved });
+      setDraftName(customName);
+    }
   }, [open]);
 
   const handleSave = () => {
     setSaved(draft);
+    onCustomNameChange(draftName);
     onClose();
   };
 
@@ -1772,6 +1778,18 @@ function WidgetSettingsDialog({
       </DialogTitle>
       <DialogContent sx={{ pt: 1 }}>
         <Box display="flex" flexDirection="column" gap={2.5}>
+          <TextField
+            size="small"
+            fullWidth
+            label={td.wsCustomName ?? 'Widget name'}
+            placeholder={meta ? ((t.dashboard as Record<string, string>)[meta.labelKey] || meta.id) : ''}
+            value={draftName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraftName(e.target.value)}
+            InputProps={{ endAdornment: draftName ? (
+              <IconButton size="small" edge="end" onClick={() => setDraftName('')}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>
+            ) : undefined }}
+          />
+          {schema.length > 0 && <Divider />}
           {schema.map((field) => {
             const value = draft[field.key] ?? field.defaultValue;
 
@@ -1903,6 +1921,22 @@ function AddWidgetDialog({
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────
 
+const CUSTOM_NAMES_KEY = 'td_widget_custom_names';
+function useWidgetCustomNames() {
+  const [names, setNames] = React.useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) ?? '{}'); } catch { return {}; }
+  });
+  const setName = React.useCallback((id: string, name: string) => {
+    setNames((prev) => {
+      const next = { ...prev };
+      if (name.trim()) next[id] = name.trim(); else delete next[id];
+      localStorage.setItem(CUSTOM_NAMES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  return { names, setName };
+}
+
 function Dashboard() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -1913,6 +1947,7 @@ function Dashboard() {
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
 
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -2069,14 +2104,13 @@ function Dashboard() {
           const meta = effectiveRegistry.find((w) => w.id === id);
           if (!meta) return null;
           const Cmp = meta.component;
-          const hasSettings = !!(meta.settingsSchema?.length);
           return (
             <div key={id}>
               <WidgetShell
                 editMode={editMode}
-                label={(t.dashboard as Record<string, string>)[meta.labelKey] || meta.id}
+                label={customNames[id] || (t.dashboard as Record<string, string>)[meta.labelKey] || meta.id}
                 onRemove={() => removeWidget(id)}
-                onOpenSettings={hasSettings ? () => setSettingsWidgetId(id) : undefined}
+                onOpenSettings={() => setSettingsWidgetId(id)}
               >
                 <Cmp />
               </WidgetShell>
@@ -2100,6 +2134,8 @@ function Dashboard() {
         onClose={() => setSettingsWidgetId(null)}
         widgetId={settingsWidgetId ?? ''}
         meta={effectiveRegistry.find((w) => w.id === settingsWidgetId) ?? null}
+        customName={settingsWidgetId ? (customNames[settingsWidgetId] ?? '') : ''}
+        onCustomNameChange={(name) => settingsWidgetId && setCustomName(settingsWidgetId, name)}
       />
     </Box>
   );
