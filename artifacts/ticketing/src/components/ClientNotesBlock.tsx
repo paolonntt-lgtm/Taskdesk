@@ -108,7 +108,11 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
     () => groupedNotes.map(g => ({
       key: g.key,
       label: formatMonthShort(g.key, lang),
-      count: g.notes.length,
+      count: g.notes.filter((note: any) => {
+        const cl: ChecklistItem[] = note.checklist ?? [];
+        if (cl.length === 0) return true;
+        return cl.some((item: ChecklistItem) => !item.checked);
+      }).length,
     })),
     [groupedNotes, lang],
   );
