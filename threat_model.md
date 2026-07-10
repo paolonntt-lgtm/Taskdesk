@@ -46,6 +46,8 @@ TaskDesk is a publicly deployed internal ticketing platform with a React web cli
 
 TaskDesk uses opaque cookie sessions plus Google OAuth login. The system must issue session identifiers with cryptographically strong randomness, bind OAuth flows to the initiating browser, and prevent attackers from forcing a victim browser into an attacker-controlled session. Password reset, invite, inbound-email, and seed/bootstrap flows must not allow impersonation through guessable, replayable, or leaked secrets.
 
+Invite links are intentionally reusable, seat-scoped onboarding links in the current product design. Future scans should not treat invite reuse by itself as a vulnerability unless it enables access beyond those advertised onboarding semantics.
+
 ### Tampering
 
 Authenticated users can create and update tickets, comments, attachments, profiles, clients, and some settings. The API must enforce which roles may mutate which fields, and it must validate that cross-entity references such as `ticketId`, `assignedTo`, `clientId`, attachment `objectPath`, inbound channel IDs, and billing changes stay within the caller’s organization and privilege level. Client-side affordances such as hiding admin screens are not a security control.
