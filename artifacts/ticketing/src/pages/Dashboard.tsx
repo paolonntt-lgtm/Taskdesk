@@ -691,6 +691,12 @@ function formatWidgetMonth(yyyyMM: string, lang: string): string {
   return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', { month: 'long', year: 'numeric' });
 }
 
+function isClientNoteOpen(note: any): boolean {
+  const cl = note.checklist;
+  if (!cl || !Array.isArray(cl) || cl.length === 0) return false;
+  return cl.some((item: any) => !item.checked);
+}
+
 function ClientNotesWidget() {
   const { t, lang } = useLanguage();
   const { data: allNotes = [], isLoading } = useListAllClientNotes();
@@ -702,6 +708,7 @@ function ClientNotesWidget() {
     const monthSet = new Set<string>();
     for (const note of allNotes) {
       if (!note.clientId) continue;
+      if (!isClientNoteOpen(note)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       monthSet.add(noteMonth);
     }
@@ -715,6 +722,7 @@ function ClientNotesWidget() {
   const rows = React.useMemo(() => {
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
+      if (!isClientNoteOpen(note)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       if (noteMonth !== effectiveMonth) continue;
       if (!note.clientId) continue;
