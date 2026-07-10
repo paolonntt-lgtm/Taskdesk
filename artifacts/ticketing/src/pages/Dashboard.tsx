@@ -1876,11 +1876,12 @@ function WidgetSettingsDialog({
 // ── ADD WIDGET DIALOG ─────────────────────────────────────────────────────
 
 function AddWidgetDialog({
-  open, onClose, hidden, onAdd, t,
+  open, onClose, allWidgets, visibleIds, onAdd, t,
 }: {
   open: boolean; onClose: () => void;
-  hidden: WidgetMeta[]; onAdd: (id: string) => void; t: any;
+  allWidgets: WidgetMeta[]; visibleIds: string[]; onAdd: (id: string) => void; t: any;
 }) {
+  const getBaseId = (id: string) => id.split('__')[0];
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1888,32 +1889,27 @@ function AddWidgetDialog({
         <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
       </DialogTitle>
       <DialogContent>
-        {hidden.length === 0 ? (
-          <Typography color="text.secondary" fontSize="0.9rem">
-            {t.dashboard.allWidgetsVisible}
-          </Typography>
-        ) : (
-          <Box display="flex" flexDirection="column" gap={1.5} pt={0.5}>
-            <Box display="flex" flexWrap="wrap" gap={1}>
-              {hidden.map((w) => (
+        <Box display="flex" flexDirection="column" gap={1.5} pt={0.5}>
+          <Box display="flex" flexWrap="wrap" gap={1}>
+            {allWidgets.map((w) => {
+              const count = visibleIds.filter((id) => getBaseId(id) === w.id).length;
+              return (
                 <Chip
                   key={w.id}
-                  label={t.dashboard[w.labelKey] || w.id}
+                  label={count > 0 ? `${t.dashboard[w.labelKey] || w.id} (${count})` : (t.dashboard[w.labelKey] || w.id)}
                   onClick={() => onAdd(w.id)}
                   icon={<AddIcon />}
-                  variant="outlined"
+                  variant={count > 0 ? 'filled' : 'outlined'}
                   clickable
                   color="primary"
                 />
-              ))}
-            </Box>
-            {hidden.some((w) => w.settingsSchema?.length) && (
-              <Typography variant="caption" color="text.secondary">
-                {t.dashboard.wsConfigureNote}
-              </Typography>
-            )}
+              );
+            })}
           </Box>
-        )}
+          <Typography variant="caption" color="text.secondary">
+            {t.dashboard.wsConfigureNote}
+          </Typography>
+        </Box>
       </DialogContent>
     </Dialog>
   );
@@ -1997,17 +1993,22 @@ function Dashboard() {
     setVisibleIds((prev) => prev.filter((v) => v !== id));
   }, []);
 
-  const addWidget = useCallback((id: string) => {
-    const meta = effectiveRegistry.find((w) => w.id === id);
+  const getBaseId = useCallback((id: string) => id.split('__')[0], []);
+
+  const addWidget = useCallback((baseId: string) => {
+    const meta = effectiveRegistry.find((w) => w.id === baseId);
     if (!meta) return;
-    setLayout((prev) => {
-      if (prev.find((l) => l.i === id)) return prev;
-      const newItem: LayoutItem = { i: id, ...meta.defaultLayout, y: Infinity };
-      return [...prev, newItem];
+    setVisibleIds((prev) => {
+      const alreadyHasBase = prev.some((id) => getBaseId(id) === baseId);
+      const instanceId = alreadyHasBase ? `${baseId}__${Date.now()}` : baseId;
+      setLayout((prevLayout) => {
+        const newItem: LayoutItem = { i: instanceId, ...meta.defaultLayout, y: Infinity };
+        return [...prevLayout, newItem];
+      });
+      return [...prev, instanceId];
     });
-    setVisibleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setAddDialogOpen(false);
-  }, []);
+  }, [effectiveRegistry, getBaseId]);
 
   const resetLayout = useCallback(() => {
     setLayout(superadminDefaultLayout());
@@ -2101,7 +2102,7 @@ function Dashboard() {
         style={{ minHeight: 200 }}
       >
         {visibleIds.map((id) => {
-          const meta = effectiveRegistry.find((w) => w.id === id);
+          const meta = effectiveRegistry.find((w) => w.id === getBaseId(id));
           if (!meta) return null;
           const Cmp = meta.component;
           return (
@@ -2123,7 +2124,8 @@ function Dashboard() {
       <AddWidgetDialog
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
-        hidden={hiddenWidgets}
+        allWidgets={effectiveRegistry}
+        visibleIds={visibleIds}
         onAdd={addWidget}
         t={t}
       />
@@ -2133,7 +2135,7 @@ function Dashboard() {
         open={settingsWidgetId !== null}
         onClose={() => setSettingsWidgetId(null)}
         widgetId={settingsWidgetId ?? ''}
-        meta={effectiveRegistry.find((w) => w.id === settingsWidgetId) ?? null}
+        meta={settingsWidgetId ? (effectiveRegistry.find((w) => w.id === getBaseId(settingsWidgetId)) ?? null) : null}
         customName={settingsWidgetId ? (customNames[settingsWidgetId] ?? '') : ''}
         onCustomNameChange={(name) => settingsWidgetId && setCustomName(settingsWidgetId, name)}
       />
