@@ -637,8 +637,9 @@ function FeedDueWidget() {
 
 function FeedRecentWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-recent', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetRecentTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
-  const tickets = (data as TicketRow[]).slice(0, 10);
+  const tickets = applyFeedSettings(data as TicketRow[], settings);
   return (
     <FeedCard
       title={t.dashboard.recentActivity}
@@ -646,6 +647,7 @@ function FeedRecentWidget() {
       tickets={tickets}
       emptyMsg=""
       viewAllHref="/tickets"
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -732,6 +734,7 @@ interface WorkloadRow { id: number; name: string; email: string; open: number; t
 
 function WorkloadWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<WorkloadSettings>('workload', WORKLOAD_SETTINGS_DEFAULTS);
   const { data = [], isLoading } = useQuery<WorkloadRow[]>({
     queryKey: ['assignee-workload'],
     queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then((r) => r.json()),
@@ -739,6 +742,7 @@ function WorkloadWidget() {
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
   });
+  const maxItems = parseInt(settings.maxItems) || 0;
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -770,7 +774,7 @@ function WorkloadWidget() {
                 <Typography variant="caption" color="text.secondary" fontWeight={600} px={1.5} py={0.75} textAlign="center">{t.dashboard.workloadOpen}</Typography>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} px={1.5} py={0.75} textAlign="center">{t.dashboard.workloadTotal}</Typography>
               </Box>
-              {data.map((row, idx) => (
+              {(maxItems > 0 ? data.slice(0, maxItems) : data).map((row, idx) => (
                 <Box key={row.id}
                   component={Link} href={`/tickets?assignedTo=${row.id}`}
                   display="grid" gridTemplateColumns="1fr auto auto"
@@ -1441,14 +1445,14 @@ function FeedStatusWidget() {
 
 function FeedAllAssignedWidget() {
   const { t } = useLanguage();
+  const [settings] = useWidgetSettings<FeedSettings>('feed-all-assigned', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<(TicketRow & { assignedTo?: number | null })[]>({
     queryKey: ['all-assigned-open-tickets'],
     queryFn: () => fetch('/api/tickets', { credentials: 'include' }).then((r) => r.json()),
     staleTime: 30_000,
   });
-  const tickets = data
-    .filter((tk) => tk.assignedTo != null && !['resolved', 'closed'].includes(tk.status))
-    .slice(0, 20);
+  const assigned = data.filter((tk) => tk.assignedTo != null);
+  const tickets = applyFeedSettings(assigned as TicketRow[], settings, true);
   return (
     <FeedCard
       title={t.dashboard.widgetFeedAllAssigned}
@@ -1456,6 +1460,7 @@ function FeedAllAssignedWidget() {
       tickets={tickets}
       emptyMsg={t.dashboard.noAssignedTickets}
       viewAllHref="/tickets"
+      colorByStatus={settings.colorByStatus}
     />
   );
 }
@@ -1509,6 +1514,22 @@ const FEED_SETTINGS_SCHEMA: WidgetSettingField[] = [
   },
 ];
 
+
+const WORKLOAD_SETTINGS_DEFAULTS = { maxItems: '0' as string };
+type WorkloadSettings = typeof WORKLOAD_SETTINGS_DEFAULTS;
+
+const WORKLOAD_SETTINGS_SCHEMA: WidgetSettingField[] = [
+  {
+    key: 'maxItems', labelKey: 'wsMaxItems', type: 'select',
+    options: [
+      { value: '5', labelKey: 'wsMaxItems5' },
+      { value: '10', labelKey: 'wsMaxItems10' },
+      { value: '20', labelKey: 'wsMaxItems20' },
+      { value: '0', labelKey: 'wsMaxItemsAll' },
+    ],
+    defaultValue: '0',
+  },
+];
 
 const CLIENT_NOTES_SETTINGS_DEFAULTS = { maxItems: '10' as string, colorByStatus: false as boolean };
 type ClientNotesSettings = typeof CLIENT_NOTES_SETTINGS_DEFAULTS;
@@ -1606,7 +1627,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'stat-overdue',   labelKey: 'widgetStatOverdue',   defaultLayout: { x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2 }, component: StatOverdueWidget },
   { id: 'feed-my',        labelKey: 'widgetFeedMy',        defaultLayout: { x: 0, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedMyWidget,        settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-due',       labelKey: 'widgetFeedDue',       defaultLayout: { x: 4, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedDueWidget,       settingsSchema: FEED_SETTINGS_SCHEMA },
-  { id: 'feed-recent',    labelKey: 'widgetFeedRecent',    defaultLayout: { x: 8, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedRecentWidget },
+  { id: 'feed-recent',    labelKey: 'widgetFeedRecent',    defaultLayout: { x: 8, y: 2, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedRecentWidget,    settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-assigned',  labelKey: 'widgetFeedAssigned',  defaultLayout: { x: 0, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAssignedWidget,  settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-open',      labelKey: 'widgetFeedOpen',       defaultLayout: { x: 4, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOpenWidget,      settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget,   settingsSchema: FEED_SETTINGS_SCHEMA },
@@ -1619,11 +1640,11 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'chart-priority', labelKey: 'widgetChartPriority', defaultLayout: { x: 6, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartPriorityWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-location', labelKey: 'widgetChartLocation', defaultLayout: { x: 0, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartLocationWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-assignee', labelKey: 'widgetChartAssignee', defaultLayout: { x: 6, y: 35, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartAssigneeWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
-  { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 41, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget },
+  { id: 'workload',       labelKey: 'widgetWorkload',       defaultLayout: { x: 0, y: 41, w: 6, h: 8, minW: 3, minH: 4 }, component: WorkloadWidget,      settingsSchema: WORKLOAD_SETTINGS_SCHEMA },
   { id: 'acquisition',    labelKey: 'widgetAcquisition',   defaultLayout: { x: 0, y: 50, w: 12, h: 9, minW: 4, minH: 5 }, component: AcquisitionWidget },
   { id: 'feed-category',  labelKey: 'widgetFeedCategory',  defaultLayout: { x: 0, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedCategoryWidget },
   { id: 'feed-status',    labelKey: 'widgetFeedStatus',    defaultLayout: { x: 4, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedStatusWidget },
-  { id: 'feed-all-assigned', labelKey: 'widgetFeedAllAssigned', defaultLayout: { x: 8, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAllAssignedWidget },
+  { id: 'feed-all-assigned', labelKey: 'widgetFeedAllAssigned', defaultLayout: { x: 8, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAllAssignedWidget, settingsSchema: FEED_SETTINGS_SCHEMA },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
