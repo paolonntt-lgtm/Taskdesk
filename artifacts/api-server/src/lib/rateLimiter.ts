@@ -63,6 +63,7 @@ export const botChatRateLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { ip: false },
   keyGenerator: (req: Request) => {
     const user = (req as any).currentUser;
     return user?.id != null ? `user:${user.id}` : (req.ip ?? "unknown");
