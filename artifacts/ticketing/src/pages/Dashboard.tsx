@@ -1395,7 +1395,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget },
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget },
-  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget, requireAdmin: true },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget },
   { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget },
   { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget },
   { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget },

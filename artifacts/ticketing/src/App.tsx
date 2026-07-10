@@ -168,8 +168,8 @@ function AppShell() {
                     <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
                     {(user as any)?.clientsEnabled !== false ? (
                       <>
-                        <Route path="/clients/:id">{(params) => <AdminRoute component={() => <ClientDetail />} />}</Route>
-                        <Route path="/clients">{() => <AdminRoute component={Clients} />}</Route>
+                        <Route path="/clients/:id" component={ClientDetail} />
+                        <Route path="/clients" component={Clients} />
                       </>
                     ) : (
                       <>
