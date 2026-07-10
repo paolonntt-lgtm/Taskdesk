@@ -55,7 +55,7 @@ async function getChannelPrefs(
 ): Promise<Map<number, PrefForUser>> {
   const map = new Map<number, PrefForUser>();
   for (const id of candidateIds) {
-    map.set(id, { userId: id, inApp: true, email: type === "ticket_assigned" });
+    map.set(id, { userId: id, inApp: true, email: type === "ticket_assigned" || type === "ticket_due" });
   }
   if (candidateIds.length === 0) return map;
 

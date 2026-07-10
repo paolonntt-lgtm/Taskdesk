@@ -6,6 +6,7 @@ import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { scheduleNightlyBackups } from "./routes/backup";
 import { startUploadCleanupJob } from "./lib/uploadCleanup";
+import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
 
 const rawPort = process.env["PORT"];
 
@@ -57,6 +58,7 @@ seedIfEmpty()
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();
 startUploadCleanupJob();
+startTicketDueNotifier();
 
 app.listen(port, (err) => {
   if (err) {

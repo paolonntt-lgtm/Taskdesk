@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = [
   "ticket_commented",
   "ticket_assigned",
   "ticket_priority_changed",
+  "ticket_due",
   "system",
 ] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];
