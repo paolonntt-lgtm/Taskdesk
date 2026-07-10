@@ -10,7 +10,10 @@ import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 const router = Router();
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const OAUTH_NONCE_COOKIE = "oauth_nonce";
 const pendingOAuthStates = new Map<string, number>();
+
+const isProduction = process.env.NODE_ENV === "production";
 
 function pruneExpiredStates(): void {
   const now = Date.now();
@@ -19,6 +22,21 @@ function pruneExpiredStates(): void {
       pendingOAuthStates.delete(state);
     }
   }
+}
+
+function nonceCookieValue(state: string): string {
+  const base = `${OAUTH_NONCE_COOKIE}=${state}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=600`;
+  return isProduction ? `${base}; Secure` : base;
+}
+
+function clearNonceCookie(): string {
+  const base = `${OAUTH_NONCE_COOKIE}=; Path=/api/auth/google; HttpOnly; Max-Age=0`;
+  return isProduction ? `${base}; Secure` : base;
+}
+
+function sessionCookieValue(sessionId: string): string {
+  const base = `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`;
+  return isProduction ? `${base}; Secure` : base;
 }
 
 function googleClientId(): string {
@@ -50,25 +68,45 @@ router.get("/auth/google", (req, res) => {
     prompt: "select_account",
     state,
   });
-  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+  // Set the nonce cookie on a 200 response (not a 302) because the Replit
+  // deployment proxy strips Set-Cookie headers from redirect responses.
+  // The browser will receive the cookie here and include it on the callback
+  // (SameSite=Lax allows cookies on top-level GET navigations from Google).
+  res.setHeader("Set-Cookie", nonceCookieValue(state));
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.status(200).send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+    `<meta http-equiv="refresh" content="0;url=${googleAuthUrl}">` +
+    `<script>window.location.replace(${JSON.stringify(googleAuthUrl)})</script>` +
+    `</head><body></body></html>`
+  );
 });
 
 router.get("/auth/google/callback", async (req, res): Promise<void> => {
   const { code, error, state } = req.query as { code?: string; error?: string; state?: string };
 
   if (error || !code) {
+    res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=cancelled");
     return;
   }
 
   // Verify state exists in the server-side map (not expired, not reused).
-  // The state is a 48-char cryptographically-random hex string, which is the
-  // primary CSRF protection — an attacker cannot guess or forge a valid state.
-  // A cookie-based binding was previously attempted but the Replit deployment
-  // proxy strips Set-Cookie headers from 302 responses, so browsers never
-  // received the cookie and the callback always failed with hasCookie=false.
-  if (!state || !pendingOAuthStates.has(state)) {
-    logger.warn({ state, hasState: !!state }, "OAuth callback state validation failed");
+  // Additionally, verify the state matches the oauth_nonce cookie that was
+  // set in the initiating browser when /auth/google was visited. This binds
+  // the callback to the browser that started the flow and prevents an attacker
+  // from completing an OAuth exchange in a victim's browser (login CSRF /
+  // session forcing). The nonce cookie is set on a 200 response (not a 302)
+  // to work around the Replit proxy stripping Set-Cookie on redirects.
+  const nonceCookie = req.cookies?.[OAUTH_NONCE_COOKIE];
+  if (!state || !pendingOAuthStates.has(state) || nonceCookie !== state) {
+    logger.warn(
+      { state, hasState: !!state, hasNonce: !!nonceCookie, nonceMatch: nonceCookie === state },
+      "OAuth callback state/nonce validation failed"
+    );
+    res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=invalid_state");
     return;
   }
@@ -78,6 +116,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
   if (Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
     logger.warn({ state }, "OAuth state expired");
+    res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=invalid_state");
     return;
   }
@@ -98,6 +137,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     if (!tokenRes.ok || !tokens.access_token) {
       logger.error({ tokens }, "Google token exchange failed");
+      res.setHeader("Set-Cookie", clearNonceCookie());
       res.redirect("/app/?oauth_error=token_exchange");
       return;
     }
@@ -113,6 +153,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     if (!userInfoRes.ok || !googleUser.email) {
       logger.error({ googleUser }, "Failed to get Google user info");
+      res.setHeader("Set-Cookie", clearNonceCookie());
       res.redirect("/app/?oauth_error=userinfo");
       return;
     }
@@ -155,6 +196,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       }
     } else {
       if (!user.isActive) {
+        res.setHeader("Set-Cookie", clearNonceCookie());
         res.redirect("/app/?oauth_error=disabled");
         return;
       }
@@ -165,13 +207,11 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     }
 
     const sessionId = await createSession(user.id);
-    res.setHeader(
-      "Set-Cookie",
-      `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
-    );
+    res.setHeader("Set-Cookie", [clearNonceCookie(), sessionCookieValue(sessionId)]);
     res.redirect("/app/");
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
+    res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=server_error");
   }
 });

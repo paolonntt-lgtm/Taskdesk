@@ -111,9 +111,11 @@ router.post("/invites/:token/register", requireSameOrigin, async (req, res): Pro
     .where(eq(inviteTokensTable.token, String(token)));
 
   const sessionId = await createSession(user.id);
+  const isProduction = process.env.NODE_ENV === "production";
+  const secureFlag = isProduction ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}${secureFlag}`
   );
 
   const { passwordHash: _, ...safeUser } = user;

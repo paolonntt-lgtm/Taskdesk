@@ -88,9 +88,11 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
 
   const sessionId = await createSession(row.id);
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const secureFlag = isProduction ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}${secureFlag}`
   );
 
   // Fetch group permissions so the login response matches what auth/me returns.
@@ -186,9 +188,11 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   }
 
   const sessionId = await createSession(user.id);
+  const isProductionReg = process.env.NODE_ENV === "production";
+  const secureFlagReg = isProductionReg ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}${secureFlagReg}`
   );
 
   const { passwordHash: _, ...safeUser } = user;

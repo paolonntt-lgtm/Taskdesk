@@ -25,6 +25,10 @@ if (process.env.NODE_ENV === "production") {
     if (req.headers["x-forwarded-proto"] === "http") {
       return res.redirect(301, `https://${req.headers.host}${req.url}`);
     }
+    // Tell browsers to only ever use HTTPS for this origin for the next year
+    // and to include all subdomains, so no plaintext request can carry the
+    // session cookie even if the user types the bare HTTP URL.
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
 }
