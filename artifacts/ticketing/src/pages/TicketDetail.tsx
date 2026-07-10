@@ -947,11 +947,11 @@ export default function TicketDetail() {
                     sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
                     onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}
                   >
-                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}
+                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}
                   </Typography>
                 ) : (
                   <Typography variant="body2">
-                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}
+                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}
                   </Typography>
                 )}
               </Box>

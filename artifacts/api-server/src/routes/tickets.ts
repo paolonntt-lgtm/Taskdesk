@@ -10,7 +10,7 @@ import { hasGroupPermission } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
 
-function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null, client?: { id: number; name: string } | null) {
+function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null, client?: { id: number; name: string; alias?: string | null } | null) {
   return {
     ...ticket,
     creator: { id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, avatarUrl: creator.avatarUrl ?? null, createdAt: creator.createdAt },
@@ -139,7 +139,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   const clientIds = [...new Set(tickets.map((t) => t.clientId).filter(Boolean))] as number[];
   const clientRows = clientIds.length > 0
-    ? await db.select({ id: clientsTable.id, name: clientsTable.name })
+    ? await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
         .from(clientsTable)
         .where(inArray(clientsTable.id, clientIds))
     : [];
@@ -287,7 +287,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   let ticketClient = null;
   if (ticket.clientId) {
-    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, ticket.clientId));
     ticketClient = c ?? null;
@@ -342,7 +342,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   let ticketClient = null;
   if (ticket.clientId) {
-    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, ticket.clientId));
     ticketClient = c ?? null;
@@ -677,7 +677,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   let updatedClient = null;
   if (updated.clientId) {
-    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name })
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, updated.clientId));
     updatedClient = c ?? null;
