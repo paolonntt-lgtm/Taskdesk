@@ -56,7 +56,8 @@ import { useTicketStatuses } from '../hooks/useTicketStatuses';
 const ReactGridLayout = WidthProvider(GridLayout);
 
 const CHART_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
-const CHART_OPTS = { query: { staleTime: 30_000 } as any };
+const POLL_MS = 30_000;
+const CHART_OPTS = { query: { staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any };
 
 // ── EXPORTS used by other pages ───────────────────────────────────────────
 
@@ -485,7 +486,7 @@ function ChartAssigneeWidget() {
 
 function FeedMyWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetMyTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data = [] } = useGetMyTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
   return (
     <FeedCard
@@ -500,7 +501,7 @@ function FeedMyWidget() {
 
 function FeedDueWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).slice(0, 10);
   return (
     <FeedCard
@@ -517,7 +518,7 @@ function FeedDueWidget() {
 
 function FeedRecentWidget() {
   const { t } = useLanguage();
-  const { data = [] } = useGetRecentTickets({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data = [] } = useGetRecentTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   const tickets = (data as TicketRow[]).slice(0, 10);
   return (
     <FeedCard
@@ -535,7 +536,9 @@ function FeedAssignedWidget() {
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['assigned-to-me'],
     queryFn: () => fetch('/api/stats/assigned-to-me', { credentials: 'include' }).then((r) => r.json()),
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
   const tickets = data.filter((tk) => !['resolved', 'closed'].includes(tk.status)).slice(0, 10);
   return (
@@ -556,7 +559,9 @@ function FeedOpenWidget() {
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['all-open-tickets'],
     queryFn: () => fetch('/api/tickets?status=open', { credentials: 'include' }).then((r) => r.json()),
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
   const tickets = data.slice(0, 20);
   return (
@@ -578,7 +583,9 @@ function FeedOverdueWidget() {
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['overdue-tickets-feed'],
     queryFn: () => fetch('/api/stats/overdue-tickets', { credentials: 'include' }).then((r) => r.json()),
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
   return (
     <FeedCard
@@ -602,7 +609,9 @@ function WorkloadWidget() {
   const { data = [], isLoading } = useQuery<WorkloadRow[]>({
     queryKey: ['assignee-workload'],
     queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then((r) => r.json()),
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   return (
@@ -849,7 +858,9 @@ function FeedPersonWidget() {
       ? fetch(`/api/tickets?assignedTo=${selectedId}&status=open`, { credentials: 'include' }).then((r) => r.json())
       : Promise.resolve([]),
     enabled: selectedId != null,
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const selectedUser = users.find((u) => u.id === selectedId);
@@ -946,7 +957,9 @@ function FeedGroupWidget() {
       ? fetch(`/api/tickets?assignedToGroup=${encodeURIComponent(selectedGroup)}&status=open`, { credentials: 'include' }).then((r) => r.json())
       : Promise.resolve([]),
     enabled: !!selectedGroup,
-    staleTime: 30_000,
+    staleTime: POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const handleSave = () => {
@@ -1025,7 +1038,7 @@ function FeedGroupWidget() {
 function StatOpenWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.openTickets}
@@ -1041,7 +1054,7 @@ function StatOpenWidget() {
 function StatResolvedWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.resolved}
@@ -1057,7 +1070,7 @@ function StatResolvedWidget() {
 function StatUrgentWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.urgent}
@@ -1073,7 +1086,7 @@ function StatUrgentWidget() {
 function StatOverdueWidget() {
   const { t } = useLanguage();
   const theme = useTheme();
-  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: 60_000, refetchIntervalInBackground: false } as any });
+  const { data: stats } = useGetDashboardStats({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   return (
     <StatCard
       title={t.dashboard.overdue}

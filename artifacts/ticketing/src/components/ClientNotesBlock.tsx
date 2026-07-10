@@ -80,7 +80,9 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
 
-  const { data: notes = [], isLoading } = useListClientNotes(clientId);
+  const { data: notes = [], isLoading } = useListClientNotes(clientId, {
+    query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any,
+  });
 
   const createNote = useCreateClientNote();
   const updateNote = useUpdateClientNote();
