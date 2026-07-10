@@ -1,4 +1,5 @@
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
 
 /**
  * Login: 10 attempts per 15 minutes per IP.
@@ -47,4 +48,24 @@ export const resetPasswordRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Troppi tentativi. Riprova tra 15 minuti." },
+});
+
+/**
+ * Bot chat: 20 requests per minute per authenticated user.
+ * Keyed on user ID (from the session attached by requireAuth) so that
+ * rotating IPs or shared NAT does not dilute the limit, and a single
+ * compromised account cannot abuse the paid LLM endpoint without bound.
+ * Falls back to IP if the session is not yet populated (should not happen
+ * in practice because requireAuth runs first).
+ */
+export const botChatRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const user = (req as any).currentUser;
+    return user?.id != null ? `user:${user.id}` : (req.ip ?? "unknown");
+  },
+  message: { message: "Troppe richieste al bot. Riprova tra qualche secondo." },
 });

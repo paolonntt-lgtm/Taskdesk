@@ -1,8 +1,13 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
+import { botChatRateLimiter } from "../lib/rateLimiter";
 import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable, settingsTable } from "@workspace/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 import OpenAI from "openai";
+
+const MAX_MESSAGE_LENGTH = 2000;
+const MAX_HISTORY_TURNS = 10;
+const MAX_HISTORY_CONTENT_CHARS = 8000;
 
 const router: IRouter = Router();
 
@@ -382,7 +387,7 @@ Regole per i campi JSON:
 Rispondi sempre in italiano. Sii sintetico. Non aggiungere mai passi o consigli non presenti nel contesto fornito.${historySection}`;
 }
 
-router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
+router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
@@ -397,15 +402,38 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: "message too long" });
+    return;
+  }
+
   const resolvedLang: "it" | "en" = lang === "en" ? "en" : "it";
   const userLocation: string | null = currentUser.mainLocation || null;
   const isAdmin: boolean = currentUser.role === "admin";
 
+  // Sanitise and cap history to avoid deliberately expensive payloads.
+  const rawHistory = Array.isArray(history) ? history : [];
+  const cappedHistory = rawHistory
+    .filter(
+      (m) =>
+        m &&
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string",
+    )
+    .slice(-MAX_HISTORY_TURNS)
+    .reduce<{ role: "user" | "assistant"; content: string }[]>((acc, m) => {
+      const totalSoFar = acc.reduce((s, x) => s + x.content.length, 0);
+      if (totalSoFar >= MAX_HISTORY_CONTENT_CHARS) return acc;
+      const remaining = MAX_HISTORY_CONTENT_CHARS - totalSoFar;
+      acc.push({ role: m.role, content: m.content.slice(0, remaining) });
+      return acc;
+    }, []);
+
   // Build a combined search query from all user turns so that short follow-up
   // messages (e.g. "sono in sede Verdi") still retrieve the relevant tickets.
-  const userTurns = Array.isArray(history)
-    ? history.filter((m) => m.role === "user").map((m) => m.content)
-    : [];
+  const userTurns = cappedHistory
+    .filter((m) => m.role === "user")
+    .map((m) => m.content);
   const searchQuery = [...userTurns, message].join(" ");
 
   const [context, categories, locations] = await Promise.all([
@@ -417,7 +445,7 @@ router.post("/bot/chat", requireAuth, async (req, res): Promise<void> => {
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
-    ...(Array.isArray(history) ? history.slice(-10) : []),
+    ...cappedHistory,
     { role: "user", content: message },
   ];
 
