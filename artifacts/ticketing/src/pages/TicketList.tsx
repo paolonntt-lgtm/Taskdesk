@@ -48,6 +48,7 @@ export default function TicketList() {
   const userFilterType = (urlParams.get('userFilterType') as 'assignedTo' | 'createdBy') || 'assignedTo';
   const emailOrigin    = urlParams.get('emailOrigin') === 'true';
   const clientIdFilter = urlParams.get('clientId') ?? 'all';
+  const overdueFilter  = urlParams.get('overdue') === 'true';
   const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
   const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
 
@@ -67,7 +68,7 @@ export default function TicketList() {
 
   const deleteTicket = useDeleteTicket();
 
-  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all';
+  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
@@ -139,7 +140,8 @@ export default function TicketList() {
     createdBy:  userFilter !== 'all' && userFilterType === 'createdBy'  ? parseInt(userFilter, 10) : undefined,
     emailOrigin: emailOrigin || undefined,
     clientId: clientIdFilter !== 'all' ? parseInt(clientIdFilter, 10) : undefined,
-  }, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
+    ...(overdueFilter ? { overdue: 'true' } : {}),
+  } as any, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
 
   // Clear selection when tickets change (e.g. after delete or filter)
   useEffect(() => { setSelectedIds(new Set()); }, [tickets]);
@@ -245,6 +247,21 @@ export default function TicketList() {
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{entityTerm.navNew}</Box>
         </Button>
       </Box>
+
+      {/* Overdue filter banner */}
+      {overdueFilter && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => setParam('overdue', '', 'true')}>
+              {lang === 'it' ? 'Rimuovi filtro' : 'Clear filter'}
+            </Button>
+          }
+        >
+          {lang === 'it' ? 'Filtro attivo: ticket scaduti (con scadenza passata, non risolti)' : 'Active filter: overdue tickets (past due date, not resolved)'}
+        </Alert>
+      )}
 
       {/* Bulk feedback */}
       {bulkFeedback && (

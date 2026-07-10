@@ -1099,6 +1099,7 @@ function StatOverdueWidget() {
       color={theme.palette.warning.dark}
       bgColor={theme.palette.mode === 'dark' ? 'rgba(230,81,0,0.15)' : '#fff3e0'}
       icon={<OverdueIcon fontSize="small" />}
+      href="/tickets?overdue=true"
     />
   );
 }

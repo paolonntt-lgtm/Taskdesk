@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, gte, lte, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
@@ -46,6 +46,12 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
   if (emailOrigin === 'true') conditions.push(isNotNull(ticketsTable.inboundChannelId));
   if (clientId) conditions.push(eq(ticketsTable.clientId, parseInt(clientId, 10)));
+  const { overdue } = req.query as Record<string, string>;
+  if (overdue === 'true') {
+    conditions.push(isNotNull(ticketsTable.dueAt));
+    conditions.push(lt(ticketsTable.dueAt, sql`now()`));
+    conditions.push(sql`${ticketsTable.status} not in ('resolved','closed')`);
+  }
 
   if (search) {
     const searchPattern = `%${search}%`;
