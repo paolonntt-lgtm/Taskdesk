@@ -4,6 +4,7 @@ import { seedIfEmpty, backfillOrgTicketStatuses } from "./lib/seed";
 import { runAppMigrations } from "./lib/migrate";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
+import { scheduleNightlyBackups } from "./routes/backup";
 
 const rawPort = process.env["PORT"];
 
@@ -53,6 +54,7 @@ seedIfEmpty()
   .then(() => backfillOrgTicketStatuses())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
+scheduleNightlyBackups();
 
 app.listen(port, (err) => {
   if (err) {
