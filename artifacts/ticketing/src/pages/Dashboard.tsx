@@ -101,6 +101,7 @@ function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, 
 const FEED_SETTINGS_DEFAULTS = {
   statusFilter: [] as string[],
   priorityFilter: [] as string[],
+  categoryFilter: [] as string[],
   colorByStatus: false,
   maxItems: '10',
 };
@@ -592,6 +593,9 @@ function applyFeedSettings(tickets: TicketRow[], settings: FeedSettings, default
   }
   if (settings.priorityFilter.length > 0) {
     result = result.filter((tk) => settings.priorityFilter.includes(tk.priority));
+  }
+  if (settings.categoryFilter.length > 0) {
+    result = result.filter((tk) => tk.category != null && settings.categoryFilter.includes(tk.category));
   }
   const max = parseInt(settings.maxItems) || 10;
   return max === 0 ? result : result.slice(0, max);
@@ -1501,6 +1505,7 @@ const FEED_SETTINGS_SCHEMA: WidgetSettingField[] = [
     ],
     defaultValue: [],
   },
+  { key: 'categoryFilter', labelKey: 'wsCategoryFilter', type: 'multiselect', defaultValue: [] },
   { key: 'colorByStatus', labelKey: 'wsColorByStatus', type: 'toggle', defaultValue: false },
   {
     key: 'maxItems', labelKey: 'wsMaxItems', type: 'select',
@@ -1731,6 +1736,12 @@ function WidgetSettingsDialog({
 }) {
   const { t } = useLanguage();
   const { statuses } = useTicketStatuses();
+  const { data: categories = [] } = useQuery<string[]>({
+    queryKey: ['widget-settings-categories'],
+    queryFn: () => fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()).then((d) => d.value ?? []),
+    staleTime: 60_000,
+    enabled: open,
+  });
   const schema = meta?.settingsSchema ?? [];
 
   const schemaDefaults = React.useMemo(() => {
@@ -1801,6 +1812,8 @@ function WidgetSettingsDialog({
               const selected = (value as string[]) || [];
               const opts = field.key === 'statusFilter'
                 ? statuses.map((s) => ({ value: s.key, label: s.label }))
+                : field.key === 'categoryFilter'
+                ? categories.map((c) => ({ value: c, label: c }))
                 : (field.options ?? []).map((o) => ({ value: o.value, label: td[o.labelKey] ?? o.value }));
 
               return (
