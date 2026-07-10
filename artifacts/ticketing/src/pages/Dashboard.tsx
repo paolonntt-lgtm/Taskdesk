@@ -514,7 +514,7 @@ function FeedDueWidget() {
       icon={<ScheduleIcon fontSize="small" color={tickets.length > 0 ? 'warning' : 'disabled'} />}
       tickets={tickets}
       emptyMsg={t.dashboard.noDueSoon}
-      viewAllHref="/tickets"
+      viewAllHref="/tickets?status=open"
       showDueBadge
       accentColor={tickets.length > 0 ? 'warning.main' : undefined}
     />
