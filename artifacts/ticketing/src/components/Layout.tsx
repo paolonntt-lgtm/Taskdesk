@@ -271,7 +271,7 @@ export default function Layout({ children }: LayoutProps) {
         ))}
       </List>
 
-      <NotesConsole />
+      {(user as any)?.clientsEnabled !== false && <NotesConsole />}
 
       {/* User card at bottom */}
       <Box sx={{ p: 2 }}>
