@@ -534,8 +534,8 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: 48 }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ maxWidth: { xs: 180, sm: 340, md: 500 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: 48, px: { xs: 0.75, sm: 1 } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ maxWidth: { xs: 240, sm: 340, md: 500 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         <Box display="flex" alignItems="center" gap={0.75}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
@@ -561,17 +561,34 @@ export default function TicketList() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.75, sm: 1 } }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
+                          const muiColor = getStatusColor(ticket.status);
+                          const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
                           return (
-                            <Chip
-                              label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
-                              size="small"
-                              {...(customColor
-                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
-                                : { color: getStatusColor(ticket.status) as any })}
-                            />
+                            <>
+                              <Tooltip title={label} placement="top" arrow>
+                                <Box
+                                  sx={{
+                                    display: { xs: 'inline-block', sm: 'none' },
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    bgcolor: customColor || (muiColor === 'default' ? 'action.disabled' : `${muiColor}.main`),
+                                  }}
+                                />
+                              </Tooltip>
+                              <Box sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+                                <Chip
+                                  label={label}
+                                  size="small"
+                                  {...(customColor
+                                    ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
+                                    : { color: muiColor as any })}
+                                />
+                              </Box>
+                            </>
                           );
                         })()}
                       </TableCell>
