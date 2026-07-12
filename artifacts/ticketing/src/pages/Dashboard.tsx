@@ -1485,6 +1485,7 @@ interface WidgetSettingField {
 }
 
 interface WidgetMeta {
+  requireClients?: boolean;
   id: string;
   labelKey: string;
   defaultLayout: Omit<LayoutItem, 'i'>;
@@ -1638,7 +1639,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-overdue',   labelKey: 'widgetFeedOverdue',    defaultLayout: { x: 8, y: 9,  w: 4, h: 7, minW: 2, minH: 3 }, component: FeedOverdueWidget,   settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-person',    labelKey: 'widgetFeedPerson',     defaultLayout: { x: 0, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedPersonWidget,    settingsSchema: FEED_SETTINGS_SCHEMA },
   { id: 'feed-group',     labelKey: 'widgetFeedGroup',      defaultLayout: { x: 4, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedGroupWidget,     settingsSchema: FEED_SETTINGS_SCHEMA },
-  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget,   settingsSchema: CLIENT_NOTES_SETTINGS_SCHEMA },
+  { id: 'client-notes',   labelKey: 'widgetClientNotes',   defaultLayout: { x: 8, y: 16, w: 4, h: 7, minW: 2, minH: 3 }, component: ClientNotesWidget,   settingsSchema: CLIENT_NOTES_SETTINGS_SCHEMA, requireClients: true },
   { id: 'chart-trend',    labelKey: 'widgetChartTrend',    defaultLayout: { x: 0, y: 23, w: 8, h: 6, minW: 4, minH: 4 }, component: ChartTrendWidget,    settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-status',   labelKey: 'widgetChartStatus',   defaultLayout: { x: 8, y: 23, w: 4, h: 6, minW: 3, minH: 4 }, component: ChartStatusWidget,   settingsSchema: CHART_SETTINGS_SCHEMA },
   { id: 'chart-category', labelKey: 'widgetChartCategory', defaultLayout: { x: 0, y: 29, w: 6, h: 6, minW: 3, minH: 4 }, component: ChartCategoryWidget, settingsSchema: CHART_SETTINGS_SCHEMA },
@@ -1938,8 +1939,9 @@ function Dashboard() {
   const { user } = useAuth();
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
+  const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const effectiveRegistry = WIDGET_REGISTRY.filter(
-    (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin),
+    (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin) && (!w.requireClients || clientsEnabled),
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -1978,6 +1980,18 @@ function Dashboard() {
   useEffect(() => {
     try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleIds)); } catch {}
   }, [visibleIds]);
+
+  useEffect(() => {
+    if (!clientsEnabled) {
+      setVisibleIds((prev) => {
+        const filtered = prev.filter((id) => {
+          const meta = WIDGET_REGISTRY.find((w) => w.id === id.split('__')[0]);
+          return !meta?.requireClients;
+        });
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+    }
+  }, [clientsEnabled]);
 
   const handleLayoutChange = useCallback((newLayout: readonly LayoutItem[]) => {
     setLayout((prev) => {
