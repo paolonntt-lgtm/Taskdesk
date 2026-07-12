@@ -431,13 +431,13 @@ export default function TicketList() {
             {configuredLocations.length > 1 && (
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel shrink={locationValues.length > 0}>{t.ticketList.locationFilter}</InputLabel>
+                  <InputLabel shrink>{t.ticketList.locationFilter}</InputLabel>
                   <Select
                     multiple
                     displayEmpty
                     value={locationValues}
                     onChange={(e) => setMultiParam('location', e.target.value as string[], configuredLocations)}
-                    input={<OutlinedInput notched={locationValues.length > 0} label={t.ticketList.locationFilter} />}
+                    input={<OutlinedInput notched label={t.ticketList.locationFilter} />}
                     renderValue={(selected) => {
                       if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allLocations}</Box>;
                       return (
@@ -468,13 +468,13 @@ export default function TicketList() {
             {configuredCategories.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel shrink={categoryValues.length > 0}>{t.ticketList.categoryFilter}</InputLabel>
+                  <InputLabel shrink>{t.ticketList.categoryFilter}</InputLabel>
                   <Select
                     multiple
                     displayEmpty
                     value={categoryValues}
                     onChange={(e) => setMultiParam('category', e.target.value as string[], configuredCategories)}
-                    input={<OutlinedInput notched={categoryValues.length > 0} label={t.ticketList.categoryFilter} />}
+                    input={<OutlinedInput notched label={t.ticketList.categoryFilter} />}
                     renderValue={(selected) => {
                       if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allCategories}</Box>;
                       return (
