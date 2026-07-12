@@ -620,8 +620,8 @@ export default function TicketList() {
           </Toolbar>
         )}
 
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small">
+        <Box sx={{ width: '100%' }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
             <TableHead>
               <TableRow>
                 {isAdmin && (
@@ -704,7 +704,7 @@ export default function TicketList() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.25, sm: 1 } }}>
+                      <TableCell sx={{ px: { xs: 0.25, sm: 1 }, overflow: 'hidden' }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
