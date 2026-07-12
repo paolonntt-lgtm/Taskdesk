@@ -98,6 +98,8 @@ function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, 
   return [settings, setFn];
 }
 
+const WidgetCustomNameContext = React.createContext('');
+
 const FEED_SETTINGS_DEFAULTS = {
   statusFilter: [] as string[],
   priorityFilter: [] as string[],
@@ -314,6 +316,8 @@ function FeedCard({
   emptyMsg: string; viewAllHref?: string; showDueBadge?: boolean; accentColor?: string; colorByStatus?: boolean;
 }) {
   const { t } = useLanguage();
+  const customName = React.useContext(WidgetCustomNameContext);
+  const displayTitle = customName || title;
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(accentColor ? { borderTop: 3, borderColor: accentColor } : {}) }}>
       <CardContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', '&:last-child': { pb: 0 } }}>
@@ -322,7 +326,7 @@ function FeedCard({
           <Box display="flex" alignItems="center" gap={1}>
             {icon}
             <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.1rem' }}>
-              {title}
+              {displayTitle}
             </Typography>
             {tickets.length > 0 && (
               <Chip label={tickets.length} size="small" color={accentColor ? 'warning' : 'default'}
@@ -754,7 +758,7 @@ function WorkloadWidget() {
         <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1} flexShrink={0}>
           <WorkloadIcon fontSize="small" color="action" />
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-            {t.dashboard.widgetWorkload}
+            {React.useContext(WidgetCustomNameContext) || t.dashboard.widgetWorkload}
           </Typography>
           {!isLoading && data.length > 0 && (
             <Chip
@@ -885,7 +889,7 @@ function ClientNotesWidget() {
         <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1} flexShrink={0}>
           <ClientNotesIcon fontSize="small" color="action" />
           <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-            {t.dashboard.widgetClientNotes}
+            {React.useContext(WidgetCustomNameContext) || t.dashboard.widgetClientNotes}
           </Typography>
           {!isLoading && availableMonths.length > 0 && (
             <Box display="flex" alignItems="center" gap={0.25} sx={{ ml: 0.5 }}>
@@ -1037,7 +1041,7 @@ function FeedPersonWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <PersonIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson}
+                {React.useContext(WidgetCustomNameContext) || (selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson)}
               </Typography>
               {selectedId && displayTickets.length > 0 && (
                 <Chip label={displayTickets.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1137,7 +1141,7 @@ function FeedGroupWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <GroupIcon fontSize="small" color="secondary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {selectedGroup || t.dashboard.widgetFeedGroup}
+                {React.useContext(WidgetCustomNameContext) || selectedGroup || t.dashboard.widgetFeedGroup}
               </Typography>
               {selectedGroup && displayTickets.length > 0 && (
                 <Chip label={displayTickets.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1299,7 +1303,7 @@ function FeedCategoryWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <CategoryIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {selected || t.dashboard.widgetFeedCategory}
+                {React.useContext(WidgetCustomNameContext) || selected || t.dashboard.widgetFeedCategory}
               </Typography>
               {selected && data.length > 0 && (
                 <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1391,7 +1395,7 @@ function FeedStatusWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <FilterListIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {selected ? selectedLabel : t.dashboard.widgetFeedStatus}
+                {React.useContext(WidgetCustomNameContext) || (selected ? selectedLabel : t.dashboard.widgetFeedStatus)}
               </Typography>
               {selected && data.length > 0 && (
                 <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -2127,7 +2131,9 @@ function Dashboard() {
                 onRemove={() => removeWidget(id)}
                 onOpenSettings={() => setSettingsWidgetId(id)}
               >
-                <Cmp />
+                <WidgetCustomNameContext.Provider value={customNames[id] || ''}>
+                  <Cmp />
+                </WidgetCustomNameContext.Provider>
               </WidgetShell>
             </div>
           );
