@@ -337,13 +337,13 @@ export default function TicketList() {
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
             <FormControl fullWidth size="small">
-              <InputLabel shrink={statusValues.length > 0}>{t.ticketList.statusFilter}</InputLabel>
+              <InputLabel shrink>{t.ticketList.statusFilter}</InputLabel>
               <Select
                 multiple
                 displayEmpty
                 value={statusValues}
                 onChange={(e) => setMultiParam('status', e.target.value as string[], orgStatuses.map((s) => s.key))}
-                input={<OutlinedInput notched={statusValues.length > 0} label={t.ticketList.statusFilter} />}
+                input={<OutlinedInput notched label={t.ticketList.statusFilter} />}
                 renderValue={(selected) => {
                   if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allStatuses}</Box>;
                   return (
@@ -377,13 +377,13 @@ export default function TicketList() {
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
             <FormControl fullWidth size="small">
-              <InputLabel shrink={priorityValues.length > 0}>{t.ticketList.priorityFilter}</InputLabel>
+              <InputLabel shrink>{t.ticketList.priorityFilter}</InputLabel>
               <Select
                 multiple
                 displayEmpty
                 value={priorityValues}
                 onChange={(e) => setMultiParam('priority', e.target.value as string[], VALID_PRIORITIES)}
-                input={<OutlinedInput notched={priorityValues.length > 0} label={t.ticketList.priorityFilter} />}
+                input={<OutlinedInput notched label={t.ticketList.priorityFilter} />}
                 renderValue={(selected) => {
                   if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allPriorities}</Box>;
                   return (
