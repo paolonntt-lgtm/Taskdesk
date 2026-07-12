@@ -676,7 +676,7 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: 48, px: { xs: 0.75, sm: 1 } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 36, sm: 48 }, px: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
                       <TableCell sx={{ maxWidth: { xs: 240, sm: 340, md: 500 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         <Box display="flex" alignItems="center" gap={0.75}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
@@ -703,34 +703,19 @@ export default function TicketList() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.75, sm: 1 } }}>
+                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.5, sm: 1 } }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
                           const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
                           return (
-                            <>
-                              <Tooltip title={label} placement="top" arrow>
-                                <Box
-                                  sx={{
-                                    display: { xs: 'inline-block', sm: 'none' },
-                                    width: 10,
-                                    height: 10,
-                                    borderRadius: '50%',
-                                    bgcolor: customColor || (muiColor === 'default' ? 'action.disabled' : `${muiColor}.main`),
-                                  }}
-                                />
-                              </Tooltip>
-                              <Box sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
-                                <Chip
-                                  label={label}
-                                  size="small"
-                                  {...(customColor
-                                    ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
-                                    : { color: muiColor as any })}
-                                />
-                              </Box>
-                            </>
+                            <Chip
+                              label={label}
+                              size="small"
+                              {...(customColor
+                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: { xs: '0.6rem', sm: '0.75rem' }, height: { xs: 18, sm: 24 } } }
+                                : { color: muiColor as any, sx: { fontSize: { xs: '0.6rem', sm: '0.75rem' }, height: { xs: 18, sm: 24 } } })}
+                            />
                           );
                         })()}
                       </TableCell>
