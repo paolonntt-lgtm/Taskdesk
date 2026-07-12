@@ -3,6 +3,7 @@ module.exports = {
     name: "TaskDesk",
     slug: "workspace",
     version: "1.0.0",
+    sdkVersion: "54.0.0",
     android: {
       package: "com.taskdesk.mobile"
     },
