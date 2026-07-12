@@ -4,6 +4,7 @@ import {
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
   Tooltip, TableSortLabel, Collapse, IconButton, Checkbox, Toolbar, Dialog,
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
+  Select, FormControl, InputLabel, OutlinedInput, ListItemText,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
@@ -36,12 +37,50 @@ export default function TicketList() {
   const { statuses: orgStatuses, getLabelForKey, getColorForKey } = useTicketStatuses();
 
   const urlParams = new URLSearchParams(searchStr);
-  const statusParam = urlParams.get('status') ?? '';
   const validStatuses = orgStatuses.map((s) => s.key);
-  const status = (statusParam && (validStatuses.includes(statusParam) || validStatuses.length === 0)) ? statusParam : 'all';
-  const priority = VALID_PRIORITIES.includes(urlParams.get('priority') ?? '') ? urlParams.get('priority')! : 'all';
-  const location = urlParams.get('location') ?? 'all';
-  const category = urlParams.get('category') ?? 'all';
+
+  // These must be declared before the useMemo hooks that normalise against them
+  const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
+  const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
+
+  // Multi-value params — each is an array of selected values (empty = no filter = "all")
+  // "all options selected" is normalised to empty (same as no filter)
+  const statusValues: string[] = useMemo(() => {
+    const raw = urlParams.get('status') ?? '';
+    if (!raw) return [];
+    const parts = raw.split(',').map((v) => v.trim()).filter(Boolean);
+    const filtered = validStatuses.length === 0 ? parts : parts.filter((v) => validStatuses.includes(v));
+    if (validStatuses.length > 0 && validStatuses.every((v) => filtered.includes(v))) return [];
+    return filtered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStr, validStatuses.join(',')]);
+
+  const priorityValues: string[] = useMemo(() => {
+    const raw = urlParams.get('priority') ?? '';
+    if (!raw) return [];
+    const filtered = raw.split(',').map((v) => v.trim()).filter((v) => VALID_PRIORITIES.includes(v));
+    if (VALID_PRIORITIES.every((v) => filtered.includes(v))) return [];
+    return filtered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStr]);
+
+  const locationValues: string[] = useMemo(() => {
+    const raw = urlParams.get('location') ?? '';
+    if (!raw) return [];
+    const filtered = raw.split(',').map((v) => v.trim()).filter(Boolean);
+    if (configuredLocations.length > 1 && configuredLocations.every((v) => filtered.includes(v))) return [];
+    return filtered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStr, configuredLocations.join(',')]);
+
+  const categoryValues: string[] = useMemo(() => {
+    const raw = urlParams.get('category') ?? '';
+    if (!raw) return [];
+    const filtered = raw.split(',').map((v) => v.trim()).filter(Boolean);
+    if (configuredCategories.length > 0 && configuredCategories.every((v) => filtered.includes(v))) return [];
+    return filtered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStr, configuredCategories.join(',')]);
   const dateFrom = urlParams.get('dateFrom') ?? '';
   const dateTo   = urlParams.get('dateTo') ?? '';
   const userFilter     = urlParams.get('userFilter') ?? 'all';
@@ -55,8 +94,6 @@ export default function TicketList() {
   const [searchInput, setSearchInput] = useState(urlParams.get('search') ?? '');
   const debouncedSearch = useDebounce(searchInput, 300);
 
-  const [configuredLocations, setConfiguredLocations] = useState<string[]>([]);
-  const [configuredCategories, setConfiguredCategories] = useState<string[]>([]);
   const { data: users } = useListUsers();
   const { data: clients } = useListClients();
 
@@ -68,7 +105,7 @@ export default function TicketList() {
 
   const deleteTicket = useDeleteTicket();
 
-  const hasExtraFilters = location !== 'all' || category !== 'all' || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
+  const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
@@ -78,6 +115,19 @@ export default function TicketList() {
       next.delete(key);
     } else {
       next.set(key, value);
+    }
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+  }, [searchStr, navigate]);
+
+  const setMultiParam = useCallback((key: string, values: string[], allOptions?: string[]) => {
+    const next = new URLSearchParams(searchStr);
+    // Treat "all options selected" the same as "nothing selected" — no filter applied
+    const isAll = allOptions && allOptions.length > 0 && allOptions.every((v) => values.includes(v));
+    if (values.length === 0 || isAll) {
+      next.delete(key);
+    } else {
+      next.set(key, values.join(','));
     }
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
@@ -97,7 +147,7 @@ export default function TicketList() {
 
   const clearExtra = () => {
     const next = new URLSearchParams(searchStr);
-    ['location', 'category', 'dateFrom', 'dateTo', 'userFilter', 'userFilterType', 'emailOrigin', 'clientId'].forEach((k) => next.delete(k));
+    ['location', 'category', 'dateFrom', 'dateTo', 'userFilter', 'userFilterType', 'emailOrigin', 'clientId', 'overdue'].forEach((k) => next.delete(k));
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
     setShowExtraManual(false);
@@ -130,10 +180,10 @@ export default function TicketList() {
 
   const { data: tickets, isLoading } = useListTickets({
     search: debouncedSearch || undefined,
-    status:   status   !== 'all' ? status   : undefined,
-    priority: priority !== 'all' ? priority : undefined,
-    location: location !== 'all' ? location : undefined,
-    category: category !== 'all' ? category : undefined,
+    status:   statusValues.length   > 0 ? statusValues.join(',')   : undefined,
+    priority: priorityValues.length > 0 ? priorityValues.join(',') : undefined,
+    location: locationValues.length > 0 ? locationValues.join(',') : undefined,
+    category: categoryValues.length > 0 ? categoryValues.join(',') : undefined,
     dateFrom: dateFrom || undefined,
     dateTo:   dateTo   || undefined,
     assignedTo: userFilter !== 'all' && userFilterType === 'assignedTo' ? parseInt(userFilter, 10) : undefined,
@@ -286,31 +336,79 @@ export default function TicketList() {
             />
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
-            <TextField
-              select fullWidth size="small"
-              label={t.ticketList.statusFilter}
-              value={status}
-              onChange={(e) => setParam('status', e.target.value)}
-            >
-              <MenuItem value="all">{t.ticketList.allStatuses}</MenuItem>
-              {orgStatuses.map((s) => (
-                <MenuItem key={s.key} value={s.key}>{s.label}</MenuItem>
-              ))}
-            </TextField>
+            <FormControl fullWidth size="small">
+              <InputLabel shrink={statusValues.length > 0}>{t.ticketList.statusFilter}</InputLabel>
+              <Select
+                multiple
+                displayEmpty
+                value={statusValues}
+                onChange={(e) => setMultiParam('status', e.target.value as string[], orgStatuses.map((s) => s.key))}
+                input={<OutlinedInput notched={statusValues.length > 0} label={t.ticketList.statusFilter} />}
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allStatuses}</Box>;
+                  return (
+                    <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ my: -0.25 }}>
+                      {selected.map((v) => {
+                        const customColor = getColorForKey(v);
+                        const label = getLabelForKey(v) || v;
+                        return (
+                          <Chip
+                            key={v}
+                            label={label}
+                            size="small"
+                            onDelete={() => setMultiParam('status', statusValues.filter((s) => s !== v), orgStatuses.map((s) => s.key))}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            sx={customColor ? { bgcolor: customColor, color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } } : undefined}
+                          />
+                        );
+                      })}
+                    </Box>
+                  );
+                }}
+              >
+                {orgStatuses.map((s) => (
+                  <MenuItem key={s.key} value={s.key} dense>
+                    <Checkbox size="small" checked={statusValues.includes(s.key)} sx={{ py: 0 }} />
+                    <ListItemText primary={s.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={6} sm={3} md={2.5}>
-            <TextField
-              select fullWidth size="small"
-              label={t.ticketList.priorityFilter}
-              value={priority}
-              onChange={(e) => setParam('priority', e.target.value)}
-            >
-              <MenuItem value="all">{t.ticketList.allPriorities}</MenuItem>
-              <MenuItem value="low">{t.priority.low}</MenuItem>
-              <MenuItem value="medium">{t.priority.medium}</MenuItem>
-              <MenuItem value="high">{t.priority.high}</MenuItem>
-              <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
-            </TextField>
+            <FormControl fullWidth size="small">
+              <InputLabel shrink={priorityValues.length > 0}>{t.ticketList.priorityFilter}</InputLabel>
+              <Select
+                multiple
+                displayEmpty
+                value={priorityValues}
+                onChange={(e) => setMultiParam('priority', e.target.value as string[], VALID_PRIORITIES)}
+                input={<OutlinedInput notched={priorityValues.length > 0} label={t.ticketList.priorityFilter} />}
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allPriorities}</Box>;
+                  return (
+                    <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ my: -0.25 }}>
+                      {selected.map((v) => (
+                        <Chip
+                          key={v}
+                          label={t.priority[v as keyof typeof t.priority] || v}
+                          size="small"
+                          onDelete={() => setMultiParam('priority', priorityValues.filter((p) => p !== v), VALID_PRIORITIES)}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        />
+                      ))}
+                    </Box>
+                  );
+                }}
+              >
+                {VALID_PRIORITIES.map((p) => (
+                  <MenuItem key={p} value={p} dense>
+                    <Checkbox size="small" checked={priorityValues.includes(p)} sx={{ py: 0 }} />
+                    <ListItemText primary={t.priority[p as keyof typeof t.priority] || p} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={12} sm="auto" md={2}>
             <Button
@@ -322,7 +420,7 @@ export default function TicketList() {
               sx={{ whiteSpace: 'nowrap' }}
             >
               {t.ticketList.moreFilters}
-              {hasExtraFilters && ` (${[location !== 'all', category !== 'all', !!dateFrom, !!dateTo, userFilter !== 'all', emailOrigin, clientIdFilter !== 'all'].filter(Boolean).length})`}
+              {hasExtraFilters && ` (${[locationValues.length > 0, categoryValues.length > 0, !!dateFrom, !!dateTo, userFilter !== 'all', emailOrigin, clientIdFilter !== 'all', overdueFilter].filter(Boolean).length})`}
             </Button>
           </Grid>
         </Grid>
@@ -332,32 +430,76 @@ export default function TicketList() {
           <Grid container spacing={1.5} mt={0.25}>
             {configuredLocations.length > 1 && (
               <Grid item xs={12} sm={6} md={3}>
-                <TextField
-                  select fullWidth size="small"
-                  label={t.ticketList.locationFilter}
-                  value={location}
-                  onChange={(e) => setParam('location', e.target.value)}
-                >
-                  <MenuItem value="all">{t.ticketList.allLocations}</MenuItem>
-                  {configuredLocations.map((loc) => (
-                    <MenuItem key={loc} value={loc}>{loc}</MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth size="small">
+                  <InputLabel shrink={locationValues.length > 0}>{t.ticketList.locationFilter}</InputLabel>
+                  <Select
+                    multiple
+                    displayEmpty
+                    value={locationValues}
+                    onChange={(e) => setMultiParam('location', e.target.value as string[], configuredLocations)}
+                    input={<OutlinedInput notched={locationValues.length > 0} label={t.ticketList.locationFilter} />}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allLocations}</Box>;
+                      return (
+                        <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ my: -0.25 }}>
+                          {selected.map((v) => (
+                            <Chip
+                              key={v}
+                              label={v}
+                              size="small"
+                              onDelete={() => setMultiParam('location', locationValues.filter((l) => l !== v), configuredLocations)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                          ))}
+                        </Box>
+                      );
+                    }}
+                  >
+                    {configuredLocations.map((loc) => (
+                      <MenuItem key={loc} value={loc} dense>
+                        <Checkbox size="small" checked={locationValues.includes(loc)} sx={{ py: 0 }} />
+                        <ListItemText primary={loc} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
             )}
             {configuredCategories.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
-                <TextField
-                  select fullWidth size="small"
-                  label={t.ticketList.categoryFilter}
-                  value={category}
-                  onChange={(e) => setParam('category', e.target.value)}
-                >
-                  <MenuItem value="all">{t.ticketList.allCategories}</MenuItem>
-                  {configuredCategories.map((cat) => (
-                    <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth size="small">
+                  <InputLabel shrink={categoryValues.length > 0}>{t.ticketList.categoryFilter}</InputLabel>
+                  <Select
+                    multiple
+                    displayEmpty
+                    value={categoryValues}
+                    onChange={(e) => setMultiParam('category', e.target.value as string[], configuredCategories)}
+                    input={<OutlinedInput notched={categoryValues.length > 0} label={t.ticketList.categoryFilter} />}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) return <Box component="span" sx={{ color: 'text.secondary' }}>{t.ticketList.allCategories}</Box>;
+                      return (
+                        <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ my: -0.25 }}>
+                          {selected.map((v) => (
+                            <Chip
+                              key={v}
+                              label={v}
+                              size="small"
+                              onDelete={() => setMultiParam('category', categoryValues.filter((c) => c !== v), configuredCategories)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                          ))}
+                        </Box>
+                      );
+                    }}
+                  >
+                    {configuredCategories.map((cat) => (
+                      <MenuItem key={cat} value={cat} dense>
+                        <Checkbox size="small" checked={categoryValues.includes(cat)} sx={{ py: 0 }} />
+                        <ListItemText primary={cat} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
             )}
             {users && users.length > 0 && (

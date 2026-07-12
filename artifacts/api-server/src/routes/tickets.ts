@@ -33,10 +33,26 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   // Always filter by organization
   if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
 
-  if (status) conditions.push(eq(ticketsTable.status, status));
-  if (priority) conditions.push(eq(ticketsTable.priority, priority));
-  if (category) conditions.push(eq(ticketsTable.category, category));
-  if (location) conditions.push(eq(ticketsTable.location, location));
+  if (status) {
+    const vals = status.split(',').map((v) => v.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(ticketsTable.status, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(ticketsTable.status, vals));
+  }
+  if (priority) {
+    const vals = priority.split(',').map((v) => v.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(ticketsTable.priority, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(ticketsTable.priority, vals));
+  }
+  if (category) {
+    const vals = category.split(',').map((v) => v.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(ticketsTable.category, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(ticketsTable.category, vals));
+  }
+  if (location) {
+    const vals = location.split(',').map((v) => v.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(ticketsTable.location, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(ticketsTable.location, vals));
+  }
   if (resource) conditions.push(ilike(ticketsTable.resource, `%${resource}%`));
   if (assignedTo) conditions.push(eq(ticketsTable.assignedTo, parseInt(assignedTo, 10)));
   if (createdBy) conditions.push(eq(ticketsTable.createdBy, parseInt(createdBy, 10)));
