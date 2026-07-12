@@ -6,7 +6,7 @@ import {
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
   Select, FormControl, InputLabel, OutlinedInput, ListItemText,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -23,6 +23,29 @@ const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2,
 
 type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt' | 'client';
 type SortDir = 'asc' | 'desc';
+
+interface FilterPreset {
+  id: string;
+  name: string;
+  params: string;
+}
+
+function loadPresetsFromStorage(userId: number | string): FilterPreset[] {
+  try {
+    const raw = localStorage.getItem(`filter_presets_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresetsToStorage(userId: number | string, presets: FilterPreset[]) {
+  try {
+    localStorage.setItem(`filter_presets_${userId}`, JSON.stringify(presets));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export default function TicketList() {
   const { t, lang } = useLanguage();
@@ -97,6 +120,68 @@ export default function TicketList() {
   const { data: users } = useListUsers();
   const { data: clients } = useListClients();
 
+  // ── Filter presets ────────────────────────────────────────────────────────
+  const [presets, setPresets] = useState<FilterPreset[]>(() =>
+    user ? loadPresetsFromStorage(user.id) : []
+  );
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  // Re-load presets when user changes
+  useEffect(() => {
+    if (user) setPresets(loadPresetsFromStorage(user.id));
+  }, [user?.id]);
+
+  const buildPresetParams = useCallback((): string => {
+    const p = new URLSearchParams();
+    if (debouncedSearch) p.set('search', debouncedSearch);
+    if (statusValues.length > 0) p.set('status', statusValues.join(','));
+    if (priorityValues.length > 0) p.set('priority', priorityValues.join(','));
+    if (locationValues.length > 0) p.set('location', locationValues.join(','));
+    if (categoryValues.length > 0) p.set('category', categoryValues.join(','));
+    if (userFilter !== 'all') { p.set('userFilter', userFilter); p.set('userFilterType', userFilterType); }
+    if (dateFrom) p.set('dateFrom', dateFrom);
+    if (dateTo) p.set('dateTo', dateTo);
+    if (emailOrigin) p.set('emailOrigin', 'true');
+    if (clientIdFilter !== 'all') p.set('clientId', clientIdFilter);
+    if (overdueFilter) p.set('overdue', 'true');
+    return p.toString();
+  }, [debouncedSearch, statusValues, priorityValues, locationValues, categoryValues, userFilter, userFilterType, dateFrom, dateTo, emailOrigin, clientIdFilter, overdueFilter]);
+
+  const handleSavePreset = useCallback(() => {
+    if (!user || !presetName.trim()) return;
+    const newPreset: FilterPreset = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: presetName.trim(),
+      params: buildPresetParams(),
+    };
+    const updated = [...presets, newPreset];
+    setPresets(updated);
+    savePresetsToStorage(user.id, updated);
+    setSavePresetOpen(false);
+    setPresetName('');
+  }, [user, presetName, presets, buildPresetParams]);
+
+  const handleDeletePreset = useCallback((id: string) => {
+    if (!user) return;
+    const updated = presets.filter((p) => p.id !== id);
+    setPresets(updated);
+    savePresetsToStorage(user.id, updated);
+  }, [user, presets]);
+
+  const applyPreset = useCallback((params: string) => {
+    // Preserve sort params from current URL, apply filter params from preset
+    const currentParams = new URLSearchParams(searchStr);
+    const next = new URLSearchParams(params);
+    // Re-apply current sort if present
+    if (currentParams.get('sortCol')) next.set('sortCol', currentParams.get('sortCol')!);
+    if (currentParams.get('sortDir')) next.set('sortDir', currentParams.get('sortDir')!);
+    const qs = next.toString();
+    navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
+    // Sync search input
+    setSearchInput(next.get('search') ?? '');
+  }, [searchStr, navigate]);
+
   // ── Bulk selection state ─────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -106,6 +191,7 @@ export default function TicketList() {
   const deleteTicket = useDeleteTicket();
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
+  const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters;
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
@@ -320,6 +406,24 @@ export default function TicketList() {
         </Alert>
       )}
 
+      {/* Filter preset chips */}
+      {presets.length > 0 && (
+        <Box display="flex" flexWrap="wrap" gap={1} mb={1.5} alignItems="center">
+          {presets.map((preset) => (
+            <Chip
+              key={preset.id}
+              label={preset.name}
+              onClick={() => applyPreset(preset.params)}
+              onDelete={() => handleDeletePreset(preset.id)}
+              deleteIcon={<CloseIcon sx={{ fontSize: '14px !important' }} />}
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 500, cursor: 'pointer' }}
+            />
+          ))}
+        </Box>
+      )}
+
       <Card sx={{ mb: { xs: 1.5, sm: 3 }, p: { xs: 1.5, sm: 2 } }}>
         {/* Row 1: search + stato + priorità + toggle */}
         <Grid container spacing={1.5} alignItems="center">
@@ -423,6 +527,22 @@ export default function TicketList() {
               {hasExtraFilters && ` (${[locationValues.length > 0, categoryValues.length > 0, !!dateFrom, !!dateTo, userFilter !== 'all', emailOrigin, clientIdFilter !== 'all', overdueFilter].filter(Boolean).length})`}
             </Button>
           </Grid>
+          {hasActiveFilters && (
+            <Grid item xs={12} sm="auto">
+              <Tooltip title={t.ticketList.presetSaveTitle} arrow>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<BookmarkAddIcon />}
+                  onClick={() => { setPresetName(''); setSavePresetOpen(true); }}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {t.ticketList.presetSave}
+                </Button>
+              </Tooltip>
+            </Grid>
+          )}
         </Grid>
 
         {/* Row 2: advanced filters */}
@@ -785,6 +905,51 @@ export default function TicketList() {
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {deleting ? '...' : t.ticketList.bulkDeleteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Save preset dialog */}
+      <Dialog
+        open={savePresetOpen}
+        onClose={() => setSavePresetOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t.ticketList.presetSaveTitle}
+        </DialogTitle>
+        <DialogContent sx={{ pt: '12px !important' }}>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label={t.ticketList.presetNameLabel}
+            placeholder={t.ticketList.presetNamePlaceholder}
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && presetName.trim()) handleSavePreset(); }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setSavePresetOpen(false)}
+            variant="outlined"
+            color="inherit"
+            sx={{ textTransform: 'none' }}
+          >
+            {t.ticketList.presetSaveCancel}
+          </Button>
+          <Button
+            onClick={handleSavePreset}
+            disabled={!presetName.trim()}
+            variant="contained"
+            color="primary"
+            startIcon={<BookmarkAddIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {t.ticketList.presetSaveConfirm}
           </Button>
         </DialogActions>
       </Dialog>
