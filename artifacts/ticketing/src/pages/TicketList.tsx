@@ -638,7 +638,7 @@ export default function TicketList() {
                 {col('id', t.ticketList.colId, { width: 48 })}
                 {col('title', t.ticketList.colTitle)}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
-                {col('status', t.ticketList.colStatus, { width: 90 })}
+                {col('status', t.ticketList.colStatus, { display: { xs: 'none', sm: 'table-cell' }, width: 90 })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 })}
                 {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90 })}
@@ -677,8 +677,9 @@ export default function TicketList() {
                         </TableCell>
                       )}
                       <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 36, sm: 48 }, px: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ maxWidth: { xs: 240, sm: 340, md: 500 }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <Box display="flex" alignItems="center" gap={0.75}>
+                      <TableCell sx={{ maxWidth: { xs: 'none', sm: 340, md: 500 }, overflow: 'hidden' }}>
+                        {/* Title row */}
+                        <Box display="flex" alignItems="center" gap={0.75} sx={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
                               <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
@@ -701,9 +702,26 @@ export default function TicketList() {
                             </Tooltip>
                           )}
                         </Box>
+                        {/* Status chip inline below title — xs only */}
+                        {(() => {
+                          const customColor = getColorForKey(ticket.status);
+                          const muiColor = getStatusColor(ticket.status);
+                          const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
+                          return (
+                            <Box sx={{ display: { xs: 'block', sm: 'none' }, mt: 0.4 }}>
+                              <Chip
+                                label={label}
+                                size="small"
+                                {...(customColor
+                                  ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: '0.6rem', height: 16 } }
+                                  : { color: muiColor as any, sx: { fontSize: '0.6rem', height: 16 } })}
+                              />
+                            </Box>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.5, sm: 1 } }}>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', px: 1 }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
@@ -713,8 +731,8 @@ export default function TicketList() {
                               label={label}
                               size="small"
                               {...(customColor
-                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: { xs: '0.6rem', sm: '0.75rem' }, height: { xs: 18, sm: 24 } } }
-                                : { color: muiColor as any, sx: { fontSize: { xs: '0.6rem', sm: '0.75rem' }, height: { xs: 18, sm: 24 } } })}
+                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
+                                : { color: muiColor as any })}
                             />
                           );
                         })()}
