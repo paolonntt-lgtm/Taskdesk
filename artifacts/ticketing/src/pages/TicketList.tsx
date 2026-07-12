@@ -637,7 +637,7 @@ export default function TicketList() {
                   </TableCell>
                 )}
                 {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 } })}
-                {col('title', t.ticketList.colTitle, { px: { xs: 0.75, sm: 1 } })}
+                {col('title', t.ticketList.colTitle, { px: { xs: 1.1, sm: 1 } })}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
                 {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 1 } })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
@@ -678,7 +678,7 @@ export default function TicketList() {
                         </TableCell>
                       )}
                       <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ px: { xs: 0.75, sm: 1 } }}>
+                      <TableCell sx={{ px: { xs: 1.1, sm: 1 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
