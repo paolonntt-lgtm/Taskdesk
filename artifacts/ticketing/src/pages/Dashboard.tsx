@@ -1978,12 +1978,47 @@ function Dashboard() {
     } catch { return superadminDefaultVisibleIds(); }
   });
 
+  // Load layout from server on mount (overrides localStorage if server has a saved layout)
+  useEffect(() => {
+    fetch('/api/dashboard-layout', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data || !data.layout || !data.visibleIds) return;
+        setLayout(data.layout as LayoutItem[]);
+        setVisibleIds(data.visibleIds as string[]);
+        try {
+          localStorage.setItem(LAYOUT_KEY, JSON.stringify(data.layout));
+          localStorage.setItem(VISIBLE_KEY, JSON.stringify(data.visibleIds));
+        } catch {}
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced save to server
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveToServer = React.useCallback((l: LayoutItem[], v: string[]) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch('/api/dashboard-layout', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout: l, visibleIds: v }),
+      }).catch(() => {});
+    }, 1500);
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch {}
+    saveToServer(layout, visibleIds);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
 
   useEffect(() => {
     try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleIds)); } catch {}
+    saveToServer(layout, visibleIds);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
 
   useEffect(() => {
@@ -2000,11 +2035,14 @@ function Dashboard() {
 
   const handleLayoutChange = useCallback((newLayout: readonly LayoutItem[]) => {
     setLayout((prev) => {
+      const prevIds = new Set(prev.map((item) => item.i));
       const merged = prev.map((item) => {
         const updated = newLayout.find((l) => l.i === item.i);
         return updated ? { ...item, ...updated } : item;
       });
-      return merged;
+      // Add items the grid placed that weren't in prev (e.g. newly added widgets)
+      const added = newLayout.filter((l) => !prevIds.has(l.i));
+      return added.length > 0 ? [...merged, ...added] : merged;
     });
   }, []);
 

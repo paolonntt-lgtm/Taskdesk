@@ -32,6 +32,7 @@ import ticketStatusesRouter from "./ticketStatuses";
 import groupsRouter from "./groups";
 import checklistsRouter from "./checklists";
 import backupRouter from "./backup";
+import dashboardLayoutRouter from "./dashboardLayout";
 
 const router: IRouter = Router();
 
@@ -68,5 +69,6 @@ router.use(ticketStatusesRouter);
 router.use(groupsRouter);
 router.use(checklistsRouter);
 router.use(backupRouter);
+router.use(dashboardLayoutRouter);
 
 export default router;
