@@ -625,13 +625,14 @@ export default function TicketList() {
             <TableHead>
               <TableRow>
                 {isAdmin && (
-                  <TableCell padding="checkbox" sx={{ width: 48 }}>
+                  <TableCell padding="none" sx={{ width: 28, pl: 0.5, pr: 0 }}>
                     <Checkbox
                       size="small"
                       indeterminate={someSelected}
                       checked={allSelected}
                       onChange={toggleSelectAll}
                       disabled={sortedTickets.length === 0}
+                      sx={{ p: 0.25 }}
                     />
                   </TableCell>
                 )}
@@ -672,25 +673,24 @@ export default function TicketList() {
                       onClick={() => navigate(`/tickets/${ticket.id}`)}
                     >
                       {isAdmin && (
-                        <TableCell padding="checkbox" onClick={(e) => toggleSelectOne(ticket.id, e)}>
-                          <Checkbox size="small" checked={isSelected} />
+                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.5, pr: 0 }}>
+                          <Checkbox size="small" checked={isSelected} sx={{ p: 0.25 }} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 36, sm: 48 }, px: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ maxWidth: { xs: 'none', sm: 340, md: 500 }, overflow: 'hidden' }}>
-                        {/* Title row */}
-                        <Box display="flex" alignItems="center" gap={0.75} sx={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 32, sm: 48 }, px: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ px: { xs: 0.5, sm: 1 } }}>
+                        <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
-                              <CheckCircle sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
+                              <CheckCircle sx={{ fontSize: 14, color: 'success.main', flexShrink: 0, mt: 0.2 }} />
                             </Tooltip>
                           )}
                           {ticket.inboundChannelId && (
                             <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
-                              <EmailIcon sx={{ fontSize: 15, color: 'info.main', flexShrink: 0 }} />
+                              <EmailIcon sx={{ fontSize: 14, color: 'info.main', flexShrink: 0, mt: 0.2 }} />
                             </Tooltip>
                           )}
-                          <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>{ticket.title}</Box>
+                          <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3 }}>{ticket.title}</Box>
                           {(ticket as any).checklistCount > 0 && (
                             <Tooltip title={t.ticketList.checklistProgressTooltip((ticket as any).checklistChecked, (ticket as any).checklistTotal)} placement="top" arrow>
                               <Chip
@@ -702,23 +702,6 @@ export default function TicketList() {
                             </Tooltip>
                           )}
                         </Box>
-                        {/* Status chip inline below title — xs only */}
-                        {(() => {
-                          const customColor = getColorForKey(ticket.status);
-                          const muiColor = getStatusColor(ticket.status);
-                          const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
-                          return (
-                            <Box sx={{ display: { xs: 'block', sm: 'none' }, mt: 0.4 }}>
-                              <Chip
-                                label={label}
-                                size="small"
-                                {...(customColor
-                                  ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: '0.6rem', height: 16 } }
-                                  : { color: muiColor as any, sx: { fontSize: '0.6rem', height: 16 } })}
-                              />
-                            </Box>
-                          );
-                        })()}
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', px: 1 }}>
