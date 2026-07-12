@@ -625,21 +625,21 @@ export default function TicketList() {
             <TableHead>
               <TableRow>
                 {isAdmin && (
-                  <TableCell padding="none" sx={{ width: 28, pl: 0.5, pr: 0 }}>
+                  <TableCell padding="none" sx={{ width: 20, pl: 0.25, pr: 0 }}>
                     <Checkbox
                       size="small"
                       indeterminate={someSelected}
                       checked={allSelected}
                       onChange={toggleSelectAll}
                       disabled={sortedTickets.length === 0}
-                      sx={{ p: 0.25 }}
+                      sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 12 } }}
                     />
                   </TableCell>
                 )}
-                {col('id', t.ticketList.colId, { width: 48 })}
-                {col('title', t.ticketList.colTitle)}
+                {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 } })}
+                {col('title', t.ticketList.colTitle, { px: { xs: 0.25, sm: 1 } })}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
-                {col('status', t.ticketList.colStatus, { display: { xs: 'none', sm: 'table-cell' }, width: 90 })}
+                {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 1 } })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 })}
                 {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90 })}
@@ -673,12 +673,12 @@ export default function TicketList() {
                       onClick={() => navigate(`/tickets/${ticket.id}`)}
                     >
                       {isAdmin && (
-                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.5, pr: 0 }}>
-                          <Checkbox size="small" checked={isSelected} sx={{ p: 0.25 }} />
+                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 20, pl: 0.25, pr: 0 }}>
+                          <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 12 } }} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 32, sm: 48 }, px: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ px: { xs: 0.5, sm: 1 } }}>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ px: { xs: 0.25, sm: 1 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
@@ -704,7 +704,7 @@ export default function TicketList() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', px: 1 }}>
+                      <TableCell sx={{ whiteSpace: 'nowrap', px: { xs: 0.25, sm: 1 } }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
@@ -714,8 +714,8 @@ export default function TicketList() {
                               label={label}
                               size="small"
                               {...(customColor
-                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500 } }
-                                : { color: muiColor as any })}
+                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } } }
+                                : { color: muiColor as any, sx: { fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } } })}
                             />
                           );
                         })()}
