@@ -36,6 +36,7 @@ import {
   Category as CategoryIcon,
   FilterList as FilterListIcon,
   PeopleAlt as PeopleAltIcon,
+  DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -1691,28 +1692,28 @@ function WidgetShell({
           className="drag-handle"
           sx={{
             display: 'flex', alignItems: 'center', gap: 0.5,
-            px: 1, py: 0.5, flexShrink: 0,
+            px: { xs: 1.5, sm: 1 }, py: { xs: 1.25, sm: 0.5 }, flexShrink: 0,
             bgcolor: 'primary.main', color: 'primary.contrastText',
             borderRadius: 0, cursor: 'grab',
             '&:active': { cursor: 'grabbing' },
           }}
         >
-          <DragIcon sx={{ fontSize: 16, opacity: 0.8 }} />
-          <Typography variant="caption" fontWeight={600} flex={1} noWrap fontSize="0.72rem">
+          <DragIcon sx={{ fontSize: { xs: 20, sm: 16 }, opacity: 0.8 }} />
+          <Typography variant="caption" fontWeight={600} flex={1} noWrap fontSize={{ xs: '0.82rem', sm: '0.72rem' }}>
             {label}
           </Typography>
           {hasSettings && (
             <Tooltip title={t.dashboard.wsTitle}>
               <IconButton size="small" onClick={(e) => { e.stopPropagation(); onOpenSettings!(); }}
-                sx={{ color: 'primary.contrastText', p: 0.25 }}>
-                <SettingsIcon sx={{ fontSize: 14 }} />
+                sx={{ color: 'primary.contrastText', p: { xs: 0.75, sm: 0.25 } }}>
+                <SettingsIcon sx={{ fontSize: { xs: 20, sm: 14 } }} />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title={t.dashboard.removeWidget}>
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); onRemove(); }}
-              sx={{ color: 'primary.contrastText', p: 0.25 }}>
-              <CloseIcon sx={{ fontSize: 14 }} />
+              sx={{ color: 'primary.contrastText', p: { xs: 0.75, sm: 0.25 } }}>
+              <DeleteIcon sx={{ fontSize: { xs: 20, sm: 14 } }} />
             </IconButton>
           </Tooltip>
         </Paper>
