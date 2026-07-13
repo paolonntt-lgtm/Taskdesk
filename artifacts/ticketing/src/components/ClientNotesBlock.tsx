@@ -28,6 +28,7 @@ interface ChecklistItem {
 interface ClientNotesBlockProps {
   clientId: number;
   isAdmin: boolean;
+  currentUserId?: number;
 }
 
 function genId(): string {
@@ -75,7 +76,7 @@ function authorInitials(name: string | null | undefined): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlockProps) {
+export default function ClientNotesBlock({ clientId, isAdmin, currentUserId }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
@@ -145,6 +146,8 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const canAct = (note: any): boolean => isAdmin || (currentUserId != null && note.authorId === currentUserId);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
@@ -401,7 +404,7 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                       })}
                     </Typography>
                   </Box>
-                  {isAdmin && (
+                  {canAct(note) && (
                     <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>
                       <Tooltip title={tc.editNote}>
                         <IconButton
@@ -495,7 +498,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                                       size="small"
                                       checked={item.checked}
                                       onChange={() => handleToggleNoteChecklistItem(note.id, noteChecklist, item.id, isLegacyNote)}
-                                      disabled={!isAdmin}
                                       sx={{ p: 0.25 }}
                                     />
                                   </Tooltip>
@@ -504,7 +506,6 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
                                     size="small"
                                     checked={item.checked}
                                     onChange={() => handleToggleNoteChecklistItem(note.id, noteChecklist, item.id, isLegacyNote)}
-                                    disabled={!isAdmin}
                                     sx={{ p: 0.25 }}
                                   />
                                 )}
@@ -532,18 +533,17 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
         </Box>
       )}
 
-      {/* ── Add-note form (admin only) ────────────────────────────── */}
-      {isAdmin && (
-        <Box
-          sx={{
-            mt: 1,
-            p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 2,
-            bgcolor: 'background.paper',
-          }}
-        >
+      {/* ── Add-note form ────────────────────────────────────────── */}
+      <Box
+        sx={{
+          mt: 1,
+          p: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+        }}
+      >
           <TextField
             fullWidth
             multiline
@@ -569,24 +569,21 @@ export default function ClientNotesBlock({ clientId, isAdmin }: ClientNotesBlock
               {saving ? tc.savingNote : tc.saveNote}
             </Button>
           </Box>
-        </Box>
-      )}
+      </Box>
 
       {/* ── Delete confirmation dialog ────────────────────────────── */}
-      {isAdmin && (
-        <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-          <DialogTitle>{tc.deleteNote}</DialogTitle>
-          <DialogContent>
-            <Typography>{tc.deleteNoteConfirm}</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteTarget(null)}>{tc.deleteNoteCancel}</Button>
-            <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
-              {tc.deleteNoteAction}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
+      <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{tc.deleteNote}</DialogTitle>
+        <DialogContent>
+          <Typography>{tc.deleteNoteConfirm}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>{tc.deleteNoteCancel}</Button>
+          <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
+            {tc.deleteNoteAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={toast.open}

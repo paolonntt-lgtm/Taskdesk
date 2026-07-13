@@ -497,11 +497,25 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
   }
 
   const updateData: Record<string, any> = {};
-  // Only admins can update the note body text; any authenticated user can update checklist state
+  // Admins can edit any note; non-admins can only edit their own notes
   if (parsed.data.body !== undefined) {
     if (currentUser.role !== 'admin') {
-      res.status(403).json({ error: "Forbidden: only admins can edit note text" });
-      return;
+      const [storedForAuth] = await db
+        .select({ authorId: clientNotesTable.authorId })
+        .from(clientNotesTable)
+        .where(
+          and(
+            eq(clientNotesTable.id, noteId),
+            eq(clientNotesTable.clientId, id),
+            eq(clientNotesTable.organizationId, currentUser.organizationId),
+          )
+        )
+        .limit(1);
+      if (!storedForAuth) { res.status(404).json({ error: "Not found" }); return; }
+      if (storedForAuth.authorId !== currentUser.id) {
+        res.status(403).json({ error: "Forbidden: you can only edit your own notes" });
+        return;
+      }
     }
     updateData.body = parsed.data.body;
   }
@@ -606,13 +620,32 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
   res.json({ ...note, authorName: author?.name ?? null });
 });
 
-router.delete("/clients/:id/notes/:noteId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.delete("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;
   const id = parseInt(rawId, 10);
   const noteId = parseInt(rawNote, 10);
   if (isNaN(id) || isNaN(noteId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  if (currentUser.role !== 'admin') {
+    const [toDelete] = await db
+      .select({ authorId: clientNotesTable.authorId })
+      .from(clientNotesTable)
+      .where(
+        and(
+          eq(clientNotesTable.id, noteId),
+          eq(clientNotesTable.clientId, id),
+          eq(clientNotesTable.organizationId, currentUser.organizationId),
+        )
+      )
+      .limit(1);
+    if (!toDelete) { res.status(404).json({ error: "Not found" }); return; }
+    if (toDelete.authorId !== currentUser.id) {
+      res.status(403).json({ error: "Forbidden: you can only delete your own notes" });
+      return;
+    }
+  }
 
   const [deleted] = await db
     .delete(clientNotesTable)
