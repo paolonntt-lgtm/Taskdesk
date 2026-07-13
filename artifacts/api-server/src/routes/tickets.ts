@@ -3,7 +3,7 @@ import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull } from "drizz
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
-import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
+import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { hasGroupPermission } from "../lib/groupPermissions";
@@ -286,9 +286,11 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   const displayNum = ticket.ticketNumber ?? ticket.id;
-  await createNotificationsForTicket(ticket.id, `${currentUser.name} ha aperto il ticket #${displayNum}: "${title}"`, currentUser.id, "ticket_created", currentUser.organizationId);
   if (assignedTo && assignedTo !== currentUser.id) {
     await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${title}"`, "ticket_assigned", currentUser.organizationId);
+  }
+  if (assignedTo && currentUser.organizationId != null) {
+    await subscribeUserToTicket(assignedTo, ticket.id, currentUser.organizationId);
   }
 
   const creator = currentUser;
@@ -596,7 +598,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   if (activityLogs.some((l) => l.actionType === "status_changed")) {
     const notifLabel = statusChangeLabel ?? updates.status!;
-    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato lo stato del ticket #${displayNum} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
+    await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato lo stato del ticket #${displayNum} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
 
     if (newIsClosed && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
       const customerEmail = existing.resource;
@@ -651,10 +653,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (activityLogs.some((l) => l.actionType === "priority_changed")) {
     const priorityLabels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
     const priorityLabel = priorityLabels[updates.priority!] ?? updates.priority!;
-    await createNotificationsForTicket(id, `${currentUser.name} ha cambiato la priorità del ticket #${displayNum} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed", orgId);
+    await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato la priorità del ticket #${displayNum} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed", orgId);
   }
   if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
     await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${existing.title}"`, "ticket_assigned", orgId);
+  }
+  if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && orgId != null) {
+    await subscribeUserToTicket(updates.assignedTo, id, orgId);
   }
   if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedToGroup && updates.assignedToGroup !== existing.assignedToGroup) {
     const groupName = updates.assignedToGroup;
@@ -675,6 +680,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
           .where(and(inArray(usersTable.id, memberIds), eq(usersTable.isActive, true)));
         for (const member of activeMembers) {
           await createNotificationForUser(member.id, id, `${currentUser.name} ha assegnato il ticket #${displayNum} al tuo gruppo "${groupName}": "${existing.title}"`, "ticket_assigned", orgId);
+          if (orgId != null) await subscribeUserToTicket(member.id, id, orgId);
         }
       }
     }

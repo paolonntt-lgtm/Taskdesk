@@ -2,7 +2,7 @@ import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
-import { createNotificationsForTicket, createNotificationForUser } from "./notifications";
+import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { randomUUID } from "crypto";
@@ -370,14 +370,6 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     actionDescription: activityDescParts.join(". "),
   });
 
-  await createNotificationsForTicket(
-    ticket.id,
-    `Nuova richiesta via email da ${fromName}: "${title}" (ticket #${nextTicketNumber})`,
-    systemUser.id,
-    "ticket_created",
-    orgId
-  );
-
   if (autoAssignedUserId) {
     await createNotificationForUser(
       autoAssignedUserId,
@@ -386,6 +378,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       "ticket_assigned",
       orgId
     );
+    if (orgId != null) await subscribeUserToTicket(autoAssignedUserId, ticket.id, orgId);
   }
 
   try {
@@ -474,9 +467,9 @@ async function threadReplyAsComment(
     actionDescription: `Risposta del cliente ricevuta via email da ${fromName} <${fromEmail}>`,
   });
 
-  await createNotificationsForTicket(
+  void createNotificationsForSubscribers(
     ticket.id,
-    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber}: "${ticket.title}"`,
+    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber ?? ticket.id}: "${ticket.title}"`,
     systemUserId,
     "ticket_commented",
     systemUserOrgId

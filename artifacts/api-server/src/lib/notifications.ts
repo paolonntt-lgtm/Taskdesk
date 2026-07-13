@@ -3,6 +3,7 @@ import {
   db,
   notificationsTable,
   notificationPreferencesTable,
+  ticketSubscriptionsTable,
   usersTable,
   type NotificationType,
 } from "@workspace/db";
@@ -105,6 +106,69 @@ async function dispatchEmails(
       });
     })
   );
+}
+
+export async function subscribeUserToTicket(
+  userId: number,
+  ticketId: number,
+  organizationId: number
+): Promise<void> {
+  await db
+    .insert(ticketSubscriptionsTable)
+    .values({ ticketId, userId, organizationId })
+    .onConflictDoNothing();
+}
+
+export async function createNotificationsForSubscribers(
+  ticketId: number,
+  text: string,
+  excludeUserId: number,
+  type: NotificationType = "system",
+  organizationId?: number | null,
+  alsoExcludeIds?: number[]
+): Promise<void> {
+  const excludeSet = new Set([excludeUserId, ...(alsoExcludeIds ?? [])]);
+
+  const subs = await db
+    .select({ userId: ticketSubscriptionsTable.userId })
+    .from(ticketSubscriptionsTable)
+    .where(
+      and(
+        eq(ticketSubscriptionsTable.ticketId, ticketId),
+        ...(organizationId != null ? [eq(ticketSubscriptionsTable.organizationId, organizationId)] : [])
+      )
+    );
+
+  const candidateIds = subs.map((s) => s.userId).filter((id) => !excludeSet.has(id));
+  if (candidateIds.length === 0) return;
+
+  const candidates = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .from(usersTable)
+    .where(and(inArray(usersTable.id, candidateIds), eq(usersTable.isActive, true)));
+  if (candidates.length === 0) return;
+
+  const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
+
+  const inAppTargets = candidates.filter((u) => prefs.get(u.id)?.inApp !== false).map((u) => u.id);
+  if (inAppTargets.length > 0) {
+    await db.insert(notificationsTable).values(
+      inAppTargets.map((id) => ({
+        userId: id,
+        ticketId,
+        type,
+        notificationText: text,
+        isRead: false,
+      }))
+    );
+  }
+
+  const pushTokens = candidates
+    .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
+    .map((u) => u.expoPushToken!);
+  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
+
+  void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
 }
 
 export async function createNotificationsForTicket(

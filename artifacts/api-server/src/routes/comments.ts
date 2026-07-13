@@ -4,7 +4,7 @@ import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTa
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
-import { createNotificationsForTicket, createNotificationForUser } from "../lib/notifications";
+import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -170,8 +170,6 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     actionDescription: `Commento aggiunto da ${currentUser.name}`,
   });
 
-  await createNotificationsForTicket(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId);
-
   // Validate and consume pending upload tokens for any email reply attachments
   interface EmailReplyAttachment { objectPath: string; fileName: string; fileSize: number; mimeType: string; }
   const emailReplyAttachments: EmailReplyAttachment[] = [];
@@ -285,16 +283,21 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     });
   }
 
-  // Send targeted notifications to mentioned users
+  // Notify subscribers and handle @mentions
   const mentionedNames = extractMentionedNames(parsed.data.commentText);
+  const mentionedIds: number[] = [];
   if (mentionedNames.length > 0) {
-    const orgId = currentUser.organizationId;
-    const orgUsers = orgId != null
-      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.organizationId, orgId))
+    const orgIdForMentions = currentUser.organizationId;
+    const orgUsers = orgIdForMentions != null
+      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.organizationId, orgIdForMentions))
       : [];
     for (const mentionedName of mentionedNames) {
       const mentioned = orgUsers.find((u) => u.name === mentionedName);
       if (mentioned && mentioned.id !== currentUser.id) {
+        mentionedIds.push(mentioned.id);
+        if (orgIdForMentions != null) {
+          await subscribeUserToTicket(mentioned.id, id, orgIdForMentions);
+        }
         void createNotificationForUser(
           mentioned.id,
           id,
@@ -304,6 +307,8 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
       }
     }
   }
+  // Notify existing subscribers (excluding the commenter and mentioned users who already got a targeted notification)
+  void createNotificationsForSubscribers(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId, mentionedIds);
 
   const { passwordHash: _, ...safeUser } = currentUser;
   res.status(201).json({ ...comment, author: safeUser, reactions: [] });
