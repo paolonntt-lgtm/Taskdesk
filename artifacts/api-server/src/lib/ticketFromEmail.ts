@@ -2,7 +2,7 @@ import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
 import { sendEmail, buildInboundConfirmationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
-import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "./notifications";
+import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { randomUUID } from "crypto";
@@ -379,6 +379,14 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       orgId
     );
     if (orgId != null) await subscribeUserToTicket(autoAssignedUserId, ticket.id, orgId);
+  } else {
+    await createNotificationsForTicket(
+      ticket.id,
+      `Nuova richiesta via email da ${fromName}: "${title}" (ticket #${nextTicketNumber})`,
+      systemUser.id,
+      "ticket_created",
+      orgId
+    );
   }
 
   try {
