@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { db, appointmentsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { hasGroupPermission } from "../lib/groupPermissions";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -63,6 +64,15 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
   if (orgId == null) {
     res.status(403).json({ error: "No organization" });
     return;
+  }
+
+  const isAdmin = currentUser.role === "admin";
+  if (!isAdmin) {
+    const canCreate = await hasGroupPermission(currentUser.id, orgId, "create_appointments", false);
+    if (!canCreate) {
+      res.status(403).json({ error: "Forbidden: missing create_appointments permission" });
+      return;
+    }
   }
 
   const parsed = AppointmentBody.safeParse(req.body);

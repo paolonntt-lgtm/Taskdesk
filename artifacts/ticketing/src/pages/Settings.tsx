@@ -2643,6 +2643,16 @@ function GroupsManagementTab() {
                 disabled={permissionsSaving}
               />
             </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permCreateAppointments}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('create_appointments')}
+                onChange={() => togglePermission('create_appointments')}
+                disabled={permissionsSaving}
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

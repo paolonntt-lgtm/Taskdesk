@@ -329,6 +329,8 @@ export default function CalendarPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === 'admin';
+  const groupPermissions: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
+  const canCreateAppointment = isAdmin || groupPermissions.includes('create_appointments');
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -545,15 +547,17 @@ export default function CalendarPage() {
             <Typography variant="subtitle1" fontWeight={700}>
               {new Date(selectedDate + 'T12:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </Typography>
-            <Button
-              size="small"
-              startIcon={<AddIcon />}
-              variant="outlined"
-              onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
-              sx={{ borderRadius: 2 }}
-            >
-              {t.calendar.addAppointment}
-            </Button>
+            {canCreateAppointment && (
+              <Button
+                size="small"
+                startIcon={<AddIcon />}
+                variant="outlined"
+                onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
+                sx={{ borderRadius: 2 }}
+              >
+                {t.calendar.addAppointment}
+              </Button>
+            )}
           </Box>
 
           {/* Tickets section */}
