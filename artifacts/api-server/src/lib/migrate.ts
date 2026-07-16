@@ -120,6 +120,28 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ;
     `);
 
+    // Create bug_reports table for superadmin bug report tracking
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bug_reports (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        organization_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
+        user_name TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        description TEXT NOT NULL,
+        current_page TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending',
+        reply_text TEXT,
+        replied_at TIMESTAMPTZ,
+        processed_at TIMESTAMPTZ,
+        is_read BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS bug_reports_status_idx ON bug_reports (status);
+      CREATE INDEX IF NOT EXISTS bug_reports_created_at_idx ON bug_reports (created_at);
+      CREATE INDEX IF NOT EXISTS bug_reports_is_read_idx ON bug_reports (is_read);
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

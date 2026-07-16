@@ -4,6 +4,7 @@ import { requireAuth } from "../middlewares/auth";
 import { getPlatformSmtpConfig } from "../lib/email";
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
+import { db, bugReportsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -20,14 +21,9 @@ router.post("/bug-report", requireAuth, async (req, res) => {
   }
 
   const { description, currentPage } = parsed.data;
-  const user = (req as any).currentUser as { name: string; email: string; id: number };
+  const user = (req as any).currentUser as { name: string; email: string; id: number; organizationId: number | null };
 
   const config = getPlatformSmtpConfig();
-  if (!config) {
-    req.log.warn("bug-report: nessun SMTP configurato, report non inviato");
-    res.status(503).json({ error: "Email non configurata. Contatta l'amministratore." });
-    return;
-  }
 
   const destination = "paolonntt@gmail.com";
   const escapedDesc = description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
@@ -64,25 +60,46 @@ router.post("/bug-report", requireAuth, async (req, res) => {
   const text = `Bug Report da ${user.name} (${user.email})\nPagina: ${currentPage || "—"}\n\n${description}`;
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: { user: config.user, pass: config.password },
+    await db.insert(bugReportsTable).values({
+      userId: user.id,
+      organizationId: user.organizationId ?? null,
+      userName: user.name,
+      userEmail: user.email,
+      description,
+      currentPage: currentPage || "",
+      status: "pending",
+      isRead: false,
     });
-    await transporter.sendMail({
-      from: config.from || config.user,
-      to: destination,
-      replyTo: user.email,
-      subject,
-      html,
-      text,
-    });
-    res.json({ ok: true });
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "bug-report: invio email fallito");
-    res.status(500).json({ error: "Invio fallito. Riprova più tardi." });
+  } catch (dbErr: any) {
+    logger.error({ err: dbErr?.message }, "bug-report: salvataggio DB fallito");
+    res.status(500).json({ error: "Errore nel salvataggio. Riprova." });
+    return;
   }
+
+  if (config) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        auth: { user: config.user, pass: config.password },
+      });
+      await transporter.sendMail({
+        from: config.from || config.user,
+        to: destination,
+        replyTo: user.email,
+        subject,
+        html,
+        text,
+      });
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "bug-report: invio email fallito (salvato nel DB)");
+    }
+  } else {
+    logger.warn("bug-report: nessun SMTP configurato, email non inviata (salvato nel DB)");
+  }
+
+  res.json({ ok: true });
 });
 
 function escapeHtml(s: string): string {
