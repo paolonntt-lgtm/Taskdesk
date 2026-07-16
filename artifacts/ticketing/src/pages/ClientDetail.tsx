@@ -85,8 +85,6 @@ interface BlockConfig {
   customName?: string;
 }
 
-const SHARED_LAYOUT_KEY = 'td_client_layout_v2_shared';
-
 function defaultLayout(): BlockConfig[] {
   return BUILT_IN_BLOCK_IDS.map((id) => ({ id, instanceId: id, visible: true }));
 }
@@ -101,27 +99,26 @@ function migrateBlock(b: any): BlockConfig {
   };
 }
 
-function loadLayout(): BlockConfig[] {
+function clientLayoutCacheKey(clientId: number): string {
+  return `td_client_layout_${clientId}`;
+}
+
+function loadClientLayoutCache(clientId: number): BlockConfig[] {
   try {
-    const raw = localStorage.getItem(SHARED_LAYOUT_KEY);
+    const raw = localStorage.getItem(clientLayoutCacheKey(clientId));
     if (!raw) return defaultLayout();
     const parsed: any[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaultLayout();
     const migrated = parsed.map(migrateBlock).filter((b) => b.instanceId);
-    if (migrated.length === 0) return defaultLayout();
-    const storedIds = new Set<string>(migrated.map((b) => b.instanceId));
-    const missing = BUILT_IN_BLOCK_IDS
-      .filter((id) => !storedIds.has(id))
-      .map((id) => ({ id, instanceId: id, visible: true }));
-    return [...migrated, ...missing];
+    return migrated.length > 0 ? migrated : defaultLayout();
   } catch {
     return defaultLayout();
   }
 }
 
-function saveLayout(layout: BlockConfig[]) {
+function saveClientLayoutCache(clientId: number, layout: BlockConfig[]) {
   try {
-    localStorage.setItem(SHARED_LAYOUT_KEY, JSON.stringify(layout));
+    localStorage.setItem(clientLayoutCacheKey(clientId), JSON.stringify(layout));
   } catch {}
 }
 
@@ -243,7 +240,7 @@ export default function ClientDetail() {
 
   const { data, isLoading, isError } = useGetClient(clientId);
   const updateClient = useUpdateClient();
-  const [layout, setLayout] = useState<BlockConfig[]>(() => loadLayout());
+  const [layout, setLayout] = useState<BlockConfig[]>(() => loadClientLayoutCache(clientId));
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<BlockConfig[]>([]);
 
@@ -267,22 +264,37 @@ export default function ClientDetail() {
   );
 
   useEffect(() => {
+    if (!data) return;
+
+    const perClientCustom: BlockConfig[] = (() => {
+      const raw = (data as any).layout;
+      if (!Array.isArray(raw)) return [];
+      return (raw as any[]).map(migrateBlock).filter((b: BlockConfig) => isCustomBlock(b));
+    })();
+
     fetch('/api/settings/client-layout', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!d || !Array.isArray(d.layout) || d.layout.length === 0) return;
-        const migrated = (d.layout as any[]).map(migrateBlock).filter((b) => b.instanceId);
-        if (migrated.length === 0) return;
-        const storedIds = new Set<string>(migrated.map((b) => b.instanceId));
-        const missing = BUILT_IN_BLOCK_IDS
-          .filter((id) => !storedIds.has(id))
-          .map((id) => ({ id, instanceId: id, visible: true }));
-        const merged = [...migrated, ...missing];
-        setLayout(merged);
-        saveLayout(merged);
+        let builtins: BlockConfig[];
+        if (d?.layout && Array.isArray(d.layout)) {
+          const migrated = (d.layout as any[]).map(migrateBlock)
+            .filter((b: BlockConfig) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId));
+          const storedIds = new Set<string>(migrated.map((b: BlockConfig) => b.instanceId));
+          const missing = BUILT_IN_BLOCK_IDS
+            .filter((id) => !storedIds.has(id))
+            .map((id) => ({ id, instanceId: id, visible: true }));
+          builtins = [...migrated, ...missing];
+        } else {
+          builtins = defaultLayout();
+        }
+        const combined = [...builtins, ...perClientCustom];
+        setLayout(combined);
+        saveClientLayoutCache(clientId, combined);
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        setLayout([...defaultLayout(), ...perClientCustom]);
+      });
+  }, [data, clientId]);
 
   const handleEnterEditMode = useCallback(() => {
     setDraftLayout([...layout]);
@@ -295,20 +307,31 @@ export default function ClientDetail() {
   }, []);
 
   const handleSaveLayout = useCallback(async () => {
+    const builtins = draftLayout.filter((b) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId));
+    const custom = draftLayout.filter((b) => isCustomBlock(b));
+
     setLayout(draftLayout);
-    saveLayout(draftLayout);
+    saveClientLayoutCache(clientId, draftLayout);
     setEditMode(false);
     setDraftLayout([]);
+
     try {
-      await fetch('/api/settings/client-layout', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layout: draftLayout }),
-      });
-    } catch {
-    }
-  }, [draftLayout]);
+      await Promise.all([
+        fetch('/api/settings/client-layout', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout: builtins }),
+        }),
+        fetch(`/api/clients/${clientId}/layout`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout: custom }),
+        }),
+      ]);
+    } catch {}
+  }, [draftLayout, clientId]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;

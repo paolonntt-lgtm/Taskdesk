@@ -398,8 +398,16 @@ router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {
 });
 
 const LayoutBody = z.object({
-  layout: z.array(z.object({ id: z.string(), visible: z.boolean() })),
+  layout: z.array(z.object({
+    id: z.string(),
+    instanceId: z.string(),
+    type: z.string().optional(),
+    visible: z.boolean(),
+    customName: z.string().max(100).optional().nullable(),
+  })),
 });
+
+const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
 
 router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
@@ -413,9 +421,19 @@ router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res):
     return;
   }
 
+  const customOnly = parsed.data.layout
+    .filter(b => !BUILTIN_IDS.has(b.instanceId))
+    .map(b => ({
+      id: b.id,
+      instanceId: b.instanceId,
+      ...(b.type ? { type: b.type } : {}),
+      visible: b.visible,
+      ...(b.customName?.trim() ? { customName: b.customName.trim().slice(0, 100) } : {}),
+    }));
+
   const [client] = await db
     .update(clientsTable)
-    .set({ layout: parsed.data.layout })
+    .set({ layout: customOnly })
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
     .returning();
 
