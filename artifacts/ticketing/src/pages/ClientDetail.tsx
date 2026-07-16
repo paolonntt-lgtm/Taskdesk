@@ -382,6 +382,7 @@ export default function ClientDetail() {
         <CardContent>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
+              <InfoRow label={tc.alias} value={client.alias} />
               <InfoRow label={tc.vatNumber} value={client.vatNumber} />
               <InfoRow label={tc.taxCode} value={client.taxCode} />
               <InfoRow label={tc.address} value={client.address} />
@@ -539,10 +540,15 @@ export default function ClientDetail() {
             <Typography
               variant="h4"
               fontWeight={700}
-              sx={{ fontSize: { xs: '1.4rem', sm: '1.75rem' }, mb: 0.5 }}
+              sx={{ fontSize: { xs: '1.4rem', sm: '1.75rem' }, mb: client.alias ? 0 : 0.5 }}
             >
               {client.name}
             </Typography>
+            {client.alias && (
+              <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic', mb: 0.5 }}>
+                {client.alias}
+              </Typography>
+            )}
             <Box display="flex" flexWrap="wrap" gap={1} mt={0.5}>
               {client.email && (
                 <Chip
