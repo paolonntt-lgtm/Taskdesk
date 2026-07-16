@@ -142,6 +142,13 @@ export async function runAppMigrations(): Promise<void> {
       CREATE INDEX IF NOT EXISTS bug_reports_is_read_idx ON bug_reports (is_read);
     `);
 
+    // Add reminder columns to appointments table
+    await client.query(`
+      ALTER TABLE appointments
+        ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER NOT NULL DEFAULT 60,
+        ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

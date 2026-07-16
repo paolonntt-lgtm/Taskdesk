@@ -11,6 +11,8 @@ export const appointmentsTable = pgTable("appointments", {
   endsAt: timestamp("ends_at", { withTimezone: true }),
   createdBy: integer("created_by").notNull().references(() => usersTable.id),
   assignedTo: integer("assigned_to").references(() => usersTable.id),
+  reminderMinutes: integer("reminder_minutes").notNull().default(60),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

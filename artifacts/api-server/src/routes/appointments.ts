@@ -13,6 +13,7 @@ const AppointmentBody = z.object({
   startsAt: z.string(),
   endsAt: z.string().nullable().optional(),
   assignedTo: z.number().int().nullable().optional(),
+  reminderMinutes: z.number().int().min(0).max(10080).optional(),
 });
 
 async function withUsers(appt: typeof appointmentsTable.$inferSelect) {
@@ -81,7 +82,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { title, description, startsAt, endsAt, assignedTo } = parsed.data;
+  const { title, description, startsAt, endsAt, assignedTo, reminderMinutes } = parsed.data;
 
   if (assignedTo != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
@@ -101,6 +102,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
     endsAt: endsAt ? new Date(endsAt) : null,
     createdBy: currentUser.id,
     assignedTo: assignedTo ?? null,
+    reminderMinutes: reminderMinutes ?? 60,
   }).returning();
 
   res.status(201).json(await withUsers(appt));
@@ -167,7 +169,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  const { title, description, startsAt, endsAt, assignedTo } = parsed.data;
+  const { title, description, startsAt, endsAt, assignedTo, reminderMinutes } = parsed.data;
 
   if (assignedTo != null && orgId != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
@@ -179,14 +181,21 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
     }
   }
 
+  const newStartsAt = new Date(startsAt);
+  const startChanged = newStartsAt.getTime() !== existing.startsAt.getTime();
+  const reminderChanged = reminderMinutes !== undefined && reminderMinutes !== existing.reminderMinutes;
+  const resetReminder = startChanged || reminderChanged;
+
   const [updated] = await db
     .update(appointmentsTable)
     .set({
       title,
       description: description ?? null,
-      startsAt: new Date(startsAt),
+      startsAt: newStartsAt,
       endsAt: endsAt ? new Date(endsAt) : null,
       assignedTo: assignedTo ?? null,
+      ...(reminderMinutes !== undefined ? { reminderMinutes } : {}),
+      ...(resetReminder ? { reminderSentAt: null } : {}),
     })
     .where(eq(appointmentsTable.id, id))
     .returning();

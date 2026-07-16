@@ -429,6 +429,82 @@ export function buildTicketClosureEmail(args: {
   return { subject, html, text };
 }
 
+export function buildAppointmentReminderEmail(args: {
+  recipientName: string;
+  title: string;
+  description?: string | null;
+  startsAt: Date;
+  reminderMinutes: number;
+  appBaseUrl: string;
+}): { subject: string; html: string; text: string } {
+  const formattedDate = args.startsAt.toLocaleString("it-IT", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Rome",
+  });
+
+  const minuteLabel =
+    args.reminderMinutes < 60
+      ? `${args.reminderMinutes} minut${args.reminderMinutes === 1 ? "o" : "i"}`
+      : args.reminderMinutes === 60
+      ? "1 ora"
+      : `${Math.round(args.reminderMinutes / 60)} ore`;
+
+  const calendarUrl = `${args.appBaseUrl}/app/calendar`;
+  const subject = `⏰ Promemoria: "${args.title}" inizia tra ${minuteLabel}`;
+
+  const text = [
+    `Ciao ${args.recipientName},`,
+    "",
+    `Questo è un promemoria: l'appuntamento "${args.title}" inizierà tra ${minuteLabel}.`,
+    "",
+    `Data e ora: ${formattedDate}`,
+    ...(args.description ? ["", `Note: ${args.description}`] : []),
+    "",
+    `Apri il calendario: ${calendarUrl}`,
+    "",
+    "— TaskDesk",
+  ].join("\n");
+
+  const descriptionHtml = args.description
+    ? `<p style="font-size:14px;color:#374151;margin:0 0 16px;line-height:1.6"><strong>Note:</strong> ${escapeHtml(args.description)}</p>`
+    : "";
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:13px;color:#b45309;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Promemoria appuntamento</p>
+        <p style="margin:0;font-size:22px;font-weight:700;color:#92400e">Inizia tra ${escapeHtml(minuteLabel)}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 16px">Ciao <strong>${escapeHtml(args.recipientName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 20px;color:#374151">
+        Hai un appuntamento in programma a breve:
+      </p>
+      <table style="width:100%;background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:24px;border-collapse:collapse">
+        <tr>
+          <td style="padding:8px 12px;font-size:13px;color:#6b7280;white-space:nowrap;width:110px;vertical-align:top">Titolo</td>
+          <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#111827">${escapeHtml(args.title)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-size:13px;color:#6b7280;vertical-align:top">Data e ora</td>
+          <td style="padding:8px 12px;font-size:14px;color:#111827">${escapeHtml(formattedDate)}</td>
+        </tr>
+      </table>
+      ${descriptionHtml}
+      <a href="${calendarUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px">Apri il calendario →</a>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">Email inviata automaticamente da TaskDesk. Per disattivare i promemoria, modifica le impostazioni dell'appuntamento.</p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

@@ -7,6 +7,7 @@ import { getStripeSync } from "./stripeClient";
 import { scheduleNightlyBackups } from "./routes/backup";
 import { startUploadCleanupJob } from "./lib/uploadCleanup";
 import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
+import { startAppointmentReminderJob } from "./lib/appointmentReminderJob";
 
 const rawPort = process.env["PORT"];
 
@@ -54,6 +55,7 @@ async function initStripe() {
 seedIfEmpty()
   .then(() => runAppMigrations())
   .then(() => backfillOrgTicketStatuses())
+  .then(() => startAppointmentReminderJob())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();
