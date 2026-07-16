@@ -760,8 +760,8 @@ export default function TicketList() {
           </Toolbar>
         )}
 
-        <Box sx={{ width: '100%' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+        <Box sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480 }}>
             <TableHead>
               <TableRow>
                 {isAdmin && (
@@ -777,7 +777,7 @@ export default function TicketList() {
                   </TableCell>
                 )}
                 {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 } })}
-                {col('title', t.ticketList.colTitle, { px: { xs: 1.1, sm: 1 } })}
+                {col('title', t.ticketList.colTitle, { px: { xs: 1.1, sm: 1 }, width: { xs: 'auto', sm: 180, md: 220, lg: 260 } })}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
                 {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 1 } })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
@@ -867,7 +867,7 @@ export default function TicketList() {
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <DeadlineCell dueAt={(ticket as any).dueAt} />
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ticket.assignee?.name || '—'}
                       </TableCell>
                       {showLocation && (
