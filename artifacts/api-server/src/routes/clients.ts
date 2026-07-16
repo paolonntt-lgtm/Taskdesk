@@ -404,6 +404,7 @@ const LayoutBody = z.object({
     type: z.string().optional(),
     visible: z.boolean(),
     customName: z.string().max(100).optional().nullable(),
+    content: z.string().max(10000).optional().nullable(),
   })),
 });
 
@@ -429,6 +430,7 @@ router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res):
       ...(b.type ? { type: b.type } : {}),
       visible: b.visible,
       ...(b.customName?.trim() ? { customName: b.customName.trim().slice(0, 100) } : {}),
+      ...(b.content?.trim() ? { content: b.content.trim().slice(0, 10000) } : {}),
     }));
 
   const [client] = await db

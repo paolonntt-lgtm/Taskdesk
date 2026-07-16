@@ -83,6 +83,7 @@ interface BlockConfig {
   type?: string;
   visible: boolean;
   customName?: string;
+  content?: string;
 }
 
 function defaultLayout(): BlockConfig[] {
@@ -96,6 +97,7 @@ function migrateBlock(b: any): BlockConfig {
     type: b.type ?? undefined,
     visible: b.visible !== false,
     customName: b.customName ?? undefined,
+    content: typeof b.content === 'string' ? b.content : undefined,
   };
 }
 
@@ -258,6 +260,10 @@ export default function ClientDetail() {
 
   const [addSectionOpen, setAddSectionOpen] = useState(false);
 
+  const [editingContentId, setEditingContentId] = useState<string | null>(null);
+  const [contentDraft, setContentDraft] = useState('');
+  const [savingContent, setSavingContent] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -374,6 +380,38 @@ export default function ClientDetail() {
   const handleDeleteBlock = useCallback((instanceId: string) => {
     setDraftLayout((prev) => prev.filter((b) => b.instanceId !== instanceId));
   }, []);
+
+  const handleStartEditContent = useCallback((block: BlockConfig) => {
+    setEditingContentId(block.instanceId);
+    setContentDraft(block.content ?? '');
+  }, []);
+
+  const handleCancelEditContent = useCallback(() => {
+    setEditingContentId(null);
+    setContentDraft('');
+  }, []);
+
+  const handleSaveContent = useCallback(async (instanceId: string) => {
+    const trimmed = contentDraft.trim();
+    const newLayout = layout.map((b) =>
+      b.instanceId === instanceId ? { ...b, content: trimmed || undefined } : b
+    );
+    setLayout(newLayout);
+    saveClientLayoutCache(clientId, newLayout);
+    setEditingContentId(null);
+    setContentDraft('');
+    setSavingContent(true);
+    const custom = newLayout.filter((b) => isCustomBlock(b));
+    try {
+      await fetch(`/api/clients/${clientId}/layout`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout: custom }),
+      });
+    } catch {}
+    setSavingContent(false);
+  }, [contentDraft, layout, clientId]);
 
   const handleAddSection = useCallback((type: string) => {
     const instanceId = `${type}-${Date.now()}`;
@@ -623,18 +661,70 @@ export default function ClientDetail() {
       );
     }
 
+    const isEditingThis = editingContentId === block.instanceId;
+
     return (
       <Card variant="outlined" sx={{ borderRadius: radius }}>
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1}>
             <StickyNote2 fontSize="small" color="action" />
-            <Typography variant="subtitle1" fontWeight={600}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
               {resolvedTitle}
             </Typography>
+            {!editMode && isAdmin && !isEditingThis && (
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<Edit sx={{ fontSize: 14 }} />}
+                onClick={() => handleStartEditContent(block)}
+                sx={{ fontSize: 12, py: 0.25, px: 0.75, minWidth: 0, color: 'text.secondary' }}
+              >
+                {tc.blockCustomEditContent}
+              </Button>
+            )}
           </Box>
-          <Typography variant="body2" color="text.secondary" fontStyle="italic">
-            {tc.blockCustomNotePlaceholder}
-          </Typography>
+
+          {isEditingThis ? (
+            <Box>
+              <TextField
+                multiline
+                minRows={3}
+                maxRows={12}
+                fullWidth
+                autoFocus
+                size="small"
+                value={contentDraft}
+                onChange={(e) => setContentDraft(e.target.value)}
+                placeholder={tc.blockCustomContentPlaceholder}
+                sx={{ mb: 1 }}
+              />
+              <Box display="flex" gap={1}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={savingContent}
+                  onClick={() => handleSaveContent(block.instanceId)}
+                >
+                  {tc.blockCustomSaveContent}
+                </Button>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={handleCancelEditContent}
+                >
+                  {tc.blockCustomCancelContent}
+                </Button>
+              </Box>
+            </Box>
+          ) : block.content ? (
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {block.content}
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary" fontStyle="italic">
+              {tc.blockCustomNotePlaceholder}
+            </Typography>
+          )}
         </CardContent>
       </Card>
     );
