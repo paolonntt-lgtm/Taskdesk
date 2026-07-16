@@ -15,7 +15,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     .where(eq(notificationsTable.userId, currentUser.id))
     .orderBy(desc(notificationsTable.createdAt));
 
-  res.setHeader("Cache-Control", "private, max-age=30");
+  res.setHeader("Cache-Control", "no-cache, private");
   res.json(notifications);
 });
 

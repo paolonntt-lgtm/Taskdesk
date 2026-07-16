@@ -15,7 +15,7 @@ import {
   useUpdateTicketComment, useDeleteTicketComment,
   useListClients,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
-  getListTicketsQueryKey, getListTicketNotesQueryKey,
+  getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -458,6 +458,7 @@ export default function TicketDetail() {
       });
       queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
       queryClient.invalidateQueries({ queryKey: getListTicketCommentsQueryKey(ticketId) });
+      queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
       if (emailReplyAttachments.length > 0) {
         queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
       }
@@ -480,6 +481,7 @@ export default function TicketDetail() {
       const comment = await addComment.mutateAsync({ id: ticketId, data: { commentText, ...(isEmailResource && sendToCustomer ? { sendToCustomer: true } : {}) } as any });
       setNewComment('');
       queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+      queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
       for (const att of pendingAttachments) {
         await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
       }
@@ -501,6 +503,7 @@ export default function TicketDetail() {
       setInlineReplyText('');
       setReplyingToCommentId(null);
       queryClient.setQueryData(getListTicketCommentsQueryKey(ticketId), (old: any[] = []) => [...old, comment]);
+      queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
       for (const att of inlinePendingAttachments) {
         await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: comment.id } });
       }
