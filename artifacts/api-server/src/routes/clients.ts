@@ -410,8 +410,15 @@ const LayoutBody = z.object({
 
 const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
 
-router.patch("/clients/:id/layout", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
+  const isAdmin = currentUser.role === "admin";
+  const orgId: number | null = currentUser.organizationId ?? null;
+  const canManage = isAdmin || await hasGroupPermission(currentUser.id, orgId, "manage_client_sections", false);
+  const canEditContent = isAdmin || await hasGroupPermission(currentUser.id, orgId, "edit_client_section_content", false);
+  if (!canManage && !canEditContent) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }

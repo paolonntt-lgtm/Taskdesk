@@ -2623,6 +2623,26 @@ function GroupsManagementTab() {
                 disabled={permissionsSaving}
               />
             </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permManageClientSections}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('manage_client_sections')}
+                onChange={() => togglePermission('manage_client_sections')}
+                disabled={permissionsSaving}
+              />
+            </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permEditClientSectionContent}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('edit_client_section_content')}
+                onChange={() => togglePermission('edit_client_section_content')}
+                disabled={permissionsSaving}
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

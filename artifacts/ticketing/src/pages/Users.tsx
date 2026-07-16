@@ -81,7 +81,7 @@ const emptyForm: UserFormData = {
 
 type GroupMembership = { id: number; name: string; permissions: string[] };
 
-const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes'] as const;
+const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content'] as const;
 
 function getEffectivePermissions(memberships: GroupMembership[]): string[] {
   const set = new Set<string>();
@@ -110,6 +110,8 @@ function UserPermissionsTooltip({
     edit_fixed_notes: tg.permEditFixedNotes,
     edit_client_notes: tg.permEditClientNotes,
     delete_client_notes: tg.permDeleteClientNotes,
+    manage_client_sections: tg.permManageClientSections,
+    edit_client_section_content: tg.permEditClientSectionContent,
   };
 
   const isAdmin = user.role === 'admin';
@@ -557,6 +559,8 @@ export default function Users() {
                         edit_fixed_notes: t.groups.permEditFixedNotes,
                         edit_client_notes: t.groups.permEditClientNotes,
                         delete_client_notes: t.groups.permDeleteClientNotes,
+                        manage_client_sections: t.groups.permManageClientSections,
+                        edit_client_section_content: t.groups.permEditClientSectionContent,
                       };
                       if (!isAdmin && effectivePerms.length === 0) return null;
                       return (

@@ -238,6 +238,8 @@ export default function ClientDetail() {
   const clientId = parseInt(params.id ?? '', 10);
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const canManageSections = isAdmin || (user?.groupPermissions ?? []).includes('manage_client_sections');
+  const canEditSectionContent = isAdmin || (user?.groupPermissions ?? []).includes('edit_client_section_content');
   const qc = useQueryClient();
 
   const { data, isLoading, isError } = useGetClient(clientId);
@@ -671,7 +673,7 @@ export default function ClientDetail() {
             <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
               {resolvedTitle}
             </Typography>
-            {!editMode && isAdmin && !isEditingThis && (
+            {!editMode && canEditSectionContent && !isEditingThis && (
               <Button
                 size="small"
                 variant="text"
@@ -836,16 +838,18 @@ export default function ClientDetail() {
 
           {/* Action buttons */}
           <Box display="flex" flexShrink={0} gap={1} flexWrap="wrap">
-            {isAdmin && !editMode && (
+            {!editMode && (isAdmin || canManageSections) && (
               <>
-                <Button
-                  variant="outlined"
-                  startIcon={<Edit />}
-                  size="small"
-                  onClick={openEditDialog}
-                >
-                  {tc.editClient}
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Edit />}
+                    size="small"
+                    onClick={openEditDialog}
+                  >
+                    {tc.editClient}
+                  </Button>
+                )}
                 <Button
                   variant="outlined"
                   size="small"
