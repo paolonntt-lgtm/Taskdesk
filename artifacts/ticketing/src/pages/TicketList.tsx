@@ -761,7 +761,7 @@ export default function TicketList() {
         )}
 
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480, '& .MuiTableCell-root': { px: 0.5 } }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480 }}>
             <TableHead>
               <TableRow>
                 {isAdmin && (
@@ -778,13 +778,13 @@ export default function TicketList() {
                 )}
                 {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 0.5 } })}
                 {col('title', t.ticketList.colTitle, { px: { xs: 0.5, sm: 0.5 }, width: { xs: 'auto', sm: 180, md: 220, lg: 260 } })}
-                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
+                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110, px: 0.5 })}
                 {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 0.5 } })}
-                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
-                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' }, width: 90 })}
-                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 })}
-                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90 })}
-                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' }, width: 76 })}
+                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80, px: 0.5 })}
+                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' }, width: 90, px: 0.5 })}
+                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110, px: 0.5 })}
+                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90, px: 0.5 })}
+                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' }, width: 76, px: 0.5 })}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -844,8 +844,8 @@ export default function TicketList() {
                           )}
                         </Box>
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
-                      <TableCell sx={{ px: { xs: 0.25, sm: 0.75 }, overflow: 'hidden' }}>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, px: 0.5 }}>{ticket.category}</TableCell>
+                      <TableCell sx={{ px: { xs: 0.25, sm: 0.5 }, overflow: 'hidden' }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
@@ -861,21 +861,21 @@ export default function TicketList() {
                           );
                         })()}
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, px: 0.5 }}>
                         <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, px: 0.5 }}>
                         <DeadlineCell dueAt={(ticket as any).dueAt} />
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: 0.5 }}>
                         {ticket.assignee?.name || '—'}
                       </TableCell>
                       {showLocation && (
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap', px: 0.5 }}>
                           {(ticket as any).location || '—'}
                         </TableCell>
                       )}
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap', px: 0.5 }}>
                         <Box>
                           <Typography variant="body2" component="span">
                             {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
