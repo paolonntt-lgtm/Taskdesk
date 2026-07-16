@@ -747,6 +747,14 @@ export default function ClientDetail() {
                 <Button
                   variant="outlined"
                   size="small"
+                  startIcon={<Add />}
+                  onClick={() => setAddSectionOpen(true)}
+                >
+                  {tc.addSection}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
                   startIcon={<Cancel />}
                   onClick={handleCancelEdit}
                 >
@@ -807,16 +815,6 @@ export default function ClientDetail() {
             </SortableContext>
           </DndContext>
 
-          {/* Add Section button */}
-          <Box display="flex" justifyContent="center" mt={1} mb={3}>
-            <Button
-              variant="outlined"
-              startIcon={<Add />}
-              onClick={() => setAddSectionOpen(true)}
-            >
-              {tc.addSection}
-            </Button>
-          </Box>
         </>
       ) : (
         activeLayout
