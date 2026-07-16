@@ -4,9 +4,9 @@ import {
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
   Tooltip, TableSortLabel, Collapse, IconButton, Checkbox, Toolbar, Dialog,
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
-  Select, FormControl, InputLabel, OutlinedInput, ListItemText,
+  Select, FormControl, InputLabel, OutlinedInput, ListItemText, Menu,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -223,6 +223,14 @@ export default function TicketList() {
     document.addEventListener('mouseup', onUp);
   }, [colWidths]);
 
+  // ── Column visibility ─────────────────────────────────────────────────────
+  const DEFAULT_VISIBLE: Record<string, boolean> = { id: true, title: true, category: true, status: true, priority: true, dueAt: true, assignee: true, location: true, createdAt: true };
+  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(() => {
+    try { const s = localStorage.getItem('ticketlist-visible-cols'); return s ? { ...DEFAULT_VISIBLE, ...JSON.parse(s) } : DEFAULT_VISIBLE; } catch { return DEFAULT_VISIBLE; }
+  });
+  const [colMenuAnchor, setColMenuAnchor] = useState<HTMLElement | null>(null);
+  const toggleCol = (key: string) => setVisibleCols(prev => { const next = { ...prev, [key]: !prev[key] }; localStorage.setItem('ticketlist-visible-cols', JSON.stringify(next)); return next; });
+
   const deleteTicket = useDeleteTicket();
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
@@ -320,6 +328,17 @@ export default function TicketList() {
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
   const showClient = (user as any)?.clientsEnabled !== false;
+  const colsConfig: Array<{ key: string; label: string; fixed?: boolean }> = [
+    { key: 'id', label: t.ticketList.colId },
+    { key: 'title', label: t.ticketList.colTitle, fixed: true },
+    { key: 'category', label: t.ticketList.colCategory },
+    { key: 'status', label: t.ticketList.colStatus },
+    { key: 'priority', label: t.ticketList.colPriority },
+    { key: 'dueAt', label: t.ticketList.deadlineColumn },
+    { key: 'assignee', label: t.ticketList.colAssignee },
+    ...(showLocation ? [{ key: 'location', label: t.ticketList.colLocation }] : []),
+    { key: 'createdAt', label: t.ticketList.colCreated },
+  ];
 
   const sortedTickets = useMemo(() => {
     if (!tickets) return [];
@@ -411,7 +430,7 @@ export default function TicketList() {
     </TableCell>
   );
 
-  const colSpanTotal = (showLocation ? 9 : 8) + (isAdmin ? 1 : 0);
+  const colSpanTotal = ['id','title','category','status','priority','dueAt','assignee','createdAt'].filter(k => visibleCols[k] ?? true).length + (showLocation && (visibleCols.location ?? true) ? 1 : 0) + (isAdmin ? 1 : 0);
 
   return (
     <Box>
@@ -794,6 +813,24 @@ export default function TicketList() {
           </Toolbar>
         )}
 
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1, pt: 0.5, pb: 0 }}>
+          <Button
+            size="small"
+            startIcon={<ViewColumn />}
+            onClick={(e) => setColMenuAnchor(e.currentTarget)}
+            sx={{ textTransform: 'none', color: 'text.secondary', fontSize: '0.75rem' }}
+          >
+            {lang === 'it' ? 'Colonne' : 'Columns'}
+          </Button>
+          <Menu anchorEl={colMenuAnchor} open={Boolean(colMenuAnchor)} onClose={() => setColMenuAnchor(null)}>
+            {colsConfig.map(({ key, label, fixed }) => (
+              <MenuItem key={key} dense onClick={() => !fixed && toggleCol(key)} sx={{ gap: 0.5 }}>
+                <Checkbox size="small" checked={visibleCols[key] ?? true} disabled={fixed} sx={{ p: 0 }} />
+                <ListItemText primary={label} />
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
           <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480 }}>
             <TableHead>
@@ -810,15 +847,15 @@ export default function TicketList() {
                     />
                   </TableCell>
                 )}
-                {col('id', t.ticketList.colId)}
+                {(visibleCols.id ?? true) && col('id', t.ticketList.colId)}
                 {col('title', t.ticketList.colTitle)}
-                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
-                {col('status', t.ticketList.colStatus)}
-                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
-                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' } })}
-                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
-                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
-                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
+                {(visibleCols.category ?? true) && col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
+                {(visibleCols.status ?? true) && col('status', t.ticketList.colStatus)}
+                {(visibleCols.priority ?? true) && col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
+                {(visibleCols.dueAt ?? true) && col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' } })}
+                {(visibleCols.assignee ?? true) && col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
+                {showLocation && (visibleCols.location ?? true) && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
+                {(visibleCols.createdAt ?? true) && col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -852,7 +889,7 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
                         </TableCell>
                       )}
-                      <TableCell style={{ paddingLeft: 0, paddingRight: 4 }} sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      {(visibleCols.id ?? true) && <TableCell style={{ paddingLeft: 0, paddingRight: 4 }} sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>}
                       <TableCell style={{ padding: '6px 4px' }} sx={{ width: { xs: 'auto', sm: 180, md: 220, lg: 260 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
@@ -878,7 +915,8 @@ export default function TicketList() {
                           )}
                         </Box>
                       </TableCell>
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>
+                      {(visibleCols.category ?? true) && <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>}
+                      {(visibleCols.status ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ overflow: 'hidden' }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
@@ -895,20 +933,28 @@ export default function TicketList() {
                           );
                         })()}
                       </TableCell>
+                      )}
+                      {(visibleCols.priority ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
                       </TableCell>
+                      )}
+                      {(visibleCols.dueAt ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <DeadlineCell dueAt={(ticket as any).dueAt} />
                       </TableCell>
+                      )}
+                      {(visibleCols.assignee ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ticket.assignee?.name || '—'}
                       </TableCell>
-                      {showLocation && (
+                      )}
+                      {showLocation && (visibleCols.location ?? true) && (
                         <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
                           {(ticket as any).location || '—'}
                         </TableCell>
                       )}
+                      {(visibleCols.createdAt ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
                         <Box>
                           <Typography variant="body2" component="span">
@@ -919,6 +965,7 @@ export default function TicketList() {
                           </Typography>
                         </Box>
                       </TableCell>
+                      )}
                     </TableRow>
                   );
                 })
