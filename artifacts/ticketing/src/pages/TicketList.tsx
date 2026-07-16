@@ -761,7 +761,7 @@ export default function TicketList() {
         )}
 
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480, '& .MuiTableCell-root': { px: 0.75 } }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480, '& .MuiTableCell-root': { px: 0.5 } }}>
             <TableHead>
               <TableRow>
                 {isAdmin && (
@@ -776,10 +776,10 @@ export default function TicketList() {
                     />
                   </TableCell>
                 )}
-                {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 0.75 } })}
-                {col('title', t.ticketList.colTitle, { px: { xs: 0.75, sm: 0.75 }, width: { xs: 'auto', sm: 180, md: 220, lg: 260 } })}
+                {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 0.5 } })}
+                {col('title', t.ticketList.colTitle, { px: { xs: 0.5, sm: 0.5 }, width: { xs: 'auto', sm: 180, md: 220, lg: 260 } })}
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
-                {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 0.75 } })}
+                {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 0.5 } })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
                 {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' }, width: 90 })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 })}
@@ -818,8 +818,8 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
                         </TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 0.75 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
-                      <TableCell sx={{ px: { xs: 0.75, sm: 0.75 } }}>
+                      <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 0.5 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
+                      <TableCell sx={{ px: { xs: 0.5, sm: 0.5 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
