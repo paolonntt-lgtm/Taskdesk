@@ -6,7 +6,7 @@ import {
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
   Select, FormControl, InputLabel, OutlinedInput, ListItemText,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -72,8 +72,12 @@ export default function TicketList() {
     const raw = urlParams.get('status') ?? '';
     if (!raw) return [];
     const parts = raw.split(',').map((v) => v.trim()).filter(Boolean);
-    const filtered = validStatuses.length === 0 ? parts : parts.filter((v) => validStatuses.includes(v));
-    if (validStatuses.length > 0 && validStatuses.every((v) => filtered.includes(v))) return [];
+    const filtered = validStatuses.length === 0
+      ? parts
+      : parts.filter((v) => v === 'due_soon' || validStatuses.includes(v));
+    // "all real org statuses selected AND no due_soon" is treated as no filter
+    const withoutDueSoon = filtered.filter((v) => v !== 'due_soon');
+    if (validStatuses.length > 0 && validStatuses.every((v) => withoutDueSoon.includes(v)) && !filtered.includes('due_soon')) return [];
     return filtered;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchStr, validStatuses.join(',')]);
@@ -453,16 +457,20 @@ export default function TicketList() {
                   return (
                     <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ my: -0.25 }}>
                       {selected.map((v) => {
-                        const customColor = getColorForKey(v);
-                        const label = getLabelForKey(v) || v;
+                        const isDueSoon = v === 'due_soon';
+                        const customColor = isDueSoon ? undefined : getColorForKey(v);
+                        const label = isDueSoon ? t.ticketList.dueSoon : (getLabelForKey(v) || v);
                         return (
                           <Chip
                             key={v}
                             label={label}
                             size="small"
+                            icon={isDueSoon ? <ScheduleIcon style={{ fontSize: 14 }} /> : undefined}
                             onDelete={() => setMultiParam('status', statusValues.filter((s) => s !== v), orgStatuses.map((s) => s.key))}
                             onMouseDown={(e) => e.stopPropagation()}
-                            sx={customColor ? { bgcolor: customColor, color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } } : undefined}
+                            sx={isDueSoon
+                              ? { bgcolor: 'warning.main', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' }, '& .MuiChip-icon': { color: 'white' } }
+                              : customColor ? { bgcolor: customColor, color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } } : undefined}
                           />
                         );
                       })}
@@ -476,6 +484,11 @@ export default function TicketList() {
                     <ListItemText primary={s.label} />
                   </MenuItem>
                 ))}
+                <MenuItem key="due_soon" value="due_soon" dense>
+                  <Checkbox size="small" checked={statusValues.includes('due_soon')} sx={{ py: 0 }} />
+                  <ScheduleIcon sx={{ fontSize: 16, mr: 0.75, color: 'warning.main', flexShrink: 0 }} />
+                  <ListItemText primary={t.ticketList.dueSoon} primaryTypographyProps={{ sx: { color: 'warning.main', fontWeight: 600 } }} />
+                </MenuItem>
               </Select>
             </FormControl>
           </Grid>

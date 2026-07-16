@@ -35,8 +35,29 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   if (status) {
     const vals = status.split(',').map((v) => v.trim()).filter(Boolean);
-    if (vals.length === 1) conditions.push(eq(ticketsTable.status, vals[0]));
-    else if (vals.length > 1) conditions.push(inArray(ticketsTable.status, vals));
+    const hasDueSoon = vals.includes('due_soon');
+    const realStatuses = vals.filter((v) => v !== 'due_soon');
+
+    const dueSoonCond = hasDueSoon
+      ? and(
+          isNotNull(ticketsTable.dueAt),
+          gte(ticketsTable.dueAt, sql`now()`),
+          lte(ticketsTable.dueAt, sql`now() + interval '7 days'`),
+          sql`${ticketsTable.status} not in ('resolved','closed')`
+        )
+      : undefined;
+
+    if (hasDueSoon && realStatuses.length === 0) {
+      conditions.push(dueSoonCond!);
+    } else if (!hasDueSoon && realStatuses.length > 0) {
+      if (realStatuses.length === 1) conditions.push(eq(ticketsTable.status, realStatuses[0]));
+      else conditions.push(inArray(ticketsTable.status, realStatuses));
+    } else if (hasDueSoon && realStatuses.length > 0) {
+      const realCond = realStatuses.length === 1
+        ? eq(ticketsTable.status, realStatuses[0])
+        : inArray(ticketsTable.status, realStatuses);
+      conditions.push(or(realCond, dueSoonCond!)!);
+    }
   }
   if (priority) {
     const vals = priority.split(',').map((v) => v.trim()).filter(Boolean);

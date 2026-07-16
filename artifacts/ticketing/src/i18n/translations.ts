@@ -220,6 +220,7 @@ const it = {
     presetSaveConfirm: 'Salva',
     presetSaveCancel: 'Annulla',
     presetDeleteTooltip: 'Rimuovi preset',
+    dueSoon: 'In Scadenza',
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -1401,6 +1402,7 @@ const en: typeof it = {
     presetSaveConfirm: 'Save',
     presetSaveCancel: 'Cancel',
     presetDeleteTooltip: 'Remove preset',
+    dueSoon: 'Due Soon',
   },
   ticketDetail: {
     backToList: 'All tickets',
