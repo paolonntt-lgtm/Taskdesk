@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db, stickyNotesTable, stickyNoteUserStatesTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { hasGroupPermission } from "../lib/groupPermissions";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 
@@ -144,12 +145,13 @@ router.post("/sticky-notes", requireAuth, requireAdmin, async (req, res): Promis
   });
 });
 
-router.patch("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const currentUser = (req as any).currentUser;
   const orgId: number | null = currentUser.organizationId ?? null;
+  const isAdmin = currentUser.role === "admin";
   const parsed = UpdateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
@@ -167,8 +169,10 @@ router.patch("/sticky-notes/:id", requireAuth, requireAdmin, async (req, res): P
     ));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  if (existing.createdBy !== currentUser.id) {
-    res.status(403).json({ error: "Only the creator can edit this note" });
+  const isAuthor = existing.createdBy === currentUser.id;
+  const canEdit = isAdmin || isAuthor || await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false);
+  if (!canEdit) {
+    res.status(403).json({ error: "Not authorized to edit this note" });
     return;
   }
 

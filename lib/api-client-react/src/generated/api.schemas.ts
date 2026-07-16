@@ -54,6 +54,7 @@ export interface User {
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;
+  groupPermissions?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
   isAvailable: boolean;

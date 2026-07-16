@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { hasGroupPermission } from "../lib/groupPermissions";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -355,16 +356,35 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
   res.json({ ...client, tickets });
 });
 
-router.patch("/clients/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const isAdmin = currentUser.role === "admin";
+  const orgId: number | null = currentUser.organizationId ?? null;
+
   const parsed = ClientBody.partial().safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
     return;
+  }
+
+  const keys = Object.keys(parsed.data);
+  const isNotesOnlyUpdate = keys.length === 1 && keys[0] === "notes";
+
+  if (!isAdmin) {
+    if (isNotesOnlyUpdate) {
+      const canEditFixed = await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false);
+      if (!canEditFixed) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    } else {
+      res.status(403).json({ error: "Admin required" });
+      return;
+    }
   }
 
   const [client] = await db
@@ -497,24 +517,28 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
   }
 
   const updateData: Record<string, any> = {};
-  // Admins can edit any note; non-admins can only edit their own notes
+  // Admins or users with edit_client_notes permission can edit any note; others can only edit their own
   if (parsed.data.body !== undefined) {
-    if (currentUser.role !== 'admin') {
-      const [storedForAuth] = await db
-        .select({ authorId: clientNotesTable.authorId })
-        .from(clientNotesTable)
-        .where(
-          and(
-            eq(clientNotesTable.id, noteId),
-            eq(clientNotesTable.clientId, id),
-            eq(clientNotesTable.organizationId, currentUser.organizationId),
+    const isAdmin = currentUser.role === 'admin';
+    if (!isAdmin) {
+      const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false);
+      if (!canEditOthers) {
+        const [storedForAuth] = await db
+          .select({ authorId: clientNotesTable.authorId })
+          .from(clientNotesTable)
+          .where(
+            and(
+              eq(clientNotesTable.id, noteId),
+              eq(clientNotesTable.clientId, id),
+              eq(clientNotesTable.organizationId, currentUser.organizationId),
+            )
           )
-        )
-        .limit(1);
-      if (!storedForAuth) { res.status(404).json({ error: "Not found" }); return; }
-      if (storedForAuth.authorId !== currentUser.id) {
-        res.status(403).json({ error: "Forbidden: you can only edit your own notes" });
-        return;
+          .limit(1);
+        if (!storedForAuth) { res.status(404).json({ error: "Not found" }); return; }
+        if (storedForAuth.authorId !== currentUser.id) {
+          res.status(403).json({ error: "Forbidden: you can only edit your own notes" });
+          return;
+        }
       }
     }
     updateData.body = parsed.data.body;

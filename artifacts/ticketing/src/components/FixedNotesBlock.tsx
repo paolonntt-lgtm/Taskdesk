@@ -23,6 +23,7 @@ interface FixedNotesBlockProps {
   clientId: number;
   initialNotes: string | null | undefined;
   isAdmin: boolean;
+  canEditFixed?: boolean;
 }
 
 function ToolbarButton({
@@ -52,7 +53,7 @@ function ToolbarButton({
   );
 }
 
-export default function FixedNotesBlock({ clientId, initialNotes, isAdmin }: FixedNotesBlockProps) {
+export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEditFixed }: FixedNotesBlockProps) {
   const { t } = useLanguage();
   const tc = t.clients;
 
@@ -123,7 +124,7 @@ export default function FixedNotesBlock({ clientId, initialNotes, isAdmin }: Fix
             {tc.blockFixedNotes}
           </Typography>
         </Box>
-        {isAdmin && !editing && (
+        {(isAdmin || canEditFixed) && !editing && (
           <Tooltip title={tc.fixedNotesEdit}>
             <IconButton size="small" onClick={handleEdit}>
               <Edit fontSize="small" />
@@ -257,7 +258,7 @@ export default function FixedNotesBlock({ clientId, initialNotes, isAdmin }: Fix
               fontStyle="italic"
               sx={{ py: 1 }}
             >
-              {isAdmin ? tc.fixedNotesPlaceholderAdmin : tc.fixedNotesPlaceholderView}
+              {(isAdmin || canEditFixed) ? tc.fixedNotesPlaceholderAdmin : tc.fixedNotesPlaceholderView}
             </Typography>
           ) : (
             <Box

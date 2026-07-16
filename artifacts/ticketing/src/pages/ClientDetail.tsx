@@ -359,6 +359,7 @@ export default function ClientDetail() {
             clientId={clientId}
             initialNotes={(client as any).notes ?? null}
             isAdmin={isAdmin}
+            canEditFixed={(user?.groupPermissions ?? []).includes('edit_fixed_notes')}
           />
         </CardContent>
       </Card>
@@ -366,7 +367,12 @@ export default function ClientDetail() {
     'client-notes': (
       <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
         <CardContent>
-          <ClientNotesBlock clientId={clientId} isAdmin={isAdmin} currentUserId={user?.id} />
+          <ClientNotesBlock
+            clientId={clientId}
+            isAdmin={isAdmin}
+            currentUserId={user?.id}
+            canEditClientNotes={(user?.groupPermissions ?? []).includes('edit_client_notes')}
+          />
         </CardContent>
       </Card>
     ),

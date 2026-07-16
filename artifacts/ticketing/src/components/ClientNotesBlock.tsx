@@ -29,6 +29,7 @@ interface ClientNotesBlockProps {
   clientId: number;
   isAdmin: boolean;
   currentUserId?: number;
+  canEditClientNotes?: boolean;
 }
 
 function genId(): string {
@@ -76,7 +77,7 @@ function authorInitials(name: string | null | undefined): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function ClientNotesBlock({ clientId, isAdmin, currentUserId }: ClientNotesBlockProps) {
+export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
@@ -147,7 +148,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId }: C
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canAct = (note: any): boolean => isAdmin || (currentUserId != null && note.authorId === currentUserId);
+  const canAct = (note: any): boolean => isAdmin || canEditClientNotes || (currentUserId != null && note.authorId === currentUserId);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
