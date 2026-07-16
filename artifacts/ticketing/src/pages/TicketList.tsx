@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
@@ -193,6 +193,36 @@ export default function TicketList() {
   const [deleting, setDeleting] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
+  // ── Resizable columns ─────────────────────────────────────────────────────
+  const DEFAULT_COL_WIDTHS: Record<string, number> = {
+    id: 48, title: 240, category: 110, status: 90,
+    priority: 80, dueAt: 90, assignee: 120, location: 90, createdAt: 90,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('ticketlist-col-widths');
+      return saved ? { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) } : DEFAULT_COL_WIDTHS;
+    } catch { return DEFAULT_COL_WIDTHS; }
+  });
+  const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
+  const startResize = useCallback((col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { col, startX: e.clientX, startWidth: colWidths[col] ?? DEFAULT_COL_WIDTHS[col] ?? 100 };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const w = Math.max(40, resizingRef.current.startWidth + ev.clientX - resizingRef.current.startX);
+      setColWidths(prev => {
+        const next = { ...prev, [resizingRef.current!.col]: w };
+        localStorage.setItem('ticketlist-col-widths', JSON.stringify(next));
+        return next;
+      });
+    };
+    const onUp = () => { resizingRef.current = null; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [colWidths]);
+
   const deleteTicket = useDeleteTicket();
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
@@ -365,8 +395,8 @@ export default function TicketList() {
     setTimeout(() => setBulkFeedback(null), 5000);
   };
 
-  const col = (id: SortCol, label: string, sx?: object, style?: React.CSSProperties) => (
-    <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', ...sx }} style={style}>
+  const col = (id: SortCol, label: string, sx?: object) => (
+    <TableCell style={{ padding: '6px 4px', width: colWidths[id] ?? DEFAULT_COL_WIDTHS[id] }} sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden', ...sx }}>
       <TableSortLabel
         active={sortCol === id}
         direction={sortCol === id ? sortDir : 'asc'}
@@ -374,6 +404,10 @@ export default function TicketList() {
       >
         {label}
       </TableSortLabel>
+      <Box
+        onMouseDown={(e) => startResize(id, e)}
+        sx={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 1, '&:hover': { bgcolor: 'primary.main', opacity: 0.4 } }}
+      />
     </TableCell>
   );
 
@@ -776,15 +810,15 @@ export default function TicketList() {
                     />
                   </TableCell>
                 )}
-                {col('id', t.ticketList.colId, { width: { xs: 28, sm: 48 } }, { paddingLeft: 0, paddingRight: 4 })}
-                {col('title', t.ticketList.colTitle, { width: { xs: 'auto', sm: 180, md: 220, lg: 260 } }, { padding: '6px 4px' })}
-                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 }, { padding: '6px 4px' })}
-                {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 } }, { padding: '6px 4px' })}
-                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 }, { padding: '6px 4px' })}
-                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' }, width: 90 }, { padding: '6px 4px' })}
-                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 }, { padding: '6px 4px' })}
-                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90 }, { padding: '6px 4px' })}
-                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' }, width: 76 }, { padding: '6px 4px' })}
+                {col('id', t.ticketList.colId)}
+                {col('title', t.ticketList.colTitle)}
+                {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' } })}
+                {col('status', t.ticketList.colStatus)}
+                {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' } })}
+                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' } })}
+                {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' } })}
+                {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' } })}
+                {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' } })}
               </TableRow>
             </TableHead>
             <TableBody>
