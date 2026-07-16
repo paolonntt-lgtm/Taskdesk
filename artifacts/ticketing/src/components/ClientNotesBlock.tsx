@@ -30,6 +30,7 @@ interface ClientNotesBlockProps {
   isAdmin: boolean;
   currentUserId?: number;
   canEditClientNotes?: boolean;
+  canDeleteClientNotes?: boolean;
 }
 
 function genId(): string {
@@ -77,7 +78,7 @@ function authorInitials(name: string | null | undefined): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes }: ClientNotesBlockProps) {
+export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, canEditClientNotes, canDeleteClientNotes }: ClientNotesBlockProps) {
   const { t, lang } = useLanguage();
   const tc = (t as any).clientNotes;
   const qc = useQueryClient();
@@ -148,7 +149,8 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canAct = (note: any): boolean => isAdmin || canEditClientNotes || (currentUserId != null && note.authorId === currentUserId);
+  const canEdit = (note: any): boolean => isAdmin || canEditClientNotes || (currentUserId != null && note.authorId === currentUserId);
+  const canDelete = (note: any): boolean => isAdmin || canDeleteClientNotes || (currentUserId != null && note.authorId === currentUserId);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
@@ -405,27 +407,31 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                       })}
                     </Typography>
                   </Box>
-                  {canAct(note) && (
+                  {(canEdit(note) || canDelete(note)) && (
                     <Box display="flex" alignItems="center" gap={0.5} flexShrink={0} ml={1}>
-                      <Tooltip title={tc.editNote}>
-                        <IconButton
-                          size="small"
-                          onClick={() => openEditNote(note)}
-                          disabled={editingNoteId === note.id}
-                          sx={{ color: 'primary.main' }}
-                        >
-                          <Edit sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={tc.deleteNote}>
-                        <IconButton
-                          size="small"
-                          onClick={() => setDeleteTarget(note.id)}
-                          sx={{ color: 'error.main' }}
-                        >
-                          <Delete sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
+                      {canEdit(note) && (
+                        <Tooltip title={tc.editNote}>
+                          <IconButton
+                            size="small"
+                            onClick={() => openEditNote(note)}
+                            disabled={editingNoteId === note.id}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canDelete(note) && (
+                        <Tooltip title={tc.deleteNote}>
+                          <IconButton
+                            size="small"
+                            onClick={() => setDeleteTarget(note.id)}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <Delete sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   )}
                 </Box>

@@ -666,8 +666,11 @@ router.delete("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promi
       .limit(1);
     if (!toDelete) { res.status(404).json({ error: "Not found" }); return; }
     if (toDelete.authorId !== currentUser.id) {
-      res.status(403).json({ error: "Forbidden: you can only delete your own notes" });
-      return;
+      const canDeleteOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "delete_client_notes", false);
+      if (!canDeleteOthers) {
+        res.status(403).json({ error: "Forbidden: you can only delete your own notes" });
+        return;
+      }
     }
   }
 

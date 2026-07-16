@@ -2613,6 +2613,16 @@ function GroupsManagementTab() {
                 disabled={permissionsSaving}
               />
             </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permDeleteClientNotes}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('delete_client_notes')}
+                onChange={() => togglePermission('delete_client_notes')}
+                disabled={permissionsSaving}
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

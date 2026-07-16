@@ -372,6 +372,7 @@ export default function ClientDetail() {
             isAdmin={isAdmin}
             currentUserId={user?.id}
             canEditClientNotes={(user?.groupPermissions ?? []).includes('edit_client_notes')}
+            canDeleteClientNotes={(user?.groupPermissions ?? []).includes('delete_client_notes')}
           />
         </CardContent>
       </Card>
