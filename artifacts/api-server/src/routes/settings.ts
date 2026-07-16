@@ -310,12 +310,48 @@ router.get("/settings/client-layout", requireAuth, async (req, res): Promise<voi
 router.patch("/settings/client-layout", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const { layout } = req.body ?? {};
   if (!Array.isArray(layout)) { res.status(400).json({ message: "Layout non valido" }); return; }
+
+  const VALID_BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
+  const normalized: Array<{
+    id: string;
+    instanceId: string;
+    type?: string;
+    visible: boolean;
+    customName?: string;
+  }> = [];
+
+  for (const item of layout) {
+    if (typeof item !== "object" || item === null) {
+      res.status(400).json({ message: "Ogni elemento del layout deve essere un oggetto" }); return;
+    }
+    const instanceId: string = typeof item.instanceId === "string" ? item.instanceId
+      : typeof item.id === "string" ? item.id : "";
+    if (!instanceId) {
+      res.status(400).json({ message: "Ogni elemento del layout deve avere un instanceId" }); return;
+    }
+    if (typeof item.visible !== "boolean") {
+      res.status(400).json({ message: `Campo 'visible' mancante o non booleano per ${instanceId}` }); return;
+    }
+    const id: string = typeof item.id === "string" ? item.id : instanceId;
+    const type: string | undefined = typeof item.type === "string" ? item.type : undefined;
+    const customName: string | undefined =
+      typeof item.customName === "string" && item.customName.trim()
+        ? item.customName.trim().slice(0, 100)
+        : undefined;
+
+    if (!VALID_BUILTIN_IDS.has(instanceId) && !type) {
+      res.status(400).json({ message: `Tipo mancante per il blocco personalizzato ${instanceId}` }); return;
+    }
+
+    normalized.push({ id, instanceId, ...(type ? { type } : {}), visible: item.visible, ...(customName ? { customName } : {}) });
+  }
+
   const currentUser = (req as any).currentUser;
   if (!currentUser.organizationId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
   await db.update(organizationsTable)
-    .set({ clientSharedLayout: layout } as any)
+    .set({ clientSharedLayout: normalized } as any)
     .where(eq(organizationsTable.id, currentUser.organizationId));
-  res.json({ layout });
+  res.json({ layout: normalized });
 });
 
 // ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────

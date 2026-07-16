@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Card, CardContent, Grid, Chip, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress,
-  Avatar, IconButton, Tooltip, Switch, FormControlLabel, Alert,
+  Avatar, IconButton, Tooltip, Switch, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  List, ListItemButton, ListItemIcon, ListItemText,
 } from '@mui/material';
 import {
   ArrowBack, ConfirmationNumber, Edit, DragIndicator, Visibility, VisibilityOff,
-  Email, Phone, Business, Save, Cancel,
+  Email, Phone, Business, Save, Cancel, DriveFileRenameOutline, Close, Add,
+  StickyNote2,
 } from '@mui/icons-material';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -72,34 +74,49 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const BLOCK_IDS = ['company-info', 'fixed-notes', 'client-notes', 'linked-tickets'] as const;
-type BlockId = typeof BLOCK_IDS[number];
+const BUILT_IN_BLOCK_IDS = ['company-info', 'fixed-notes', 'client-notes', 'linked-tickets'] as const;
+type BuiltinBlockId = typeof BUILT_IN_BLOCK_IDS[number];
 
 interface BlockConfig {
-  id: BlockId;
+  id: string;
+  instanceId: string;
+  type?: string;
   visible: boolean;
+  customName?: string;
 }
 
 const SHARED_LAYOUT_KEY = 'td_client_layout_v2_shared';
+
+function defaultLayout(): BlockConfig[] {
+  return BUILT_IN_BLOCK_IDS.map((id) => ({ id, instanceId: id, visible: true }));
+}
+
+function migrateBlock(b: any): BlockConfig {
+  return {
+    id: b.id ?? b.instanceId ?? '',
+    instanceId: b.instanceId ?? b.id ?? '',
+    type: b.type ?? undefined,
+    visible: b.visible !== false,
+    customName: b.customName ?? undefined,
+  };
+}
 
 function loadLayout(): BlockConfig[] {
   try {
     const raw = localStorage.getItem(SHARED_LAYOUT_KEY);
     if (!raw) return defaultLayout();
-    const parsed: BlockConfig[] = JSON.parse(raw);
+    const parsed: any[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaultLayout();
-    const valid = parsed.filter((b) => BLOCK_IDS.includes(b.id as BlockId));
-    if (valid.length === 0) return defaultLayout();
-    const storedIds = new Set<string>(valid.map((b) => b.id));
-    const missing = BLOCK_IDS.filter((id) => !storedIds.has(id)).map((id) => ({ id, visible: true }));
-    return [...valid, ...missing];
+    const migrated = parsed.map(migrateBlock).filter((b) => b.instanceId);
+    if (migrated.length === 0) return defaultLayout();
+    const storedIds = new Set<string>(migrated.map((b) => b.instanceId));
+    const missing = BUILT_IN_BLOCK_IDS
+      .filter((id) => !storedIds.has(id))
+      .map((id) => ({ id, instanceId: id, visible: true }));
+    return [...migrated, ...missing];
   } catch {
     return defaultLayout();
   }
-}
-
-function defaultLayout(): BlockConfig[] {
-  return BLOCK_IDS.map((id) => ({ id, visible: true }));
 }
 
 function saveLayout(layout: BlockConfig[]) {
@@ -108,21 +125,31 @@ function saveLayout(layout: BlockConfig[]) {
   } catch {}
 }
 
+function isCustomBlock(block: BlockConfig): boolean {
+  return !BUILT_IN_BLOCK_IDS.includes(block.instanceId as BuiltinBlockId);
+}
+
 interface SortableBlockProps {
-  id: string;
+  instanceId: string;
   editMode: boolean;
   visible: boolean;
   onToggleVisible: () => void;
+  onRename: () => void;
+  onDelete?: () => void;
   title: string;
   visibleLabel: string;
   hiddenLabel: string;
+  renameLabel: string;
+  deleteLabel: string;
+  isCustom: boolean;
   children: React.ReactNode;
 }
 
 function SortableBlock({
-  id, editMode, visible, onToggleVisible, title, visibleLabel, hiddenLabel, children,
+  instanceId, editMode, visible, onToggleVisible, onRename, onDelete,
+  title, visibleLabel, hiddenLabel, renameLabel, deleteLabel, isCustom, children,
 }: SortableBlockProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: instanceId });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -157,14 +184,28 @@ function SortableBlock({
             <Typography variant="subtitle2" fontWeight={600}>
               {title}
             </Typography>
+            <Tooltip title={renameLabel}>
+              <IconButton size="small" onClick={onRename} sx={{ ml: 0.5 }}>
+                <DriveFileRenameOutline fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
-          <Tooltip title={visible ? visibleLabel : hiddenLabel}>
-            <Switch
-              size="small"
-              checked={visible}
-              onChange={onToggleVisible}
-            />
-          </Tooltip>
+          <Box display="flex" alignItems="center" gap={0.5}>
+            {isCustom && onDelete && (
+              <Tooltip title={deleteLabel}>
+                <IconButton size="small" onClick={onDelete} sx={{ color: 'error.main' }}>
+                  <Close fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title={visible ? visibleLabel : hiddenLabel}>
+              <Switch
+                size="small"
+                checked={visible}
+                onChange={onToggleVisible}
+              />
+            </Tooltip>
+          </Box>
         </Box>
       )}
       <Box
@@ -185,6 +226,10 @@ function SortableBlock({
     </Box>
   );
 }
+
+const ADDABLE_BLOCK_TYPES = [
+  { type: 'custom-note', icon: <StickyNote2 fontSize="small" /> },
+] as const;
 
 export default function ClientDetail() {
   const { t } = useLanguage();
@@ -210,6 +255,12 @@ export default function ClientDetail() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renamingInstanceId, setRenamingInstanceId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -220,11 +271,13 @@ export default function ClientDetail() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d || !Array.isArray(d.layout) || d.layout.length === 0) return;
-        const valid = (d.layout as BlockConfig[]).filter((b) => BLOCK_IDS.includes(b.id as BlockId));
-        if (valid.length === 0) return;
-        const storedIds = new Set<string>(valid.map((b) => b.id));
-        const missing = BLOCK_IDS.filter((id) => !storedIds.has(id)).map((id) => ({ id, visible: true }));
-        const merged = [...valid, ...missing];
+        const migrated = (d.layout as any[]).map(migrateBlock).filter((b) => b.instanceId);
+        if (migrated.length === 0) return;
+        const storedIds = new Set<string>(migrated.map((b) => b.instanceId));
+        const missing = BUILT_IN_BLOCK_IDS
+          .filter((id) => !storedIds.has(id))
+          .map((id) => ({ id, instanceId: id, visible: true }));
+        const merged = [...migrated, ...missing];
         setLayout(merged);
         saveLayout(merged);
       })
@@ -261,17 +314,54 @@ export default function ClientDetail() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setDraftLayout((prev) => {
-        const oldIndex = prev.findIndex((b) => b.id === active.id);
-        const newIndex = prev.findIndex((b) => b.id === over.id);
+        const oldIndex = prev.findIndex((b) => b.instanceId === active.id);
+        const newIndex = prev.findIndex((b) => b.instanceId === over.id);
         return arrayMove(prev, oldIndex, newIndex);
       });
     }
   }, []);
 
-  const handleToggleVisible = useCallback((id: BlockId) => {
+  const handleToggleVisible = useCallback((instanceId: string) => {
     setDraftLayout((prev) =>
-      prev.map((b) => b.id === id ? { ...b, visible: !b.visible } : b)
+      prev.map((b) => b.instanceId === instanceId ? { ...b, visible: !b.visible } : b)
     );
+  }, []);
+
+  const openRenameDialog = useCallback((instanceId: string, currentName: string) => {
+    setRenamingInstanceId(instanceId);
+    setRenameValue(currentName);
+    setRenameDialogOpen(true);
+  }, []);
+
+  const handleRenameConfirm = useCallback(() => {
+    if (!renamingInstanceId) return;
+    const trimmed = renameValue.trim();
+    setDraftLayout((prev) =>
+      prev.map((b) =>
+        b.instanceId === renamingInstanceId
+          ? { ...b, customName: trimmed || undefined }
+          : b
+      )
+    );
+    setRenameDialogOpen(false);
+    setRenamingInstanceId(null);
+    setRenameValue('');
+  }, [renamingInstanceId, renameValue]);
+
+  const handleDeleteBlock = useCallback((instanceId: string) => {
+    setDraftLayout((prev) => prev.filter((b) => b.instanceId !== instanceId));
+  }, []);
+
+  const handleAddSection = useCallback((type: string) => {
+    const instanceId = `${type}-${Date.now()}`;
+    const newBlock: BlockConfig = {
+      id: type,
+      instanceId,
+      type,
+      visible: true,
+    };
+    setDraftLayout((prev) => [...prev, newBlock]);
+    setAddSectionOpen(false);
   }, []);
 
   const openEditDialog = useCallback(() => {
@@ -351,130 +441,181 @@ export default function ClientDetail() {
 
   const activeLayout = editMode ? draftLayout : layout;
 
-  const blockContent: Record<BlockId, React.ReactNode> = {
-    'fixed-notes': (
-      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
-        <CardContent>
-          <FixedNotesBlock
-            clientId={clientId}
-            initialNotes={(client as any).notes ?? null}
-            isAdmin={isAdmin}
-            canEditFixed={(user?.groupPermissions ?? []).includes('edit_fixed_notes')}
-          />
-        </CardContent>
-      </Card>
-    ),
-    'client-notes': (
-      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
-        <CardContent>
-          <ClientNotesBlock
-            clientId={clientId}
-            isAdmin={isAdmin}
-            currentUserId={user?.id}
-            canEditClientNotes={(user?.groupPermissions ?? []).includes('edit_client_notes')}
-            canDeleteClientNotes={(user?.groupPermissions ?? []).includes('delete_client_notes')}
-          />
-        </CardContent>
-      </Card>
-    ),
-    'company-info': (
-      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
-        <CardContent>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <InfoRow label={tc.alias} value={client.alias} />
-              <InfoRow label={tc.vatNumber} value={client.vatNumber} />
-              <InfoRow label={tc.taxCode} value={client.taxCode} />
-              <InfoRow label={tc.address} value={client.address} />
-              <InfoRow label={tc.pec} value={client.pec} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InfoRow label={tc.contactPerson} value={client.contactPerson} />
-              <InfoRow label={tc.email} value={client.email} />
-              <InfoRow label={tc.phone} value={client.phone} />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-    ),
-    'linked-tickets': (
-      <Card variant="outlined" sx={{ borderRadius: editMode ? 0 : 2 }}>
-        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-          <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1.5}>
-            <ConfirmationNumber fontSize="small" color="action" />
-            <Typography variant="subtitle1" fontWeight={600}>
-              {tc.linkedTickets} ({tickets.length})
-            </Typography>
-          </Box>
-          {tickets.length === 0 ? (
-            <Box px={2} pb={2}>
-              <Typography color="text.secondary" variant="body2">{tc.noLinkedTickets}</Typography>
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
-                    <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colTitle}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colStatus}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colPriority}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colAssignee}</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tickets.map((ticket) => (
-                    <TableRow
-                      key={ticket.id}
-                      hover
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => setLocation(`/tickets/${ticket.id}`)}
-                    >
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          #{ticket.ticketNumber ?? ticket.id}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>{ticket.title}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={(t.status as any)[ticket.status] ?? ticket.status}
-                          color={STATUS_COLORS[ticket.status] ?? 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={(t.priority as any)[ticket.priority] ?? ticket.priority}
-                          color={PRIORITY_COLORS[ticket.priority] ?? 'default'}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {ticket.assignedToName ?? t.ticketDetail.unassigned}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
-    ),
-  };
-
-  const blockTitles: Record<BlockId, string> = {
+  const builtinDefaultTitles: Record<BuiltinBlockId, string> = {
     'company-info': tc.blockCompanyInfo,
     'linked-tickets': tc.blockLinkedTickets,
     'client-notes': tc.blockNotes,
     'fixed-notes': tc.blockFixedNotes,
   };
+
+  function getBlockTitle(block: BlockConfig): string {
+    if (block.customName) return block.customName;
+    if (BUILT_IN_BLOCK_IDS.includes(block.instanceId as BuiltinBlockId)) {
+      return builtinDefaultTitles[block.instanceId as BuiltinBlockId];
+    }
+    return tc.blockCustomNote;
+  }
+
+  function renderBlockContent(block: BlockConfig): React.ReactNode {
+    const resolvedTitle = getBlockTitle(block);
+    const radius = editMode ? 0 : 2;
+
+    if (block.instanceId === 'fixed-notes') {
+      return (
+        <Card variant="outlined" sx={{ borderRadius: radius }}>
+          <CardContent>
+            <FixedNotesBlock
+              clientId={clientId}
+              initialNotes={(client as any).notes ?? null}
+              isAdmin={isAdmin}
+              canEditFixed={(user?.groupPermissions ?? []).includes('edit_fixed_notes')}
+              title={resolvedTitle}
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (block.instanceId === 'client-notes') {
+      return (
+        <Card variant="outlined" sx={{ borderRadius: radius }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+              <StickyNote2 fontSize="small" color="action" />
+              <Typography variant="subtitle1" fontWeight={600}>
+                {resolvedTitle}
+              </Typography>
+            </Box>
+            <ClientNotesBlock
+              clientId={clientId}
+              isAdmin={isAdmin}
+              currentUserId={user?.id}
+              canEditClientNotes={(user?.groupPermissions ?? []).includes('edit_client_notes')}
+              canDeleteClientNotes={(user?.groupPermissions ?? []).includes('delete_client_notes')}
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (block.instanceId === 'company-info') {
+      return (
+        <Card variant="outlined" sx={{ borderRadius: radius }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <Business fontSize="small" color="action" />
+              <Typography variant="subtitle1" fontWeight={600}>
+                {resolvedTitle}
+              </Typography>
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <InfoRow label={tc.alias} value={client.alias} />
+                <InfoRow label={tc.vatNumber} value={client.vatNumber} />
+                <InfoRow label={tc.taxCode} value={client.taxCode} />
+                <InfoRow label={tc.address} value={client.address} />
+                <InfoRow label={tc.pec} value={client.pec} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InfoRow label={tc.contactPerson} value={client.contactPerson} />
+                <InfoRow label={tc.email} value={client.email} />
+                <InfoRow label={tc.phone} value={client.phone} />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (block.instanceId === 'linked-tickets') {
+      return (
+        <Card variant="outlined" sx={{ borderRadius: radius }}>
+          <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+            <Box display="flex" alignItems="center" gap={1} px={2} pt={2} pb={1.5}>
+              <ConfirmationNumber fontSize="small" color="action" />
+              <Typography variant="subtitle1" fontWeight={600}>
+                {resolvedTitle} ({tickets.length})
+              </Typography>
+            </Box>
+            {tickets.length === 0 ? (
+              <Box px={2} pb={2}>
+                <Typography color="text.secondary" variant="body2">{tc.noLinkedTickets}</Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colTitle}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colStatus}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colPriority}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colAssignee}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tickets.map((ticket) => (
+                      <TableRow
+                        key={ticket.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => setLocation(`/tickets/${ticket.id}`)}
+                      >
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            #{ticket.ticketNumber ?? ticket.id}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>{ticket.title}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={(t.status as any)[ticket.status] ?? ticket.status}
+                            color={STATUS_COLORS[ticket.status] ?? 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={(t.priority as any)[ticket.priority] ?? ticket.priority}
+                            color={PRIORITY_COLORS[ticket.priority] ?? 'default'}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {ticket.assignedToName ?? t.ticketDetail.unassigned}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card variant="outlined" sx={{ borderRadius: radius }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" gap={1} mb={1}>
+            <StickyNote2 fontSize="small" color="action" />
+            <Typography variant="subtitle1" fontWeight={600}>
+              {resolvedTitle}
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+            {tc.blockCustomNotePlaceholder}
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Box>
@@ -634,40 +775,102 @@ export default function ClientDetail() {
 
       {/* Block layout */}
       {editMode ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={draftLayout.map((b) => b.id)}
-            strategy={verticalListSortingStrategy}
+        <>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            {draftLayout.map((block) => (
-              <SortableBlock
-                key={block.id}
-                id={block.id}
-                editMode
-                visible={block.visible}
-                onToggleVisible={() => handleToggleVisible(block.id)}
-                title={blockTitles[block.id]}
-                visibleLabel={tc.blockVisible}
-                hiddenLabel={tc.blockHidden}
-              >
-                {blockContent[block.id]}
-              </SortableBlock>
-            ))}
-          </SortableContext>
-        </DndContext>
+            <SortableContext
+              items={draftLayout.map((b) => b.instanceId)}
+              strategy={verticalListSortingStrategy}
+            >
+              {draftLayout.map((block) => (
+                <SortableBlock
+                  key={block.instanceId}
+                  instanceId={block.instanceId}
+                  editMode
+                  visible={block.visible}
+                  onToggleVisible={() => handleToggleVisible(block.instanceId)}
+                  onRename={() => openRenameDialog(block.instanceId, block.customName || getBlockTitle(block))}
+                  onDelete={isCustomBlock(block) ? () => handleDeleteBlock(block.instanceId) : undefined}
+                  title={getBlockTitle(block)}
+                  visibleLabel={tc.blockVisible}
+                  hiddenLabel={tc.blockHidden}
+                  renameLabel={tc.blockRename}
+                  deleteLabel={tc.blockDelete}
+                  isCustom={isCustomBlock(block)}
+                >
+                  {renderBlockContent(block)}
+                </SortableBlock>
+              ))}
+            </SortableContext>
+          </DndContext>
+
+          {/* Add Section button */}
+          <Box display="flex" justifyContent="center" mt={1} mb={3}>
+            <Button
+              variant="outlined"
+              startIcon={<Add />}
+              onClick={() => setAddSectionOpen(true)}
+            >
+              {tc.addSection}
+            </Button>
+          </Box>
+        </>
       ) : (
         activeLayout
           .filter((b) => b.visible)
           .map((block) => (
-            <Box key={block.id} mb={3}>
-              {blockContent[block.id]}
+            <Box key={block.instanceId} mb={3}>
+              {renderBlockContent(block)}
             </Box>
           ))
       )}
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{tc.renameBlockTitle}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label={tc.renameBlockLabel}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm(); }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRenameDialogOpen(false)}>{tc.cancelLayout}</Button>
+          <Button variant="contained" onClick={handleRenameConfirm}>
+            {tc.renameBlockSave}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Section Picker Dialog */}
+      <Dialog open={addSectionOpen} onClose={() => setAddSectionOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{tc.addSectionTitle}</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <List disablePadding>
+            {ADDABLE_BLOCK_TYPES.map(({ type, icon }) => (
+              <ListItemButton
+                key={type}
+                onClick={() => handleAddSection(type)}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>{icon}</ListItemIcon>
+                <ListItemText primary={tc.blockCustomNote} />
+              </ListItemButton>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAddSectionOpen(false)}>{tc.cancelLayout}</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>

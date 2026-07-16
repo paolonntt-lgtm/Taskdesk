@@ -24,6 +24,7 @@ interface FixedNotesBlockProps {
   initialNotes: string | null | undefined;
   isAdmin: boolean;
   canEditFixed?: boolean;
+  title?: string;
 }
 
 function ToolbarButton({
@@ -53,7 +54,7 @@ function ToolbarButton({
   );
 }
 
-export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEditFixed }: FixedNotesBlockProps) {
+export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEditFixed, title }: FixedNotesBlockProps) {
   const { t } = useLanguage();
   const tc = t.clients;
 
@@ -121,7 +122,7 @@ export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEd
         <Box display="flex" alignItems="center" gap={1}>
           <StickyNote2 fontSize="small" color="action" />
           <Typography variant="subtitle1" fontWeight={600}>
-            {tc.blockFixedNotes}
+            {title ?? tc.blockFixedNotes}
           </Typography>
         </Box>
         {(isAdmin || canEditFixed) && !editing && (
