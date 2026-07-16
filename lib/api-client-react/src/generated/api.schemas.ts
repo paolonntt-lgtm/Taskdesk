@@ -54,7 +54,6 @@ export interface User {
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;
-  groupPermissions?: string[] | null;
   avatarUrl?: string | null;
   isActive: boolean;
   isAvailable: boolean;
@@ -598,6 +597,79 @@ export interface UpdateChecklistItemBody {
   position?: number;
 }
 
+export type AppointmentCreator = {
+  id?: number;
+  name?: string;
+  email?: string;
+} | null;
+
+export type AppointmentAssignee = {
+  id?: number;
+  name?: string;
+  email?: string;
+} | null;
+
+export interface Appointment {
+  id: number;
+  organizationId: number;
+  title: string;
+  description?: string | null;
+  startsAt: string;
+  endsAt?: string | null;
+  createdBy: number;
+  assignedTo?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  creator?: AppointmentCreator;
+  assignee?: AppointmentAssignee;
+}
+
+export interface CreateAppointmentBody {
+  /** @minLength 1 */
+  title: string;
+  description?: string | null;
+  startsAt: string;
+  endsAt?: string | null;
+  assignedTo?: number | null;
+}
+
+export interface UpdateAppointmentBody {
+  /** @minLength 1 */
+  title?: string;
+  description?: string | null;
+  startsAt?: string;
+  endsAt?: string | null;
+  assignedTo?: number | null;
+}
+
+export type CalendarItemType =
+  (typeof CalendarItemType)[keyof typeof CalendarItemType];
+
+export const CalendarItemType = {
+  ticket: "ticket",
+  appointment: "appointment",
+} as const;
+
+export type CalendarItemAssignee = {
+  id?: number;
+  name?: string;
+  avatarUrl?: string | null;
+} | null;
+
+export interface CalendarItem {
+  type: CalendarItemType;
+  date: string;
+  id: number;
+  title: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  assignee?: CalendarItemAssignee;
+  description?: string | null;
+  createdBy?: number | null;
+}
+
 export type CompleteOnboardingBodyBusinessType =
   (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];
 
@@ -687,4 +759,14 @@ export type ListAllClientNotesParams = {
   authorId?: number;
   dateFrom?: string;
   dateTo?: string;
+};
+
+export type ListAppointmentsParams = {
+  year?: number;
+  month?: number;
+};
+
+export type GetCalendarParams = {
+  year: number;
+  month: number;
 };

@@ -45,6 +45,7 @@ import {
   Brightness4,
   Brightness7,
   Business,
+  CalendarMonth,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -209,6 +210,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false },
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
+    { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
       : []),

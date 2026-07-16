@@ -33,6 +33,8 @@ import groupsRouter from "./groups";
 import checklistsRouter from "./checklists";
 import backupRouter from "./backup";
 import dashboardLayoutRouter from "./dashboardLayout";
+import appointmentsRouter from "./appointments";
+import calendarRouter from "./calendar";
 
 const router: IRouter = Router();
 
@@ -70,5 +72,7 @@ router.use(groupsRouter);
 router.use(checklistsRouter);
 router.use(backupRouter);
 router.use(dashboardLayoutRouter);
+router.use(appointmentsRouter);
+router.use(calendarRouter);
 
 export default router;

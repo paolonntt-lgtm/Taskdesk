@@ -24,6 +24,7 @@ import Onboarding from "./pages/Onboarding";
 import StickyNotesLayer from "./components/StickyNotesLayer";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
+import CalendarPage from "./pages/Calendar";
 import type { User } from "@workspace/api-client-react";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
@@ -164,6 +165,7 @@ function AppShell() {
                     <Route path="/tickets/:id" component={TicketDetail} />
                     <Route path="/tickets" component={TicketList} />
                     <Route path="/reports" component={Reports} />
+                    <Route path="/calendar" component={CalendarPage} />
                     <Route path="/users/:id" component={UserProfile} />
                     <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
                     {(user as any)?.clientsEnabled !== false ? (

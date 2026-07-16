@@ -1909,3 +1909,163 @@ export const UpdateStickyNoteStateBody = zod.object({
   positionY: zod.number(),
   closed: zod.boolean(),
 });
+
+/**
+ * @summary List appointments for the current organization
+ */
+export const ListAppointmentsQueryParams = zod.object({
+  year: zod.coerce.number().optional(),
+  month: zod.coerce.number().optional(),
+});
+
+export const ListAppointmentsResponseItem = zod.object({
+  id: zod.number(),
+  organizationId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  startsAt: zod.coerce.date(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number(),
+  assignedTo: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  creator: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+  assignee: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+});
+export const ListAppointmentsResponse = zod.array(ListAppointmentsResponseItem);
+
+/**
+ * @summary Create a new appointment
+ */
+
+export const CreateAppointmentBody = zod.object({
+  title: zod.string().min(1),
+  description: zod.string().nullish(),
+  startsAt: zod.coerce.date(),
+  endsAt: zod.coerce.date().nullish(),
+  assignedTo: zod.number().nullish(),
+});
+
+/**
+ * @summary Get a single appointment
+ */
+export const GetAppointmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAppointmentResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  startsAt: zod.coerce.date(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number(),
+  assignedTo: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  creator: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+  assignee: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary Update an appointment (creator or admin)
+ */
+export const UpdateAppointmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAppointmentBody = zod.object({
+  title: zod.string().min(1).optional(),
+  description: zod.string().nullish(),
+  startsAt: zod.coerce.date().optional(),
+  endsAt: zod.coerce.date().nullish(),
+  assignedTo: zod.number().nullish(),
+});
+
+export const UpdateAppointmentResponse = zod.object({
+  id: zod.number(),
+  organizationId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  startsAt: zod.coerce.date(),
+  endsAt: zod.coerce.date().nullish(),
+  createdBy: zod.number(),
+  assignedTo: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  creator: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+  assignee: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary Delete an appointment (creator or admin)
+ */
+export const DeleteAppointmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get calendar items (tickets due + appointments) for a given month
+ */
+export const GetCalendarQueryParams = zod.object({
+  year: zod.coerce.number(),
+  month: zod.coerce.number(),
+});
+
+export const GetCalendarResponseItem = zod.object({
+  type: zod.enum(["ticket", "appointment"]),
+  date: zod.coerce.date(),
+  id: zod.number(),
+  title: zod.string(),
+  startsAt: zod.coerce.date().nullish(),
+  endsAt: zod.coerce.date().nullish(),
+  status: zod.string().nullish(),
+  priority: zod.string().nullish(),
+  assignee: zod
+    .object({
+      id: zod.number().optional(),
+      name: zod.string().optional(),
+      avatarUrl: zod.string().nullish(),
+    })
+    .nullish(),
+  description: zod.string().nullish(),
+  createdBy: zod.number().nullish(),
+});
+export const GetCalendarResponse = zod.array(GetCalendarResponseItem);
