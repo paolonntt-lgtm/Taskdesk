@@ -221,6 +221,10 @@ const it = {
     presetSaveCancel: 'Annulla',
     presetDeleteTooltip: 'Rimuovi preset',
     dueSoon: 'In Scadenza',
+    deadlineColumn: 'Scadenza',
+    deadlineExpired: 'Scaduto',
+    deadlineSoon: 'In Scadenza',
+    deadlineNone: 'Nessuna scadenza',
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -1403,6 +1407,10 @@ const en: typeof it = {
     presetSaveCancel: 'Cancel',
     presetDeleteTooltip: 'Remove preset',
     dueSoon: 'Due Soon',
+    deadlineColumn: 'Deadline',
+    deadlineExpired: 'Expired',
+    deadlineSoon: 'Due Soon',
+    deadlineNone: 'No deadline',
   },
   ticketDetail: {
     backToList: 'All tickets',

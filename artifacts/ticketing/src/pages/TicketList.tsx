@@ -16,12 +16,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
+import DeadlineCell from '../components/DeadlineCell';
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const STATUS_ORDER: Record<string, number> = { open: 0, waiting: 1, resolved: 2, closed: 3 };
 
-type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt' | 'client';
+type SortCol = 'id' | 'title' | 'category' | 'status' | 'priority' | 'assignee' | 'location' | 'createdAt' | 'client' | 'dueAt';
 type SortDir = 'asc' | 'desc';
 
 interface FilterPreset {
@@ -304,6 +305,12 @@ export default function TicketList() {
         case 'location':  cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
         case 'client':    cmp = ((a as any).client?.name || '').localeCompare((b as any).client?.name || ''); break;
         case 'createdAt': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
+        case 'dueAt': {
+          const aTime = (a as any).dueAt ? new Date((a as any).dueAt).getTime() : Infinity;
+          const bTime = (b as any).dueAt ? new Date((b as any).dueAt).getTime() : Infinity;
+          cmp = aTime - bTime;
+          break;
+        }
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -370,7 +377,7 @@ export default function TicketList() {
     </TableCell>
   );
 
-  const colSpanTotal = (showLocation ? 8 : 7) + (isAdmin ? 1 : 0);
+  const colSpanTotal = (showLocation ? 9 : 8) + (isAdmin ? 1 : 0);
 
   return (
     <Box>
@@ -774,6 +781,7 @@ export default function TicketList() {
                 {col('category', t.ticketList.colCategory, { display: { xs: 'none', md: 'table-cell' }, width: 110 })}
                 {col('status', t.ticketList.colStatus, { width: { xs: 70, sm: 90 }, px: { xs: 0.25, sm: 1 } })}
                 {col('priority', t.ticketList.colPriority, { display: { xs: 'none', sm: 'table-cell' }, width: 80 })}
+                {col('dueAt', t.ticketList.deadlineColumn, { display: { xs: 'none', sm: 'table-cell' }, width: 90 })}
                 {col('assignee', t.ticketList.colAssignee, { display: { xs: 'none', lg: 'table-cell' }, width: 110 })}
                 {showLocation && col('location', t.ticketList.colLocation, { display: { xs: 'none', md: 'table-cell' }, width: 90 })}
                 {col('createdAt', t.ticketList.colCreated, { display: { xs: 'none', md: 'table-cell' }, width: 76 })}
@@ -855,6 +863,9 @@ export default function TicketList() {
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        <DeadlineCell dueAt={(ticket as any).dueAt} />
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap' }}>
                         {ticket.assignee?.name || '—'}
