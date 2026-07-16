@@ -843,7 +843,6 @@ function ClientNotesWidget() {
     const monthSet = new Set<string>();
     for (const note of allNotes) {
       if (!note.clientId) continue;
-      if (!isClientNoteOpen(note)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       monthSet.add(noteMonth);
     }
@@ -857,15 +856,14 @@ function ClientNotesWidget() {
   const rows = React.useMemo(() => {
     const map = new Map<number, { name: string; slug: string | null; count: number }>();
     for (const note of allNotes) {
-      if (!isClientNoteOpen(note)) continue;
       const noteMonth = note.monthOverride ?? note.createdAt.slice(0, 7);
       if (noteMonth !== effectiveMonth) continue;
       if (!note.clientId) continue;
       const existing = map.get(note.clientId);
       if (existing) {
-        existing.count += 1;
+        if (isClientNoteOpen(note)) existing.count += 1;
       } else {
-        map.set(note.clientId, { name: note.clientName ?? String(note.clientId), slug: note.clientSlug ?? null, count: 1 });
+        map.set(note.clientId, { name: note.clientName ?? String(note.clientId), slug: note.clientSlug ?? null, count: isClientNoteOpen(note) ? 1 : 0 });
       }
     }
     const sorted = Array.from(map.entries())
