@@ -832,7 +832,19 @@ export default function TicketList() {
           </Menu>
         </Box>
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 480 }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: 'auto', minWidth: '100%' }}>
+            <colgroup>
+              {isAdmin && <col style={{ width: 28 }} />}
+              {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
+              <col style={{ width: colWidths.title ?? DEFAULT_COL_WIDTHS.title }} />
+              {(visibleCols.category ?? true) && <col style={{ width: colWidths.category ?? DEFAULT_COL_WIDTHS.category }} />}
+              {(visibleCols.status ?? true) && <col style={{ width: colWidths.status ?? DEFAULT_COL_WIDTHS.status }} />}
+              {(visibleCols.priority ?? true) && <col style={{ width: colWidths.priority ?? DEFAULT_COL_WIDTHS.priority }} />}
+              {(visibleCols.dueAt ?? true) && <col style={{ width: colWidths.dueAt ?? DEFAULT_COL_WIDTHS.dueAt }} />}
+              {(visibleCols.assignee ?? true) && <col style={{ width: colWidths.assignee ?? DEFAULT_COL_WIDTHS.assignee }} />}
+              {showLocation && (visibleCols.location ?? true) && <col style={{ width: colWidths.location ?? DEFAULT_COL_WIDTHS.location }} />}
+              {(visibleCols.createdAt ?? true) && <col style={{ width: colWidths.createdAt ?? DEFAULT_COL_WIDTHS.createdAt }} />}
+            </colgroup>
             <TableHead>
               <TableRow>
                 {isAdmin && (
