@@ -765,14 +765,14 @@ export default function TicketList() {
             <TableHead>
               <TableRow>
                 {isAdmin && (
-                  <TableCell padding="none" sx={{ width: 20, pl: 0.25, pr: 0 }}>
+                  <TableCell padding="none" sx={{ width: 28, pl: 0.25, pr: 0 }}>
                     <Checkbox
                       size="small"
                       indeterminate={someSelected}
                       checked={allSelected}
                       onChange={toggleSelectAll}
                       disabled={sortedTickets.length === 0}
-                      sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 12 } }}
+                      sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }}
                     />
                   </TableCell>
                 )}
@@ -814,8 +814,8 @@ export default function TicketList() {
                       onClick={() => navigate(`/tickets/${ticket.id}`)}
                     >
                       {isAdmin && (
-                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 20, pl: 0.25, pr: 0 }}>
-                          <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 12 } }} />
+                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.25, pr: 0 }}>
+                          <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
                         </TableCell>
                       )}
                       <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, px: { xs: 0.25, sm: 1 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>
