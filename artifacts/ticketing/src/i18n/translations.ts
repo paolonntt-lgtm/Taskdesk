@@ -515,6 +515,9 @@ const it = {
     totalUsers: 'totali',
     seatsAvailableLabel: 'disponibili',
     deleteError: "Errore durante l'eliminazione",
+    effectivePermissions: 'Permessi effettivi',
+    noSpecialPermissions: 'Nessun permesso speciale tramite gruppi',
+    adminAllPermissions: 'Amministratore — accesso completo',
   },
   settings: {
     title: 'Impostazioni',
@@ -1651,6 +1654,9 @@ const en: typeof it = {
     seatsAlmostFull: 'Almost full',
     seatsFull: 'No seats left',
     deleteError: 'Error while deleting',
+    effectivePermissions: 'Effective permissions',
+    noSpecialPermissions: 'No special permissions via groups',
+    adminAllPermissions: 'Administrator — full access',
   },
   settings: {
     title: 'Settings',

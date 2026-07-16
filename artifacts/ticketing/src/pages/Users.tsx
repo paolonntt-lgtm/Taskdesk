@@ -47,6 +47,7 @@ import {
   ContentCopy,
   Check,
   Close,
+  SecurityOutlined,
 } from '@mui/icons-material';
 import { Link as WLink } from 'wouter';
 import { LinearProgress } from '@mui/material';
@@ -77,6 +78,67 @@ const emptyForm: UserFormData = {
   role: 'user',
   mainLocation: '',
 };
+
+type GroupMembership = { id: number; name: string; permissions: string[] };
+
+const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes'] as const;
+
+function getEffectivePermissions(memberships: GroupMembership[]): string[] {
+  const set = new Set<string>();
+  for (const g of memberships) {
+    for (const p of g.permissions ?? []) {
+      set.add(p);
+    }
+  }
+  return PERMISSION_KEYS.filter((k) => set.has(k));
+}
+
+function UserPermissionsTooltip({
+  user,
+  children,
+}: {
+  user: User;
+  children: React.ReactElement;
+}) {
+  const { t } = useLanguage();
+  const ut = t.users;
+  const tg = t.groups;
+
+  const permLabels: Record<string, string> = {
+    change_status: tg.permChangeStatus,
+    add_notes: tg.permAddNotes,
+    edit_fixed_notes: tg.permEditFixedNotes,
+    edit_client_notes: tg.permEditClientNotes,
+    delete_client_notes: tg.permDeleteClientNotes,
+  };
+
+  const isAdmin = user.role === 'admin';
+  const memberships = ((user as any).groupMemberships as GroupMembership[] | undefined) ?? [];
+  const effectivePerms = getEffectivePermissions(memberships);
+
+  const tooltipContent = (
+    <Box sx={{ p: 0.5 }}>
+      <Typography variant="caption" fontWeight={700} display="block" mb={0.5}>
+        {ut.effectivePermissions}
+      </Typography>
+      {isAdmin ? (
+        <Typography variant="caption" display="block">{ut.adminAllPermissions}</Typography>
+      ) : effectivePerms.length === 0 ? (
+        <Typography variant="caption" display="block" color="text.secondary">{ut.noSpecialPermissions}</Typography>
+      ) : (
+        effectivePerms.map((p) => (
+          <Typography key={p} variant="caption" display="block">• {permLabels[p]}</Typography>
+        ))
+      )}
+    </Box>
+  );
+
+  return (
+    <Tooltip title={tooltipContent} arrow placement="top" enterDelay={200}>
+      {children}
+    </Tooltip>
+  );
+}
 
 function UserAvatar({ user, size = 36, onClick }: { user: User; size?: number; onClick?: () => void }) {
   const avatarUrl = (user as any).avatarUrl;
@@ -477,13 +539,41 @@ export default function Users() {
                         variant="outlined"
                         color={u.isAvailable !== false ? 'success' : 'default'}
                       />
-                      {((u as any).groupMemberships as { id: number; name: string }[] | undefined)?.map((g) => (
+                      {((u as any).groupMemberships as GroupMembership[] | undefined)?.map((g) => (
                         <Chip key={g.id} label={g.name} size="small" variant="outlined" />
                       ))}
                       {(u as any).mainLocation && (
                         <Chip label={(u as any).mainLocation} size="small" variant="outlined" />
                       )}
                     </Box>
+                    {/* Effective permissions row */}
+                    {(() => {
+                      const isAdmin = u.role === 'admin';
+                      const memberships = ((u as any).groupMemberships as GroupMembership[] | undefined) ?? [];
+                      const effectivePerms = getEffectivePermissions(memberships);
+                      const permLabels: Record<string, string> = {
+                        change_status: t.groups.permChangeStatus,
+                        add_notes: t.groups.permAddNotes,
+                        edit_fixed_notes: t.groups.permEditFixedNotes,
+                        edit_client_notes: t.groups.permEditClientNotes,
+                        delete_client_notes: t.groups.permDeleteClientNotes,
+                      };
+                      if (!isAdmin && effectivePerms.length === 0) return null;
+                      return (
+                        <Box display="flex" alignItems="flex-start" gap={0.5} mt={0.75} flexWrap="wrap">
+                          <SecurityOutlined sx={{ fontSize: 14, mt: 0.25, color: isAdmin ? 'secondary.main' : 'primary.main', flexShrink: 0 }} />
+                          <Box display="flex" gap={0.5} flexWrap="wrap">
+                            {isAdmin ? (
+                              <Typography variant="caption" color="text.secondary">{ut.adminAllPermissions}</Typography>
+                            ) : (
+                              effectivePerms.map((p) => (
+                                <Chip key={p} label={permLabels[p]} size="small" variant="outlined" color="primary" sx={{ fontSize: '0.65rem', height: 20 }} />
+                              ))
+                            )}
+                          </Box>
+                        </Box>
+                      );
+                    })()}
                   </CardContent>
                   {currentUser?.role === 'admin' && (
                     <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1, flexWrap: 'wrap' }}>
@@ -578,11 +668,26 @@ export default function Users() {
                         />
                       </TableCell>
                       <TableCell>
-                        {((u as any).groupMemberships as { id: number; name: string }[] | undefined)?.length
-                          ? ((u as any).groupMemberships as { id: number; name: string }[]).map((g) => (
-                              <Chip key={g.id} label={g.name} size="small" variant="outlined" sx={{ mr: 0.5 }} />
-                            ))
-                          : <Typography variant="body2" color="text.secondary">—</Typography>}
+                        <UserPermissionsTooltip user={u}>
+                          <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap" sx={{ cursor: 'default' }}>
+                            {((u as any).groupMemberships as GroupMembership[] | undefined)?.length
+                              ? ((u as any).groupMemberships as GroupMembership[]).map((g) => (
+                                  <Chip key={g.id} label={g.name} size="small" variant="outlined" />
+                                ))
+                              : <Typography variant="body2" color="text.secondary">—</Typography>}
+                            <SecurityOutlined
+                              sx={{
+                                fontSize: 16,
+                                ml: 0.25,
+                                color: (() => {
+                                  if (u.role === 'admin') return 'secondary.main';
+                                  const perms = getEffectivePermissions(((u as any).groupMemberships as GroupMembership[] | undefined) ?? []);
+                                  return perms.length > 0 ? 'primary.main' : 'action.disabled';
+                                })(),
+                              }}
+                            />
+                          </Box>
+                        </UserPermissionsTooltip>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

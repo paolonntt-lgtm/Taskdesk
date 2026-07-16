@@ -59,6 +59,7 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
           userId: groupMembersTable.userId,
           groupId: groupsTable.id,
           groupName: groupsTable.name,
+          groupPermissions: groupsTable.permissions,
         })
         .from(groupMembersTable)
         .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
@@ -70,10 +71,10 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
         )
     : [];
 
-  const byUser = new Map<number, { id: number; name: string }[]>();
+  const byUser = new Map<number, { id: number; name: string; permissions: string[] }[]>();
   for (const m of memberships) {
     const list = byUser.get(m.userId) ?? [];
-    list.push({ id: m.groupId, name: m.groupName });
+    list.push({ id: m.groupId, name: m.groupName, permissions: (m.groupPermissions as string[] | null) ?? [] });
     byUser.set(m.userId, list);
   }
 
