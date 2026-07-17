@@ -588,38 +588,178 @@ function TicketStatusesTab() {
 function BackupSection() {
   const { t } = useLanguage();
   const ts = t.settings as any;
-  const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
 
-  const handleBackup = async () => {
-    setStatus('running');
+  const [exportStatus, setExportStatus] = useState<'idle' | 'running' | 'error'>('idle');
+  const [triggerStatus, setTriggerStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [restoreStatus, setRestoreStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [restoreMsg, setRestoreMsg] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    setExportStatus('running');
+    try {
+      const res = await fetch('/api/backup/export', { credentials: 'include' });
+      if (!res.ok) { setExportStatus('error'); return; }
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') ?? '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? 'taskdesk-backup.json';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      setExportStatus('idle');
+    } catch {
+      setExportStatus('error');
+    }
+  };
+
+  const handleTrigger = async () => {
+    setTriggerStatus('running');
     try {
       const res = await fetch('/api/backup/trigger', { method: 'POST', credentials: 'include' });
-      setStatus(res.ok ? 'success' : 'error');
+      setTriggerStatus(res.ok ? 'success' : 'error');
     } catch {
-      setStatus('error');
+      setTriggerStatus('error');
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingFile(file);
+    setConfirmOpen(true);
+    e.target.value = '';
+  };
+
+  const handleRestoreConfirm = async () => {
+    if (!pendingFile) return;
+    setConfirmOpen(false);
+    setRestoreStatus('running');
+    setRestoreMsg('');
+    try {
+      const text = await pendingFile.text();
+      const json = JSON.parse(text);
+      const res = await fetch('/api/backup/restore', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRestoreStatus('error');
+        setRestoreMsg(data.error ?? ts.backupRestoreError);
+      } else {
+        setRestoreStatus('success');
+        setRestoreMsg(
+          ts.backupRestoreSuccess
+            .replace('{tickets}', String(data.ticketsRestored))
+            .replace('{clients}', String(data.clientsRestored))
+            .replace('{comments}', String(data.commentsRestored))
+            .replace('{notes}', String(data.notesRestored))
+        );
+      }
+    } catch {
+      setRestoreStatus('error');
+      setRestoreMsg(ts.backupRestoreError);
+    }
+    setPendingFile(null);
   };
 
   return (
     <Section title={ts.backupSectionTitle} icon={<CloudDownload color="primary" />}>
-      <Typography variant="body2" color="text.secondary" mb={2}>{ts.backupSectionNote}</Typography>
       <Typography variant="body2" color="text.secondary" mb={3} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
         🕑 {ts.backupScheduleNote}
       </Typography>
-      {status === 'success' && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setStatus('idle')}>{ts.backupSuccess}</Alert>
-      )}
-      {status === 'error' && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setStatus('idle')}>{ts.backupError}</Alert>
-      )}
-      <Button
-        variant="contained"
-        startIcon={status === 'running' ? <CircularProgress size={16} color="inherit" /> : <CloudDownload />}
-        onClick={handleBackup}
-        disabled={status === 'running'}
-      >
-        {status === 'running' ? ts.backupRunning : ts.backupButton}
-      </Button>
+
+      {/* ── Export / Download ── */}
+      <Box mb={3}>
+        <Typography variant="subtitle2" gutterBottom>{ts.backupExportButton}</Typography>
+        <Typography variant="body2" color="text.secondary" mb={1.5}>{ts.backupExportNote}</Typography>
+        {exportStatus === 'error' && (
+          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setExportStatus('idle')}>{ts.backupError}</Alert>
+        )}
+        <Button
+          variant="contained"
+          startIcon={exportStatus === 'running' ? <CircularProgress size={16} color="inherit" /> : <CloudDownload />}
+          onClick={handleExport}
+          disabled={exportStatus === 'running'}
+        >
+          {exportStatus === 'running' ? ts.backupRunning : ts.backupExportButton}
+        </Button>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* ── Restore ── */}
+      <Box mb={3}>
+        <Typography variant="subtitle2" gutterBottom>{ts.backupRestoreButton}</Typography>
+        <Typography variant="body2" color="text.secondary" mb={1.5}>{ts.backupRestoreNote}</Typography>
+        {restoreStatus === 'success' && (
+          <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setRestoreStatus('idle')}>{restoreMsg}</Alert>
+        )}
+        {restoreStatus === 'error' && (
+          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setRestoreStatus('idle')}>{restoreMsg || ts.backupRestoreError}</Alert>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <Button
+          variant="outlined"
+          color="warning"
+          startIcon={restoreStatus === 'running' ? <CircularProgress size={16} color="inherit" /> : <CloudDownload />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={restoreStatus === 'running'}
+        >
+          {restoreStatus === 'running' ? ts.backupRestoreRunning : ts.backupRestoreButton}
+        </Button>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* ── Trigger cloud backup ── */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>{ts.backupButton}</Typography>
+        <Typography variant="body2" color="text.secondary" mb={1.5}>{ts.backupSectionNote}</Typography>
+        {triggerStatus === 'success' && (
+          <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setTriggerStatus('idle')}>{ts.backupSuccess}</Alert>
+        )}
+        {triggerStatus === 'error' && (
+          <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setTriggerStatus('idle')}>{ts.backupError}</Alert>
+        )}
+        <Button
+          variant="outlined"
+          startIcon={triggerStatus === 'running' ? <CircularProgress size={16} color="inherit" /> : <CloudDownload />}
+          onClick={handleTrigger}
+          disabled={triggerStatus === 'running'}
+        >
+          {triggerStatus === 'running' ? ts.backupRunning : ts.backupButton}
+        </Button>
+      </Box>
+
+      {/* ── Confirm restore dialog ── */}
+      <Dialog open={confirmOpen} onClose={() => { setConfirmOpen(false); setPendingFile(null); }} maxWidth="xs" fullWidth>
+        <DialogTitle>{ts.backupRestoreDialogTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">{ts.backupRestoreDialogText}</Typography>
+          {pendingFile && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {pendingFile.name}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setConfirmOpen(false); setPendingFile(null); }}>{ts.cancel}</Button>
+          <Button onClick={handleRestoreConfirm} variant="contained" color="warning">{ts.backupRestoreConfirm}</Button>
+        </DialogActions>
+      </Dialog>
     </Section>
   );
 }

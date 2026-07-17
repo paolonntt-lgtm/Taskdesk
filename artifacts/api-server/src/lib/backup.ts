@@ -18,74 +18,53 @@ import { logger } from "./logger";
 
 const storage = new ObjectStorageService();
 
+export async function buildBackupPayload(orgId: number): Promise<null | Awaited<ReturnType<typeof _buildPayload>>> {
+  try { return await _buildPayload(orgId); } catch { return null; }
+}
+
+async function _buildPayload(orgId: number) {
+  const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  if (!org) throw new Error("Organization not found");
+
+  const users = await db.select({
+    id: usersTable.id, name: usersTable.name, email: usersTable.email,
+    role: usersTable.role, isActive: usersTable.isActive, createdAt: usersTable.createdAt,
+  }).from(usersTable).where(eq(usersTable.organizationId, orgId));
+
+  const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.organizationId, orgId));
+  const ticketIds = tickets.map((t) => t.id);
+  const clients = await db.select().from(clientsTable).where(eq(clientsTable.organizationId, orgId));
+  const clientIds = clients.map((c) => c.id);
+
+  const [comments, internalNotes, activityLogs, attachments, clientNotes, groups] = await Promise.all([
+    ticketIds.length > 0 ? db.select().from(ticketCommentsTable).where(inArray(ticketCommentsTable.ticketId, ticketIds)) : [],
+    ticketIds.length > 0 ? db.select().from(ticketInternalNotesTable).where(inArray(ticketInternalNotesTable.ticketId, ticketIds)) : [],
+    ticketIds.length > 0 ? db.select().from(ticketActivityLogsTable).where(inArray(ticketActivityLogsTable.ticketId, ticketIds)) : [],
+    ticketIds.length > 0 ? db.select().from(ticketAttachmentsTable).where(inArray(ticketAttachmentsTable.ticketId, ticketIds)) : [],
+    clientIds.length > 0 ? db.select().from(clientNotesTable).where(inArray(clientNotesTable.clientId, clientIds)) : [],
+    db.select().from(groupsTable).where(eq(groupsTable.organizationId, orgId)),
+  ]);
+
+  const now = new Date();
+  return {
+    exportedAt: now.toISOString(),
+    organization: { id: org.id, name: org.name },
+    summary: {
+      users: users.length, tickets: tickets.length, comments: comments.length,
+      internalNotes: internalNotes.length, activityLogs: activityLogs.length,
+      attachments: attachments.length, clients: clients.length,
+      clientNotes: clientNotes.length, groups: groups.length,
+    },
+    data: { users, tickets, comments, internalNotes, activityLogs, attachments, clients, clientNotes, groups },
+  };
+}
+
 export async function runBackupForOrg(orgId: number): Promise<{ ok: boolean; path?: string; emailsSent?: number; error?: string }> {
   try {
-    const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
-    if (!org) return { ok: false, error: "Organization not found" };
-
-    const users = await db.select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      role: usersTable.role,
-      isActive: usersTable.isActive,
-      createdAt: usersTable.createdAt,
-    }).from(usersTable).where(eq(usersTable.organizationId, orgId));
-
-    const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.organizationId, orgId));
-    const ticketIds = tickets.map((t) => t.id);
-
-    const clients = await db.select().from(clientsTable).where(eq(clientsTable.organizationId, orgId));
-    const clientIds = clients.map((c) => c.id);
-
-    const [comments, internalNotes, activityLogs, attachments, clientNotes, groups] = await Promise.all([
-      ticketIds.length > 0
-        ? db.select().from(ticketCommentsTable).where(inArray(ticketCommentsTable.ticketId, ticketIds))
-        : [],
-      ticketIds.length > 0
-        ? db.select().from(ticketInternalNotesTable).where(inArray(ticketInternalNotesTable.ticketId, ticketIds))
-        : [],
-      ticketIds.length > 0
-        ? db.select().from(ticketActivityLogsTable).where(inArray(ticketActivityLogsTable.ticketId, ticketIds))
-        : [],
-      ticketIds.length > 0
-        ? db.select().from(ticketAttachmentsTable).where(inArray(ticketAttachmentsTable.ticketId, ticketIds))
-        : [],
-      clientIds.length > 0
-        ? db.select().from(clientNotesTable).where(inArray(clientNotesTable.clientId, clientIds))
-        : [],
-      db.select().from(groupsTable).where(eq(groupsTable.organizationId, orgId)),
-    ]);
-
-    const now = new Date();
-    const dateLabel = now.toISOString().slice(0, 10);
-
-    const payload = {
-      exportedAt: now.toISOString(),
-      organization: { id: org.id, name: org.name },
-      summary: {
-        users: users.length,
-        tickets: tickets.length,
-        comments: comments.length,
-        internalNotes: internalNotes.length,
-        activityLogs: activityLogs.length,
-        attachments: attachments.length,
-        clients: clients.length,
-        clientNotes: clientNotes.length,
-        groups: groups.length,
-      },
-      data: {
-        users,
-        tickets,
-        comments,
-        internalNotes,
-        activityLogs,
-        attachments,
-        clients,
-        clientNotes,
-        groups,
-      },
-    };
+    const payload = await _buildPayload(orgId);
+    const org = payload.organization;
+    const users = payload.data.users;
+    const dateLabel = payload.exportedAt.slice(0, 10);
 
     const jsonBuffer = Buffer.from(JSON.stringify(payload, null, 2), "utf-8");
     const filename = `taskdesk-backup-${dateLabel}.json`;
