@@ -1,7 +1,5 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
-import { sendEmail, buildInboundConfirmationEmail } from "./email";
-import { appBaseUrl } from "./appUrl";
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
@@ -387,28 +385,6 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       "ticket_created",
       orgId
     );
-  }
-
-  try {
-    const baseUrl = appBaseUrl();
-    const { subject: confSubject, html, text } = buildInboundConfirmationEmail({
-      fromName,
-      ticketNumber: nextTicketNumber,
-      ticketTitle: title,
-      appBaseUrl: baseUrl,
-    });
-    const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN ?? "inbound.taskdesk.it";
-    const replyTo = routing.channelLocalPart ? `${routing.channelLocalPart}@${inboundDomain}` : undefined;
-    const emailResult = await sendEmail({ to: fromEmail, subject: confSubject, html, text, replyTo });
-    if (!emailResult.ok) {
-      logger.warn({ to: fromEmail, err: emailResult.error }, "Failed to send inbound confirmation email");
-    } else if (emailResult.messageId) {
-      await db.update(ticketsTable)
-        .set({ emailMessageId: emailResult.messageId })
-        .where(eq(ticketsTable.id, ticket.id));
-    }
-  } catch (err) {
-    logger.warn({ err }, "Error sending inbound confirmation email");
   }
 
   logger.info({ ticketId: ticket.id, ticketNumber: nextTicketNumber, from: fromEmail }, "Inbound email ticket created");
