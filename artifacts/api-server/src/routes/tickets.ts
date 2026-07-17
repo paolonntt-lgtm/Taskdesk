@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
@@ -9,6 +9,18 @@ import { appBaseUrl } from "../lib/appUrl";
 import { hasGroupPermission } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
+
+function computeNextRecurrence(from: Date, frequency: "daily" | "weekly" | "monthly" | "yearly", interval: number = 1): Date {
+  const n = Math.max(1, Math.round(interval));
+  const next = new Date(from);
+  switch (frequency) {
+    case "daily": next.setDate(next.getDate() + n); break;
+    case "weekly": next.setDate(next.getDate() + 7 * n); break;
+    case "monthly": next.setMonth(next.getMonth() + n); break;
+    case "yearly": next.setFullYear(next.getFullYear() + n); break;
+  }
+  return next;
+}
 
 function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null, client?: { id: number; name: string; alias?: string | null } | null) {
   return {
@@ -26,12 +38,20 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
   // Always filter by organization
   if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
+
+  // Scheduled filter: when scheduled=true show only future-scheduled tickets; otherwise hide them
+  if (scheduled === 'true') {
+    conditions.push(isNotNull(ticketsTable.scheduledAt));
+    conditions.push(gt(ticketsTable.scheduledAt, sql`now()`));
+  } else {
+    conditions.push(or(isNull(ticketsTable.scheduledAt), lte(ticketsTable.scheduledAt, sql`now()`))!);
+  }
 
   if (status) {
     const vals = status.split(',').map((v) => v.trim()).filter(Boolean);
@@ -213,6 +233,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     checklistCount: checklistMap.get(t.id)?.checklistCount ?? 0,
     checklistTotal: checklistMap.get(t.id)?.total ?? 0,
     checklistChecked: checklistMap.get(t.id)?.checked ?? 0,
+    recurrence: t.recurrenceRule != null,
   }));
 
   res.setHeader("Cache-Control", "no-store");
@@ -730,6 +751,212 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
   res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient));
+});
+
+router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ticket ID" });
+    return;
+  }
+
+  const { scheduledAt } = (req.body ?? {}) as { scheduledAt?: string | null };
+
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!existing) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
+  const [orgMax] = await db
+    .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
+    .from(ticketsTable)
+    .where(orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`);
+  const nextTicketNumber = (Number(orgMax.maxNum) || 0) + 1;
+
+  const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
+
+  const [newTicket] = await db.insert(ticketsTable).values({
+    organizationId: existing.organizationId,
+    ticketNumber: nextTicketNumber,
+    title: existing.title,
+    description: existing.description,
+    category: existing.category,
+    location: existing.location,
+    resource: existing.resource,
+    priority: existing.priority,
+    status: "open",
+    createdBy: currentUser.id,
+    assignedTo: existing.assignedTo,
+    assignedToGroup: existing.assignedToGroup,
+    clientId: existing.clientId,
+    scheduledAt: scheduledDate,
+    createdAt: scheduledDate ?? new Date(),
+  }).returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: newTicket.id,
+    userId: currentUser.id,
+    actionType: "cloned_from",
+    actionDescription: `Pratica clonata dalla pratica #${existing.ticketNumber ?? existing.id}`,
+  });
+
+  const checklists = await db
+    .select()
+    .from(ticketChecklistsTable)
+    .where(eq(ticketChecklistsTable.ticketId, existing.id));
+
+  for (const cl of checklists) {
+    const [newCl] = await db
+      .insert(ticketChecklistsTable)
+      .values({ ticketId: newTicket.id, orgId: cl.orgId, title: cl.title, position: cl.position })
+      .returning();
+
+    const items = await db
+      .select()
+      .from(ticketChecklistItemsTable)
+      .where(eq(ticketChecklistItemsTable.checklistId, cl.id));
+
+    if (items.length > 0) {
+      await db.insert(ticketChecklistItemsTable).values(
+        items.map((item) => ({
+          checklistId: newCl.id,
+          orgId: item.orgId,
+          text: item.text,
+          checked: false,
+          position: item.position,
+        }))
+      );
+    }
+  }
+
+  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, currentUser.id));
+  let assigneeUser = null;
+  if (newTicket.assignedTo) {
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, newTicket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
+    assigneeUser = a ?? null;
+  }
+  let ticketClient = null;
+  if (newTicket.clientId) {
+    const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
+      .from(clientsTable).where(eq(clientsTable.id, newTicket.clientId));
+    ticketClient = c ?? null;
+  }
+
+  res.status(201).json(buildTicketWithDetails(newTicket, creator, assigneeUser, 0, 0, null, ticketClient));
+});
+
+router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ticket ID" });
+    return;
+  }
+
+  const { frequency, interval: rawInterval, endDate } = (req.body ?? {}) as { frequency?: string; interval?: number; endDate?: string | null };
+  if (!frequency || !["daily", "weekly", "monthly", "yearly"].includes(frequency)) {
+    res.status(400).json({ error: "Invalid or missing frequency" });
+    return;
+  }
+  const interval = Math.max(1, Math.round(Number(rawInterval) || 1));
+
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!existing) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
+  const rule = { frequency, interval, ...(endDate ? { endDate } : {}) };
+  const now = new Date();
+  const nextAt = computeNextRecurrence(now, frequency as "daily" | "weekly" | "monthly" | "yearly", interval);
+
+  const [updated] = await db.update(ticketsTable)
+    .set({ recurrenceRule: rule, recurrenceNextAt: nextAt, updatedAt: new Date() })
+    .where(eq(ticketsTable.id, id))
+    .returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: id,
+    userId: currentUser.id,
+    actionType: "recurrence_set",
+    actionDescription: `Ricorrenza impostata: ${frequency}`,
+  });
+
+  const [creator] = await db.select().from(usersTable).where(
+    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+  );
+  let assignee = null;
+  if (updated.assignedTo) {
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
+    assignee = a ?? null;
+  }
+  const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
+  const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
+
+  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null));
+});
+
+router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ticket ID" });
+    return;
+  }
+
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+  );
+  if (!existing) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
+  const [updated] = await db.update(ticketsTable)
+    .set({ recurrenceRule: null, recurrenceNextAt: null, updatedAt: new Date() })
+    .where(eq(ticketsTable.id, id))
+    .returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: id,
+    userId: currentUser.id,
+    actionType: "recurrence_removed",
+    actionDescription: "Ricorrenza rimossa",
+  });
+
+  const [creator] = await db.select().from(usersTable).where(
+    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+  );
+  let assignee = null;
+  if (updated.assignedTo) {
+    const [a] = await db.select().from(usersTable).where(
+      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+    );
+    assignee = a ?? null;
+  }
+  const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
+  const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
+
+  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null));
 });
 
 router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {

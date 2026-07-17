@@ -537,6 +537,10 @@ paths:
           in: query
           schema:
             type: integer
+        - name: scheduled
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of tickets
@@ -633,6 +637,91 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tickets/{id}/clone:
+    post:
+      operationId: cloneTicket
+      tags: [tickets]
+      summary: Clone a ticket with optional scheduled date (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloneTicketBody"
+      responses:
+        "201":
+          description: Cloned ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tickets/{id}/recurrence:
+    patch:
+      operationId: setTicketRecurrence
+      tags: [tickets]
+      summary: Set or update the recurrence rule for a ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetRecurrenceBody"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTicketRecurrence
+      tags: [tickets]
+      summary: Remove the recurrence rule from a ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWithDetails"
         "404":
           description: Not found
           content:
@@ -2312,6 +2401,43 @@ components:
         isAvailable:
           type: boolean
 
+    RecurrenceRule:
+      type: object
+      properties:
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        interval:
+          type: integer
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - frequency
+
+    CloneTicketBody:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    SetRecurrenceBody:
+      type: object
+      properties:
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - frequency
+
     Ticket:
       type: object
       properties:
@@ -2364,6 +2490,20 @@ components:
           nullable: true
         clientId:
           type: integer
+          nullable: true
+        recurrenceRule:
+          $ref: "#/components/schemas/RecurrenceRule"
+          nullable: true
+        recurrenceNextAt:
+          type: string
+          format: date-time
+          nullable: true
+        recurrenceParentId:
+          type: integer
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
           nullable: true
       required:
         - id

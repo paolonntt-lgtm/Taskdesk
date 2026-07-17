@@ -6,7 +6,7 @@ import {
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
   Select, FormControl, InputLabel, OutlinedInput, ListItemText, Menu,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -116,6 +116,7 @@ export default function TicketList() {
   const emailOrigin    = urlParams.get('emailOrigin') === 'true';
   const clientIdFilter = urlParams.get('clientId') ?? 'all';
   const overdueFilter  = urlParams.get('overdue') === 'true';
+  const scheduledFilter = urlParams.get('scheduled') === 'true';
   const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
   const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
 
@@ -321,6 +322,7 @@ export default function TicketList() {
     emailOrigin: emailOrigin || undefined,
     clientId: clientIdFilter !== 'all' ? parseInt(clientIdFilter, 10) : undefined,
     ...(overdueFilter ? { overdue: 'true' } : {}),
+    ...(scheduledFilter ? { scheduled: 'true' } : {}),
   } as any, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
 
   // Clear selection when tickets change (e.g. after delete or filter)
@@ -447,7 +449,20 @@ export default function TicketList() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, sm: 3 }}>
-        <Typography variant="h5" fontWeight="bold">{entityTerm.navAll}</Typography>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <Typography variant="h5" fontWeight="bold">{entityTerm.navAll}</Typography>
+          {isAdmin && (
+            <Chip
+              icon={<ScheduleIcon style={{ fontSize: 14 }} />}
+              label={t.ticketList.scheduledTab}
+              size="small"
+              variant={scheduledFilter ? 'filled' : 'outlined'}
+              color={scheduledFilter ? 'warning' : 'default'}
+              onClick={() => setParam('scheduled', scheduledFilter ? '' : 'true', 'false')}
+              sx={{ cursor: 'pointer' }}
+            />
+          )}
+        </Box>
         <Button
           component={Link}
           href="/tickets/new"
@@ -924,6 +939,16 @@ export default function TicketList() {
                           {ticket.inboundChannelId && (
                             <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
                               <EmailIcon sx={{ fontSize: 14, color: 'info.main', flexShrink: 0, mt: 0.2 }} />
+                            </Tooltip>
+                          )}
+                          {(ticket as any).recurrence && (
+                            <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
+                              <RepeatIcon sx={{ fontSize: 14, color: 'secondary.main', flexShrink: 0, mt: 0.2 }} />
+                            </Tooltip>
+                          )}
+                          {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && (
+                            <Tooltip title={t.ticketList.scheduledBadgeTooltip} placement="top" arrow>
+                              <CalendarTodayIcon sx={{ fontSize: 13, color: 'warning.main', flexShrink: 0, mt: 0.2 }} />
                             </Tooltip>
                           )}
                           <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3 }}>{ticket.title}</Box>

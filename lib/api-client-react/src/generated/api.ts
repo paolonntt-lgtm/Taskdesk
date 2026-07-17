@@ -31,6 +31,7 @@ import type {
   ClientNote,
   ClientNoteInput,
   ClientNoteWithClient,
+  CloneTicketBody,
   CommentWithAuthor,
   CompleteOnboarding200,
   CompleteOnboardingBody,
@@ -64,6 +65,7 @@ import type {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
   SaveAttachmentBody,
+  SetRecurrenceBody,
   StatGroup,
   StatGroupWithName,
   StickyNote,
@@ -2004,6 +2006,264 @@ export const useDeleteTicket = <
   TContext
 > => {
   return useMutation(getDeleteTicketMutationOptions(options));
+};
+
+/**
+ * @summary Clone a ticket with optional scheduled date (admin only)
+ */
+export const getCloneTicketUrl = (id: number) => {
+  return `/api/tickets/${id}/clone`;
+};
+
+export const cloneTicket = async (
+  id: number,
+  cloneTicketBody?: CloneTicketBody,
+  options?: RequestInit,
+): Promise<TicketWithDetails> => {
+  return customFetch<TicketWithDetails>(getCloneTicketUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(cloneTicketBody),
+  });
+};
+
+export const getCloneTicketMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cloneTicket>>,
+    TError,
+    { id: number; data: BodyType<CloneTicketBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cloneTicket>>,
+  TError,
+  { id: number; data: BodyType<CloneTicketBody> },
+  TContext
+> => {
+  const mutationKey = ["cloneTicket"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cloneTicket>>,
+    { id: number; data: BodyType<CloneTicketBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return cloneTicket(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CloneTicketMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cloneTicket>>
+>;
+export type CloneTicketMutationBody = BodyType<CloneTicketBody>;
+export type CloneTicketMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Clone a ticket with optional scheduled date (admin only)
+ */
+export const useCloneTicket = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cloneTicket>>,
+    TError,
+    { id: number; data: BodyType<CloneTicketBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cloneTicket>>,
+  TError,
+  { id: number; data: BodyType<CloneTicketBody> },
+  TContext
+> => {
+  return useMutation(getCloneTicketMutationOptions(options));
+};
+
+/**
+ * @summary Set or update the recurrence rule for a ticket (admin only)
+ */
+export const getSetTicketRecurrenceUrl = (id: number) => {
+  return `/api/tickets/${id}/recurrence`;
+};
+
+export const setTicketRecurrence = async (
+  id: number,
+  setRecurrenceBody: SetRecurrenceBody,
+  options?: RequestInit,
+): Promise<TicketWithDetails> => {
+  return customFetch<TicketWithDetails>(getSetTicketRecurrenceUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setRecurrenceBody),
+  });
+};
+
+export const getSetTicketRecurrenceMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setTicketRecurrence>>,
+    TError,
+    { id: number; data: BodyType<SetRecurrenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setTicketRecurrence>>,
+  TError,
+  { id: number; data: BodyType<SetRecurrenceBody> },
+  TContext
+> => {
+  const mutationKey = ["setTicketRecurrence"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setTicketRecurrence>>,
+    { id: number; data: BodyType<SetRecurrenceBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setTicketRecurrence(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetTicketRecurrenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setTicketRecurrence>>
+>;
+export type SetTicketRecurrenceMutationBody = BodyType<SetRecurrenceBody>;
+export type SetTicketRecurrenceMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Set or update the recurrence rule for a ticket (admin only)
+ */
+export const useSetTicketRecurrence = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setTicketRecurrence>>,
+    TError,
+    { id: number; data: BodyType<SetRecurrenceBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setTicketRecurrence>>,
+  TError,
+  { id: number; data: BodyType<SetRecurrenceBody> },
+  TContext
+> => {
+  return useMutation(getSetTicketRecurrenceMutationOptions(options));
+};
+
+/**
+ * @summary Remove the recurrence rule from a ticket (admin only)
+ */
+export const getDeleteTicketRecurrenceUrl = (id: number) => {
+  return `/api/tickets/${id}/recurrence`;
+};
+
+export const deleteTicketRecurrence = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TicketWithDetails> => {
+  return customFetch<TicketWithDetails>(getDeleteTicketRecurrenceUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTicketRecurrenceMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicketRecurrence>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTicketRecurrence>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTicketRecurrence"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTicketRecurrence>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteTicketRecurrence(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTicketRecurrenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTicketRecurrence>>
+>;
+
+export type DeleteTicketRecurrenceMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove the recurrence rule from a ticket (admin only)
+ */
+export const useDeleteTicketRecurrence = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicketRecurrence>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTicketRecurrence>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteTicketRecurrenceMutationOptions(options));
 };
 
 /**

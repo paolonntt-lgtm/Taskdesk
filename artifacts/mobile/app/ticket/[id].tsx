@@ -15,6 +15,8 @@ import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
+type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
+
 interface Ticket {
   id: number; title: string; description: string;
   category: string; location: string; resource?: string;
@@ -24,6 +26,9 @@ interface Ticket {
   creator: { name: string }; assignee?: { name: string } | null;
   assignedToGroup?: string | null;
   commentCount: number;
+  recurrenceRule?: { frequency: RecurrenceFreq; interval: number; endDate?: string } | null;
+  recurrenceNextAt?: string | null;
+  scheduledAt?: string | null;
 }
 interface Comment {
   id: number; commentText: string; isInternal: boolean;
@@ -45,6 +50,18 @@ export default function TicketDetailScreen() {
   const [resolutionModal, setResolutionModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolving, setResolving] = useState(false);
+
+  // Recurrence modal state
+  const [recurrenceModal, setRecurrenceModal] = useState(false);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFreq>("weekly");
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+  const [recurrenceSaving, setRecurrenceSaving] = useState(false);
+
+  // Clone modal state
+  const [cloneModal, setCloneModal] = useState(false);
+  const [cloneScheduledAt, setCloneScheduledAt] = useState("");
+  const [cloneSaving, setCloneSaving] = useState(false);
 
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
   const [addingChecklist, setAddingChecklist] = useState(false);
@@ -226,6 +243,74 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const openRecurrenceModal = () => {
+    if (ticket?.recurrenceRule) {
+      setRecurrenceFreq(ticket.recurrenceRule.frequency ?? "weekly");
+      setRecurrenceInterval(ticket.recurrenceRule.interval ?? 1);
+      setRecurrenceEndDate(ticket.recurrenceRule.endDate ? ticket.recurrenceRule.endDate.slice(0, 10) : "");
+    } else {
+      setRecurrenceFreq("weekly");
+      setRecurrenceInterval(1);
+      setRecurrenceEndDate("");
+    }
+    setRecurrenceModal(true);
+  };
+
+  const handleRecurrenceSave = async () => {
+    if (!ticket) return;
+    setRecurrenceSaving(true);
+    try {
+      await apiPatch(`/tickets/${id}/recurrence`, {
+        frequency: recurrenceFreq,
+        interval: recurrenceInterval,
+        ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
+      });
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      setRecurrenceModal(false);
+    } catch (e: any) {
+      Alert.alert(t.ticketDetail.error, e.message || t.ticketDetail.recurrenceSetError);
+    } finally {
+      setRecurrenceSaving(false);
+    }
+  };
+
+  const handleRecurrenceRemove = async () => {
+    setRecurrenceSaving(true);
+    try {
+      await apiDelete(`/tickets/${id}/recurrence`);
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      setRecurrenceModal(false);
+    } catch (e: any) {
+      Alert.alert(t.ticketDetail.error, e.message || t.ticketDetail.recurrenceRemoveError);
+    } finally {
+      setRecurrenceSaving(false);
+    }
+  };
+
+  const handleClone = async () => {
+    if (!ticket) return;
+    setCloneSaving(true);
+    try {
+      const cloned = await apiPost<{ id: number }>(`/tickets/${id}/clone`, {
+        ...(cloneScheduledAt ? { scheduledAt: new Date(cloneScheduledAt).toISOString() } : {}),
+      });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      setCloneModal(false);
+      Alert.alert(
+        t.ticketDetail.duplicateDialogTitle,
+        lang === "en" ? `Ticket #${cloned.id} created.` : `Pratica #${cloned.id} creata.`,
+        [
+          { text: t.ticketDetail.cancel, style: "cancel" },
+          { text: lang === "en" ? "Open" : "Apri", onPress: () => router.replace(`/ticket/${cloned.id}` as any) },
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert(t.ticketDetail.error, e.message || t.ticketDetail.duplicateError);
+    } finally {
+      setCloneSaving(false);
+    }
+  };
+
   const handleComment = async () => {
     if (!comment.trim()) return;
     setSubmitting(true);
@@ -347,6 +432,28 @@ export default function TicketDetailScreen() {
                 ))}
               </View>
             </ScrollView>
+          </View>
+        )}
+
+        {/* Admin: recurrence + clone actions */}
+        {isAdmin && (
+          <View style={[s.section, { flexDirection: "row", gap: 10 }]}>
+            <TouchableOpacity
+              style={[s.actionBtn, ticket.recurrenceRule && s.actionBtnActive]}
+              onPress={openRecurrenceModal}
+            >
+              <Feather name="repeat" size={14} color={ticket.recurrenceRule ? "#fff" : colors.primary} />
+              <Text style={[s.actionBtnText, ticket.recurrenceRule && s.actionBtnTextActive]}>
+                {t.ticketDetail.recurrenceRow}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={() => { setCloneScheduledAt(""); setCloneModal(true); }}
+            >
+              <Feather name="copy" size={14} color={colors.primary} />
+              <Text style={s.actionBtnText}>{t.ticketDetail.duplicateAction}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -618,6 +725,128 @@ export default function TicketDetailScreen() {
         </View>
       </KeyboardAwareScrollView>
 
+      {/* ── Recurrence Modal ── */}
+      <Modal
+        visible={recurrenceModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setRecurrenceModal(false)}
+      >
+        <View style={s.modalRoot}>
+          <View style={s.modalHeader}>
+            <TouchableOpacity onPress={() => setRecurrenceModal(false)} style={s.modalCancel}>
+              <Text style={s.modalCancelText}>{t.ticketDetail.recurrenceCancel}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t.ticketDetail.recurrenceDialogTitle}</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <View style={s.modalContent}>
+            <Text style={[s.metaLabel, { marginBottom: 6 }]}>{t.ticketDetail.recurrenceFrequency}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+              {(["daily", "weekly", "monthly", "yearly"] as RecurrenceFreq[]).map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setRecurrenceFreq(f)}
+                  style={[s.statusBtn, recurrenceFreq === f && s.statusBtnActive]}
+                >
+                  <Text style={[s.statusBtnText, recurrenceFreq === f && s.statusBtnTextActive]}>
+                    {t.ticketDetail[`recurrenceFreq${f.charAt(0).toUpperCase() + f.slice(1)}` as keyof typeof t.ticketDetail] as string}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[s.metaLabel, { marginBottom: 6 }]}>{lang === "en" ? "Every" : "Ogni"}</Text>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+              {[1, 2, 3, 4].map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  onPress={() => setRecurrenceInterval(n)}
+                  style={[s.statusBtn, recurrenceInterval === n && s.statusBtnActive]}
+                >
+                  <Text style={[s.statusBtnText, recurrenceInterval === n && s.statusBtnTextActive]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[s.metaLabel, { marginBottom: 6 }]}>{t.ticketDetail.recurrenceEndDate}</Text>
+            <TextInput
+              style={[s.commentInput, { marginBottom: 8, minHeight: 40 }]}
+              value={recurrenceEndDate}
+              onChangeText={setRecurrenceEndDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.mutedForeground}
+            />
+          </View>
+          <View style={s.modalFooter}>
+            {ticket?.recurrenceRule && (
+              <TouchableOpacity
+                style={[s.skipBtn, { backgroundColor: colors.destructive + "22" }]}
+                onPress={handleRecurrenceRemove}
+                disabled={recurrenceSaving}
+              >
+                <Text style={[s.skipBtnText, { color: colors.destructive }]}>{t.ticketDetail.recurrenceRemove}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[s.confirmBtn, recurrenceSaving && { opacity: 0.6 }]}
+              onPress={handleRecurrenceSave}
+              disabled={recurrenceSaving}
+            >
+              {recurrenceSaving
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={s.confirmBtnText}>{t.ticketDetail.recurrenceSave}</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Clone Modal ── */}
+      <Modal
+        visible={cloneModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setCloneModal(false)}
+      >
+        <View style={s.modalRoot}>
+          <View style={s.modalHeader}>
+            <TouchableOpacity onPress={() => setCloneModal(false)} style={s.modalCancel}>
+              <Text style={s.modalCancelText}>{t.ticketDetail.duplicateCancel}</Text>
+            </TouchableOpacity>
+            <Text style={s.modalTitle}>{t.ticketDetail.duplicateDialogTitle}</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <View style={s.modalContent}>
+            <Feather name="copy" size={40} color={colors.primary} style={{ alignSelf: "center", marginBottom: 12 }} />
+            <Text style={[s.metaLabel, { marginBottom: 6 }]}>{t.ticketDetail.duplicateScheduledDate}</Text>
+            <TextInput
+              style={[s.commentInput, { minHeight: 40 }]}
+              value={cloneScheduledAt}
+              onChangeText={setCloneScheduledAt}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.mutedForeground}
+            />
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 6 }}>
+              {lang === "en" ? "Leave empty to clone immediately" : "Lascia vuoto per duplicare subito"}
+            </Text>
+          </View>
+          <View style={s.modalFooter}>
+            <TouchableOpacity style={s.skipBtn} onPress={() => setCloneModal(false)}>
+              <Text style={s.skipBtnText}>{t.ticketDetail.duplicateCancel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.confirmBtn, cloneSaving && { opacity: 0.6 }]}
+              onPress={handleClone}
+              disabled={cloneSaving}
+            >
+              {cloneSaving
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={s.confirmBtnText}>{t.ticketDetail.duplicateConfirm}</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={resolutionModal}
         animationType="slide"
@@ -762,4 +991,12 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.success,
     },
     confirmBtnText: { fontSize: 15, color: "#fff", fontFamily: "Inter_600SemiBold" },
+    actionBtn: {
+      flex: 1, flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
+      gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary,
+    },
+    actionBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    actionBtnText: { fontSize: 13, color: colors.primary, fontFamily: "Inter_600SemiBold" },
+    actionBtnTextActive: { color: colors.primaryForeground },
   });

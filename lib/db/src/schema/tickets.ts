@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -29,6 +29,10 @@ export const ticketsTable = pgTable("tickets", {
   emailConversationId: text("email_conversation_id"),
   inboundChannelId: integer("inbound_channel_id").references(() => inboundEmailChannelsTable.id),
   clientId: integer("client_id").references(() => clientsTable.id),
+  recurrenceRule: jsonb("recurrence_rule"),
+  recurrenceNextAt: timestamp("recurrence_next_at", { withTimezone: true }),
+  recurrenceParentId: integer("recurrence_parent_id").references((): any => ticketsTable.id),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
 }, (t) => [
   index("tickets_status_idx").on(t.status),
   index("tickets_priority_idx").on(t.priority),

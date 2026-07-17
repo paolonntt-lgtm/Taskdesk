@@ -24,6 +24,8 @@ interface Ticket {
   resolutionNote?: string | null;
   creator?: { name: string };
   assignee?: { name: string } | null;
+  recurrence?: boolean;
+  scheduledAt?: string | null;
 }
 
 export default function TicketsScreen() {
@@ -37,16 +39,18 @@ export default function TicketsScreen() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(params.status ?? "");
   const [priorityFilter, setPriorityFilter] = useState(params.priority ?? "");
+  const [scheduledFilter, setScheduledFilter] = useState(false);
 
   const buildQuery = () => {
     const parts: string[] = [];
     if (statusFilter) parts.push(`status=${statusFilter}`);
     if (priorityFilter) parts.push(`priority=${priorityFilter}`);
+    if (scheduledFilter) parts.push(`scheduled=true`);
     return parts.length > 0 ? `?${parts.join("&")}` : "";
   };
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets", statusFilter, priorityFilter],
+    queryKey: ["tickets", statusFilter, priorityFilter, scheduledFilter],
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
     enabled: !!user,
   });
@@ -74,7 +78,15 @@ export default function TicketsScreen() {
               {t.priority[item.priority] ?? item.priority}
             </Text>
           </View>
-          <Text style={s.ticketId}>#{item.id}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            {item.recurrence && (
+              <Feather name="repeat" size={12} color={colors.primary} />
+            )}
+            {item.scheduledAt && new Date(item.scheduledAt) > new Date() && (
+              <Feather name="calendar" size={12} color="#e65100" />
+            )}
+            <Text style={s.ticketId}>#{item.id}</Text>
+          </View>
         </View>
         <Text style={s.title} numberOfLines={2}>{item.title}</Text>
         <View style={s.meta}>
@@ -156,6 +168,16 @@ export default function TicketsScreen() {
             {t.priority["urgent"]}
           </Text>
         </TouchableOpacity>
+        {user?.role === "admin" && (
+          <TouchableOpacity
+            style={[s.filterBtn, scheduledFilter && s.filterBtnScheduled]}
+            onPress={() => { setScheduledFilter(!scheduledFilter); setStatusFilter(""); setPriorityFilter(""); }}
+          >
+            <Text style={[s.filterText, scheduledFilter && s.filterTextScheduled]}>
+              {t.tickets.scheduled}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {isLoading ? (
@@ -198,9 +220,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     filterBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     filterBtnUrgent: { backgroundColor: colors.destructive, borderColor: colors.destructive },
+    filterBtnScheduled: { backgroundColor: "#e65100", borderColor: "#e65100" },
     filterText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     filterTextActive: { color: colors.primaryForeground },
     filterTextUrgent: { color: "#fff" },
+    filterTextScheduled: { color: "#fff" },
     list: { padding: 16, paddingTop: 8 },
     card: {
       backgroundColor: colors.card, borderRadius: 12, padding: 16,

@@ -349,6 +349,7 @@ export const ListTicketsQueryParams = zod.object({
   resource: zod.coerce.string().optional(),
   emailOrigin: zod.coerce.boolean().optional(),
   clientId: zod.coerce.number().optional(),
+  scheduled: zod.coerce.boolean().optional(),
 });
 
 export const ListTicketsResponseItem = zod
@@ -371,6 +372,16 @@ export const ListTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({
@@ -456,6 +467,16 @@ export const GetTicketResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({
@@ -539,6 +560,16 @@ export const UpdateTicketResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({
@@ -586,6 +617,178 @@ export const UpdateTicketResponse = zod
 export const DeleteTicketParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary Clone a ticket with optional scheduled date (admin only)
+ */
+export const CloneTicketParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CloneTicketBody = zod.object({
+  scheduledAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Set or update the recurrence rule for a ticket (admin only)
+ */
+export const SetTicketRecurrenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetTicketRecurrenceBody = zod.object({
+  frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+  endDate: zod.coerce.date().nullish(),
+});
+
+export const SetTicketRecurrenceResponse = zod
+  .object({
+    id: zod.number(),
+    ticketNumber: zod.number().nullish(),
+    title: zod.string(),
+    description: zod.string(),
+    category: zod.string(),
+    location: zod.string(),
+    resource: zod.string().nullish(),
+    priority: zod.enum(["low", "medium", "high", "urgent"]),
+    status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    createdBy: zod.number(),
+    assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+    closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
+  })
+  .and(
+    zod.object({
+      creator: zod.object({
+        id: zod.number(),
+        name: zod.string(),
+        email: zod.string(),
+        role: zod.enum(["admin", "user"]),
+        mainLocation: zod.string().nullish(),
+        group: zod.string().nullish(),
+        groups: zod.array(zod.string()).nullish(),
+        avatarUrl: zod.string().nullish(),
+        isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
+        createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
+      }),
+      assignee: zod
+        .object({
+          id: zod.number(),
+          name: zod.string(),
+          email: zod.string(),
+          role: zod.enum(["admin", "user"]),
+          mainLocation: zod.string().nullish(),
+          group: zod.string().nullish(),
+          groups: zod.array(zod.string()).nullish(),
+          avatarUrl: zod.string().nullish(),
+          isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
+          createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
+        })
+        .nullish(),
+      commentCount: zod.number(),
+      noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
+    }),
+  );
+
+/**
+ * @summary Remove the recurrence rule from a ticket (admin only)
+ */
+export const DeleteTicketRecurrenceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteTicketRecurrenceResponse = zod
+  .object({
+    id: zod.number(),
+    ticketNumber: zod.number().nullish(),
+    title: zod.string(),
+    description: zod.string(),
+    category: zod.string(),
+    location: zod.string(),
+    resource: zod.string().nullish(),
+    priority: zod.enum(["low", "medium", "high", "urgent"]),
+    status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    createdBy: zod.number(),
+    assignedTo: zod.number().nullish(),
+    inboundChannelId: zod.number().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+    closedAt: zod.coerce.date().nullish(),
+    dueAt: zod.coerce.date().nullish(),
+    resolutionNote: zod.string().nullish(),
+    clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
+  })
+  .and(
+    zod.object({
+      creator: zod.object({
+        id: zod.number(),
+        name: zod.string(),
+        email: zod.string(),
+        role: zod.enum(["admin", "user"]),
+        mainLocation: zod.string().nullish(),
+        group: zod.string().nullish(),
+        groups: zod.array(zod.string()).nullish(),
+        avatarUrl: zod.string().nullish(),
+        isActive: zod.boolean(),
+        isAvailable: zod.boolean(),
+        createdAt: zod.coerce.date(),
+        onboardingDone: zod.boolean().nullish(),
+        businessType: zod.string().nullish(),
+      }),
+      assignee: zod
+        .object({
+          id: zod.number(),
+          name: zod.string(),
+          email: zod.string(),
+          role: zod.enum(["admin", "user"]),
+          mainLocation: zod.string().nullish(),
+          group: zod.string().nullish(),
+          groups: zod.array(zod.string()).nullish(),
+          avatarUrl: zod.string().nullish(),
+          isActive: zod.boolean(),
+          isAvailable: zod.boolean(),
+          createdAt: zod.coerce.date(),
+          onboardingDone: zod.boolean().nullish(),
+          businessType: zod.string().nullish(),
+        })
+        .nullish(),
+      commentCount: zod.number(),
+      noteCount: zod.number(),
+      inboundChannelName: zod.string().nullish(),
+    }),
+  );
 
 /**
  * @summary List comments for a ticket
@@ -1143,6 +1346,16 @@ export const GetRecentTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({
@@ -1208,6 +1421,16 @@ export const GetMyTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({
@@ -1273,6 +1496,16 @@ export const GetDueSoonTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     clientId: zod.number().nullish(),
+    recurrenceRule: zod
+      .object({
+        frequency: zod.enum(["daily", "weekly", "monthly", "yearly"]),
+        interval: zod.number().nullish(),
+        endDate: zod.coerce.date().nullish(),
+      })
+      .nullish(),
+    recurrenceNextAt: zod.coerce.date().nullish(),
+    recurrenceParentId: zod.number().nullish(),
+    scheduledAt: zod.coerce.date().nullish(),
   })
   .and(
     zod.object({

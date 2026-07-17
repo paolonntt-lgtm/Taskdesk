@@ -8,6 +8,7 @@ import { scheduleNightlyBackups } from "./routes/backup";
 import { startUploadCleanupJob } from "./lib/uploadCleanup";
 import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
 import { startAppointmentReminderJob } from "./lib/appointmentReminderJob";
+import { startTicketRecurrenceJob } from "./lib/ticketRecurrenceJob";
 
 const rawPort = process.env["PORT"];
 
@@ -56,6 +57,7 @@ seedIfEmpty()
   .then(() => runAppMigrations())
   .then(() => backfillOrgTicketStatuses())
   .then(() => startAppointmentReminderJob())
+  .then(() => startTicketRecurrenceJob())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();

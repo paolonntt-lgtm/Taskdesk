@@ -107,6 +107,41 @@ export interface UpdateUserBody {
   isAvailable?: boolean;
 }
 
+export type RecurrenceRuleFrequency =
+  (typeof RecurrenceRuleFrequency)[keyof typeof RecurrenceRuleFrequency];
+
+export const RecurrenceRuleFrequency = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+  yearly: "yearly",
+} as const;
+
+export interface RecurrenceRule {
+  frequency: RecurrenceRuleFrequency;
+  interval?: number | null;
+  endDate?: string | null;
+}
+
+export interface CloneTicketBody {
+  scheduledAt?: string | null;
+}
+
+export type SetRecurrenceBodyFrequency =
+  (typeof SetRecurrenceBodyFrequency)[keyof typeof SetRecurrenceBodyFrequency];
+
+export const SetRecurrenceBodyFrequency = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+  yearly: "yearly",
+} as const;
+
+export interface SetRecurrenceBody {
+  frequency: SetRecurrenceBodyFrequency;
+  endDate?: string | null;
+}
+
 export type TicketPriority =
   (typeof TicketPriority)[keyof typeof TicketPriority];
 
@@ -145,6 +180,10 @@ export interface Ticket {
   dueAt?: string | null;
   resolutionNote?: string | null;
   clientId?: number | null;
+  recurrenceRule?: RecurrenceRule | null;
+  recurrenceNextAt?: string | null;
+  recurrenceParentId?: number | null;
+  scheduledAt?: string | null;
 }
 
 export type TicketWithDetails = Ticket & {
@@ -719,6 +758,7 @@ export type ListTicketsParams = {
   resource?: string;
   emailOrigin?: boolean;
   clientId?: number;
+  scheduled?: boolean;
 };
 
 export type ListClientsParams = {

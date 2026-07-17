@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { RecurrenceRule } from "./recurrenceRule";
 import type { TicketPriority } from "./ticketPriority";
 import type { TicketStatus } from "./ticketStatus";
 
@@ -27,4 +28,8 @@ export interface Ticket {
   dueAt?: Date | null;
   resolutionNote?: string | null;
   clientId?: number | null;
+  recurrenceRule?: RecurrenceRule | null;
+  recurrenceNextAt?: Date | null;
+  recurrenceParentId?: number | null;
+  scheduledAt?: Date | null;
 }

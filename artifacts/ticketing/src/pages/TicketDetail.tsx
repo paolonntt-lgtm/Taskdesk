@@ -6,7 +6,7 @@ import {
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox, Autocomplete,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, ContentCopy as ContentCopyIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -14,6 +14,7 @@ import {
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
   useListClients,
+  useCloneTicket, useSetTicketRecurrence, useDeleteTicketRecurrence,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
@@ -116,6 +117,24 @@ export default function TicketDetail() {
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
   const deleteComment = useDeleteTicketComment();
+  const cloneTicketMut = useCloneTicket();
+  const setRecurrenceMut = useSetTicketRecurrence();
+  const deleteRecurrenceMut = useDeleteTicketRecurrence();
+
+  // Recurrence dialog state
+  const [recurrenceDialog, setRecurrenceDialog] = useState(false);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [recurrenceSaving, setRecurrenceSaving] = useState(false);
+  const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
+
+  // Clone dialog state
+  const [cloneDialog, setCloneDialog] = useState(false);
+  const [cloneScheduledAt, setCloneScheduledAt] = useState('');
+  const [cloneSaving, setCloneSaving] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const [cloneSuccess, setCloneSuccess] = useState(false);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
@@ -354,6 +373,82 @@ export default function TicketDetail() {
     setDeleteCommentId(null);
   };
 
+  const openRecurrenceDialog = () => {
+    const existing = (ticket as any).recurrenceRule;
+    if (existing) {
+      setRecurrenceFreq(existing.frequency ?? 'weekly');
+      setRecurrenceInterval(existing.interval ?? 1);
+      setRecurrenceEndDate(existing.endDate ? existing.endDate.slice(0, 10) : '');
+    } else {
+      setRecurrenceFreq('weekly');
+      setRecurrenceInterval(1);
+      setRecurrenceEndDate('');
+    }
+    setRecurrenceError(null);
+    setRecurrenceDialog(true);
+  };
+
+  const handleRecurrenceSave = async () => {
+    setRecurrenceSaving(true);
+    setRecurrenceError(null);
+    try {
+      const updated = await setRecurrenceMut.mutateAsync({
+        id: ticketId,
+        data: {
+          frequency: recurrenceFreq,
+          interval: recurrenceInterval,
+          ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
+        } as any,
+      });
+      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setRecurrenceDialog(false);
+    } catch (err: any) {
+      setRecurrenceError(err?.data?.message || err?.message || t.ticketDetail.recurrenceSetError);
+    } finally {
+      setRecurrenceSaving(false);
+    }
+  };
+
+  const handleRecurrenceRemove = async () => {
+    setRecurrenceSaving(true);
+    setRecurrenceError(null);
+    try {
+      const updated = await deleteRecurrenceMut.mutateAsync({ id: ticketId });
+      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setRecurrenceDialog(false);
+    } catch (err: any) {
+      setRecurrenceError(err?.data?.message || err?.message || t.ticketDetail.recurrenceRemoveError);
+    } finally {
+      setRecurrenceSaving(false);
+    }
+  };
+
+  const handleClone = async () => {
+    setCloneSaving(true);
+    setCloneError(null);
+    try {
+      const cloned = await cloneTicketMut.mutateAsync({
+        id: ticketId,
+        data: {
+          ...(cloneScheduledAt ? { scheduledAt: new Date(cloneScheduledAt).toISOString() } : {}),
+        } as any,
+      });
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setCloneDialog(false);
+      setCloneSuccess(true);
+      // Navigate to the cloned ticket
+      setTimeout(() => {
+        setLocation(`/tickets/${(cloned as any).id}`);
+      }, 1200);
+    } catch (err: any) {
+      setCloneError(err?.data?.message || err?.message || t.ticketDetail.duplicateError);
+    } finally {
+      setCloneSaving(false);
+    }
+  };
+
   const openEditDialog = () => {
     setEditForm({
       title: ticket.title,
@@ -543,7 +638,7 @@ export default function TicketDetail() {
         >
           {entityTerm.navAll}
         </Button>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={1} flexWrap="wrap">
           {canEdit && (
             <Button
               startIcon={<EditOutlined />}
@@ -555,6 +650,29 @@ export default function TicketDetail() {
             </Button>
           )}
           {isAdmin && (
+            <Button
+              startIcon={<ContentCopyIcon />}
+              size="small"
+              variant="outlined"
+              onClick={() => { setCloneScheduledAt(''); setCloneError(null); setCloneDialog(true); }}
+            >
+              {t.ticketDetail.duplicateButton}
+            </Button>
+          )}
+          {isAdmin && (
+            <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : ''}>
+              <Button
+                startIcon={<RepeatIcon />}
+                size="small"
+                variant={(ticket as any).recurrenceRule ? 'contained' : 'outlined'}
+                color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'}
+                onClick={openRecurrenceDialog}
+              >
+                {t.ticketDetail.recurrenceButton}
+              </Button>
+            </Tooltip>
+          )}
+          {isAdmin && (
             <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
               <Button
                 startIcon={<DeleteOutline />}
@@ -563,7 +681,7 @@ export default function TicketDetail() {
                 variant="outlined"
                 onClick={() => setDeleteDialog(true)}
               >
-                Elimina
+                {lang === 'it' ? 'Elimina' : 'Delete'}
               </Button>
             </Tooltip>
           )}
@@ -606,6 +724,30 @@ export default function TicketDetail() {
                   label="Email"
                   size="small"
                   color="info"
+                  variant="outlined"
+                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
+                />
+              </Tooltip>
+            )}
+            {(ticket as any).recurrenceRule && (
+              <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
+                <Chip
+                  icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />}
+                  label={t.ticketDetail.recurrenceBadge}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
+                />
+              </Tooltip>
+            )}
+            {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
+              <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
+                <Chip
+                  icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />}
+                  label={lang === 'it' ? 'Programmata' : 'Scheduled'}
+                  size="small"
+                  color="warning"
                   variant="outlined"
                   sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
                 />
@@ -2068,6 +2210,123 @@ export default function TicketDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ── Recurrence Dialog ── */}
+      <Dialog open={recurrenceDialog} onClose={() => setRecurrenceDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <RepeatIcon fontSize="small" />
+          {t.ticketDetail.recurrenceDialogTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            {recurrenceError && <Alert severity="error">{recurrenceError}</Alert>}
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label={t.ticketDetail.recurrenceFrequency}
+              value={recurrenceFreq}
+              onChange={(e) => setRecurrenceFreq(e.target.value as any)}
+            >
+              <MenuItem value="daily">{t.ticketDetail.recurrenceFreqDaily}</MenuItem>
+              <MenuItem value="weekly">{t.ticketDetail.recurrenceFreqWeekly}</MenuItem>
+              <MenuItem value="monthly">{t.ticketDetail.recurrenceFreqMonthly}</MenuItem>
+              <MenuItem value="yearly">{t.ticketDetail.recurrenceFreqYearly}</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label={lang === 'it' ? 'Ogni' : 'Every'}
+              value={recurrenceInterval}
+              onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+              inputProps={{ min: 1, max: 365 }}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label={t.ticketDetail.recurrenceEndDate}
+              value={recurrenceEndDate}
+              onChange={(e) => setRecurrenceEndDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+            />
+            {(ticket as any).recurrenceNextAt && (
+              <Typography variant="caption" color="text.secondary">
+                {t.ticketDetail.recurrenceNextAt}: {new Date((ticket as any).recurrenceNextAt).toLocaleDateString(dateLocale)}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
+          <Box>
+            {(ticket as any).recurrenceRule && (
+              <Button color="error" onClick={handleRecurrenceRemove} disabled={recurrenceSaving}>
+                {t.ticketDetail.recurrenceRemove}
+              </Button>
+            )}
+          </Box>
+          <Box display="flex" gap={1}>
+            <Button onClick={() => setRecurrenceDialog(false)} color="inherit" disabled={recurrenceSaving}>
+              {t.ticketDetail.recurrenceCancel}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleRecurrenceSave}
+              disabled={recurrenceSaving}
+              startIcon={recurrenceSaving ? <CircularProgress size={16} color="inherit" /> : <RepeatIcon />}
+            >
+              {t.ticketDetail.recurrenceSave}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Clone / Schedule Dialog ── */}
+      <Dialog open={cloneDialog} onClose={() => setCloneDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ContentCopyIcon fontSize="small" />
+          {t.ticketDetail.duplicateDialogTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            {cloneError && <Alert severity="error">{cloneError}</Alert>}
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label={t.ticketDetail.duplicateScheduledDate}
+              value={cloneScheduledAt}
+              onChange={(e) => setCloneScheduledAt(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              helperText={lang === 'it' ? 'Lascia vuoto per duplicare subito' : 'Leave empty to clone immediately'}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setCloneDialog(false)} color="inherit" disabled={cloneSaving}>
+            {t.ticketDetail.duplicateCancel}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleClone}
+            disabled={cloneSaving}
+            startIcon={cloneSaving ? <CircularProgress size={16} color="inherit" /> : <ContentCopyIcon />}
+          >
+            {t.ticketDetail.duplicateConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Clone success snackbar ── */}
+      <Snackbar
+        open={cloneSuccess}
+        autoHideDuration={3000}
+        onClose={() => setCloneSuccess(false)}
+        message={lang === 'it' ? 'Pratica duplicata con successo. Apertura...' : 'Ticket duplicated. Opening...'}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }

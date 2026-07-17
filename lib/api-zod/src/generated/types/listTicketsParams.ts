@@ -19,4 +19,5 @@ export type ListTicketsParams = {
   resource?: string;
   emailOrigin?: boolean;
   clientId?: number;
+  scheduled?: boolean;
 };
