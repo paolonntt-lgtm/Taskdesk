@@ -868,6 +868,7 @@ function ClientNotesWidget() {
     }
     const sorted = Array.from(map.entries())
       .map(([id, { name, slug, count }]) => ({ id, name, slug, count }))
+      .filter(row => row.count > 0)
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     const maxItems = parseInt(settings.maxItems, 10);
     return maxItems > 0 ? sorted.slice(0, maxItems) : sorted;
