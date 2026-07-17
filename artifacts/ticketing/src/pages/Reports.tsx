@@ -35,6 +35,14 @@ interface AssigneeResolution {
   maxHours: number;
 }
 
+interface GroupResolution {
+  name: string;
+  avgHours: number;
+  count: number;
+  minHours: number;
+  maxHours: number;
+}
+
 interface ResolutionStats {
   byAssignee: AssigneeResolution[];
   overall: { avgHours: number | null; count: number };
@@ -108,6 +116,8 @@ export default function Reports() {
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [resolutionStats, setResolutionStats] = useState<ResolutionStats | null>(null);
+  const [resolutionByCategory, setResolutionByCategory] = useState<GroupResolution[]>([]);
+  const [resolutionByPriority, setResolutionByPriority] = useState<GroupResolution[]>([]);
 
   useEffect(() => {
     fetch('/api/stats/leaderboard', { credentials: 'include' })
@@ -117,6 +127,10 @@ export default function Reports() {
     if (isAdmin) {
       fetch('/api/stats/resolution-by-assignee', { credentials: 'include' })
         .then((r) => r.json()).then(setResolutionStats).catch(() => {});
+      fetch('/api/stats/resolution-by-category', { credentials: 'include' })
+        .then((r) => r.json()).then(setResolutionByCategory).catch(() => {});
+      fetch('/api/stats/resolution-by-priority', { credentials: 'include' })
+        .then((r) => r.json()).then(setResolutionByPriority).catch(() => {});
     }
   }, [isAdmin]);
 
@@ -378,6 +392,96 @@ export default function Reports() {
                             }}
                           />
                           <Bar dataKey="avgHours" fill={theme.palette.info.main} radius={[0, 4, 4, 0]} name={t.reports.statsAvgResolution}>
+                            <LabelList
+                              dataKey="avgHours"
+                              position="right"
+                              formatter={(v: number) => formatDuration(v, t.reports)}
+                              style={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                            />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Avg resolution time by category */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" mb={2}>
+                    {t.reports.resolutionByCategory}
+                  </Typography>
+                  {resolutionByCategory.length === 0 ? (
+                    <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
+                  ) : (
+                    <Box sx={{ height: Math.max(200, resolutionByCategory.length * 52) }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={resolutionByCategory} layout="vertical" margin={{ left: 10, right: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" allowDecimals={false} unit={t.reports.statsHours} tick={{ fontSize: 11 }} />
+                          <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            formatter={(v: number, _name, props) => {
+                              const row = props.payload as GroupResolution;
+                              return [
+                                `${formatDuration(v, t.reports)} (min ${formatDuration(row.minHours, t.reports)}, max ${formatDuration(row.maxHours, t.reports)})`,
+                                t.reports.statsAvgResolution,
+                              ];
+                            }}
+                            labelFormatter={(name) => {
+                              const row = resolutionByCategory.find(r => r.name === name);
+                              return `${name}${row ? ` · ${row.count} ${t.reports.resolvedUnit}` : ''}`;
+                            }}
+                          />
+                          <Bar dataKey="avgHours" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} name={t.reports.statsAvgResolution}>
+                            <LabelList
+                              dataKey="avgHours"
+                              position="right"
+                              formatter={(v: number) => formatDuration(v, t.reports)}
+                              style={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                            />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Avg resolution time by priority */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" mb={2}>
+                    {t.reports.resolutionByPriority}
+                  </Typography>
+                  {resolutionByPriority.length === 0 ? (
+                    <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
+                  ) : (
+                    <Box sx={{ height: Math.max(200, resolutionByPriority.length * 52) }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={resolutionByPriority} layout="vertical" margin={{ left: 10, right: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" allowDecimals={false} unit={t.reports.statsHours} tick={{ fontSize: 11 }} />
+                          <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            formatter={(v: number, _name, props) => {
+                              const row = props.payload as GroupResolution;
+                              return [
+                                `${formatDuration(v, t.reports)} (min ${formatDuration(row.minHours, t.reports)}, max ${formatDuration(row.maxHours, t.reports)})`,
+                                t.reports.statsAvgResolution,
+                              ];
+                            }}
+                            labelFormatter={(name) => {
+                              const row = resolutionByPriority.find(r => r.name === name);
+                              return `${name}${row ? ` · ${row.count} ${t.reports.resolvedUnit}` : ''}`;
+                            }}
+                          />
+                          <Bar dataKey="avgHours" fill={theme.palette.warning.main} radius={[0, 4, 4, 0]} name={t.reports.statsAvgResolution}>
                             <LabelList
                               dataKey="avgHours"
                               position="right"

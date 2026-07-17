@@ -659,6 +659,61 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
   });
 });
 
+router.get("/stats/resolution-by-category", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const rows = await db.select({
+    name: ticketsTable.category,
+    avgHours: sql<number>`round(avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+    count: sql<number>`count(${ticketsTable.id})`,
+    minHours: sql<number>`round(min(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+    maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+  })
+    .from(ticketsTable)
+    .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+    .groupBy(ticketsTable.category)
+    .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`);
+
+  res.json(rows.map((r) => ({
+    name: r.name,
+    avgHours: Number(r.avgHours),
+    count: Number(r.count),
+    minHours: Number(r.minHours),
+    maxHours: Number(r.maxHours),
+  })));
+});
+
+router.get("/stats/resolution-by-priority", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const PRIORITY_ORDER: Record<string, number> = { low: 0, medium: 1, high: 2, urgent: 3 };
+
+  const rows = await db.select({
+    name: ticketsTable.priority,
+    avgHours: sql<number>`round(avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+    count: sql<number>`count(${ticketsTable.id})`,
+    minHours: sql<number>`round(min(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+    maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+  })
+    .from(ticketsTable)
+    .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+    .groupBy(ticketsTable.priority);
+
+  const sorted = rows.sort((a, b) => (PRIORITY_ORDER[a.name] ?? 99) - (PRIORITY_ORDER[b.name] ?? 99));
+
+  res.json(sorted.map((r) => ({
+    name: r.name,
+    avgHours: Number(r.avgHours),
+    count: Number(r.count),
+    minHours: Number(r.minHours),
+    maxHours: Number(r.maxHours),
+  })));
+});
+
 router.get("/stats/acquisition", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
   const signupsByDay = await db
     .select({
