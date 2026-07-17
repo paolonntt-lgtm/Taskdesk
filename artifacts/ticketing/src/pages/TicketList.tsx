@@ -204,6 +204,7 @@ export default function TicketList() {
       return saved ? { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) } : DEFAULT_COL_WIDTHS;
     } catch { return DEFAULT_COL_WIDTHS; }
   });
+  const cw = (k: string) => colWidths[k] ?? DEFAULT_COL_WIDTHS[k] ?? 100;
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
   const startResize = useCallback((col: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -431,6 +432,17 @@ export default function TicketList() {
   );
 
   const colSpanTotal = ['id','title','category','status','priority','dueAt','assignee','createdAt'].filter(k => visibleCols[k] ?? true).length + (showLocation && (visibleCols.location ?? true) ? 1 : 0) + (isAdmin ? 1 : 0);
+  const tableWidth =
+    (isAdmin ? 28 : 0) +
+    (visibleCols.id ?? true ? cw('id') : 0) +
+    cw('title') +
+    (visibleCols.category ?? true ? cw('category') : 0) +
+    (visibleCols.status ?? true ? cw('status') : 0) +
+    (visibleCols.priority ?? true ? cw('priority') : 0) +
+    (visibleCols.dueAt ?? true ? cw('dueAt') : 0) +
+    (visibleCols.assignee ?? true ? cw('assignee') : 0) +
+    (showLocation && (visibleCols.location ?? true) ? cw('location') : 0) +
+    (visibleCols.createdAt ?? true ? cw('createdAt') : 0);
 
   return (
     <Box>
@@ -832,7 +844,7 @@ export default function TicketList() {
           </Menu>
         </Box>
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: 'auto', minWidth: '100%' }}>
+          <Table size="small" sx={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
             <colgroup>
               {isAdmin && <col style={{ width: 28 }} />}
               {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
