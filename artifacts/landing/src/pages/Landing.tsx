@@ -396,7 +396,7 @@ export default function Landing() {
         "offers": {
           "@type": "AggregateOffer",
           "lowPrice": "35",
-          "highPrice": "149",
+          "highPrice": "100",
           "priceCurrency": "EUR",
           "offerCount": "4",
         },
@@ -773,7 +773,7 @@ export default function Landing() {
                     </div>
                     <div className="flex items-baseline gap-1 mb-2">
                       <span className="text-5xl font-black text-gray-900">{plan.price}</span>
-                      <span className="text-sm text-gray-400 font-medium">{t.pricing.perMonth}</span>
+                      {!plan.noUnit && <span className="text-sm text-gray-400 font-medium">{t.pricing.perMonth}</span>}
                     </div>
                     <div className="text-xs font-semibold text-gray-500 mb-6">
                       {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}

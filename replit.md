@@ -46,7 +46,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Base URL**: `src/lib/appUrl.ts` espone `appBaseUrl()` (REPLIT_DOMAINS → REPLIT_DEV_DOMAIN → localhost) usato sia per i link nelle email che per le redirect Stripe Checkout/Portal.
 
 ### Stripe Plans
-- Starter €35/mese (5 utenti), Team €25/mese (15 utenti), Business €69/mese (50 utenti), Enterprise €149/mese (utenti illimitati). Metadata `seats` su ogni Product (`unlimited` per Enterprise).
+- Starter €35/mese (5 utenti), Team €60/mese (10 utenti), Business €100/mese (20 utenti), Enterprise su preventivo (utenti illimitati). Metadata `seats` su ogni Product (`unlimited` per Enterprise).
 
 ## Architecture Notes
 

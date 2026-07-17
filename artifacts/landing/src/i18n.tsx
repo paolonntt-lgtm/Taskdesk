@@ -83,6 +83,7 @@ interface Translations {
       desc: string;
       highlight?: boolean;
       cta: string;
+      noUnit?: boolean;
     }>;
     includedTitle: string;
     includedSubtitle: string;
@@ -300,10 +301,10 @@ const translations: Record<Language, Translations> = {
       seatsSuffix: "utenti inclusi",
       seatsUnlimited: "Utenti illimitati",
       plans: [
-        { name: "Starter",    price: "€35",  seats: 5,                       desc: "Per piccoli studi e liberi professionisti che iniziano a gestire le pratiche.",  cta: "Inizia la prova" },
-        { name: "Team",       price: "€25",  seats: 15,                      desc: "Per studi in crescita che vogliono organizzazione e velocità.",                   highlight: true, cta: "Inizia la prova" },
-        { name: "Business",   price: "€69",  seats: 50,                      desc: "Per studi strutturati con più consulenti e sedi.",                                cta: "Inizia la prova" },
-        { name: "Enterprise", price: "€149", seats: null as number | null,   desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.",        cta: "Contattaci" },
+        { name: "Starter",    price: "€35",       seats: 5,                     desc: "Per piccoli studi e liberi professionisti che iniziano a gestire le pratiche.",  cta: "Inizia la prova" },
+        { name: "Team",       price: "€60",       seats: 10,                    desc: "Per studi in crescita che vogliono organizzazione e velocità.",                   highlight: true, cta: "Inizia la prova" },
+        { name: "Business",   price: "€100",      seats: 20,                    desc: "Per studi strutturati con più consulenti e sedi.",                                cta: "Inizia la prova" },
+        { name: "Enterprise", price: "Su misura", seats: null as number | null, desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.",        cta: "Contattaci", noUnit: true },
       ],
       includedTitle: "Tutto incluso in ogni piano",
       includedSubtitle: "Stesse funzionalità per tutti. Cambia solo il numero di utenti.",
@@ -321,7 +322,7 @@ const translations: Record<Language, Translations> = {
       title: "Domande Frequenti",
       items: [
         { q: "È adatto al mio studio commerciale o alla mia agenzia?", a: "Sì, TaskDesk è pensato esattamente per questo. Studi commerciali, studi di consulenza del lavoro, agenzie e liberi professionisti lo usano per raccogliere le richieste dei clienti in un unico posto, assegnarle ai collaboratori e tracciarle fino alla chiusura — senza email disperse o WhatsApp irrintracciabili." },
-        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese." },
+        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese. Enterprise su preventivo." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti, senza formazione." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
         { q: "I miei clienti possono accedere e inviare richieste?", a: "Oggi i clienti vengono aggiunti come utenti dedicati. Ogni cliente vede solo le proprie pratiche. Una funzionalità di portale clienti semplificato è nella roadmap." },
@@ -532,10 +533,10 @@ const translations: Record<Language, Translations> = {
       seatsSuffix: "users included",
       seatsUnlimited: "Unlimited users",
       plans: [
-        { name: "Starter",    price: "€35",  seats: 5,                       desc: "For small firms and sole practitioners getting started.",                  cta: "Start trial" },
-        { name: "Team",       price: "€25",  seats: 15,                      desc: "For growing firms that need structure and speed.",                          highlight: true, cta: "Start trial" },
-        { name: "Business",   price: "€69",  seats: 50,                      desc: "For established firms with multiple consultants and locations.",            cta: "Start trial" },
-        { name: "Enterprise", price: "€149", seats: null as number | null,   desc: "For large organisations that need to scale without limits.",                cta: "Contact us" },
+        { name: "Starter",    price: "€35",   seats: 5,                     desc: "For small firms and sole practitioners getting started.",                  cta: "Start trial" },
+        { name: "Team",       price: "€60",   seats: 10,                    desc: "For growing firms that need structure and speed.",                          highlight: true, cta: "Start trial" },
+        { name: "Business",   price: "€100",  seats: 20,                    desc: "For established firms with multiple consultants and locations.",            cta: "Start trial" },
+        { name: "Enterprise", price: "Custom", seats: null as number | null, desc: "For large organisations that need to scale without limits.",               cta: "Contact us", noUnit: true },
       ],
       includedTitle: "Everything included in every plan",
       includedSubtitle: "Same features across all plans. Only the user count changes.",
@@ -553,7 +554,7 @@ const translations: Record<Language, Translations> = {
       title: "Frequently Asked Questions",
       items: [
         { q: "Is it right for my accounting firm or agency?", a: "Yes, TaskDesk is designed exactly for this. Accounting firms, labour consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them through to completion — without scattered emails or untraceable WhatsApp messages." },
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month. Enterprise is priced on request." },
         { q: "Is there a setup cost?", a: "Absolutely not. The software is ready to use from your first login. You are up and running in minutes, with no training needed." },
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual commitments or cancellation fees. You can cancel at any time from your account area." },
         { q: "Can my clients access the system and submit requests?", a: "Today clients are added as dedicated users. Each client sees only their own requests. A simplified client portal feature is on the roadmap." },
