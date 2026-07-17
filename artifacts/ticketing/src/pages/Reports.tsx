@@ -10,6 +10,7 @@ import {
   useGetStatsByPriority, useGetStatsByAssignee, useGetTicketTrend,
 } from '@workspace/api-client-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 
@@ -102,6 +103,8 @@ function LeaderboardCard({ title, entries, unit, color }: {
 export default function Reports() {
   const theme = useTheme();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [resolutionStats, setResolutionStats] = useState<ResolutionStats | null>(null);
@@ -111,9 +114,11 @@ export default function Reports() {
       .then((r) => r.json()).then(setLeaderboard).catch(() => {});
     fetch('/api/stats/dashboard', { credentials: 'include' })
       .then((r) => r.json()).then(setDashStats).catch(() => {});
-    fetch('/api/stats/resolution-by-assignee', { credentials: 'include' })
-      .then((r) => r.json()).then(setResolutionStats).catch(() => {});
-  }, []);
+    if (isAdmin) {
+      fetch('/api/stats/resolution-by-assignee', { credentials: 'include' })
+        .then((r) => r.json()).then(setResolutionStats).catch(() => {});
+    }
+  }, [isAdmin]);
 
   const statsOpts = { query: { staleTime: 30_000 } as any };
   const { data: statusStats, isLoading: s1 } = useGetStatsByStatus(statsOpts);
@@ -172,14 +177,16 @@ export default function Reports() {
               color={theme.palette.success.main}
             />
           </Grid>
-          <Grid item xs={6} sm={3}>
-            <StatCard
-              label={t.reports.statsAvgResolution}
-              value={avgLabel}
-              color={theme.palette.info.main}
-              sub={resolutionStats?.overall.count ? `${resolutionStats.overall.count} ${t.reports.resolvedUnit}` : undefined}
-            />
-          </Grid>
+          {isAdmin && (
+            <Grid item xs={6} sm={3}>
+              <StatCard
+                label={t.reports.statsAvgResolution}
+                value={avgLabel}
+                color={theme.palette.info.main}
+                sub={resolutionStats?.overall.count ? `${resolutionStats.overall.count} ${t.reports.resolvedUnit}` : undefined}
+              />
+            </Grid>
+          )}
         </Grid>
       )}
 
@@ -332,88 +339,92 @@ export default function Reports() {
           </Card>
         </Grid>
 
-        {/* ── Resolution Time Section ── */}
-        <Grid item xs={12}>
-          <Typography variant="h5" fontWeight="bold" mt={1} mb={1}>
-            {t.reports.resolutionSection}
-          </Typography>
-        </Grid>
-
-        {/* Avg resolution time by assignee */}
-        <Grid item xs={12} md={7}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
-                {t.reports.resolutionByAssignee}
+        {/* ── Resolution Time Section (admin only) ── */}
+        {isAdmin && (
+          <>
+            <Grid item xs={12}>
+              <Typography variant="h5" fontWeight="bold" mt={1} mb={1}>
+                {t.reports.resolutionSection}
               </Typography>
-              {!resolutionStats || resolutionStats.byAssignee.length === 0 ? (
-                <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
-              ) : (
-                <Box sx={{ height: Math.max(200, resolutionStats.byAssignee.length * 52) }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={resolutionStats.byAssignee} layout="vertical" margin={{ left: 10, right: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" allowDecimals={false} unit={t.reports.statsHours} tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        formatter={(v: number, _name, props) => {
-                          const row = props.payload as AssigneeResolution;
-                          return [
-                            `${formatDuration(v, t.reports)} (min ${formatDuration(row.minHours, t.reports)}, max ${formatDuration(row.maxHours, t.reports)})`,
-                            t.reports.statsAvgResolution,
-                          ];
-                        }}
-                        labelFormatter={(name) => {
-                          const row = resolutionStats.byAssignee.find(r => r.name === name);
-                          return `${name}${row ? ` · ${row.count} ${t.reports.resolvedUnit}` : ''}`;
-                        }}
-                      />
-                      <Bar dataKey="avgHours" fill={theme.palette.info.main} radius={[0, 4, 4, 0]} name={t.reports.statsAvgResolution}>
-                        <LabelList
-                          dataKey="avgHours"
-                          position="right"
-                          formatter={(v: number) => formatDuration(v, t.reports)}
-                          style={{ fontSize: 11, fill: theme.palette.text.secondary }}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+            </Grid>
 
-        {/* Resolution time distribution (buckets) */}
-        <Grid item xs={12} md={5}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
-                {t.reports.resolutionBuckets}
-              </Typography>
-              {!resolutionStats || resolutionStats.overall.count === 0 ? (
-                <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
-              ) : (
-                <Box sx={{ height: 280 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={bucketData} margin={{ top: 16 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]} name={t.reports.ticketCount}>
-                        {bucketData.map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                        <LabelList dataKey="count" position="top" style={{ fontSize: 11 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+            {/* Avg resolution time by assignee */}
+            <Grid item xs={12} md={7}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" mb={2}>
+                    {t.reports.resolutionByAssignee}
+                  </Typography>
+                  {!resolutionStats || resolutionStats.byAssignee.length === 0 ? (
+                    <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
+                  ) : (
+                    <Box sx={{ height: Math.max(200, resolutionStats.byAssignee.length * 52) }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={resolutionStats.byAssignee} layout="vertical" margin={{ left: 10, right: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" allowDecimals={false} unit={t.reports.statsHours} tick={{ fontSize: 11 }} />
+                          <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            formatter={(v: number, _name, props) => {
+                              const row = props.payload as AssigneeResolution;
+                              return [
+                                `${formatDuration(v, t.reports)} (min ${formatDuration(row.minHours, t.reports)}, max ${formatDuration(row.maxHours, t.reports)})`,
+                                t.reports.statsAvgResolution,
+                              ];
+                            }}
+                            labelFormatter={(name) => {
+                              const row = resolutionStats.byAssignee.find(r => r.name === name);
+                              return `${name}${row ? ` · ${row.count} ${t.reports.resolvedUnit}` : ''}`;
+                            }}
+                          />
+                          <Bar dataKey="avgHours" fill={theme.palette.info.main} radius={[0, 4, 4, 0]} name={t.reports.statsAvgResolution}>
+                            <LabelList
+                              dataKey="avgHours"
+                              position="right"
+                              formatter={(v: number) => formatDuration(v, t.reports)}
+                              style={{ fontSize: 11, fill: theme.palette.text.secondary }}
+                            />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Resolution time distribution (buckets) */}
+            <Grid item xs={12} md={5}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" mb={2}>
+                    {t.reports.resolutionBuckets}
+                  </Typography>
+                  {!resolutionStats || resolutionStats.overall.count === 0 ? (
+                    <Typography color="text.secondary" fontSize={13}>{t.reports.noResolutionData}</Typography>
+                  ) : (
+                    <Box sx={{ height: 280 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={bucketData} margin={{ top: 16 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
+                          <Bar dataKey="count" radius={[4, 4, 0, 0]} name={t.reports.ticketCount}>
+                            {bucketData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                            <LabelList dataKey="count" position="top" style={{ fontSize: 11 }} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
 
         {/* Leaderboards */}
         <Grid item xs={12}>

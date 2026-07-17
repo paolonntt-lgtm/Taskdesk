@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray, asc } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
-import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
+import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
 
 async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
   if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
@@ -591,7 +591,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
-router.get("/stats/resolution-by-assignee", requireAuth, async (req, res): Promise<void> => {
+router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
