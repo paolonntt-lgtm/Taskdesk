@@ -275,11 +275,18 @@ export default function ClientDetail() {
   useEffect(() => {
     if (!data) return;
 
-    const perClientCustom: BlockConfig[] = (() => {
-      const raw = (data as any).layout;
-      if (!Array.isArray(raw)) return [];
-      return (raw as any[]).map(migrateBlock).filter((b: BlockConfig) => isCustomBlock(b));
-    })();
+    const rawLayout = (data as any).layout;
+    // Support both old format (array) and new format ({ blocks, order })
+    const perClientBlocks: any[] = Array.isArray(rawLayout)
+      ? rawLayout
+      : (rawLayout?.blocks ?? []);
+    const savedOrder: string[] | null =
+      !Array.isArray(rawLayout) && Array.isArray(rawLayout?.order) && rawLayout.order.length > 0
+        ? rawLayout.order
+        : null;
+    const perClientCustom: BlockConfig[] = perClientBlocks
+      .map(migrateBlock)
+      .filter((b: BlockConfig) => isCustomBlock(b));
 
     fetch('/api/settings/client-layout', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -297,8 +304,20 @@ export default function ClientDetail() {
           builtins = defaultLayout();
         }
         const combined = [...builtins, ...perClientCustom];
-        setLayout(combined);
-        saveClientLayoutCache(clientId, combined);
+        // Restore saved order if available
+        let ordered: BlockConfig[];
+        if (savedOrder && savedOrder.length > 0) {
+          const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
+          ordered = [...combined].sort((a, b) => {
+            const ia = orderMap.has(a.instanceId) ? orderMap.get(a.instanceId)! : Infinity;
+            const ib = orderMap.has(b.instanceId) ? orderMap.get(b.instanceId)! : Infinity;
+            return ia - ib;
+          });
+        } else {
+          ordered = combined;
+        }
+        setLayout(ordered);
+        saveClientLayoutCache(clientId, ordered);
       })
       .catch(() => {
         setLayout([...defaultLayout(), ...perClientCustom]);
@@ -336,7 +355,7 @@ export default function ClientDetail() {
           method: 'PATCH',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layout: custom }),
+          body: JSON.stringify({ layout: custom, order: draftLayout.map(b => b.instanceId) }),
         }),
       ]);
     } catch {}

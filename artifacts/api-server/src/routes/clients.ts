@@ -406,6 +406,7 @@ const LayoutBody = z.object({
     customName: z.string().max(100).optional().nullable(),
     content: z.string().max(10000).optional().nullable(),
   })),
+  order: z.array(z.string().max(200)).max(50).optional(),
 });
 
 const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
@@ -442,7 +443,7 @@ router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void>
 
   const [client] = await db
     .update(clientsTable)
-    .set({ layout: customOnly })
+    .set({ layout: { blocks: customOnly, order: parsed.data.order ?? [] } })
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
     .returning();
 
