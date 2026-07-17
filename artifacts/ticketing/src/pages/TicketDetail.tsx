@@ -6,7 +6,7 @@ import {
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox, Autocomplete,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, ContentCopy as ContentCopyIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -14,7 +14,7 @@ import {
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
   useListClients,
-  useCloneTicket, useSetTicketRecurrence, useDeleteTicketRecurrence,
+  useSetTicketRecurrence, useDeleteTicketRecurrence,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
@@ -117,7 +117,6 @@ export default function TicketDetail() {
   const deleteTicket = useDeleteTicket();
   const updateComment = useUpdateTicketComment();
   const deleteComment = useDeleteTicketComment();
-  const cloneTicketMut = useCloneTicket();
   const setRecurrenceMut = useSetTicketRecurrence();
   const deleteRecurrenceMut = useDeleteTicketRecurrence();
 
@@ -128,13 +127,6 @@ export default function TicketDetail() {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceSaving, setRecurrenceSaving] = useState(false);
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
-
-  // Clone dialog state
-  const [cloneDialog, setCloneDialog] = useState(false);
-  const [cloneScheduledAt, setCloneScheduledAt] = useState('');
-  const [cloneSaving, setCloneSaving] = useState(false);
-  const [cloneError, setCloneError] = useState<string | null>(null);
-  const [cloneSuccess, setCloneSuccess] = useState(false);
 
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
@@ -425,30 +417,6 @@ export default function TicketDetail() {
     }
   };
 
-  const handleClone = async () => {
-    setCloneSaving(true);
-    setCloneError(null);
-    try {
-      const cloned = await cloneTicketMut.mutateAsync({
-        id: ticketId,
-        data: {
-          ...(cloneScheduledAt ? { scheduledAt: new Date(cloneScheduledAt).toISOString() } : {}),
-        } as any,
-      });
-      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-      setCloneDialog(false);
-      setCloneSuccess(true);
-      // Navigate to the cloned ticket
-      setTimeout(() => {
-        setLocation(`/tickets/${(cloned as any).id}`);
-      }, 1200);
-    } catch (err: any) {
-      setCloneError(err?.data?.message || err?.message || t.ticketDetail.duplicateError);
-    } finally {
-      setCloneSaving(false);
-    }
-  };
-
   const openEditDialog = () => {
     setEditForm({
       title: ticket.title,
@@ -647,16 +615,6 @@ export default function TicketDetail() {
               onClick={openEditDialog}
             >
               {t.ticketDetail.editButton}
-            </Button>
-          )}
-          {isAdmin && (
-            <Button
-              startIcon={<ContentCopyIcon />}
-              size="small"
-              variant="outlined"
-              onClick={() => { setCloneScheduledAt(''); setCloneError(null); setCloneDialog(true); }}
-            >
-              {t.ticketDetail.duplicateButton}
             </Button>
           )}
           {isAdmin && (
@@ -2283,50 +2241,6 @@ export default function TicketDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* ── Clone / Schedule Dialog ── */}
-      <Dialog open={cloneDialog} onClose={() => setCloneDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ContentCopyIcon fontSize="small" />
-          {t.ticketDetail.duplicateDialogTitle}
-        </DialogTitle>
-        <DialogContent>
-          <Box display="flex" flexDirection="column" gap={2} mt={1}>
-            {cloneError && <Alert severity="error">{cloneError}</Alert>}
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label={t.ticketDetail.duplicateScheduledDate}
-              value={cloneScheduledAt}
-              onChange={(e) => setCloneScheduledAt(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              helperText={lang === 'it' ? 'Lascia vuoto per duplicare subito' : 'Leave empty to clone immediately'}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setCloneDialog(false)} color="inherit" disabled={cloneSaving}>
-            {t.ticketDetail.duplicateCancel}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleClone}
-            disabled={cloneSaving}
-            startIcon={cloneSaving ? <CircularProgress size={16} color="inherit" /> : <ContentCopyIcon />}
-          >
-            {t.ticketDetail.duplicateConfirm}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Clone success snackbar ── */}
-      <Snackbar
-        open={cloneSuccess}
-        autoHideDuration={3000}
-        onClose={() => setCloneSuccess(false)}
-        message={lang === 'it' ? 'Pratica duplicata con successo. Apertura...' : 'Ticket duplicated. Opening...'}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
     </Box>
   );
 }
