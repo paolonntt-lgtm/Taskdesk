@@ -929,7 +929,7 @@ function ClientNotesWidget() {
           )}
           {!isLoading && rows.some(r => r.count > 0) && (
             <Chip
-              label={rows.filter(r => r.count > 0).length}
+              label={rows.reduce((sum, r) => sum + r.count, 0)}
               size="small"
               color="primary"
               sx={{ height: 18, fontSize: '0.65rem', ml: 'auto' }}
