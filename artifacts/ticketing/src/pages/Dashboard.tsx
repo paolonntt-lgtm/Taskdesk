@@ -927,9 +927,9 @@ function ClientNotesWidget() {
               </IconButton>
             </Box>
           )}
-          {!isLoading && rows.length > 0 && (
+          {!isLoading && rows.some(r => r.count > 0) && (
             <Chip
-              label={rows.length}
+              label={rows.filter(r => r.count > 0).length}
               size="small"
               color="primary"
               sx={{ height: 18, fontSize: '0.65rem', ml: 'auto' }}
