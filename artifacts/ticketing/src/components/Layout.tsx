@@ -46,6 +46,7 @@ import {
   Brightness7,
   Business,
   CalendarMonth,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -271,6 +272,39 @@ export default function Layout({ children }: LayoutProps) {
             </ListItemButton>
           </ListItem>
         ))}
+        {(user as any)?.isSuperAdmin && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => { setLocation('/superadmin'); if (isMobile) setMobileOpen(false); }}
+                selected={isActive('/superadmin')}
+                sx={{
+                  borderRadius: '10px',
+                  py: 1,
+                  '&.Mui-selected': {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    color: '#ffffff',
+                    boxShadow: `0 4px 12px rgba(${parseInt(theme.palette.primary.main.slice(1,3),16)},${parseInt(theme.palette.primary.main.slice(3,5),16)},${parseInt(theme.palette.primary.main.slice(5,7),16)},0.25)`,
+                    '& .MuiListItemIcon-root': { color: '#ffffff' },
+                    '&:hover': { background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})` },
+                  },
+                  '&:not(.Mui-selected):hover': {
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 38, color: isActive('/superadmin') ? 'inherit' : 'text.secondary' }}>
+                  <AdminPanelSettings />
+                </ListItemIcon>
+                <ListItemText
+                  primary={t.nav.superadmin}
+                  primaryTypographyProps={{ fontWeight: isActive('/superadmin') ? 700 : 500, fontSize: '0.9rem' }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </>
+        )}
       </List>
 
       {(user as any)?.clientsEnabled !== false && <NotesConsole />}

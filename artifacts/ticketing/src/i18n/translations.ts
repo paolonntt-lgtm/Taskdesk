@@ -70,6 +70,7 @@ const it = {
     logout: 'Esci',
     settings: 'Impostazioni',
     calendar: 'Calendario',
+    superadmin: 'Superadmin',
   },
   role: {
     admin: 'Amministratore',
@@ -1309,6 +1310,7 @@ const en: typeof it = {
     logout: 'Sign out',
     settings: 'Settings',
     calendar: 'Calendar',
+    superadmin: 'Superadmin',
   },
   role: {
     admin: 'Administrator',
