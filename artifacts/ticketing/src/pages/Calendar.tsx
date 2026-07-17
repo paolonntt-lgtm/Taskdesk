@@ -425,7 +425,7 @@ export default function CalendarPage() {
       {/* Two-column grid: calendar left, agenda right */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '320px 1fr' },
+        gridTemplateColumns: { xs: '1fr', md: '380px 1fr' },
         gap: 3,
         alignItems: 'start',
       }}>
@@ -574,7 +574,7 @@ export default function CalendarPage() {
           {error && <Alert severity="error" sx={{ mt: 2 }}>{t.calendar.errorLoad}</Alert>}
         </Box>
 
-        {/* ── RIGHT: Month agenda ── */}
+        {/* ── RIGHT: Day detail panel ── */}
         <Paper sx={{
           borderRadius: 3, overflow: 'hidden',
           position: { md: 'sticky' }, top: { md: 76 },
@@ -582,127 +582,129 @@ export default function CalendarPage() {
           maxHeight: { md: 'calc(100vh - 108px)' },
         }}>
           {/* Panel header */}
-          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0, bgcolor: selectedDate ? 'primary.50' : 'transparent' }}>
             <Typography variant="subtitle2" fontWeight={700}>
-              {t.calendar.monthsLong[month - 1]} {year}
+              {selectedDate
+                ? new Date(selectedDate + 'T12:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+                : t.calendar.selectDay}
             </Typography>
           </Box>
 
-          {/* Scrollable list */}
+          {/* Content */}
           <Box sx={{ overflow: 'auto', flex: 1 }}>
-            {isLoading ? (
+            {!selectedDate ? (
+              <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                <EventIcon sx={{ fontSize: 36, opacity: 0.25, mb: 1, display: 'block', mx: 'auto' }} />
+                <Typography variant="body2">{t.calendar.selectDay}</Typography>
+              </Box>
+            ) : isLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={24} />
               </Box>
-            ) : monthDates.length === 0 ? (
+            ) : selectedItems.length === 0 ? (
               <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-                <EventIcon sx={{ fontSize: 32, opacity: 0.3, mb: 1, display: 'block', mx: 'auto' }} />
+                <EventIcon sx={{ fontSize: 36, opacity: 0.25, mb: 1, display: 'block', mx: 'auto' }} />
                 <Typography variant="body2">{t.calendar.noItemsMonth}</Typography>
               </Box>
             ) : (
-              monthDates.map((dateStr) => {
-                const dayItems = itemsByDate.get(dateStr) ?? [];
-                const isSelected = dateStr === selectedDate;
-                const isToday = dateStr === todayStr;
-                const tickets = dayItems.filter(i => i.type === 'ticket');
-                const appointments = dayItems.filter(i => i.type === 'appointment');
-                return (
-                  <Box
-                    key={dateStr}
-                    ref={(el) => {
-                      if (el) dateRefs.current.set(dateStr, el as HTMLElement);
-                      else dateRefs.current.delete(dateStr);
-                    }}
-                    sx={{
-                      borderBottom: '1px solid', borderColor: 'divider',
-                      bgcolor: isSelected ? 'primary.50' : 'transparent',
-                      transition: 'background-color 0.15s',
-                    }}
-                  >
-                    {/* Date row */}
-                    <Box
-                      onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
-                      sx={{
-                        px: 1.5, py: 0.75, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 1,
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                    >
-                      <Box sx={{
-                        width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                        bgcolor: isToday ? 'primary.main' : 'transparent',
-                        color: isToday ? 'primary.contrastText' : 'text.primary',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Typography variant="caption" fontWeight={700} fontSize="0.72rem">
-                          {new Date(dateStr + 'T12:00').getDate()}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" fontWeight={isToday ? 700 : 500} color={isToday ? 'primary.main' : 'text.primary'} sx={{ flexGrow: 1, fontSize: '0.8rem' }}>
-                        {new Date(dateStr + 'T12:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+              <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {/* Tickets */}
+                {selectedTickets.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                      <TicketIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+                      <Typography variant="caption" fontWeight={700} color="warning.main" textTransform="uppercase" letterSpacing={0.5}>
+                        {t.calendar.ticketsDue}
                       </Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                        {tickets.length > 0 && (
-                          <Chip label={tickets.length} size="small" color="warning" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
-                        )}
-                        {appointments.length > 0 && (
-                          <Chip label={appointments.length} size="small" color="secondary" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
-                        )}
-                      </Box>
+                      <Chip label={selectedTickets.length} size="small" color="warning" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
                     </Box>
-
-                    {/* Items */}
-                    <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      {tickets.map((item) => (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      {selectedTickets.map((item) => (
                         <Box
-                          key={`t-${item.id}`}
+                          key={item.id}
                           onClick={() => setLocation(`/tickets/${item.id}`)}
                           sx={{
-                            display: 'flex', alignItems: 'center', gap: 0.75,
-                            px: 1, py: 0.6, borderRadius: 1.5,
-                            border: '1px solid', borderColor: 'warning.light',
-                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 1,
+                            p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'warning.light',
+                            cursor: 'pointer', bgcolor: 'background.paper',
                             '&:hover': { bgcolor: 'warning.50', borderColor: 'warning.main' },
-                            transition: 'all 0.12s',
+                            transition: 'all 0.13s',
                           }}
                         >
-                          <TicketIcon sx={{ color: 'warning.main', flexShrink: 0, fontSize: 13 }} />
-                          <Typography variant="caption" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
-                            {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
-                          </Typography>
+                          <TicketIcon sx={{ color: 'warning.main', flexShrink: 0, fontSize: 16 }} />
+                          <Box flex={1} minWidth={0}>
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
+                            </Typography>
+                            {item.status && (
+                              <Chip
+                                label={getLabelForKey(item.status) || item.status}
+                                size="small"
+                                sx={{
+                                  height: 18, fontSize: '0.6rem', mt: 0.25,
+                                  bgcolor: getColorForKey(item.status) ?? undefined,
+                                  color: getColorForKey(item.status) ? '#fff' : undefined,
+                                }}
+                                color={getColorForKey(item.status) ? undefined : (getStatusColor(item.status) as any)}
+                              />
+                            )}
+                          </Box>
                           {item.assignee && (
-                            <Avatar src={item.assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: '0.5rem', flexShrink: 0 }}>
+                            <Avatar src={item.assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: '0.6rem', flexShrink: 0 }}>
                               {item.assignee.name.charAt(0)}
                             </Avatar>
                           )}
                         </Box>
                       ))}
-                      {appointments.map((item) => (
+                    </Box>
+                  </Box>
+                )}
+
+                {selectedTickets.length > 0 && selectedAppointments.length > 0 && (
+                  <Divider sx={{ my: 0.5 }} />
+                )}
+
+                {/* Appointments */}
+                {selectedAppointments.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                      <EventIcon sx={{ fontSize: 14, color: 'secondary.main' }} />
+                      <Typography variant="caption" fontWeight={700} color="secondary.main" textTransform="uppercase" letterSpacing={0.5}>
+                        {t.calendar.appointments}
+                      </Typography>
+                      <Chip label={selectedAppointments.length} size="small" color="secondary" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      {selectedAppointments.map((item) => (
                         <Box
-                          key={`a-${item.id}`}
+                          key={item.id}
                           onClick={() => handleAppointmentClick(item)}
                           sx={{
-                            display: 'flex', alignItems: 'center', gap: 0.75,
-                            px: 1, py: 0.6, borderRadius: 1.5,
-                            border: '1px solid', borderColor: 'secondary.light',
-                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 1,
+                            p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'secondary.light',
+                            cursor: 'pointer', bgcolor: 'background.paper',
                             '&:hover': { bgcolor: 'secondary.50', borderColor: 'secondary.main' },
-                            transition: 'all 0.12s',
+                            transition: 'all 0.13s',
                           }}
                         >
-                          <EventIcon sx={{ color: 'secondary.main', flexShrink: 0, fontSize: 13 }} />
+                          <EventIcon sx={{ color: 'secondary.main', flexShrink: 0, fontSize: 16 }} />
                           <Box flex={1} minWidth={0}>
-                            <Typography variant="caption" fontWeight={600} noWrap display="block">{item.title}</Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap display="block" fontSize="0.65rem">
+                            <Typography variant="body2" fontWeight={600} noWrap>{item.title}</Typography>
+                            <Typography variant="caption" color="text.secondary">
                               {formatTime(item.startsAt)}{item.endsAt && ` – ${formatTime(item.endsAt)}`}
                             </Typography>
+                            {item.description && (
+                              <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                                {item.description}
+                              </Typography>
+                            )}
                           </Box>
                         </Box>
                       ))}
                     </Box>
                   </Box>
-                );
-              })
+                )}
+              </Box>
             )}
           </Box>
         </Paper>
