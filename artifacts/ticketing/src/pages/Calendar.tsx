@@ -406,7 +406,7 @@ export default function CalendarPage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 3 }, maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, maxWidth: 620, mx: 'auto' }}>
       <Typography variant="h5" fontWeight={700} mb={3}>
         {t.calendar.title}
       </Typography>
@@ -431,9 +431,27 @@ export default function CalendarPage() {
               </IconButton>
             </Tooltip>
           </Box>
-          <IconButton onClick={nextMonth} size="small" sx={{ color: 'primary.contrastText' }}>
-            <ChevronRight />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {canCreateAppointment && selectedDate && (
+              <Tooltip title={t.calendar.addAppointment} placement="left">
+                <IconButton
+                  size="small"
+                  onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
+                  sx={{
+                    color: 'primary.contrastText',
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' },
+                    width: 32, height: 32,
+                  }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <IconButton onClick={nextMonth} size="small" sx={{ color: 'primary.contrastText' }}>
+              <ChevronRight />
+            </IconButton>
+          </Box>
         </Box>
 
         {/* Day of week header */}
@@ -544,21 +562,10 @@ export default function CalendarPage() {
         <Alert severity="error">{t.calendar.errorLoad}</Alert>
       ) : selectedDate ? (
         <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle1" fontWeight={700}>
               {new Date(selectedDate + 'T12:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </Typography>
-            {canCreateAppointment && (
-              <Button
-                size="small"
-                startIcon={<AddIcon />}
-                variant="outlined"
-                onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
-                sx={{ borderRadius: 2 }}
-              >
-                {t.calendar.addAppointment}
-              </Button>
-            )}
           </Box>
 
           {/* Tickets section */}
