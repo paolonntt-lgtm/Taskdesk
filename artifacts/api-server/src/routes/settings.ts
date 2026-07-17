@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, settingsTable, organizationsTable, usersTable } from "@workspace/db";
+import { db, settingsTable, organizationsTable, usersTable, groupsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { type SmtpConfig } from "../lib/email";
@@ -113,7 +113,19 @@ router.put("/settings/categories", requireAuth, requireAdmin, async (req, res): 
 
 router.get("/settings/groups", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
-  const key = orgKey(currentUser.organizationId, "groups");
+  const orgId = currentUser.organizationId;
+  if (orgId != null) {
+    const realGroups = await db
+      .select({ name: groupsTable.name })
+      .from(groupsTable)
+      .where(eq(groupsTable.organizationId, orgId))
+      .orderBy(groupsTable.name);
+    if (realGroups.length > 0) {
+      res.json({ value: realGroups.map((g) => g.name) });
+      return;
+    }
+  }
+  const key = orgKey(orgId, "groups");
   const value = await getSetting(key, DEFAULT_GROUPS);
   res.json({ value });
 });
