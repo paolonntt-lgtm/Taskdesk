@@ -48,6 +48,7 @@ const ClientBody = z.object({
   pec: z.string().optional().nullable(),
   contactPerson: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  notes2: z.string().optional().nullable(),
 });
 
 const ImportRow = z.object({
@@ -372,7 +373,7 @@ router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const keys = Object.keys(parsed.data);
-  const isNotesOnlyUpdate = keys.length === 1 && keys[0] === "notes";
+  const isNotesOnlyUpdate = keys.length === 1 && (keys[0] === "notes" || keys[0] === "notes2");
 
   if (!isAdmin) {
     if (isNotesOnlyUpdate) {
@@ -409,7 +410,7 @@ const LayoutBody = z.object({
   order: z.array(z.string().max(200)).max(50).optional(),
 });
 
-const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
+const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "fixed-notes-2", "client-notes", "linked-tickets"]);
 
 router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;

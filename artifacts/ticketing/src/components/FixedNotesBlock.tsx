@@ -25,6 +25,7 @@ interface FixedNotesBlockProps {
   isAdmin: boolean;
   canEditFixed?: boolean;
   title?: string;
+  fieldName?: 'notes' | 'notes2';
 }
 
 function ToolbarButton({
@@ -54,7 +55,7 @@ function ToolbarButton({
   );
 }
 
-export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEditFixed, title }: FixedNotesBlockProps) {
+export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEditFixed, title, fieldName = 'notes' }: FixedNotesBlockProps) {
   const { t } = useLanguage();
   const tc = t.clients;
 
@@ -103,7 +104,7 @@ export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEd
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: isEmpty ? null : html }),
+        body: JSON.stringify({ [fieldName]: isEmpty ? null : html }),
       });
       if (!res.ok) throw new Error('Save failed');
       setSavedHtml(isEmpty ? '' : html);

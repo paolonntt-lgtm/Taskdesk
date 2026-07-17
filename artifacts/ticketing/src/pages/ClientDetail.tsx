@@ -7,9 +7,9 @@ import {
   List, ListItemButton, ListItemIcon, ListItemText,
 } from '@mui/material';
 import {
-  ArrowBack, ConfirmationNumber, Edit, DragIndicator, Visibility, VisibilityOff,
+  ArrowBack, ConfirmationNumber, Edit, Visibility, VisibilityOff,
   Email, Phone, Business, Save, Cancel, DriveFileRenameOutline, Close, Add,
-  StickyNote2,
+  StickyNote2, Public,
 } from '@mui/icons-material';
 import ClientSectionEditor, { sanitizeSectionHtml } from '../components/ClientSectionEditor';
 import {
@@ -75,8 +75,10 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const BUILT_IN_BLOCK_IDS = ['company-info', 'fixed-notes', 'client-notes', 'linked-tickets'] as const;
+const BUILT_IN_BLOCK_IDS = ['company-info', 'fixed-notes', 'fixed-notes-2', 'client-notes', 'linked-tickets'] as const;
 type BuiltinBlockId = typeof BUILT_IN_BLOCK_IDS[number];
+
+const BUILTIN_FIXED_ORDER: BuiltinBlockId[] = ['company-info', 'fixed-notes', 'fixed-notes-2', 'client-notes', 'linked-tickets'];
 
 interface BlockConfig {
   id: string;
@@ -88,7 +90,7 @@ interface BlockConfig {
 }
 
 function defaultLayout(): BlockConfig[] {
-  return BUILT_IN_BLOCK_IDS.map((id) => ({ id, instanceId: id, visible: true }));
+  return BUILTIN_FIXED_ORDER.map((id) => ({ id, instanceId: id, visible: true }));
 }
 
 function migrateBlock(b: any): BlockConfig {
@@ -141,13 +143,12 @@ interface SortableBlockProps {
   hiddenLabel: string;
   renameLabel: string;
   deleteLabel: string;
-  isCustom: boolean;
   children: React.ReactNode;
 }
 
 function SortableBlock({
   instanceId, editMode, visible, onToggleVisible, onRename, onDelete,
-  title, visibleLabel, hiddenLabel, renameLabel, deleteLabel, isCustom, children,
+  title, visibleLabel, hiddenLabel, renameLabel, deleteLabel, children,
 }: SortableBlockProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: instanceId });
 
@@ -166,9 +167,9 @@ function SortableBlock({
           justifyContent="space-between"
           sx={{
             px: 2, py: 1,
-            bgcolor: 'primary.50',
+            bgcolor: 'warning.50',
             border: '2px dashed',
-            borderColor: 'primary.200',
+            borderColor: 'warning.300',
             borderBottom: 0,
             borderRadius: '8px 8px 0 0',
           }}
@@ -179,7 +180,9 @@ function SortableBlock({
               {...listeners}
               sx={{ cursor: 'grab', color: 'text.secondary', display: 'flex', alignItems: 'center' }}
             >
-              <DragIndicator />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
             </Box>
             <Typography variant="subtitle2" fontWeight={600}>
               {title}
@@ -191,7 +194,7 @@ function SortableBlock({
             </Tooltip>
           </Box>
           <Box display="flex" alignItems="center" gap={0.5}>
-            {isCustom && onDelete && (
+            {onDelete && (
               <Tooltip title={deleteLabel}>
                 <IconButton size="small" onClick={onDelete} sx={{ color: 'error.main' }}>
                   <Close fontSize="small" />
@@ -214,11 +217,75 @@ function SortableBlock({
           transition: 'opacity 0.2s',
           ...(editMode ? {
             border: '2px dashed',
-            borderColor: 'primary.200',
+            borderColor: 'warning.300',
             borderTop: 0,
             borderRadius: '0 0 8px 8px',
             overflow: 'hidden',
           } : {}),
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+interface BuiltinEditBarProps {
+  block: BlockConfig;
+  title: string;
+  onRename: () => void;
+  onToggleVisible: () => void;
+  visibleLabel: string;
+  hiddenLabel: string;
+  renameLabel: string;
+  children: React.ReactNode;
+}
+
+function BuiltinEditBar({
+  block, title, onRename, onToggleVisible, visibleLabel, hiddenLabel, renameLabel, children,
+}: BuiltinEditBarProps) {
+  return (
+    <Box mb={3}>
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{
+          px: 2, py: 1,
+          bgcolor: 'primary.50',
+          border: '2px dashed',
+          borderColor: 'primary.200',
+          borderBottom: 0,
+          borderRadius: '8px 8px 0 0',
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            {title}
+          </Typography>
+          <Tooltip title={renameLabel}>
+            <IconButton size="small" onClick={onRename} sx={{ ml: 0.5 }}>
+              <DriveFileRenameOutline fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <Tooltip title={block.visible ? visibleLabel : hiddenLabel}>
+          <Switch
+            size="small"
+            checked={block.visible}
+            onChange={onToggleVisible}
+          />
+        </Tooltip>
+      </Box>
+      <Box
+        sx={{
+          opacity: block.visible ? 1 : 0.4,
+          transition: 'opacity 0.2s',
+          border: '2px dashed',
+          borderColor: 'primary.200',
+          borderTop: 0,
+          borderRadius: '0 0 8px 8px',
+          overflow: 'hidden',
         }}
       >
         {children}
@@ -250,6 +317,9 @@ export default function ClientDetail() {
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<BlockConfig[]>([]);
 
+  const [orgLayout, setOrgLayout] = useState<BlockConfig[]>([]);
+  const [orgBuiltinNames, setOrgBuiltinNames] = useState<Record<string, string>>({});
+
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [form, setForm] = useState<ClientInput & Record<string, any>>({
     name: '', email: null, phone: null, vatNumber: null,
@@ -260,7 +330,10 @@ export default function ClientDetail() {
 
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingInstanceId, setRenamingInstanceId] = useState<string | null>(null);
+  const [renamingIsBuiltin, setRenamingIsBuiltin] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
+  const [renameError, setRenameError] = useState('');
 
   const [addSectionOpen, setAddSectionOpen] = useState(false);
 
@@ -277,7 +350,6 @@ export default function ClientDetail() {
     if (!data) return;
 
     const rawLayout = (data as any).layout;
-    // Support old format (plain array of custom blocks) and new format ({ blocks, order })
     const perClientBlocks: any[] = Array.isArray(rawLayout)
       ? rawLayout
       : (rawLayout?.blocks ?? []);
@@ -291,35 +363,12 @@ export default function ClientDetail() {
       (b) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId),
     );
 
-    if (hasPerClientBuiltins) {
-      // Full layout stored per-client — use it directly, no org-level fetch needed
-      const presentIds = new Set(perClientMigrated.map((b) => b.instanceId));
-      const missingBuiltins = BUILT_IN_BLOCK_IDS
-        .filter((id) => !presentIds.has(id))
-        .map((id) => ({ id, instanceId: id, visible: true }));
-      const combined = [...perClientMigrated, ...missingBuiltins];
-      let ordered: BlockConfig[];
-      if (savedOrder && savedOrder.length > 0) {
-        const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
-        ordered = [...combined].sort((a, b) => {
-          const ia = orderMap.has(a.instanceId) ? orderMap.get(a.instanceId)! : Infinity;
-          const ib = orderMap.has(b.instanceId) ? orderMap.get(b.instanceId)! : Infinity;
-          return ia - ib;
-        });
-      } else {
-        ordered = combined;
-      }
-      setLayout(ordered);
-      saveClientLayoutCache(clientId, ordered);
-      return;
-    }
-
-    // No per-client builtins yet — fall back to org-level defaults
     const perClientCustom = perClientMigrated.filter((b) => isCustomBlock(b));
+
     fetch('/api/settings/client-layout', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        let builtins: BlockConfig[];
+        let orgBuiltins: BlockConfig[];
         if (d?.layout && Array.isArray(d.layout)) {
           const migrated = (d.layout as any[]).map(migrateBlock)
             .filter((b: BlockConfig) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId));
@@ -327,13 +376,51 @@ export default function ClientDetail() {
           const missing = BUILT_IN_BLOCK_IDS
             .filter((id) => !storedIds.has(id))
             .map((id) => ({ id, instanceId: id, visible: true }));
-          builtins = [...migrated, ...missing];
+          orgBuiltins = [...migrated, ...missing];
         } else {
-          builtins = defaultLayout();
+          orgBuiltins = BUILTIN_FIXED_ORDER.map((id) => ({ id, instanceId: id, visible: true }));
         }
-        const combined = [...builtins, ...perClientCustom];
-        setLayout(combined);
-        saveClientLayoutCache(clientId, combined);
+
+        const newOrgLayout = orgBuiltins;
+        setOrgLayout(newOrgLayout);
+        const names: Record<string, string> = {};
+        for (const b of newOrgLayout) {
+          if (b.customName) names[b.instanceId] = b.customName;
+        }
+        setOrgBuiltinNames(names);
+
+        if (hasPerClientBuiltins) {
+          const presentIds = new Set(perClientMigrated.map((b) => b.instanceId));
+          const missingBuiltins = BUILT_IN_BLOCK_IDS
+            .filter((id) => !presentIds.has(id))
+            .map((id) => ({ id, instanceId: id, visible: true }));
+          const combined = [...perClientMigrated, ...missingBuiltins];
+          let ordered: BlockConfig[];
+          if (savedOrder && savedOrder.length > 0) {
+            const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
+            ordered = [...combined].sort((a, b) => {
+              const ia = orderMap.has(a.instanceId) ? orderMap.get(a.instanceId)! : Infinity;
+              const ib = orderMap.has(b.instanceId) ? orderMap.get(b.instanceId)! : Infinity;
+              return ia - ib;
+            });
+          } else {
+            ordered = combined;
+          }
+          setLayout(ordered);
+          saveClientLayoutCache(clientId, ordered);
+        } else {
+          const builtinVisibility = new Map<string, boolean>();
+          for (const b of orgBuiltins) builtinVisibility.set(b.instanceId, b.visible);
+
+          const builtinsWithVisibility = BUILTIN_FIXED_ORDER.map((id) => ({
+            id,
+            instanceId: id,
+            visible: builtinVisibility.has(id) ? builtinVisibility.get(id)! : true,
+          }));
+          const combined = [...builtinsWithVisibility, ...perClientCustom];
+          setLayout(combined);
+          saveClientLayoutCache(clientId, combined);
+        }
       })
       .catch(() => {
         setLayout([...defaultLayout(), ...perClientCustom]);
@@ -357,12 +444,16 @@ export default function ClientDetail() {
     setDraftLayout([]);
 
     try {
+      const layoutForSave = draftLayout.map(b => ({
+        ...b,
+        customName: isCustomBlock(b) ? b.customName : undefined,
+      }));
       await fetch(`/api/clients/${clientId}/layout`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          layout: draftLayout,
+          layout: layoutForSave,
           order: draftLayout.map(b => b.instanceId),
         }),
       });
@@ -373,9 +464,13 @@ export default function ClientDetail() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setDraftLayout((prev) => {
-        const oldIndex = prev.findIndex((b) => b.instanceId === active.id);
-        const newIndex = prev.findIndex((b) => b.instanceId === over.id);
-        return arrayMove(prev, oldIndex, newIndex);
+        const builtins = prev.filter(b => !isCustomBlock(b));
+        const customs = prev.filter(b => isCustomBlock(b));
+        const oldIndex = customs.findIndex((b) => b.instanceId === active.id);
+        const newIndex = customs.findIndex((b) => b.instanceId === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        const newCustoms = arrayMove(customs, oldIndex, newIndex);
+        return [...builtins, ...newCustoms];
       });
     }
   }, []);
@@ -387,25 +482,74 @@ export default function ClientDetail() {
   }, []);
 
   const openRenameDialog = useCallback((instanceId: string, currentName: string) => {
+    const builtin = BUILT_IN_BLOCK_IDS.includes(instanceId as BuiltinBlockId);
     setRenamingInstanceId(instanceId);
+    setRenamingIsBuiltin(builtin);
     setRenameValue(currentName);
+    setRenameError('');
     setRenameDialogOpen(true);
   }, []);
 
-  const handleRenameConfirm = useCallback(() => {
+  const handleRenameConfirm = useCallback(async () => {
     if (!renamingInstanceId) return;
     const trimmed = renameValue.trim();
-    setDraftLayout((prev) =>
-      prev.map((b) =>
-        b.instanceId === renamingInstanceId
-          ? { ...b, customName: trimmed || undefined }
-          : b
-      )
-    );
+
+    if (renamingIsBuiltin) {
+      setRenameSaving(true);
+      setRenameError('');
+      try {
+        const updatedOrgLayout = orgLayout.map(b =>
+          b.instanceId === renamingInstanceId
+            ? { ...b, customName: trimmed || undefined }
+            : b
+        );
+        const layoutToSend = updatedOrgLayout.map(b => ({
+          id: b.id,
+          instanceId: b.instanceId,
+          visible: b.visible,
+          ...(b.type ? { type: b.type } : {}),
+          ...(b.customName ? { customName: b.customName } : {}),
+        }));
+        const res = await fetch('/api/settings/client-layout', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout: layoutToSend }),
+        });
+        if (!res.ok) {
+          setRenameError(tc.errorSaving);
+          setRenameSaving(false);
+          return;
+        }
+        setOrgLayout(updatedOrgLayout);
+        const newNames = { ...orgBuiltinNames };
+        if (trimmed) {
+          newNames[renamingInstanceId] = trimmed;
+        } else {
+          delete newNames[renamingInstanceId];
+        }
+        setOrgBuiltinNames(newNames);
+      } catch {
+        setRenameError(tc.errorSaving);
+        setRenameSaving(false);
+        return;
+      }
+      setRenameSaving(false);
+    } else {
+      setDraftLayout((prev) =>
+        prev.map((b) =>
+          b.instanceId === renamingInstanceId
+            ? { ...b, customName: trimmed || undefined }
+            : b
+        )
+      );
+    }
+
     setRenameDialogOpen(false);
     setRenamingInstanceId(null);
+    setRenamingIsBuiltin(false);
     setRenameValue('');
-  }, [renamingInstanceId, renameValue]);
+  }, [renamingInstanceId, renamingIsBuiltin, renameValue, orgLayout, orgBuiltinNames]);
 
   const handleDeleteBlock = useCallback((instanceId: string) => {
     setDraftLayout((prev) => prev.filter((b) => b.instanceId !== instanceId));
@@ -530,20 +674,21 @@ export default function ClientDetail() {
   const avatarColor = getAvatarColor(client.name ?? '');
   const initials = getInitials(client.name ?? '?');
 
-  const activeLayout = editMode ? draftLayout : layout;
-
   const builtinDefaultTitles: Record<BuiltinBlockId, string> = {
     'company-info': tc.blockCompanyInfo,
     'linked-tickets': tc.blockLinkedTickets,
     'client-notes': tc.blockNotes,
     'fixed-notes': tc.blockFixedNotes,
+    'fixed-notes-2': tc.blockFixedNotes2,
   };
 
   function getBlockTitle(block: BlockConfig): string {
-    if (block.customName) return block.customName;
     if (BUILT_IN_BLOCK_IDS.includes(block.instanceId as BuiltinBlockId)) {
+      const orgName = orgBuiltinNames[block.instanceId];
+      if (orgName) return orgName;
       return builtinDefaultTitles[block.instanceId as BuiltinBlockId];
     }
+    if (block.customName) return block.customName;
     return tc.blockCustomNote;
   }
 
@@ -561,6 +706,24 @@ export default function ClientDetail() {
               isAdmin={isAdmin}
               canEditFixed={userGroupPerms.includes('edit_fixed_notes')}
               title={resolvedTitle}
+              fieldName="notes"
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (block.instanceId === 'fixed-notes-2') {
+      return (
+        <Card variant="outlined" sx={{ borderRadius: radius }}>
+          <CardContent>
+            <FixedNotesBlock
+              clientId={clientId}
+              initialNotes={(client as any).notes2 ?? null}
+              isAdmin={isAdmin}
+              canEditFixed={userGroupPerms.includes('edit_fixed_notes')}
+              title={resolvedTitle}
+              fieldName="notes2"
             />
           </CardContent>
         </Card>
@@ -769,6 +932,9 @@ export default function ClientDetail() {
     );
   }
 
+  const customBlocks = layout.filter(b => isCustomBlock(b));
+  const customDraftBlocks = draftLayout.filter(b => isCustomBlock(b));
+
   return (
     <Box>
       {/* Visual Identity Header */}
@@ -787,7 +953,6 @@ export default function ClientDetail() {
           overflow: 'hidden',
         }}
       >
-        {/* Decorative background accent */}
         <Box
           sx={{
             position: 'absolute',
@@ -802,7 +967,6 @@ export default function ClientDetail() {
           }}
         />
 
-        {/* Back link */}
         <Button
           startIcon={<ArrowBack />}
           size="small"
@@ -813,7 +977,6 @@ export default function ClientDetail() {
         </Button>
 
         <Box display="flex" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={3} flexWrap="wrap">
-          {/* Initials avatar */}
           <Avatar
             sx={{
               width: { xs: 56, sm: 72 },
@@ -828,7 +991,6 @@ export default function ClientDetail() {
             {initials}
           </Avatar>
 
-          {/* Name + contact chips */}
           <Box flex={1} minWidth={0}>
             <Typography
               variant="h4"
@@ -873,7 +1035,6 @@ export default function ClientDetail() {
             </Box>
           </Box>
 
-          {/* Action buttons */}
           <Box display="flex" flexShrink={0} gap={1} flexWrap="wrap">
             {!editMode && (isAdmin || canManageSections) && (
               <>
@@ -927,9 +1088,8 @@ export default function ClientDetail() {
           </Box>
         </Box>
 
-        {/* Edit mode hint */}
         {editMode && (
-          <Alert severity="info" sx={{ mt: 2 }} icon={<DragIndicator />}>
+          <Alert severity="info" sx={{ mt: 2 }}>
             {tc.editLayoutHint}
           </Alert>
         )}
@@ -938,52 +1098,95 @@ export default function ClientDetail() {
       {/* Block layout */}
       {editMode ? (
         <>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={draftLayout.map((b) => b.instanceId)}
-              strategy={verticalListSortingStrategy}
-            >
-              {draftLayout.map((block) => (
-                <SortableBlock
-                  key={block.instanceId}
-                  instanceId={block.instanceId}
-                  editMode
-                  visible={block.visible}
-                  onToggleVisible={() => handleToggleVisible(block.instanceId)}
-                  onRename={() => openRenameDialog(block.instanceId, block.customName || getBlockTitle(block))}
-                  onDelete={isCustomBlock(block) ? () => handleDeleteBlock(block.instanceId) : undefined}
-                  title={getBlockTitle(block)}
-                  visibleLabel={tc.blockVisible}
-                  hiddenLabel={tc.blockHidden}
-                  renameLabel={tc.blockRename}
-                  deleteLabel={tc.blockDelete}
-                  isCustom={isCustomBlock(block)}
-                >
-                  {renderBlockContent(block)}
-                </SortableBlock>
-              ))}
-            </SortableContext>
-          </DndContext>
+          {/* Built-in blocks — fixed order, no drag */}
+          {BUILTIN_FIXED_ORDER.map((builtinId) => {
+            const block = draftLayout.find(b => b.instanceId === builtinId)
+              ?? { id: builtinId, instanceId: builtinId, visible: true };
+            return (
+              <BuiltinEditBar
+                key={builtinId}
+                block={block}
+                title={getBlockTitle(block)}
+                onRename={() => openRenameDialog(builtinId, getBlockTitle(block))}
+                onToggleVisible={() => handleToggleVisible(builtinId)}
+                visibleLabel={tc.blockVisible}
+                hiddenLabel={tc.blockHidden}
+                renameLabel={tc.blockRename}
+              >
+                {renderBlockContent(block)}
+              </BuiltinEditBar>
+            );
+          })}
 
+          {/* Custom blocks — draggable */}
+          {customDraftBlocks.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={customDraftBlocks.map((b) => b.instanceId)}
+                strategy={verticalListSortingStrategy}
+              >
+                {customDraftBlocks.map((block) => (
+                  <SortableBlock
+                    key={block.instanceId}
+                    instanceId={block.instanceId}
+                    editMode
+                    visible={block.visible}
+                    onToggleVisible={() => handleToggleVisible(block.instanceId)}
+                    onRename={() => openRenameDialog(block.instanceId, block.customName || getBlockTitle(block))}
+                    onDelete={() => handleDeleteBlock(block.instanceId)}
+                    title={getBlockTitle(block)}
+                    visibleLabel={tc.blockVisible}
+                    hiddenLabel={tc.blockHidden}
+                    renameLabel={tc.blockRename}
+                    deleteLabel={tc.blockDelete}
+                  >
+                    {renderBlockContent(block)}
+                  </SortableBlock>
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
         </>
       ) : (
-        activeLayout
-          .filter((b) => b.visible)
-          .map((block) => (
+        <>
+          {/* Built-in blocks — always in fixed order */}
+          {BUILTIN_FIXED_ORDER.map((builtinId) => {
+            const block = layout.find(b => b.instanceId === builtinId)
+              ?? { id: builtinId, instanceId: builtinId, visible: true };
+            if (!block.visible) return null;
+            return (
+              <Box key={builtinId} mb={3}>
+                {renderBlockContent(block)}
+              </Box>
+            );
+          })}
+
+          {/* Custom blocks */}
+          {customBlocks.filter(b => b.visible).map((block) => (
             <Box key={block.instanceId} mb={3}>
               {renderBlockContent(block)}
             </Box>
-          ))
+          ))}
+        </>
       )}
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>{tc.renameBlockTitle}</DialogTitle>
         <DialogContent>
+          {renamingIsBuiltin && (
+            <Alert
+              severity="warning"
+              icon={<Public fontSize="small" />}
+              sx={{ mb: 2, mt: 1 }}
+            >
+              {tc.renameBuiltinWarning}
+            </Alert>
+          )}
           <TextField
             autoFocus
             fullWidth
@@ -991,13 +1194,18 @@ export default function ClientDetail() {
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm(); }}
-            sx={{ mt: 1 }}
+            sx={{ mt: renamingIsBuiltin ? 0 : 1 }}
           />
+          {renameError && (
+            <Alert severity="error" sx={{ mt: 2 }}>{renameError}</Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRenameDialogOpen(false)}>{tc.cancelLayout}</Button>
-          <Button variant="contained" onClick={handleRenameConfirm}>
-            {tc.renameBlockSave}
+          <Button onClick={() => setRenameDialogOpen(false)} disabled={renameSaving}>
+            {tc.cancelLayout}
+          </Button>
+          <Button variant="contained" onClick={handleRenameConfirm} disabled={renameSaving}>
+            {renameSaving ? '...' : tc.renameBlockSave}
           </Button>
         </DialogActions>
       </Dialog>

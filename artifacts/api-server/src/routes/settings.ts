@@ -323,7 +323,7 @@ router.patch("/settings/client-layout", requireAuth, requireAdmin, async (req, r
   const { layout } = req.body ?? {};
   if (!Array.isArray(layout)) { res.status(400).json({ message: "Layout non valido" }); return; }
 
-  const VALID_BUILTIN_IDS = new Set(["company-info", "fixed-notes", "client-notes", "linked-tickets"]);
+  const VALID_BUILTIN_IDS = new Set(["company-info", "fixed-notes", "fixed-notes-2", "client-notes", "linked-tickets"]);
   const normalized: Array<{
     id: string;
     instanceId: string;

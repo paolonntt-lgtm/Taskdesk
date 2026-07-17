@@ -15,6 +15,7 @@ export const clientsTable = pgTable("clients", {
   pec: text("pec"),
   contactPerson: text("contact_person"),
   notes: text("notes"),
+  notes2: text("notes2"),
   layout: jsonb("layout"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

@@ -149,6 +149,34 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
     `);
 
+    // Add notes2 column to clients for second fixed-notes block
+    await client.query(`
+      ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes2 TEXT;
+    `);
+
+    // Backfill org shared layout: ensure fixed-notes-2 block is present for all existing orgs
+    await client.query(`
+      UPDATE organizations
+      SET client_shared_layout = (
+        CASE
+          WHEN client_shared_layout IS NULL THEN
+            '[{"id":"company-info","instanceId":"company-info","visible":true},{"id":"fixed-notes","instanceId":"fixed-notes","visible":true},{"id":"fixed-notes-2","instanceId":"fixed-notes-2","visible":true},{"id":"client-notes","instanceId":"client-notes","visible":true},{"id":"linked-tickets","instanceId":"linked-tickets","visible":true}]'::jsonb
+          WHEN NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(client_shared_layout) AS b
+            WHERE b->>'instanceId' = 'fixed-notes-2'
+          ) THEN
+            client_shared_layout || '[{"id":"fixed-notes-2","instanceId":"fixed-notes-2","visible":true}]'::jsonb
+          ELSE
+            client_shared_layout
+        END
+      )
+      WHERE client_shared_layout IS NULL
+         OR NOT EXISTS (
+           SELECT 1 FROM jsonb_array_elements(client_shared_layout) AS b
+           WHERE b->>'instanceId' = 'fixed-notes-2'
+         );
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
