@@ -591,6 +591,74 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
+router.get("/stats/resolution-by-assignee", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const [byAssignee, overallRows, bucketRows] = await Promise.all([
+    db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      avgHours: sql<number>`round(avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+      count: sql<number>`count(${ticketsTable.id})`,
+      minHours: sql<number>`round(min(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+      maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
+    })
+      .from(usersTable)
+      .innerJoin(
+        ticketsTable,
+        and(
+          eq(ticketsTable.assignedTo, usersTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          isNotNull(ticketsTable.closedAt),
+        )
+      )
+      .where(eq(usersTable.organizationId, orgId))
+      .groupBy(usersTable.id, usersTable.name)
+      .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`),
+
+    db.select({
+      avgHours: sql<number>`round(avg(extract(epoch from (closed_at - created_at)) / 3600)::numeric, 1)`,
+      count: sql<number>`count(*)`,
+    }).from(ticketsTable).where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt))),
+
+    db.select({
+      bucket: sql<string>`
+        case
+          when extract(epoch from (closed_at - created_at)) / 3600 < 4 then '0'
+          when extract(epoch from (closed_at - created_at)) / 3600 < 24 then '1'
+          when extract(epoch from (closed_at - created_at)) / 3600 < 72 then '2'
+          when extract(epoch from (closed_at - created_at)) / 3600 < 168 then '3'
+          else '4'
+        end
+      `,
+      count: sql<number>`count(*)`,
+    }).from(ticketsTable)
+      .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+      .groupBy(sql`1`)
+      .orderBy(sql`1`),
+  ]);
+
+  const bucketMap = new Map(bucketRows.map((r) => [r.bucket, Number(r.count)]));
+
+  res.json({
+    byAssignee: byAssignee.map((r) => ({
+      id: r.id,
+      name: r.name,
+      avgHours: Number(r.avgHours),
+      count: Number(r.count),
+      minHours: Number(r.minHours),
+      maxHours: Number(r.maxHours),
+    })),
+    overall: {
+      avgHours: overallRows[0]?.avgHours ? Number(overallRows[0].avgHours) : null,
+      count: Number(overallRows[0]?.count ?? 0),
+    },
+    buckets: [0, 1, 2, 3, 4].map((i) => ({ bucket: String(i), count: bucketMap.get(String(i)) ?? 0 })),
+  });
+});
+
 router.get("/stats/acquisition", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
   const signupsByDay = await db
     .select({
