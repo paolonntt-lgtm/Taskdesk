@@ -425,7 +425,7 @@ export default function CalendarPage() {
       {/* Two-column grid: calendar left, agenda right */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '1fr 320px' },
+        gridTemplateColumns: { xs: '1fr', md: '320px 1fr' },
         gap: 3,
         alignItems: 'start',
       }}>
