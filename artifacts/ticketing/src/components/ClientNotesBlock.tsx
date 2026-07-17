@@ -25,6 +25,14 @@ interface ChecklistItem {
   checkedAt?: string | null;
 }
 
+function isClientNoteOpen(note: any): boolean {
+  const cl = note.checklist;
+  if (!cl || !Array.isArray(cl) || cl.length === 0) {
+    return !!(note.body && note.body.trim());
+  }
+  return cl.some((item: any) => !item.checked);
+}
+
 interface ClientNotesBlockProps {
   clientId: number;
   isAdmin: boolean;
@@ -114,6 +122,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       key: g.key,
       label: formatMonthShort(g.key, lang),
       count: g.notes.length,
+      openCount: g.notes.filter(isClientNoteOpen).length,
     })),
     [groupedNotes, lang],
   );
@@ -314,7 +323,8 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             return (
               <Badge
                 key={m.key}
-                badgeContent={m.count}
+                badgeContent={m.openCount}
+                invisible={m.openCount === 0}
                 color="primary"
                 anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
                 sx={{ flexShrink: 0 }}
