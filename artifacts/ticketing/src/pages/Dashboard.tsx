@@ -827,7 +827,11 @@ function formatWidgetMonth(yyyyMM: string, lang: string): string {
 
 function isClientNoteOpen(note: any): boolean {
   const cl = note.checklist;
-  if (!cl || !Array.isArray(cl) || cl.length === 0) return false;
+  if (!cl || !Array.isArray(cl) || cl.length === 0) {
+    // Nota solo testo: aperta se ha del contenuto
+    return !!(note.body && note.body.trim());
+  }
+  // Nota con checklist: aperta se almeno un item non è spuntato
   return cl.some((item: any) => !item.checked);
 }
 
