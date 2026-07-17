@@ -430,20 +430,18 @@ router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void>
     return;
   }
 
-  const customOnly = parsed.data.layout
-    .filter(b => !BUILTIN_IDS.has(b.instanceId))
-    .map(b => ({
-      id: b.id,
-      instanceId: b.instanceId,
-      ...(b.type ? { type: b.type } : {}),
-      visible: b.visible,
-      ...(b.customName?.trim() ? { customName: b.customName.trim().slice(0, 100) } : {}),
-      ...(b.content?.trim() ? { content: b.content.trim().slice(0, 10000) } : {}),
-    }));
+  const allBlocks = parsed.data.layout.map(b => ({
+    id: b.id,
+    instanceId: b.instanceId,
+    ...(b.type ? { type: b.type } : {}),
+    visible: b.visible,
+    ...(b.customName?.trim() ? { customName: b.customName.trim().slice(0, 100) } : {}),
+    ...(b.content?.trim() ? { content: b.content.trim().slice(0, 10000) } : {}),
+  }));
 
   const [client] = await db
     .update(clientsTable)
-    .set({ layout: { blocks: customOnly, order: parsed.data.order ?? [] } })
+    .set({ layout: { blocks: allBlocks, order: parsed.data.order ?? [] } })
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
     .returning();
 

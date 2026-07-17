@@ -277,7 +277,7 @@ export default function ClientDetail() {
     if (!data) return;
 
     const rawLayout = (data as any).layout;
-    // Support both old format (array) and new format ({ blocks, order })
+    // Support old format (plain array of custom blocks) and new format ({ blocks, order })
     const perClientBlocks: any[] = Array.isArray(rawLayout)
       ? rawLayout
       : (rawLayout?.blocks ?? []);
@@ -285,10 +285,37 @@ export default function ClientDetail() {
       !Array.isArray(rawLayout) && Array.isArray(rawLayout?.order) && rawLayout.order.length > 0
         ? rawLayout.order
         : null;
-    const perClientCustom: BlockConfig[] = perClientBlocks
-      .map(migrateBlock)
-      .filter((b: BlockConfig) => isCustomBlock(b));
 
+    const perClientMigrated: BlockConfig[] = perClientBlocks.map(migrateBlock);
+    const hasPerClientBuiltins = perClientMigrated.some(
+      (b) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId),
+    );
+
+    if (hasPerClientBuiltins) {
+      // Full layout stored per-client — use it directly, no org-level fetch needed
+      const presentIds = new Set(perClientMigrated.map((b) => b.instanceId));
+      const missingBuiltins = BUILT_IN_BLOCK_IDS
+        .filter((id) => !presentIds.has(id))
+        .map((id) => ({ id, instanceId: id, visible: true }));
+      const combined = [...perClientMigrated, ...missingBuiltins];
+      let ordered: BlockConfig[];
+      if (savedOrder && savedOrder.length > 0) {
+        const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
+        ordered = [...combined].sort((a, b) => {
+          const ia = orderMap.has(a.instanceId) ? orderMap.get(a.instanceId)! : Infinity;
+          const ib = orderMap.has(b.instanceId) ? orderMap.get(b.instanceId)! : Infinity;
+          return ia - ib;
+        });
+      } else {
+        ordered = combined;
+      }
+      setLayout(ordered);
+      saveClientLayoutCache(clientId, ordered);
+      return;
+    }
+
+    // No per-client builtins yet — fall back to org-level defaults
+    const perClientCustom = perClientMigrated.filter((b) => isCustomBlock(b));
     fetch('/api/settings/client-layout', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -305,20 +332,8 @@ export default function ClientDetail() {
           builtins = defaultLayout();
         }
         const combined = [...builtins, ...perClientCustom];
-        // Restore saved order if available
-        let ordered: BlockConfig[];
-        if (savedOrder && savedOrder.length > 0) {
-          const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
-          ordered = [...combined].sort((a, b) => {
-            const ia = orderMap.has(a.instanceId) ? orderMap.get(a.instanceId)! : Infinity;
-            const ib = orderMap.has(b.instanceId) ? orderMap.get(b.instanceId)! : Infinity;
-            return ia - ib;
-          });
-        } else {
-          ordered = combined;
-        }
-        setLayout(ordered);
-        saveClientLayoutCache(clientId, ordered);
+        setLayout(combined);
+        saveClientLayoutCache(clientId, combined);
       })
       .catch(() => {
         setLayout([...defaultLayout(), ...perClientCustom]);
@@ -336,29 +351,21 @@ export default function ClientDetail() {
   }, []);
 
   const handleSaveLayout = useCallback(async () => {
-    const builtins = draftLayout.filter((b) => BUILT_IN_BLOCK_IDS.includes(b.instanceId as BuiltinBlockId));
-    const custom = draftLayout.filter((b) => isCustomBlock(b));
-
     setLayout(draftLayout);
     saveClientLayoutCache(clientId, draftLayout);
     setEditMode(false);
     setDraftLayout([]);
 
     try {
-      await Promise.all([
-        fetch('/api/settings/client-layout', {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layout: builtins }),
+      await fetch(`/api/clients/${clientId}/layout`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          layout: draftLayout,
+          order: draftLayout.map(b => b.instanceId),
         }),
-        fetch(`/api/clients/${clientId}/layout`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layout: custom, order: draftLayout.map(b => b.instanceId) }),
-        }),
-      ]);
+      });
     } catch {}
   }, [draftLayout, clientId]);
 
