@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   Box, Typography, IconButton, Paper, Chip, Divider, CircularProgress,
   Avatar, Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, MenuItem, Select, FormControl, InputLabel, Alert, Tooltip,
-  Fab,
 } from '@mui/material';
 import {
   ChevronLeft, ChevronRight, Add as AddIcon, Edit as EditIcon,
@@ -405,294 +404,309 @@ export default function CalendarPage() {
 
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+  // Right-panel: all dates in the month that have items, sorted
+  const monthDates = useMemo(() => [...itemsByDate.keys()].sort(), [itemsByDate]);
+
+  // Scroll right panel to selected date
+  const dateRefs = useRef<Map<string, HTMLElement>>(new Map());
+  useEffect(() => {
+    if (selectedDate) {
+      const el = dateRefs.current.get(selectedDate);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedDate]);
+
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 3 }, maxWidth: 620, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
       <Typography variant="h5" fontWeight={700} mb={3}>
         {t.calendar.title}
       </Typography>
 
-      {/* Calendar Card */}
-      <Paper sx={{ borderRadius: 3, overflow: 'hidden', mb: 3 }}>
-        {/* Month navigation header */}
-        <Box sx={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          px: 3, py: 2, bgcolor: 'primary.main', color: 'primary.contrastText',
+      {/* Two-column grid: calendar left, agenda right */}
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: '1fr 320px' },
+        gap: 3,
+        alignItems: 'start',
+      }}>
+        {/* ── LEFT: Calendar card ── */}
+        <Box>
+          <Paper sx={{ borderRadius: 3, overflow: 'hidden', mb: 2 }}>
+            {/* Month navigation header */}
+            <Box sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              px: 3, py: 2, bgcolor: 'primary.main', color: 'primary.contrastText',
+            }}>
+              <IconButton onClick={prevMonth} size="small" sx={{ color: 'primary.contrastText' }}>
+                <ChevronLeft />
+              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Typography variant="h6" fontWeight={700}>
+                  {t.calendar.monthsLong[month - 1]} {year}
+                </Typography>
+                <Tooltip title={t.calendar.today}>
+                  <IconButton size="small" sx={{ color: 'primary.contrastText', opacity: 0.7 }} onClick={goToday}>
+                    <TodayIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {canCreateAppointment && (
+                  <Tooltip title={t.calendar.addAppointment} placement="left">
+                    <IconButton
+                      size="small"
+                      onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
+                      sx={{
+                        color: 'primary.contrastText',
+                        bgcolor: 'rgba(255,255,255,0.15)',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' },
+                        width: 32, height: 32,
+                      }}
+                    >
+                      <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <IconButton onClick={nextMonth} size="small" sx={{ color: 'primary.contrastText' }}>
+                  <ChevronRight />
+                </IconButton>
+              </Box>
+            </Box>
+
+            {/* Day of week header */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid', borderColor: 'divider' }}>
+              {t.calendar.daysShort.map((d) => (
+                <Box key={d} sx={{ textAlign: 'center', py: 1, px: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} fontSize="0.7rem">
+                    {d}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+
+            {/* Calendar grid */}
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                {Array.from({ length: totalCells }).map((_, idx) => {
+                  const dayNum = idx - startDow + 1;
+                  const isValid = dayNum >= 1 && dayNum <= daysInMonth;
+                  const dateStr = isValid
+                    ? `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                    : null;
+                  const isToday = dateStr === todayStr;
+                  const isSelected = dateStr === selectedDate;
+                  const dayItems = dateStr ? (itemsByDate.get(dateStr) ?? []) : [];
+                  const hasTickets = dayItems.some(i => i.type === 'ticket');
+                  const hasAppointments = dayItems.some(i => i.type === 'appointment');
+
+                  return (
+                    <Box
+                      key={idx}
+                      onClick={() => isValid && dateStr && setSelectedDate(prev => prev === dateStr ? null : dateStr)}
+                      sx={{
+                        minHeight: { xs: 46, sm: 0 },
+                        aspectRatio: { sm: '1' },
+                        borderRight: (idx + 1) % 7 !== 0 ? '1px solid' : 'none',
+                        borderBottom: idx < totalCells - 7 ? '1px solid' : 'none',
+                        borderColor: 'divider',
+                        p: { xs: 0.5, sm: 1 },
+                        cursor: isValid ? 'pointer' : 'default',
+                        bgcolor: isSelected
+                          ? 'primary.50'
+                          : isToday
+                          ? 'action.selected'
+                          : !isValid
+                          ? 'action.disabledBackground'
+                          : 'transparent',
+                        transition: 'background-color 0.1s',
+                        '&:hover': isValid ? { bgcolor: isSelected ? 'primary.100' : 'action.hover' } : {},
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        position: 'relative',
+                      }}
+                    >
+                      {isValid && (
+                        <>
+                          <Box
+                            sx={{
+                              width: { xs: 24, sm: 28 }, height: { xs: 24, sm: 28 },
+                              borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              bgcolor: isToday ? 'primary.main' : 'transparent',
+                              color: isToday ? 'primary.contrastText' : 'text.primary',
+                            }}
+                          >
+                            <Typography variant="body2" fontWeight={isToday ? 700 : 400} fontSize={{ xs: '0.75rem', sm: '0.875rem' }}>
+                              {dayNum}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', justifyContent: 'center' }}>
+                            {hasTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'warning.main' }} />}
+                            {hasAppointments && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'secondary.main' }} />}
+                          </Box>
+                        </>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </Paper>
+
+          {/* Legend */}
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
+              <Typography variant="caption" color="text.secondary">{t.calendar.ticketsDue}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} />
+              <Typography variant="caption" color="text.secondary">{t.calendar.appointments}</Typography>
+            </Box>
+          </Box>
+
+          {error && <Alert severity="error" sx={{ mt: 2 }}>{t.calendar.errorLoad}</Alert>}
+        </Box>
+
+        {/* ── RIGHT: Month agenda ── */}
+        <Paper sx={{
+          borderRadius: 3, overflow: 'hidden',
+          position: { md: 'sticky' }, top: { md: 76 },
+          display: 'flex', flexDirection: 'column',
+          maxHeight: { md: 'calc(100vh - 108px)' },
         }}>
-          <IconButton onClick={prevMonth} size="small" sx={{ color: 'primary.contrastText' }}>
-            <ChevronLeft />
-          </IconButton>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Typography variant="h6" fontWeight={700}>
+          {/* Panel header */}
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+            <Typography variant="subtitle2" fontWeight={700}>
               {t.calendar.monthsLong[month - 1]} {year}
             </Typography>
-            <Tooltip title={t.calendar.today}>
-              <IconButton size="small" sx={{ color: 'primary.contrastText', opacity: 0.7 }} onClick={goToday}>
-                <TodayIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {canCreateAppointment && selectedDate && (
-              <Tooltip title={t.calendar.addAppointment} placement="left">
-                <IconButton
-                  size="small"
-                  onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
-                  sx={{
-                    color: 'primary.contrastText',
-                    bgcolor: 'rgba(255,255,255,0.15)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' },
-                    width: 32, height: 32,
-                  }}
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <IconButton onClick={nextMonth} size="small" sx={{ color: 'primary.contrastText' }}>
-              <ChevronRight />
-            </IconButton>
-          </Box>
-        </Box>
-
-        {/* Day of week header */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid', borderColor: 'divider' }}>
-          {t.calendar.daysShort.map((d) => (
-            <Box key={d} sx={{ textAlign: 'center', py: 1, px: 0.5 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} fontSize="0.7rem">
-                {d}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-
-        {/* Calendar grid */}
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-            <CircularProgress size={28} />
-          </Box>
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-            {Array.from({ length: totalCells }).map((_, idx) => {
-              const dayNum = idx - startDow + 1;
-              const isValid = dayNum >= 1 && dayNum <= daysInMonth;
-              const dateStr = isValid
-                ? `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-                : null;
-              const isToday = dateStr === todayStr;
-              const isSelected = dateStr === selectedDate;
-              const dayItems = dateStr ? (itemsByDate.get(dateStr) ?? []) : [];
-              const hasTickets = dayItems.some(i => i.type === 'ticket');
-              const hasAppointments = dayItems.some(i => i.type === 'appointment');
-
-              return (
-                <Box
-                  key={idx}
-                  onClick={() => isValid && dateStr && setSelectedDate(prev => prev === dateStr ? null : dateStr)}
-                  sx={{
-                    minHeight: { xs: 46, sm: 0 },
-                    aspectRatio: { sm: '1' },
-                    borderRight: (idx + 1) % 7 !== 0 ? '1px solid' : 'none',
-                    borderBottom: idx < totalCells - 7 ? '1px solid' : 'none',
-                    borderColor: 'divider',
-                    p: { xs: 0.5, sm: 1 },
-                    cursor: isValid ? 'pointer' : 'default',
-                    bgcolor: isSelected
-                      ? 'primary.50'
-                      : isToday
-                      ? 'action.selected'
-                      : !isValid
-                      ? 'action.disabledBackground'
-                      : 'transparent',
-                    transition: 'background-color 0.1s',
-                    '&:hover': isValid ? { bgcolor: isSelected ? 'primary.100' : 'action.hover' } : {},
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    position: 'relative',
-                  }}
-                >
-                  {isValid && (
-                    <>
-                      <Box
-                        sx={{
-                          width: { xs: 24, sm: 28 }, height: { xs: 24, sm: 28 },
-                          borderRadius: '50%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          bgcolor: isToday ? 'primary.main' : 'transparent',
-                          color: isToday ? 'primary.contrastText' : 'text.primary',
-                        }}
-                      >
-                        <Typography variant="body2" fontWeight={isToday ? 700 : 400} fontSize={{ xs: '0.75rem', sm: '0.875rem' }}>
-                          {dayNum}
-                        </Typography>
-                      </Box>
-                      {/* Dot indicators */}
-                      <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', justifyContent: 'center' }}>
-                        {hasTickets && (
-                          <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'warning.main' }} />
-                        )}
-                        {hasAppointments && (
-                          <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'secondary.main' }} />
-                        )}
-                      </Box>
-                    </>
-                  )}
-                </Box>
-              );
-            })}
-          </Box>
-        )}
-      </Paper>
-
-      {/* Legend */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
-          <Typography variant="caption" color="text.secondary">{t.calendar.ticketsDue}</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} />
-          <Typography variant="caption" color="text.secondary">{t.calendar.appointments}</Typography>
-        </Box>
-      </Box>
-
-      {/* Day detail panel */}
-      {error ? (
-        <Alert severity="error">{t.calendar.errorLoad}</Alert>
-      ) : selectedDate ? (
-        <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              {new Date(selectedDate + 'T12:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </Typography>
           </Box>
 
-          {/* Tickets section */}
-          <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <TicketIcon fontSize="small" color="warning" />
-              <Typography variant="subtitle2" fontWeight={700} color="warning.main">
-                {t.calendar.ticketsDue}
-              </Typography>
-              {selectedTickets.length > 0 && (
-                <Chip label={selectedTickets.length} size="small" color="warning" sx={{ height: 18, fontSize: '0.65rem' }} />
-              )}
-            </Box>
-            {selectedTickets.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 1, mb: 2 }}>{t.calendar.noTicketsDue}</Typography>
+          {/* Scrollable list */}
+          <Box sx={{ overflow: 'auto', flex: 1 }}>
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : monthDates.length === 0 ? (
+              <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                <EventIcon sx={{ fontSize: 32, opacity: 0.3, mb: 1, display: 'block', mx: 'auto' }} />
+                <Typography variant="body2">{t.calendar.noItemsMonth}</Typography>
+              </Box>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                {selectedTickets.map((item) => (
+              monthDates.map((dateStr) => {
+                const dayItems = itemsByDate.get(dateStr) ?? [];
+                const isSelected = dateStr === selectedDate;
+                const isToday = dateStr === todayStr;
+                const tickets = dayItems.filter(i => i.type === 'ticket');
+                const appointments = dayItems.filter(i => i.type === 'appointment');
+                return (
                   <Box
-                    key={item.id}
-                    onClick={() => setLocation(`/tickets/${item.id}`)}
+                    key={dateStr}
+                    ref={(el) => {
+                      if (el) dateRefs.current.set(dateStr, el as HTMLElement);
+                      else dateRefs.current.delete(dateStr);
+                    }}
                     sx={{
-                      display: 'flex', alignItems: 'center', gap: 1.5,
-                      p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider',
-                      cursor: 'pointer', bgcolor: 'background.paper',
-                      '&:hover': { bgcolor: 'action.hover', borderColor: 'primary.main' },
-                      transition: 'all 0.15s',
+                      borderBottom: '1px solid', borderColor: 'divider',
+                      bgcolor: isSelected ? 'primary.50' : 'transparent',
+                      transition: 'background-color 0.15s',
                     }}
                   >
-                    <TimeIcon fontSize="small" color="action" sx={{ flexShrink: 0 }} />
-                    <Box flex={1} minWidth={0}>
-                      <Typography variant="body2" fontWeight={600} noWrap>
-                        {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
+                    {/* Date row */}
+                    <Box
+                      onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
+                      sx={{
+                        px: 1.5, py: 0.75, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 1,
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
+                      <Box sx={{
+                        width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                        bgcolor: isToday ? 'primary.main' : 'transparent',
+                        color: isToday ? 'primary.contrastText' : 'text.primary',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Typography variant="caption" fontWeight={700} fontSize="0.72rem">
+                          {new Date(dateStr + 'T12:00').getDate()}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" fontWeight={isToday ? 700 : 500} color={isToday ? 'primary.main' : 'text.primary'} sx={{ flexGrow: 1, fontSize: '0.8rem' }}>
+                        {new Date(dateStr + 'T12:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">{formatTime(item.startsAt)}</Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                        {tickets.length > 0 && (
+                          <Chip label={tickets.length} size="small" color="warning" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
+                        )}
+                        {appointments.length > 0 && (
+                          <Chip label={appointments.length} size="small" color="secondary" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
+                        )}
+                      </Box>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                      {item.status && (
-                        <Chip
-                          label={getLabelForKey(item.status) || item.status}
-                          size="small"
+
+                    {/* Items */}
+                    <Box sx={{ px: 1.5, pb: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      {tickets.map((item) => (
+                        <Box
+                          key={`t-${item.id}`}
+                          onClick={() => setLocation(`/tickets/${item.id}`)}
                           sx={{
-                            height: 20, fontSize: '0.62rem',
-                            bgcolor: getColorForKey(item.status) ?? undefined,
-                            color: getColorForKey(item.status) ? '#fff' : undefined,
+                            display: 'flex', alignItems: 'center', gap: 0.75,
+                            px: 1, py: 0.6, borderRadius: 1.5,
+                            border: '1px solid', borderColor: 'warning.light',
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'warning.50', borderColor: 'warning.main' },
+                            transition: 'all 0.12s',
                           }}
-                          color={getColorForKey(item.status) ? undefined : (getStatusColor(item.status) as any)}
-                        />
-                      )}
-                      {item.assignee && (
-                        <Avatar
-                          src={item.assignee.avatarUrl ?? undefined}
-                          sx={{ width: 22, height: 22, fontSize: '0.6rem' }}
                         >
-                          {item.assignee.name.charAt(0)}
-                        </Avatar>
-                      )}
+                          <TicketIcon sx={{ color: 'warning.main', flexShrink: 0, fontSize: 13 }} />
+                          <Typography variant="caption" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                            {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
+                          </Typography>
+                          {item.assignee && (
+                            <Avatar src={item.assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: '0.5rem', flexShrink: 0 }}>
+                              {item.assignee.name.charAt(0)}
+                            </Avatar>
+                          )}
+                        </Box>
+                      ))}
+                      {appointments.map((item) => (
+                        <Box
+                          key={`a-${item.id}`}
+                          onClick={() => handleAppointmentClick(item)}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 0.75,
+                            px: 1, py: 0.6, borderRadius: 1.5,
+                            border: '1px solid', borderColor: 'secondary.light',
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'secondary.50', borderColor: 'secondary.main' },
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          <EventIcon sx={{ color: 'secondary.main', flexShrink: 0, fontSize: 13 }} />
+                          <Box flex={1} minWidth={0}>
+                            <Typography variant="caption" fontWeight={600} noWrap display="block">{item.title}</Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap display="block" fontSize="0.65rem">
+                              {formatTime(item.startsAt)}{item.endsAt && ` – ${formatTime(item.endsAt)}`}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
                     </Box>
                   </Box>
-                ))}
-              </Box>
-            )}
-
-            <Divider sx={{ my: 1.5 }} />
-
-            {/* Appointments section */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, mt: 1.5 }}>
-              <EventIcon fontSize="small" color="secondary" />
-              <Typography variant="subtitle2" fontWeight={700} color="secondary.main">
-                {t.calendar.appointments}
-              </Typography>
-              {selectedAppointments.length > 0 && (
-                <Chip label={selectedAppointments.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
-              )}
-            </Box>
-            {selectedAppointments.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>{t.calendar.noAppointments}</Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {selectedAppointments.map((item) => (
-                  <Box
-                    key={item.id}
-                    onClick={() => handleAppointmentClick(item)}
-                    sx={{
-                      display: 'flex', alignItems: 'center', gap: 1.5,
-                      p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider',
-                      cursor: 'pointer', bgcolor: 'background.paper',
-                      '&:hover': { bgcolor: 'action.hover', borderColor: 'secondary.main' },
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <EventIcon fontSize="small" color="secondary" sx={{ flexShrink: 0 }} />
-                    <Box flex={1} minWidth={0}>
-                      <Typography variant="body2" fontWeight={600} noWrap>{item.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatTime(item.startsAt)}
-                        {item.endsAt && ` – ${formatTime(item.endsAt)}`}
-                      </Typography>
-                      {item.description && (
-                        <Typography variant="caption" color="text.secondary" display="block" noWrap>
-                          {item.description}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
+                );
+              })
             )}
           </Box>
         </Paper>
-      ) : (
-        <Paper sx={{ borderRadius: 3, p: 3, textAlign: 'center', color: 'text.secondary' }}>
-          <EventIcon sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
-          <Typography variant="body2">{t.calendar.selectDay}</Typography>
-        </Paper>
-      )}
-
-      {/* FAB for adding appointment */}
-      {!selectedDate && (
-        <Fab
-          color="primary"
-          onClick={() => { setEditingAppointment(null); setFormOpen(true); }}
-          sx={{ position: 'fixed', bottom: 24, right: 24 }}
-        >
-          <AddIcon />
-        </Fab>
-      )}
+      </Box>
 
       {/* Form dialog */}
       <AppointmentFormDialog
