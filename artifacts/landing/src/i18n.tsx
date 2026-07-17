@@ -84,6 +84,7 @@ interface Translations {
       highlight?: boolean;
       cta: string;
       noUnit?: boolean;
+      hideSeats?: boolean;
     }>;
     includedTitle: string;
     includedSubtitle: string;
@@ -304,7 +305,7 @@ const translations: Record<Language, Translations> = {
         { name: "Starter",    price: "€35",       seats: 5,                     desc: "Per piccoli studi e liberi professionisti che iniziano a gestire le pratiche.",  cta: "Inizia la prova" },
         { name: "Team",       price: "€60",       seats: 10,                    desc: "Per studi in crescita che vogliono organizzazione e velocità.",                   highlight: true, cta: "Inizia la prova" },
         { name: "Business",   price: "€100",      seats: 20,                    desc: "Per studi strutturati con più consulenti e sedi.",                                cta: "Inizia la prova" },
-        { name: "Enterprise", price: "Su misura", seats: null as number | null, desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.",        cta: "Contattaci", noUnit: true },
+        { name: "Enterprise", price: "Su misura", seats: null as number | null, desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.",        cta: "Contattaci", noUnit: true, hideSeats: true },
       ],
       includedTitle: "Tutto incluso in ogni piano",
       includedSubtitle: "Stesse funzionalità per tutti. Cambia solo il numero di utenti.",
@@ -536,7 +537,7 @@ const translations: Record<Language, Translations> = {
         { name: "Starter",    price: "€35",   seats: 5,                     desc: "For small firms and sole practitioners getting started.",                  cta: "Start trial" },
         { name: "Team",       price: "€60",   seats: 10,                    desc: "For growing firms that need structure and speed.",                          highlight: true, cta: "Start trial" },
         { name: "Business",   price: "€100",  seats: 20,                    desc: "For established firms with multiple consultants and locations.",            cta: "Start trial" },
-        { name: "Enterprise", price: "Custom", seats: null as number | null, desc: "For large organisations that need to scale without limits.",               cta: "Contact us", noUnit: true },
+        { name: "Enterprise", price: "Custom", seats: null as number | null, desc: "For large organisations that need to scale without limits.",               cta: "Contact us", noUnit: true, hideSeats: true },
       ],
       includedTitle: "Everything included in every plan",
       includedSubtitle: "Same features across all plans. Only the user count changes.",

@@ -775,9 +775,11 @@ export default function Landing() {
                       <span className="text-5xl font-black text-gray-900">{plan.price}</span>
                       {!plan.noUnit && <span className="text-sm text-gray-400 font-medium">{t.pricing.perMonth}</span>}
                     </div>
-                    <div className="text-xs font-semibold text-gray-500 mb-6">
-                      {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}
-                    </div>
+                    {!plan.hideSeats && (
+                      <div className="text-xs font-semibold text-gray-500 mb-6">
+                        {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}
+                      </div>
+                    )}
                     <div className="flex-1" />
                     <button
                       onClick={() => handleCta("pricing", plan.name)}
