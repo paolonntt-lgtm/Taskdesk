@@ -182,7 +182,7 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
   })
     .from(usersTable)
     .leftJoin(ticketsTable, joinCondition)
-    .where(eq(usersTable.organizationId, orgId))
+    .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name)
     .having(sql`count(${ticketsTable.id}) > 0`);
 
@@ -302,7 +302,7 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
       ticketsTable,
       and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
     )
-    .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true)))
+    .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name, usersTable.email)
     .orderBy(sql`count(${ticketsTable.id}) filter (where ${ticketsTable.status} not in ('resolved','closed')) desc`);
 
@@ -614,7 +614,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
           isNotNull(ticketsTable.closedAt),
         )
       )
-      .where(eq(usersTable.organizationId, orgId))
+      .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, false)))
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`),
 
