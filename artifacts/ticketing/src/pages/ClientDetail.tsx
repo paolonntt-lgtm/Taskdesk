@@ -238,8 +238,9 @@ export default function ClientDetail() {
   const clientId = parseInt(params.id ?? '', 10);
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const canManageSections = isAdmin || (user?.groupPermissions ?? []).includes('manage_client_sections');
-  const canEditSectionContent = isAdmin || (user?.groupPermissions ?? []).includes('edit_client_section_content');
+  const userGroupPerms: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
+  const canManageSections = isAdmin || userGroupPerms.includes('manage_client_sections');
+  const canEditSectionContent = isAdmin || userGroupPerms.includes('edit_client_section_content');
   const qc = useQueryClient();
 
   const { data, isLoading, isError } = useGetClient(clientId);
@@ -531,7 +532,7 @@ export default function ClientDetail() {
               clientId={clientId}
               initialNotes={(client as any).notes ?? null}
               isAdmin={isAdmin}
-              canEditFixed={(user?.groupPermissions ?? []).includes('edit_fixed_notes')}
+              canEditFixed={userGroupPerms.includes('edit_fixed_notes')}
               title={resolvedTitle}
             />
           </CardContent>
@@ -553,8 +554,8 @@ export default function ClientDetail() {
               clientId={clientId}
               isAdmin={isAdmin}
               currentUserId={user?.id}
-              canEditClientNotes={(user?.groupPermissions ?? []).includes('edit_client_notes')}
-              canDeleteClientNotes={(user?.groupPermissions ?? []).includes('delete_client_notes')}
+              canEditClientNotes={userGroupPerms.includes('edit_client_notes')}
+              canDeleteClientNotes={userGroupPerms.includes('delete_client_notes')}
             />
           </CardContent>
         </Card>
