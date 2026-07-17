@@ -74,7 +74,7 @@ export default function BugReportFab() {
           onClick={handleOpen}
           sx={{
             position: 'fixed',
-            bottom: { xs: 72, sm: 24 },
+            bottom: { xs: 136, sm: 88 },
             right: { xs: 16, sm: 80 },
             zIndex: 1200,
             bgcolor: 'background.paper',

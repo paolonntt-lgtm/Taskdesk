@@ -580,7 +580,7 @@ export default function Layout({ children }: LayoutProps) {
           onClick={() => setBotOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: 24,
+            bottom: 88,
             right: 24,
             zIndex: theme.zIndex.speedDial,
           }}

@@ -471,7 +471,8 @@ export default function CalendarPage() {
                   key={idx}
                   onClick={() => isValid && dateStr && setSelectedDate(prev => prev === dateStr ? null : dateStr)}
                   sx={{
-                    minHeight: { xs: 46, sm: 60 },
+                    minHeight: { xs: 46, sm: 0 },
+                    aspectRatio: { sm: '1' },
                     borderRight: (idx + 1) % 7 !== 0 ? '1px solid' : 'none',
                     borderBottom: idx < totalCells - 7 ? '1px solid' : 'none',
                     borderColor: 'divider',

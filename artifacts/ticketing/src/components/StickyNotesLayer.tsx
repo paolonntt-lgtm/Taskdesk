@@ -876,7 +876,7 @@ export default function StickyNotesLayer() {
         </Box>
       )}
 
-      {/* Sticky-note create FAB — sits above the bot FAB (bottom:24 + 56px FAB height + 8px gap = 88).
+      {/* Sticky-note create FAB — sits above the bot FAB (bottom:88 + 56px FAB height + 8px gap = 152).
           zIndex above theme.zIndex.modal so it stays visible when the bot chat dialog is open. */}
       <Tooltip title={t.stickyNotes.createTooltip} placement="left">
         <Fab
@@ -884,7 +884,7 @@ export default function StickyNotesLayer() {
           onClick={() => createMutation.mutate({ text: "", color: "yellow", visibility: "private" })}
           sx={{
             position: "fixed",
-            bottom: 88,
+            bottom: 152,
             right: 24,
             zIndex: theme.zIndex.modal + 100,
             bgcolor: "#fef9c3",
