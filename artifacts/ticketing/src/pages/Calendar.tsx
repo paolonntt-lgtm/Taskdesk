@@ -631,6 +631,13 @@ export default function CalendarPage() {
                             transition: 'all 0.13s',
                           }}
                         >
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ flexShrink: 0, minWidth: 36, color: 'warning.dark', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {item.startsAt ? formatTime(item.startsAt) : ''}
+                          </Typography>
                           <TicketIcon sx={{ color: 'warning.main', flexShrink: 0, fontSize: 16 }} />
                           <Box flex={1} minWidth={0}>
                             <Typography variant="body2" fontWeight={600} noWrap>
