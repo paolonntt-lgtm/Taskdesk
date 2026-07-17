@@ -25,12 +25,12 @@ interface ChecklistItem {
   checkedAt?: string | null;
 }
 
-function isClientNoteOpen(note: any): boolean {
+function countNoteOpenItems(note: any): number {
   const cl = note.checklist;
   if (!cl || !Array.isArray(cl) || cl.length === 0) {
-    return !!(note.body && note.body.trim());
+    return (note.body && note.body.trim()) ? 1 : 0;
   }
-  return cl.some((item: any) => !item.checked);
+  return cl.filter((item: any) => !item.checked).length;
 }
 
 interface ClientNotesBlockProps {
@@ -122,7 +122,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       key: g.key,
       label: formatMonthShort(g.key, lang),
       count: g.notes.length,
-      openCount: g.notes.filter(isClientNoteOpen).length,
+      openCount: g.notes.reduce((sum, n) => sum + countNoteOpenItems(n), 0),
     })),
     [groupedNotes, lang],
   );
@@ -326,8 +326,16 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                 badgeContent={m.openCount}
                 invisible={m.openCount === 0}
                 color="primary"
-                anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-                sx={{ flexShrink: 0 }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                sx={{
+                  flexShrink: 0,
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.55rem',
+                    height: 14,
+                    minWidth: 14,
+                    padding: '0 3px',
+                  },
+                }}
               >
                 <Chip
                   label={m.label}
