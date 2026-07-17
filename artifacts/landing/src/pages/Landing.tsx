@@ -395,7 +395,7 @@ export default function Landing() {
         "description": t.seo.description,
         "offers": {
           "@type": "AggregateOffer",
-          "lowPrice": "15",
+          "lowPrice": "35",
           "highPrice": "149",
           "priceCurrency": "EUR",
           "offerCount": "4",
