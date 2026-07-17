@@ -11,6 +11,7 @@ import {
   Email, Phone, Business, Save, Cancel, DriveFileRenameOutline, Close, Add,
   StickyNote2,
 } from '@mui/icons-material';
+import ClientSectionEditor, { sanitizeSectionHtml } from '../components/ClientSectionEditor';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -708,19 +709,12 @@ export default function ClientDetail() {
 
           {isEditingThis ? (
             <Box>
-              <TextField
-                multiline
-                minRows={3}
-                maxRows={12}
-                fullWidth
-                autoFocus
-                size="small"
+              <ClientSectionEditor
                 value={contentDraft}
-                onChange={(e) => setContentDraft(e.target.value)}
+                onChange={setContentDraft}
                 placeholder={tc.blockCustomContentPlaceholder}
-                sx={{ mb: 1 }}
               />
-              <Box display="flex" gap={1}>
+              <Box display="flex" gap={1} mt={1}>
                 <Button
                   size="small"
                   variant="contained"
@@ -739,9 +733,25 @@ export default function ClientDetail() {
               </Box>
             </Box>
           ) : block.content ? (
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-              {block.content}
-            </Typography>
+            block.content.trimStart().startsWith('<') ? (
+              <Box
+                sx={{
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: 'text.primary',
+                  '& p': { mt: 0, mb: 0.5 },
+                  '& ul, & ol': { pl: 2.5, mt: 0, mb: 0.5 },
+                  '& strong': { fontWeight: 700 },
+                  '& em': { fontStyle: 'italic' },
+                  '& s': { textDecoration: 'line-through' },
+                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeSectionHtml(block.content) }}
+              />
+            ) : (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                {block.content}
+              </Typography>
+            )
           ) : (
             <Typography variant="body2" color="text.secondary" fontStyle="italic">
               {tc.blockCustomNotePlaceholder}
