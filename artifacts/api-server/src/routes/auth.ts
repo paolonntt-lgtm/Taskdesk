@@ -9,6 +9,7 @@ import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
+import { getTrialStatus } from "../lib/trialStatus";
 
 const router: IRouter = Router();
 
@@ -66,6 +67,8 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
       clientsEnabled: organizationsTable.clientsEnabled,
+      trialEndsAt: usersTable.trialEndsAt,
+      stripeSubscriptionId: usersTable.stripeSubscriptionId,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
@@ -114,7 +117,8 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
   )];
 
   const { passwordHash: _, ...safeUser } = row;
-  res.json({ user: { ...safeUser, groupPermissions }, message: "Login effettuato" });
+  const trialStatus = getTrialStatus(safeUser.trialEndsAt, safeUser.stripeSubscriptionId);
+  res.json({ user: { ...safeUser, groupPermissions, trialStatus }, message: "Login effettuato" });
 });
 
 router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
@@ -271,7 +275,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     })
   )];
 
-  res.json({ ...row, groupPermissions });
+  const trialStatus = getTrialStatus(row.trialEndsAt, row.stripeSubscriptionId);
+  res.json({ ...row, groupPermissions, trialStatus });
 });
 
 export default router;

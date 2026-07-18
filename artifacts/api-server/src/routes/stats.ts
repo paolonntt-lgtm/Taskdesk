@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray, asc } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
 import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
+import { getTrialStatus } from "../lib/trialStatus";
 
 async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
   if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
@@ -33,6 +34,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const trialStatus = getTrialStatus(currentUser.trialEndsAt, currentUser.stripeSubscriptionId);
 
   const [counts] = await db.select({
     total: sql<number>`count(*)`,
@@ -61,6 +63,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     last7Days: Number(counts.last7),
     last30Days: Number(counts.last30),
     avgResolutionHours: avgResult.avg ? Number(avgResult.avg) : null,
+    trialStatus,
   });
 });
 

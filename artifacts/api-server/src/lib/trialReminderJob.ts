@@ -86,7 +86,7 @@ async function checkTrialReminders(): Promise<void> {
         } else {
           logger.warn({ orgId: admin.orgId, err: result.error }, "trialReminderJob: failed to send expired reminder");
         }
-      } else if (daysLeft >= 1 && daysLeft <= 3) {
+      } else if (daysLeft >= 3 && daysLeft <= 4) {
         // 3-day window — send once
         if (admin.trialReminderSentAt) continue;
 
