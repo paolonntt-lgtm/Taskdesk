@@ -29,6 +29,7 @@ import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
+import PermissionGateButton from '../components/PermissionGateButton';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -716,9 +717,15 @@ export default function TicketDetail() {
           {/* Row 3: status chips */}
           {canChangeStatus ? (
             <Box mb={1}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                {t.ticketDetail.statusLabel}
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <Typography variant="caption" color="text.secondary">
+                  {t.ticketDetail.statusLabel}
+                </Typography>
+                <PermissionGateButton
+                  permission="change_status"
+                  sectionLabel={t.ticketDetail.statusLabel}
+                />
+              </Box>
               <Box display="flex" flexWrap="wrap" gap={0.5}>
                 {orgStatuses.map((s) => {
                   const isActive = ticket.status === s.key;
@@ -1863,6 +1870,12 @@ export default function TicketDetail() {
               {canAccessNotes && (
                 <TabPanel value={tabValue} index={2}>
                   <Box display="flex" flexDirection="column" gap={2}>
+                    <Box display="flex" alignItems="center" justifyContent="flex-end">
+                      <PermissionGateButton
+                        permission="add_notes"
+                        sectionLabel={t.ticketDetail.tabNotes}
+                      />
+                    </Box>
                     {notes?.length === 0 && (
                       <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
                         {t.ticketDetail.noNotes}

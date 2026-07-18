@@ -31,6 +31,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import PermissionGateButton from '../components/PermissionGateButton';
 
 const STATUS_COLORS: Record<string, 'default' | 'warning' | 'success' | 'error' | 'info'> = {
   open: 'info',
@@ -739,6 +740,14 @@ export default function ClientDetail() {
               <Typography variant="subtitle1" fontWeight={600}>
                 {resolvedTitle}
               </Typography>
+              <PermissionGateButton
+                permission="edit_client_notes"
+                sectionLabel={`${resolvedTitle} — ${t.groups.permEditClientNotes}`}
+              />
+              <PermissionGateButton
+                permission="delete_client_notes"
+                sectionLabel={`${resolvedTitle} — ${t.groups.permDeleteClientNotes}`}
+              />
             </Box>
             <ClientNotesBlock
               clientId={clientId}
@@ -864,6 +873,10 @@ export default function ClientDetail() {
             <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
               {resolvedTitle}
             </Typography>
+            <PermissionGateButton
+              permission="edit_client_section_content"
+              sectionLabel={resolvedTitle}
+            />
             {!editMode && canEditSectionContent && !isEditingThis && (
               <Button
                 size="small"
@@ -1055,6 +1068,10 @@ export default function ClientDetail() {
                 >
                   {tc.editLayout}
                 </Button>
+                <PermissionGateButton
+                  permission="manage_client_sections"
+                  sectionLabel={tc.editLayout}
+                />
               </>
             )}
             {editMode && (

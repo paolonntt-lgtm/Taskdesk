@@ -11,6 +11,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import DOMPurify from 'dompurify';
 import { useLanguage } from '../contexts/LanguageContext';
+import PermissionGateButton from './PermissionGateButton';
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html, {
@@ -125,6 +126,10 @@ export default function FixedNotesBlock({ clientId, initialNotes, isAdmin, canEd
           <Typography variant="subtitle1" fontWeight={600}>
             {title ?? tc.blockFixedNotes}
           </Typography>
+          <PermissionGateButton
+            permission="edit_fixed_notes"
+            sectionLabel={title ?? tc.blockFixedNotes}
+          />
         </Box>
         {(isAdmin || canEditFixed) && !editing && (
           <Tooltip title={tc.fixedNotesEdit}>

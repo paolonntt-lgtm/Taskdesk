@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import PermissionGateButton from '../components/PermissionGateButton';
 import { useListUsers } from '@workspace/api-client-react';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
@@ -418,9 +419,15 @@ export default function CalendarPage() {
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
-      <Typography variant="h5" fontWeight={700} mb={3}>
-        {t.calendar.title}
-      </Typography>
+      <Box display="flex" alignItems="center" gap={1} mb={3}>
+        <Typography variant="h5" fontWeight={700}>
+          {t.calendar.title}
+        </Typography>
+        <PermissionGateButton
+          permission="create_appointments"
+          sectionLabel={t.calendar.addAppointment}
+        />
+      </Box>
 
       {/* Two-column grid: calendar left, agenda right */}
       <Box sx={{
