@@ -294,7 +294,13 @@ export default function Billing() {
           )}
 
           <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
-            {products.flatMap((product) =>
+            {[...products]
+              .sort((a, b) => {
+                const aMin = Math.min(...a.prices.map((p) => p.unit_amount ?? Infinity));
+                const bMin = Math.min(...b.prices.map((p) => p.unit_amount ?? Infinity));
+                return aMin - bMin;
+              })
+              .flatMap((product) =>
               product.prices.map((price) => {
                 const isCurrent = seatUsage?.currentPriceId === price.id;
                 const isUpgrade = isSubscribed && seatUsage && !isCurrent &&
