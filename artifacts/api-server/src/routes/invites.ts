@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, inviteTokensTable } from "@workspace/db";
+import { db, usersTable, inviteTokensTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { randomBytes } from "crypto";
 import { hashPassword } from "./auth";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 import { requireSameOrigin } from "../lib/originCheck";
+import { sendEmailForOrg, buildInviteEmail } from "../lib/email";
+import { appBaseUrl } from "../lib/appUrl";
 
 const router: IRouter = Router();
 
@@ -28,7 +30,39 @@ router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<voi
     expiresAt,
   });
 
-  res.json({ token, expiresAt });
+  const inviteUrl = `${appBaseUrl()}/app/invite/${token}`;
+
+  const { email } = req.body ?? {};
+  let emailSent = false;
+
+  if (email && typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    try {
+      let orgName = "TaskDesk";
+      if (admin.organizationId) {
+        const [org] = await db
+          .select({ name: organizationsTable.name })
+          .from(organizationsTable)
+          .where(eq(organizationsTable.id, admin.organizationId));
+        if (org?.name) orgName = org.name;
+      }
+      const emailContent = buildInviteEmail({
+        adminName: admin.name ?? "Admin",
+        orgName,
+        inviteUrl,
+      });
+      const result = await sendEmailForOrg(admin.organizationId, {
+        to: email,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
+      emailSent = result.ok;
+    } catch {
+      emailSent = false;
+    }
+  }
+
+  res.json({ token, expiresAt, inviteUrl, emailSent });
 });
 
 router.get("/invites/:token", async (req, res): Promise<void> => {

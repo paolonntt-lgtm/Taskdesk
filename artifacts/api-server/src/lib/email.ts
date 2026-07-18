@@ -505,6 +505,42 @@ export function buildAppointmentReminderEmail(args: {
   return { subject, html, text };
 }
 
+export function buildInviteEmail(args: {
+  adminName: string;
+  orgName: string;
+  inviteUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `${escapeHtml(args.adminName)} ti ha invitato su TaskDesk`;
+  const text = [
+    `Ciao,`,
+    "",
+    `${args.adminName} ti ha invitato a unirti all'organizzazione "${args.orgName}" su TaskDesk.`,
+    "",
+    `Clicca sul link seguente per registrarti (valido per 7 giorni):`,
+    "",
+    args.inviteUrl,
+    "",
+    "— Il team di TaskDesk",
+  ].join("\n");
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 12px">Sei stato invitato su TaskDesk</h2>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">Ciao,</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#374151">
+        <strong>${escapeHtml(args.adminName)}</strong> ti ha invitato a unirti all'organizzazione
+        <strong>"${escapeHtml(args.orgName)}"</strong> su TaskDesk.
+      </p>
+      <a href="${args.inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Accetta invito →</a>
+      <p style="margin-top:24px;font-size:13px;color:#6b7280">Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${args.inviteUrl}" style="color:#2563eb;word-break:break-all">${args.inviteUrl}</a></p>
+      <p style="margin-top:24px;font-size:12px;color:#9ca3af">Il link è valido per 7 giorni. Se non ti aspettavi questo invito, puoi ignorare questa email.</p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
