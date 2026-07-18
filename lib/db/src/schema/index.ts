@@ -20,6 +20,7 @@ export * from "./ticket_statuses";
 export * from "./groups";
 export * from "./client_notes";
 export * from "./ticket_checklists";
+export * from "./checklist_templates";
 export * from "./ticket_subscriptions";
 export * from "./bug_reports";
 export * from "./appointments";

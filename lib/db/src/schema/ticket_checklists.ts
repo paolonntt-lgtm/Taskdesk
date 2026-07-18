@@ -9,6 +9,8 @@ export const ticketChecklistsTable = pgTable("ticket_checklists", {
   orgId: integer("org_id").references(() => organizationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   position: integer("position").notNull().default(0),
+  fromTemplateId: integer("from_template_id"),
+  fromTemplateName: text("from_template_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

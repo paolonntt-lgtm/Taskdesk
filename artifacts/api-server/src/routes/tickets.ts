@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable } from "@workspace/db";
+import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt, asc } from "drizzle-orm";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
@@ -325,6 +325,64 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
       actionType: "assigned",
       actionDescription: `Ticket assegnato`,
     });
+  }
+
+  if (category && orgIdForNum != null) {
+    const categoryTemplates = await db
+      .select()
+      .from(checklistTemplatesTable)
+      .where(and(
+        eq(checklistTemplatesTable.orgId, orgIdForNum),
+        eq(checklistTemplatesTable.category, category)
+      ))
+      .orderBy(asc(checklistTemplatesTable.position), asc(checklistTemplatesTable.id));
+
+    if (categoryTemplates.length > 0) {
+      const tplIds = categoryTemplates.map((t) => t.id);
+      const allTplItems = await db
+        .select()
+        .from(checklistTemplateItemsTable)
+        .where(inArray(checklistTemplateItemsTable.templateId, tplIds))
+        .orderBy(asc(checklistTemplateItemsTable.position), asc(checklistTemplateItemsTable.id));
+
+      const itemsByTpl = new Map<number, typeof allTplItems>();
+      for (const item of allTplItems) {
+        if (!itemsByTpl.has(item.templateId)) itemsByTpl.set(item.templateId, []);
+        itemsByTpl.get(item.templateId)!.push(item);
+      }
+
+      for (let tplIdx = 0; tplIdx < categoryTemplates.length; tplIdx++) {
+        const tpl = categoryTemplates[tplIdx];
+        const [cl] = await db.insert(ticketChecklistsTable).values({
+          ticketId: ticket.id,
+          orgId: orgIdForNum,
+          title: tpl.title,
+          position: tplIdx,
+          fromTemplateId: tpl.id,
+          fromTemplateName: tpl.title,
+        }).returning();
+
+        const tplItems = itemsByTpl.get(tpl.id) ?? [];
+        if (tplItems.length > 0) {
+          await db.insert(ticketChecklistItemsTable).values(
+            tplItems.map((item, i) => ({
+              checklistId: cl.id,
+              orgId: orgIdForNum,
+              text: item.text,
+              checked: false,
+              position: i,
+            }))
+          );
+        }
+
+        await db.insert(ticketActivityLogsTable).values({
+          ticketId: ticket.id,
+          userId: currentUser.id,
+          actionType: "checklist_applied_from_template",
+          actionDescription: `Checklist applicata da template: "${tpl.title}"`,
+        });
+      }
+    }
   }
 
   const displayNum = ticket.ticketNumber ?? ticket.id;

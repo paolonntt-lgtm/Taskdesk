@@ -3,10 +3,11 @@ import {
   Box, Card, Typography, LinearProgress, Checkbox, IconButton,
   TextField, Button, CircularProgress, Collapse, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
+  Chip, Menu, MenuItem,
 } from '@mui/material';
 import {
   Add, Delete, ExpandLess, ExpandMore, EditOutlined, CheckBoxOutlineBlank,
-  ArrowUpward, ArrowDownward,
+  ArrowUpward, ArrowDownward, PlaylistAdd, Label,
 } from '@mui/icons-material';
 import {
   useListTicketChecklists, useCreateChecklist, useUpdateChecklist, useDeleteChecklist,
@@ -159,6 +160,8 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
     }
   }
 
+  const fromTemplateName = (checklist as any).fromTemplateName as string | null | undefined;
+
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
       {/* Header */}
@@ -170,6 +173,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
           py: 1,
           bgcolor: 'action.hover',
           gap: 1,
+          flexWrap: 'wrap',
         }}
       >
         <IconButton size="small" onClick={() => setExpanded((v) => !v)} sx={{ mr: 0.5 }}>
@@ -187,9 +191,21 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
             disabled={updateChecklist.isPending}
           />
         ) : (
-          <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-            {checklist.title}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, flexWrap: 'wrap' }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              {checklist.title}
+            </Typography>
+            {fromTemplateName && (
+              <Chip
+                icon={<Label sx={{ fontSize: 12 }} />}
+                label={ct.fromTemplate(fromTemplateName)}
+                size="small"
+                variant="outlined"
+                color="primary"
+                sx={{ height: 20, fontSize: '0.65rem', '& .MuiChip-label': { px: 0.75 } }}
+              />
+            )}
+          </Box>
         )}
 
         {renaming ? (
@@ -426,6 +442,13 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   );
 }
 
+interface ChecklistTemplate {
+  id: number;
+  title: string;
+  category: string | null;
+  items: { id: number; text: string; position: number }[];
+}
+
 export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   const { t } = useLanguage();
   const ct = t.checklist;
@@ -437,8 +460,48 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   const [newTitle, setNewTitle] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [templateMenuAnchor, setTemplateMenuAnchor] = useState<HTMLElement | null>(null);
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [applyingTemplateId, setApplyingTemplateId] = useState<number | null>(null);
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: getListTicketChecklistsQueryKey(ticketId) });
+  }
+
+  async function openTemplateMenu(e: React.MouseEvent<HTMLElement>) {
+    setTemplateMenuAnchor(e.currentTarget);
+    if (templates.length === 0) {
+      setTemplatesLoading(true);
+      try {
+        const res = await fetch('/api/checklist-templates', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setTemplates(data);
+        }
+      } catch {
+        // swallow
+      } finally {
+        setTemplatesLoading(false);
+      }
+    }
+  }
+
+  async function handleApplyTemplate(templateId: number) {
+    setTemplateMenuAnchor(null);
+    setApplyingTemplateId(templateId);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/checklists/from-template/${templateId}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed');
+      invalidate();
+    } catch {
+      setErrorMsg(ct.addFromTemplateError);
+    } finally {
+      setApplyingTemplateId(null);
+    }
   }
 
   async function handleReorderChecklist(checklistId: number, direction: 'up' | 'down') {
@@ -484,20 +547,58 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   return (
     <Card>
       <Box p={{ xs: 1.5, sm: 2.5 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={checklists.length > 0 || isAdmin ? 2 : 0}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={checklists.length > 0 || isAdmin ? 2 : 0} flexWrap="wrap" gap={1}>
           <Typography variant="h6" fontWeight={700} fontSize={{ xs: 15, sm: 17 }}>
             {ct.sectionTitle}
           </Typography>
-          {isAdmin && !addingChecklist && (
-            <Button
-              size="small"
-              startIcon={<Add />}
-              onClick={() => setAddingChecklist(true)}
-            >
-              {ct.addChecklist}
-            </Button>
-          )}
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title={ct.addFromTemplateTitle}>
+              <Button
+                size="small"
+                startIcon={applyingTemplateId ? <CircularProgress size={14} color="inherit" /> : <PlaylistAdd />}
+                onClick={openTemplateMenu}
+                disabled={applyingTemplateId != null}
+                variant="outlined"
+              >
+                {ct.addFromTemplate}
+              </Button>
+            </Tooltip>
+            {isAdmin && !addingChecklist && (
+              <Button
+                size="small"
+                startIcon={<Add />}
+                onClick={() => setAddingChecklist(true)}
+              >
+                {ct.addChecklist}
+              </Button>
+            )}
+          </Box>
         </Box>
+
+        {/* Template picker menu */}
+        <Menu
+          anchorEl={templateMenuAnchor}
+          open={Boolean(templateMenuAnchor)}
+          onClose={() => setTemplateMenuAnchor(null)}
+          PaperProps={{ sx: { minWidth: 240, maxHeight: 320 } }}
+        >
+          {templatesLoading ? (
+            <MenuItem disabled><CircularProgress size={16} sx={{ mr: 1 }} /> {ct.addFromTemplateTitle}…</MenuItem>
+          ) : templates.length === 0 ? (
+            <MenuItem disabled>{ct.noTemplatesAvailable}</MenuItem>
+          ) : (
+            templates.map((tpl) => (
+              <MenuItem key={tpl.id} onClick={() => handleApplyTemplate(tpl.id)}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>{tpl.title}</Typography>
+                  {tpl.category && (
+                    <Typography variant="caption" color="text.secondary">{tpl.category}</Typography>
+                  )}
+                </Box>
+              </MenuItem>
+            ))
+          )}
+        </Menu>
 
         {checklists.length === 0 && !addingChecklist && (
           <Typography variant="body2" color="text.secondary" textAlign="center" py={1}>
