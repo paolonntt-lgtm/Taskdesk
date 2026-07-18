@@ -261,10 +261,32 @@ function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | '
 }
 
 function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: { ticket: TicketRow; showDueBadge?: boolean; colorByStatus?: boolean }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dueBadge = showDueBadge && ticket.dueAt ? getDueBadge(ticket.dueAt, t) : null;
+
+  const dueAvatarContent: { line1: string; line2: string | null } | null = (() => {
+    if (!showDueBadge || !ticket.dueAt) return null;
+    const due = new Date(ticket.dueAt);
+    const now = new Date();
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+    const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const diffDays = Math.round((dueDay - todayDay) / 86400000);
+    const isMidnight = due.getHours() === 0 && due.getMinutes() === 0;
+    const locale = lang === 'it' ? 'it-IT' : 'en-US';
+    const dayAbbr = due.toLocaleDateString(locale, { weekday: 'short' });
+    const timeStr = due.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (isMidnight) return { line1: dayAbbr, line2: null };
+    if (diffDays === 0) return { line1: timeStr, line2: null };
+    return { line1: dayAbbr, line2: timeStr };
+  })();
+
+  const dueAvatarColors = dueBadge?.color === 'error'
+    ? { bg: '#fee2e2', color: '#dc2626' }
+    : dueBadge?.color === 'warning'
+    ? { bg: '#ffedd5', color: '#ea580c' }
+    : null;
   const { getLabelForKey, getColorForKey } = useTicketStatuses();
 
   const rowBg = colorByStatus
@@ -283,7 +305,24 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: 
       ...(rowBg ? { bgcolor: rowBg } : {}),
     }}>
       {!isMobile && (
-        ticket.inboundChannelId ? (
+        dueAvatarContent ? (
+          <Avatar sx={{
+            width: 30, height: 30, flexShrink: 0,
+            background: dueAvatarColors?.bg ?? '#f3f4f6',
+            color: dueAvatarColors?.color ?? '#6b7280',
+            flexDirection: 'column',
+            lineHeight: 1,
+          }}>
+            <Typography sx={{ fontSize: dueAvatarContent.line2 ? '0.5rem' : '0.58rem', fontWeight: 700, lineHeight: 1, letterSpacing: 0 }}>
+              {dueAvatarContent.line1}
+            </Typography>
+            {dueAvatarContent.line2 && (
+              <Typography sx={{ fontSize: '0.5rem', fontWeight: 600, lineHeight: 1, mt: '1px' }}>
+                {dueAvatarContent.line2}
+              </Typography>
+            )}
+          </Avatar>
+        ) : ticket.inboundChannelId ? (
           <Box sx={{
             width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
             bgcolor: 'info.main', position: 'relative',
