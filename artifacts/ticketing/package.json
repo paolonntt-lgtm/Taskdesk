@@ -88,6 +88,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "dompurify": "^3.2.6",
+    "pdfjs-dist": "^6.1.200",
     "react-grid-layout": "^2.2.3",
     "react-markdown": "^10.1.0",
     "read-excel-file": "^9.3.1"

@@ -7,13 +7,15 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History, CloudDownload } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History, CloudDownload, PictureAsPdf } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link, useSearch, useLocation } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
 import ConsoleHistoryTab from './ConsoleHistoryTab';
+import * as pdfjsLib from 'pdfjs-dist';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface TabPanelProps { children?: React.ReactNode; index: number; value: number; }
 function TabPanel({ children, value, index }: TabPanelProps) {
@@ -2264,9 +2266,50 @@ function KnowledgeBaseTab() {
   const [formContent, setFormContent] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [saving, setSaving] = useState(false);
+  const [fromPdf, setFromPdf] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<KbArticle | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePdfFile = async (file: File) => {
+    setPdfLoading(true);
+    setMsg(null);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pages: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item) => ('str' in item ? item.str : ''))
+          .join(' ')
+          .replace(/ {2,}/g, ' ')
+          .trim();
+        if (pageText) pages.push(pageText);
+      }
+      const extracted = pages.join('\n\n');
+      if (!extracted.trim()) {
+        setMsg({ type: 'error', text: t.settings.kbPdfEmpty });
+        return;
+      }
+      const titleFromFile = file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+      setEditing(null);
+      setFormTitle(titleFromFile);
+      setFormContent(extracted);
+      setFormCategory('');
+      setFromPdf(true);
+      setDialogOpen(true);
+    } catch {
+      setMsg({ type: 'error', text: t.settings.kbPdfError });
+    } finally {
+      setPdfLoading(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -2288,6 +2331,7 @@ function KnowledgeBaseTab() {
     setFormTitle('');
     setFormContent('');
     setFormCategory('');
+    setFromPdf(false);
     setDialogOpen(true);
   };
 
@@ -2296,6 +2340,7 @@ function KnowledgeBaseTab() {
     setFormTitle(article.title);
     setFormContent(article.content);
     setFormCategory(article.category ?? '');
+    setFromPdf(false);
     setDialogOpen(true);
   };
 
@@ -2354,11 +2399,31 @@ function KnowledgeBaseTab() {
       {msg && (
         <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>
       )}
-      <Box display="flex" justifyContent="flex-end" mb={2}>
+      <Box display="flex" justifyContent="flex-end" gap={1} mb={2}>
+        <Button
+          variant="outlined"
+          startIcon={pdfLoading ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdf />}
+          size="small"
+          onClick={() => pdfInputRef.current?.click()}
+          disabled={pdfLoading}
+          sx={{ borderRadius: 2 }}
+        >
+          {pdfLoading ? t.settings.kbPdfExtracting : t.settings.kbImportPdf}
+        </Button>
         <Button variant="contained" startIcon={<Add />} size="small" onClick={openAdd} sx={{ borderRadius: 2 }}>
           {t.settings.kbAddArticle}
         </Button>
       </Box>
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handlePdfFile(file);
+        }}
+      />
 
       {loading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress size={28} /></Box>
@@ -2425,7 +2490,7 @@ function KnowledgeBaseTab() {
               value={formContent}
               onChange={(e) => setFormContent(e.target.value)}
               required
-              helperText="Scrivi in modo chiaro e dettagliato. Il bot citerà questo testo nelle risposte."
+              helperText={fromPdf ? t.settings.kbPdfHelperText : undefined}
             />
             <TextField
               label={t.settings.kbCategoryField}
