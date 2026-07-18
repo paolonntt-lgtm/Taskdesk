@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import {
   Box, Typography, TextField, IconButton, Paper, Tooltip,
   Popper, List, ListItem, ListItemButton, ListItemText,
-  CircularProgress, Chip, Collapse, ClickAwayListener,
+  CircularProgress, Chip, ClickAwayListener,
   Snackbar, Alert, Divider, Button,
 } from '@mui/material';
 import {
-  EditNote, Send, ExpandLess, KeyboardArrowDown, OpenInNew,
+  EditNote, Send, OpenInNew,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
@@ -35,7 +35,6 @@ export default function NotesConsole() {
   const tc = (t as any).clientNotes;
   const [, setLocation] = useLocation();
 
-  const [open, setOpen] = useState(false);
   const [body, setBody] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
@@ -198,30 +197,23 @@ export default function NotesConsole() {
           borderTop: '1px solid',
           borderColor: 'divider',
           pt: 1.5, px: 1.5,
-          pb: open ? 1 : 1.5,
+          pb: 1,
         }}
       >
-        {/* Console header toggle */}
+        {/* Console header */}
         <Box
           display="flex"
           alignItems="center"
-          justifyContent="space-between"
-          sx={{ cursor: 'pointer', mb: open ? 1 : 0 }}
-          onClick={() => setOpen((v) => !v)}
+          gap={0.75}
+          mb={1}
         >
-          <Box display="flex" alignItems="center" gap={0.75}>
-            <EditNote fontSize="small" sx={{ color: 'primary.main' }} />
-            <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ letterSpacing: '0.03em' }}>
-              {tc.consoleTitle}
-            </Typography>
-          </Box>
-          <IconButton size="small" sx={{ p: 0.25 }}>
-            {open ? <ExpandLess fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
-          </IconButton>
+          <EditNote fontSize="small" sx={{ color: 'primary.main' }} />
+          <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ letterSpacing: '0.03em' }}>
+            {tc.consoleTitle}
+          </Typography>
         </Box>
 
-        <Collapse in={open} timeout="auto" unmountOnExit>
-          <Box>
+        <Box>
             {/* Selected client chip */}
             {selectedClientName ? (
               <Chip
@@ -382,7 +374,6 @@ export default function NotesConsole() {
               </Box>
             )}
           </Box>
-        </Collapse>
       </Box>
 
       {/* Toast */}
