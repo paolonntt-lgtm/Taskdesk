@@ -541,11 +541,26 @@ export function buildInviteEmail(args: {
   return { subject, html, text };
 }
 
+function suggestPlanHtml(usersCount: number): string {
+  const plans = [
+    { name: "Starter", seats: 5, price: "€35/mese" },
+    { name: "Team", seats: 10, price: "€60/mese" },
+    { name: "Business", seats: 20, price: "€100/mese" },
+    { name: "Enterprise", seats: Infinity, price: "Su preventivo" },
+  ];
+  const suggested = plans.find((p) => p.seats >= usersCount) ?? plans[plans.length - 1];
+  return `<p style="font-size:13px;color:#374151;margin:0 0 16px">
+    Basandoci sui tuoi <strong>${usersCount} utenti attivi</strong>, il piano consigliato è
+    <strong>${suggested.name}</strong> (${suggested.price}${suggested.seats === Infinity ? "" : `, fino a ${suggested.seats} utenti`}).
+  </p>`;
+}
+
 export function buildTrialReminderEmail(args: {
   adminName: string;
   orgName: string;
   daysLeft: number;
   billingUrl: string;
+  usersCount: number;
 }): { subject: string; html: string; text: string } {
   const isExpired = args.daysLeft <= 0;
   const subject = isExpired
@@ -590,7 +605,8 @@ export function buildTrialReminderEmail(args: {
         <p style="margin:0;font-size:22px;font-weight:700;color:${badgeColor}">${escapeHtml(headline)}</p>
       </div>
       <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Ciao <strong>${escapeHtml(args.adminName)}</strong>,</p>
-      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#374151">${body}</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#374151">${body}</p>
+      ${suggestPlanHtml(args.usersCount)}
       <a href="${args.billingUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Attiva un piano →</a>
       <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">
         Stai ricevendo questa email perché sei amministratore dell'organizzazione <strong>${escapeHtml(args.orgName)}</strong> su TaskDesk.

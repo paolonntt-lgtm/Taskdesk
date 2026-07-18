@@ -121,7 +121,7 @@ function TrialBanner() {
   if (daysLeft <= 0) {
     severity = 'error';
     message = t.trialBanner.trialExpired;
-  } else if (daysLeft === 0) {
+  } else if (daysLeft <= 1) {
     severity = 'error';
     message = t.trialBanner.trialExpiresToday;
   } else if (daysLeft <= 3) {

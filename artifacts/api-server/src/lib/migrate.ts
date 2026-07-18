@@ -177,6 +177,29 @@ export async function runAppMigrations(): Promise<void> {
          );
     `);
 
+    // Add trial reminder flag columns to organizations
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_reminder_sent_at TIMESTAMPTZ;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_expired_reminder_sent_at TIMESTAMPTZ;
+    `);
+
+    // Backfill: orgs whose trial is already expired (and no subscription) should have
+    // the expired-reminder flag set immediately so the job never sends a retroactive email.
+    await client.query(`
+      UPDATE organizations o
+      SET trial_expired_reminder_sent_at = NOW()
+      WHERE o.trial_expired_reminder_sent_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM users u
+          WHERE u.organization_id = o.id
+            AND u.role = 'admin'
+            AND u.is_active = true
+            AND u.trial_ends_at IS NOT NULL
+            AND u.trial_ends_at < NOW()
+            AND u.stripe_subscription_id IS NULL
+        );
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
