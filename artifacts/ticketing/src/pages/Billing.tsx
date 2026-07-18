@@ -100,7 +100,21 @@ export default function Billing() {
       .then((data) => setProducts(data.data ?? []))
       .catch(() => setError(b.errorLoadProducts))
       .finally(() => setLoadingProducts(false));
-    refreshData();
+
+    // After a successful Stripe Checkout redirect, sync the subscription ID
+    // to the DB so trial-enforcement checks in requireAuth can see it.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === '1') {
+      fetch('/api/stripe/sync-subscription', { method: 'POST', credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then(() => {
+          // Strip the ?success=1 param and reload so auth/me returns the updated subscription
+          window.location.replace(window.location.pathname);
+        })
+        .catch(() => refreshData());
+    } else {
+      refreshData();
+    }
   }, [refreshData]);
 
   const handleCheckout = async (priceId: string) => {

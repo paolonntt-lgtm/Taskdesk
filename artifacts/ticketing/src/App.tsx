@@ -56,6 +56,61 @@ function SuperAdminRoute({ component: Component }: { component: React.ComponentT
   return <Component />;
 }
 
+function AuthenticatedApp({ user }: { user: User }) {
+  const [, setLocation] = useLocation();
+  const trialEndsAt: string | null = (user as any).trialEndsAt ?? null;
+  const hasSubscription = !!(user as any).stripeSubscriptionId;
+  const isSuperAdmin = !!(user as any).isSuperAdmin;
+  const isTrialExpired =
+    !isSuperAdmin &&
+    trialEndsAt != null &&
+    new Date(trialEndsAt) < new Date() &&
+    !hasSubscription;
+
+  if (isTrialExpired && user.role === 'admin') {
+    return (
+      <Layout>
+        <Switch>
+          <Route path="/billing" component={Billing} />
+          <Route>{() => { setLocation('/billing'); return null; }}</Route>
+        </Switch>
+      </Layout>
+    );
+  }
+
+  return (
+    <>
+      <StickyNotesLayer />
+      <Layout>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/tickets/new" component={NewTicket} />
+          <Route path="/tickets/:id" component={TicketDetail} />
+          <Route path="/tickets" component={TicketList} />
+          <Route path="/reports" component={Reports} />
+          <Route path="/calendar" component={CalendarPage} />
+          <Route path="/users/:id" component={UserProfile} />
+          <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+          {(user as any)?.clientsEnabled !== false ? (
+            <>
+              <Route path="/clients/:id" component={ClientDetail} />
+              <Route path="/clients" component={Clients} />
+            </>
+          ) : (
+            <>
+              <Route path="/clients/:id">{() => { setLocation('/tickets'); return null; }}</Route>
+              <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
+            </>
+          )}
+          <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
+          <Route path="/settings" component={Settings} />
+          <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
+        </Switch>
+      </Layout>
+    </>
+  );
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -156,35 +211,7 @@ function AppShell() {
                   setUser({ ...user, onboardingDone: true, businessType } as any);
                 }} />
               ) : (
-                <>
-                <StickyNotesLayer />
-                <Layout>
-                  <Switch>
-                    <Route path="/" component={Dashboard} />
-                    <Route path="/tickets/new" component={NewTicket} />
-                    <Route path="/tickets/:id" component={TicketDetail} />
-                    <Route path="/tickets" component={TicketList} />
-                    <Route path="/reports" component={Reports} />
-                    <Route path="/calendar" component={CalendarPage} />
-                    <Route path="/users/:id" component={UserProfile} />
-                    <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
-                    {(user as any)?.clientsEnabled !== false ? (
-                      <>
-                        <Route path="/clients/:id" component={ClientDetail} />
-                        <Route path="/clients" component={Clients} />
-                      </>
-                    ) : (
-                      <>
-                        <Route path="/clients/:id">{() => { setLocation('/tickets'); return null; }}</Route>
-                        <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
-                      </>
-                    )}
-                    <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
-                    <Route path="/settings" component={Settings} />
-                    <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
-                  </Switch>
-                </Layout>
-                </>
+                <AuthenticatedApp user={user} />
               )}
             </Route>
           </Switch>

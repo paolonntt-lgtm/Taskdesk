@@ -162,6 +162,7 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   ]).onConflictDoNothing();
 
   const passwordHash = await hashPassword(password);
+  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
@@ -169,6 +170,7 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
     role: "admin",
     organizationId: org.id,
     isActive: true,
+    trialEndsAt,
   }).returning();
 
   const superadmins = await db.select({ email: usersTable.email })
@@ -232,6 +234,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
       clientsEnabled: organizationsTable.clientsEnabled,
+      trialEndsAt: usersTable.trialEndsAt,
+      stripeSubscriptionId: usersTable.stripeSubscriptionId,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))

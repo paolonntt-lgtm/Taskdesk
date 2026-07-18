@@ -11,6 +11,14 @@ const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
 
+/** Returns true when the Stripe error indicates the customer ID is stale/invalid. */
+function isNoSuchCustomer(err: any): boolean {
+  return (
+    err?.code === 'resource_missing' ||
+    (typeof err?.message === 'string' && err.message.toLowerCase().includes('no such customer'))
+  );
+}
+
 router.get('/stripe/products', async (_req, res) => {
   try {
     const stripe = await getUncachableStripeClient();
@@ -61,13 +69,24 @@ router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, r
     }
 
     const stripe = await getUncachableStripeClient();
-    const subscriptions = await stripe.subscriptions.list({
-      customer: user.stripeCustomerId,
-      status: 'all',
-      limit: 1,
-    });
+    let sub = null;
+    try {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: 'all',
+        limit: 1,
+      });
+      sub = subscriptions.data[0] ?? null;
+    } catch (stripeErr: any) {
+      if (isNoSuchCustomer(stripeErr)) {
+        // Stale customer ID — clear it so future calls don't hit Stripe with a dead ID
+        await stripeStorage.updateUserStripeInfo(user.id, { stripeCustomerId: null, stripeSubscriptionId: null });
+        res.json({ subscription: null });
+        return;
+      }
+      throw stripeErr;
+    }
 
-    const sub = subscriptions.data[0] ?? null;
     res.json({ subscription: sub });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -100,14 +119,71 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
     }
 
     const baseUrl = appBaseUrl();
-    const session = await stripeService.createCheckoutSession(
-      customerId,
-      priceId,
-      `${baseUrl}/app/billing?success=1`,
-      `${baseUrl}/app/billing`
-    );
+    const doCheckout = (cid: string) =>
+      stripeService.createCheckoutSession(
+        cid,
+        priceId,
+        `${baseUrl}/app/billing?success=1`,
+        `${baseUrl}/app/billing`
+      );
+
+    let session;
+    try {
+      session = await doCheckout(customerId);
+    } catch (stripeErr: any) {
+      if (isNoSuchCustomer(stripeErr)) {
+        // Stale customer ID — clear it, create a fresh customer, retry once
+        await stripeStorage.updateUserStripeInfo(user.id, { stripeCustomerId: null });
+        const newCustomer = await stripeService.createCustomer(user.email, user.id);
+        await stripeStorage.updateUserStripeInfo(user.id, { stripeCustomerId: newCustomer.id });
+        session = await doCheckout(newCustomer.id);
+      } else {
+        throw stripeErr;
+      }
+    }
 
     res.json({ url: session.url });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Sync the latest Stripe subscription ID into the users table.
+ * Called by the frontend after a successful Stripe Checkout redirect (?success=1)
+ * so the trial-enforcement check in requireAuth can see the active subscription.
+ */
+router.post('/stripe/sync-subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+  try {
+    const user = await stripeStorage.getUser(req.currentUser.id);
+    if (!user?.stripeCustomerId) {
+      res.json({ subscriptionId: null });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+    let subscriptionId: string | null = null;
+    try {
+      const subs = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: 'all',
+        limit: 5,
+      });
+      const activeSub = subs.data.find((s) =>
+        ['active', 'trialing', 'past_due'].includes(s.status)
+      );
+      subscriptionId = activeSub?.id ?? null;
+    } catch (stripeErr: any) {
+      if (isNoSuchCustomer(stripeErr)) {
+        await stripeStorage.updateUserStripeInfo(user.id, { stripeCustomerId: null, stripeSubscriptionId: null });
+        res.json({ subscriptionId: null });
+        return;
+      }
+      throw stripeErr;
+    }
+
+    await stripeStorage.updateUserStripeInfo(user.id, { stripeSubscriptionId: subscriptionId });
+    res.json({ subscriptionId });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -179,10 +255,20 @@ router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): 
     }
 
     const baseUrl = appBaseUrl();
-    const session = await stripeService.createCustomerPortalSession(
-      user.stripeCustomerId,
-      `${baseUrl}/app/billing`
-    );
+    let session;
+    try {
+      session = await stripeService.createCustomerPortalSession(
+        user.stripeCustomerId,
+        `${baseUrl}/app/billing`
+      );
+    } catch (stripeErr: any) {
+      if (isNoSuchCustomer(stripeErr)) {
+        await stripeStorage.updateUserStripeInfo(user.id, { stripeCustomerId: null, stripeSubscriptionId: null });
+        res.status(400).json({ error: 'Nessun cliente Stripe trovato per questo utente' });
+        return;
+      }
+      throw stripeErr;
+    }
 
     res.json({ url: session.url });
   } catch (err: any) {
