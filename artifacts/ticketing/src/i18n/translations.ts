@@ -513,6 +513,12 @@ const it = {
     addonSeatsNotConfigured: 'Il prodotto "Additional Seat" non è ancora configurato su Stripe. Crealo con metadata.addon = "seat".',
     addonSeatsError: 'Errore durante l\'aggiornamento degli slot. Riprova.',
   },
+  trialBanner: {
+    trialDays: (n: number) => `Periodo di prova: ${n} giorn${n === 1 ? 'o' : 'i'} rimanent${n === 1 ? 'e' : 'i'}`,
+    trialExpiresToday: 'Il tuo periodo di prova scade oggi',
+    trialExpired: 'Il tuo periodo di prova è scaduto',
+    ctaBilling: 'Attiva un piano',
+  },
   availability: {
     available: 'Disponibile',
     unavailable: 'Non disponibile',
@@ -1853,6 +1859,12 @@ const en: typeof it = {
     addonSeatsCancel: 'Cancel',
     addonSeatsNotConfigured: 'The "Additional Seat" product is not yet configured on Stripe. Create it with metadata.addon = "seat".',
     addonSeatsError: 'Error updating extra seats. Please try again.',
+  },
+  trialBanner: {
+    trialDays: (n: number) => `Free trial: ${n} day${n === 1 ? '' : 's'} remaining`,
+    trialExpiresToday: 'Your free trial expires today',
+    trialExpired: 'Your free trial has expired',
+    ctaBilling: 'Activate a plan',
   },
   availability: {
     available: 'Available',

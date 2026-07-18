@@ -7,7 +7,7 @@ import {
   Chip, Button, Avatar, useMediaQuery, useTheme, Divider,
   IconButton, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   Tooltip, Select, MenuItem, FormControl, InputLabel,
-  Switch, FormControlLabel, Checkbox, ListItemText, TextField,
+  Switch, FormControlLabel, Checkbox, ListItemText, TextField, Alert,
 } from '@mui/material';
 import {
   Schedule as ScheduleIcon,
@@ -100,6 +100,59 @@ function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, 
 }
 
 const WidgetCustomNameContext = React.createContext('');
+
+// ── TRIAL BANNER ──────────────────────────────────────────────────────────
+
+function TrialBanner() {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+
+  if (!user || user.role !== 'admin' || !user.trialEndsAt || user.stripeSubscriptionId) {
+    return null;
+  }
+
+  const now = new Date();
+  const trialEnd = new Date(user.trialEndsAt);
+  const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+  let severity: 'info' | 'warning' | 'error' = 'info';
+  let message: string;
+
+  if (daysLeft <= 0) {
+    severity = 'error';
+    message = t.trialBanner.trialExpired;
+  } else if (daysLeft === 0) {
+    severity = 'error';
+    message = t.trialBanner.trialExpiresToday;
+  } else if (daysLeft <= 3) {
+    severity = 'warning';
+    message = t.trialBanner.trialDays(daysLeft);
+  } else {
+    severity = 'info';
+    message = t.trialBanner.trialDays(daysLeft);
+  }
+
+  return (
+    <Alert
+      severity={severity}
+      sx={{ mb: 2, borderRadius: 2 }}
+      action={
+        <Button
+          component={Link}
+          href="/billing"
+          color="inherit"
+          size="small"
+          variant="outlined"
+          sx={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.75rem' }}
+        >
+          {t.trialBanner.ctaBilling}
+        </Button>
+      }
+    >
+      {message}
+    </Alert>
+  );
+}
 
 const FEED_SETTINGS_DEFAULTS = {
   statusFilter: [] as string[],
@@ -2081,6 +2134,7 @@ function Dashboard() {
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
+      <TrialBanner />
       {/* Header */}
       <Box display="flex" alignItems="center" justifyContent="space-between"
         mb={{ xs: 1.5, sm: 3 }} flexWrap="wrap" gap={1}>

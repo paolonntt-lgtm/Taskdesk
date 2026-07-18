@@ -541,6 +541,65 @@ export function buildInviteEmail(args: {
   return { subject, html, text };
 }
 
+export function buildTrialReminderEmail(args: {
+  adminName: string;
+  orgName: string;
+  daysLeft: number;
+  billingUrl: string;
+}): { subject: string; html: string; text: string } {
+  const isExpired = args.daysLeft <= 0;
+  const subject = isExpired
+    ? `TaskDesk — Il tuo periodo di prova è scaduto`
+    : `TaskDesk — Il tuo periodo di prova scade tra ${args.daysLeft} giorn${args.daysLeft === 1 ? "o" : "i"}`;
+
+  const headline = isExpired
+    ? "Il tuo periodo di prova è scaduto"
+    : `Il tuo periodo di prova scade ${args.daysLeft === 1 ? "domani" : `tra ${args.daysLeft} giorni`}`;
+
+  const body = isExpired
+    ? `L'accesso a TaskDesk per l'organizzazione <strong>${escapeHtml(args.orgName)}</strong> è stato sospeso. Attiva un piano per ripristinarlo.`
+    : `La prova gratuita di TaskDesk per l'organizzazione <strong>${escapeHtml(args.orgName)}</strong> sta per scadere. Attiva un piano per continuare a usare il servizio senza interruzioni.`;
+
+  const bodyText = isExpired
+    ? `L'accesso a TaskDesk per l'organizzazione "${args.orgName}" è stato sospeso. Attiva un piano per ripristinarlo.`
+    : `La prova gratuita di TaskDesk per l'organizzazione "${args.orgName}" sta per scadere. Attiva un piano per continuare a usare il servizio senza interruzioni.`;
+
+  const badgeBg = isExpired ? "#fef2f2" : "#fffbeb";
+  const badgeBorder = isExpired ? "#fecaca" : "#fde68a";
+  const badgeColor = isExpired ? "#991b1b" : "#92400e";
+  const badgeLabelColor = isExpired ? "#dc2626" : "#b45309";
+  const badgeLabel = isExpired ? "Prova scaduta" : "Prova in scadenza";
+
+  const text = [
+    `Ciao ${args.adminName},`,
+    "",
+    bodyText,
+    "",
+    `Attiva un piano su: ${args.billingUrl}`,
+    "",
+    "— Il team di TaskDesk",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <div style="background:${badgeBg};border:1px solid ${badgeBorder};border-radius:12px;padding:20px 24px;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:13px;color:${badgeLabelColor};font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${badgeLabel}</p>
+        <p style="margin:0;font-size:22px;font-weight:700;color:${badgeColor}">${escapeHtml(headline)}</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Ciao <strong>${escapeHtml(args.adminName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#374151">${body}</p>
+      <a href="${args.billingUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Attiva un piano →</a>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">
+        Stai ricevendo questa email perché sei amministratore dell'organizzazione <strong>${escapeHtml(args.orgName)}</strong> su TaskDesk.
+      </p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

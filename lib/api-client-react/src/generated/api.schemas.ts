@@ -60,6 +60,13 @@ export interface User {
   createdAt: string;
   onboardingDone?: boolean | null;
   businessType?: string | null;
+  trialEndsAt?: string | null;
+  stripeSubscriptionId?: string | null;
+  isSuperAdmin?: boolean | null;
+  clientsEnabled?: boolean | null;
+  organizationId?: number | null;
+  organizationName?: string | null;
+  groupPermissions?: string[] | null;
 }
 
 export interface LoginResponse {

@@ -20,6 +20,8 @@ export const organizationsTable = pgTable("organizations", {
   utmSource: text("utm_source"),
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
+  trialReminderSentAt: timestamp("trial_reminder_sent_at", { withTimezone: true }),
+  trialExpiredReminderSentAt: timestamp("trial_expired_reminder_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
