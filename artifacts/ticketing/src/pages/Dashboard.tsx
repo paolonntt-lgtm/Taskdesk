@@ -119,14 +119,13 @@ function TrialBanner() {
   let message: string;
 
   if (daysLeft <= 0) {
+    // Defensive fallback: normally expired-trial admins are redirected to /billing before reaching dashboard
     severity = 'error';
     message = t.trialBanner.trialExpired;
-  } else if (daysLeft <= 1) {
-    severity = 'error';
-    message = t.trialBanner.trialExpiresToday;
   } else if (daysLeft <= 3) {
     severity = 'warning';
-    message = t.trialBanner.trialDays(daysLeft);
+    const isToday = now.toDateString() === trialEnd.toDateString();
+    message = isToday ? t.trialBanner.trialExpiresToday : t.trialBanner.trialDays(daysLeft);
   } else {
     severity = 'info';
     message = t.trialBanner.trialDays(daysLeft);

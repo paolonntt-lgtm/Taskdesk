@@ -50,10 +50,10 @@ async function checkTrialReminders(): Promise<void> {
       const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 
       if (daysLeft <= 0) {
-        // Expired — only send once and only within 30 days of expiry to avoid stale emails
         if (admin.trialExpiredReminderSentAt) continue;
+        // Only send on expiry day (within ~48h after expiry to tolerate missed job runs)
         const daysSinceExpiry = Math.abs(daysLeft);
-        if (daysSinceExpiry > 30) continue;
+        if (daysSinceExpiry > 1) continue;
 
         const usersCount = await getActiveUsersCount(admin.orgId);
 
