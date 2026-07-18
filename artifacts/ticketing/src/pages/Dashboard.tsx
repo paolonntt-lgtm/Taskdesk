@@ -723,7 +723,12 @@ function FeedDueWidget() {
   const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-due', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
-  const tickets = applyFeedSettings(data as TicketRow[], settings);
+  const tickets = applyFeedSettings(data as TicketRow[], settings)
+    .sort((a, b) => {
+      if (!a.dueAt) return 1;
+      if (!b.dueAt) return -1;
+      return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+    });
   return (
     <FeedCard
       title={t.dashboard.dueSoon}
