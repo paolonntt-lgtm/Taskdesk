@@ -83,7 +83,16 @@ router.get("/invites/:token", async (req, res): Promise<void> => {
   const [admin] = await db.select({ name: usersTable.name, organizationId: usersTable.organizationId })
     .from(usersTable).where(eq(usersTable.id, invite.adminId));
 
-  res.json({ valid: true, adminName: admin?.name ?? "Admin", expiresAt: invite.expiresAt });
+  let orgName: string | null = null;
+  if (admin?.organizationId) {
+    const [org] = await db
+      .select({ name: organizationsTable.name })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, admin.organizationId));
+    orgName = org?.name ?? null;
+  }
+
+  res.json({ valid: true, adminName: admin?.name ?? "Admin", orgName, expiresAt: invite.expiresAt });
 });
 
 router.post("/invites/:token/register", requireSameOrigin, async (req, res): Promise<void> => {
@@ -138,6 +147,7 @@ router.post("/invites/:token/register", requireSameOrigin, async (req, res): Pro
     role: "user",
     organizationId: admin?.organizationId ?? null,
     isActive: true,
+    registeredViaInvite: true,
   }).returning();
 
   await db.update(inviteTokensTable)

@@ -224,7 +224,7 @@ export default function Layout({ children }: LayoutProps) {
     path === '/' ? location === '/' : location.startsWith(path);
 
   const drawer = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box data-tour="sidebar" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo + close button */}
       <Box sx={{ px: 2, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 36, width: 'auto' }} />
@@ -242,6 +242,7 @@ export default function Layout({ children }: LayoutProps) {
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
+              data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
               onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
               selected={isActive(item.path)}
               sx={{
@@ -417,6 +418,7 @@ export default function Layout({ children }: LayoutProps) {
 
           {/* Notifications */}
           <IconButton
+            data-tour="notifications"
             onClick={handleNotifMenuOpen}
             size="small"
             title={t.nav.notifications}

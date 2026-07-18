@@ -3,13 +3,14 @@ import {
   Box, Card, CardContent, Typography, TextField,
   Button, Alert, Container, CircularProgress,
 } from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import InviteWelcome from '../components/InviteWelcome';
 
 interface InviteInfo {
   valid: boolean;
   adminName?: string;
+  orgName?: string | null;
   expiresAt?: string;
   message?: string;
 }
@@ -27,7 +28,7 @@ export default function InviteRegister({ token }: { token: string }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     fetch(`/api/invites/${token}`)
@@ -52,14 +53,23 @@ export default function InviteRegister({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || tr.registrationError); return; }
-      setDone(true);
-      setTimeout(() => { window.location.href = '/app/'; }, 2500);
+      setShowWelcome(true);
     } catch {
       setError(tr.networkRetry);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (showWelcome) {
+    return (
+      <InviteWelcome
+        orgName={info?.orgName ?? null}
+        adminName={info?.adminName ?? 'Admin'}
+        onStart={() => { window.location.href = '/app/'; }}
+      />
+    );
+  }
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: 'background.default', py: 4 }}>
@@ -79,16 +89,6 @@ export default function InviteRegister({ token }: { token: string }) {
               <Alert severity="error" sx={{ mt: 1 }}>
                 {info?.message ?? tr.invalidLink}
               </Alert>
-            ) : done ? (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
-                <CheckCircleOutlineIcon sx={{ fontSize: 56, color: 'success.main', mb: 2 }} />
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  {tr.successTitle}
-                </Typography>
-                <Typography color="text.secondary">
-                  {tr.successSubtitle}
-                </Typography>
-              </Box>
             ) : (
               <>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>

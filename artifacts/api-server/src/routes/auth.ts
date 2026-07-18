@@ -240,6 +240,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       clientsEnabled: organizationsTable.clientsEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
+      tourDone: usersTable.tourDone,
+      registeredViaInvite: usersTable.registeredViaInvite,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
@@ -277,6 +279,16 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
   const trialStatus = getTrialStatus(row.trialEndsAt, row.stripeSubscriptionId);
   res.json({ ...row, groupPermissions, trialStatus });
+});
+
+router.post("/auth/me/tour-done", async (req, res): Promise<void> => {
+  const userId = await getCurrentUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  await db.update(usersTable).set({ tourDone: true }).where(eq(usersTable.id, userId));
+  res.json({ success: true });
 });
 
 export default router;

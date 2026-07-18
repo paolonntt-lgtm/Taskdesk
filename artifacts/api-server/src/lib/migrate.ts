@@ -154,6 +154,13 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes2 TEXT;
     `);
 
+    // Add tour_done and registered_via_invite columns to users for invite onboarding flow
+    await client.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS tour_done BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS registered_via_invite BOOLEAN NOT NULL DEFAULT false;
+    `);
+
     // Backfill org shared layout: ensure fixed-notes-2 block is present for all existing orgs
     await client.query(`
       UPDATE organizations

@@ -22,6 +22,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
 import Onboarding from "./pages/Onboarding";
 import StickyNotesLayer from "./components/StickyNotesLayer";
+import MiniTour from "./components/MiniTour";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
@@ -56,11 +57,34 @@ function SuperAdminRoute({ component: Component }: { component: React.ComponentT
   return <Component />;
 }
 
-function AuthenticatedApp({ user }: { user: User }) {
+function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => void }) {
   const [, setLocation] = useLocation();
+  const trialEndsAt: string | null = (user as any).trialEndsAt ?? null;
+  const hasSubscription = !!(user as any).stripeSubscriptionId;
+  const isSuperAdmin = !!(user as any).isSuperAdmin;
+  const isTrialExpired =
+    !isSuperAdmin &&
+    trialEndsAt != null &&
+    new Date(trialEndsAt) < new Date() &&
+    !hasSubscription;
+
+  const showTour = !!(user as any).registeredViaInvite && !(user as any).tourDone;
+
+  if (isTrialExpired && user.role === 'admin') {
+    return (
+      <Layout>
+        <Switch>
+          <Route path="/billing" component={Billing} />
+          <Route>{() => { setLocation('/billing'); return null; }}</Route>
+        </Switch>
+      </Layout>
+    );
+  }
+
   return (
     <>
       <StickyNotesLayer />
+      {showTour && <MiniTour onDone={onTourDone} />}
       <Layout>
         <Switch>
           <Route path="/" component={Dashboard} />
@@ -191,7 +215,10 @@ function AppShell() {
                   setUser({ ...user, onboardingDone: true, businessType } as any);
                 }} />
               ) : (
-                <AuthenticatedApp user={user} />
+                <AuthenticatedApp
+                  user={user}
+                  onTourDone={() => setUser({ ...user, tourDone: true } as any)}
+                />
               )}
             </Route>
           </Switch>

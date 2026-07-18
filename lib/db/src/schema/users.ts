@@ -25,6 +25,8 @@ export const usersTable = pgTable("users", {
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   expoPushToken: text("expo_push_token"),
   dashboardLayout: text("dashboard_layout"),
+  tourDone: boolean("tour_done").notNull().default(false),
+  registeredViaInvite: boolean("registered_via_invite").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
