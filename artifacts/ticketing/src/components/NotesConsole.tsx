@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import {
   Box, Typography, TextField, IconButton, Paper, Tooltip,
   Popper, List, ListItem, ListItemButton, ListItemText,
-  CircularProgress, Chip, ClickAwayListener,
+  CircularProgress, Chip, ClickAwayListener, Collapse,
   Snackbar, Alert, Divider, Button,
 } from '@mui/material';
 import {
-  EditNote, Send, OpenInNew,
+  EditNote, Send, OpenInNew, ExpandLess, ExpandMore,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
@@ -44,6 +44,7 @@ export default function NotesConsole() {
   const [saving, setSaving] = useState(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
   const [historyLimit, setHistoryLimit] = useState(10);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [toast, setToast] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
     open: false, severity: 'success', msg: '',
@@ -297,80 +298,100 @@ export default function NotesConsole() {
               </Tooltip>
             </Box>
 
-            {/* History panel — full org audit log, paginated locally */}
+            {/* History panel — collapsible */}
             {recentNotes.length > 0 && (
               <Box mt={1}>
-                <Divider sx={{ mb: 1 }} />
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
-                  {tc.historyTitle}
-                </Typography>
-                {recentNotes.map((note: any) => (
-                  <Box
-                    key={note.id}
-                    sx={{
-                      mb: 0.75, px: 1.25, py: 0.75, borderRadius: '8px',
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'action.selected' },
-                    }}
-                  >
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
-                          {note.clientName && (
-                            <Chip
-                              label={`@${note.clientSlug ?? note.clientName}`}
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                              sx={{ fontSize: '0.65rem', height: 18, cursor: 'pointer' }}
-                              onClick={() => note.clientId && setLocation(`/clients/${note.clientId}`)}
-                            />
+                <Divider sx={{ mb: 0.5 }} />
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ cursor: 'pointer', py: 0.5 }}
+                  onClick={() => setHistoryOpen((v) => !v)}
+                >
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    {tc.historyTitle}
+                    {!historyOpen && (
+                      <Typography component="span" variant="caption" color="text.disabled" sx={{ ml: 0.75 }}>
+                        ({recentNotes.length}{hasMore ? '+' : ''})
+                      </Typography>
+                    )}
+                  </Typography>
+                  <IconButton size="small" sx={{ p: 0.25 }}>
+                    {historyOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  </IconButton>
+                </Box>
+                <Collapse in={historyOpen} timeout="auto" unmountOnExit>
+                  <Box>
+                    {recentNotes.map((note: any) => (
+                      <Box
+                        key={note.id}
+                        sx={{
+                          mb: 0.75, px: 1.25, py: 0.75, borderRadius: '8px',
+                          bgcolor: 'action.hover',
+                          '&:hover': { bgcolor: 'action.selected' },
+                        }}
+                      >
+                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
+                              {note.clientName && (
+                                <Chip
+                                  label={`@${note.clientSlug ?? note.clientName}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                  sx={{ fontSize: '0.65rem', height: 18, cursor: 'pointer' }}
+                                  onClick={() => note.clientId && setLocation(`/clients/${note.clientId}`)}
+                                />
+                              )}
+                              <Typography variant="caption" color="text.disabled" noWrap>
+                                {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
+                                  dateStyle: 'short', timeStyle: 'short',
+                                })}
+                                {note.authorName && ` · ${note.authorName}`}
+                              </Typography>
+                            </Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: 'block',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100%',
+                                mt: 0.25,
+                              }}
+                            >
+                              {note.body}
+                            </Typography>
+                          </Box>
+                          {note.clientId && (
+                            <Tooltip title={note.clientName ?? ''}>
+                              <IconButton
+                                size="small"
+                                sx={{ ml: 0.5, p: 0.25, flexShrink: 0 }}
+                                onClick={() => setLocation(`/clients/${note.clientId}`)}
+                              >
+                                <OpenInNew sx={{ fontSize: 12 }} />
+                              </IconButton>
+                            </Tooltip>
                           )}
-                          <Typography variant="caption" color="text.disabled" noWrap>
-                            {new Date(note.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
-                              dateStyle: 'short', timeStyle: 'short',
-                            })}
-                            {note.authorName && ` · ${note.authorName}`}
-                          </Typography>
                         </Box>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            display: 'block',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '100%',
-                            mt: 0.25,
-                          }}
-                        >
-                          {note.body}
-                        </Typography>
                       </Box>
-                      {note.clientId && (
-                        <Tooltip title={note.clientName ?? ''}>
-                          <IconButton
-                            size="small"
-                            sx={{ ml: 0.5, p: 0.25, flexShrink: 0 }}
-                            onClick={() => setLocation(`/clients/${note.clientId}`)}
-                          >
-                            <OpenInNew sx={{ fontSize: 12 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
+                    ))}
+                    {hasMore && (
+                      <Button
+                        size="small"
+                        sx={{ mt: 0.5, fontSize: '0.72rem' }}
+                        onClick={() => setHistoryLimit((l) => l + 10)}
+                      >
+                        {lang === 'en' ? 'Load more' : 'Carica altri'}
+                      </Button>
+                    )}
                   </Box>
-                ))}
-                {hasMore && (
-                  <Button
-                    size="small"
-                    sx={{ mt: 0.5, fontSize: '0.72rem' }}
-                    onClick={() => setHistoryLimit((l) => l + 10)}
-                  >
-                    {lang === 'en' ? 'Load more' : 'Carica altri'}
-                  </Button>
-                )}
+                </Collapse>
               </Box>
             )}
           </Box>
