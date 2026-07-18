@@ -408,9 +408,9 @@ export default function TicketList() {
     setDeleting(false);
     const succeeded = ids.length - failed;
     if (failed === 0) {
-      setBulkFeedback({ type: 'success', msg: t.ticketList.bulkDeleteSuccess(succeeded) });
+      setBulkFeedback({ type: 'success', msg: t.ticketList.bulkDeleteSuccess(succeeded, entityTerm.singular) });
     } else if (succeeded > 0) {
-      setBulkFeedback({ type: 'error', msg: t.ticketList.bulkDeletePartial(succeeded, failed) });
+      setBulkFeedback({ type: 'error', msg: t.ticketList.bulkDeletePartial(succeeded, failed, entityTerm.singular) });
     } else {
       setBulkFeedback({ type: 'error', msg: t.ticketList.bulkDeleteError });
     }
@@ -825,7 +825,7 @@ export default function TicketList() {
             }}
           >
             <Typography sx={{ flex: 1, fontWeight: 600, fontSize: '0.875rem', color: 'primary.main' }}>
-              {t.ticketList.bulkSelected(selectedIds.size)}
+              {t.ticketList.bulkSelected(selectedIds.size, entityTerm.singular)}
             </Typography>
             <Button
               size="small"
@@ -937,7 +937,7 @@ export default function TicketList() {
                             </Tooltip>
                           )}
                           {ticket.inboundChannelId && (
-                            <Tooltip title={t.ticketList.emailBadgeTooltip} placement="top" arrow>
+                            <Tooltip title={t.ticketList.emailBadgeTooltip(entityTerm.singular)} placement="top" arrow>
                               <EmailIcon sx={{ fontSize: 14, color: 'info.main', flexShrink: 0, mt: 0.2 }} />
                             </Tooltip>
                           )}
@@ -1033,11 +1033,11 @@ export default function TicketList() {
         PaperProps={{ sx: { borderRadius: '16px' } }}
       >
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {t.ticketList.bulkDeleteConfirmTitle}
+          {t.ticketList.bulkDeleteConfirmTitle(entityTerm.plural)}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {t.ticketList.bulkDeleteConfirmText(selectedIds.size)}
+            {t.ticketList.bulkDeleteConfirmText(selectedIds.size, entityTerm.singular)}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>

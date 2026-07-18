@@ -54,6 +54,7 @@ import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
+import { useEntityTerm } from '../hooks/useEntityTerm';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -701,15 +702,16 @@ function applyFeedSettings(tickets: TicketRow[], settings: FeedSettings, default
 
 function FeedMyWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-my', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetMyTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   const tickets = applyFeedSettings(data as TicketRow[], settings, true);
   return (
     <FeedCard
-      title={t.dashboard.myTickets}
+      title={t.dashboard.myTickets(entityTerm.plural)}
       icon={<Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main', fontSize: '0.6rem' }}>IO</Avatar>}
       tickets={tickets}
-      emptyMsg={t.dashboard.noAssignedTickets}
+      emptyMsg={t.dashboard.noAssignedTickets(entityTerm.singular)}
       viewAllHref="/tickets"
       colorByStatus={settings.colorByStatus}
     />
@@ -718,6 +720,7 @@ function FeedMyWidget() {
 
 function FeedDueWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-due', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useGetDueSoonTickets({ query: { refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any });
   const tickets = applyFeedSettings(data as TicketRow[], settings);
@@ -726,7 +729,7 @@ function FeedDueWidget() {
       title={t.dashboard.dueSoon}
       icon={<ScheduleIcon fontSize="small" color={tickets.length > 0 ? 'warning' : 'disabled'} />}
       tickets={tickets}
-      emptyMsg={t.dashboard.noDueSoon}
+      emptyMsg={t.dashboard.noDueSoon(entityTerm.singular)}
       viewAllHref="/tickets?status=open"
       showDueBadge
       accentColor={tickets.length > 0 ? 'warning.main' : undefined}
@@ -754,6 +757,7 @@ function FeedRecentWidget() {
 
 function FeedAssignedWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-assigned', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['assigned-to-me'],
@@ -768,7 +772,7 @@ function FeedAssignedWidget() {
       title={t.dashboard.widgetFeedAssigned}
       icon={<AssignedIcon fontSize="small" color="primary" />}
       tickets={tickets}
-      emptyMsg={t.dashboard.noAssignedToMe}
+      emptyMsg={t.dashboard.noAssignedToMe(entityTerm.singular)}
       viewAllHref="/tickets"
       colorByStatus={settings.colorByStatus}
     />
@@ -779,6 +783,7 @@ function FeedAssignedWidget() {
 
 function FeedOpenWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-open', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
     queryKey: ['all-open-tickets'],
@@ -790,10 +795,10 @@ function FeedOpenWidget() {
   const tickets = applyFeedSettings(data, settings);
   return (
     <FeedCard
-      title={t.dashboard.widgetFeedOpen}
+      title={t.dashboard.widgetFeedOpen(entityTerm.plural)}
       icon={<AllOpenIcon fontSize="small" color="primary" />}
       tickets={tickets}
-      emptyMsg={t.dashboard.noOpenTickets}
+      emptyMsg={t.dashboard.noOpenTickets(entityTerm.singular)}
       viewAllHref="/tickets?status=open"
       colorByStatus={settings.colorByStatus}
     />
@@ -804,6 +809,7 @@ function FeedOpenWidget() {
 
 function FeedOverdueWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const theme = useTheme();
   const [settings] = useWidgetSettings<FeedSettings>('feed-overdue', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<TicketRow[]>({
@@ -816,10 +822,10 @@ function FeedOverdueWidget() {
   const tickets = applyFeedSettings(data, settings);
   return (
     <FeedCard
-      title={t.dashboard.widgetFeedOverdue}
+      title={t.dashboard.widgetFeedOverdue(entityTerm.plural)}
       icon={<OverdueListIcon fontSize="small" color="warning" />}
       tickets={tickets}
-      emptyMsg={t.dashboard.noOverdueTickets}
+      emptyMsg={t.dashboard.noOverdueTickets(entityTerm.singular)}
       viewAllHref="/tickets"
       showDueBadge
       accentColor={tickets.length > 0 ? theme.palette.warning.main : undefined}
@@ -834,6 +840,7 @@ interface WorkloadRow { id: number; name: string; email: string; open: number; t
 
 function WorkloadWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<WorkloadSettings>('workload', WORKLOAD_SETTINGS_DEFAULTS);
   const { data = [], isLoading } = useQuery<WorkloadRow[]>({
     queryKey: ['assignee-workload'],
@@ -866,7 +873,7 @@ function WorkloadWidget() {
           {isLoading ? (
             <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
           ) : data.length === 0 ? (
-            <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.widgetWorkloadEmpty}</Typography></Box>
+            <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.widgetWorkloadEmpty(entityTerm.plural)}</Typography></Box>
           ) : (
             <>
               <Box display="grid" gridTemplateColumns="1fr auto auto" gap={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -1090,6 +1097,7 @@ const PERSON_WIDGET_KEY = 'td_widget_person_id';
 
 function FeedPersonWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(() => {
     const v = localStorage.getItem(PERSON_WIDGET_KEY);
@@ -1135,7 +1143,7 @@ function FeedPersonWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <PersonIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {React.useContext(WidgetCustomNameContext) || (selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson)}
+                {React.useContext(WidgetCustomNameContext) || (selectedUser ? selectedUser.name : t.dashboard.widgetFeedPerson(entityTerm.plural))}
               </Typography>
               {selectedId && displayTickets.length > 0 && (
                 <Chip label={displayTickets.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1157,7 +1165,7 @@ function FeedPersonWidget() {
                 </Button>
               </Box>
             ) : displayTickets.length === 0 ? (
-              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets(entityTerm.singular)}</Typography></Box>
             ) : (
               displayTickets.map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
@@ -1195,6 +1203,7 @@ const GROUP_WIDGET_KEY = 'td_widget_group_name';
 
 function FeedGroupWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>(() => localStorage.getItem(GROUP_WIDGET_KEY) ?? '');
   const [tempGroup, setTempGroup] = useState<string>(selectedGroup);
@@ -1235,7 +1244,7 @@ function FeedGroupWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <GroupIcon fontSize="small" color="secondary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {React.useContext(WidgetCustomNameContext) || selectedGroup || t.dashboard.widgetFeedGroup}
+                {React.useContext(WidgetCustomNameContext) || selectedGroup || t.dashboard.widgetFeedGroup(entityTerm.plural)}
               </Typography>
               {selectedGroup && displayTickets.length > 0 && (
                 <Chip label={displayTickets.length} size="small" color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1259,7 +1268,7 @@ function FeedGroupWidget() {
             ) : groups.length === 0 ? (
               <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noGroupsAvailable}</Typography></Box>
             ) : displayTickets.length === 0 ? (
-              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets}</Typography></Box>
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noOpenTickets(entityTerm.singular)}</Typography></Box>
             ) : (
               displayTickets.map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
@@ -1363,6 +1372,7 @@ const CATEGORY_WIDGET_KEY = 'td_widget_category';
 
 function FeedCategoryWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
   const [selected, setSelected] = useState<string>(() => localStorage.getItem(CATEGORY_WIDGET_KEY) ?? '');
   const [temp, setTemp] = useState<string>(selected);
@@ -1397,7 +1407,7 @@ function FeedCategoryWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <CategoryIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {React.useContext(WidgetCustomNameContext) || selected || t.dashboard.widgetFeedCategory}
+                {React.useContext(WidgetCustomNameContext) || selected || t.dashboard.widgetFeedCategory(entityTerm.plural)}
               </Typography>
               {selected && data.length > 0 && (
                 <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1419,7 +1429,7 @@ function FeedCategoryWidget() {
                 </Button>
               </Box>
             ) : data.length === 0 ? (
-              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForCategory}</Typography></Box>
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForCategory(entityTerm.singular)}</Typography></Box>
             ) : (
               data.slice(0, 15).map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
@@ -1457,6 +1467,7 @@ const STATUS_WIDGET_KEY = 'td_widget_status';
 
 function FeedStatusWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
   const [selected, setSelected] = useState<string>(() => localStorage.getItem(STATUS_WIDGET_KEY) ?? '');
   const [temp, setTemp] = useState<string>(selected);
@@ -1489,7 +1500,7 @@ function FeedStatusWidget() {
             <Box display="flex" alignItems="center" gap={1}>
               <FilterListIcon fontSize="small" color="primary" />
               <Typography variant="h6" fontWeight="bold" fontSize={{ xs: '0.9rem', sm: '1.05rem' }}>
-                {React.useContext(WidgetCustomNameContext) || (selected ? selectedLabel : t.dashboard.widgetFeedStatus)}
+                {React.useContext(WidgetCustomNameContext) || (selected ? selectedLabel : t.dashboard.widgetFeedStatus(entityTerm.plural))}
               </Typography>
               {selected && data.length > 0 && (
                 <Chip label={data.length} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
@@ -1511,7 +1522,7 @@ function FeedStatusWidget() {
                 </Button>
               </Box>
             ) : data.length === 0 ? (
-              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForStatus}</Typography></Box>
+              <Box px={2} py={3}><Typography variant="body2" color="text.secondary" textAlign="center">{t.dashboard.noTicketsForStatus(entityTerm.singular)}</Typography></Box>
             ) : (
               data.slice(0, 15).map((ticket, idx) => (
                 <React.Fragment key={ticket.id}>
@@ -1547,6 +1558,7 @@ function FeedStatusWidget() {
 
 function FeedAllAssignedWidget() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const [settings] = useWidgetSettings<FeedSettings>('feed-all-assigned', FEED_SETTINGS_DEFAULTS);
   const { data = [] } = useQuery<(TicketRow & { assignedTo?: number | null })[]>({
     queryKey: ['all-assigned-open-tickets'],
@@ -1557,10 +1569,10 @@ function FeedAllAssignedWidget() {
   const tickets = applyFeedSettings(assigned as TicketRow[], settings, true);
   return (
     <FeedCard
-      title={t.dashboard.widgetFeedAllAssigned}
+      title={t.dashboard.widgetFeedAllAssigned(entityTerm.plural)}
       icon={<PeopleAltIcon fontSize="small" color="primary" />}
       tickets={tickets}
-      emptyMsg={t.dashboard.noAssignedTickets}
+      emptyMsg={t.dashboard.noAssignedTickets(entityTerm.singular)}
       viewAllHref="/tickets"
       colorByStatus={settings.colorByStatus}
     />
@@ -1835,6 +1847,7 @@ function WidgetSettingsDialog({
   customName: string; onCustomNameChange: (name: string) => void;
 }) {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
   const { statuses } = useTicketStatuses();
   const { data: categories = [] } = useQuery<string[]>({
     queryKey: ['widget-settings-categories'],
@@ -1867,7 +1880,7 @@ function WidgetSettingsDialog({
     onClose();
   };
 
-  const td = t.dashboard as Record<string, string>;
+  const td = t.dashboard as unknown as Record<string, string>;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -1881,7 +1894,7 @@ function WidgetSettingsDialog({
             size="small"
             fullWidth
             label={td.wsCustomName ?? 'Widget name'}
-            placeholder={meta ? ((t.dashboard as Record<string, string>)[meta.labelKey] || meta.id) : ''}
+            placeholder={meta ? (() => { const v = (t.dashboard as Record<string, unknown>)[meta.labelKey]; return typeof v === 'function' ? (v as (p: string) => string)(entityTerm.plural) : ((v as string) || meta.id); })() : ''}
             value={draftName}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraftName(e.target.value)}
             InputProps={{ endAdornment: draftName ? (
@@ -1980,6 +1993,11 @@ function AddWidgetDialog({
   open: boolean; onClose: () => void;
   allWidgets: WidgetMeta[]; visibleIds: string[]; onAdd: (id: string) => void; t: any;
 }) {
+  const entityTerm = useEntityTerm();
+  const resolveLabel = (key: string): string => {
+    const val = t.dashboard[key];
+    return typeof val === 'function' ? val(entityTerm.plural) : (val || key);
+  };
   const getBaseId = (id: string) => id.split('__')[0];
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -1995,7 +2013,7 @@ function AddWidgetDialog({
               return (
                 <Chip
                   key={w.id}
-                  label={count > 0 ? `${t.dashboard[w.labelKey] || w.id} (${count})` : (t.dashboard[w.labelKey] || w.id)}
+                  label={count > 0 ? `${resolveLabel(w.labelKey)} (${count})` : resolveLabel(w.labelKey)}
                   onClick={() => onAdd(w.id)}
                   icon={<AddIcon />}
                   variant={count > 0 ? 'filled' : 'outlined'}
@@ -2034,6 +2052,11 @@ function useWidgetCustomNames() {
 
 function Dashboard() {
   const { t } = useLanguage();
+  const entityTerm = useEntityTerm();
+  const resolveWidgetLabel = (key: string): string => {
+    const val = (t.dashboard as Record<string, unknown>)[key];
+    return typeof val === 'function' ? (val as (p: string) => string)(entityTerm.plural) : ((val as string) || key);
+  };
   const { user } = useAuth();
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
@@ -2260,7 +2283,7 @@ function Dashboard() {
             <div key={id}>
               <WidgetShell
                 editMode={editMode}
-                label={customNames[id] || (t.dashboard as Record<string, string>)[meta.labelKey] || meta.id}
+                label={customNames[id] || resolveWidgetLabel(meta.labelKey)}
                 onRemove={() => removeWidget(id)}
                 onOpenSettings={() => setSettingsWidgetId(id)}
               >

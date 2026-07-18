@@ -554,7 +554,7 @@ export default function TicketDetail() {
         setPendingAttachments([]);
       }
     } catch (err: any) {
-      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment;
+      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment(entityTerm.singular);
       setCommentError(msg);
     }
   };
@@ -576,7 +576,7 @@ export default function TicketDetail() {
         setInlinePendingAttachments([]);
       }
     } catch (err: any) {
-      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment;
+      const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment(entityTerm.singular);
       setCommentError(msg);
     }
   };
@@ -1787,7 +1787,7 @@ export default function TicketDetail() {
 
                   {ticket.status === 'closed' ? (
                     <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                      {t.ticketDetail.closedTicketComment}
+                      {t.ticketDetail.closedTicketComment(entityTerm.singular)}
                     </Alert>
                   ) : !replyingToCommentId && (
                   <Box display="flex" gap={2} mt={2}>
