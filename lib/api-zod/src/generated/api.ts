@@ -33,6 +33,13 @@ export const ListGroupsResponseItem = zod.object({
       businessType: zod.string().nullish(),
       trialEndsAt: zod.coerce.date().nullish(),
       stripeSubscriptionId: zod.string().nullish(),
+      trialStatus: zod
+        .object({
+          isInTrial: zod.boolean(),
+          isExpired: zod.boolean(),
+          daysLeft: zod.number(),
+        })
+        .nullish(),
       isSuperAdmin: zod.boolean().nullish(),
       clientsEnabled: zod.boolean().nullish(),
       organizationId: zod.number().nullish(),
@@ -85,6 +92,13 @@ export const UpdateGroupResponse = zod.object({
       businessType: zod.string().nullish(),
       trialEndsAt: zod.coerce.date().nullish(),
       stripeSubscriptionId: zod.string().nullish(),
+      trialStatus: zod
+        .object({
+          isInTrial: zod.boolean(),
+          isExpired: zod.boolean(),
+          daysLeft: zod.number(),
+        })
+        .nullish(),
       isSuperAdmin: zod.boolean().nullish(),
       clientsEnabled: zod.boolean().nullish(),
       organizationId: zod.number().nullish(),
@@ -170,6 +184,13 @@ export const LoginResponse = zod.object({
     businessType: zod.string().nullish(),
     trialEndsAt: zod.coerce.date().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    trialStatus: zod
+      .object({
+        isInTrial: zod.boolean(),
+        isExpired: zod.boolean(),
+        daysLeft: zod.number(),
+      })
+      .nullish(),
     isSuperAdmin: zod.boolean().nullish(),
     clientsEnabled: zod.boolean().nullish(),
     organizationId: zod.number().nullish(),
@@ -247,6 +268,13 @@ export const GetCurrentUserResponse = zod.object({
   businessType: zod.string().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  trialStatus: zod
+    .object({
+      isInTrial: zod.boolean(),
+      isExpired: zod.boolean(),
+      daysLeft: zod.number(),
+    })
+    .nullish(),
   isSuperAdmin: zod.boolean().nullish(),
   clientsEnabled: zod.boolean().nullish(),
   organizationId: zod.number().nullish(),
@@ -273,6 +301,13 @@ export const ListUsersResponseItem = zod.object({
   businessType: zod.string().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  trialStatus: zod
+    .object({
+      isInTrial: zod.boolean(),
+      isExpired: zod.boolean(),
+      daysLeft: zod.number(),
+    })
+    .nullish(),
   isSuperAdmin: zod.boolean().nullish(),
   clientsEnabled: zod.boolean().nullish(),
   organizationId: zod.number().nullish(),
@@ -319,6 +354,13 @@ export const GetUserResponse = zod.object({
   businessType: zod.string().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  trialStatus: zod
+    .object({
+      isInTrial: zod.boolean(),
+      isExpired: zod.boolean(),
+      daysLeft: zod.number(),
+    })
+    .nullish(),
   isSuperAdmin: zod.boolean().nullish(),
   clientsEnabled: zod.boolean().nullish(),
   organizationId: zod.number().nullish(),
@@ -363,6 +405,13 @@ export const UpdateUserResponse = zod.object({
   businessType: zod.string().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  trialStatus: zod
+    .object({
+      isInTrial: zod.boolean(),
+      isExpired: zod.boolean(),
+      daysLeft: zod.number(),
+    })
+    .nullish(),
   isSuperAdmin: zod.boolean().nullish(),
   clientsEnabled: zod.boolean().nullish(),
   organizationId: zod.number().nullish(),
@@ -450,6 +499,13 @@ export const ListTicketsResponseItem = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -473,6 +529,13 @@ export const ListTicketsResponseItem = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -559,6 +622,13 @@ export const GetTicketResponse = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -582,6 +652,13 @@ export const GetTicketResponse = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -666,6 +743,13 @@ export const UpdateTicketResponse = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -689,6 +773,13 @@ export const UpdateTicketResponse = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -781,6 +872,13 @@ export const SetTicketRecurrenceResponse = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -804,6 +902,13 @@ export const SetTicketRecurrenceResponse = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -873,6 +978,13 @@ export const DeleteTicketRecurrenceResponse = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -896,6 +1008,13 @@ export const DeleteTicketRecurrenceResponse = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -941,6 +1060,13 @@ export const ListTicketCommentsResponseItem = zod.object({
     businessType: zod.string().nullish(),
     trialEndsAt: zod.coerce.date().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    trialStatus: zod
+      .object({
+        isInTrial: zod.boolean(),
+        isExpired: zod.boolean(),
+        daysLeft: zod.number(),
+      })
+      .nullish(),
     isSuperAdmin: zod.boolean().nullish(),
     clientsEnabled: zod.boolean().nullish(),
     organizationId: zod.number().nullish(),
@@ -1009,6 +1135,13 @@ export const UpdateTicketCommentResponse = zod.object({
     businessType: zod.string().nullish(),
     trialEndsAt: zod.coerce.date().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    trialStatus: zod
+      .object({
+        isInTrial: zod.boolean(),
+        isExpired: zod.boolean(),
+        daysLeft: zod.number(),
+      })
+      .nullish(),
     isSuperAdmin: zod.boolean().nullish(),
     clientsEnabled: zod.boolean().nullish(),
     organizationId: zod.number().nullish(),
@@ -1141,6 +1274,13 @@ export const ListTicketNotesResponseItem = zod.object({
     businessType: zod.string().nullish(),
     trialEndsAt: zod.coerce.date().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    trialStatus: zod
+      .object({
+        isInTrial: zod.boolean(),
+        isExpired: zod.boolean(),
+        daysLeft: zod.number(),
+      })
+      .nullish(),
     isSuperAdmin: zod.boolean().nullish(),
     clientsEnabled: zod.boolean().nullish(),
     organizationId: zod.number().nullish(),
@@ -1340,6 +1480,13 @@ export const ListTicketActivityResponseItem = zod.object({
     businessType: zod.string().nullish(),
     trialEndsAt: zod.coerce.date().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    trialStatus: zod
+      .object({
+        isInTrial: zod.boolean(),
+        isExpired: zod.boolean(),
+        daysLeft: zod.number(),
+      })
+      .nullish(),
     isSuperAdmin: zod.boolean().nullish(),
     clientsEnabled: zod.boolean().nullish(),
     organizationId: zod.number().nullish(),
@@ -1522,6 +1669,13 @@ export const GetRecentTicketsResponseItem = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -1545,6 +1699,13 @@ export const GetRecentTicketsResponseItem = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -1611,6 +1772,13 @@ export const GetMyTicketsResponseItem = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -1634,6 +1802,13 @@ export const GetMyTicketsResponseItem = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),
@@ -1700,6 +1875,13 @@ export const GetDueSoonTicketsResponseItem = zod
         businessType: zod.string().nullish(),
         trialEndsAt: zod.coerce.date().nullish(),
         stripeSubscriptionId: zod.string().nullish(),
+        trialStatus: zod
+          .object({
+            isInTrial: zod.boolean(),
+            isExpired: zod.boolean(),
+            daysLeft: zod.number(),
+          })
+          .nullish(),
         isSuperAdmin: zod.boolean().nullish(),
         clientsEnabled: zod.boolean().nullish(),
         organizationId: zod.number().nullish(),
@@ -1723,6 +1905,13 @@ export const GetDueSoonTicketsResponseItem = zod
           businessType: zod.string().nullish(),
           trialEndsAt: zod.coerce.date().nullish(),
           stripeSubscriptionId: zod.string().nullish(),
+          trialStatus: zod
+            .object({
+              isInTrial: zod.boolean(),
+              isExpired: zod.boolean(),
+              daysLeft: zod.number(),
+            })
+            .nullish(),
           isSuperAdmin: zod.boolean().nullish(),
           clientsEnabled: zod.boolean().nullish(),
           organizationId: zod.number().nullish(),

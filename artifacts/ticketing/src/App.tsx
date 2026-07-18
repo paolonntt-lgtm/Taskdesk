@@ -58,26 +58,6 @@ function SuperAdminRoute({ component: Component }: { component: React.ComponentT
 
 function AuthenticatedApp({ user }: { user: User }) {
   const [, setLocation] = useLocation();
-  const trialEndsAt: string | null = (user as any).trialEndsAt ?? null;
-  const hasSubscription = !!(user as any).stripeSubscriptionId;
-  const isSuperAdmin = !!(user as any).isSuperAdmin;
-  const isTrialExpired =
-    !isSuperAdmin &&
-    trialEndsAt != null &&
-    new Date(trialEndsAt) < new Date() &&
-    !hasSubscription;
-
-  if (isTrialExpired && user.role === 'admin') {
-    return (
-      <Layout>
-        <Switch>
-          <Route path="/billing" component={Billing} />
-          <Route>{() => { setLocation('/billing'); return null; }}</Route>
-        </Switch>
-      </Layout>
-    );
-  }
-
   return (
     <>
       <StickyNotesLayer />

@@ -21,20 +21,6 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  // Trial enforcement: block access when trial has expired and no active subscription.
-  // Exempt Stripe billing routes and auth routes so the user can still subscribe.
-  const url = (req as any).originalUrl ?? '';
-  const isExemptFromTrial = user.isSuperAdmin || /\/(stripe|auth)(\/|$)/.test(url);
-  if (
-    !isExemptFromTrial &&
-    user.trialEndsAt != null &&
-    user.trialEndsAt < new Date() &&
-    !user.stripeSubscriptionId
-  ) {
-    res.status(402).json({ error: 'TRIAL_EXPIRED' });
-    return;
-  }
-
   (req as any).currentUser = user;
   next();
 }

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UserRole } from "./userRole";
+import type { UserTrialStatus } from "./userTrialStatus";
 
 export interface User {
   id: number;
@@ -23,6 +24,7 @@ export interface User {
   businessType?: string | null;
   trialEndsAt?: Date | null;
   stripeSubscriptionId?: string | null;
+  trialStatus?: UserTrialStatus;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;

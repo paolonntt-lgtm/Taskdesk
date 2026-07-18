@@ -46,6 +46,12 @@ export const UserRole = {
   user: "user",
 } as const;
 
+export type UserTrialStatus = {
+  isInTrial: boolean;
+  isExpired: boolean;
+  daysLeft: number;
+} | null;
+
 export interface User {
   id: number;
   name: string;
@@ -62,6 +68,7 @@ export interface User {
   businessType?: string | null;
   trialEndsAt?: string | null;
   stripeSubscriptionId?: string | null;
+  trialStatus?: UserTrialStatus;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;

@@ -2338,6 +2338,20 @@ components:
         stripeSubscriptionId:
           type: string
           nullable: true
+        trialStatus:
+          type: object
+          nullable: true
+          properties:
+            isInTrial:
+              type: boolean
+            isExpired:
+              type: boolean
+            daysLeft:
+              type: integer
+          required:
+            - isInTrial
+            - isExpired
+            - daysLeft
         isSuperAdmin:
           type: boolean
           nullable: true

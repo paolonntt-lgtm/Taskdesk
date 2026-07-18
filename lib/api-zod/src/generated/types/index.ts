@@ -106,3 +106,4 @@ export * from "./updateUserBody";
 export * from "./updateUserBodyRole";
 export * from "./user";
 export * from "./userRole";
+export * from "./userTrialStatus";
