@@ -803,6 +803,8 @@ export default function Settings() {
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
   const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
+  const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
+  const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -823,7 +825,13 @@ export default function Settings() {
     fetch('/api/settings/default-category', { credentials: 'include' })
       .then((r) => r.json()).then((d) => setDefaultCategory(d.value ?? '')).catch(() => {});
     fetch('/api/settings/organization', { credentials: 'include' })
-      .then((r) => r.json()).then((d) => { setOrgName(d.name ?? ''); if (d.businessType) setOrgBusinessType(d.businessType); setOrgClientsEnabled(d.clientsEnabled !== false); }).catch(() => {});
+      .then((r) => r.json()).then((d) => {
+        setOrgName(d.name ?? '');
+        if (d.businessType) setOrgBusinessType(d.businessType);
+        setOrgClientsEnabled(d.clientsEnabled !== false);
+        setOrgEntitySingular(d.entitySingular ?? '');
+        setOrgEntityPlural(d.entityPlural ?? '');
+      }).catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
       .then((r) => r.json()).then((d) => {
         if (d && !d.error) setBilling({
@@ -870,7 +878,13 @@ export default function Settings() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orgName, businessType: orgBusinessType || undefined, clientsEnabled: orgClientsEnabled }),
+        body: JSON.stringify({
+          name: orgName,
+          businessType: orgBusinessType || undefined,
+          clientsEnabled: orgClientsEnabled,
+          entitySingular: orgBusinessType === 'custom' ? orgEntitySingular : undefined,
+          entityPlural: orgBusinessType === 'custom' ? orgEntityPlural : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
@@ -881,6 +895,8 @@ export default function Settings() {
         ...(user as any),
         businessType: data.businessType ?? null,
         clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
+        entitySingular: data.entitySingular ?? null,
+        entityPlural: data.entityPlural ?? null,
       });
       setOrgMsg({ type: 'success', text: t.settings.orgSavedOk });
     } catch {
@@ -1288,7 +1304,36 @@ export default function Settings() {
                       <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                     ))}
                   </TextField>
-                  {orgBusinessType && (() => {
+                  {orgBusinessType === 'custom' ? (
+                    <Box display="flex" flexDirection="column" gap={1} mt={1.5}>
+                      <Typography variant="caption" color="text.secondary">{(t.settings as any).orgEntityCustomHint}</Typography>
+                      <TextField
+                        size="small" fullWidth
+                        label={(t.settings as any).orgEntitySingularLabel}
+                        placeholder={(t.settings as any).orgEntitySingularPlaceholder}
+                        value={orgEntitySingular}
+                        onChange={(e) => setOrgEntitySingular(e.target.value)}
+                        disabled={orgSaving}
+                        inputProps={{ maxLength: 40 }}
+                      />
+                      <TextField
+                        size="small" fullWidth
+                        label={(t.settings as any).orgEntityPluralLabel}
+                        placeholder={(t.settings as any).orgEntityPluralPlaceholder}
+                        value={orgEntityPlural}
+                        onChange={(e) => setOrgEntityPlural(e.target.value)}
+                        disabled={orgSaving}
+                        inputProps={{ maxLength: 40 }}
+                      />
+                      {(orgEntitySingular.trim() || orgEntityPlural.trim()) && (
+                        <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                          <Typography variant="caption" color="text.secondary">{t.settings.orgBusinessTypePreviewLabel}</Typography>
+                          {orgEntitySingular.trim() && <Chip label={orgEntitySingular.trim()} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />}
+                          {orgEntityPlural.trim() && <Chip label={orgEntityPlural.trim()} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : orgBusinessType && (() => {
                     const et = (t.entityTerms as Record<string, any>)[orgBusinessType];
                     return et ? (
                       <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">

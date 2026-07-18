@@ -265,7 +265,7 @@ router.put("/settings/billing", requireAuth, requireAdmin, async (req, res): Pro
   });
 });
 
-const VALID_BUSINESS_TYPES = ["it_support", "professional_studio", "agency", "other"];
+const VALID_BUSINESS_TYPES = ["it_support", "professional_studio", "agency", "other", "custom"];
 
 router.get("/settings/organization", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
@@ -278,11 +278,11 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
     res.status(404).json({ message: "Organizzazione non trovata" });
     return;
   }
-  res.json({ name: org.name, businessType: org.businessType, clientsEnabled: org.clientsEnabled });
+  res.json({ name: org.name, businessType: org.businessType, clientsEnabled: org.clientsEnabled, entitySingular: org.entitySingular, entityPlural: org.entityPlural });
 });
 
 router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name, businessType, clientsEnabled } = req.body ?? {};
+  const { name, businessType, clientsEnabled, entitySingular, entityPlural } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
     return;
@@ -299,12 +299,14 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   const updateData: Record<string, unknown> = { name: name.trim() };
   if (businessType !== undefined) updateData.businessType = businessType || null;
   if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
+  if (typeof entitySingular === "string") updateData.entitySingular = entitySingular.trim() || null;
+  if (typeof entityPlural === "string") updateData.entityPlural = entityPlural.trim() || null;
   const [updated] = await db
     .update(organizationsTable)
     .set(updateData as any)
     .where(eq(organizationsTable.id, currentUser.organizationId))
     .returning();
-  res.json({ name: updated.name, businessType: updated.businessType, clientsEnabled: updated.clientsEnabled });
+  res.json({ name: updated.name, businessType: updated.businessType, clientsEnabled: updated.clientsEnabled, entitySingular: updated.entitySingular, entityPlural: updated.entityPlural });
 });
 
 // ── CLIENT SHARED LAYOUT ───────────────────────────────────────────────────

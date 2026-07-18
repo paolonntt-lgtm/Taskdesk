@@ -22,6 +22,8 @@ export const organizationsTable = pgTable("organizations", {
   utmCampaign: text("utm_campaign"),
   trialReminderSentAt: timestamp("trial_reminder_sent_at", { withTimezone: true }),
   trialExpiredReminderSentAt: timestamp("trial_expired_reminder_sent_at", { withTimezone: true }),
+  entitySingular: text("entity_singular"),
+  entityPlural: text("entity_plural"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

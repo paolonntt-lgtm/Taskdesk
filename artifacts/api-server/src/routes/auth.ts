@@ -69,6 +69,8 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
       clientsEnabled: organizationsTable.clientsEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
+      entitySingular: organizationsTable.entitySingular,
+      entityPlural: organizationsTable.entityPlural,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
@@ -242,6 +244,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
       tourDone: usersTable.tourDone,
       registeredViaInvite: usersTable.registeredViaInvite,
+      entitySingular: organizationsTable.entitySingular,
+      entityPlural: organizationsTable.entityPlural,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))

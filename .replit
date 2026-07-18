@@ -32,5 +32,5 @@ INBOUND_EMAIL_ORG_ID = "3"
 INBOUND_EMAIL_DOMAIN = "taskdesk.uk"
 
 [[ports]]
-localPort = 8080
+localPort = 18115
 externalPort = 80

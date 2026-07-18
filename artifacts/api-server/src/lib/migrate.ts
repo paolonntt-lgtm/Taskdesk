@@ -207,6 +207,12 @@ export async function runAppMigrations(): Promise<void> {
         );
     `);
 
+    // Add custom entity term columns to organizations
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS entity_singular TEXT;
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS entity_plural TEXT;
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");
