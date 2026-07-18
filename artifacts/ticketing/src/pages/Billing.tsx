@@ -21,6 +21,7 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
+  IconButton,
 } from '@mui/material';
 import {
   CheckCircle,
@@ -31,6 +32,9 @@ import {
   Group,
   TrendingUp,
   AllInclusive,
+  AddCircleOutline,
+  RemoveCircleOutline,
+  PersonAdd,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -54,6 +58,7 @@ interface Product {
 interface SeatUsage {
   usedSeats: number;
   planSeats: number | null;
+  addonSeats: number;
   planName: string;
   currentPriceId: string | null;
   subscriptionId: string | null;
@@ -62,6 +67,12 @@ interface SeatUsage {
   available: number | null;
   limitReached: boolean;
   status: string | null;
+}
+
+interface AddonPrice {
+  priceId: string;
+  unitAmount: number | null;
+  currency: string;
 }
 
 export default function Billing() {
@@ -81,6 +92,21 @@ export default function Billing() {
   const [upgradeTarget, setUpgradeTarget] = useState<{ product: Product; price: Price } | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
+  // Addon seats dialog state
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [addonPrice, setAddonPrice] = useState<AddonPrice | null>(null);
+  const [addonPriceLoading, setAddonPriceLoading] = useState(false);
+  const [addonPriceError, setAddonPriceError] = useState(false);
+  const [addonQuantity, setAddonQuantity] = useState(0);
+  const [addonLoading, setAddonLoading] = useState(false);
+
+  const refreshSeatUsage = useCallback(() => {
+    fetch('/api/stripe/seat-usage', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((data) => setSeatUsage(data))
+      .catch(() => {});
+  }, []);
+
   const refreshData = useCallback(() => {
     fetch('/api/stripe/subscription', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
@@ -88,11 +114,8 @@ export default function Billing() {
       .catch(() => {})
       .finally(() => setLoadingSubscription(false));
 
-    fetch('/api/stripe/seat-usage', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((data) => setSeatUsage(data))
-      .catch(() => {});
-  }, []);
+    refreshSeatUsage();
+  }, [refreshSeatUsage]);
 
   useEffect(() => {
     fetch('/api/stripe/products', { credentials: 'include' })
@@ -173,15 +196,80 @@ export default function Billing() {
     } finally { setPortalLoading(false); }
   };
 
+  const handleOpenAddonDialog = async () => {
+    setAddonPriceError(false);
+    setAddonQuantity(seatUsage?.addonSeats ?? 0);
+    setAddonDialogOpen(true);
+    if (!addonPrice) {
+      setAddonPriceLoading(true);
+      try {
+        const res = await fetch('/api/stripe/addon-price', { credentials: 'include' });
+        if (!res.ok) {
+          setAddonPriceError(true);
+          return;
+        }
+        const data = await res.json();
+        setAddonPrice(data);
+      } catch {
+        setAddonPriceError(true);
+      } finally {
+        setAddonPriceLoading(false);
+      }
+    }
+  };
+
+  const handleAddonConfirm = async () => {
+    setAddonLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/stripe/add-seats', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: addonQuantity }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === 'ADDON_NOT_CONFIGURED') throw new Error(b.addonSeatsNotConfigured);
+        throw new Error(data.message || data.error || b.addonSeatsError);
+      }
+      setAddonDialogOpen(false);
+      setSuccessMsg(b.addonSeatsSuccess);
+      refreshSeatUsage();
+    } catch (err: any) {
+      setError(err.message || b.addonSeatsError);
+    } finally {
+      setAddonLoading(false);
+    }
+  };
+
   const formatPrice = (price: Price) => {
     const amount = (price.unit_amount / 100).toLocaleString('it-IT', { style: 'currency', currency: price.currency.toUpperCase() });
     const interval = price.recurring?.interval === 'year' ? b.perYear : b.perMonth;
     return `${amount}${interval}`;
   };
 
+  const formatAddonUnitPrice = () => {
+    if (!addonPrice || addonPrice.unitAmount == null) return '—';
+    return (addonPrice.unitAmount / 100).toLocaleString('it-IT', {
+      style: 'currency',
+      currency: addonPrice.currency.toUpperCase(),
+    });
+  };
+
+  const addonSubtotal = () => {
+    if (!addonPrice || addonPrice.unitAmount == null) return '—';
+    const total = (addonPrice.unitAmount * addonQuantity) / 100;
+    return total.toLocaleString('it-IT', { style: 'currency', currency: addonPrice.currency.toUpperCase() });
+  };
+
   const isSubscribed = subscription && (subscription.status === 'active' || subscription.status === 'trialing');
-  const seatPct = seatUsage && !seatUsage.unlimited && seatUsage.planSeats
-    ? Math.min(100, (seatUsage.usedSeats / seatUsage.planSeats) * 100) : 0;
+  const showAddonWidget = !!(seatUsage?.hasActiveSubscription && !seatUsage?.unlimited);
+
+  const effectivePlanSeats = seatUsage
+    ? (seatUsage.planSeats ?? 0) + (seatUsage.addonSeats ?? 0)
+    : 0;
+  const seatPct = seatUsage && !seatUsage.unlimited && effectivePlanSeats > 0
+    ? Math.min(100, (seatUsage.usedSeats / effectivePlanSeats) * 100) : 0;
   const seatColor: 'primary' | 'warning' | 'error' = seatPct >= 100 ? 'error' : seatPct >= 80 ? 'warning' : 'primary';
 
   return (
@@ -237,11 +325,11 @@ export default function Billing() {
                   <Chip icon={<AllInclusive sx={{ fontSize: 14 }} />} label={b.seatsUnlimited} size="small" color="success" variant="outlined" />
                 ) : (
                   <Typography variant="body2" fontWeight={700} color={`${seatColor}.main`}>
-                    {seatUsage.usedSeats} / {seatUsage.planSeats}
+                    {seatUsage.usedSeats} / {effectivePlanSeats}
                   </Typography>
                 )}
               </Box>
-              {!seatUsage.unlimited && seatUsage.planSeats && (
+              {!seatUsage.unlimited && effectivePlanSeats > 0 && (
                 <>
                   <LinearProgress
                     variant="determinate"
@@ -270,6 +358,43 @@ export default function Billing() {
                   {b.renewsOn}: <strong>{new Date(subscription.current_period_end * 1000).toLocaleDateString('it-IT')}</strong>
                 </Typography>
               )}
+            </Box>
+          )}
+
+          {/* Addon seats widget */}
+          {showAddonWidget && (
+            <Box sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: 'background.default',
+              borderRadius: '12px',
+              border: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <PersonAdd fontSize="small" color="action" />
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>{b.addonSeatsTitle}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {seatUsage && seatUsage.addonSeats > 0
+                      ? b.addonSeatsActive(seatUsage.addonSeats)
+                      : b.addonSeatsNone}
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PersonAdd fontSize="small" />}
+                onClick={handleOpenAddonDialog}
+              >
+                {b.addonSeatsManage}
+              </Button>
             </Box>
           )}
         </CardContent>
@@ -416,6 +541,93 @@ export default function Billing() {
             startIcon={upgradeLoading ? <CircularProgress size={16} color="inherit" /> : <TrendingUp />}>
             {upgradeLoading ? b.upgradeProcessing : b.upgradeConfirm}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Addon seats dialog */}
+      <Dialog
+        open={addonDialogOpen}
+        onClose={() => !addonLoading && setAddonDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle fontWeight={800}>{b.addonSeatsDialogTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {b.addonSeatsDialogSubtitle}
+          </Typography>
+
+          {addonPriceLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : addonPriceError ? (
+            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+              {b.addonSeatsNotConfigured}
+            </Alert>
+          ) : (
+            <>
+              {/* Counter */}
+              <Box sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, my: 3,
+                p: 2, bgcolor: 'background.default', borderRadius: '12px', border: '1px solid', borderColor: 'divider',
+              }}>
+                <IconButton
+                  onClick={() => setAddonQuantity((q) => Math.max(0, q - 1))}
+                  disabled={addonQuantity === 0 || addonLoading}
+                  color="primary"
+                  size="large"
+                >
+                  <RemoveCircleOutline />
+                </IconButton>
+                <Box sx={{ textAlign: 'center', minWidth: 60 }}>
+                  <Typography variant="h3" fontWeight={800} lineHeight={1}>{addonQuantity}</Typography>
+                  <Typography variant="caption" color="text.secondary">{b.addonSeatsCounter}</Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setAddonQuantity((q) => Math.min(50, q + 1))}
+                  disabled={addonQuantity >= 50 || addonLoading}
+                  color="primary"
+                  size="large"
+                >
+                  <AddCircleOutline />
+                </IconButton>
+              </Box>
+
+              {/* Price summary */}
+              {addonPrice && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">{b.addonSeatsPricePerSeat}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{formatAddonUnitPrice()}{b.perMonth}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">{b.addonSeatsSubtotal}</Typography>
+                    <Typography variant="body2" fontWeight={700} color="primary.main">{addonSubtotal()}{b.perMonth}</Typography>
+                  </Box>
+                </Box>
+              )}
+
+              <Alert severity="info" sx={{ borderRadius: '10px', fontSize: '0.8rem' }}>
+                {b.addonSeatsProrationNote}
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAddonDialogOpen(false)} disabled={addonLoading}>
+            {b.addonSeatsCancel}
+          </Button>
+          {!addonPriceError && !addonPriceLoading && (
+            <Button
+              variant="contained"
+              onClick={handleAddonConfirm}
+              disabled={addonLoading || addonPriceLoading || addonPriceError}
+              startIcon={addonLoading ? <CircularProgress size={16} color="inherit" /> : <PersonAdd />}
+            >
+              {addonLoading ? b.addonSeatsConfirming : b.addonSeatsConfirm}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

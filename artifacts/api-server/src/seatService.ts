@@ -5,6 +5,7 @@ import { getUncachableStripeClient } from './stripeClient';
 export interface SeatUsage {
   usedSeats: number;
   planSeats: number | null;
+  addonSeats: number;
   planName: string;
   currentPriceId: string | null;
   subscriptionId: string | null;
@@ -59,6 +60,7 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
   }
 
   let planSeats: number | null = null;
+  let addonSeats = 0;
   let planName = 'Free';
   let currentPriceId: string | null = null;
   let subscriptionId: string | null = null;
@@ -91,31 +93,40 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
           hasActiveSubscription = true;
           status = sub.status;
           subscriptionId = sub.id;
-          const item = sub.items.data[0];
-          if (item) {
-            subscriptionItemId = item.id;
-            currentPriceId = item.price.id;
-            // Fetch the product separately to stay within Stripe's 4-level expand limit
-            const productId = typeof item.price.product === 'string'
-              ? item.price.product
-              : (item.price.product as any)?.id;
-            let product: any = null;
-            if (productId) {
-              product = await stripe.products.retrieve(productId);
-            }
-            planName = product?.name ?? 'Plan';
-            const seatsMeta = product?.metadata?.seats;
-            if (seatsMeta === 'unlimited' || !seatsMeta) {
-              unlimited = true;
-              planSeats = null;
-            } else {
-              const n = parseInt(String(seatsMeta), 10);
-              if (!isNaN(n) && n > 0) {
-                planSeats = n;
-                unlimited = false;
+
+          // Iterate all subscription items: identify the base plan item and any
+          // addon seat items (product with metadata.addon = "seat").
+          for (const item of sub.items.data) {
+            const productId =
+              typeof item.price.product === 'string'
+                ? item.price.product
+                : (item.price.product as any)?.id;
+            if (!productId) continue;
+
+            const itemProduct = await stripe.products.retrieve(productId);
+
+            if (itemProduct.metadata?.addon === 'seat') {
+              // Addon seat item — accumulate quantity
+              addonSeats += item.quantity ?? 0;
+            } else if (!subscriptionItemId) {
+              // First non-addon item is the base plan
+              subscriptionItemId = item.id;
+              currentPriceId = item.price.id;
+              planName = itemProduct.name ?? 'Plan';
+              const seatsMeta = itemProduct.metadata?.seats;
+              if (seatsMeta === 'unlimited' || !seatsMeta) {
+                unlimited = true;
+                planSeats = null;
+              } else {
+                const n = parseInt(String(seatsMeta), 10);
+                if (!isNaN(n) && n > 0) {
+                  planSeats = n;
+                  unlimited = false;
+                }
               }
             }
           }
+
           // Found an active subscription — stop searching
           break;
         }
@@ -127,12 +138,14 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
     }
   }
 
-  const available = unlimited || planSeats === null ? null : Math.max(0, planSeats - usedSeats);
-  const limitReached = !unlimited && planSeats !== null && usedSeats >= planSeats;
+  const effectiveSeats = unlimited || planSeats === null ? null : planSeats + addonSeats;
+  const available = effectiveSeats === null ? null : Math.max(0, effectiveSeats - usedSeats);
+  const limitReached = !unlimited && effectiveSeats !== null && usedSeats >= effectiveSeats;
 
   return {
     usedSeats,
     planSeats,
+    addonSeats,
     planName,
     currentPriceId,
     subscriptionId,
@@ -155,10 +168,11 @@ export interface SeatLimitError {
 }
 
 export function buildSeatLimitError(usage: SeatUsage): SeatLimitError {
+  const effectiveSeats = (usage.planSeats ?? 0) + usage.addonSeats;
   return {
     error: 'SEAT_LIMIT_REACHED',
-    message: `Hai raggiunto il limite di ${usage.planSeats} posti del piano ${usage.planName}. Esegui l'upgrade per aggiungere altri utenti.`,
-    messageEn: `You have reached the ${usage.planSeats}-seat limit of the ${usage.planName} plan. Upgrade to add more users.`,
+    message: `Hai raggiunto il limite di ${effectiveSeats} posti del piano ${usage.planName}. Esegui l'upgrade per aggiungere altri utenti.`,
+    messageEn: `You have reached the ${effectiveSeats}-seat limit of the ${usage.planName} plan. Upgrade to add more users.`,
     usedSeats: usage.usedSeats,
     planSeats: usage.planSeats!,
     planName: usage.planName,

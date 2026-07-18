@@ -246,6 +246,105 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
   }
 });
 
+/**
+ * Returns the price info for the "Additional Seat" addon product.
+ * The admin must create a product in Stripe with metadata.addon = "seat".
+ * Returns 404 if not configured.
+ */
+router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): Promise<void> => {
+  try {
+    const stripe = await getUncachableStripeClient();
+    const products = await stripe.products.list({ active: true });
+    const addonProduct = products.data.find((p) => p.metadata?.addon === 'seat');
+    if (!addonProduct) {
+      res.status(404).json({ error: 'ADDON_NOT_CONFIGURED' });
+      return;
+    }
+    const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
+    const price = prices.data.find((p) => p.recurring?.interval === 'month') ?? prices.data[0];
+    if (!price) {
+      res.status(404).json({ error: 'ADDON_NOT_CONFIGURED' });
+      return;
+    }
+    res.json({ priceId: price.id, unitAmount: price.unit_amount, currency: price.currency });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Add or remove addon seats on the active subscription.
+ * Body: { quantity: number } — total desired addon seat count (not delta).
+ * quantity === 0 removes the addon item from the subscription.
+ */
+router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+  try {
+    const parsed = z.object({ quantity: z.number().int().min(0).max(500) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'INVALID_QUANTITY', message: 'quantity must be an integer between 0 and 500' });
+      return;
+    }
+    const { quantity } = parsed.data;
+
+    const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
+    if (!usage.subscriptionId) {
+      res.status(400).json({ error: 'NO_ACTIVE_SUBSCRIPTION', message: 'Nessun abbonamento attivo.' });
+      return;
+    }
+    if (usage.unlimited) {
+      res.status(400).json({ error: 'UNLIMITED_PLAN', message: 'Il piano Enterprise ha posti illimitati.' });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+
+    // Find the addon price
+    const products = await stripe.products.list({ active: true });
+    const addonProduct = products.data.find((p) => p.metadata?.addon === 'seat');
+    if (!addonProduct) {
+      res.status(404).json({ error: 'ADDON_NOT_CONFIGURED', message: 'Prodotto addon non configurato su Stripe.' });
+      return;
+    }
+    const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
+    const addonPrice = prices.data.find((p) => p.recurring?.interval === 'month') ?? prices.data[0];
+    if (!addonPrice) {
+      res.status(404).json({ error: 'ADDON_NOT_CONFIGURED', message: 'Prezzo addon non trovato.' });
+      return;
+    }
+
+    // Retrieve the subscription to find any existing addon item
+    const sub = await stripe.subscriptions.retrieve(usage.subscriptionId, {
+      expand: ['items.data.price'],
+    });
+    const existingAddonItem = sub.items.data.find((item) => item.price.id === addonPrice.id);
+
+    if (quantity === 0) {
+      if (existingAddonItem) {
+        await stripe.subscriptionItems.del(existingAddonItem.id, {
+          proration_behavior: 'create_prorations',
+        });
+      }
+    } else if (existingAddonItem) {
+      await stripe.subscriptionItems.update(existingAddonItem.id, {
+        quantity,
+        proration_behavior: 'create_prorations',
+      });
+    } else {
+      await stripe.subscriptionItems.create({
+        subscription: usage.subscriptionId,
+        price: addonPrice.id,
+        quantity,
+        proration_behavior: 'create_prorations',
+      });
+    }
+
+    const updated = await getSeatUsage(req.currentUser.organizationId ?? null);
+    res.json({ addonSeats: updated.addonSeats, available: updated.available, limitReached: updated.limitReached });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
