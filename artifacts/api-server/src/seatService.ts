@@ -76,11 +76,13 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
       // there is exactly one billing admin, but this handles edge cases
       // without picking an arbitrary record via LIMIT 1.
       for (const customerId of adminCustomerIds) {
+        // Stripe allows max 4 levels of expand; 'data.items.data.price.product'
+        // is 5 levels and throws. Expand only up to price, then fetch product separately.
         const subs = await stripe.subscriptions.list({
           customer: customerId,
           status: 'all',
           limit: 5,
-          expand: ['data.items.data.price.product'],
+          expand: ['data.items.data.price'],
         });
         const sub = subs.data.find((s) =>
           ['active', 'trialing', 'past_due'].includes(s.status)
@@ -93,7 +95,14 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
           if (item) {
             subscriptionItemId = item.id;
             currentPriceId = item.price.id;
-            const product = item.price.product as any;
+            // Fetch the product separately to stay within Stripe's 4-level expand limit
+            const productId = typeof item.price.product === 'string'
+              ? item.price.product
+              : (item.price.product as any)?.id;
+            let product: any = null;
+            if (productId) {
+              product = await stripe.products.retrieve(productId);
+            }
             planName = product?.name ?? 'Plan';
             const seatsMeta = product?.metadata?.seats;
             if (seatsMeta === 'unlimited' || !seatsMeta) {
