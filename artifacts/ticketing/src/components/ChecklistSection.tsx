@@ -563,7 +563,7 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
                 {ct.addFromTemplate}
               </Button>
             </Tooltip>
-            {isAdmin && !addingChecklist && (
+            {!addingChecklist && (
               <Button
                 size="small"
                 startIcon={<Add />}
@@ -623,7 +623,7 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
           ))}
         </Box>
 
-        {isAdmin && addingChecklist && (
+        {addingChecklist && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: checklists.length > 0 ? 1.5 : 0 }}>
             <TextField
               size="small"
