@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
-  Alert, Chip,
+  Alert, Chip, Paper,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
@@ -60,6 +60,10 @@ export default function NewTicket() {
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
   const [suggestingTitle, setSuggestingTitle] = useState(false);
   const [debouncedDescription, setDebouncedDescription] = useState('');
+
+  const [titleHistory, setTitleHistory] = useState<{ id: number; ticketNumber?: number; title: string; status: string }[]>([]);
+  const [titleDropdownOpen, setTitleDropdownOpen] = useState(false);
+  const titleFieldRef = useRef<HTMLDivElement>(null);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -163,6 +167,27 @@ export default function NewTicket() {
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedTitle(formData.title), 450);
     return () => clearTimeout(timeout);
+  }, [formData.title]);
+
+  useEffect(() => {
+    const q = formData.title.trim();
+    if (q.length < 3) { setTitleHistory([]); setTitleDropdownOpen(false); return; }
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      fetch(`/api/tickets?search=${encodeURIComponent(q)}&limit=6`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return;
+          const tickets = (data.tickets ?? data ?? [])
+            .filter((tk: any) => tk.title.toLowerCase() !== q.toLowerCase())
+            .slice(0, 5)
+            .map((tk: any) => ({ id: tk.id, ticketNumber: tk.ticketNumber, title: tk.title, status: tk.status }));
+          setTitleHistory(tickets);
+          setTitleDropdownOpen(tickets.length > 0);
+        })
+        .catch(() => {});
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [formData.title]);
 
   useEffect(() => {
@@ -298,6 +323,7 @@ export default function NewTicket() {
           <form onSubmit={handleSubmit}>
             <Grid container spacing={{ xs: 2, sm: 3 }}>
               <Grid item xs={12}>
+                <Box ref={titleFieldRef} sx={{ position: 'relative' }}>
                 <TextField
                   fullWidth
                   label={t.newTicket.titleField}
@@ -307,8 +333,44 @@ export default function NewTicket() {
                     setFormData({ ...formData, title: e.target.value });
                     if (e.target.value) setSuggestedTitle(null);
                   }}
+                  onBlur={() => setTimeout(() => setTitleDropdownOpen(false), 150)}
+                  onFocus={() => { if (titleHistory.length > 0) setTitleDropdownOpen(true); }}
+                  onKeyDown={e => { if (e.key === 'Escape') setTitleDropdownOpen(false); }}
                   placeholder={t.newTicket.titlePlaceholder}
                 />
+                {titleDropdownOpen && titleHistory.length > 0 && (
+                  <Paper
+                    elevation={4}
+                    sx={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300, mt: 0.5, maxHeight: 220, overflow: 'auto', border: '1px solid', borderColor: 'divider' }}
+                  >
+                    <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        {(t.newTicket as any).titleHistoryLabel}
+                      </Typography>
+                    </Box>
+                    {titleHistory.map(tk => (
+                      <Box
+                        key={tk.id}
+                        onMouseDown={e => {
+                          e.preventDefault();
+                          setFormData(f => ({ ...f, title: tk.title }));
+                          setTitleDropdownOpen(false);
+                          setSuggestedTitle(null);
+                        }}
+                        sx={{ px: 1.5, py: 0.9, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'action.hover' } }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, minWidth: 32 }}>
+                          #{tk.ticketNumber ?? tk.id}
+                        </Typography>
+                        <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {tk.title}
+                        </Typography>
+                        <Chip label={tk.status} size="small" sx={{ height: 18, fontSize: '0.65rem', flexShrink: 0 }} />
+                      </Box>
+                    ))}
+                  </Paper>
+                )}
+                </Box>
                 {!formData.title.trim() && (suggestingTitle || suggestedTitle) && (
                   <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
                     <AutoAwesome sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }} />
