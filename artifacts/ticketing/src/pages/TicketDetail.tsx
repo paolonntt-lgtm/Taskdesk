@@ -598,7 +598,14 @@ export default function TicketDetail() {
        a.actionDescription?.includes('Resolved') || a.actionDescription?.includes('Closed'))
   );
 
-  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : t.ticketDetail.breadcrumbList;
+  const bql = new URLSearchParams(search).get('bql');
+  const bqlLabels: Record<string, string> = {
+    assignedToMe: t.ticketList.quickFilterAssignedToMe,
+    overdue: t.ticketList.quickFilterOverdue,
+    highPriority: t.ticketList.quickFilterHighPriority,
+    open: t.ticketList.quickFilterOpen,
+  };
+  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : (bql && bqlLabels[bql]) || t.ticketDetail.breadcrumbList;
 
   return (
     <Box>

@@ -251,6 +251,14 @@ export default function TicketList() {
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters;
+
+  // Key of the currently active quick filter chip (used when navigating to ticket detail)
+  const activeQFK: string | null =
+    user && userFilter === String(user.id) && userFilterType === 'assignedTo' ? 'assignedToMe' :
+    overdueFilter ? 'overdue' :
+    (priorityValues.includes('high') && priorityValues.includes('urgent')) ? 'highPriority' :
+    (statusValues.includes('open') && statusValues.length === 1) ? 'open' :
+    null;
   const [showExtraManual, setShowExtraManual] = useState(false);
   const showExtra = showExtraManual || hasExtraFilters;
 
@@ -330,7 +338,11 @@ export default function TicketList() {
   useEffect(() => {
     if (!sessionRestored.current) return;
     try {
-      if (searchStr) sessionStorage.setItem('ticketlist_session_filters', searchStr);
+      if (searchStr) {
+        sessionStorage.setItem('ticketlist_session_filters', searchStr);
+      } else {
+        sessionStorage.removeItem('ticketlist_session_filters');
+      }
     } catch {}
   }, [searchStr]);
 
@@ -1073,7 +1085,7 @@ export default function TicketList() {
                       hover
                       selected={isSelected}
                       sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/tickets/${ticket.id}`)}
+                      onClick={() => navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`)}
                     >
                       {isAdmin && (
                         <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.25, pr: 0 }}>
