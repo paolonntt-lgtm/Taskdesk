@@ -18,7 +18,7 @@ import {
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
-import { useParams, useLocation } from 'wouter';
+import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
@@ -68,6 +68,8 @@ export default function TicketDetail() {
   const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const backTo = new URLSearchParams(search).get('from') === 'dashboard' ? '/' : '/tickets';
   const { statuses: orgStatuses, isClosedKey, getLabelForKey, getColorForKey } = useTicketStatuses();
 
   const [tabValue, setTabValue] = useState(0);
@@ -601,7 +603,7 @@ export default function TicketDetail() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 2 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => setLocation('/tickets')}
+          onClick={() => setLocation(backTo)}
           color="inherit"
           size="small"
         >

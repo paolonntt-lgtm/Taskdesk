@@ -298,7 +298,7 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: 
     : undefined;
 
   return (
-    <Box component={Link} href={`/tickets/${ticket.id}`} sx={{
+    <Box component={Link} href={`/tickets/${ticket.id}?from=dashboard`} sx={{
       display: 'flex', alignItems: 'center', gap: 1.5,
       px: { xs: 1.5, sm: 2 }, py: { xs: 1, sm: 1.25 },
       textDecoration: 'none', color: 'inherit', cursor: 'pointer',
