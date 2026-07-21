@@ -37,6 +37,7 @@ import backupRouter from "./backup";
 import dashboardLayoutRouter from "./dashboardLayout";
 import appointmentsRouter from "./appointments";
 import calendarRouter from "./calendar";
+import searchRouter from "./search";
 
 const router: IRouter = Router();
 
@@ -78,5 +79,6 @@ router.use(backupRouter);
 router.use(dashboardLayoutRouter);
 router.use(appointmentsRouter);
 router.use(calendarRouter);
+router.use(searchRouter);
 
 export default router;

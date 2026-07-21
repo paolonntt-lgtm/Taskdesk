@@ -47,6 +47,7 @@ import {
   Business,
   CalendarMonth,
   AdminPanelSettings,
+  Search,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +61,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
 import NotesConsole from './NotesConsole';
+import CommandPalette from './CommandPalette';
 
 const drawerWidth = 264;
 
@@ -81,6 +83,7 @@ export default function Layout({ children }: LayoutProps) {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
   const [botOpen, setBotOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
@@ -165,6 +168,17 @@ export default function Layout({ children }: LayoutProps) {
     if (typeof Notification !== 'undefined') {
       setNotifPermission(Notification.permission);
     }
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
@@ -377,6 +391,17 @@ export default function Layout({ children }: LayoutProps) {
           })()}
 
           {!isMobile && <Box sx={{ flexGrow: 1 }} />}
+
+          {/* Search button */}
+          <Tooltip title={t.commandPalette.tooltip}>
+            <IconButton
+              onClick={() => setCommandPaletteOpen(true)}
+              size="small"
+              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <Search fontSize="small" />
+            </IconButton>
+          </Tooltip>
 
           {/* Language toggle */}
           <Button
@@ -624,6 +649,11 @@ export default function Layout({ children }: LayoutProps) {
           <SmartToy />
         </Fab>
       </Tooltip>
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+      />
 
       <BotDialog
         open={botOpen}

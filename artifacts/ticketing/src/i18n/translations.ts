@@ -1472,6 +1472,18 @@ const it = {
     daysShort: ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'],
     monthsLong: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
   },
+  commandPalette: {
+    placeholder: 'Cerca pratiche, clienti, utenti...',
+    hint: 'Scrivi per cercare pratiche, clienti e utenti',
+    noResults: (q: string) => `Nessun risultato per "${q}"`,
+    groupTickets: 'Pratiche',
+    groupClients: 'Clienti',
+    groupUsers: 'Utenti',
+    keyNav: 'naviga',
+    keySelect: 'apri',
+    keyClose: 'chiudi',
+    tooltip: 'Ricerca rapida (⌘K)',
+  },
 };
 
 const en: typeof it = {
@@ -2945,6 +2957,18 @@ const en: typeof it = {
     errorLoad: 'Error loading calendar.',
     daysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     monthsLong: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  },
+  commandPalette: {
+    placeholder: 'Search tickets, clients, users...',
+    hint: 'Type to search tickets, clients and users',
+    noResults: (q: string) => `No results for "${q}"`,
+    groupTickets: 'Tickets',
+    groupClients: 'Clients',
+    groupUsers: 'Users',
+    keyNav: 'navigate',
+    keySelect: 'open',
+    keyClose: 'close',
+    tooltip: 'Quick search (⌘K)',
   },
 };
 

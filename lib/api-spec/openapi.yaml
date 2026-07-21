@@ -43,8 +43,48 @@ tags:
     description: Calendar appointments
   - name: calendar
     description: Calendar aggregation
+  - name: search
+    description: Global search
 
 paths:
+  /search:
+    get:
+      operationId: globalSearch
+      tags: [search]
+      summary: Search tickets, clients and users
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Search results grouped by type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResults"
+        "400":
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /groups:
     get:
       operationId: listGroups
@@ -2217,6 +2257,55 @@ paths:
 
 components:
   schemas:
+    SearchResults:
+      type: object
+      properties:
+        tickets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              ticketNumber:
+                type: integer
+                nullable: true
+              title:
+                type: string
+              status:
+                type: string
+              priority:
+                type: string
+            required: [id, title, status, priority]
+        clients:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              email:
+                type: string
+                nullable: true
+            required: [id, name]
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              email:
+                type: string
+              role:
+                type: string
+            required: [id, name, email, role]
+      required: [tickets, clients, users]
+
     HealthStatus:
       type: object
       properties:
