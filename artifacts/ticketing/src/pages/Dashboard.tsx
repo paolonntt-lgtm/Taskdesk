@@ -2089,11 +2089,7 @@ function Dashboard() {
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
 
   const { data: dashStats } = useGetDashboardStats({ query: { staleTime: 30_000, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any });
-  const hasNoTickets = !!dashStats &&
-    dashStats.openTickets === 0 &&
-    dashStats.resolvedTickets === 0 &&
-    dashStats.urgentTickets === 0 &&
-    dashStats.overdueTickets === 0;
+  const hasNoTickets = !!dashStats && dashStats.totalTickets === 0;
 
   const effectiveRegistry = WIDGET_REGISTRY.filter(
     (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin) && (!w.requireClients || clientsEnabled),
