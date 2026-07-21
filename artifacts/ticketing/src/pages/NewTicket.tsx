@@ -285,16 +285,34 @@ export default function NewTicket() {
                       {(t.newTicket as any).checklistSuggestedTitle}
                     </Typography>
                     {suggestedTemplates.map(tpl => (
-                      <Chip
+                      <Tooltip
                         key={tpl.id}
-                        label={`${tpl.title}${tpl.items.length > 0 ? ` · ${tpl.items.length}` : ''}`}
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        clickable
-                        onClick={() => applyTemplateSuggestion(tpl)}
-                        sx={{ height: 22, fontSize: '0.72rem' }}
-                      />
+                        arrow
+                        placement="bottom-start"
+                        title={
+                          tpl.items.length > 0 ? (
+                            <Box component="ul" sx={{ m: 0, pl: 2, py: 0.25 }}>
+                              {[...tpl.items]
+                                .sort((a, b) => a.position - b.position)
+                                .map(item => (
+                                  <Box component="li" key={item.id} sx={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
+                                    {item.text}
+                                  </Box>
+                                ))}
+                            </Box>
+                          ) : undefined
+                        }
+                      >
+                        <Chip
+                          label={`${tpl.title}${tpl.items.length > 0 ? ` · ${tpl.items.length}` : ''}`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          clickable
+                          onClick={() => applyTemplateSuggestion(tpl)}
+                          sx={{ height: 22, fontSize: '0.72rem' }}
+                        />
+                      </Tooltip>
                     ))}
                   </Box>
                 )}
