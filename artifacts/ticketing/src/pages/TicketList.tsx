@@ -302,7 +302,45 @@ export default function TicketList() {
     setSearchInput('');
     navigate('/tickets', { replace: true } as any);
     setShowExtraManual(false);
+    try {
+      sessionStorage.removeItem('ticketlist_session_filters');
+      sessionStorage.removeItem('ticketlist_session_scroll');
+    } catch {}
   }, [navigate]);
+
+  // ── sessionStorage: persist filters + scroll across navigation ────────────
+  const sessionRestored = useRef(false);
+  const scrollRestored  = useRef(false);
+
+  useEffect(() => {
+    if (sessionRestored.current) return;
+    sessionRestored.current = true;
+    if (!searchStr) {
+      try {
+        const saved = sessionStorage.getItem('ticketlist_session_filters');
+        if (saved) {
+          navigate(`/tickets?${saved}`, { replace: true } as any);
+          setSearchInput(new URLSearchParams(saved).get('search') ?? '');
+        }
+      } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestored.current) return;
+    try {
+      if (searchStr) sessionStorage.setItem('ticketlist_session_filters', searchStr);
+    } catch {}
+  }, [searchStr]);
+
+  useEffect(() => {
+    const handler = () => {
+      try { sessionStorage.setItem('ticketlist_session_scroll', String(window.scrollY)); } catch {}
+    };
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
 
   const handleSort = (col: SortCol) => {
     const next = new URLSearchParams(searchStr);
@@ -344,6 +382,16 @@ export default function TicketList() {
     ...(overdueFilter ? { overdue: 'true' } : {}),
     ...(scheduledFilter ? { scheduled: 'true' } : {}),
   } as any, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
+
+  // Restore scroll position after tickets first load
+  useEffect(() => {
+    if (scrollRestored.current || tickets === undefined) return;
+    scrollRestored.current = true;
+    try {
+      const saved = sessionStorage.getItem('ticketlist_session_scroll');
+      if (saved) requestAnimationFrame(() => window.scrollTo(0, parseInt(saved, 10)));
+    } catch {}
+  }, [tickets]);
 
   // Clear selection when tickets change (e.g. after delete or filter)
   useEffect(() => { setSelectedIds(new Set()); }, [tickets]);
@@ -516,6 +564,56 @@ export default function TicketList() {
           {bulkFeedback.msg}
         </Alert>
       )}
+
+      {/* Quick filter chips */}
+      <Box display="flex" flexWrap="wrap" gap={1} mb={1.5} alignItems="center">
+        {user && (
+          <Chip
+            label={t.ticketList.quickFilterAssignedToMe}
+            size="small"
+            variant={userFilter === String(user.id) && userFilterType === 'assignedTo' ? 'filled' : 'outlined'}
+            color={userFilter === String(user.id) && userFilterType === 'assignedTo' ? 'primary' : 'default'}
+            onClick={() =>
+              userFilter === String(user.id) && userFilterType === 'assignedTo'
+                ? clearAllFilters()
+                : applyPreset(`userFilter=${user.id}&userFilterType=assignedTo`)
+            }
+            sx={{ cursor: 'pointer', fontWeight: userFilter === String(user.id) && userFilterType === 'assignedTo' ? 600 : 400 }}
+          />
+        )}
+        <Chip
+          label={t.ticketList.quickFilterOverdue}
+          size="small"
+          variant={overdueFilter ? 'filled' : 'outlined'}
+          color={overdueFilter ? 'error' : 'default'}
+          onClick={() => overdueFilter ? clearAllFilters() : applyPreset('overdue=true')}
+          sx={{ cursor: 'pointer', fontWeight: overdueFilter ? 600 : 400 }}
+        />
+        <Chip
+          label={t.ticketList.quickFilterHighPriority}
+          size="small"
+          variant={priorityValues.includes('high') && priorityValues.includes('urgent') ? 'filled' : 'outlined'}
+          color={priorityValues.includes('high') && priorityValues.includes('urgent') ? 'warning' : 'default'}
+          onClick={() =>
+            priorityValues.includes('high') && priorityValues.includes('urgent')
+              ? clearAllFilters()
+              : applyPreset('priority=high,urgent')
+          }
+          sx={{ cursor: 'pointer', fontWeight: priorityValues.includes('high') && priorityValues.includes('urgent') ? 600 : 400 }}
+        />
+        <Chip
+          label={t.ticketList.quickFilterOpen}
+          size="small"
+          variant={statusValues.includes('open') && statusValues.length === 1 ? 'filled' : 'outlined'}
+          color={statusValues.includes('open') && statusValues.length === 1 ? 'primary' : 'default'}
+          onClick={() =>
+            statusValues.includes('open') && statusValues.length === 1
+              ? clearAllFilters()
+              : applyPreset('status=open')
+          }
+          sx={{ cursor: 'pointer', fontWeight: statusValues.includes('open') && statusValues.length === 1 ? 600 : 400 }}
+        />
+      </Box>
 
       {/* Filter preset chips */}
       {presets.length > 0 && (

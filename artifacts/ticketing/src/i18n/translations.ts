@@ -241,6 +241,10 @@ const it = {
     emptyStateDesc: 'Non ci sono ancora pratiche. Crea la prima per iniziare.',
     noFilterResults: 'Nessuna pratica corrisponde ai filtri selezionati.',
     resetFilters: 'Azzera filtri',
+    quickFilterAssignedToMe: 'Assegnate a me',
+    quickFilterOverdue: 'Scadute',
+    quickFilterHighPriority: 'Alta priorità',
+    quickFilterOpen: 'Aperte',
   },
   ticketDetail: {
     backToList: 'Tutti i ticket',
@@ -335,6 +339,7 @@ const it = {
     recurrenceSetError: 'Errore durante il salvataggio della ricorrenza.',
     recurrenceRemoveError: 'Errore durante la rimozione della ricorrenza.',
     scheduledBadge: 'Programmata',
+    breadcrumbList: 'Lista pratiche',
   },
   checklist: {
     sectionTitle: 'Checklist',
@@ -1710,6 +1715,10 @@ const en: typeof it = {
     emptyStateDesc: 'There are no tickets yet. Create the first one to get started.',
     noFilterResults: 'No tickets match the current filters.',
     resetFilters: 'Reset filters',
+    quickFilterAssignedToMe: 'Assigned to me',
+    quickFilterOverdue: 'Overdue',
+    quickFilterHighPriority: 'High priority',
+    quickFilterOpen: 'Open',
   },
   ticketDetail: {
     backToList: 'All tickets',
@@ -1804,6 +1813,7 @@ const en: typeof it = {
     recurrenceSetError: 'Error saving recurrence.',
     recurrenceRemoveError: 'Error removing recurrence.',
     scheduledBadge: 'Scheduled',
+    breadcrumbList: 'Ticket list',
   },
   checklist: {
     sectionTitle: 'Checklists',

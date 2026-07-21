@@ -4,9 +4,9 @@ import {
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
-  FormControlLabel, Checkbox, Autocomplete,
+  FormControlLabel, Checkbox, Autocomplete, Breadcrumbs, Link as MuiLink,
 } from '@mui/material';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, NavigateNext as NavigateNextIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -598,17 +598,29 @@ export default function TicketDetail() {
        a.actionDescription?.includes('Resolved') || a.actionDescription?.includes('Closed'))
   );
 
+  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : t.ticketDetail.breadcrumbList;
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 2 }}>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => setLocation(backTo)}
-          color="inherit"
-          size="small"
+        <Breadcrumbs
+          separator={<NavigateNextIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
+          aria-label="breadcrumb"
+          sx={{ minWidth: 0, flexShrink: 1, mr: 1 }}
         >
-          {entityTerm.navAll}
-        </Button>
+          <MuiLink
+            underline="hover"
+            color="text.secondary"
+            onClick={() => setLocation(backTo)}
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+          >
+            <ArrowBack sx={{ fontSize: 16 }} />
+            {breadcrumbLabel}
+          </MuiLink>
+          <Typography color="text.primary" variant="body2" noWrap sx={{ maxWidth: { xs: 140, sm: 380 } }}>
+            #{ticketId} {ticket.title}
+          </Typography>
+        </Breadcrumbs>
         <Box display="flex" gap={1} flexWrap="wrap">
           {canEdit && (
             <Button
