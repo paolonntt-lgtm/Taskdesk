@@ -2011,23 +2011,44 @@ function AddWidgetDialog({
         <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
       </DialogTitle>
       <DialogContent>
-        <Box display="flex" flexDirection="column" gap={1.5} pt={0.5}>
-          <Box display="flex" flexWrap="wrap" gap={1}>
-            {allWidgets.map((w) => {
-              const count = visibleIds.filter((id) => getBaseId(id) === w.id).length;
+        <Box display="flex" flexDirection="column" gap={2} pt={0.5}>
+          {(() => {
+            const groups: { label: string; ids: string[] }[] = [
+              { label: t.dashboard.wgStat   ?? 'Statistiche', ids: ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue'] },
+              { label: t.dashboard.wgFeed   ?? 'Liste',       ids: ['feed-my', 'feed-due', 'feed-recent', 'feed-assigned', 'feed-open', 'feed-overdue', 'feed-person', 'feed-group', 'feed-category', 'feed-status', 'feed-all-assigned'] },
+              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'acquisition'] },
+              { label: t.dashboard.wgChart  ?? 'Grafici',     ids: ['chart-trend', 'chart-status', 'chart-category', 'chart-priority', 'chart-location', 'chart-assignee'] },
+            ];
+            return groups.map((group) => {
+              const groupWidgets = group.ids
+                .map((id) => allWidgets.find((w) => w.id === id))
+                .filter((w): w is WidgetMeta => !!w);
+              if (groupWidgets.length === 0) return null;
               return (
-                <Chip
-                  key={w.id}
-                  label={count > 0 ? `${resolveLabel(w.labelKey)} (${count})` : resolveLabel(w.labelKey)}
-                  onClick={() => onAdd(w.id)}
-                  icon={<AddIcon />}
-                  variant={count > 0 ? 'filled' : 'outlined'}
-                  clickable
-                  color="primary"
-                />
+                <Box key={group.label}>
+                  <Typography variant="overline" color="text.secondary" fontWeight={700} fontSize="0.68rem" lineHeight={1.8} display="block" mb={0.5}>
+                    {group.label}
+                  </Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1}>
+                    {groupWidgets.map((w) => {
+                      const count = visibleIds.filter((id) => getBaseId(id) === w.id).length;
+                      return (
+                        <Chip
+                          key={w.id}
+                          label={count > 0 ? `${resolveLabel(w.labelKey)} (${count})` : resolveLabel(w.labelKey)}
+                          onClick={() => onAdd(w.id)}
+                          icon={<AddIcon />}
+                          variant={count > 0 ? 'filled' : 'outlined'}
+                          clickable
+                          color="primary"
+                        />
+                      );
+                    })}
+                  </Box>
+                </Box>
               );
-            })}
-          </Box>
+            });
+          })()}
           <Typography variant="caption" color="text.secondary">
             {t.dashboard.wsConfigureNote}
           </Typography>
