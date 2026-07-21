@@ -2088,18 +2088,12 @@ function Dashboard() {
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
 
-  const { data: hasAnyTicket } = useQuery<boolean>({
-    queryKey: ['dashboard-any-ticket'],
-    queryFn: async () => {
-      const r = await fetch('/api/tickets?limit=1', { credentials: 'include' });
-      const data = await r.json();
-      if (Array.isArray(data)) return data.length > 0;
-      if (data?.items) return (data.items as unknown[]).length > 0 || (data.total ?? 0) > 0;
-      return true;
-    },
-    staleTime: 30_000,
-  });
-  const hasNoTickets = hasAnyTicket === false;
+  const { data: dashStats } = useGetDashboardStats({ query: { staleTime: 30_000, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any });
+  const hasNoTickets = !!dashStats &&
+    dashStats.openTickets === 0 &&
+    dashStats.resolvedTickets === 0 &&
+    dashStats.urgentTickets === 0 &&
+    dashStats.overdueTickets === 0;
 
   const effectiveRegistry = WIDGET_REGISTRY.filter(
     (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin) && (!w.requireClients || clientsEnabled),
@@ -2237,24 +2231,35 @@ function Dashboard() {
     <Box sx={{ overflow: 'hidden' }}>
       <TrialBanner />
       {hasNoTickets && isAdmin && (
-        <Alert
-          severity="info"
-          sx={{ mb: 2, borderRadius: 2 }}
-          action={
-            <Button
-              component={Link}
-              to="/tickets/new"
-              size="small"
-              color="inherit"
-              variant="outlined"
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              {t.dashboard.emptyStateCta}
-            </Button>
-          }
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: 5,
+            px: 2,
+            mb: 2,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            border: '1px dashed',
+            borderColor: 'divider',
+          }}
         >
-          <strong>{t.dashboard.emptyStateTitle}</strong> — {t.dashboard.emptyStateDesc}
-        </Alert>
+          <OpenIcon sx={{ fontSize: 52, color: 'text.disabled', mb: 1.5 }} />
+          <Typography variant="h6" fontWeight={700} gutterBottom>
+            {t.dashboard.emptyStateTitle}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2.5}>
+            {t.dashboard.emptyStateDesc}
+          </Typography>
+          <Button
+            component={Link}
+            to="/tickets/new"
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+          >
+            {t.dashboard.emptyStateCta}
+          </Button>
+        </Box>
       )}
       {/* Header */}
       <Box display="flex" alignItems="center" justifyContent="space-between"

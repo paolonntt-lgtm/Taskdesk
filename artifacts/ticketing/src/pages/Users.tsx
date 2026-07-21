@@ -495,7 +495,7 @@ export default function Users() {
       {/* Mobile: card layout */}
       {isMobile ? (
         <Stack spacing={1.5}>
-          {users.length === 0 ? (
+          {users.filter((u) => u.id !== currentUser?.id).length === 0 ? (
             <Box display="flex" flexDirection="column" alignItems="center" gap={1.5} py={5}>
               <Typography variant="body1" fontWeight={600} color="text.secondary">{ut.noUsers}</Typography>
               <Typography variant="body2" color="text.secondary">{ut.noUsersDesc}</Typography>
@@ -645,7 +645,7 @@ export default function Users() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.length === 0 ? (
+              {users.filter((u) => u.id !== currentUser?.id).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>

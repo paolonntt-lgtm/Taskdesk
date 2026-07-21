@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export type DeadlineStatus = 'expired' | 'soon' | 'ok' | 'none';
+export type DeadlineStatus = 'expired' | 'today' | 'week' | 'ok' | 'none';
 
 export interface CountdownResult {
   status: DeadlineStatus;
@@ -43,7 +43,21 @@ function compute(dueAt: string | null | undefined, lang: string): CountdownResul
     formattedTime = `${seconds}s`;
   }
 
-  const status: DeadlineStatus = diff < 24 * 60 * 60 * 1000 ? 'soon' : 'ok';
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(nowDay);
+  tomorrow.setDate(nowDay.getDate() + 1);
+  const nextWeek = new Date(nowDay);
+  nextWeek.setDate(nowDay.getDate() + 7);
+
+  let status: DeadlineStatus;
+  if (date < tomorrow) {
+    status = 'today';
+  } else if (date < nextWeek) {
+    status = 'week';
+  } else {
+    status = 'ok';
+  }
+
   return { status, formattedTime, tooltipDate };
 }
 

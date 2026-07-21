@@ -1,11 +1,25 @@
 import React from 'react';
-import { Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { useCountdown } from '../hooks/useCountdown';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface DeadlineCellProps {
   dueAt: string | null | undefined;
 }
+
+const STATUS_COLOR: Record<string, string> = {
+  expired: 'error.main',
+  today: 'warning.dark',
+  week: '#f9a825',
+  ok: 'text.secondary',
+};
+
+const DOT_COLOR: Record<string, string> = {
+  expired: '#d32f2f',
+  today: '#e65100',
+  week: '#f9a825',
+  ok: 'transparent',
+};
 
 export default function DeadlineCell({ dueAt }: DeadlineCellProps) {
   const { t, lang } = useLanguage();
@@ -19,29 +33,38 @@ export default function DeadlineCell({ dueAt }: DeadlineCellProps) {
     );
   }
 
-  const color =
-    status === 'expired'
-      ? 'error.main'
-      : status === 'soon'
-      ? 'warning.main'
-      : 'text.primary';
-
+  const color = STATUS_COLOR[status] ?? 'text.secondary';
+  const dotColor = DOT_COLOR[status] ?? 'transparent';
   const label = status === 'expired' ? t.ticketList.deadlineExpired : formattedTime;
+  const fontWeight = status === 'ok' ? 400 : 600;
 
   return (
     <Tooltip title={tooltipDate} arrow placement="top">
-      <Typography
-        variant="body2"
-        sx={{
-          color,
-          fontWeight: status === 'expired' || status === 'soon' ? 600 : 400,
-          cursor: 'default',
-          whiteSpace: 'nowrap',
-          display: 'inline-block',
-        }}
-      >
-        {label}
-      </Typography>
+      <Box display="inline-flex" alignItems="center" gap={0.5} sx={{ cursor: 'default', whiteSpace: 'nowrap' }}>
+        {status !== 'ok' && (
+          <Box
+            component="span"
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              bgcolor: dotColor,
+              flexShrink: 0,
+              display: 'inline-block',
+            }}
+          />
+        )}
+        <Typography
+          variant="body2"
+          sx={{
+            color,
+            fontWeight,
+            display: 'inline',
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
     </Tooltip>
   );
 }
