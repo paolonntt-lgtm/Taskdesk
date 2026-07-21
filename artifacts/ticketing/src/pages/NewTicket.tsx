@@ -3,6 +3,7 @@ import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
+  Alert,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
@@ -12,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
+import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
 
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -30,6 +32,8 @@ export default function NewTicket() {
   const { user: currentUser } = useAuth();
 
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
+  const [checklistError, setChecklistError] = useState(false);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -130,6 +134,7 @@ export default function NewTicket() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setChecklistError(false);
     try {
       const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
       const finalTitle = selectedClient
@@ -151,6 +156,44 @@ export default function NewTicket() {
       });
       for (const att of pendingAttachments) {
         await saveAttachment.mutateAsync({ id: result.id, data: { ...att, commentId: null } });
+      }
+      const checklistReady = (() => {
+        if (!checklistDraft) return false;
+        if (checklistDraft.mode === 'template') return checklistDraft.templateId !== null;
+        return checklistDraft.title.trim().length > 0 || checklistDraft.items.length > 0;
+      })();
+
+      if (checklistReady && checklistDraft) {
+        try {
+          if (checklistDraft.mode === 'template' && checklistDraft.templateId) {
+            const tplRes = await fetch(
+              `/api/tickets/${result.id}/checklists/from-template/${checklistDraft.templateId}`,
+              { method: 'POST', credentials: 'include' }
+            );
+            if (!tplRes.ok) throw new Error('Template checklist creation failed');
+          } else {
+            const clTitle = checklistDraft.title.trim() || t.checklist.sectionTitle;
+            const clRes = await fetch(`/api/tickets/${result.id}/checklists`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: clTitle }),
+            });
+            if (!clRes.ok) throw new Error('Checklist creation failed');
+            const cl = await clRes.json();
+            for (const itemText of checklistDraft.items) {
+              const itemRes = await fetch(`/api/tickets/${result.id}/checklists/${cl.id}/items`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: itemText }),
+              });
+              if (!itemRes.ok) throw new Error('Checklist item creation failed');
+            }
+          }
+        } catch {
+          setChecklistError(true);
+        }
       }
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setLocation(`/tickets/${result.id}`);
@@ -346,6 +389,21 @@ export default function NewTicket() {
                       </TextField>
                     )}
                   </Box>
+                </Grid>
+              )}
+
+              <Grid item xs={12}>
+                <NewTicketChecklistSection
+                  value={checklistDraft}
+                  onChange={setChecklistDraft}
+                />
+              </Grid>
+
+              {checklistError && (
+                <Grid item xs={12}>
+                  <Alert severity="warning" onClose={() => setChecklistError(false)}>
+                    {t.newTicket.checklistError}
+                  </Alert>
                 </Grid>
               )}
 

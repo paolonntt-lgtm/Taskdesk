@@ -107,7 +107,7 @@ router.get("/tickets/:ticketId/checklists", requireAuth, async (req, res): Promi
   res.json(result);
 });
 
-router.post("/tickets/:ticketId/checklists", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.post("/tickets/:ticketId/checklists", requireAuth, async (req, res): Promise<void> => {
   const ticketId = parseParam(req.params.ticketId);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
