@@ -884,8 +884,8 @@ export default function Settings() {
           name: orgName,
           businessType: orgBusinessType || undefined,
           clientsEnabled: orgClientsEnabled,
-          entitySingular: orgBusinessType === 'custom' ? orgEntitySingular : undefined,
-          entityPlural: orgBusinessType === 'custom' ? orgEntityPlural : undefined,
+          entitySingular: orgEntitySingular || undefined,
+          entityPlural: orgEntityPlural || undefined,
         }),
       });
       const data = await res.json();
@@ -1307,44 +1307,63 @@ export default function Settings() {
                       <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                     ))}
                   </TextField>
-                  {orgBusinessType === 'custom' ? (
-                    <Box display="flex" flexDirection="column" gap={1} mt={1.5}>
-                      <Typography variant="caption" color="text.secondary">{(t.settings as any).orgEntityCustomHint}</Typography>
-                      <TextField
-                        size="small" fullWidth
-                        label={(t.settings as any).orgEntitySingularLabel}
-                        placeholder={(t.settings as any).orgEntitySingularPlaceholder}
-                        value={orgEntitySingular}
-                        onChange={(e) => setOrgEntitySingular(e.target.value)}
-                        disabled={orgSaving}
-                        inputProps={{ maxLength: 40 }}
-                      />
-                      <TextField
-                        size="small" fullWidth
-                        label={(t.settings as any).orgEntityPluralLabel}
-                        placeholder={(t.settings as any).orgEntityPluralPlaceholder}
-                        value={orgEntityPlural}
-                        onChange={(e) => setOrgEntityPlural(e.target.value)}
-                        disabled={orgSaving}
-                        inputProps={{ maxLength: 40 }}
-                      />
-                      {(orgEntitySingular.trim() || orgEntityPlural.trim()) && (
-                        <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
-                          <Typography variant="caption" color="text.secondary">{t.settings.orgBusinessTypePreviewLabel}</Typography>
-                          {orgEntitySingular.trim() && <Chip label={orgEntitySingular.trim()} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />}
-                          {orgEntityPlural.trim() && <Chip label={orgEntityPlural.trim()} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />}
-                        </Box>
-                      )}
-                    </Box>
-                  ) : orgBusinessType && (() => {
+                  {orgBusinessType && orgBusinessType !== '' && (() => {
+                    const st = t.settings as any;
+                    const suggestions: string[] = st.orgEntitySuggestionsMap?.[orgBusinessType] ?? [];
+                    const suggestionsPlural: string[] = st.orgEntitySuggestionsPlural?.[orgBusinessType] ?? [];
                     const et = (t.entityTerms as Record<string, any>)[orgBusinessType];
-                    return et ? (
-                      <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
-                        <Typography variant="caption" color="text.secondary">{t.settings.orgBusinessTypePreviewLabel}</Typography>
-                        <Chip label={et.singular} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
-                        <Chip label={et.plural} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />
+                    const previewSingular = orgEntitySingular.trim() || et?.singular || '';
+                    const previewPlural = orgEntityPlural.trim() || et?.plural || '';
+                    return (
+                      <Box display="flex" flexDirection="column" gap={1} mt={1.5}>
+                        <Typography variant="caption" color="text.secondary">{st.orgEntityCustomHint}</Typography>
+                        {suggestions.length > 0 && (
+                          <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                            <Typography variant="caption" color="text.secondary" fontWeight={600}>{st.orgEntitySuggestions}</Typography>
+                            {suggestions.map((s: string, i: number) => (
+                              <Chip
+                                key={s}
+                                label={s}
+                                size="small"
+                                variant={orgEntitySingular.trim() === s ? 'filled' : 'outlined'}
+                                color={orgEntitySingular.trim() === s ? 'primary' : 'default'}
+                                clickable
+                                onClick={() => {
+                                  setOrgEntitySingular(s);
+                                  if (suggestionsPlural[i]) setOrgEntityPlural(suggestionsPlural[i]);
+                                }}
+                                sx={{ height: 22, fontSize: '0.75rem', cursor: 'pointer' }}
+                              />
+                            ))}
+                          </Box>
+                        )}
+                        <TextField
+                          size="small" fullWidth
+                          label={st.orgEntitySingularLabel}
+                          placeholder={st.orgEntitySingularPlaceholder}
+                          value={orgEntitySingular}
+                          onChange={(e) => setOrgEntitySingular(e.target.value)}
+                          disabled={orgSaving}
+                          inputProps={{ maxLength: 40 }}
+                        />
+                        <TextField
+                          size="small" fullWidth
+                          label={st.orgEntityPluralLabel}
+                          placeholder={st.orgEntityPluralPlaceholder}
+                          value={orgEntityPlural}
+                          onChange={(e) => setOrgEntityPlural(e.target.value)}
+                          disabled={orgSaving}
+                          inputProps={{ maxLength: 40 }}
+                        />
+                        {(previewSingular || previewPlural) && (
+                          <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                            <Typography variant="caption" color="text.secondary">{t.settings.orgBusinessTypePreviewLabel}</Typography>
+                            {previewSingular && <Chip label={previewSingular} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />}
+                            {previewPlural && previewPlural !== previewSingular && <Chip label={previewPlural} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', color: 'text.secondary' }} />}
+                          </Box>
+                        )}
                       </Box>
-                    ) : null;
+                    );
                   })()}
                 </Box>
                 <Box display="flex" flexDirection="column" gap={1} mt={1}>

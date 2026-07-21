@@ -265,7 +265,7 @@ router.put("/settings/billing", requireAuth, requireAdmin, async (req, res): Pro
   });
 });
 
-const VALID_BUSINESS_TYPES = ["it_support", "professional_studio", "agency", "other", "custom"];
+const VALID_BUSINESS_TYPES = ["it_support", "professional_studio", "agency", "other"];
 
 router.get("/settings/organization", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;

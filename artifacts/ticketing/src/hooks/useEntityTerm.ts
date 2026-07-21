@@ -15,10 +15,12 @@ export function useEntityTerm(): EntityTerm {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const businessType = (user as any)?.businessType ?? 'it_support';
+  const overrideSingular = (user as any)?.entitySingular?.trim();
+  const overridePlural = (user as any)?.entityPlural?.trim();
 
-  if (businessType === 'custom') {
-    const singular = (user as any)?.entitySingular?.trim() || 'Ticket';
-    const plural = (user as any)?.entityPlural?.trim() || 'Ticket';
+  if (overrideSingular) {
+    const singular = overrideSingular;
+    const plural = overridePlural || overrideSingular;
     const singularLower = singular.toLowerCase();
     const pluralLower = plural.toLowerCase();
     const startsWithVowel = /^[aeiouàèéìòùAEIOUÀÈÉÌÒÙ]/.test(singular);
