@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
+  Avatar, Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
   Tooltip, TableSortLabel, Collapse, IconButton, Checkbox, Toolbar, Dialog,
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
@@ -17,6 +17,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import DeadlineCell from '../components/DeadlineCell';
+function hashAvatarColor(name: string): string {
+  const colors = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#c62828', '#00838f', '#6a1b9a', '#0277bd'];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+  return colors[Math.abs(h) % colors.length];
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
+
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -283,6 +297,12 @@ export default function TicketList() {
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
     setShowExtraManual(false);
   };
+
+  const clearAllFilters = useCallback(() => {
+    setSearchInput('');
+    navigate('/tickets', { replace: true } as any);
+    setShowExtraManual(false);
+  }, [navigate]);
 
   const handleSort = (col: SortCol) => {
     const next = new URLSearchParams(searchStr);
@@ -906,10 +926,44 @@ export default function TicketList() {
                 </TableRow>
               ) : sortedTickets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    {lang === 'it'
-                      ? `Nessun${entityTerm.articleIndef === 'una' ? 'a' : ''} ${entityTerm.singularLower} trovato${entityTerm.articleIndef === 'una' ? 'a' : ''} con i filtri selezionati.`
-                      : `No ${entityTerm.pluralLower} found matching your criteria.`}
+                  <TableCell colSpan={colSpanTotal} align="center" sx={{ py: 5 }}>
+                    {hasActiveFilters ? (
+                      <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                        <Typography variant="body2" color="text.secondary">
+                          {t.ticketList.noFilterResults}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="inherit"
+                          startIcon={<FilterListOff />}
+                          onClick={clearAllFilters}
+                        >
+                          {t.ticketList.resetFilters}
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                          {t.ticketList.emptyStateTitle}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {t.ticketList.emptyStateDesc}
+                        </Typography>
+                        {isAdmin && (
+                          <Button
+                            component={Link}
+                            to="/tickets/new"
+                            variant="contained"
+                            color="primary"
+                            startIcon={<AddIcon />}
+                            size="small"
+                          >
+                            {t.nav.newTicket}
+                          </Button>
+                        )}
+                      </Box>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -994,8 +1048,30 @@ export default function TicketList() {
                       </TableCell>
                       )}
                       {(visibleCols.assignee ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', lg: 'table-cell' }, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ticket.assignee?.name || '—'}
+                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                        {ticket.assignee ? (
+                          <Tooltip title={ticket.assignee.name} arrow placement="top">
+                            <Box display="flex" alignItems="center" gap={0.75} sx={{ overflow: 'hidden' }}>
+                              <Avatar
+                                sx={{
+                                  width: 24,
+                                  height: 24,
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  bgcolor: hashAvatarColor(ticket.assignee.name),
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {getInitials(ticket.assignee.name)}
+                              </Avatar>
+                              <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
+                                {ticket.assignee.name}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        ) : (
+                          <Typography variant="body2" color="text.disabled">—</Typography>
+                        )}
                       </TableCell>
                       )}
                       {showLocation && (visibleCols.location ?? true) && (

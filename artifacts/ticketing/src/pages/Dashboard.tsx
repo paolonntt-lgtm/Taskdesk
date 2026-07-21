@@ -2087,6 +2087,20 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
+
+  const { data: hasAnyTicket } = useQuery<boolean>({
+    queryKey: ['dashboard-any-ticket'],
+    queryFn: async () => {
+      const r = await fetch('/api/tickets?limit=1', { credentials: 'include' });
+      const data = await r.json();
+      if (Array.isArray(data)) return data.length > 0;
+      if (data?.items) return (data.items as unknown[]).length > 0 || (data.total ?? 0) > 0;
+      return true;
+    },
+    staleTime: 30_000,
+  });
+  const hasNoTickets = hasAnyTicket === false;
+
   const effectiveRegistry = WIDGET_REGISTRY.filter(
     (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin) && (!w.requireClients || clientsEnabled),
   );
@@ -2222,6 +2236,26 @@ function Dashboard() {
   return (
     <Box sx={{ overflow: 'hidden' }}>
       <TrialBanner />
+      {hasNoTickets && isAdmin && (
+        <Alert
+          severity="info"
+          sx={{ mb: 2, borderRadius: 2 }}
+          action={
+            <Button
+              component={Link}
+              to="/tickets/new"
+              size="small"
+              color="inherit"
+              variant="outlined"
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {t.dashboard.emptyStateCta}
+            </Button>
+          }
+        >
+          <strong>{t.dashboard.emptyStateTitle}</strong> — {t.dashboard.emptyStateDesc}
+        </Alert>
+      )}
       {/* Header */}
       <Box display="flex" alignItems="center" justifyContent="space-between"
         mb={{ xs: 1.5, sm: 3 }} flexWrap="wrap" gap={1}>

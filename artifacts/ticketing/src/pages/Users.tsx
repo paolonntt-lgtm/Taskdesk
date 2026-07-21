@@ -496,9 +496,22 @@ export default function Users() {
       {isMobile ? (
         <Stack spacing={1.5}>
           {users.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
-              {ut.noUsers}
-            </Typography>
+            <Box display="flex" flexDirection="column" alignItems="center" gap={1.5} py={5}>
+              <Typography variant="body1" fontWeight={600} color="text.secondary">{ut.noUsers}</Typography>
+              <Typography variant="body2" color="text.secondary">{ut.noUsersDesc}</Typography>
+              {currentUser?.role === 'admin' && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  startIcon={<PersonAdd fontSize="small" />}
+                  onClick={generateInviteLink}
+                  disabled={inviteLoading}
+                >
+                  {inviteLoading ? ut.inviteGenerating : ut.inviteUser}
+                </Button>
+              )}
+            </Box>
           ) : (
             users.map((u) => {
               const isActive = u.isActive !== false;
@@ -634,8 +647,23 @@ export default function Users() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    {ut.noUsers}
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                    <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                      <Typography variant="body1" fontWeight={600} color="text.secondary">{ut.noUsers}</Typography>
+                      <Typography variant="body2" color="text.secondary">{ut.noUsersDesc}</Typography>
+                      {currentUser?.role === 'admin' && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          startIcon={<PersonAdd fontSize="small" />}
+                          onClick={generateInviteLink}
+                          disabled={inviteLoading}
+                        >
+                          {inviteLoading ? ut.inviteGenerating : ut.inviteUser}
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : (
