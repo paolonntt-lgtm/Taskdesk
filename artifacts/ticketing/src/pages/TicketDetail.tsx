@@ -601,7 +601,7 @@ export default function TicketDetail() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 2 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => { if (window.history.length > 1) { window.history.back(); } else { setLocation('/tickets'); } }}
+          onClick={() => setLocation('/tickets')}
           color="inherit"
           size="small"
         >
