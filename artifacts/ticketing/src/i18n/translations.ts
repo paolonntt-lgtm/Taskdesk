@@ -458,6 +458,8 @@ const it = {
     checklistNoTemplates: 'Nessun template disponibile.',
     checklistLoadingTemplates: 'Caricamento template...',
     checklistError: 'Errore durante la creazione della checklist. La pratica è stata creata.',
+    checklistSuggestedTitle: 'Checklist suggerite in base al titolo:',
+    checklistSuggestedApplied: 'Applicata',
   },
   bot: {
     subtitle: 'Ticket assistant',
@@ -1911,6 +1913,8 @@ const en: typeof it = {
     checklistNoTemplates: 'No templates available.',
     checklistLoadingTemplates: 'Loading templates...',
     checklistError: 'Failed to create the checklist. The ticket was created successfully.',
+    checklistSuggestedTitle: 'Suggested checklists based on title:',
+    checklistSuggestedApplied: 'Applied',
   },
   bot: {
     subtitle: 'Ticket assistant',

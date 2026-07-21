@@ -26,13 +26,19 @@ interface ChecklistTemplate {
 interface Props {
   value: ChecklistDraft | null;
   onChange: (draft: ChecklistDraft | null) => void;
+  forceExpand?: boolean;
 }
 
-export default function NewTicketChecklistSection({ value, onChange }: Props) {
+export default function NewTicketChecklistSection({ value, onChange, forceExpand }: Props) {
   const { t } = useLanguage();
   const ct = t.newTicket;
 
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (forceExpand) setExpanded(true);
+  }, [forceExpand]);
+
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);

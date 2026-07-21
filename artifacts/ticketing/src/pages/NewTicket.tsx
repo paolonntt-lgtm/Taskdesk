@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
-  Alert,
+  Alert, Chip,
 } from '@mui/material';
-import { Person, Group, AddCircle as AddCircleIcon } from '@mui/icons-material';
+import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -18,6 +18,24 @@ import NewTicketChecklistSection, { type ChecklistDraft } from '../components/Ne
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+interface ChecklistTemplate {
+  id: number;
+  title: string;
+  category: string | null;
+  items: { id: number; text: string; position: number }[];
+}
+
+const STOP_WORDS = new Set([
+  'il','lo','la','i','gli','le','un','una','di','da','in','con','su','per','tra','fra','a','e','è',
+  'del','della','delle','degli','dei','allo','alla','al','ai','agli','alle','un','uno','una',
+  'the','an','is','are','of','for','to','on','at','by','with','and','or',
+]);
+
+function scoreTemplate(tpl: ChecklistTemplate, words: string[]): number {
+  const haystack = `${tpl.title} ${tpl.category ?? ''}`.toLowerCase();
+  return words.reduce((acc, w) => acc + (haystack.includes(w) ? 1 : 0), 0);
 }
 
 export default function NewTicket() {
@@ -34,6 +52,10 @@ export default function NewTicket() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
   const [checklistError, setChecklistError] = useState(false);
+  const [checklistForceExpand, setChecklistForceExpand] = useState(false);
+
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [debouncedTitle, setDebouncedTitle] = useState('');
 
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -128,7 +150,42 @@ export default function NewTicket() {
       .then((r) => r.json())
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
+    fetch('/api/checklist-templates', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: ChecklistTemplate[]) => setTemplates(data))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedTitle(formData.title), 450);
+    return () => clearTimeout(timeout);
+  }, [formData.title]);
+
+  const suggestedTemplates = useMemo(() => {
+    const raw = debouncedTitle.trim().toLowerCase();
+    if (raw.length < 3 || checklistDraft !== null) return [];
+    const words = raw.split(/[\s\-_/\\]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
+    if (words.length === 0) return [];
+    return templates
+      .map(tpl => ({ tpl, score: scoreTemplate(tpl, words) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(x => x.tpl);
+  }, [debouncedTitle, templates, checklistDraft]);
+
+  function applyTemplateSuggestion(tpl: ChecklistTemplate) {
+    const sortedItems = [...tpl.items].sort((a, b) => a.position - b.position);
+    setChecklistDraft({
+      mode: 'template',
+      templateId: tpl.id,
+      templateTitle: tpl.title,
+      title: tpl.title,
+      items: sortedItems.map(i => i.text),
+    });
+    setChecklistForceExpand(true);
+    setTimeout(() => setChecklistForceExpand(false), 100);
+  }
 
   const singleLocation = locations.length === 1;
 
@@ -221,6 +278,26 @@ export default function NewTicket() {
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
                   placeholder={t.newTicket.titlePlaceholder}
                 />
+                {suggestedTemplates.length > 0 && (
+                  <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={0.75}>
+                    <PlaylistAddCheck sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                      {(t.newTicket as any).checklistSuggestedTitle}
+                    </Typography>
+                    {suggestedTemplates.map(tpl => (
+                      <Chip
+                        key={tpl.id}
+                        label={`${tpl.title}${tpl.items.length > 0 ? ` · ${tpl.items.length}` : ''}`}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        clickable
+                        onClick={() => applyTemplateSuggestion(tpl)}
+                        sx={{ height: 22, fontSize: '0.72rem' }}
+                      />
+                    ))}
+                  </Box>
+                )}
               </Grid>
 
               <Grid item xs={12}>
@@ -396,6 +473,7 @@ export default function NewTicket() {
                 <NewTicketChecklistSection
                   value={checklistDraft}
                   onChange={setChecklistDraft}
+                  forceExpand={checklistForceExpand}
                 />
               </Grid>
 
