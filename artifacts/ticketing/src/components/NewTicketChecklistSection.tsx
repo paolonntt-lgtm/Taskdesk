@@ -158,7 +158,7 @@ export default function NewTicketChecklistSection({ value, onChange, forceExpand
                 size="small"
                 variant="outlined"
                 onClick={() => handleSelectMode('manual')}
-                sx={{ flex: 1, fontSize: '0.72rem', py: 0.25, minHeight: 0 }}
+                sx={{ flex: 1, fontSize: '0.72rem', py: 0.5, minHeight: 0 }}
               >
                 {ct.checklistModeManual}
               </Button>
@@ -166,7 +166,7 @@ export default function NewTicketChecklistSection({ value, onChange, forceExpand
                 size="small"
                 variant="outlined"
                 onClick={() => handleSelectMode('template')}
-                sx={{ flex: 1, fontSize: '0.72rem', py: 0.25, minHeight: 0 }}
+                sx={{ flex: 1, fontSize: '0.72rem', py: 0.5, minHeight: 0 }}
               >
                 {ct.checklistModeTemplate}
               </Button>
@@ -180,7 +180,7 @@ export default function NewTicketChecklistSection({ value, onChange, forceExpand
                 size="small"
                 variant={!isTemplate ? 'contained' : 'outlined'}
                 onClick={() => handleSelectMode('manual')}
-                sx={{ flex: 1, fontSize: '0.72rem', py: 0.25, minHeight: 0 }}
+                sx={{ flex: 1, fontSize: '0.72rem', py: 0.5, minHeight: 0 }}
               >
                 {ct.checklistModeManual}
               </Button>
@@ -188,7 +188,7 @@ export default function NewTicketChecklistSection({ value, onChange, forceExpand
                 size="small"
                 variant={isTemplate ? 'contained' : 'outlined'}
                 onClick={() => handleSelectMode('template')}
-                sx={{ flex: 1, fontSize: '0.72rem', py: 0.25, minHeight: 0 }}
+                sx={{ flex: 1, fontSize: '0.72rem', py: 0.5, minHeight: 0 }}
               >
                 {ct.checklistModeTemplate}
               </Button>
