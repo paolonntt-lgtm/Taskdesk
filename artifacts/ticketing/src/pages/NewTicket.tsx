@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
   Alert, Chip,
 } from '@mui/material';
-import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck } from '@mui/icons-material';
+import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -56,6 +56,10 @@ export default function NewTicket() {
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [debouncedTitle, setDebouncedTitle] = useState('');
+
+  const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
+  const [suggestingTitle, setSuggestingTitle] = useState(false);
+  const [debouncedDescription, setDebouncedDescription] = useState('');
 
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -160,6 +164,30 @@ export default function NewTicket() {
     const timeout = setTimeout(() => setDebouncedTitle(formData.title), 450);
     return () => clearTimeout(timeout);
   }, [formData.title]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedDescription(formData.description), 1200);
+    return () => clearTimeout(timeout);
+  }, [formData.description]);
+
+  useEffect(() => {
+    if (formData.title.trim()) return;
+    const plain = debouncedDescription.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (plain.length < 25) { setSuggestedTitle(null); return; }
+    let cancelled = false;
+    setSuggestingTitle(true);
+    fetch('/api/ai/suggest-title', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: debouncedDescription, category: formData.category }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data?.title) setSuggestedTitle(data.title); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setSuggestingTitle(false); });
+    return () => { cancelled = true; setSuggestingTitle(false); };
+  }, [debouncedDescription]);
 
   const suggestedTemplates = useMemo(() => {
     const raw = debouncedTitle.trim().toLowerCase();
@@ -275,9 +303,43 @@ export default function NewTicket() {
                   label={t.newTicket.titleField}
                   required
                   value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  onChange={e => {
+                    setFormData({ ...formData, title: e.target.value });
+                    if (e.target.value) setSuggestedTitle(null);
+                  }}
                   placeholder={t.newTicket.titlePlaceholder}
                 />
+                {!formData.title.trim() && (suggestingTitle || suggestedTitle) && (
+                  <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
+                    <AutoAwesome sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }} />
+                    {suggestingTitle ? (
+                      <>
+                        <CircularProgress size={11} thickness={5} sx={{ flexShrink: 0 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {(t.newTicket as any).titleSuggestLoading}
+                        </Typography>
+                      </>
+                    ) : suggestedTitle ? (
+                      <>
+                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                          {(t.newTicket as any).titleSuggestLabel}
+                        </Typography>
+                        <Chip
+                          label={suggestedTitle}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          clickable
+                          onClick={() => {
+                            setFormData(f => ({ ...f, title: suggestedTitle }));
+                            setSuggestedTitle(null);
+                          }}
+                          sx={{ height: 22, fontSize: '0.72rem', maxWidth: 400 }}
+                        />
+                      </>
+                    ) : null}
+                  </Box>
+                )}
                 {suggestedTemplates.length > 0 && (
                   <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={0.75}>
                     <PlaylistAddCheck sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
