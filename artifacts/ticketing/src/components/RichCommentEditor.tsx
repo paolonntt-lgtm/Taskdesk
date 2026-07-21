@@ -258,14 +258,14 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
       return;
     }
 
-    // Check for #ticket
-    const ticketMatch = textBefore.match(/#(\d*)$/);
+    // Check for #ticket (digits or letters for title search)
+    const ticketMatch = textBefore.match(/#([\w]*)$/);
     if (ticketMatch) {
       const query = ticketMatch[1];
       const startIndex = cursor - ticketMatch[0].length;
-      // Fetch ticket suggestions — search by ID when numeric, by title otherwise
+      // Fetch ticket suggestions — search by number or title
       const searchParam = query ? `search=${encodeURIComponent(query)}&` : '';
-      fetch(`/api/tickets?${searchParam}limit=6`, { credentials: 'include' })
+      fetch(`/api/tickets?${searchParam}limit=20`, { credentials: 'include' })
         .then((r) => r.json())
         .then((data: any) => {
           const all: AutocompleteTicket[] = (data.tickets ?? data ?? [])
@@ -278,7 +278,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
                 return aMatch + bMatch;
               })
             : all;
-          setAutocomplete({ type: 'ticket', query, startIndex, results: sorted.slice(0, 6), selectedIdx: 0 });
+          setAutocomplete({ type: 'ticket', query, startIndex, results: sorted.slice(0, 15), selectedIdx: 0 });
         })
         .catch(() => closeAutocomplete());
       return;
