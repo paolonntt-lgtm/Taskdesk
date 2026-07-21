@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, TextField, MenuItem, IconButton,
-  Collapse, CircularProgress, Chip, Divider,
+  Collapse, CircularProgress, Chip, Divider, Tooltip,
 } from '@mui/material';
 import {
-  ExpandMore, ExpandLess, Add, Delete, PlaylistAdd, Close,
+  ExpandMore, ExpandLess, Add, Delete, PlaylistAdd, Close, BookmarkAdd, CheckCircle,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface ChecklistDraft {
   mode: 'template' | 'manual';
@@ -31,13 +32,49 @@ interface Props {
 
 export default function NewTicketChecklistSection({ value, onChange, forceExpand }: Props) {
   const { t } = useLanguage();
-  const ct = t.newTicket;
+  const ct = t.newTicket as any;
+  const { user } = useAuth();
 
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (forceExpand) setExpanded(true);
   }, [forceExpand]);
+
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
+  const [saveTemplateStatus, setSaveTemplateStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+
+  async function handleSaveAsTemplate() {
+    if (!value || value.mode !== 'manual') return;
+    const title = value.title.trim() || ct.checklistSection;
+    setSavingAsTemplate(true);
+    setSaveTemplateStatus('idle');
+    try {
+      const res = await fetch('/api/checklist-templates', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) throw new Error('create failed');
+      const tpl = await res.json();
+      for (const text of value.items) {
+        await fetch(`/api/checklist-templates/${tpl.id}/items`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+      }
+      setSaveTemplateStatus('ok');
+      setTimeout(() => setSaveTemplateStatus('idle'), 3000);
+    } catch {
+      setSaveTemplateStatus('error');
+      setTimeout(() => setSaveTemplateStatus('idle'), 3000);
+    } finally {
+      setSavingAsTemplate(false);
+    }
+  }
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -232,16 +269,47 @@ export default function NewTicketChecklistSection({ value, onChange, forceExpand
             </Box>
           )}
 
-          {/* Manual: title field */}
+          {/* Manual: title field + save-as-template */}
           {hasValue && !isTemplate && (
-            <TextField
-              fullWidth
-              size="small"
-              label={ct.checklistNameLabel}
-              placeholder={ct.checklistNamePlaceholder}
-              value={value!.title}
-              onChange={e => value && onChange({ ...value, title: e.target.value })}
-            />
+            <Box display="flex" flexDirection="column" gap={1}>
+              <TextField
+                fullWidth
+                size="small"
+                label={ct.checklistNameLabel}
+                placeholder={ct.checklistNamePlaceholder}
+                value={value!.title}
+                onChange={e => value && onChange({ ...value, title: e.target.value })}
+              />
+              {user?.role === 'admin' && (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Tooltip title={ct.checklistSaveAsTemplate} placement="top">
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={
+                          savingAsTemplate ? <CircularProgress size={12} /> :
+                          saveTemplateStatus === 'ok' ? <CheckCircle fontSize="small" color="success" /> :
+                          <BookmarkAdd fontSize="small" />
+                        }
+                        onClick={handleSaveAsTemplate}
+                        disabled={savingAsTemplate}
+                        sx={{ fontSize: '0.72rem', py: 0.5, minHeight: 0, whiteSpace: 'nowrap' }}
+                      >
+                        {saveTemplateStatus === 'ok'
+                          ? ct.checklistSavedAsTemplate
+                          : ct.checklistSaveAsTemplate}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                  {saveTemplateStatus === 'error' && (
+                    <Typography variant="caption" color="error">
+                      {ct.checklistSaveAsTemplateError}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
           )}
 
           {/* Items list + add row — shown in manual mode always,

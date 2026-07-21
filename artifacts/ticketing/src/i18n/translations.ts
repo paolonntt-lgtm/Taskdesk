@@ -460,6 +460,9 @@ const it = {
     checklistError: 'Errore durante la creazione della checklist. La pratica è stata creata.',
     checklistSuggestedTitle: 'Checklist suggerite in base al titolo:',
     checklistSuggestedApplied: 'Applicata',
+    checklistSaveAsTemplate: 'Salva come template',
+    checklistSavedAsTemplate: 'Template salvato!',
+    checklistSaveAsTemplateError: 'Errore nel salvataggio del template.',
   },
   bot: {
     subtitle: 'Ticket assistant',
@@ -1915,6 +1918,9 @@ const en: typeof it = {
     checklistError: 'Failed to create the checklist. The ticket was created successfully.',
     checklistSuggestedTitle: 'Suggested checklists based on title:',
     checklistSuggestedApplied: 'Applied',
+    checklistSaveAsTemplate: 'Save as template',
+    checklistSavedAsTemplate: 'Template saved!',
+    checklistSaveAsTemplateError: 'Error saving the template.',
   },
   bot: {
     subtitle: 'Ticket assistant',
