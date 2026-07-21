@@ -332,6 +332,22 @@ export default function NewTicket() {
                 />
               </Grid>
 
+              <Grid item xs={12}>
+                <NewTicketChecklistSection
+                  value={checklistDraft}
+                  onChange={setChecklistDraft}
+                  forceExpand={checklistForceExpand}
+                />
+              </Grid>
+
+              {checklistError && (
+                <Grid item xs={12}>
+                  <Alert severity="warning" onClose={() => setChecklistError(false)}>
+                    {t.newTicket.checklistError}
+                  </Alert>
+                </Grid>
+              )}
+
               <Grid item xs={12} sm={singleLocation ? 12 : 6}>
                 <TextField
                   select
@@ -484,22 +500,6 @@ export default function NewTicket() {
                       </TextField>
                     )}
                   </Box>
-                </Grid>
-              )}
-
-              <Grid item xs={12}>
-                <NewTicketChecklistSection
-                  value={checklistDraft}
-                  onChange={setChecklistDraft}
-                  forceExpand={checklistForceExpand}
-                />
-              </Grid>
-
-              {checklistError && (
-                <Grid item xs={12}>
-                  <Alert severity="warning" onClose={() => setChecklistError(false)}>
-                    {t.newTicket.checklistError}
-                  </Alert>
                 </Grid>
               )}
 
