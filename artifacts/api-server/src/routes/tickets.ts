@@ -954,6 +954,68 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     actionDescription: `Ricorrenza impostata: ${frequency}`,
   });
 
+  const [orgMax] = await db
+    .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
+    .from(ticketsTable)
+    .where(orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`);
+  const nextTicketNumber = (Number(orgMax.maxNum) || 0) + 1;
+
+  const [firstChild] = await db.insert(ticketsTable).values({
+    organizationId: existing.organizationId,
+    ticketNumber: nextTicketNumber,
+    title: existing.title,
+    description: existing.description,
+    category: existing.category,
+    location: existing.location,
+    resource: existing.resource,
+    priority: existing.priority,
+    status: "open",
+    createdBy: existing.createdBy,
+    assignedTo: existing.assignedTo,
+    assignedToGroup: existing.assignedToGroup,
+    clientId: existing.clientId,
+    recurrenceParentId: existing.id,
+  }).returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: firstChild.id,
+    userId: existing.createdBy,
+    actionType: "recurrence_created",
+    actionDescription: `Pratica creata da ricorrenza della pratica #${existing.ticketNumber ?? existing.id}`,
+  });
+
+  const checklists = await db.select().from(ticketChecklistsTable).where(eq(ticketChecklistsTable.ticketId, existing.id));
+  for (const cl of checklists) {
+    const [newCl] = await db.insert(ticketChecklistsTable).values({
+      ticketId: firstChild.id,
+      orgId: cl.orgId,
+      title: cl.title,
+      position: cl.position,
+    }).returning();
+    const items = await db.select().from(ticketChecklistItemsTable).where(eq(ticketChecklistItemsTable.checklistId, cl.id));
+    if (items.length > 0) {
+      await db.insert(ticketChecklistItemsTable).values(
+        items.map((item) => ({
+          checklistId: newCl.id,
+          orgId: item.orgId,
+          text: item.text,
+          checked: false,
+          position: item.position,
+        }))
+      );
+    }
+  }
+
+  if (existing.assignedTo) {
+    await createNotificationForUser(
+      existing.assignedTo,
+      firstChild.id,
+      `Nuova pratica ricorrente #${firstChild.ticketNumber ?? firstChild.id}: "${firstChild.title}"`,
+      "ticket_assigned",
+      existing.organizationId
+    );
+  }
+
   const [creator] = await db.select().from(usersTable).where(
     and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
   );
