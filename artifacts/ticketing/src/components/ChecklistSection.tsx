@@ -18,6 +18,26 @@ import type { ChecklistWithItems } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 
+function playCheckSound() {
+  try {
+    const ctx = new AudioContext();
+    const g = ctx.createGain();
+    g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.18, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.06);
+    osc.connect(g);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.18);
+    osc.onended = () => ctx.close();
+  } catch {
+    // Web Audio not available
+  }
+}
+
 interface Props {
   ticketId: number;
   isAdmin: boolean;
@@ -103,6 +123,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   }
 
   async function handleToggleItem(itemId: number, checked: boolean) {
+    if (!checked) playCheckSound();
     try {
       await updateItem.mutateAsync({
         ticketId,
