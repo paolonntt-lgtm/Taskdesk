@@ -557,7 +557,7 @@ export default function TicketList() {
     </TableCell>
   );
 
-  const colSpanTotal = ['id','title','category','status','priority','dueAt','assignee','createdAt'].filter(k => visibleCols[k] ?? true).length + (showLocation && (visibleCols.location ?? true) ? 1 : 0) + (isAdmin ? 1 : 0);
+  const colSpanTotal = ['id','title','category','status','priority','dueAt','assignee','createdAt'].filter(k => visibleCols[k] ?? true).length + (showLocation && (visibleCols.location ?? true) ? 1 : 0) + (isAdmin ? 1 : 0) + 1;
   const tableWidth =
     (isAdmin ? 28 : 0) +
     (visibleCols.id ?? true ? cw('id') : 0) +
@@ -1038,6 +1038,7 @@ export default function TicketList() {
                 even when columns are hidden with display:none */}
             {!isMobile && (
               <colgroup>
+                <col style={{ width: 4 }} />
                 {isAdmin && <col style={{ width: 28 }} />}
                 {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
                 <col style={{ width: colWidths.title ?? DEFAULT_COL_WIDTHS.title }} />
@@ -1052,6 +1053,7 @@ export default function TicketList() {
             )}
             <TableHead>
               <TableRow>
+                <TableCell padding="none" sx={{ p: 0, width: 4, border: 'none' }} />
                 {isAdmin && (
                   <TableCell padding="none" sx={{ width: 28, pl: 0.25, pr: 0 }}>
                     <Checkbox
@@ -1131,15 +1133,29 @@ export default function TicketList() {
                   return (
                     <TableRow
                       key={ticket.id}
-                      hover
                       selected={isSelected}
                       data-row-idx={rowIdx}
                       sx={{
                         cursor: 'pointer',
+                        bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.04)' : undefined,
+                        '&:hover': {
+                          bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.08) !important' : undefined,
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                          position: 'relative',
+                          zIndex: 1,
+                        },
                         ...(isFocused ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '-2px' } : {}),
                       }}
                       onClick={() => { setFocusedRowIdx(rowIdx); navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`); }}
                     >
+                      <TableCell
+                        padding="none"
+                        sx={{
+                          p: 0,
+                          width: 4,
+                          bgcolor: ({ urgent: '#d32f2f', high: '#e65100', medium: '#1976d2', low: '#9e9e9e' } as Record<string, string>)[ticket.priority] ?? 'transparent',
+                        }}
+                      />
                       {isAdmin && (
                         <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.25, pr: 0 }}>
                           <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
@@ -1168,7 +1184,14 @@ export default function TicketList() {
                               <CalendarTodayIcon sx={{ fontSize: 13, color: 'warning.main', flexShrink: 0, mt: 0.2 }} />
                             </Tooltip>
                           )}
-                          <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3 }}>{ticket.title}</Box>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3, fontWeight: ticket.priority === 'urgent' ? 600 : undefined }}>{ticket.title}</Box>
+                            {ticket.priority === 'urgent' && (ticket as any).dueAt && (
+                              <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 600, mt: 0.25, lineHeight: 1.2 }}>
+                                ⚠ {t.ticketList.deadlineColumn}: {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short' })}
+                              </Typography>
+                            )}
+                          </Box>
                           {(ticket as any).checklistCount > 0 && (
                             <Tooltip title={t.ticketList.checklistProgressTooltip((ticket as any).checklistChecked, (ticket as any).checklistTotal)} placement="top" arrow>
                               <Chip
@@ -1188,13 +1211,24 @@ export default function TicketList() {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
                           const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
+                          const softMap: Record<string, { bg: string; fg: string }> = {
+                            open: { bg: '#e3f0fd', fg: '#1565c0' },
+                            in_progress: { bg: '#fff3e0', fg: '#e65100' },
+                            waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
+                            resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
+                            closed: { bg: '#f5f5f5', fg: '#424242' },
+                          };
+                          const soft = !customColor ? softMap[ticket.status] : null;
                           return (
                             <Chip
                               label={label}
                               size="small"
-                              {...(customColor
-                                ? { sx: { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } } }
-                                : { color: muiColor as any, sx: { fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } } })}
+                              sx={customColor
+                                ? { bgcolor: customColor, color: 'white', fontWeight: 500, fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } }
+                                : soft
+                                  ? { bgcolor: soft.bg, color: soft.fg, fontWeight: 600, fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } }
+                                  : { color: muiColor as any, fontSize: { xs: '0.55rem', sm: '0.75rem' }, height: { xs: 16, sm: 24 }, '& .MuiChip-label': { px: { xs: 0.5, sm: 1 } } }
+                              }
                             />
                           );
                         })()}
@@ -1202,7 +1236,17 @@ export default function TicketList() {
                       )}
                       {(visibleCols.priority ?? true) && (
                       <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                        <Chip label={t.priority[ticket.priority] || ticket.priority} size="small" variant="outlined" color={getPriorityColor(ticket.priority) as any} />
+                        {(() => {
+                          const dotColor = ({ urgent: '#d32f2f', high: '#e65100', medium: '#1976d2', low: '#9e9e9e' } as Record<string, string>)[ticket.priority] ?? '#9e9e9e';
+                          return (
+                            <Box display="flex" alignItems="center" gap={0.75}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                              <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.82rem' }, fontWeight: 600, color: dotColor }}>
+                                {t.priority[ticket.priority] || ticket.priority}
+                              </Typography>
+                            </Box>
+                          );
+                        })()}
                       </TableCell>
                       )}
                       {(visibleCols.dueAt ?? true) && (
