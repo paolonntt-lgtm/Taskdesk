@@ -1,12 +1,9 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
-import { useLanguage } from "@/i18n";
-
 export default function CookiePolicy() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const { lang } = useLanguage();
-  const canonicalUrl = `https://taskdesk.it/${lang}/cookie-policy`;
+  const canonicalUrl = `https://taskdesk.it/it/cookie-policy`;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
