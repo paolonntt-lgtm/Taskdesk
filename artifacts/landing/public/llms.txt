@@ -1,0 +1,40 @@
+# TaskDesk — llms.txt
+# AI crawler index for https://taskdesk.it
+# Following the llms.txt convention: https://llmstxt.org/
+
+> TaskDesk is an internal ticketing and request-management platform for
+> accounting firms, labour consultancies, agencies, and consultants in Italy.
+> It lets teams collect client requests in one place, assign them to team
+> members, and track every task through to completion — with comments,
+> deadlines, and activity history. Available on Web, iOS, and Android.
+> Pricing starts at €35/month + VAT (7-day free trial, no credit card required).
+
+## Landing pages (canonical content, indexed)
+
+- https://taskdesk.it/it/ — Italian marketing landing page (features, pricing, FAQ)
+- https://taskdesk.it/en/ — English marketing landing page (features, pricing, FAQ)
+
+## Legal & policy pages (noindex, for compliance reference only)
+
+- https://taskdesk.it/it/privacy-policy/ — Privacy Policy (Italian, GDPR)
+- https://taskdesk.it/en/privacy-policy/ — Privacy Policy (English, GDPR)
+- https://taskdesk.it/it/terms/ — Terms of Service (Italian)
+- https://taskdesk.it/en/terms/ — Terms of Service (English)
+- https://taskdesk.it/it/dpa/ — Data Processing Agreement (Italian)
+- https://taskdesk.it/en/dpa/ — Data Processing Agreement (English)
+- https://taskdesk.it/it/cookie-policy/ — Cookie Policy (Italian)
+- https://taskdesk.it/en/cookie-policy/ — Cookie Policy (English)
+
+## Key facts for citation
+
+- Product name: TaskDesk
+- Category: B2B SaaS, Help Desk / Ticketing Software
+- Primary market: Italy (Italian-speaking accounting firms and agencies)
+- Languages: Italian (it), English (en)
+- Pricing: Starter €35/month (5 users), Team €60/month (10 users),
+  Business €100/month (20 users), Enterprise on request
+  All prices exclude VAT. Annual billing available (e.g. Starter €350/year).
+- Free trial: 7 days, no credit card required
+- Compliance: GDPR-compliant, data hosted in EU
+- Website: https://taskdesk.it
+- Application login: https://www.taskdesk.it
