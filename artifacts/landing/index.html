@@ -99,49 +99,16 @@
       "name": "TaskDesk",
       "applicationCategory": "BusinessApplication",
       "applicationSubCategory": "Help Desk Software",
-      "operatingSystem": "Web",
-      "description": "Sistema di ticketing aziendale semplice e accessibile. Gestisci richieste di supporto, assegna ticket e monitora le priorità da un'unica piattaforma.",
-      "offers": [
-        {
-          "@type": "Offer",
-          "name": "Starter",
-          "price": "15.00",
-          "priceCurrency": "EUR",
-          "description": "Per piccoli team fino a 5 utenti",
-          "priceSpecification": {
-            "@type": "UnitPriceSpecification",
-            "price": "15.00",
-            "priceCurrency": "EUR",
-            "unitText": "mese"
-          }
-        },
-        {
-          "@type": "Offer",
-          "name": "Team",
-          "price": "25.00",
-          "priceCurrency": "EUR",
-          "description": "Per team in crescita fino a 15 utenti",
-          "priceSpecification": {
-            "@type": "UnitPriceSpecification",
-            "price": "25.00",
-            "priceCurrency": "EUR",
-            "unitText": "mese"
-          }
-        },
-        {
-          "@type": "Offer",
-          "name": "Business",
-          "price": "69.00",
-          "priceCurrency": "EUR",
-          "description": "Per aziende strutturate fino a 50 utenti",
-          "priceSpecification": {
-            "@type": "UnitPriceSpecification",
-            "price": "69.00",
-            "priceCurrency": "EUR",
-            "unitText": "mese"
-          }
-        }
-      ],
+      "operatingSystem": "Web, iOS, Android",
+      "description": "Sistema di ticketing aziendale per studi commerciali, agenzie e consulenti. Gestisci le richieste dei clienti senza email disperse.",
+      "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": "35",
+        "highPrice": "100",
+        "priceCurrency": "EUR",
+        "offerCount": "4",
+        "description": "Prezzi IVA esclusa. Piano Starter €35/mese (5 utenti), Team €60/mese (10 utenti), Business €100/mese (20 utenti), Enterprise su preventivo."
+      },
       "featureList": [
         "Creazione e assegnazione ticket",
         "Gestione priorità e stato",
@@ -153,7 +120,7 @@
         "Allegati e formattazione ricca nei commenti"
       ],
       "screenshot": "https://taskdesk.it/opengraph.jpg",
-      "inLanguage": "it",
+      "inLanguage": ["it", "en"],
       "url": "https://taskdesk.it/it/",
       "aggregateRating": {
         "@type": "AggregateRating",
@@ -172,10 +139,18 @@
       "mainEntity": [
         {
           "@type": "Question",
+          "name": "È adatto al mio studio commerciale o alla mia agenzia?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sì, TaskDesk è pensato esattamente per questo. Studi commerciali, studi di consulenza del lavoro, agenzie e liberi professionisti lo usano per raccogliere le richieste dei clienti in un unico posto, assegnarle ai collaboratori e tracciarle fino alla chiusura."
+          }
+        },
+        {
+          "@type": "Question",
           "name": "C'è un periodo di prova gratuita?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo team, da €15/mese."
+            "text": "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese + IVA (o €350/anno + IVA). Enterprise su preventivo."
           }
         },
         {
@@ -183,7 +158,7 @@
           "name": "C'è un costo di setup?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti."
+            "text": "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti, senza formazione."
           }
         },
         {
@@ -196,18 +171,10 @@
         },
         {
           "@type": "Question",
-          "name": "TaskDesk è adatto alla mia azienda?",
+          "name": "I miei clienti possono accedere e inviare richieste?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Se hai bisogno di mettere ordine nelle richieste interne o dei clienti senza setup complicati e senza spendere una fortuna, sì. TaskDesk è progettato per essere semplice da avviare e facile da usare ogni giorno."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Quanto costa TaskDesk?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "TaskDesk parte da €15/mese per il piano Starter (fino a 5 utenti). Il piano Team è €25/mese (fino a 15 utenti), Business €69/mese (fino a 50 utenti), Enterprise €149/mese (utenti illimitati). Tutti i piani includono 7 giorni di prova gratuita senza carta di credito."
+            "text": "Oggi i clienti vengono aggiunti come utenti dedicati. Ogni cliente vede solo le proprie pratiche. Una funzionalità di portale clienti semplificato è nella roadmap."
           }
         }
       ]

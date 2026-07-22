@@ -25,7 +25,7 @@ function PageRoutes() {
   );
 }
 
-export function render(url: string): { html: string } {
+export function render(url: string): { html: string; helmet: unknown } {
   const helmetContext: Record<string, unknown> = {};
 
   const html = renderToString(
@@ -47,5 +47,5 @@ export function render(url: string): { html: string } {
     </HelmetProvider>
   );
 
-  return { html };
+  return { html, helmet: (helmetContext as any).helmet };
 }
