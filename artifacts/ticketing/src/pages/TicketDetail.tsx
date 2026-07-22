@@ -701,33 +701,12 @@ export default function TicketDetail() {
         </Box>
       </Box>
 
-      {/* ── Compact header card ── */}
-      <Card sx={{ mb: { xs: 1.5, sm: 3 }, overflow: 'visible' }}>
-        <Box px={{ xs: 1.5, sm: 3 }} pt={{ xs: 1, sm: 2.5 }} pb={{ xs: 1, sm: 2 }}>
-          {/* Row 1: author + date */}
-          <Box display="flex" alignItems="center" gap={1.5} mb={{ xs: 1, sm: 1.5 }}>
-            <Avatar
-              src={creator?.avatarUrl ?? undefined}
-              sx={{ width: { xs: 32, sm: 42 }, height: { xs: 32, sm: 42 }, bgcolor: 'primary.main', fontSize: { xs: 14, sm: 18 }, flexShrink: 0 }}
-            >
-              {creator?.name?.charAt(0)}
-            </Avatar>
-            <Box minWidth={0}>
-              <UserLink
-                userId={(creator as any)?.id}
-                name={creator?.name}
-                typographyProps={{ variant: 'subtitle2', fontWeight: 'bold', noWrap: true }}
-              />
-              
-              <Typography variant="caption" color="text.secondary" display="block">
-                {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale)}
-              </Typography>
-            </Box>
-          </Box>
+      {/* ── Flat header ── */}
+      <Box sx={{ mb: { xs: 1, sm: 1.5 } }}>
 
           {/* Row 2: ticket title */}
           <Box display="flex" alignItems="flex-start" gap={1} mb={{ xs: 1, sm: 1.5 }} flexWrap="wrap">
-            <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-word', lineHeight: 1.3, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+            <Typography variant="h5" fontWeight={800} sx={{ wordBreak: 'break-word', lineHeight: 1.2, letterSpacing: '-0.01em', fontSize: { xs: '1.1rem', sm: '1.4rem' } }}>
               #{ticket.ticketNumber ?? ticket.id} — {ticket.title}
             </Typography>
             {ticket.inboundChannelId && (
@@ -767,7 +746,11 @@ export default function TicketDetail() {
               </Tooltip>
             )}
           </Box>
+      </Box>
 
+      {/* ── Two-column layout: sidebar (right) + main content (left) ── */}
+      <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: 3, alignItems: 'flex-start' }}>
+        <Box sx={{ width: { lg: 230 }, flexShrink: 0, order: { lg: 2 }, mb: { xs: 2, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           {/* Row 3: status chips */}
           {canChangeStatus ? (
             <Box mb={1}>
@@ -1182,10 +1165,24 @@ export default function TicketDetail() {
             )}
           </Box>
 
-        </Box>
-      </Card>
+          {/* Creator info */}
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              {t.ticketDetail.openedOn}
+            </Typography>
+            <Box display="flex" alignItems="center" gap={0.75}>
+              <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 20, height: 20, fontSize: 10, bgcolor: 'primary.main' }}>
+                {creator?.name?.charAt(0)}
+              </Avatar>
+              <Typography variant="body2" noWrap>{creator?.name}</Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
+            </Typography>
+          </Box>
 
-      <Box>
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, order: { lg: 1 } }}>
           <Card sx={{ mb: { xs: 1.5, sm: 3 } }}>
             <Box p={{ xs: 2, sm: 3 }}>
               <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
@@ -1985,6 +1982,7 @@ export default function TicketDetail() {
               )}
             </Box>
           </Card>
+        </Box>
       </Box>
 
       {/* Resolution note dialog */}
