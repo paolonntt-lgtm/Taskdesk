@@ -377,6 +377,19 @@ export default function Landing() {
     };
   }, []);
 
+  const paidPlanPrices = t.pricing.plans
+    .map((p) => parseInt(p.price.replace(/[^0-9]/g, ""), 10))
+    .filter((n) => !isNaN(n) && n > 0);
+  const offerLowPrice = paidPlanPrices.length > 0 ? String(Math.min(...paidPlanPrices)) : "35";
+  const offerHighPrice = paidPlanPrices.length > 0 ? String(Math.max(...paidPlanPrices)) : "100";
+
+  const paidPlans = t.pricing.plans.filter((p) => p.seats !== null);
+  const offerDescription =
+    paidPlans
+      .map((p) => `${p.name} ${p.price}${p.noUnit ? "" : t.pricing.perMonth} (${p.seats} ${t.pricing.seatsSuffix})`)
+      .join(", ") +
+    (lang === "it" ? ", Enterprise su preventivo." : ", Enterprise on request.");
+
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
@@ -395,10 +408,11 @@ export default function Landing() {
         "description": t.seo.description,
         "offers": {
           "@type": "AggregateOffer",
-          "lowPrice": "35",
-          "highPrice": "100",
+          "lowPrice": offerLowPrice,
+          "highPrice": offerHighPrice,
           "priceCurrency": "EUR",
-          "offerCount": "4",
+          "offerCount": String(t.pricing.plans.length),
+          "description": offerDescription,
         },
         "aggregateRating": {
           "@type": "AggregateRating",
