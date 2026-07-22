@@ -93,10 +93,19 @@ router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, r
   }
 });
 
+function maxAddonForPlan(planSeats: number | null, unlimited: boolean): number {
+  if (unlimited) return 0;
+  if (!planSeats) return 0;
+  if (planSeats <= 5) return 4;
+  if (planSeats <= 10) return 9;
+  return 0;
+}
+
 router.get('/stripe/seat-usage', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
-    res.json(usage);
+    const maxAddonSeats = maxAddonForPlan(usage.planSeats, usage.unlimited);
+    res.json({ ...usage, maxAddonSeats });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -293,6 +302,15 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
     }
     if (usage.unlimited) {
       res.status(400).json({ error: 'UNLIMITED_PLAN', message: 'Il piano Enterprise ha posti illimitati.' });
+      return;
+    }
+    const maxAddon = maxAddonForPlan(usage.planSeats, usage.unlimited);
+    if (quantity > 0 && maxAddon === 0) {
+      res.status(400).json({ error: 'ADDON_NOT_ALLOWED', message: 'Il tuo piano non supporta collaboratori aggiuntivi. Passa al piano Enterprise per avere utenti illimitati.' });
+      return;
+    }
+    if (quantity > maxAddon) {
+      res.status(400).json({ error: 'ADDON_LIMIT_EXCEEDED', message: `Il tuo piano supporta al massimo ${maxAddon} collaboratori aggiuntivi.` });
       return;
     }
 

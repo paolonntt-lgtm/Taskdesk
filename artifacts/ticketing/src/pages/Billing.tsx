@@ -59,6 +59,7 @@ interface SeatUsage {
   usedSeats: number;
   planSeats: number | null;
   addonSeats: number;
+  maxAddonSeats: number;
   planName: string;
   currentPriceId: string | null;
   subscriptionId: string | null;
@@ -553,9 +554,14 @@ export default function Billing() {
       >
         <DialogTitle fontWeight={800}>{b.addonSeatsDialogTitle}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {b.addonSeatsDialogSubtitle}
           </Typography>
+          {seatUsage && seatUsage.maxAddonSeats > 0 && (
+            <Typography variant="caption" color="primary" sx={{ display: 'block', mb: 2, fontWeight: 600 }}>
+              {b.addonSeatsMaxNote(seatUsage.maxAddonSeats)}
+            </Typography>
+          )}
 
           {addonPriceLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -585,8 +591,8 @@ export default function Billing() {
                   <Typography variant="caption" color="text.secondary">{b.addonSeatsCounter}</Typography>
                 </Box>
                 <IconButton
-                  onClick={() => setAddonQuantity((q) => Math.min(50, q + 1))}
-                  disabled={addonQuantity >= 50 || addonLoading}
+                  onClick={() => setAddonQuantity((q) => Math.min(seatUsage?.maxAddonSeats ?? 50, q + 1))}
+                  disabled={addonQuantity >= (seatUsage?.maxAddonSeats ?? 50) || addonLoading}
                   color="primary"
                   size="large"
                 >

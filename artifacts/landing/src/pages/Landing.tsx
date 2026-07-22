@@ -421,6 +421,8 @@ export default function Landing() {
     ],
   });
 
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden" style={{ fontFamily: "var(--app-font-sans, sans-serif)" }}>
       <Helmet>
@@ -756,6 +758,29 @@ export default function Landing() {
               </div>
             </ScrollReveal>
 
+            {/* Billing cycle toggle */}
+            <div className="flex items-center justify-center mb-10">
+              <div className="inline-flex items-center gap-1 p-1 bg-gray-100 rounded-full">
+                <button
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${billingCycle === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                  {t.pricing.billingMonthly}
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setBillingCycle('annual')}
+                    className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${billingCycle === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                  >
+                    {t.pricing.billingAnnual}
+                  </button>
+                  <span className="absolute -top-2.5 -right-2 px-1.5 py-0.5 bg-green-500 text-white text-[9px] font-bold rounded-full whitespace-nowrap pointer-events-none">
+                    {t.pricing.annualSavings}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {t.pricing.plans.map((plan, idx) => (
                 <ScrollReveal key={plan.name} delay={idx * 0.06}>
@@ -771,13 +796,30 @@ export default function Landing() {
                       <div className="text-sm font-bold text-gray-400 tracking-wider uppercase mb-1">{plan.name}</div>
                       <p className="text-sm text-gray-500 leading-relaxed min-h-[40px]">{plan.desc}</p>
                     </div>
-                    <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-5xl font-black text-gray-900">{plan.price}</span>
-                      {!plan.noUnit && <span className="text-sm text-gray-400 font-medium">{t.pricing.perMonth}</span>}
+                    <div className="flex items-baseline gap-1 mb-0.5">
+                      <span className="text-5xl font-black text-gray-900">
+                        {billingCycle === 'annual' ? plan.annualPrice : plan.price}
+                      </span>
+                      {!plan.noUnit && (
+                        <span className="text-sm text-gray-400 font-medium">
+                          {billingCycle === 'annual' ? t.pricing.perYear : t.pricing.perMonth}
+                        </span>
+                      )}
                     </div>
+                    {billingCycle === 'annual' && !plan.noUnit && plan.annualMonthly && (
+                      <div className="text-xs text-green-600 font-semibold mb-0.5">{plan.annualMonthly}</div>
+                    )}
+                    {!plan.noUnit && (
+                      <div className="text-xs text-gray-400 mb-1">{t.pricing.vatNote}</div>
+                    )}
                     {!plan.hideSeats && (
-                      <div className="text-xs font-semibold text-gray-500 mb-6">
+                      <div className="text-xs font-semibold text-gray-500 mb-2">
                         {plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}
+                      </div>
+                    )}
+                    {plan.maxAddon > 0 && (
+                      <div className="text-xs text-blue-600 font-medium mb-4">
+                        + {t.pricing.addonLabel} (max {plan.maxAddon})
                       </div>
                     )}
                     <div className="flex-1" />

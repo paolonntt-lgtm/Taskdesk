@@ -73,13 +73,22 @@ interface Translations {
     trialLabel: string;
     trialHeader: string;
     perMonth: string;
+    perYear: string;
+    billingMonthly: string;
+    billingAnnual: string;
+    annualSavings: string;
+    vatNote: string;
+    addonLabel: string;
     mostPopular: string;
     seatsSuffix: string;
     seatsUnlimited: string;
     plans: Array<{
       name: string;
       price: string;
+      annualPrice: string;
+      annualMonthly: string;
       seats: number | null;
+      maxAddon: number;
       desc: string;
       highlight?: boolean;
       cta: string;
@@ -298,14 +307,20 @@ const translations: Record<Language, Translations> = {
       trialLabel: "7 giorni di prova gratuita inclusi — nessuna carta di credito",
       trialHeader: "Prima prova gratis, poi scegli il piano",
       perMonth: "/mese",
+      perYear: "/anno",
+      billingMonthly: "Mensile",
+      billingAnnual: "Annuale",
+      annualSavings: "-2 mesi",
+      vatNote: "+ IVA",
+      addonLabel: "Collaboratori aggiuntivi a €6/mese",
       mostPopular: "Più scelto",
       seatsSuffix: "utenti inclusi",
       seatsUnlimited: "Utenti illimitati",
       plans: [
-        { name: "Starter",    price: "€35",       seats: 5,                     desc: "Per piccoli studi e liberi professionisti che iniziano a gestire le pratiche.",  cta: "Inizia la prova" },
-        { name: "Team",       price: "€60",       seats: 10,                    desc: "Per studi in crescita che vogliono organizzazione e velocità.",                   highlight: true, cta: "Inizia la prova" },
-        { name: "Business",   price: "€100",      seats: 20,                    desc: "Per studi strutturati con più consulenti e sedi.",                                cta: "Inizia la prova" },
-        { name: "Enterprise", price: "Su misura", seats: null as number | null, desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.",        cta: "Contattaci", noUnit: true, hideSeats: true },
+        { name: "Starter",    price: "€35",       annualPrice: "€350",      annualMonthly: "≡ €29/mese", seats: 5,    maxAddon: 4, desc: "Per piccoli studi e liberi professionisti che iniziano a gestire le pratiche.",  cta: "Inizia la prova" },
+        { name: "Team",       price: "€60",       annualPrice: "€600",      annualMonthly: "≡ €50/mese", seats: 10,   maxAddon: 9, desc: "Per studi in crescita che vogliono organizzazione e velocità.",                   highlight: true, cta: "Inizia la prova" },
+        { name: "Business",   price: "€100",      annualPrice: "€1.000",    annualMonthly: "≡ €83/mese", seats: 20,   maxAddon: 0, desc: "Per studi strutturati con più consulenti e sedi.",                                cta: "Inizia la prova" },
+        { name: "Enterprise", price: "Su misura", annualPrice: "Su misura", annualMonthly: "",            seats: null as number | null, maxAddon: 0, desc: "Per grandi organizzazioni che hanno bisogno di scalabilità senza limiti.", cta: "Contattaci", noUnit: true, hideSeats: true },
       ],
       includedTitle: "Tutto incluso in ogni piano",
       includedSubtitle: "Stesse funzionalità per tutti. Cambia solo il numero di utenti.",
@@ -323,7 +338,7 @@ const translations: Record<Language, Translations> = {
       title: "Domande Frequenti",
       items: [
         { q: "È adatto al mio studio commerciale o alla mia agenzia?", a: "Sì, TaskDesk è pensato esattamente per questo. Studi commerciali, studi di consulenza del lavoro, agenzie e liberi professionisti lo usano per raccogliere le richieste dei clienti in un unico posto, assegnarle ai collaboratori e tracciarle fino alla chiusura — senza email disperse o WhatsApp irrintracciabili." },
-        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese. Enterprise su preventivo." },
+        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese + IVA (o €350/anno + IVA). Enterprise su preventivo." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti, senza formazione." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
         { q: "I miei clienti possono accedere e inviare richieste?", a: "Oggi i clienti vengono aggiunti come utenti dedicati. Ogni cliente vede solo le proprie pratiche. Una funzionalità di portale clienti semplificato è nella roadmap." },
@@ -340,13 +355,13 @@ const translations: Record<Language, Translations> = {
       text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane."
     },
     seo: {
-      title: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese",
-      description: "TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Da €35/mese.",
+      title: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA",
+      description: "TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Da €35/mese + IVA.",
       keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, software consulenza, gestione richieste clienti, sistema ticket studio commercialista",
-      ogTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese",
-      ogDescription: "Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Da €35/mese tutto incluso.",
-      twitterTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese",
-      twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Da €35/mese.",
+      ogTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA",
+      ogDescription: "Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Da €35/mese + IVA tutto incluso.",
+      twitterTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA",
+      twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Da €35/mese + IVA.",
     },
     ticker: {
       rating: "⭐ 4.9/5 soddisfazione media",
@@ -530,14 +545,20 @@ const translations: Record<Language, Translations> = {
       trialLabel: "7-day free trial included — no credit card required",
       trialHeader: "Try free first, then pick your plan",
       perMonth: "/month",
+      perYear: "/year",
+      billingMonthly: "Monthly",
+      billingAnnual: "Annual",
+      annualSavings: "-2 months",
+      vatNote: "+ VAT",
+      addonLabel: "Additional collaborators at €6/month",
       mostPopular: "Most popular",
       seatsSuffix: "users included",
       seatsUnlimited: "Unlimited users",
       plans: [
-        { name: "Starter",    price: "€35",   seats: 5,                     desc: "For small firms and sole practitioners getting started.",                  cta: "Start trial" },
-        { name: "Team",       price: "€60",   seats: 10,                    desc: "For growing firms that need structure and speed.",                          highlight: true, cta: "Start trial" },
-        { name: "Business",   price: "€100",  seats: 20,                    desc: "For established firms with multiple consultants and locations.",            cta: "Start trial" },
-        { name: "Enterprise", price: "Custom", seats: null as number | null, desc: "For large organisations that need to scale without limits.",               cta: "Contact us", noUnit: true, hideSeats: true },
+        { name: "Starter",    price: "€35",   annualPrice: "€350",   annualMonthly: "≡ €29/mo", seats: 5,    maxAddon: 4, desc: "For small firms and sole practitioners getting started.",                  cta: "Start trial" },
+        { name: "Team",       price: "€60",   annualPrice: "€600",   annualMonthly: "≡ €50/mo", seats: 10,   maxAddon: 9, desc: "For growing firms that need structure and speed.",                          highlight: true, cta: "Start trial" },
+        { name: "Business",   price: "€100",  annualPrice: "€1,000", annualMonthly: "≡ €83/mo", seats: 20,   maxAddon: 0, desc: "For established firms with multiple consultants and locations.",            cta: "Start trial" },
+        { name: "Enterprise", price: "Custom", annualPrice: "Custom", annualMonthly: "", seats: null as number | null, maxAddon: 0, desc: "For large organisations that need to scale without limits.",       cta: "Contact us", noUnit: true, hideSeats: true },
       ],
       includedTitle: "Everything included in every plan",
       includedSubtitle: "Same features across all plans. Only the user count changes.",
@@ -555,7 +576,7 @@ const translations: Record<Language, Translations> = {
       title: "Frequently Asked Questions",
       items: [
         { q: "Is it right for my accounting firm or agency?", a: "Yes, TaskDesk is designed exactly for this. Accounting firms, labour consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them through to completion — without scattered emails or untraceable WhatsApp messages." },
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month. Enterprise is priced on request." },
+        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month + VAT (or €350/year + VAT). Enterprise is priced on request." },
         { q: "Is there a setup cost?", a: "Absolutely not. The software is ready to use from your first login. You are up and running in minutes, with no training needed." },
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual commitments or cancellation fees. You can cancel at any time from your account area." },
         { q: "Can my clients access the system and submit requests?", a: "Today clients are added as dedicated users. Each client sees only their own requests. A simplified client portal feature is on the roadmap." },
@@ -572,13 +593,13 @@ const translations: Record<Language, Translations> = {
       text: "© 2025 TaskDesk. The request management system for Italian firms and agencies."
     },
     seo: {
-      title: "TaskDesk — Software for Accounting Firms & Agencies | From €15/month",
-      description: "TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. From €15/month.",
+      title: "TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT",
+      description: "TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. From €35/month + VAT.",
       keywords: "software for accounting firms, client request management, ticketing for agencies, consulting software, client task tracking, accountant ticket system",
-      ogTitle: "TaskDesk — Software for Accounting Firms & Agencies | From €15/month",
-      ogDescription: "Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. From €15/month, all included.",
-      twitterTitle: "TaskDesk — Software for Accounting Firms & Agencies | From €15/month",
-      twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €15/month.",
+      ogTitle: "TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT",
+      ogDescription: "Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.",
+      twitterTitle: "TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT",
+      twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT.",
     },
     ticker: {
       rating: "⭐ 4.9/5 average satisfaction",
