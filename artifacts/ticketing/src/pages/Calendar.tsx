@@ -629,7 +629,7 @@ export default function CalendarPage() {
                       {selectedTickets.map((item) => (
                         <Box
                           key={item.id}
-                          onClick={() => setLocation(`/tickets/${item.id}`)}
+                          onClick={() => setLocation(`/tickets/${item.id}?from=calendar`)}
                           sx={{
                             display: 'flex', alignItems: 'center', gap: 1,
                             p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'warning.light',

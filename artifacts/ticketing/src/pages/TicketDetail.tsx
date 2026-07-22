@@ -70,7 +70,8 @@ export default function TicketDetail() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const search = useSearch();
-  const backTo = new URLSearchParams(search).get('from') === 'dashboard' ? '/' : '/tickets';
+  const fromParam = new URLSearchParams(search).get('from');
+  const backTo = fromParam === 'dashboard' ? '/' : fromParam === 'calendar' ? '/calendar' : '/tickets';
   const { statuses: orgStatuses, isClosedKey, getLabelForKey, getColorForKey } = useTicketStatuses();
 
   const [tabValue, setTabValue] = useState(0);
@@ -608,7 +609,7 @@ export default function TicketDetail() {
     highPriority: t.ticketList.quickFilterHighPriority,
     open: t.ticketList.quickFilterOpen,
   };
-  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : (bql && bqlLabels[bql]) || t.ticketDetail.breadcrumbList;
+  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : backTo === '/calendar' ? t.nav.calendar : (bql && bqlLabels[bql]) || t.ticketDetail.breadcrumbList;
 
   return (
     <Box>
