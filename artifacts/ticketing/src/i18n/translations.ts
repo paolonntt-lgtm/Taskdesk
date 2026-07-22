@@ -71,6 +71,15 @@ const it = {
     settings: 'Impostazioni',
     calendar: 'Calendario',
     superadmin: 'Superadmin',
+    notifTypesGrouped: {
+      ticket_created:         (n: number) => `${n} nuovi ticket`,
+      ticket_status_changed:  (n: number) => `${n} aggiornamenti stato`,
+      ticket_commented:       (n: number) => `${n} nuovi commenti`,
+      ticket_assigned:        (n: number) => `${n} assegnazioni`,
+      ticket_priority_changed:(n: number) => `${n} cambi priorità`,
+      system:                 (n: number) => `${n} notifiche`,
+    },
+    notifGroupSuffix: (ticketId: number) => ` su #${ticketId}`,
   },
   role: {
     admin: 'Amministratore',
@@ -1569,6 +1578,15 @@ const en: typeof it = {
     settings: 'Settings',
     calendar: 'Calendar',
     superadmin: 'Superadmin',
+    notifTypesGrouped: {
+      ticket_created:         (n: number) => `${n} new tickets`,
+      ticket_status_changed:  (n: number) => `${n} status updates`,
+      ticket_commented:       (n: number) => `${n} new comments`,
+      ticket_assigned:        (n: number) => `${n} assignments`,
+      ticket_priority_changed:(n: number) => `${n} priority changes`,
+      system:                 (n: number) => `${n} notifications`,
+    },
+    notifGroupSuffix: (ticketId: number) => ` on #${ticketId}`,
   },
   role: {
     admin: 'Administrator',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcuts';
 import {
   Avatar, Box, Card, Typography, TextField, MenuItem, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Button, CircularProgress, InputAdornment, Grid,
@@ -449,45 +450,35 @@ export default function TicketList() {
     });
   }, [tickets, sortCol, sortDir]);
 
-  // J/K/Enter keyboard row navigation (placed after sortedTickets declaration)
-  useEffect(() => {
-    const isInputFocused = () => {
-      const el = document.activeElement;
-      if (!el) return false;
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-      if ((el as HTMLElement).isContentEditable) return true;
-      return false;
-    };
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isInputFocused()) return;
-      if (e.key === 'j' || e.key === 'J') {
-        e.preventDefault();
-        setFocusedRowIdx((prev) => {
-          const max = sortedTickets.length - 1;
-          if (max < 0) return null;
-          return prev === null ? 0 : Math.min(prev + 1, max);
-        });
-      } else if (e.key === 'k' || e.key === 'K') {
-        e.preventDefault();
-        setFocusedRowIdx((prev) => {
-          if (prev === null || prev === 0) return prev;
-          return prev - 1;
-        });
-      } else if (e.key === 'Enter') {
-        setFocusedRowIdx((prev) => {
-          if (prev !== null && sortedTickets[prev]) {
-            const ticket = sortedTickets[prev];
-            navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`);
-          }
-          return prev;
-        });
+  // J/K/Enter keyboard row navigation — via shared hook
+  const handleJKey = useCallback(() => {
+    setFocusedRowIdx((prev) => {
+      const max = sortedTickets.length - 1;
+      if (max < 0) return null;
+      return prev === null ? 0 : Math.min(prev + 1, max);
+    });
+  }, [sortedTickets]);
+
+  const handleKKey = useCallback(() => {
+    setFocusedRowIdx((prev) => {
+      if (prev === null || prev === 0) return prev;
+      return prev - 1;
+    });
+  }, []);
+
+  const handleEnterKey = useCallback(() => {
+    setFocusedRowIdx((prev) => {
+      if (prev !== null && sortedTickets[prev]) {
+        const ticket = sortedTickets[prev];
+        navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`);
       }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+      return prev;
+    });
   }, [sortedTickets, navigate, activeQFK]);
+
+  useKeyboardShortcut(['j', 'J'], handleJKey);
+  useKeyboardShortcut(['k', 'K'], handleKKey);
+  useKeyboardShortcut('Enter', handleEnterKey);
 
   // Scroll focused row into view
   useEffect(() => {

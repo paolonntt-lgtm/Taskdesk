@@ -58,6 +58,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcuts';
 import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
 import NotesConsole from './NotesConsole';
@@ -172,34 +173,22 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, []);
 
+  // Cmd/Ctrl+K: open command palette (requires meta key — keep as raw listener)
   useEffect(() => {
-    const isInputFocused = () => {
-      const el = document.activeElement;
-      if (!el) return false;
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-      if ((el as HTMLElement).isContentEditable) return true;
-      return false;
-    };
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
-        return;
-      }
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && !isInputFocused()) {
-        if (e.key === 'n' || e.key === 'N') {
-          e.preventDefault();
-          setLocation('/tickets/new');
-        } else if (e.key === '?') {
-          e.preventDefault();
-          setShortcutsOpen((prev) => !prev);
-        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setLocation]);
+  }, []);
+
+  // N → new ticket
+  useKeyboardShortcut(['n', 'N'], useCallback(() => setLocation('/tickets/new'), [setLocation]));
+  // ? → shortcuts dialog
+  useKeyboardShortcut('?', useCallback(() => setShortcutsOpen((prev) => !prev), []));
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -570,7 +559,12 @@ export default function Layout({ children }: LayoutProps) {
                       <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem', mb: 0.25 }}>
                         {(t.nav.notifTypes as any)[ntype] ?? ntype}
                       </Typography>
-                      <Typography variant="body2">{g.notificationText}</Typography>
+                      <Typography variant="body2">
+                        {g.count > 1
+                          ? ((t.nav.notifTypesGrouped as any)[ntype]?.(g.count) ?? `${g.count}×`)
+                            + (g.ticketId ? t.nav.notifGroupSuffix(g.ticketId) : '')
+                          : g.notificationText}
+                      </Typography>
                       {g.createdAt && (
                         <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', mt: 0.25, display: 'block' }}>
                           {new Date(g.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
