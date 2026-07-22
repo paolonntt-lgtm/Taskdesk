@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Box, Card, CardContent, Typography, TextField, Button, Grid, MenuItem,
+  Box, Card, CardContent, Typography, TextField, Button, MenuItem,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
-  Alert, Chip, Paper,
+  Alert, Chip, Paper, Avatar,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
@@ -36,6 +36,30 @@ const STOP_WORDS = new Set([
 function scoreTemplate(tpl: ChecklistTemplate, words: string[]): number {
   const haystack = `${tpl.title} ${tpl.category ?? ''}`.toLowerCase();
   return words.reduce((acc, w) => acc + (haystack.includes(w) ? 1 : 0), 0);
+}
+
+const PRIORITY_DOTS: Record<string, string> = {
+  low: '#4caf50',
+  medium: '#ff9800',
+  high: '#f44336',
+  urgent: '#b71c1c',
+};
+
+function SideLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography variant="caption" fontWeight={700} color="text.disabled"
+      sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 0.75 }}>
+      {children}
+    </Typography>
+  );
+}
+
+function SideSection({ children, divider = true }: { children: React.ReactNode; divider?: boolean }) {
+  return (
+    <Box pb={1.75} mb={1.75} sx={divider ? { borderBottom: '1px solid', borderColor: 'divider' } : {}}>
+      {children}
+    </Box>
+  );
 }
 
 export default function NewTicket() {
@@ -312,338 +336,412 @@ export default function NewTicket() {
     }
   };
 
+  const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
+  const showClients = clientsEnabled && (clientsList.length > 0 || currentUser?.role === 'admin');
+
   return (
-    <Box maxWidth={800} mx="auto">
-      <Typography variant="h5" fontWeight="bold" mb={{ xs: 1.5, sm: 3 }}>
+    <Box maxWidth={960} mx="auto">
+      <Typography variant="h5" fontWeight={800} mb={{ xs: 1.5, sm: 3 }}>
         {lang === 'it' ? `Apri ${entityTerm.navNew}` : `Open ${entityTerm.navNew}`}
       </Typography>
 
-      <Card>
-        <CardContent sx={{ p: { xs: 1.5, sm: 4 } }}>
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={{ xs: 2, sm: 3 }}>
-              <Grid item xs={12}>
-                <Box ref={titleFieldRef} sx={{ position: 'relative' }}>
-                <TextField
-                  fullWidth
-                  label={t.newTicket.titleField}
-                  required
-                  value={formData.title}
-                  onChange={e => {
-                    setFormData({ ...formData, title: e.target.value });
-                    if (e.target.value) setSuggestedTitle(null);
-                  }}
-                  onBlur={() => setTimeout(() => setTitleDropdownOpen(false), 150)}
-                  onFocus={() => { if (titleHistory.length > 0) setTitleDropdownOpen(true); }}
-                  onKeyDown={e => { if (e.key === 'Escape') setTitleDropdownOpen(false); }}
-                  placeholder={t.newTicket.titlePlaceholder}
-                />
-                {titleDropdownOpen && titleHistory.length > 0 && (
-                  <Paper
-                    elevation={4}
-                    sx={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300, mt: 0.5, maxHeight: 220, overflow: 'auto', border: '1px solid', borderColor: 'divider' }}
-                  >
-                    <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        {(t.newTicket as any).titleHistoryLabel}
+      <form onSubmit={handleSubmit}>
+        <Box display="flex" gap={{ xs: 2, lg: '28px' }} alignItems="flex-start"
+          flexDirection={{ xs: 'column', lg: 'row' }}>
+
+          {/* ── LEFT: main content ── */}
+          <Box flex={1} minWidth={0} display="flex" flexDirection="column" gap={2.5}>
+
+            {/* Title field */}
+            <Box ref={titleFieldRef} sx={{ position: 'relative' }}>
+              <TextField
+                fullWidth
+                label={t.newTicket.titleField}
+                required
+                value={formData.title}
+                onChange={e => {
+                  setFormData({ ...formData, title: e.target.value });
+                  if (e.target.value) setSuggestedTitle(null);
+                }}
+                onBlur={() => setTimeout(() => setTitleDropdownOpen(false), 150)}
+                onFocus={() => { if (titleHistory.length > 0) setTitleDropdownOpen(true); }}
+                onKeyDown={e => { if (e.key === 'Escape') setTitleDropdownOpen(false); }}
+                placeholder={t.newTicket.titlePlaceholder}
+                inputProps={{ style: { fontSize: '1rem', fontWeight: 600 } }}
+              />
+              {titleDropdownOpen && titleHistory.length > 0 && (
+                <Paper
+                  elevation={4}
+                  sx={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1300, mt: 0.5, maxHeight: 220, overflow: 'auto', border: '1px solid', borderColor: 'divider' }}
+                >
+                  <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      {(t.newTicket as any).titleHistoryLabel}
+                    </Typography>
+                  </Box>
+                  {titleHistory.map(tk => (
+                    <Box
+                      key={tk.id}
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        setFormData(f => ({ ...f, title: tk.title }));
+                        setTitleDropdownOpen(false);
+                        setSuggestedTitle(null);
+                      }}
+                      sx={{ px: 1.5, py: 0.9, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'action.hover' } }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, minWidth: 32 }}>
+                        #{tk.ticketNumber ?? tk.id}
                       </Typography>
+                      <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tk.title}
+                      </Typography>
+                      <Chip label={tk.status} size="small" sx={{ height: 18, fontSize: '0.65rem', flexShrink: 0 }} />
                     </Box>
-                    {titleHistory.map(tk => (
+                  ))}
+                </Paper>
+              )}
+            </Box>
+
+            {/* AI title suggestion */}
+            {!formData.title.trim() && (suggestingTitle || suggestedTitle) && (
+              <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={-1.5}>
+                <AutoAwesome sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }} />
+                {suggestingTitle ? (
+                  <>
+                    <CircularProgress size={11} thickness={5} sx={{ flexShrink: 0 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      {(t.newTicket as any).titleSuggestLoading}
+                    </Typography>
+                  </>
+                ) : suggestedTitle ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                      {(t.newTicket as any).titleSuggestLabel}
+                    </Typography>
+                    <Chip
+                      label={suggestedTitle}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      clickable
+                      onClick={() => {
+                        setFormData(f => ({ ...f, title: suggestedTitle }));
+                        setSuggestedTitle(null);
+                      }}
+                      sx={{ height: 22, fontSize: '0.72rem', maxWidth: 400 }}
+                    />
+                  </>
+                ) : null}
+              </Box>
+            )}
+
+            {/* Checklist template suggestions */}
+            {suggestedTemplates.length > 0 && (
+              <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={-1.5}>
+                <PlaylistAddCheck sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
+                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                  {(t.newTicket as any).checklistSuggestedTitle}
+                </Typography>
+                {suggestedTemplates.map(tpl => (
+                  <Tooltip
+                    key={tpl.id}
+                    arrow
+                    placement="bottom-start"
+                    title={
+                      tpl.items.length > 0 ? (
+                        <Box component="ul" sx={{ m: 0, pl: 2, py: 0.25 }}>
+                          {[...tpl.items]
+                            .sort((a, b) => a.position - b.position)
+                            .map(item => (
+                              <Box component="li" key={item.id} sx={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
+                                {item.text}
+                              </Box>
+                            ))}
+                        </Box>
+                      ) : undefined
+                    }
+                  >
+                    <Chip
+                      label={`${tpl.title}${tpl.items.length > 0 ? ` · ${tpl.items.length}` : ''}`}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      clickable
+                      onClick={() => applyTemplateSuggestion(tpl)}
+                      sx={{ height: 22, fontSize: '0.72rem' }}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+            )}
+
+            {/* Description */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                {t.newTicket.descriptionField} *
+              </Typography>
+              <RichCommentEditor
+                value={formData.description}
+                onChange={val => setFormData({ ...formData, description: val })}
+                placeholder={t.newTicket.descriptionPlaceholder}
+                ticketId={0}
+                onAttachmentsChange={setPendingAttachments}
+                minRows={6}
+              />
+            </Box>
+
+            {/* Checklist */}
+            <NewTicketChecklistSection
+              value={checklistDraft}
+              onChange={setChecklistDraft}
+              forceExpand={checklistForceExpand}
+            />
+
+            {checklistError && (
+              <Alert severity="warning" onClose={() => setChecklistError(false)}>
+                {t.newTicket.checklistError}
+              </Alert>
+            )}
+          </Box>
+
+          {/* ── RIGHT: sidebar ── */}
+          <Box
+            width={{ xs: '100%', lg: 230 }}
+            flexShrink={0}
+            sx={{ position: { lg: 'sticky' }, top: { lg: 20 } }}
+          >
+            <Card variant="outlined" sx={{ borderRadius: 2 }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+
+                <Typography variant="caption" fontWeight={700} color="text.disabled"
+                  sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 1.5 }}>
+                  {lang === 'it' ? 'Dettagli' : 'Details'}
+                </Typography>
+
+                {/* Category */}
+                <SideSection>
+                  <SideLabel>{t.newTicket.categoryField} *</SideLabel>
+                  <TextField
+                    select fullWidth size="small" required
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                  </TextField>
+                </SideSection>
+
+                {/* Priority — dot picker */}
+                <SideSection>
+                  <SideLabel>{t.newTicket.priorityField}</SideLabel>
+                  <Box display="flex" flexDirection="column" gap={0.25}>
+                    {(['low', 'medium', 'high', 'urgent'] as const).map(p => (
                       <Box
-                        key={tk.id}
-                        onMouseDown={e => {
-                          e.preventDefault();
-                          setFormData(f => ({ ...f, title: tk.title }));
-                          setTitleDropdownOpen(false);
-                          setSuggestedTitle(null);
+                        key={p}
+                        onClick={() => setFormData({ ...formData, priority: p })}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1,
+                          px: 1, py: 0.6, borderRadius: 1, cursor: 'pointer',
+                          bgcolor: formData.priority === p ? 'action.selected' : 'transparent',
+                          '&:hover': { bgcolor: 'action.hover' },
                         }}
-                        sx={{ px: 1.5, py: 0.9, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'action.hover' } }}
                       >
-                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, minWidth: 32 }}>
-                          #{tk.ticketNumber ?? tk.id}
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIORITY_DOTS[p], flexShrink: 0 }} />
+                        <Typography
+                          variant="body2"
+                          fontWeight={formData.priority === p ? 700 : 400}
+                          color={formData.priority === p ? 'primary' : 'text.primary'}
+                          sx={{ flex: 1 }}
+                        >
+                          {t.priority[p]}
                         </Typography>
-                        <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {tk.title}
-                        </Typography>
-                        <Chip label={tk.status} size="small" sx={{ height: 18, fontSize: '0.65rem', flexShrink: 0 }} />
+                        {formData.priority === p && (
+                          <Typography variant="caption" color="primary" lineHeight={1}>✓</Typography>
+                        )}
                       </Box>
                     ))}
-                  </Paper>
-                )}
-                </Box>
-                {!formData.title.trim() && (suggestingTitle || suggestedTitle) && (
-                  <Box display="flex" alignItems="center" gap={0.75} mt={0.75} flexWrap="wrap">
-                    <AutoAwesome sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }} />
-                    {suggestingTitle ? (
-                      <>
-                        <CircularProgress size={11} thickness={5} sx={{ flexShrink: 0 }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {(t.newTicket as any).titleSuggestLoading}
-                        </Typography>
-                      </>
-                    ) : suggestedTitle ? (
-                      <>
-                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                          {(t.newTicket as any).titleSuggestLabel}
-                        </Typography>
-                        <Chip
-                          label={suggestedTitle}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                          clickable
-                          onClick={() => {
-                            setFormData(f => ({ ...f, title: suggestedTitle }));
-                            setSuggestedTitle(null);
-                          }}
-                          sx={{ height: 22, fontSize: '0.72rem', maxWidth: 400 }}
-                        />
-                      </>
-                    ) : null}
                   </Box>
+                </SideSection>
+
+                {/* Location */}
+                {!singleLocation && (
+                  <SideSection>
+                    <SideLabel>{t.newTicket.locationField}</SideLabel>
+                    <TextField
+                      select fullWidth size="small"
+                      value={formData.location}
+                      onChange={e => setFormData({ ...formData, location: e.target.value })}
+                    >
+                      <MenuItem value=""><em>{t.newTicket.noLocation}</em></MenuItem>
+                      {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                    </TextField>
+                  </SideSection>
                 )}
-                {suggestedTemplates.length > 0 && (
-                  <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={0.75}>
-                    <PlaylistAddCheck sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                      {(t.newTicket as any).checklistSuggestedTitle}
-                    </Typography>
-                    {suggestedTemplates.map(tpl => (
-                      <Tooltip
-                        key={tpl.id}
-                        arrow
-                        placement="bottom-start"
-                        title={
-                          tpl.items.length > 0 ? (
-                            <Box component="ul" sx={{ m: 0, pl: 2, py: 0.25 }}>
-                              {[...tpl.items]
-                                .sort((a, b) => a.position - b.position)
-                                .map(item => (
-                                  <Box component="li" key={item.id} sx={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
-                                    {item.text}
-                                  </Box>
-                                ))}
-                            </Box>
-                          ) : undefined
-                        }
-                      >
-                        <Chip
-                          label={`${tpl.title}${tpl.items.length > 0 ? ` · ${tpl.items.length}` : ''}`}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                          clickable
-                          onClick={() => applyTemplateSuggestion(tpl)}
-                          sx={{ height: 22, fontSize: '0.72rem' }}
-                        />
-                      </Tooltip>
-                    ))}
-                  </Box>
-                )}
-              </Grid>
 
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  {t.newTicket.descriptionField} *
-                </Typography>
-                <RichCommentEditor
-                  value={formData.description}
-                  onChange={val => setFormData({ ...formData, description: val })}
-                  placeholder={t.newTicket.descriptionPlaceholder}
-                  ticketId={0}
-                  onAttachmentsChange={setPendingAttachments}
-                  minRows={4}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <NewTicketChecklistSection
-                  value={checklistDraft}
-                  onChange={setChecklistDraft}
-                  forceExpand={checklistForceExpand}
-                />
-              </Grid>
-
-              {checklistError && (
-                <Grid item xs={12}>
-                  <Alert severity="warning" onClose={() => setChecklistError(false)}>
-                    {t.newTicket.checklistError}
-                  </Alert>
-                </Grid>
-              )}
-
-              <Grid item xs={12} sm={singleLocation ? 12 : 6}>
-                <TextField
-                  select
-                  fullWidth
-                  label={t.newTicket.categoryField}
-                  required
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                >
-                  {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                </TextField>
-              </Grid>
-
-              {!singleLocation && (
-                <Grid item xs={12} sm={6}>
+                {/* Resource */}
+                <SideSection>
+                  <SideLabel>{t.newTicket.resourceField}</SideLabel>
                   <TextField
-                    select
-                    fullWidth
-                    label={t.newTicket.locationField}
-                    value={formData.location}
-                    onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  >
-                    <MenuItem value=""><em>{t.newTicket.noLocation}</em></MenuItem>
-                    {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
-                  </TextField>
-                </Grid>
-              )}
+                    fullWidth size="small"
+                    value={formData.resource}
+                    onChange={e => setFormData({ ...formData, resource: e.target.value })}
+                    placeholder={t.newTicket.resourcePlaceholder}
+                  />
+                </SideSection>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t.newTicket.resourceField}
-                  value={formData.resource}
-                  onChange={e => setFormData({ ...formData, resource: e.target.value })}
-                  placeholder={t.newTicket.resourcePlaceholder}
-                />
-              </Grid>
+                {/* Due date */}
+                <SideSection>
+                  <SideLabel>{t.newTicket.dueAtField}</SideLabel>
+                  <TextField
+                    fullWidth size="small" type="datetime-local"
+                    value={formData.dueAt}
+                    onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ min: toLocalDatetimeInput(new Date()) }}
+                    label=""
+                  />
+                </SideSection>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label={t.newTicket.priorityField}
-                  required
-                  value={formData.priority}
-                  onChange={e => setFormData({ ...formData, priority: e.target.value })}
-                >
-                  <MenuItem value="low">{t.priority.low}</MenuItem>
-                  <MenuItem value="medium">{t.priority.medium}</MenuItem>
-                  <MenuItem value="high">{t.priority.high}</MenuItem>
-                  <MenuItem value="urgent">{t.priority.urgent}</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t.newTicket.dueAtField}
-                  type="datetime-local"
-                  value={formData.dueAt}
-                  onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: toLocalDatetimeInput(new Date()) }}
-                />
-              </Grid>
-
-              {(currentUser as any)?.clientsEnabled !== false && (clientsList.length > 0 || currentUser?.role === 'admin') && (
-                <Grid item xs={12} sm={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Autocomplete
-                      sx={{ flex: 1 }}
-                      options={clientsList}
-                      getOptionLabel={(o) => o.name}
-                      value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
-                      onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
-                      noOptionsText={t.newTicket.noClientFound}
-                      renderInput={(params) => (
-                        <TextField {...params} label={t.clients.clientField} />
+                {/* Client */}
+                {showClients && (
+                  <SideSection>
+                    <SideLabel>{t.clients.clientField}</SideLabel>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <Autocomplete
+                        sx={{ flex: 1 }}
+                        size="small"
+                        options={clientsList}
+                        getOptionLabel={(o) => o.name}
+                        value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
+                        onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
+                        noOptionsText={t.newTicket.noClientFound}
+                        renderInput={(params) => (
+                          <TextField {...params} placeholder={t.clients.clientField} />
+                        )}
+                      />
+                      {currentUser?.role === 'admin' && (
+                        <Tooltip title={t.newTicket.quickAddClient}>
+                          <IconButton
+                            size="small"
+                            onClick={() => { setQuickAddName(''); setQuickAddEmail(''); setQuickAddPhone(''); setQuickAddOpen(true); }}
+                            color="primary"
+                          >
+                            <AddCircleIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       )}
-                    />
-                    {currentUser?.role === 'admin' && (
-                      <Tooltip title={t.newTicket.quickAddClient}>
-                        <IconButton
-                          onClick={() => { setQuickAddName(''); setQuickAddEmail(''); setQuickAddPhone(''); setQuickAddOpen(true); }}
-                          color="primary"
-                        >
-                          <AddCircleIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Box>
-                </Grid>
-              )}
+                    </Box>
+                  </SideSection>
+                )}
 
-              {currentUser?.role === 'admin' && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                    {t.newTicket.assignField}
-                  </Typography>
-                  <Box display="flex" gap={2} alignItems="flex-start" flexWrap="wrap">
+                {/* Assignee (admin only) */}
+                {currentUser?.role === 'admin' && (
+                  <SideSection>
+                    <SideLabel>{t.newTicket.assignField}</SideLabel>
                     <ToggleButtonGroup
                       value={assignMode}
                       exclusive
                       onChange={(_, v) => { if (v) setAssignMode(v); }}
                       size="small"
+                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: '0.7rem' } }}
+                      fullWidth
                     >
-                      <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />{t.newTicket.assignUser}</ToggleButton>
-                      <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />{t.newTicket.assignGroup}</ToggleButton>
+                      <ToggleButton value="user">
+                        <Person sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignUser}
+                      </ToggleButton>
+                      <ToggleButton value="group">
+                        <Group sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignGroup}
+                      </ToggleButton>
                     </ToggleButtonGroup>
 
                     {assignMode === 'user' ? (
-                      <TextField
-                        select
-                        size="small"
-                        label={t.newTicket.assignUser}
-                        value={formData.assignedTo}
-                        onChange={e => setFormData({ ...formData, assignedTo: e.target.value })}
-                        sx={{ minWidth: 200 }}
-                      >
-                        <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
-                        {users?.map(u => {
+                      <Box display="flex" flexDirection="column" gap={0.25}>
+                        <Box
+                          onClick={() => setFormData({ ...formData, assignedTo: '' })}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.6,
+                            borderRadius: 1, cursor: 'pointer',
+                            bgcolor: !formData.assignedTo ? 'action.selected' : 'transparent',
+                            '&:hover': { bgcolor: 'action.hover' },
+                          }}
+                        >
+                          <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'action.disabledBackground' }}>—</Avatar>
+                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: '0.75rem' }}>
+                            {t.newTicket.unassigned}
+                          </Typography>
+                        </Box>
+                        {users?.filter(u => (u as any).active !== false).map(u => {
                           const open = openByUser[u.id];
+                          const selected = formData.assignedTo === u.id.toString();
                           return (
-                            <MenuItem key={u.id} value={u.id.toString()}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" width="100%" gap={2}>
-                                <span>{u.name}</span>
-                                {open > 0 && (
-                                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                                    {open} {t.newTicket.openTickets}
-                                  </Typography>
-                                )}
-                              </Box>
-                            </MenuItem>
+                            <Box
+                              key={u.id}
+                              onClick={() => setFormData({ ...formData, assignedTo: selected ? '' : u.id.toString() })}
+                              sx={{
+                                display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.6,
+                                borderRadius: 1, cursor: 'pointer',
+                                bgcolor: selected ? 'action.selected' : 'transparent',
+                                '&:hover': { bgcolor: 'action.hover' },
+                              }}
+                            >
+                              <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'primary.main' }}>
+                                {u.name.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body2"
+                                fontWeight={selected ? 700 : 400}
+                                color={selected ? 'primary' : 'text.primary'}
+                                sx={{ flex: 1, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              >
+                                {u.name}
+                              </Typography>
+                              {open > 0 && (
+                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>
+                                  {open}
+                                </Typography>
+                              )}
+                              {selected && <Typography variant="caption" color="primary" lineHeight={1}>✓</Typography>}
+                            </Box>
                           );
                         })}
-                      </TextField>
+                      </Box>
                     ) : (
                       <TextField
-                        select
-                        size="small"
-                        label={t.newTicket.assignGroup}
+                        select fullWidth size="small"
                         value={formData.assignedToGroup}
                         onChange={e => setFormData({ ...formData, assignedToGroup: e.target.value })}
-                        sx={{ minWidth: 200 }}
                       >
                         <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
-                        {groups.map(g => (
-                          <MenuItem key={g} value={g}>{g}</MenuItem>
-                        ))}
+                        {groups.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
                       </TextField>
                     )}
-                  </Box>
-                </Grid>
-              )}
+                  </SideSection>
+                )}
 
-              <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2} mt={{ xs: 0, sm: 2 }}>
-                <Button variant="outlined" onClick={() => setLocation('/tickets')}>
-                  {t.newTicket.cancel}
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  disabled={createTicket.isPending}
-                >
-                  {createTicket.isPending ? t.newTicket.creating : (lang === 'it' ? `Crea ${entityTerm.singular}` : `Create ${entityTerm.singular}`)}
-                </Button>
-              </Grid>
-            </Grid>
-          </form>
-        </CardContent>
-      </Card>
+                {/* Buttons */}
+                <Box display="flex" flexDirection="column" gap={1} mt={0.5}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    disabled={createTicket.isPending}
+                  >
+                    {createTicket.isPending
+                      ? t.newTicket.creating
+                      : (lang === 'it' ? `Crea ${entityTerm.singular}` : `Create ${entityTerm.singular}`)}
+                  </Button>
+                  <Button variant="outlined" fullWidth onClick={() => setLocation('/tickets')}>
+                    {t.newTicket.cancel}
+                  </Button>
+                </Box>
+
+              </CardContent>
+            </Card>
+          </Box>
+
+        </Box>
+      </form>
 
       {/* Quick-add client dialog */}
       <Dialog open={quickAddOpen} onClose={() => !quickAddSaving && setQuickAddOpen(false)} maxWidth="xs" fullWidth>
