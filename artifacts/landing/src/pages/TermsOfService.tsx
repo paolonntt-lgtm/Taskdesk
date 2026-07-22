@@ -1,15 +1,30 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import { useLanguage } from "@/i18n";
+
+const META = {
+  it: {
+    title: "Termini di Servizio — TaskDesk",
+    description: "Termini e condizioni di utilizzo del software di ticketing TaskDesk. Leggili prima di iniziare la prova gratuita di 7 giorni.",
+  },
+  en: {
+    title: "Terms of Service — TaskDesk",
+    description: "Terms and conditions for using the TaskDesk service for accounting firms, agencies and consultants.",
+  },
+};
+
 export default function TermsOfService() {
+  const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/it/terms`;
+  const canonicalUrl = `https://taskdesk.it/${lang}/terms`;
+  const meta = META[lang];
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
       <Helmet>
-        <title>Termini di Servizio — TaskDesk</title>
-        <meta name="description" content="Termini e condizioni di utilizzo del software di ticketing TaskDesk. Leggili prima di iniziare la prova gratuita di 7 giorni." />
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
         <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>

@@ -1,15 +1,30 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import { useLanguage } from "@/i18n";
+
+const META = {
+  it: {
+    title: "Data Processing Agreement (DPA) — TaskDesk",
+    description: "Accordo sul trattamento dei dati (DPA) tra TaskDesk e i clienti ai sensi del GDPR. Consulta o scarica il modello di accordo.",
+  },
+  en: {
+    title: "Data Processing Agreement — TaskDesk",
+    description: "Data Processing Agreement (DPA) between TaskDesk and its customers under GDPR.",
+  },
+};
+
 export default function DPA() {
+  const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/it/dpa`;
+  const canonicalUrl = `https://taskdesk.it/${lang}/dpa`;
+  const meta = META[lang];
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
       <Helmet>
-        <title>Data Processing Agreement (DPA) — TaskDesk</title>
-        <meta name="description" content="Accordo sul trattamento dei dati (DPA) tra TaskDesk e i clienti ai sensi del GDPR. Consulta o scarica il modello di accordo." />
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
         <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>

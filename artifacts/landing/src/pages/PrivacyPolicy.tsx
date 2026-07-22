@@ -1,15 +1,30 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import { useLanguage } from "@/i18n";
+
+const META = {
+  it: {
+    title: "Privacy Policy — TaskDesk",
+    description: "Informativa sul trattamento dei dati personali ai sensi del GDPR (Reg. UE 2016/679) per gli utenti di taskdesk.it.",
+  },
+  en: {
+    title: "Privacy Policy — TaskDesk",
+    description: "Privacy notice for the processing of personal data under GDPR (EU Regulation 2016/679) for taskdesk.it users.",
+  },
+};
+
 export default function PrivacyPolicy() {
+  const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/it/privacy-policy`;
+  const canonicalUrl = `https://taskdesk.it/${lang}/privacy-policy`;
+  const meta = META[lang];
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
       <Helmet>
-        <title>Privacy Policy — TaskDesk</title>
-        <meta name="description" content="Informativa sul trattamento dei dati personali ai sensi del GDPR (Reg. UE 2016/679) per gli utenti di taskdesk.it." />
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
         <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>

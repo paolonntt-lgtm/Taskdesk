@@ -1,15 +1,30 @@
 import React, { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
+import { useLanguage } from "@/i18n";
+
+const META = {
+  it: {
+    title: "Cookie Policy — TaskDesk",
+    description: "Informativa sull'uso dei cookie sul sito taskdesk.it ai sensi del D.Lgs. 196/2003 e della Direttiva ePrivacy.",
+  },
+  en: {
+    title: "Cookie Policy — TaskDesk",
+    description: "Cookie policy for taskdesk.it under EU privacy regulations.",
+  },
+};
+
 export default function CookiePolicy() {
+  const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/it/cookie-policy`;
+  const canonicalUrl = `https://taskdesk.it/${lang}/cookie-policy`;
+  const meta = META[lang];
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
       <Helmet>
-        <title>Cookie Policy — TaskDesk</title>
-        <meta name="description" content="Informativa sull'uso dei cookie sul sito taskdesk.it ai sensi del D.Lgs. 196/2003 e della Direttiva ePrivacy." />
+        <title>{meta.title}</title>
+        <meta name="description" content={meta.description} />
         <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>
