@@ -749,8 +749,13 @@ export default function Landing() {
           <div className="max-w-7xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-14 max-w-3xl mx-auto">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold mb-6">
-                  🎁 {t.pricing.trialLabel}
+                <div className="flex flex-wrap justify-center items-center gap-2 mb-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold">
+                    🚀 {t.pricing.launchBadge}
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold">
+                    🎁 {t.pricing.trialLabel}
+                  </div>
                 </div>
                 <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-3 leading-tight">{t.pricing.title}</h2>
                 <p className="text-xl font-semibold text-blue-600 mb-3">{t.pricing.trialHeader}</p>

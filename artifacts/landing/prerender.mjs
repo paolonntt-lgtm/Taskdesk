@@ -205,11 +205,11 @@ async function writeRoute(routePath, metaOpts) {
 
 await writeRoute('/it/', {
   lang: 'it',
-  title: 'TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA',
-  description: 'TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Da €35/mese + IVA.',
+  title: 'TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese + IVA',
+  description: 'TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Prezzi di lancio da €35/mese + IVA, prova gratuita 7 giorni.',
   canonical: `${BASE}/it/`,
-  ogTitle: 'TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA',
-  ogDescription: 'Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Da €35/mese + IVA tutto incluso.',
+  ogTitle: 'TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese',
+  ogDescription: 'Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.',
   ogUrl: `${BASE}/it/`,
   hreflangIt: `${BASE}/it/`,
   hreflangEn: `${BASE}/en/`,
@@ -218,11 +218,11 @@ await writeRoute('/it/', {
 
 await writeRoute('/en/', {
   lang: 'en',
-  title: 'TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT',
-  description: 'TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. From €35/month + VAT.',
+  title: 'TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month + VAT',
+  description: 'TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. Launch prices from €35/month + VAT, 7-day free trial.',
   canonical: `${BASE}/en/`,
-  ogTitle: 'TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT',
-  ogDescription: 'Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.',
+  ogTitle: 'TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month',
+  ogDescription: 'Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. Launch prices from €35/month + VAT, all included.',
   ogUrl: `${BASE}/en/`,
   hreflangIt: `${BASE}/it/`,
   hreflangEn: `${BASE}/en/`,
