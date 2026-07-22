@@ -1122,7 +1122,19 @@ export default function ClientDetail() {
         </Box>
 
         {editMode && (
-          <Alert severity="info" sx={{ mx: { xs: 2, sm: 3 }, mb: 2, mt: 1, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', '& .MuiAlert-icon': { color: '#7ecfd6' } }}>
+          <Alert
+            severity="info"
+            sx={{
+              mx: { xs: 2, sm: 3 },
+              mb: 2,
+              mt: 1,
+              bgcolor: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: '#fff',
+              '& .MuiAlert-icon': { color: '#7ecfd6' },
+              '& .MuiAlert-message': { color: '#fff' },
+            }}
+          >
             {tc.editLayoutHint}
           </Alert>
         )}
