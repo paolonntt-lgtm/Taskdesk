@@ -1027,8 +1027,8 @@ export default function TicketList() {
             ))}
           </Menu>
         </Box>
-        <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table size="small" sx={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+        <Box sx={{ width: '100%', overflowX: { xs: 'hidden', sm: 'auto' } }}>
+          <Table size="small" sx={{ tableLayout: { xs: 'auto', sm: 'fixed' }, width: { xs: '100%', sm: tableWidth }, minWidth: { xs: 'unset', sm: '100%' } }}>
             <colgroup>
               {isAdmin && <col style={{ width: 28 }} />}
               {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
