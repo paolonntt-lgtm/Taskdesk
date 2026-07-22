@@ -672,8 +672,19 @@ export default function ClientDetail() {
 
   const client = data as any;
   const tickets: any[] = client.tickets ?? [];
-  const avatarColor = getAvatarColor(client.name ?? '');
   const initials = getInitials(client.name ?? '?');
+
+  const openTickets = tickets.filter((t: any) => ['open', 'waiting', 'in_progress'].includes(t.status)).length;
+  const resolvedTickets = tickets.filter((t: any) => ['resolved', 'closed'].includes(t.status)).length;
+  const lastTicketDate = tickets.length > 0
+    ? new Date(Math.max(...tickets.map((t: any) => new Date((t.updatedAt ?? t.createdAt) as string).getTime())))
+    : null;
+  const heroKpis = [
+    { value: tickets.length, label: tc.kpiTotalTickets },
+    { value: openTickets, label: tc.kpiOpenTickets },
+    { value: resolvedTickets, label: tc.kpiResolvedTickets },
+    { value: lastTicketDate ? lastTicketDate.toLocaleDateString() : tc.kpiNever, label: tc.kpiLastActivity },
+  ];
 
   const builtinDefaultTitles: Record<BuiltinBlockId, string> = {
     'company-info': tc.blockCompanyInfo,
@@ -950,105 +961,34 @@ export default function ClientDetail() {
 
   return (
     <Box>
-      {/* Visual Identity Header */}
+      {/* HeroKPI Header */}
       <Box
         sx={{
+          background: 'linear-gradient(135deg, #0043ce 0%, #0f62fe 55%, #1e3a5f 100%)',
           borderRadius: 3,
           mb: 4,
-          p: { xs: 2.5, sm: 3.5 },
-          background: (theme) =>
-            theme.palette.mode === 'dark'
-              ? `linear-gradient(135deg, ${theme.palette.grey[900]} 0%, ${theme.palette.grey[800]} 100%)`
-              : `linear-gradient(135deg, #f0f4ff 0%, #e8eaf6 100%)`,
-          border: '1px solid',
-          borderColor: 'divider',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -40,
-            right: -40,
-            width: 180,
-            height: 180,
-            borderRadius: '50%',
-            bgcolor: avatarColor,
-            opacity: 0.06,
-            pointerEvents: 'none',
-          }}
-        />
+        {/* Geometric decorations */}
+        <Box sx={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <Box sx={{ position: 'absolute', top: 30, right: 100, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
 
-        <Button
-          startIcon={<ArrowBack />}
-          size="small"
-          onClick={() => setLocation('/clients')}
-          sx={{ mb: 2, opacity: 0.75, '&:hover': { opacity: 1 } }}
-        >
-          {tc.backToClients}
-        </Button>
-
-        <Box display="flex" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={3} flexWrap="wrap">
-          <Avatar
-            sx={{
-              width: { xs: 56, sm: 72 },
-              height: { xs: 56, sm: 72 },
-              bgcolor: avatarColor,
-              fontSize: { xs: '1.4rem', sm: '1.8rem' },
-              fontWeight: 700,
-              flexShrink: 0,
-              boxShadow: 3,
-            }}
+        {/* Breadcrumb + actions row */}
+        <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} sx={{ px: { xs: 2, sm: 3 }, pt: { xs: 1.5, sm: 2 } }}>
+          <Button
+            startIcon={<ArrowBack />}
+            size="small"
+            onClick={() => setLocation('/clients')}
+            sx={{ color: 'rgba(255,255,255,0.75)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' }, fontSize: 13, minWidth: 0 }}
           >
-            {initials}
-          </Avatar>
+            {tc.backToClients}
+          </Button>
+          <Box component="span" sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>›</Box>
+          <Typography component="span" sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{client.name}</Typography>
 
-          <Box flex={1} minWidth={0}>
-            <Typography
-              variant="h4"
-              fontWeight={700}
-              sx={{ fontSize: { xs: '1.4rem', sm: '1.75rem' }, mb: client.alias ? 0 : 0.5 }}
-            >
-              {client.name}
-            </Typography>
-            {client.alias && (
-              <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic', mb: 0.5 }}>
-                {client.alias}
-              </Typography>
-            )}
-            <Box display="flex" flexWrap="wrap" gap={1} mt={0.5}>
-              {client.email && (
-                <Chip
-                  icon={<Email fontSize="small" />}
-                  label={client.email}
-                  size="small"
-                  variant="outlined"
-                  sx={{ bgcolor: 'background.paper' }}
-                />
-              )}
-              {client.phone && (
-                <Chip
-                  icon={<Phone fontSize="small" />}
-                  label={client.phone}
-                  size="small"
-                  variant="outlined"
-                  sx={{ bgcolor: 'background.paper' }}
-                />
-              )}
-              {client.vatNumber && (
-                <Chip
-                  icon={<Business fontSize="small" />}
-                  label={client.vatNumber}
-                  size="small"
-                  variant="outlined"
-                  sx={{ bgcolor: 'background.paper' }}
-                />
-              )}
-            </Box>
-          </Box>
-
-          <Box display="flex" flexShrink={0} gap={1} flexWrap="wrap">
+          <Box display="flex" flexShrink={0} gap={1} flexWrap="wrap" ml="auto">
             {!editMode && (isAdmin || canManageSections) && (
               <>
                 {isAdmin && (
@@ -1057,6 +997,7 @@ export default function ClientDetail() {
                     startIcon={<Edit />}
                     size="small"
                     onClick={openEditDialog}
+                    sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
                   >
                     {tc.editClient}
                   </Button>
@@ -1065,6 +1006,7 @@ export default function ClientDetail() {
                   variant="outlined"
                   size="small"
                   onClick={handleEnterEditMode}
+                  sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
                 >
                   {tc.editLayout}
                 </Button>
@@ -1081,6 +1023,7 @@ export default function ClientDetail() {
                   size="small"
                   startIcon={<Add />}
                   onClick={() => setAddSectionOpen(true)}
+                  sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
                 >
                   {tc.addSection}
                 </Button>
@@ -1089,6 +1032,7 @@ export default function ClientDetail() {
                   size="small"
                   startIcon={<Cancel />}
                   onClick={handleCancelEdit}
+                  sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
                 >
                   {tc.cancelLayout}
                 </Button>
@@ -1097,6 +1041,7 @@ export default function ClientDetail() {
                   size="small"
                   startIcon={<Save />}
                   onClick={handleSaveLayout}
+                  sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' }, boxShadow: 'none' }}
                 >
                   {tc.saveLayout}
                 </Button>
@@ -1105,8 +1050,79 @@ export default function ClientDetail() {
           </Box>
         </Box>
 
+        {/* Avatar + name block */}
+        <Box display="flex" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={3} sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 3, flexWrap: 'wrap' }}>
+          <Avatar
+            sx={{
+              width: { xs: 64, sm: 80 },
+              height: { xs: 64, sm: 80 },
+              bgcolor: 'rgba(255,255,255,0.15)',
+              border: '3px solid rgba(255,255,255,0.4)',
+              fontSize: { xs: '1.5rem', sm: '1.9rem' },
+              fontWeight: 800,
+              flexShrink: 0,
+              color: '#fff',
+            }}
+          >
+            {initials}
+          </Avatar>
+          <Box flex={1} minWidth={0}>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+              sx={{ color: '#fff', fontSize: { xs: '1.4rem', sm: '1.75rem' }, letterSpacing: '-0.01em', lineHeight: 1.2 }}
+            >
+              {client.name}
+            </Typography>
+            {client.alias && (
+              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', fontSize: 14, mt: 0.25 }}>
+                {client.alias}
+              </Typography>
+            )}
+            <Box display="flex" flexWrap="wrap" gap={1.5} mt={1}>
+              {client.email && (
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
+                  <Email sx={{ fontSize: 14 }} />{client.email}
+                </Box>
+              )}
+              {client.phone && (
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
+                  <Phone sx={{ fontSize: 14 }} />{client.phone}
+                </Box>
+              )}
+              {client.vatNumber && (
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
+                  <Business sx={{ fontSize: 14 }} />{client.vatNumber}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* KPI strip */}
+        <Box display="flex" sx={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+          {heroKpis.map((kpi, i) => (
+            <Box
+              key={i}
+              flex={1}
+              sx={{
+                px: { xs: 1.5, sm: 3 },
+                py: 2,
+                borderRight: i < heroKpis.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none',
+              }}
+            >
+              <Typography sx={{ fontSize: { xs: 20, sm: 26 }, fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                {kpi.value}
+              </Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
+                {kpi.label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
         {editMode && (
-          <Alert severity="info" sx={{ mt: 2 }}>
+          <Alert severity="info" sx={{ mx: { xs: 2, sm: 3 }, mb: 2, mt: 1, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', '& .MuiAlert-icon': { color: '#7ecfd6' } }}>
             {tc.editLayoutHint}
           </Alert>
         )}

@@ -1227,6 +1227,11 @@ const it = {
     fixedNotesCancel: 'Annulla',
     fixedNotesPlaceholderAdmin: 'Nessuna nota fissa. Clicca su modifica per aggiungerne una.',
     fixedNotesPlaceholderView: 'Nessuna nota fissa.',
+    kpiTotalTickets: 'Ticket totali',
+    kpiOpenTickets: 'Ticket aperti',
+    kpiResolvedTickets: 'Ticket risolti',
+    kpiLastActivity: 'Ultima attività',
+    kpiNever: '—',
   },
   clientNotes: {
     consoleTitle: 'Note Clienti',
@@ -2736,6 +2741,11 @@ const en: typeof it = {
     fixedNotesCancel: 'Cancel',
     fixedNotesPlaceholderAdmin: 'No fixed notes yet. Click edit to add one.',
     fixedNotesPlaceholderView: 'No fixed notes.',
+    kpiTotalTickets: 'Total tickets',
+    kpiOpenTickets: 'Open tickets',
+    kpiResolvedTickets: 'Resolved tickets',
+    kpiLastActivity: 'Last activity',
+    kpiNever: '—',
   },
   clientNotes: {
     consoleTitle: 'Client Notes',
