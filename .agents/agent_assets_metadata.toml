@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "idlCJwq8qoVkXeYMyZWBI"
@@ -24,3 +23,9 @@ id = "TYAAk96VpwOxLZIg-z_yM"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "sj_wcV0xtnjZpGJpzh0yL"
+uri = "file://artifacts/landing/public/opengraph.jpg"
+type = "image"
+title = "OG Image — Prezzi di lancio (1200×630)"
