@@ -264,7 +264,9 @@ export default function TicketList() {
     (statusValues.includes('open') && statusValues.length === 1) ? 'open' :
     null;
   const [showExtraManual, setShowExtraManual] = useState(false);
-  const showExtra = showExtraManual || hasExtraFilters;
+  // Auto-expand only when extra filters were set manually (not via a quick-filter chip).
+  // When a chip is active, activeQFK !== null — suppress auto-expand so the panel stays collapsed.
+  const showExtra = showExtraManual || (hasExtraFilters && activeQFK === null);
 
   const setParam = useCallback((key: string, value: string, empty = 'all') => {
     const next = new URLSearchParams(searchStr);
