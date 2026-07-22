@@ -1,0 +1,51 @@
+import { renderToString } from "react-dom/server";
+import { Router as WouterRouter, Switch, Route } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
+import { LanguageProvider } from "./i18n";
+import Landing from "./pages/Landing";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import DPA from "./pages/DPA";
+import CookiePolicy from "./pages/CookiePolicy";
+
+function makeStaticHook(url: string) {
+  return (): [string, (path: string) => void] => [url, () => {}];
+}
+
+function PageRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={Landing} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/dpa" component={DPA} />
+      <Route path="/cookie-policy" component={CookiePolicy} />
+    </Switch>
+  );
+}
+
+export function render(url: string): { html: string } {
+  const helmetContext: Record<string, unknown> = {};
+
+  const html = renderToString(
+    <HelmetProvider context={helmetContext}>
+      <QueryClientProvider client={new QueryClient()}>
+        <WouterRouter hook={makeStaticHook(url)}>
+          <LanguageProvider>
+            <Switch>
+              <Route path="/it" nest>
+                <PageRoutes />
+              </Route>
+              <Route path="/en" nest>
+                <PageRoutes />
+              </Route>
+            </Switch>
+          </LanguageProvider>
+        </WouterRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+
+  return { html };
+}

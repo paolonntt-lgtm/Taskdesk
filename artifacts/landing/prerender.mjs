@@ -1,6 +1,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { build } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, 'dist/public');
@@ -64,38 +65,52 @@ function setMeta(html, opts) {
   return h;
 }
 
-function writeRoute(path, html) {
-  const cleanPath = path.replace(/^\//, '').replace(/\/$/, '');
-  const dir = cleanPath ? resolve(distDir, cleanPath) : distDir;
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(resolve(dir, 'index.html'), html, 'utf-8');
-  console.log(`  ✓ /${cleanPath}/index.html`);
+function injectBody(html, bodyHtml) {
+  return html.replace(
+    /<div id="root"><\/div>/,
+    `<div id="root">${bodyHtml}</div>`
+  );
 }
 
-function writeRedirect(path, target) {
-  const html = `<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8" />
-  <link rel="canonical" href="https://taskdesk.it${target}" />
-  <meta http-equiv="refresh" content="0; url=${target}" />
-  <script>window.location.replace("${target}");</script>
-</head>
-<body></body>
-</html>`;
-  const cleanPath = path.replace(/^\//, '');
-  const dir = resolve(distDir, cleanPath);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(resolve(dir, 'index.html'), html, 'utf-8');
-  console.log(`  ↪ /${cleanPath} → ${target}`);
-}
+// Build SSR bundle
+console.log('Building SSR bundle for prerender...');
+await build({
+  configFile: resolve(__dirname, 'vite.ssr.config.ts'),
+  logLevel: 'warn',
+});
+console.log('SSR bundle ready.');
+
+// Import server render function (fresh import after build)
+const ssrModule = await import(`./dist/server/entry-server.js?v=${Date.now()}`);
+const render = ssrModule.render;
 
 const BASE = 'https://taskdesk.it';
 
 console.log('Prerendering routes...');
-const template = readTemplate();
 
-writeRoute('/it/', setMeta(template, {
+async function writeRoute(routePath, metaOpts) {
+  const cleanPath = routePath.replace(/^\//, '').replace(/\/$/, '');
+  const dir = cleanPath ? resolve(distDir, cleanPath) : distDir;
+  mkdirSync(dir, { recursive: true });
+
+  const template = readTemplate();
+  let html = setMeta(template, metaOpts);
+
+  try {
+    const ssrUrl = routePath.endsWith('/') ? routePath : `${routePath}/`;
+    const { html: bodyHtml } = render(ssrUrl);
+    if (bodyHtml && bodyHtml.length > 0) {
+      html = injectBody(html, bodyHtml);
+    }
+  } catch (e) {
+    console.warn(`  ⚠ SSR body failed for ${routePath}: ${e.message}`);
+  }
+
+  writeFileSync(resolve(dir, 'index.html'), html, 'utf-8');
+  console.log(`  ✓ /${cleanPath || ''}/index.html`);
+}
+
+await writeRoute('/it/', {
   lang: 'it',
   title: 'TaskDesk — Software per Studi Commerciali e Agenzie | Da €35/mese + IVA',
   description: 'TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Da €35/mese + IVA.',
@@ -106,9 +121,9 @@ writeRoute('/it/', setMeta(template, {
   hreflangIt: `${BASE}/it/`,
   hreflangEn: `${BASE}/en/`,
   hreflangDefault: `${BASE}/it/`,
-}));
+});
 
-writeRoute('/en/', setMeta(template, {
+await writeRoute('/en/', {
   lang: 'en',
   title: 'TaskDesk — Software for Accounting Firms & Agencies | From €35/month + VAT',
   description: 'TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. From €35/month + VAT.',
@@ -119,7 +134,7 @@ writeRoute('/en/', setMeta(template, {
   hreflangIt: `${BASE}/it/`,
   hreflangEn: `${BASE}/en/`,
   hreflangDefault: `${BASE}/it/`,
-}));
+});
 
 const legalPages = [
   {
@@ -169,7 +184,7 @@ const legalPages = [
 ];
 
 for (const page of legalPages) {
-  writeRoute(`/it/${page.slug}`, setMeta(template, {
+  await writeRoute(`/it/${page.slug}`, {
     lang: 'it',
     title: page.it.title,
     description: page.it.description,
@@ -181,9 +196,9 @@ for (const page of legalPages) {
     hreflangIt: `${BASE}/it/${page.slug}`,
     hreflangEn: `${BASE}/en/${page.slug}`,
     hreflangDefault: `${BASE}/it/${page.slug}`,
-  }));
+  });
 
-  writeRoute(`/en/${page.slug}`, setMeta(template, {
+  await writeRoute(`/en/${page.slug}`, {
     lang: 'en',
     title: page.en.title,
     description: page.en.description,
@@ -195,9 +210,7 @@ for (const page of legalPages) {
     hreflangIt: `${BASE}/it/${page.slug}`,
     hreflangEn: `${BASE}/en/${page.slug}`,
     hreflangDefault: `${BASE}/it/${page.slug}`,
-  }));
-
-  writeRedirect(`/${page.slug}`, `/it/${page.slug}`);
+  });
 }
 
 console.log('Prerender complete.');
