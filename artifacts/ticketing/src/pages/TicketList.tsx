@@ -248,6 +248,7 @@ export default function TicketList() {
   const toggleCol = (key: string) => setVisibleCols(prev => { const next = { ...prev, [key]: !prev[key] }; localStorage.setItem('ticketlist-visible-cols', JSON.stringify(next)); return next; });
 
   const deleteTicket = useDeleteTicket();
+  const [focusedRowIdx, setFocusedRowIdx] = useState<number | null>(null);
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
   const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters;
@@ -405,8 +406,8 @@ export default function TicketList() {
     } catch {}
   }, [tickets]);
 
-  // Clear selection when tickets change (e.g. after delete or filter)
-  useEffect(() => { setSelectedIds(new Set()); }, [tickets]);
+  // Clear selection and keyboard focus when tickets change (e.g. after delete or filter)
+  useEffect(() => { setSelectedIds(new Set()); setFocusedRowIdx(null); }, [tickets]);
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
@@ -447,6 +448,52 @@ export default function TicketList() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [tickets, sortCol, sortDir]);
+
+  // J/K/Enter keyboard row navigation (placed after sortedTickets declaration)
+  useEffect(() => {
+    const isInputFocused = () => {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      if ((el as HTMLElement).isContentEditable) return true;
+      return false;
+    };
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isInputFocused()) return;
+      if (e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        setFocusedRowIdx((prev) => {
+          const max = sortedTickets.length - 1;
+          if (max < 0) return null;
+          return prev === null ? 0 : Math.min(prev + 1, max);
+        });
+      } else if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        setFocusedRowIdx((prev) => {
+          if (prev === null || prev === 0) return prev;
+          return prev - 1;
+        });
+      } else if (e.key === 'Enter') {
+        setFocusedRowIdx((prev) => {
+          if (prev !== null && sortedTickets[prev]) {
+            const ticket = sortedTickets[prev];
+            navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`);
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [sortedTickets, navigate, activeQFK]);
+
+  // Scroll focused row into view
+  useEffect(() => {
+    if (focusedRowIdx === null) return;
+    document.querySelector(`[data-row-idx="${focusedRowIdx}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [focusedRowIdx]);
 
   // ── Selection helpers ────────────────────────────────────────────────────
   const allVisibleIds = sortedTickets.map((t) => t.id);
@@ -1077,15 +1124,20 @@ export default function TicketList() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedTickets.map((ticket) => {
+                sortedTickets.map((ticket, rowIdx) => {
                   const isSelected = selectedIds.has(ticket.id);
+                  const isFocused = focusedRowIdx === rowIdx;
                   return (
                     <TableRow
                       key={ticket.id}
                       hover
                       selected={isSelected}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`)}
+                      data-row-idx={rowIdx}
+                      sx={{
+                        cursor: 'pointer',
+                        ...(isFocused ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '-2px' } : {}),
+                      }}
+                      onClick={() => { setFocusedRowIdx(rowIdx); navigate(`/tickets/${ticket.id}${activeQFK ? `?bql=${activeQFK}` : ''}`); }}
                     >
                       {isAdmin && (
                         <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.25, pr: 0 }}>

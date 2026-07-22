@@ -1484,6 +1484,18 @@ const it = {
     keyClose: 'chiudi',
     tooltip: 'Ricerca rapida (⌘K)',
   },
+  shortcuts: {
+    dialogTitle: 'Scorciatoie da tastiera',
+    globalSection: 'Globali',
+    listSection: 'Lista pratiche',
+    keyN: 'Nuova pratica',
+    keyQuestion: 'Mostra questa guida',
+    keyJ: 'Riga successiva',
+    keyK: 'Riga precedente',
+    keyEnter: 'Apri pratica selezionata',
+    keyCmdK: 'Apri ricerca rapida',
+    close: 'Chiudi',
+  },
 };
 
 const en: typeof it = {
@@ -2969,6 +2981,18 @@ const en: typeof it = {
     keySelect: 'open',
     keyClose: 'close',
     tooltip: 'Quick search (⌘K)',
+  },
+  shortcuts: {
+    dialogTitle: 'Keyboard shortcuts',
+    globalSection: 'Global',
+    listSection: 'Ticket list',
+    keyN: 'New ticket',
+    keyQuestion: 'Show this guide',
+    keyJ: 'Next row',
+    keyK: 'Previous row',
+    keyEnter: 'Open selected ticket',
+    keyCmdK: 'Open quick search',
+    close: 'Close',
   },
 };
 

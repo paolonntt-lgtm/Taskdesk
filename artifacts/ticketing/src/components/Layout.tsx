@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   AppBar,
   Box,
@@ -62,6 +62,7 @@ import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
 import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
+import ShortcutsDialog from './ShortcutsDialog';
 
 const drawerWidth = 264;
 
@@ -84,6 +85,7 @@ export default function Layout({ children }: LayoutProps) {
   });
   const [botOpen, setBotOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
@@ -171,15 +173,33 @@ export default function Layout({ children }: LayoutProps) {
   }, []);
 
   useEffect(() => {
+    const isInputFocused = () => {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      if ((el as HTMLElement).isContentEditable) return true;
+      return false;
+    };
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !isInputFocused()) {
+        if (e.key === 'n' || e.key === 'N') {
+          e.preventDefault();
+          setLocation('/tickets/new');
+        } else if (e.key === '?') {
+          e.preventDefault();
+          setShortcutsOpen((prev) => !prev);
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [setLocation]);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -209,6 +229,34 @@ export default function Layout({ children }: LayoutProps) {
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+
+  // Group notifications by ticketId+type to reduce visual noise
+  const groupedNotifications = useMemo(() => {
+    const groups = new Map<string, {
+      key: string; type: string; ticketId: number | null;
+      notificationText: string; createdAt: string; isRead: boolean;
+      count: number;
+    }>();
+    for (const n of notifications as any[]) {
+      const key = n.ticketId ? `${n.ticketId}_${n.type ?? 'system'}` : `sys_${n.id}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key, type: n.type ?? 'system', ticketId: n.ticketId ?? null,
+          notificationText: n.notificationText, createdAt: n.createdAt,
+          isRead: !!n.isRead, count: 1,
+        });
+      } else {
+        const g = groups.get(key)!;
+        g.count++;
+        if (!n.isRead) g.isRead = false;
+        if (new Date(n.createdAt) > new Date(g.createdAt)) {
+          g.createdAt = n.createdAt;
+          g.notificationText = n.notificationText;
+        }
+      }
+    }
+    return Array.from(groups.values());
+  }, [notifications]);
 
   const typeIconMap: Record<string, React.ReactNode> = {
     ticket_created: <FiberNew fontSize="small" sx={{ color: 'primary.main' }} />,
@@ -496,28 +544,36 @@ export default function Layout({ children }: LayoutProps) {
                 <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
               </MenuItem>
             ) : (
-              notifications.map((n: any) => {
-                const ntype = (n.type ?? 'system') as string;
+              groupedNotifications.map((g) => {
+                const ntype = g.type;
                 return (
                   <MenuItem
-                    key={n.id}
-                    onClick={() => { handleMenuClose(); if (n.ticketId) setLocation(`/tickets/${n.ticketId}`); }}
+                    key={g.key}
+                    onClick={() => { handleMenuClose(); if (g.ticketId) setLocation(`/tickets/${g.ticketId}`); }}
                     sx={{
                       whiteSpace: 'normal', py: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.25,
-                      bgcolor: n.isRead ? 'transparent' : 'primary.50',
-                      borderLeft: n.isRead ? 'none' : '3px solid',
+                      bgcolor: g.isRead ? 'transparent' : 'primary.50',
+                      borderLeft: g.isRead ? 'none' : '3px solid',
                       borderLeftColor: 'primary.main',
                     }}
                   >
-                    <Box sx={{ mt: '2px', flexShrink: 0 }}>{typeIconMap[ntype] ?? typeIconMap.system}</Box>
+                    <Box sx={{ mt: '2px', flexShrink: 0 }}>
+                      <Badge
+                        badgeContent={g.count > 1 ? g.count : 0}
+                        color="primary"
+                        sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 16, height: 16 } }}
+                      >
+                        {typeIconMap[ntype] ?? typeIconMap.system}
+                      </Badge>
+                    </Box>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem', mb: 0.25 }}>
                         {(t.nav.notifTypes as any)[ntype] ?? ntype}
                       </Typography>
-                      <Typography variant="body2">{n.notificationText}</Typography>
-                      {n.createdAt && (
+                      <Typography variant="body2">{g.notificationText}</Typography>
+                      {g.createdAt && (
                         <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', mt: 0.25, display: 'block' }}>
-                          {new Date(n.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+                          {new Date(g.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
                         </Typography>
                       )}
                     </Box>
@@ -653,6 +709,11 @@ export default function Layout({ children }: LayoutProps) {
       <CommandPalette
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
+      />
+
+      <ShortcutsDialog
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
 
       <BotDialog
