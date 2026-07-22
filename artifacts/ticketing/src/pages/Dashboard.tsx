@@ -2323,25 +2323,52 @@ function Dashboard() {
         </Paper>
       )}
 
-      {/* Grid */}
-      <ReactGridLayout
-        layout={activeLayout}
-        cols={12}
-        rowHeight={60}
-        margin={[12, 12]}
-        isDraggable={editMode}
-        isResizable={editMode}
-        draggableHandle=".drag-handle"
-        compactType="vertical"
-        onLayoutChange={handleLayoutChange}
-        style={{ minHeight: 200 }}
-      >
-        {visibleIds.map((id) => {
+      {/* Grid — desktop drag/resize layout */}
+      {!isMobile && (
+        <ReactGridLayout
+          layout={activeLayout}
+          cols={12}
+          rowHeight={60}
+          margin={[12, 12]}
+          isDraggable={editMode}
+          isResizable={editMode}
+          draggableHandle=".drag-handle"
+          compactType="vertical"
+          onLayoutChange={handleLayoutChange}
+          style={{ minHeight: 200 }}
+        >
+          {visibleIds.map((id) => {
+            const meta = effectiveRegistry.find((w) => w.id === getBaseId(id));
+            if (!meta) return null;
+            const Cmp = meta.component;
+            return (
+              <div key={id}>
+                <WidgetShell
+                  editMode={editMode}
+                  label={customNames[id] || resolveWidgetLabel(meta.labelKey)}
+                  onRemove={() => removeWidget(id)}
+                  onOpenSettings={() => setSettingsWidgetId(id)}
+                >
+                  <WidgetCustomNameContext.Provider value={customNames[id] || ''}>
+                    <Cmp />
+                  </WidgetCustomNameContext.Provider>
+                </WidgetShell>
+              </div>
+            );
+          })}
+        </ReactGridLayout>
+      )}
+
+      {/* Mobile stacked layout — stat cards 2×2, other widgets full width */}
+      {isMobile && (() => {
+        const statIds   = visibleIds.filter((id) => getBaseId(id).startsWith('stat-'));
+        const otherIds  = visibleIds.filter((id) => !getBaseId(id).startsWith('stat-'));
+        const renderWidget = (id: string, height: number) => {
           const meta = effectiveRegistry.find((w) => w.id === getBaseId(id));
           if (!meta) return null;
           const Cmp = meta.component;
           return (
-            <div key={id}>
+            <Box key={id} sx={{ height }}>
               <WidgetShell
                 editMode={editMode}
                 label={customNames[id] || resolveWidgetLabel(meta.labelKey)}
@@ -2352,10 +2379,20 @@ function Dashboard() {
                   <Cmp />
                 </WidgetCustomNameContext.Provider>
               </WidgetShell>
-            </div>
+            </Box>
           );
-        })}
-      </ReactGridLayout>
+        };
+        return (
+          <Box display="flex" flexDirection="column" gap={1.5}>
+            {statIds.length > 0 && (
+              <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1.5}>
+                {statIds.map((id) => renderWidget(id, 110))}
+              </Box>
+            )}
+            {otherIds.map((id) => renderWidget(id, 380))}
+          </Box>
+        );
+      })()}
 
       {/* Add Widget Dialog */}
       <AddWidgetDialog
