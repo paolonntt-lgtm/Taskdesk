@@ -199,8 +199,9 @@ export default function TicketList() {
     if (currentParams.get('sortDir')) next.set('sortDir', currentParams.get('sortDir')!);
     const qs = next.toString();
     navigate(`/tickets${qs ? '?' + qs : ''}`, { replace: true } as any);
-    // Sync search input
+    // Sync search input and close advanced filters panel
     setSearchInput(next.get('search') ?? '');
+    setShowExtraManual(false);
   }, [searchStr, navigate]);
 
   // ── Bulk selection state ─────────────────────────────────────────────────
