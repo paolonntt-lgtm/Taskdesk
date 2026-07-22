@@ -6,6 +6,7 @@ import {
   Tooltip, TableSortLabel, Collapse, IconButton, Checkbox, Toolbar, Dialog,
   DialogTitle, DialogContent, DialogContentText, DialogActions, Alert,
   Select, FormControl, InputLabel, OutlinedInput, ListItemText, Menu,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
@@ -411,6 +412,8 @@ export default function TicketList() {
   // Clear selection and keyboard focus when tickets change (e.g. after delete or filter)
   useEffect(() => { setSelectedIds(new Set()); setFocusedRowIdx(null); }, [tickets]);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const showLocation = configuredLocations.length !== 1;
   const showClient = (user as any)?.clientsEnabled !== false;
@@ -1029,18 +1032,22 @@ export default function TicketList() {
         </Box>
         <Box sx={{ width: '100%', overflowX: { xs: 'hidden', sm: 'auto' } }}>
           <Table size="small" sx={{ tableLayout: { xs: 'auto', sm: 'fixed' }, width: { xs: '100%', sm: tableWidth }, minWidth: { xs: 'unset', sm: '100%' } }}>
-            <colgroup>
-              {isAdmin && <col style={{ width: 28 }} />}
-              {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
-              <col style={{ width: colWidths.title ?? DEFAULT_COL_WIDTHS.title }} />
-              {(visibleCols.category ?? true) && <col style={{ width: colWidths.category ?? DEFAULT_COL_WIDTHS.category }} />}
-              {(visibleCols.status ?? true) && <col style={{ width: colWidths.status ?? DEFAULT_COL_WIDTHS.status }} />}
-              {(visibleCols.priority ?? true) && <col style={{ width: colWidths.priority ?? DEFAULT_COL_WIDTHS.priority }} />}
-              {(visibleCols.dueAt ?? true) && <col style={{ width: colWidths.dueAt ?? DEFAULT_COL_WIDTHS.dueAt }} />}
-              {(visibleCols.assignee ?? true) && <col style={{ width: colWidths.assignee ?? DEFAULT_COL_WIDTHS.assignee }} />}
-              {showLocation && (visibleCols.location ?? true) && <col style={{ width: colWidths.location ?? DEFAULT_COL_WIDTHS.location }} />}
-              {(visibleCols.createdAt ?? true) && <col style={{ width: colWidths.createdAt ?? DEFAULT_COL_WIDTHS.createdAt }} />}
-            </colgroup>
+            {/* colgroup omitted on mobile — fixed col widths cause page-level overflow
+                even when columns are hidden with display:none */}
+            {!isMobile && (
+              <colgroup>
+                {isAdmin && <col style={{ width: 28 }} />}
+                {(visibleCols.id ?? true) && <col style={{ width: colWidths.id ?? DEFAULT_COL_WIDTHS.id }} />}
+                <col style={{ width: colWidths.title ?? DEFAULT_COL_WIDTHS.title }} />
+                {(visibleCols.category ?? true) && <col style={{ width: colWidths.category ?? DEFAULT_COL_WIDTHS.category }} />}
+                {(visibleCols.status ?? true) && <col style={{ width: colWidths.status ?? DEFAULT_COL_WIDTHS.status }} />}
+                {(visibleCols.priority ?? true) && <col style={{ width: colWidths.priority ?? DEFAULT_COL_WIDTHS.priority }} />}
+                {(visibleCols.dueAt ?? true) && <col style={{ width: colWidths.dueAt ?? DEFAULT_COL_WIDTHS.dueAt }} />}
+                {(visibleCols.assignee ?? true) && <col style={{ width: colWidths.assignee ?? DEFAULT_COL_WIDTHS.assignee }} />}
+                {showLocation && (visibleCols.location ?? true) && <col style={{ width: colWidths.location ?? DEFAULT_COL_WIDTHS.location }} />}
+                {(visibleCols.createdAt ?? true) && <col style={{ width: colWidths.createdAt ?? DEFAULT_COL_WIDTHS.createdAt }} />}
+              </colgroup>
+            )}
             <TableHead>
               <TableRow>
                 {isAdmin && (
