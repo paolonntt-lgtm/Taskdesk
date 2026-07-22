@@ -7,6 +7,7 @@ import {
   FormControlLabel, Checkbox, Autocomplete, Breadcrumbs, Link as MuiLink,
   useTheme, useMediaQuery,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, NavigateNext as NavigateNextIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
@@ -1334,28 +1335,28 @@ export default function TicketDetail() {
                           </Box>
                         )}
                         <Box
-                          sx={isSolution ? {
+                          sx={isSolution ? (theme) => ({
                             border: '1px solid',
-                            borderColor: 'success.300',
+                            borderColor: alpha(theme.palette.success.main, 0.35),
                             borderRadius: 2,
-                            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)`,
                             px: { xs: 1.5, sm: 2 },
                             py: 1,
-                          } : customerReply ? {
+                          }) : customerReply ? (theme) => ({
                             borderRadius: 2,
-                            bgcolor: '#f5f0ff',
+                            bgcolor: alpha(theme.palette.secondary.main, 0.1),
                             border: '1px solid',
-                            borderColor: '#d4bbff',
+                            borderColor: alpha(theme.palette.secondary.main, 0.35),
                             px: { xs: 1.5, sm: 2 },
                             py: 1,
-                          } : {
+                          }) : (theme) => ({
                             borderRadius: 2,
-                            bgcolor: '#f8faff',
+                            bgcolor: alpha(theme.palette.primary.main, 0.05),
                             border: '1px solid',
-                            borderColor: 'divider',
+                            borderColor: theme.palette.divider,
                             px: { xs: 1.5, sm: 2 },
                             py: 1,
-                          }}
+                          })}
                         >
                           {customerReply ? (
                             <Box>
@@ -1711,7 +1712,7 @@ export default function TicketDetail() {
                           )}
                         </Box>
                         {/* Note text */}
-                        <Box px={1.5} py={1} sx={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' }}>
+                        <Box px={1.5} py={1} sx={{ background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)` }}>
                           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
                             {(ticket as any).resolutionNote}
                           </Typography>
@@ -1721,8 +1722,8 @@ export default function TicketDetail() {
                   )}
                   {/* Email reply compose panel */}
                   {emailReplyOpen && ticket.status !== 'closed' && isEmailResource && (
-                    <Box mt={2} sx={{ border: '1px solid', borderColor: 'info.300', borderRadius: 2, overflow: 'hidden' }}>
-                      <Box sx={{ bgcolor: 'info.50', px: 2, py: 1, borderBottom: '1px solid', borderColor: 'info.200', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box mt={2} sx={{ border: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.35), borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ bgcolor: (theme) => alpha(theme.palette.info.main, 0.08), px: 2, py: 1, borderBottom: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.2), display: 'flex', alignItems: 'center', gap: 1 }}>
                         <EmailIcon sx={{ fontSize: 16, color: 'info.main' }} />
                         <Typography variant="caption" fontWeight={600} color="info.dark">
                           {t.ticketDetail.replyViaEmail}
