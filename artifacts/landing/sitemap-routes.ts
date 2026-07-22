@@ -39,36 +39,11 @@ export const SITEMAP_ROUTE_META: Record<string, SitemapRouteMeta> = {
       { lang: "en", href: `${SITEMAP_BASE_URL}/en/` },
     ],
   },
-  "/terms": {
-    changefreq: "yearly",
-    priority: 0.3,
-    urls: {
-      it: `${SITEMAP_BASE_URL}/it/terms`,
-      en: `${SITEMAP_BASE_URL}/en/terms`,
-    },
-  },
-  "/privacy-policy": {
-    changefreq: "yearly",
-    priority: 0.3,
-    urls: {
-      it: `${SITEMAP_BASE_URL}/it/privacy-policy`,
-      en: `${SITEMAP_BASE_URL}/en/privacy-policy`,
-    },
-  },
-  "/cookie-policy": {
-    changefreq: "yearly",
-    priority: 0.2,
-    urls: {
-      it: `${SITEMAP_BASE_URL}/it/cookie-policy`,
-      en: `${SITEMAP_BASE_URL}/en/cookie-policy`,
-    },
-  },
-  "/dpa": {
-    changefreq: "yearly",
-    priority: 0.2,
-    urls: {
-      it: `${SITEMAP_BASE_URL}/it/dpa`,
-      en: `${SITEMAP_BASE_URL}/en/dpa`,
-    },
-  },
+  // Legal/compliance pages are noindex — exclude from sitemap to avoid
+  // contradictory crawl signals. Content is Italian-only so EN alternates
+  // would be false language targeting.
+  "/terms": { exclude: true },
+  "/privacy-policy": { exclude: true },
+  "/cookie-policy": { exclude: true },
+  "/dpa": { exclude: true },
 };

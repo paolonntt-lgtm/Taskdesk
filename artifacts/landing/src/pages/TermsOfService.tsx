@@ -13,7 +13,7 @@ export default function TermsOfService() {
       <Helmet>
         <title>Termini di Servizio — TaskDesk</title>
         <meta name="description" content="Termini e condizioni di utilizzo del software di ticketing TaskDesk. Leggili prima di iniziare la prova gratuita di 7 giorni." />
-        <meta name="robots" content="index, follow" />
+        <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
       </Helmet>
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
