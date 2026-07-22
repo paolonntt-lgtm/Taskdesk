@@ -5,6 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
   FormControlLabel, Checkbox, Autocomplete, Breadcrumbs, Link as MuiLink,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, NavigateNext as NavigateNextIcon } from '@mui/icons-material';
 import {
@@ -81,6 +82,8 @@ export default function TicketDetail() {
   const [resolutionNote, setResolutionNote] = useState('');
 
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
@@ -628,42 +631,71 @@ export default function TicketDetail() {
             #{ticketId} {ticket.title}
           </Typography>
         </Breadcrumbs>
-        <Box display="flex" gap={1} flexWrap="wrap">
-          {canEdit && (
-            <Button
-              startIcon={<EditOutlined />}
-              size="small"
-              variant="outlined"
-              onClick={openEditDialog}
-            >
-              {t.ticketDetail.editButton}
-            </Button>
-          )}
-          {isAdmin && (
-            <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : ''}>
-              <Button
-                startIcon={<RepeatIcon />}
-                size="small"
-                variant={(ticket as any).recurrenceRule ? 'contained' : 'outlined'}
-                color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'}
-                onClick={openRecurrenceDialog}
-              >
-                {t.ticketDetail.recurrenceButton}
-              </Button>
-            </Tooltip>
-          )}
-          {isAdmin && (
-            <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
-              <Button
-                startIcon={<DeleteOutline />}
-                color="error"
-                size="small"
-                variant="outlined"
-                onClick={() => setDeleteDialog(true)}
-              >
-                {lang === 'it' ? 'Elimina' : 'Delete'}
-              </Button>
-            </Tooltip>
+        <Box display="flex" gap={0.5} alignItems="center" flexShrink={0}>
+          {isMobile ? (
+            /* ── Mobile: icon-only buttons in a compact row ── */
+            <>
+              {canEdit && (
+                <Tooltip title={t.ticketDetail.editButton}>
+                  <IconButton size="small" onClick={openEditDialog} sx={{ border: '1px solid', borderColor: 'divider' }}>
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {isAdmin && (
+                <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : t.ticketDetail.recurrenceButton}>
+                  <IconButton
+                    size="small"
+                    onClick={openRecurrenceDialog}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: (ticket as any).recurrenceRule ? 'primary.main' : 'divider',
+                      bgcolor: (ticket as any).recurrenceRule ? 'primary.main' : 'transparent',
+                      color: (ticket as any).recurrenceRule ? 'primary.contrastText' : 'inherit',
+                      '&:hover': { bgcolor: (ticket as any).recurrenceRule ? 'primary.dark' : undefined },
+                    }}
+                  >
+                    <RepeatIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {isAdmin && (
+                <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
+                  <IconButton size="small" onClick={() => setDeleteDialog(true)} color="error" sx={{ border: '1px solid', borderColor: 'error.main' }}>
+                    <DeleteOutline fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </>
+          ) : (
+            /* ── Desktop: full text buttons ── */
+            <>
+              {canEdit && (
+                <Button startIcon={<EditOutlined />} size="small" variant="outlined" onClick={openEditDialog}>
+                  {t.ticketDetail.editButton}
+                </Button>
+              )}
+              {isAdmin && (
+                <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : ''}>
+                  <Button
+                    startIcon={<RepeatIcon />}
+                    size="small"
+                    variant={(ticket as any).recurrenceRule ? 'contained' : 'outlined'}
+                    color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'}
+                    onClick={openRecurrenceDialog}
+                  >
+                    {t.ticketDetail.recurrenceButton}
+                  </Button>
+                </Tooltip>
+              )}
+              {isAdmin && (
+                <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
+                  <Button startIcon={<DeleteOutline />} color="error" size="small" variant="outlined" onClick={() => setDeleteDialog(true)}>
+                    {lang === 'it' ? 'Elimina' : 'Delete'}
+                  </Button>
+                </Tooltip>
+              )}
+            </>
           )}
         </Box>
       </Box>
