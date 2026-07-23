@@ -260,8 +260,8 @@ export default function TicketDetail() {
       return;
     }
     try {
-      const updated = await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
-      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     } catch (err: any) {
       setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
@@ -271,11 +271,11 @@ export default function TicketDetail() {
   const confirmResolved = async (note: string) => {
     const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
     try {
-      const updated = await updateTicket.mutateAsync({
+      await updateTicket.mutateAsync({
         id: ticketId,
         data: { status: resolvedKey as any, resolutionNote: note || null } as any,
       });
-      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setResolutionDialog(false);
       setResolutionNote('');
@@ -286,30 +286,30 @@ export default function TicketDetail() {
 
   const handlePriorityChange = async (newPriority: string) => {
     if (newPriority === ticket.priority) return;
-    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    await updateTicket.mutateAsync({ id: ticketId, data: { priority: newPriority as any } });
+    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
   };
 
   const handleAssigneeChange = async (newAssignee: string) => {
-    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
+    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setAssignAnchor(null);
   };
 
   const handleDueAtChange = async (val: string) => {
-    const updated = await updateTicket.mutateAsync({
+    await updateTicket.mutateAsync({
       id: ticketId,
       data: { dueAt: val ? new Date(val) as any : null } as any,
     });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
   };
 
   const handleGroupChange = async (val: string) => {
-    const updated = await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
-    queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+    await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
+    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
     queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     setAssignAnchor(null);
   };
@@ -392,7 +392,7 @@ export default function TicketDetail() {
     setRecurrenceSaving(true);
     setRecurrenceError(null);
     try {
-      const updated = await setRecurrenceMut.mutateAsync({
+      await setRecurrenceMut.mutateAsync({
         id: ticketId,
         data: {
           frequency: recurrenceFreq,
@@ -400,7 +400,7 @@ export default function TicketDetail() {
           ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
         } as any,
       });
-      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setRecurrenceDialog(false);
     } catch (err: any) {
@@ -414,8 +414,8 @@ export default function TicketDetail() {
     setRecurrenceSaving(true);
     setRecurrenceError(null);
     try {
-      const updated = await deleteRecurrenceMut.mutateAsync({ id: ticketId });
-      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      await deleteRecurrenceMut.mutateAsync({ id: ticketId });
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setRecurrenceDialog(false);
     } catch (err: any) {
@@ -440,7 +440,7 @@ export default function TicketDetail() {
   const handleEditSave = async () => {
     setEditSaving(true);
     try {
-      const updated = await updateTicket.mutateAsync({
+      await updateTicket.mutateAsync({
         id: ticketId,
         data: {
           title: editForm.title,
@@ -451,7 +451,7 @@ export default function TicketDetail() {
           clientId: editForm.clientId ? parseInt(editForm.clientId) : null,
         } as any,
       });
-      queryClient.setQueryData(getGetTicketQueryKey(ticketId), updated);
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setEditDialog(false);
     } finally {
