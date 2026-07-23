@@ -43,7 +43,25 @@ async function checkTicketRecurrences(): Promise<void> {
     const now = new Date();
 
     const due = await db
-      .select()
+      .select({
+        id: ticketsTable.id,
+        organizationId: ticketsTable.organizationId,
+        ticketNumber: ticketsTable.ticketNumber,
+        title: ticketsTable.title,
+        description: ticketsTable.description,
+        category: ticketsTable.category,
+        location: ticketsTable.location,
+        resource: ticketsTable.resource,
+        priority: ticketsTable.priority,
+        status: ticketsTable.status,
+        createdBy: ticketsTable.createdBy,
+        assignedTo: ticketsTable.assignedTo,
+        assignedToGroup: ticketsTable.assignedToGroup,
+        clientId: ticketsTable.clientId,
+        recurrenceRule: ticketsTable.recurrenceRule,
+        recurrenceNextAt: ticketsTable.recurrenceNextAt,
+        recurrenceParentId: ticketsTable.recurrenceParentId,
+      })
       .from(ticketsTable)
       .where(
         and(

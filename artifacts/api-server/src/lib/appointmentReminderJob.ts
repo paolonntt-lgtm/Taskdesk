@@ -24,7 +24,17 @@ async function checkAppointmentReminders(): Promise<void> {
      *  - reminder time has already passed: starts_at - reminder_minutes*60s <= now
      */
     const due = await db
-      .select()
+      .select({
+        id: appointmentsTable.id,
+        organizationId: appointmentsTable.organizationId,
+        createdBy: appointmentsTable.createdBy,
+        assignedTo: appointmentsTable.assignedTo,
+        title: appointmentsTable.title,
+        description: appointmentsTable.description,
+        startsAt: appointmentsTable.startsAt,
+        reminderMinutes: appointmentsTable.reminderMinutes,
+        reminderSentAt: appointmentsTable.reminderSentAt,
+      })
       .from(appointmentsTable)
       .where(
         and(

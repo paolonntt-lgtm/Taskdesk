@@ -29,6 +29,32 @@ async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Pro
 
 const router: IRouter = Router();
 
+const TICKET_LIST_COLS = {
+  id: ticketsTable.id,
+  organizationId: ticketsTable.organizationId,
+  ticketNumber: ticketsTable.ticketNumber,
+  title: ticketsTable.title,
+  category: ticketsTable.category,
+  location: ticketsTable.location,
+  resource: ticketsTable.resource,
+  priority: ticketsTable.priority,
+  status: ticketsTable.status,
+  createdBy: ticketsTable.createdBy,
+  assignedTo: ticketsTable.assignedTo,
+  assignedToGroup: ticketsTable.assignedToGroup,
+  resolutionNote: ticketsTable.resolutionNote,
+  dueAt: ticketsTable.dueAt,
+  createdAt: ticketsTable.createdAt,
+  updatedAt: ticketsTable.updatedAt,
+  closedAt: ticketsTable.closedAt,
+  scheduledAt: ticketsTable.scheduledAt,
+  clientId: ticketsTable.clientId,
+  inboundChannelId: ticketsTable.inboundChannelId,
+  recurrenceRule: ticketsTable.recurrenceRule,
+  recurrenceNextAt: ticketsTable.recurrenceNextAt,
+  recurrenceParentId: ticketsTable.recurrenceParentId,
+} as const;
+
 router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
@@ -218,7 +244,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = eq(ticketsTable.organizationId, orgId);
 
-  const tickets = await db.select().from(ticketsTable)
+  const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(orgFilter)
     .orderBy(sql`updated_at DESC`).limit(10);
 
@@ -258,9 +284,10 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
     sql`(created_by = ${currentUser.id} OR assigned_to = ${currentUser.id})`
   );
 
-  const tickets = await db.select().from(ticketsTable)
+  const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(orgAndUser)
-    .orderBy(sql`updated_at DESC`);
+    .orderBy(sql`updated_at DESC`)
+    .limit(200);
 
   const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
   const users = (userIds as number[]).length > 0
@@ -324,7 +351,7 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
     eq(ticketsTable.organizationId, orgId),
   ];
 
-  const tickets = await db.select().from(ticketsTable)
+  const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(and(...conditions))
     .orderBy(ticketsTable.dueAt)
     .limit(20);
@@ -358,9 +385,10 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
 
   const filter = and(eq(ticketsTable.organizationId, orgId), eq(ticketsTable.assignedTo, currentUser.id));
 
-  const tickets = await db.select().from(ticketsTable)
+  const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(filter)
-    .orderBy(sql`updated_at DESC`);
+    .orderBy(sql`updated_at DESC`)
+    .limit(200);
 
   res.json(tickets.map((t) => ({
     ...t,
@@ -509,7 +537,7 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
     eq(ticketsTable.organizationId, orgId),
   ];
 
-  const tickets = await db.select().from(ticketsTable)
+  const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(and(...conditions))
     .orderBy(ticketsTable.dueAt)
     .limit(10);
