@@ -1256,7 +1256,7 @@ export default function TicketDetail() {
 
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
-          <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Box>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tabs
                 value={tabValue}
