@@ -711,6 +711,40 @@ export default function TicketDetail() {
       {/* ── Flat header ── */}
       <Box sx={{ mb: { xs: 1, sm: 1.5 } }}>
 
+          {/* Meta bar: status · priority · category · due date */}
+          <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mb={1.5}>
+            {(() => {
+              const customColor = getColorForKey(ticket.status);
+              return customColor ? (
+                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.3, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1.6 }}>
+                  {getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
+                </Box>
+              ) : (
+                <Chip label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status} size="small" color={getStatusColor(ticket.status) as any} sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }} />
+              );
+            })()}
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: getPriorityColor(ticket.priority) === 'error' ? 'error.main' : getPriorityColor(ticket.priority) === 'warning' ? 'warning.main' : getPriorityColor(ticket.priority) === 'success' ? 'success.main' : 'text.disabled' }} />
+              <Typography variant="caption" fontWeight={600} sx={{ color: getPriorityColor(ticket.priority) === 'error' ? 'error.main' : getPriorityColor(ticket.priority) === 'warning' ? 'warning.main' : 'text.secondary' }}>
+                {t.priority[ticket.priority] || ticket.priority}
+              </Typography>
+            </Box>
+            {ticket.category && (
+              <>
+                <Typography variant="caption" color="text.disabled">·</Typography>
+                <Typography variant="caption" color="text.secondary">{ticket.category}</Typography>
+              </>
+            )}
+            {(ticket as any).dueAt && (
+              <>
+                <Typography variant="caption" color="text.disabled">·</Typography>
+                <Typography variant="caption" fontWeight={600} color={new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed' ? 'error.main' : 'warning.main'}>
+                  ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale)}
+                </Typography>
+              </>
+            )}
+          </Box>
+
           {/* Row 2: ticket title */}
           <Box display="flex" alignItems="flex-start" gap={1} mb={{ xs: 1, sm: 1.5 }} flexWrap="wrap">
             <Typography variant="h5" fontWeight={800} sx={{ wordBreak: 'break-word', lineHeight: 1.2, letterSpacing: '-0.01em', fontSize: { xs: '1.1rem', sm: '1.4rem' } }}>
@@ -757,87 +791,67 @@ export default function TicketDetail() {
 
       {/* ── Two-column layout: sidebar (right) + main content (left) ── */}
       <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: 3, alignItems: 'flex-start' }}>
-        <Box sx={{ width: { lg: 230 }, flexShrink: 0, order: { lg: 2 }, mb: { xs: 2, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
-          {/* Row 3: status chips */}
-          {canChangeStatus ? (
-            <Box mb={1}>
-              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.statusLabel}
-                </Typography>
-                <PermissionGateButton
-                  permission="change_status"
-                  sectionLabel={t.ticketDetail.statusLabel}
-                />
-              </Box>
-              <Box display="flex" flexWrap="wrap" gap={0.5}>
-                {orgStatuses.map((s) => {
-                  const isActive = ticket.status === s.key;
-                  const customColor = s.color;
-                  return (
-                    <Chip
-                      key={s.key}
-                      label={s.label}
-                      size="small"
-                      variant={isActive ? 'filled' : 'outlined'}
-                      onClick={() => handleStatusChange(s.key)}
-                      disabled={updateTicket.isPending}
-                      {...(isActive && customColor
-                        ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700 } }
-                        : isActive
-                        ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700 } }
-                        : { sx: { cursor: 'pointer', fontWeight: 400 } })}
-                    />
-                  );
-                })}
-              </Box>
-            </Box>
-          ) : (
-            <Box display="flex" gap={1} mb={1}>
-              {(() => {
-                const customColor = getColorForKey(ticket.status);
-                return (
-                  <Chip
-                    label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
-                    size="small"
-                    {...(customColor
-                      ? { sx: { bgcolor: customColor, color: 'white' } }
-                      : { color: getStatusColor(ticket.status) as any })}
-                  />
-                );
-              })()}
-            </Box>
-          )}
-
-          {/* Row 4: priority chips */}
-          {canChangeStatus ? (
-            <Box mb={1}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                {t.ticketDetail.priorityLabel}
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={0.5}>
-                {PRIORITY_OPTIONS.map((p) => (
-                  <Chip
-                    key={p}
-                    label={t.priority[p] || p}
-                    size="small"
-                    color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'}
-                    variant={ticket.priority === p ? 'filled' : 'outlined'}
-                    onClick={() => handlePriorityChange(p)}
-                    disabled={updateTicket.isPending}
-                    sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400 }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          ) : (
-            <Box mb={1}>
-              <Chip label={t.priority[ticket.priority] || ticket.priority} variant="outlined" color={getPriorityColor(ticket.priority) as any} size="small" />
-            </Box>
-          )}
-
-          {/* Row 5: assignee + category */}
+        <Box sx={{ width: { lg: 220 }, flexShrink: 0, order: { lg: 2 }, mb: { xs: 2, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+          {/* Sidebar: all metadata as vertical SideRows */}
           <Box display="flex" flexDirection="column">
+            {/* Status — admin interactive SideRow */}
+            {canChangeStatus && (
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box display="flex" alignItems="center" gap={0.5} mb={0.25}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
+                    {t.ticketDetail.statusLabel}
+                  </Typography>
+                  <PermissionGateButton
+                    permission="change_status"
+                    sectionLabel={t.ticketDetail.statusLabel}
+                  />
+                </Box>
+                <Box display="flex" flexWrap="wrap" gap={0.5}>
+                  {orgStatuses.map((s) => {
+                    const isActive = ticket.status === s.key;
+                    const customColor = s.color;
+                    return (
+                      <Chip
+                        key={s.key}
+                        label={s.label}
+                        size="small"
+                        variant={isActive ? 'filled' : 'outlined'}
+                        onClick={() => handleStatusChange(s.key)}
+                        disabled={updateTicket.isPending}
+                        {...(isActive && customColor
+                          ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700 } }
+                          : isActive
+                          ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700 } }
+                          : { sx: { cursor: 'pointer', fontWeight: 400 } })}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+
+            {/* Priority — admin interactive SideRow */}
+            {canChangeStatus && (
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
+                  {t.ticketDetail.priorityLabel}
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={0.5}>
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <Chip
+                      key={p}
+                      label={t.priority[p] || p}
+                      size="small"
+                      color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'}
+                      variant={ticket.priority === p ? 'filled' : 'outlined'}
+                      onClick={() => handlePriorityChange(p)}
+                      disabled={updateTicket.isPending}
+                      sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400 }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
             {/* Assignee */}
             <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
