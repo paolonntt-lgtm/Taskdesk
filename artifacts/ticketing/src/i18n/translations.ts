@@ -349,6 +349,7 @@ const it = {
     recurrenceRemoveError: 'Errore durante la rimozione della ricorrenza.',
     scheduledBadge: 'Programmata',
     breadcrumbList: 'Lista pratiche',
+    editSaveError: 'Errore durante il salvataggio. Riprova.',
   },
   checklist: {
     sectionTitle: 'Checklist',
@@ -1863,6 +1864,7 @@ const en: typeof it = {
     recurrenceRemoveError: 'Error removing recurrence.',
     scheduledBadge: 'Scheduled',
     breadcrumbList: 'Ticket list',
+    editSaveError: 'Error saving changes. Please try again.',
   },
   checklist: {
     sectionTitle: 'Checklists',

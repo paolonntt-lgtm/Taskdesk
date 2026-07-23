@@ -93,6 +93,7 @@ export default function TicketDetail() {
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [dueEditVal, setDueEditVal] = useState<string>('');
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
@@ -434,11 +435,13 @@ export default function TicketDetail() {
       resource: (ticket as any).resource || '',
       clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
     });
+    setEditError(null);
     setEditDialog(true);
   };
 
   const handleEditSave = async () => {
     setEditSaving(true);
+    setEditError(null);
     try {
       await updateTicket.mutateAsync({
         id: ticketId,
@@ -451,9 +454,12 @@ export default function TicketDetail() {
           clientId: editForm.clientId ? parseInt(editForm.clientId) : null,
         } as any,
       });
-      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setEditDialog(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? t.ticketDetail.editSaveError;
+      setEditError(msg);
     } finally {
       setEditSaving(false);
     }
@@ -2151,6 +2157,11 @@ export default function TicketDetail() {
           {lang === 'it' ? `Modifica ${entityTerm.singularLower}` : `Edit ${entityTerm.singular}`} #{ticket?.ticketNumber ?? ticket?.id}
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          {editError && (
+            <Alert severity="error" onClose={() => setEditError(null)}>
+              {editError}
+            </Alert>
+          )}
           <TextField
             label={t.ticketDetail.editTitleField}
             fullWidth
