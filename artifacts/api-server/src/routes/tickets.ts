@@ -10,6 +10,44 @@ import { hasGroupPermission } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
 
+const TICKET_LIST_COLS = {
+  id: ticketsTable.id,
+  organizationId: ticketsTable.organizationId,
+  ticketNumber: ticketsTable.ticketNumber,
+  title: ticketsTable.title,
+  category: ticketsTable.category,
+  location: ticketsTable.location,
+  resource: ticketsTable.resource,
+  priority: ticketsTable.priority,
+  status: ticketsTable.status,
+  createdBy: ticketsTable.createdBy,
+  assignedTo: ticketsTable.assignedTo,
+  assignedToGroup: ticketsTable.assignedToGroup,
+  resolutionNote: ticketsTable.resolutionNote,
+  dueAt: ticketsTable.dueAt,
+  createdAt: ticketsTable.createdAt,
+  updatedAt: ticketsTable.updatedAt,
+  closedAt: ticketsTable.closedAt,
+  scheduledAt: ticketsTable.scheduledAt,
+  clientId: ticketsTable.clientId,
+  inboundChannelId: ticketsTable.inboundChannelId,
+  emailMessageId: ticketsTable.emailMessageId,
+  emailConversationId: ticketsTable.emailConversationId,
+  recurrenceRule: ticketsTable.recurrenceRule,
+  recurrenceNextAt: ticketsTable.recurrenceNextAt,
+  recurrenceParentId: ticketsTable.recurrenceParentId,
+} as const;
+
+const USER_LIST_COLS = {
+  id: usersTable.id,
+  name: usersTable.name,
+  email: usersTable.email,
+  role: usersTable.role,
+  mainLocation: usersTable.mainLocation,
+  avatarUrl: usersTable.avatarUrl,
+  createdAt: usersTable.createdAt,
+} as const;
+
 function computeNextRecurrence(from: Date, frequency: "daily" | "weekly" | "monthly" | "yearly", interval: number = 1): Date {
   const n = Math.max(1, Math.round(interval));
   const next = new Date(from);
@@ -148,7 +186,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const pageLimit = limit ? parseInt(limit, 10) : undefined;
 
   const tickets = await db
-    .select()
+    .select(TICKET_LIST_COLS)
     .from(ticketsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(sql`${ticketsTable.updatedAt} DESC`)
@@ -159,7 +197,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   const allUserIds = [...new Set([...creatorIds, ...assigneeIds])];
   const users = allUserIds.length > 0
-    ? await db.select().from(usersTable).where(
+    ? await db.select(USER_LIST_COLS).from(usersTable).where(
         orgId != null
           ? and(inArray(usersTable.id, allUserIds), eq(usersTable.organizationId, orgId))
           : inArray(usersTable.id, allUserIds)
