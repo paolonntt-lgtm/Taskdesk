@@ -1285,31 +1285,17 @@ export default function TicketDetail() {
                 {canAccessNotes && <Tab label={`${t.ticketDetail.tabNotes} (${notes?.length ?? 0})`} />}
               </Tabs>
             </Box>
-            <Box p={{ xs: 1.5, sm: 3 }}>
+            <Box>
               <TabPanel value={tabValue} index={0}>
-                <Box display="flex" flexDirection="column" gap={{ xs: 1.5, sm: 3 }}>
+                <Box display="flex" flexDirection="column" gap={0}>
                   {comments?.length === 0 && !(ticket as any).resolutionNote && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
                       {t.ticketDetail.noComments}
                     </Typography>
                   )}
-                  {/* Thread wrapper with vertical connector line */}
                   {(comments?.length ?? 0) > 0 && (
-                  <Box sx={{ position: 'relative' }}>
-                    {(comments?.length ?? 0) > 1 && (
-                      <Box sx={{
-                        position: 'absolute',
-                        left: { xs: 15, sm: 17 },
-                        top: { xs: 32, sm: 36 },
-                        bottom: 24,
-                        width: 2,
-                        bgcolor: 'divider',
-                        borderRadius: 1,
-                        zIndex: 0,
-                        pointerEvents: 'none',
-                      }} />
-                    )}
-                    <Box display="flex" flexDirection="column" gap={{ xs: 1, sm: 1.5 }}>
+                  <Box>
+                    <Box display="flex" flexDirection="column" gap={0}>
                   {comments?.flatMap((c) => {
                     const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
                     const isSolution = (c as any).isSolution === true;
@@ -1333,7 +1319,7 @@ export default function TicketDetail() {
                       key={`c-${c.id}`}
                       display="flex"
                       gap={{ xs: 1, sm: 1.5 }}
-                      sx={{ position: 'relative', zIndex: 1, ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
+                      sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
                       onMouseEnter={() => setHoveredCommentId(c.id)}
                       onMouseLeave={() => setHoveredCommentId(null)}
                     >
@@ -1354,27 +1340,12 @@ export default function TicketDetail() {
                         )}
                         <Box
                           sx={isSolution ? (theme) => ({
-                            border: '1px solid',
-                            borderColor: alpha(theme.palette.success.main, 0.35),
-                            borderRadius: 2,
-                            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)`,
-                            px: { xs: 1.5, sm: 2 },
-                            py: 1,
+                            borderLeft: `3px solid ${theme.palette.success.main}`,
+                            pl: 1.5,
                           }) : customerReply ? (theme) => ({
-                            borderRadius: 2,
-                            bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                            border: '1px solid',
-                            borderColor: alpha(theme.palette.secondary.main, 0.35),
-                            px: { xs: 1.5, sm: 2 },
-                            py: 1,
-                          }) : (theme) => ({
-                            borderRadius: 2,
-                            bgcolor: alpha(theme.palette.primary.main, 0.05),
-                            border: '1px solid',
-                            borderColor: theme.palette.divider,
-                            px: { xs: 1.5, sm: 2 },
-                            py: 1,
-                          })}
+                            borderLeft: `3px solid ${theme.palette.secondary.main}`,
+                            pl: 1.5,
+                          }) : {}}
                         >
                           {customerReply ? (
                             <Box>
