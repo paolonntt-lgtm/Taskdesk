@@ -306,4 +306,13 @@ for (const page of legalPages) {
   });
 }
 
+// 404 not-found page — served with HTTP 404 for any unknown route
+await writeRoute('/404', {
+  lang: 'en',
+  title: '404 — Page Not Found | TaskDesk',
+  description: 'The page you are looking for does not exist.',
+  robots: 'noindex, nofollow',
+  canonical: `${BASE}/404`,
+});
+
 console.log('Prerender complete.');

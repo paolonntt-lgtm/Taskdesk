@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 // Serve static assets (JS, CSS, images, etc.)
 app.use(express.static(distPublic, { index: false }));
 
-// For every other request: serve prerendered index.html if available, else root index.html
+// For every other request: serve prerendered index.html if available, else real 404
 app.use((req, res) => {
   const normalizedPath = req.path.endsWith("/") ? req.path : `${req.path}/`;
   const prerendered = resolve(distPublic, normalizedPath.slice(1), "index.html");
@@ -47,7 +47,13 @@ app.use((req, res) => {
   if (existsSync(direct) && !direct.endsWith("/")) {
     return res.sendFile(direct);
   }
-  res.sendFile(resolve(distPublic, "index.html"));
+  // Unknown route — serve the prerendered 404 page with a real 404 status so
+  // crawlers do not index soft-404s as duplicate copies of the home page.
+  const notFoundPage = resolve(distPublic, "404", "index.html");
+  if (existsSync(notFoundPage)) {
+    return res.status(404).sendFile(notFoundPage);
+  }
+  res.status(404).send("Not Found");
 });
 
 app.listen(port, "0.0.0.0", () => {
