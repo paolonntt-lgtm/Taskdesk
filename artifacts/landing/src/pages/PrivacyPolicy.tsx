@@ -25,10 +25,21 @@ export default function PrivacyPolicy() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f9fafb", fontFamily: "Inter, system-ui, sans-serif" }}>
       <Helmet>
+        <html lang="it" />
         <title>{meta.title}</title>
         <meta name="description" content={meta.description} />
         <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
+        <link rel="alternate" hrefLang="it" href={canonicalUrl} />
+        <link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={meta.title} />
+        <meta property="og:description" content={meta.description} />
+        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta property="og:locale" content="it_IT" />
+        <meta name="twitter:title" content={meta.title} />
+        <meta name="twitter:description" content={meta.description} />
+        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
       </Helmet>
       {/* Header */}
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>

@@ -10,69 +10,85 @@ function readTemplate() {
   return readFileSync(resolve(distDir, 'index.html'), 'utf-8');
 }
 
-function setMeta(html, opts) {
+/**
+ * Remove all dynamic head tags from the template that will be injected
+ * via the collected Helmet context from SSR. Static tags (charset, viewport,
+ * theme-color, GA script, favicon, preconnects, fonts, og:type, og:site_name,
+ * og:image:width/height/alt, og:locale:alternate, twitter:card,
+ * twitter:image:alt) are left in place — they never vary per-route.
+ */
+function stripDynamicHeadTags(html) {
   let h = html;
-  if (opts.lang) {
-    h = h.replace(/<html lang="[^"]*"/, `<html lang="${opts.lang}"`);
+  h = h.replace(/\s*<title>[^<]*<\/title>/g, '');
+  h = h.replace(/\s*<meta name="description"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta name="keywords"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta name="robots"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<link rel="canonical"[^>]*\/?>/gi, '');
+  // Remove all hreflang alternate links (vary per route/language)
+  h = h.replace(/\s*<link rel="alternate"\s[^>]*hreflang[^>]*\/?>/gi, '');
+  // Remove per-route og/twitter tags; keep static ones (type, site_name, image:*, locale:alternate)
+  h = h.replace(/\s*<meta property="og:url"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta property="og:title"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta property="og:description"[^>]*\/?>/gi, '');
+  // og:image (not og:image:width / og:image:height / og:image:alt)
+  h = h.replace(/\s*<meta property="og:image"(?!:)[^>]*\/?>/gi, '');
+  // og:locale (not og:locale:alternate)
+  h = h.replace(/\s*<meta property="og:locale"(?!:)[^>]*\/?>/gi, '');
+  // twitter:title / twitter:description / twitter:image (not twitter:image:alt or twitter:card)
+  h = h.replace(/\s*<meta name="twitter:title"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta name="twitter:description"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta name="twitter:image"(?!:)[^>]*\/?>/gi, '');
+  return h;
+}
+
+/**
+ * Inject the collected react-helmet-async output into the <head>.
+ * Reads title, meta, and link tag strings from the helmet context object
+ * and appends them before </head>. Also updates the lang attribute on <html>.
+ */
+function injectHelmetToHead(html, helmet) {
+  let h = html;
+
+  // Update the lang attribute on <html> from helmet.htmlAttributes
+  const htmlAttrs = helmet.htmlAttributes?.toString?.() ?? '';
+  if (htmlAttrs) {
+    h = h.replace(/<html[^>]*>/, `<html ${htmlAttrs}>`);
   }
-  if (opts.title) {
-    h = h.replace(/<title>[^<]*<\/title>/, `<title>${opts.title}</title>`);
+
+  // Collect per-route head tag strings from the helmet context
+  const tags = [
+    helmet.title?.toString?.() ?? '',
+    helmet.meta?.toString?.() ?? '',
+    helmet.link?.toString?.() ?? '',
+  ].filter(s => s.trim()).join('\n    ');
+
+  if (tags) {
+    h = h.replace('</head>', `    ${tags}\n  </head>`);
   }
-  if (opts.description) {
-    h = h.replace(/(<meta name="description" content=")[^"]*(")/,
-      `$1${opts.description}$2`);
-  }
-  if (opts.robots) {
-    h = h.replace(/(<meta name="robots" content=")[^"]*(")/,
-      `$1${opts.robots}$2`);
-  }
-  if (opts.canonical) {
-    h = h.replace(/(<link rel="canonical" href=")[^"]*(")/,
-      `$1${opts.canonical}$2`);
-  }
-  if (opts.hreflangIt) {
-    h = h.replace(/(<link rel="alternate" hreflang="it" href=")[^"]*(")/,
-      `$1${opts.hreflangIt}$2`);
-  }
-  if (opts.stripHreflangEn) {
-    // Remove the hreflang="en" link tag entirely — used for pages where no
-    // English translation exists, so the "en" alternate must not be emitted.
-    h = h.replace(/\s*<link rel="alternate" hreflang="en" href="[^"]*"\s*\/?>/g, '');
-  } else if (opts.hreflangEn) {
-    h = h.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/,
-      `$1${opts.hreflangEn}$2`);
-  }
-  if (opts.hreflangDefault) {
-    h = h.replace(/(<link rel="alternate" hreflang="x-default" href=")[^"]*(")/,
-      `$1${opts.hreflangDefault}$2`);
-  }
-  if (opts.ogUrl) {
-    h = h.replace(/(<meta property="og:url" content=")[^"]*(")/,
-      `$1${opts.ogUrl}$2`);
-  }
-  if (opts.ogTitle) {
-    h = h.replace(/(<meta property="og:title" content=")[^"]*(")/,
-      `$1${opts.ogTitle}$2`);
-    h = h.replace(/(<meta name="twitter:title" content=")[^"]*(")/,
-      `$1${opts.ogTitle}$2`);
-  }
-  if (opts.ogDescription) {
-    h = h.replace(/(<meta property="og:description" content=")[^"]*(")/,
-      `$1${opts.ogDescription}$2`);
-    h = h.replace(/(<meta name="twitter:description" content=")[^"]*(")/,
-      `$1${opts.ogDescription}$2`);
-  }
-  if (opts.lang === 'en') {
-    h = h.replace(/(<meta property="og:locale" content=")[^"]*(")/,
-      `$1en_US$2`);
-  }
+
+  return h;
+}
+
+/**
+ * Strip elements that react-helmet-async renders into the SSR body string.
+ * The library marks every element it manages with data-rh="true". These tags
+ * belong in <head> (already injected via injectHelmetToHead) and must not
+ * appear a second time inside #root.
+ */
+function stripHelmetFromBody(bodyHtml) {
+  let h = bodyHtml;
+  // Self-closing tags: <meta data-rh="true" .../>, <link data-rh="true" .../>
+  h = h.replace(/<(?:meta|link|base)[^>]*data-rh="true"[^>]*\/?>/g, '');
+  // Paired tags: <title data-rh="true">...</title>, <script data-rh="true">...</script>
+  h = h.replace(/<(title|script|style|noscript)[^>]*data-rh="true"[^>]*>[\s\S]*?<\/\1>/g, '');
   return h;
 }
 
 function injectBody(html, bodyHtml) {
+  const cleanBody = stripHelmetFromBody(bodyHtml);
   return html.replace(
     /<div id="root"><\/div>/,
-    `<div id="root">${bodyHtml}</div>`
+    `<div id="root">${cleanBody}</div>`
   );
 }
 
@@ -177,17 +193,24 @@ const BASE = 'https://taskdesk.it';
 
 console.log('Prerendering routes...');
 
-async function writeRoute(routePath, metaOpts) {
+async function writeRoute(routePath, isLandingPage = false) {
   const cleanPath = routePath.replace(/^\//, '').replace(/\/$/, '');
   const dir = cleanPath ? resolve(distDir, cleanPath) : distDir;
   mkdirSync(dir, { recursive: true });
 
+  // Start from the template with all dynamic head tags stripped.
+  // The route component's <Helmet> output will be the single source of truth.
   const template = readTemplate();
-  let html = setMeta(template, metaOpts);
+  let html = stripDynamicHeadTags(template);
 
   try {
     const ssrUrl = routePath.endsWith('/') ? routePath : `${routePath}/`;
-    const { html: bodyHtml } = render(ssrUrl);
+    const { html: bodyHtml, helmet } = render(ssrUrl);
+
+    // Inject the collected helmet context (title, meta, link) into <head>
+    if (helmet) {
+      html = injectHelmetToHead(html, helmet);
+    }
 
     if (bodyHtml && bodyHtml.length > 0) {
       html = injectBody(html, bodyHtml);
@@ -196,118 +219,32 @@ async function writeRoute(routePath, metaOpts) {
     console.warn(`  ⚠ SSR failed for ${routePath}: ${e.message}`);
   }
 
-  // Replace all stale JSON-LD blocks with route-specific structured data.
-  // Landing pages (/it/, /en/) get a full @graph; legal pages get none.
-  const newJsonLd = metaOpts.lang && !metaOpts.robots
-    ? generateLandingJsonLd(metaOpts.lang)
-    : null;
+  // JSON-LD: landing pages (/it/, /en/) get a full @graph; all other pages get none.
+  const lang = routePath.startsWith('/en') ? 'en' : 'it';
+  const newJsonLd = isLandingPage ? generateLandingJsonLd(lang) : null;
   html = replaceJsonLd(html, newJsonLd);
 
   writeFileSync(resolve(dir, 'index.html'), html, 'utf-8');
   console.log(`  ✓ /${cleanPath || ''}/index.html`);
 }
 
-await writeRoute('/it/', {
-  lang: 'it',
-  title: 'TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese + IVA',
-  description: 'TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Prezzi di lancio da €35/mese + IVA, prova gratuita 7 giorni.',
-  canonical: `${BASE}/it/`,
-  ogTitle: 'TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese',
-  ogDescription: 'Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.',
-  ogUrl: `${BASE}/it/`,
-  hreflangIt: `${BASE}/it/`,
-  hreflangEn: `${BASE}/en/`,
-  hreflangDefault: `${BASE}/it/`,
-});
-
-await writeRoute('/en/', {
-  lang: 'en',
-  title: 'TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month + VAT',
-  description: 'TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. Launch prices from €35/month + VAT, 7-day free trial.',
-  canonical: `${BASE}/en/`,
-  ogTitle: 'TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month',
-  ogDescription: 'Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. Launch prices from €35/month + VAT, all included.',
-  ogUrl: `${BASE}/en/`,
-  hreflangIt: `${BASE}/it/`,
-  hreflangEn: `${BASE}/en/`,
-  hreflangDefault: `${BASE}/it/`,
-});
+await writeRoute('/it/', true);
+await writeRoute('/en/', true);
 
 const legalPages = [
-  {
-    slug: 'privacy-policy',
-    it: {
-      title: 'Privacy Policy — TaskDesk',
-      description: 'Informativa sul trattamento dei dati personali ai sensi del GDPR (Reg. UE 2016/679) per gli utenti di taskdesk.it.',
-    },
-    en: {
-      title: 'Privacy Policy — TaskDesk',
-      description: 'Privacy notice for the processing of personal data under GDPR (EU Regulation 2016/679) for taskdesk.it users.',
-    },
-  },
-  {
-    slug: 'terms',
-    it: {
-      title: 'Termini e Condizioni — TaskDesk',
-      description: 'Termini e condizioni di utilizzo del servizio TaskDesk per studi commerciali, agenzie e consulenti.',
-    },
-    en: {
-      title: 'Terms of Service — TaskDesk',
-      description: 'Terms and conditions for using the TaskDesk service for accounting firms, agencies and consultants.',
-    },
-  },
-  {
-    slug: 'dpa',
-    it: {
-      title: 'Data Processing Agreement — TaskDesk',
-      description: 'Accordo sul trattamento dei dati (DPA) tra TaskDesk e i propri clienti ai sensi del GDPR.',
-    },
-    en: {
-      title: 'Data Processing Agreement — TaskDesk',
-      description: 'Data Processing Agreement (DPA) between TaskDesk and its customers under GDPR.',
-    },
-  },
-  {
-    slug: 'cookie-policy',
-    it: {
-      title: 'Cookie Policy — TaskDesk',
-      description: "Informativa sull'utilizzo dei cookie su taskdesk.it ai sensi della normativa europea in materia di privacy.",
-    },
-    en: {
-      title: 'Cookie Policy — TaskDesk',
-      description: 'Cookie policy for taskdesk.it under EU privacy regulations.',
-    },
-  },
+  { slug: 'privacy-policy' },
+  { slug: 'terms' },
+  { slug: 'dpa' },
+  { slug: 'cookie-policy' },
 ];
 
-// Legal pages only exist in Italian. Only the /it/ route is prerendered.
-// stripHreflangEn removes the hreflang="en" link tag entirely so no false
-// English-language alternate is emitted for Italian-only content.
-// x-default points to the Italian URL (the only real version that exists).
+// Legal pages only exist in Italian. stripDynamicHeadTags removes the
+// template's head tags; the component's <Helmet> is the sole source of truth.
 for (const page of legalPages) {
-  const itUrl = `${BASE}/it/${page.slug}`;
-  await writeRoute(`/it/${page.slug}`, {
-    lang: 'it',
-    title: page.it.title,
-    description: page.it.description,
-    canonical: itUrl,
-    robots: 'noindex, follow',
-    ogTitle: page.it.title,
-    ogDescription: page.it.description,
-    ogUrl: itUrl,
-    hreflangIt: itUrl,
-    stripHreflangEn: true,
-    hreflangDefault: itUrl,
-  });
+  await writeRoute(`/it/${page.slug}`, false);
 }
 
 // 404 not-found page — served with HTTP 404 for any unknown route
-await writeRoute('/404', {
-  lang: 'en',
-  title: '404 — Page Not Found | TaskDesk',
-  description: 'The page you are looking for does not exist.',
-  robots: 'noindex, nofollow',
-  canonical: `${BASE}/404`,
-});
+await writeRoute('/404', false);
 
 console.log('Prerender complete.');

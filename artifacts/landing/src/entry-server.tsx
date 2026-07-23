@@ -8,6 +8,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import DPA from "./pages/DPA";
 import CookiePolicy from "./pages/CookiePolicy";
+import NotFound from "./pages/not-found";
 
 function makeStaticHook(url: string) {
   return (): [string, (path: string) => void] => [url, () => {}];
@@ -40,6 +41,9 @@ export function render(url: string): { html: string; helmet: unknown } {
               <Route path="/en" nest>
                 <PageRoutes />
               </Route>
+              <Route path="/404">
+                <NotFound />
+              </Route>
             </Switch>
           </LanguageProvider>
         </WouterRouter>
@@ -47,5 +51,5 @@ export function render(url: string): { html: string; helmet: unknown } {
     </HelmetProvider>
   );
 
-  return { html, helmet: (helmetContext as any).helmet };
+  return { html, helmet: (helmetContext as any).helmet ?? null };
 }
