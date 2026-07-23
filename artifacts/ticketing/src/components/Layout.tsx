@@ -125,7 +125,7 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const { data: notifications = [] } = useListNotifications({
-    query: { enabled: !!user, refetchInterval: 60_000, refetchIntervalInBackground: false, staleTime: 30_000 } as any,
+    query: { enabled: !!user, refetchInterval: 40_000, refetchIntervalInBackground: false, staleTime: 20_000 } as any,
   });
 
   const markAllRead = useMarkAllNotificationsRead();
