@@ -60,10 +60,14 @@ function buildLanguageSitemapXml(
       const altSelf = resolveUrl(path, meta, baseUrl, lang);
       const altOther = resolveUrl(path, meta, baseUrl, otherLang);
 
+      // x-default always points to the Italian version (the site's default locale),
+      // regardless of which language sitemap is being generated.
+      const xDefault = resolveUrl(path, meta, baseUrl, "it");
+
       const alts = [
         `    <xhtml:link rel="alternate" hreflang="${lang}" href="${altSelf}" />`,
         `    <xhtml:link rel="alternate" hreflang="${otherLang}" href="${altOther}" />`,
-        `    <xhtml:link rel="alternate" hreflang="x-default" href="${altSelf}" />`,
+        `    <xhtml:link rel="alternate" hreflang="x-default" href="${xDefault}" />`,
       ].join("\n");
 
       return [

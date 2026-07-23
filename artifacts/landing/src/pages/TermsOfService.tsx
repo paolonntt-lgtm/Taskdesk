@@ -17,7 +17,9 @@ const META = {
 export default function TermsOfService() {
   const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/${lang}/terms`;
+  // Body content is Italian-only; canonical always points to the Italian version
+  // to avoid false hreflang="en" signals on untranslated legal content.
+  const canonicalUrl = `https://taskdesk.it/it/terms`;
   const meta = META[lang];
 
   return (

@@ -17,7 +17,9 @@ const META = {
 export default function CookiePolicy() {
   const { lang } = useLanguage();
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const canonicalUrl = `https://taskdesk.it/${lang}/cookie-policy`;
+  // Body content is Italian-only; canonical always points to the Italian version
+  // to avoid false hreflang="en" signals on untranslated legal content.
+  const canonicalUrl = `https://taskdesk.it/it/cookie-policy`;
   const meta = META[lang];
 
   return (

@@ -14,16 +14,12 @@
 - https://taskdesk.it/it/ — Italian marketing landing page (features, pricing, FAQ)
 - https://taskdesk.it/en/ — English marketing landing page (features, pricing, FAQ)
 
-## Legal & policy pages (noindex, for compliance reference only)
+## Legal & policy pages (noindex, Italian only, for compliance reference only)
 
 - https://taskdesk.it/it/privacy-policy/ — Privacy Policy (Italian, GDPR)
-- https://taskdesk.it/en/privacy-policy/ — Privacy Policy (English, GDPR)
 - https://taskdesk.it/it/terms/ — Terms of Service (Italian)
-- https://taskdesk.it/en/terms/ — Terms of Service (English)
 - https://taskdesk.it/it/dpa/ — Data Processing Agreement (Italian)
-- https://taskdesk.it/en/dpa/ — Data Processing Agreement (English)
 - https://taskdesk.it/it/cookie-policy/ — Cookie Policy (Italian)
-- https://taskdesk.it/en/cookie-policy/ — Cookie Policy (English)
 
 ## Key facts for citation
 

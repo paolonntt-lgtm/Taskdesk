@@ -34,7 +34,11 @@ function setMeta(html, opts) {
     h = h.replace(/(<link rel="alternate" hreflang="it" href=")[^"]*(")/,
       `$1${opts.hreflangIt}$2`);
   }
-  if (opts.hreflangEn) {
+  if (opts.stripHreflangEn) {
+    // Remove the hreflang="en" link tag entirely — used for pages where no
+    // English translation exists, so the "en" alternate must not be emitted.
+    h = h.replace(/\s*<link rel="alternate" hreflang="en" href="[^"]*"\s*\/?>/g, '');
+  } else if (opts.hreflangEn) {
     h = h.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/,
       `$1${opts.hreflangEn}$2`);
   }
@@ -276,33 +280,24 @@ const legalPages = [
   },
 ];
 
+// Legal pages only exist in Italian. Only the /it/ route is prerendered.
+// stripHreflangEn removes the hreflang="en" link tag entirely so no false
+// English-language alternate is emitted for Italian-only content.
+// x-default points to the Italian URL (the only real version that exists).
 for (const page of legalPages) {
+  const itUrl = `${BASE}/it/${page.slug}`;
   await writeRoute(`/it/${page.slug}`, {
     lang: 'it',
     title: page.it.title,
     description: page.it.description,
-    canonical: `${BASE}/it/${page.slug}`,
+    canonical: itUrl,
     robots: 'noindex, follow',
     ogTitle: page.it.title,
     ogDescription: page.it.description,
-    ogUrl: `${BASE}/it/${page.slug}`,
-    hreflangIt: `${BASE}/it/${page.slug}`,
-    hreflangEn: `${BASE}/en/${page.slug}`,
-    hreflangDefault: `${BASE}/it/${page.slug}`,
-  });
-
-  await writeRoute(`/en/${page.slug}`, {
-    lang: 'en',
-    title: page.en.title,
-    description: page.en.description,
-    canonical: `${BASE}/en/${page.slug}`,
-    robots: 'noindex, follow',
-    ogTitle: page.en.title,
-    ogDescription: page.en.description,
-    ogUrl: `${BASE}/en/${page.slug}`,
-    hreflangIt: `${BASE}/it/${page.slug}`,
-    hreflangEn: `${BASE}/en/${page.slug}`,
-    hreflangDefault: `${BASE}/it/${page.slug}`,
+    ogUrl: itUrl,
+    hreflangIt: itUrl,
+    stripHreflangEn: true,
+    hreflangDefault: itUrl,
   });
 }
 
