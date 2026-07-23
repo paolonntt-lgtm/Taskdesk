@@ -10,8 +10,22 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+function toPoolerUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes(".neon.tech") && parsed.hostname.startsWith("ep-") && !parsed.hostname.includes("-pooler")) {
+      const parts = parsed.hostname.split(".");
+      parts[0] = parts[0] + "-pooler";
+      parsed.hostname = parts.join(".");
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: toPoolerUrl(process.env.DATABASE_URL),
   max: 5,
   idleTimeoutMillis: 20000,
 });
