@@ -24,6 +24,7 @@
 - (None yet)
 
 ## Notes
-- Public site is implemented as a Vite + React SPA in `artifacts/landing` using `react-helmet-async` for route-level metadata.
-- Route-specific metadata and page content are therefore JavaScript-rendered unless a pre-render/SSR step is added.
+- Public site in `artifacts/landing` is built with Vite + React, but public routes are now prerendered to static HTML by `prerender.mjs` and served by `server.mjs`.
+- The primary SEO risk is no longer Google-only JavaScript rendering; it is the correctness of the prerendered HTML, localized route handling, and crawlability assets.
+- The main indexable landing pages are `/it/` and `/en/`; legal routes are intentionally `noindex` and excluded from the generated sitemaps.
 - Authenticated app content is intentionally out of scope for SEO scanning.
