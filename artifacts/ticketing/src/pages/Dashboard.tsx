@@ -59,7 +59,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 const ReactGridLayout = WidthProvider(GridLayout);
 
 const CHART_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
-const POLL_MS = 30_000;
+const POLL_MS = 120_000;
 const CHART_OPTS = { query: { staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any };
 
 // ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────

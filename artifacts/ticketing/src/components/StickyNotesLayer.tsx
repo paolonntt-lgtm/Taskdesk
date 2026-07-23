@@ -82,7 +82,7 @@ export default function StickyNotesLayer() {
     queryKey: QUERY_KEY,
     queryFn: () => apiFetch("/api/sticky-notes"),
     enabled: !!user,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   const [groups, setGroups] = useState<string[]>([]);
