@@ -762,7 +762,7 @@ export default function TicketDetail() {
           {canChangeStatus ? (
             <Box mb={1}>
               <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.statusLabel}
                 </Typography>
                 <PermissionGateButton
@@ -812,7 +812,7 @@ export default function TicketDetail() {
           {/* Row 4: priority chips */}
           {canChangeStatus ? (
             <Box mb={1}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                 {t.ticketDetail.priorityLabel}
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={0.5}>
@@ -836,13 +836,11 @@ export default function TicketDetail() {
             </Box>
           )}
 
-          <Divider sx={{ my: 1 }} />
-
           {/* Row 5: assignee + category */}
-          <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-start" pt={0.5}>
+          <Box display="flex" flexDirection="column">
             {/* Assignee */}
-            <Box minWidth={140}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+            <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                 {t.ticketDetail.assignedTo}
               </Typography>
               {isAdmin ? (
@@ -1020,8 +1018,8 @@ export default function TicketDetail() {
             </Box>
 
             {/* Category */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+            <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                 {t.ticketDetail.categoryLabel}
               </Typography>
               <Typography variant="body2">{ticket.category}</Typography>
@@ -1029,8 +1027,8 @@ export default function TicketDetail() {
 
             {/* Location — hidden when org has only 1 location */}
             {!singleLocation && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.locationLabel}
                 </Typography>
                 <Typography variant="body2">{ticket.location}</Typography>
@@ -1039,8 +1037,8 @@ export default function TicketDetail() {
 
             {/* Resource */}
             {ticket.resource && !ticket.inboundChannelId && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.resourceLabel}
                 </Typography>
                 <Typography variant="body2">{ticket.resource}</Typography>
@@ -1113,8 +1111,8 @@ export default function TicketDetail() {
 
             {/* Due date */}
             {(isAdmin || isAssignee) ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.dueAtLabel}
                 </Typography>
                 <Box display="flex" alignItems="center" gap={0.5}>
@@ -1144,8 +1142,8 @@ export default function TicketDetail() {
                 </Box>
               </Box>
             ) : (ticket as any).dueAt ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.dueAtLabel}
                 </Typography>
                 <Typography variant="body2" color={new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed' ? 'error.main' : 'text.primary'}>
@@ -1156,8 +1154,8 @@ export default function TicketDetail() {
 
             {/* Closed on + resolver */}
             {ticket.closedAt && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
                   {t.ticketDetail.closedOn}
                 </Typography>
                 <Typography variant="body2">
@@ -1173,8 +1171,8 @@ export default function TicketDetail() {
           </Box>
 
           {/* Creator info */}
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+          <Box sx={{ py: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
               {t.ticketDetail.openedOn}
             </Typography>
             <Box display="flex" alignItems="center" gap={0.75}>
@@ -1190,9 +1188,9 @@ export default function TicketDetail() {
 
         </Box>
         <Box sx={{ flex: 1, minWidth: 0, order: { lg: 1 } }}>
-          <Card sx={{ mb: { xs: 1.5, sm: 3 } }}>
-            <Box p={{ xs: 2, sm: 3 }}>
-              <Typography variant="overline" color="text.secondary">{t.ticketDetail.descriptionLabel}</Typography>
+          <Box sx={{ mb: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 2.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.1em', fontSize: '0.68rem' }}>{t.ticketDetail.descriptionLabel}</Typography>
               <Box mt={1}>
                 <MarkdownContent content={ticket.description} />
               </Box>
@@ -1254,11 +1252,11 @@ export default function TicketDetail() {
                 );
               })()}
             </Box>
-          </Card>
+          </Box>
 
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
-          <Card>
+          <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tabs
                 value={tabValue}
@@ -1988,7 +1986,7 @@ export default function TicketDetail() {
                 </TabPanel>
               )}
             </Box>
-          </Card>
+          </Box>
         </Box>
       </Box>
 
