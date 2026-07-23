@@ -60,7 +60,8 @@ const ReactGridLayout = WidthProvider(GridLayout);
 
 const CHART_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 const POLL_MS = 60_000;
-const CHART_OPTS = { query: { staleTime: POLL_MS, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any };
+const CHART_REFRESH_MS = 12 * 60 * 60 * 1000;
+const CHART_OPTS = { query: { staleTime: CHART_REFRESH_MS, refetchInterval: CHART_REFRESH_MS, refetchIntervalInBackground: false } as any };
 
 // ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────
 
