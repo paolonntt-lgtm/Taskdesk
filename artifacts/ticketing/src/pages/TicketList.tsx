@@ -439,7 +439,13 @@ export default function TicketList() {
         case 'id':        cmp = a.id - b.id; break;
         case 'title':     cmp = a.title.localeCompare(b.title); break;
         case 'category':  cmp = (a.category || '').localeCompare(b.category || ''); break;
-        case 'status':    cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99); break;
+        case 'status': {
+          const aIsClose = a.status === 'closed';
+          const bIsClose = b.status === 'closed';
+          if (aIsClose !== bIsClose) return aIsClose ? 1 : -1;
+          cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+          break;
+        }
         case 'priority':  cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99); break;
         case 'assignee':  cmp = (a.assignee?.name || '').localeCompare(b.assignee?.name || ''); break;
         case 'location':  cmp = ((a as any).location || '').localeCompare((b as any).location || ''); break;
