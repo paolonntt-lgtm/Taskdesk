@@ -1330,29 +1330,14 @@ export default function TicketDetail() {
                         {avatarLetter}
                       </Avatar>
                       <Box flex={1} minWidth={0}>
-                        {isSolution && (
-                          <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                            <CheckCircle sx={{ fontSize: 14, color: 'success.dark' }} />
-                            <Typography variant="caption" fontWeight="bold" color="success.dark">
-                              {t.ticketDetail.solutionLabel}
-                            </Typography>
-                          </Box>
-                        )}
-                        <Box
-                          sx={isSolution ? (theme) => ({
-                            borderLeft: `3px solid ${theme.palette.success.main}`,
-                            pl: 1.5,
-                          }) : customerReply ? (theme) => ({
-                            borderLeft: `3px solid ${theme.palette.secondary.main}`,
-                            pl: 1.5,
-                          }) : {}}
-                        >
+                        {/* Header: autore · timestamp · badge soluzione — stessa riga baseline come nel mockup */}
+                        <Box display="flex" alignItems="baseline" gap={1.25} mb={0.875} flexWrap="wrap">
                           {customerReply ? (
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold" color="text.primary">
+                            <>
+                              <Typography variant="body2" fontWeight={700} color="text.primary">
                                 {customerReply.name}
                               </Typography>
-                              <Box display="flex" alignItems="center" gap={0.5} mt={0.25}>
+                              <Box display="flex" alignItems="center" gap={0.5}>
                                 <MailOutline sx={{ fontSize: 12, color: 'text.secondary' }} />
                                 <Typography variant="caption" color="text.secondary">
                                   Risposta del cliente
@@ -1366,7 +1351,7 @@ export default function TicketDetail() {
                                   {customerReply.email}
                                 </Typography>
                               </Box>
-                            </Box>
+                            </>
                           ) : (
                             <UserLink
                               userId={c.authorId}
@@ -1374,6 +1359,31 @@ export default function TicketDetail() {
                               typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
                             />
                           )}
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(c.createdAt).toLocaleString(dateLocale)}
+                          </Typography>
+                          {c.updatedAt && c.updatedAt !== c.createdAt && (
+                            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                              ({t.ticketDetail.commentEdited})
+                            </Typography>
+                          )}
+                          {isSolution && (
+                            <Typography variant="caption" fontWeight={700} sx={{ color: 'success.dark', fontSize: 11 }}>
+                              ✓ {t.ticketDetail.solutionLabel}
+                            </Typography>
+                          )}
+                        </Box>
+                        {/* Testo commento — borderLeft per soluzione/risposta cliente */}
+                        <Box
+                          sx={isSolution ? (theme) => ({
+                            borderLeft: `3px solid ${theme.palette.success.main}`,
+                            pl: 1.5,
+                            color: theme.palette.success.dark,
+                          }) : customerReply ? (theme) => ({
+                            borderLeft: `3px solid ${theme.palette.secondary.main}`,
+                            pl: 1.5,
+                          }) : {}}
+                        >
                           {isEditingThis ? (
                             <Box mt={0.5} display="flex" flexDirection="column" gap={1}>
                               <RichCommentEditor
@@ -1399,9 +1409,7 @@ export default function TicketDetail() {
                               </Box>
                             </Box>
                           ) : (
-                            <Box mt={0.5}>
-                              <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
-                            </Box>
+                            <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
                           )}
                           {commentAttachments.length > 0 && (
                             <Box mt={1.5}>
@@ -1508,16 +1516,8 @@ export default function TicketDetail() {
                               </Box>
                             );
                           })()}
-                          {/* Action row: timestamp + links */}
+                          {/* Action row: links */}
                           <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                          <Typography variant="caption" color="text.secondary">
-                            {new Date(c.createdAt).toLocaleString(dateLocale)}
-                          </Typography>
-                          {c.updatedAt && c.updatedAt !== c.createdAt && (
-                            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-                              ({t.ticketDetail.commentEdited} {new Date(c.updatedAt).toLocaleString(dateLocale)})
-                            </Typography>
-                          )}
                           <Typography
                             variant="caption"
                             component="span"
