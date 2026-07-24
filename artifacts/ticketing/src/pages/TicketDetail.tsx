@@ -66,8 +66,8 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
 function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-      <Box sx={{ fontSize: 9, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 11, color: '#212121' }}>{children}</Box>
+      <Box sx={{ fontSize: 8, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
+      <Box sx={{ fontSize: 10, color: '#212121' }}>{children}</Box>
     </Box>
   );
 }
@@ -776,7 +776,7 @@ export default function TicketDetail() {
             <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
-            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, px: 1.5, py: 1, bgcolor: 'background.paper' }}>
+            <Box sx={{ border: '2px solid #c5cdd6', borderRadius: 1, px: 1.5, py: 1, bgcolor: 'background.paper' }}>
               <MarkdownContent content={ticket.description} />
             </Box>
             {/* Ticket-level attachments */}

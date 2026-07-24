@@ -369,7 +369,7 @@ export default function NewTicket() {
                 onKeyDown={e => { if (e.key === 'Escape') setTitleDropdownOpen(false); }}
                 placeholder={t.newTicket.titlePlaceholder}
                 inputProps={{ style: { fontSize: '1rem', fontWeight: 600 } }}
-                sx={{ bgcolor: 'background.paper', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#b0b8c1' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6b7a8d' } }}
+                sx={{ bgcolor: 'background.paper', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#8a96a3', borderWidth: 2 }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568', borderWidth: 2 } }}
               />
               {titleDropdownOpen && titleHistory.length > 0 && (
                 <Paper
@@ -479,7 +479,7 @@ export default function NewTicket() {
             )}
 
             {/* Description */}
-            <Box sx={{ '& .MuiPaper-outlined': { borderColor: '#b0b8c1' } }}>
+            <Box sx={{ '& .MuiPaper-outlined': { borderColor: '#8a96a3', borderWidth: 2 } }}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                 {t.newTicket.descriptionField} *
               </Typography>
