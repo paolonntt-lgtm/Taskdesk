@@ -65,7 +65,7 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
 /** HybridAE sidebar row — label + value */
 function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+    <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
       <Box sx={{ fontSize: 9, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
       <Box sx={{ fontSize: 11, color: '#212121' }}>{children}</Box>
     </Box>
@@ -629,7 +629,7 @@ export default function TicketDetail() {
   return (
     <Box>
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, mb: { xs: 2, sm: 2.5 }, borderBottom: '1px solid #efefef' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid #efefef' }}>
         {/* Breadcrumb */}
         <Box display="flex" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <MuiLink
@@ -699,7 +699,7 @@ export default function TicketDetail() {
         <Box sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar: status · priority · category · due date */}
-          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
             {/* Status pill */}
             {(() => {
               const customColor = getColorForKey(ticket.status);
@@ -767,12 +767,12 @@ export default function TicketDetail() {
           </Box>
 
           {/* H1 Title — E style */}
-          <Box component="h1" sx={{ m: 0, mb: 3, fontSize: { xs: '1.45rem', sm: '1.75rem' }, fontWeight: 800, color: '#111', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+          <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: '#111', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
           </Box>
 
           {/* Description block — flat, no card border */}
-          <Box sx={{ mb: 3.5, pb: 3, borderBottom: '1px solid #efefef' }}>
+          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid #efefef' }}>
             <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
@@ -814,7 +814,7 @@ export default function TicketDetail() {
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
-          <Divider sx={{ mt: 3, mb: 3 }} />
+          <Divider sx={{ mt: 1.5, mb: 1.5 }} />
 
           {/* Tabs — E style: minimal underline indicator */}
           <Box>
@@ -1319,7 +1319,7 @@ export default function TicketDetail() {
 
             {/* Due date */}
             {(isAdmin || isAssignee) ? (
-              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
                 <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>{t.ticketDetail.dueAtLabel}</Box>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 170 }} disabled={updateTicket.isPending} />
@@ -1359,12 +1359,6 @@ export default function TicketDetail() {
               </Box>
             </SideRow>
 
-            {/* Resource */}
-            {ticket.resource && !ticket.inboundChannelId && (
-              <SideRow label={t.ticketDetail.resourceLabel}>
-                {ticket.resource}
-              </SideRow>
-            )}
 
             {/* Email origin */}
             {ticket.inboundChannelId && isEmailResource && (
@@ -1404,7 +1398,7 @@ export default function TicketDetail() {
 
             {/* Status — admin interactive */}
             {canChangeStatus && (
-              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
                 <Box display="flex" alignItems="center" gap={0.5} sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
                   {t.ticketDetail.statusLabel}
                   <PermissionGateButton permission="change_status" sectionLabel={t.ticketDetail.statusLabel} />
@@ -1425,7 +1419,7 @@ export default function TicketDetail() {
 
             {/* Priority — admin interactive */}
             {canChangeStatus && (
-              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
                 <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
                   {t.ticketDetail.priorityLabel}
                 </Box>
