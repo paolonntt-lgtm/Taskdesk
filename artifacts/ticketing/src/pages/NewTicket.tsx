@@ -93,6 +93,7 @@ export default function NewTicket() {
   const [locations, setLocations] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
+  const [userSearch, setUserSearch] = useState('');
 
   const urlParams = new URLSearchParams(search);
   const { data: clientsList = [] } = useListClients();
@@ -656,6 +657,15 @@ export default function NewTicket() {
 
                     {assignMode === 'user' ? (
                       <Box display="flex" flexDirection="column" gap={0.25}>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          placeholder={lang === 'it' ? 'Cerca collaboratore…' : 'Search collaborator…'}
+                          value={userSearch}
+                          onChange={e => setUserSearch(e.target.value)}
+                          inputProps={{ style: { fontSize: '0.75rem', padding: '5px 8px' } }}
+                          sx={{ mb: 0.5 }}
+                        />
                         <Box
                           onClick={() => setFormData({ ...formData, assignedTo: '' })}
                           sx={{
@@ -670,7 +680,7 @@ export default function NewTicket() {
                             {t.newTicket.unassigned}
                           </Typography>
                         </Box>
-                        {users?.filter(u => (u as any).active !== false).map(u => {
+                        {users?.filter(u => (u as any).active !== false && u.name.toLowerCase().includes(userSearch.toLowerCase())).map(u => {
                           const open = openByUser[u.id];
                           const selected = formData.assignedTo === u.id.toString();
                           return (
