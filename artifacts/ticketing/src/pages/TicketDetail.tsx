@@ -627,7 +627,7 @@ export default function TicketDetail() {
     p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
 
   return (
-    <Box>
+    <Box maxWidth={1020} mx="auto">
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid #efefef' }}>
         {/* Breadcrumb */}
