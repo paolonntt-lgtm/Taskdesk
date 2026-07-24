@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  Alert,
-  Container,
-  Divider,
-  CircularProgress,
-  Chip,
-  Tooltip,
-} from '@mui/material';
+import { Alert, CircularProgress } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -28,6 +15,55 @@ function GoogleLogo() {
     </svg>
   );
 }
+
+const s = {
+  root: {
+    minHeight: '100vh',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative' as const,
+    overflow: 'hidden',
+    background: '#eef2ff',
+    fontFamily: 'Inter, sans-serif',
+    padding: '32px 16px',
+    boxSizing: 'border-box' as const,
+  },
+  blob1: { position: 'absolute' as const, width: 700, height: 700, background: 'radial-gradient(circle, #c7d7fe 0%, transparent 70%)', top: -200, left: -100, opacity: 0.9 },
+  blob2: { position: 'absolute' as const, width: 500, height: 500, background: 'radial-gradient(circle, #ddd6fe 0%, transparent 70%)', bottom: -100, right: -100, opacity: 0.8 },
+  blob3: { position: 'absolute' as const, width: 300, height: 300, background: 'radial-gradient(circle, #bfdbfe 0%, transparent 70%)', top: '40%', right: '22%', opacity: 0.6 },
+  card: {
+    position: 'relative' as const,
+    zIndex: 10,
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 24,
+    padding: '36px 36px',
+    background: 'rgba(255,255,255,0.75)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: '1px solid rgba(255,255,255,0.9)',
+    boxShadow: '0 8px 40px rgba(37,99,235,0.12), 0 1px 0 rgba(255,255,255,0.7) inset',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 22,
+    boxSizing: 'border-box' as const,
+  },
+  label: { fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.08em', display: 'block', marginBottom: 5 },
+  inputWrap: { position: 'relative' as const },
+  inputIcon: { position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', pointerEvents: 'none' as const, display: 'flex' },
+  input: { width: '100%', paddingLeft: 40, paddingRight: 14, paddingTop: 11, paddingBottom: 11, borderRadius: 12, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#111827', outline: 'none', background: 'rgba(255,255,255,0.8)', boxSizing: 'border-box' as const, fontFamily: 'Inter, sans-serif', transition: 'border-color 0.15s' },
+  inputPlain: { width: '100%', padding: '11px 14px', borderRadius: 12, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#111827', outline: 'none', background: 'rgba(255,255,255,0.8)', boxSizing: 'border-box' as const, fontFamily: 'Inter, sans-serif' },
+  btnPrimary: { width: '100%', padding: '12px 0', borderRadius: 12, background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)', color: 'white', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 6px 20px rgba(37,99,235,0.35)', letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif', marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnSecondary: { width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid rgba(0,0,0,0.09)', background: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', fontFamily: 'Inter, sans-serif' },
+  btnOutline: { width: '100%', padding: '10px 0', borderRadius: 12, border: '1.5px solid #e5e7eb', background: 'transparent', fontSize: 13, fontWeight: 500, color: '#2563eb', cursor: 'pointer', fontFamily: 'Inter, sans-serif' },
+  divider: { display: 'flex', alignItems: 'center', gap: 12 },
+  dividerLine: { flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' },
+  link: { fontWeight: 600, color: '#2563eb', textDecoration: 'none' as const, cursor: 'pointer' },
+  row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+};
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
@@ -123,217 +159,194 @@ export default function Login() {
   const displayError = oauthError || localError || (mode === 'login' ? error : null);
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #eff6ff 0%, #f5f3ff 40%, #fdf2f8 100%)',
-      py: 4, position: 'relative', overflow: 'hidden',
-    }}>
-      {/* Decorative circles */}
-      <Box sx={{ position: 'absolute', top: -60, right: -60, width: 400, height: 400, borderRadius: '50%', border: '1px solid rgba(37,99,235,0.12)', pointerEvents: 'none' }} />
-      <Box sx={{ position: 'absolute', top: 40, right: 40, width: 260, height: 260, borderRadius: '50%', border: '1px solid rgba(124,58,237,0.10)', pointerEvents: 'none' }} />
-      <Box sx={{ position: 'absolute', bottom: -40, left: -40, width: 300, height: 300, borderRadius: '50%', border: '1px solid rgba(219,39,119,0.08)', pointerEvents: 'none' }} />
+    <div style={s.root}>
+      {/* Background blobs */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <div style={s.blob1} />
+        <div style={s.blob2} />
+        <div style={s.blob3} />
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.04 }} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="td-grid" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#2563eb" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#td-grid)" />
+        </svg>
+      </div>
 
-      <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 1 }}>
-        {/* Language toggle */}
-        <Box display="flex" justifyContent="flex-end" mb={2}>
-          <Button
-            size="small"
-            onClick={() => setLang(lang === 'it' ? 'en' : 'it' as Lang)}
-            sx={{
-              minWidth: 0, px: 1.5, fontWeight: 700, fontSize: '0.7rem',
-              border: '1.5px solid #e5e7eb', borderRadius: '8px', letterSpacing: '0.05em',
-              color: '#6b7280',
-              '&:hover': { borderColor: '#2563eb', color: '#2563eb', bgcolor: 'transparent' },
-            }}
-          >
-            {lang === 'it' ? 'EN' : 'IT'}
-          </Button>
-        </Box>
+      {/* Language toggle */}
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          onClick={() => setLang(lang === 'it' ? 'en' : 'it' as Lang)}
+          style={{ background: 'rgba(255,255,255,0.7)', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#6b7280', cursor: 'pointer', fontFamily: 'Inter, sans-serif', letterSpacing: '0.05em' }}
+        >
+          {lang === 'it' ? 'EN' : 'IT'}
+        </button>
+      </div>
 
-        <Card elevation={0} sx={{
-          border: '1px solid #f3f4f6',
-          borderRadius: '20px',
-          boxShadow: '0 20px 60px rgba(37,99,235,0.10), 0 4px 20px rgba(0,0,0,0.05)',
-        }}>
-          <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
-            {/* Logo */}
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
-              <Typography variant="body2" color="text.secondary">
-                {mode === 'login' ? t.login.subtitle : mode === 'register' ? t.login.registerSubtitle : t.login.forgotSubtitle}
-              </Typography>
-            </Box>
+      {/* Logo */}
+      <div style={{ position: 'relative', zIndex: 10, marginBottom: 24 }}>
+        <img src="/taskdesk-logo.png" alt="TaskDesk" style={{ height: 46, width: 'auto', display: 'block' }} />
+      </div>
 
-            {displayError && (
-              <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => { setLocalError(null); setOauthError(null); }}>
-                {displayError}
-              </Alert>
-            )}
+      {/* Glass card */}
+      <div style={s.card}>
 
+        {/* Error */}
+        {displayError && (
+          <Alert severity="error" sx={{ borderRadius: '12px', fontSize: 13 }} onClose={() => { setLocalError(null); setOauthError(null); }}>
+            {displayError}
+          </Alert>
+        )}
+
+        {/* Header */}
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', letterSpacing: '-0.02em', margin: 0 }}>
+            {mode === 'login' ? t.login.title : mode === 'register' ? t.login.registerTitle : t.login.forgotTitle}
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: 14, marginTop: 6, marginBottom: 0 }}>
+            {mode === 'login' ? t.login.subtitle : mode === 'register' ? t.login.registerSubtitle : t.login.forgotSubtitle}
+          </p>
+        </div>
+
+        {/* ── LOGIN MODE ── */}
+        {mode === 'login' && (
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={s.label}>{t.login.email}</label>
+              <div style={s.inputWrap}>
+                <span style={s.inputIcon}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t.login.emailPlaceholder || 'nome@azienda.it'} style={s.input} />
+              </div>
+            </div>
+
+            <div>
+              <div style={s.row}>
+                <label style={{ ...s.label, marginBottom: 0 }}>{t.login.password}</label>
+                <span style={{ ...s.link, fontSize: 12 }} onClick={() => switchMode('forgot')}>{t.login.forgotLink}</span>
+              </div>
+              <div style={{ ...s.inputWrap, marginTop: 5 }}>
+                <span style={s.inputIcon}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="1.8"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                </span>
+                <input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={s.input} />
+              </div>
+            </div>
+
+            <button type="submit" disabled={isSubmitting} style={s.btnPrimary}>
+              {isSubmitting ? <><CircularProgress size={15} color="inherit" /> {t.login.submitting}</> : <>{t.login.submit} →</>}
+            </button>
+
+            <div style={s.divider}>
+              <div style={s.dividerLine} />
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.login.or}</span>
+              <div style={s.dividerLine} />
+            </div>
+
+            <button type="button" onClick={() => { window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
+              <GoogleLogo />
+              {t.login.continueWithGoogle}
+            </button>
+          </form>
+        )}
+
+        {/* ── REGISTER MODE ── */}
+        {mode === 'register' && (
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={s.label}>{t.login.orgName}</label>
+              <input type="text" required autoFocus value={organizationName} onChange={e => setOrganizationName(e.target.value)} placeholder={t.login.orgNameHelper} style={s.inputPlain} />
+            </div>
+            <div>
+              <label style={s.label}>{t.login.name}</label>
+              <input type="text" required autoComplete="name" value={name} onChange={e => setName(e.target.value)} style={s.inputPlain} />
+            </div>
+            <div>
+              <label style={s.label}>{t.login.email}</label>
+              <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={s.inputPlain} />
+            </div>
+            <div>
+              <label style={s.label}>{t.login.password}</label>
+              <input type="password" required autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} style={s.inputPlain} />
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>{t.login.passwordTooShort}</p>
+            </div>
+            <div>
+              <label style={s.label}>{t.login.confirmPassword}</label>
+              <input
+                type="password" required autoComplete="new-password"
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                style={{ ...s.inputPlain, borderColor: confirmPassword.length > 0 && password !== confirmPassword ? '#ef4444' : '#e5e7eb' }}
+              />
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <p style={{ fontSize: 11, color: '#ef4444', margin: '4px 0 0' }}>{t.login.passwordMismatch}</p>
+              )}
+            </div>
+            <button type="submit" disabled={isSubmitting} style={s.btnPrimary}>
+              {isSubmitting ? <><CircularProgress size={15} color="inherit" /> {t.login.registering}</> : t.login.registerSubmit}
+            </button>
+            <div style={s.divider}>
+              <div style={s.dividerLine} />
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.login.or}</span>
+              <div style={s.dividerLine} />
+            </div>
+            <button type="button" onClick={() => { window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
+              <GoogleLogo />
+              {t.login.registerWithGoogle}
+            </button>
+          </form>
+        )}
+
+        {/* ── FORGOT MODE ── */}
+        {mode === 'forgot' && (
+          forgotSent ? (
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <CheckCircle style={{ fontSize: 52, color: '#10b981', marginBottom: 12 }} />
+              <p style={{ fontWeight: 700, fontSize: 16, color: '#111827', margin: '0 0 8px' }}>{t.login.forgotSentTitle}</p>
+              <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 24px' }}>
+                {t.login.forgotSentPrefix} <strong>{email}</strong> {t.login.forgotSentMessage}
+              </p>
+              <button onClick={() => switchMode('login')} style={s.btnOutline}>{t.login.backToLogin}</button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={s.label}>{t.login.email}</label>
+                <div style={s.inputWrap}>
+                  <span style={s.inputIcon}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                  <input type="email" required autoFocus autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} style={s.input} />
+                </div>
+              </div>
+              <button type="submit" disabled={isSubmitting} style={s.btnPrimary}>
+                {isSubmitting ? <><CircularProgress size={15} color="inherit" /> {t.login.forgotSubmitting}</> : t.login.forgotSubmit}
+              </button>
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ ...s.link, fontSize: 13 }} onClick={() => switchMode('login')}>← {t.login.backToLogin}</span>
+              </div>
+            </form>
+          )
+        )}
+
+        {/* Footer links */}
+        {mode !== 'forgot' && (
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', margin: 0 }}>
             {mode === 'login' ? (
-              <form onSubmit={handleLogin}>
-                <TextField
-                  label={t.login.email} type="email" fullWidth margin="normal"
-                  value={email} onChange={(e) => setEmail(e.target.value)}
-                  required variant="outlined" autoComplete="email"
-                />
-                <Box sx={{ position: 'relative' }}>
-                  <TextField
-                    label={t.login.password} type="password" fullWidth margin="normal"
-                    value={password} onChange={(e) => setPassword(e.target.value)}
-                    required variant="outlined" autoComplete="current-password"
-                    sx={{ mb: 1 }}
-                  />
-                </Box>
-                <Box sx={{ textAlign: 'right', mb: 2 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => switchMode('forgot')}
-                  >
-                    {t.login.forgotLink}
-                  </Typography>
-                </Box>
-                <Button
-                  type="submit" variant="contained" color="primary"
-                  fullWidth size="large" disabled={isSubmitting}
-                  sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
-                >
-                  {isSubmitting ? t.login.submitting : t.login.submit}
-                </Button>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 2.5 }}>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-                  <Typography variant="caption" color="text.secondary">{t.login.or}</Typography>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-                </Box>
-                <Button
-                  fullWidth variant="outlined"
-                  onClick={() => { window.location.href = '/api/auth/google'; }}
-                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
-                >
-                  <GoogleLogo />
-                  {t.login.continueWithGoogle}
-                </Button>
-              </form>
-            ) : mode === 'register' ? (
-              <form onSubmit={handleRegister}>
-                <TextField
-                  label={t.login.orgName} type="text" fullWidth margin="normal"
-                  value={organizationName} onChange={(e) => setOrganizationName(e.target.value)}
-                  required variant="outlined" autoFocus
-                  helperText={t.login.orgNameHelper}
-                />
-                <TextField
-                  label={t.login.name} type="text" fullWidth margin="normal"
-                  value={name} onChange={(e) => setName(e.target.value)}
-                  required variant="outlined" autoComplete="name"
-                />
-                <TextField
-                  label={t.login.email} type="email" fullWidth margin="normal"
-                  value={email} onChange={(e) => setEmail(e.target.value)}
-                  required variant="outlined" autoComplete="email"
-                />
-                <TextField
-                  label={t.login.password} type="password" fullWidth margin="normal"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  required variant="outlined" autoComplete="new-password"
-                  helperText={t.login.passwordTooShort}
-                />
-                <TextField
-                  label={t.login.confirmPassword} type="password" fullWidth margin="normal"
-                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  required variant="outlined" autoComplete="new-password"
-                  error={confirmPassword.length > 0 && password !== confirmPassword}
-                  helperText={confirmPassword.length > 0 && password !== confirmPassword ? t.login.passwordMismatch : ''}
-                  sx={{ mb: 3 }}
-                />
-                <Button
-                  type="submit" variant="contained" color="primary"
-                  fullWidth size="large" disabled={isSubmitting}
-                  sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
-                >
-                  {isSubmitting ? t.login.registering : t.login.registerSubmit}
-                </Button>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 2.5 }}>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-                  <Typography variant="caption" color="text.secondary">{t.login.or}</Typography>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-                </Box>
-                <Button
-                  fullWidth variant="outlined"
-                  onClick={() => { window.location.href = '/api/auth/google'; }}
-                  sx={{ py: 1.2, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem', gap: 1.5 }}
-                >
-                  <GoogleLogo />
-                  {t.login.registerWithGoogle}
-                </Button>
-              </form>
-            ) : forgotSent ? (
-              <Box textAlign="center" py={1}>
-                <CheckCircle sx={{ fontSize: 52, color: 'success.main', mb: 2 }} />
-                <Typography variant="subtitle1" fontWeight={700} mb={1}>{t.login.forgotSentTitle}</Typography>
-                <Typography variant="body2" color="text.secondary" mb={3}>
-                  {t.login.forgotSentPrefix} <strong>{email}</strong> {t.login.forgotSentMessage}
-                </Typography>
-                <Button variant="outlined" fullWidth sx={{ borderRadius: '12px' }} onClick={() => switchMode('login')}>
-                  {t.login.backToLogin}
-                </Button>
-              </Box>
+              <>{t.login.noAccount}{' '}<span style={s.link} onClick={() => switchMode('register')}>{t.login.registerLink}</span></>
             ) : (
-              <form onSubmit={handleForgot}>
-                <TextField
-                  label={t.login.email} type="email" fullWidth margin="normal"
-                  value={email} onChange={(e) => setEmail(e.target.value)}
-                  required variant="outlined" autoComplete="email" autoFocus
-                  sx={{ mb: 3 }}
-                />
-                <Button
-                  type="submit" variant="contained" color="primary"
-                  fullWidth size="large" disabled={isSubmitting}
-                  startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : null}
-                  sx={{ py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: '12px' }}
-                >
-                  {isSubmitting ? t.login.forgotSubmitting : t.login.forgotSubmit}
-                </Button>
-                <Box mt={2} textAlign="center">
-                  <Typography
-                    variant="body2"
-                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => switchMode('login')}
-                  >
-                    ← {t.login.backToLogin}
-                  </Typography>
-                </Box>
-              </form>
+              <>{t.login.hasAccount}{' '}<span style={s.link} onClick={() => switchMode('login')}>{t.login.loginLink}</span></>
             )}
+          </p>
+        )}
+      </div>
 
-            {mode !== 'forgot' && <Divider sx={{ my: 3 }} />}
-
-            <Box sx={{ textAlign: 'center' }}>
-              {mode === 'login' ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t.login.noAccount}{' '}
-                  <Typography component="span" variant="body2"
-                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 700, '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => switchMode('register')}>
-                    {t.login.registerLink}
-                  </Typography>
-                </Typography>
-              ) : mode === 'register' ? (
-                <Typography variant="body2" color="text.secondary">
-                  {t.login.hasAccount}{' '}
-                  <Typography component="span" variant="body2"
-                    sx={{ color: 'primary.main', cursor: 'pointer', fontWeight: 700, '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => switchMode('login')}>
-                    {t.login.loginLink}
-                  </Typography>
-                </Typography>
-              ) : null}
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
-    </Box>
+      {/* Bottom badge */}
+      <p style={{ position: 'relative', zIndex: 10, marginTop: 20, fontSize: 11, color: '#9ca3af' }}>
+        🔒 {t.login.secureConnection || 'Connessione sicura e cifrata'}
+      </p>
+    </div>
   );
 }

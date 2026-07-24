@@ -2,7 +2,11 @@ export type Lang = 'it' | 'en';
 
 const it = {
   login: {
+    title: 'Bentornato',
     subtitle: 'Accedi per gestire le richieste della tua organizzazione',
+    emailPlaceholder: 'nome@azienda.it',
+    forgotTitle: 'Reimposta password',
+    secureConnection: 'Connessione sicura e cifrata',
     email: 'Indirizzo Email',
     password: 'Password',
     submit: 'Accedi',
@@ -1517,7 +1521,11 @@ const it = {
 
 const en: typeof it = {
   login: {
+    title: 'Welcome back',
     subtitle: 'Sign in to manage your organization requests',
+    emailPlaceholder: 'name@company.com',
+    forgotTitle: 'Reset password',
+    secureConnection: 'Secure and encrypted connection',
     email: 'Email Address',
     password: 'Password',
     submit: 'Sign In',
