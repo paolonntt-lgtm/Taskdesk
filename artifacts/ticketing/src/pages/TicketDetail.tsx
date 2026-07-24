@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Card, Typography, Tabs, Tab, Divider, Chip, Button,
+  Box, Typography, Tabs, Tab, Chip, Button,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
-  FormControlLabel, Checkbox, Autocomplete, Breadcrumbs, Link as MuiLink,
+  FormControlLabel, Checkbox, Autocomplete, Link as MuiLink,
   useTheme, useMediaQuery,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Image as ImageIcon, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, NavigateNext as NavigateNextIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -42,7 +42,7 @@ interface TabPanelProps {
 function TabPanel({ children, value, index }: TabPanelProps) {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ pt: { xs: 1.5, sm: 3 } }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: { xs: 1.5, sm: 2.5 } }}>{children}</Box>}
     </div>
   );
 }
@@ -60,6 +60,16 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
   const m = CUSTOMER_REPLY_RE.exec(text);
   if (!m) return null;
   return { name: m[1].trim(), email: m[2].trim(), body: m[3].trim() };
+}
+
+/** HybridAE sidebar row — label + value */
+function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+      <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
+      <Box sx={{ fontSize: 13, color: '#212121' }}>{children}</Box>
+    </Box>
+  );
 }
 
 export default function TicketDetail() {
@@ -129,7 +139,6 @@ export default function TicketDetail() {
   const setRecurrenceMut = useSetTicketRecurrence();
   const deleteRecurrenceMut = useDeleteTicketRecurrence();
 
-  // Recurrence dialog state
   const [recurrenceDialog, setRecurrenceDialog] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -155,7 +164,6 @@ export default function TicketDetail() {
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
 
-  // Group permission helpers — reads from groupPermissions returned by /api/auth/me
   const hasGroupPerm = (perm: string) =>
     ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
   const canChangeStatusByGroup = hasGroupPerm('change_status');
@@ -180,7 +188,6 @@ export default function TicketDetail() {
       : `${nameList} e ${rest} altr${rest > 1 ? 'i' : 'o'}`;
   };
 
-  // Sync reactions from API data when comments load
   useEffect(() => {
     if (!comments) return;
     const map: Record<number, { emoji: string; count: number; userReacted: boolean; users: string[] }[]> = {};
@@ -224,7 +231,6 @@ export default function TicketDetail() {
       .then((d) => setGroups(d.value ?? []))
       .catch(() => {});
   }, [currentUser?.role]);
-
 
   useEffect(() => {
     fetch('/api/settings/categories', { credentials: 'include' })
@@ -331,7 +337,6 @@ export default function TicketDetail() {
               : { ...c, isSolution: false }
           )
         );
-        // If ticket was auto-resolved, refresh ticket data and list
         if (data.autoResolved) {
           queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
         }
@@ -618,211 +623,601 @@ export default function TicketDetail() {
   };
   const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : backTo === '/calendar' ? t.nav.calendar : (bql && bqlLabels[bql]) || t.ticketDetail.breadcrumbList;
 
+  const priorityColor = (p: string) =>
+    p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
+
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 2 }}>
-        <Breadcrumbs
-          separator={<NavigateNextIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
-          aria-label="breadcrumb"
-          sx={{ minWidth: 0, flexShrink: 1, mr: 1 }}
-        >
+      {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1.5, mb: { xs: 2, sm: 2.5 }, borderBottom: '1px solid #efefef' }}>
+        {/* Breadcrumb */}
+        <Box display="flex" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <MuiLink
             underline="hover"
-            color="text.secondary"
             onClick={() => setLocation(backTo)}
-            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+            sx={{ fontSize: 13, color: '#9e9e9e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, whiteSpace: 'nowrap' }}
           >
-            <ArrowBack sx={{ fontSize: 16 }} />
+            <ArrowBack sx={{ fontSize: 14 }} />
             {breadcrumbLabel}
           </MuiLink>
-          <Typography color="text.primary" variant="body2" noWrap sx={{ maxWidth: { xs: 140, sm: 380 } }}>
-            #{ticketId} {ticket.title}
-          </Typography>
-        </Breadcrumbs>
-        <Box display="flex" gap={0.5} alignItems="center" flexShrink={0}>
-          {isMobile ? (
-            /* ── Mobile: icon-only buttons in a compact row ── */
-            <>
-              {canEdit && (
-                <Tooltip title={t.ticketDetail.editButton}>
-                  <IconButton size="small" onClick={openEditDialog} sx={{ border: '1px solid', borderColor: 'divider' }}>
-                    <EditOutlined fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {isAdmin && (
-                <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : t.ticketDetail.recurrenceButton}>
-                  <IconButton
-                    size="small"
-                    onClick={openRecurrenceDialog}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: (ticket as any).recurrenceRule ? 'primary.main' : 'divider',
-                      bgcolor: (ticket as any).recurrenceRule ? 'primary.main' : 'transparent',
-                      color: (ticket as any).recurrenceRule ? 'primary.contrastText' : 'inherit',
-                      '&:hover': { bgcolor: (ticket as any).recurrenceRule ? 'primary.dark' : undefined },
-                    }}
-                  >
-                    <RepeatIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {isAdmin && (
-                <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
-                  <IconButton size="small" onClick={() => setDeleteDialog(true)} color="error" sx={{ border: '1px solid', borderColor: 'error.main' }}>
-                    <DeleteOutline fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </>
-          ) : (
-            /* ── Desktop: full text buttons ── */
-            <>
-              {canEdit && (
-                <Button startIcon={<EditOutlined />} size="small" variant="outlined" onClick={openEditDialog}>
-                  {t.ticketDetail.editButton}
+          <Box component="span" sx={{ color: '#ddd', fontSize: 14, flexShrink: 0 }}>/</Box>
+          <Box component="span" sx={{ fontSize: 13, color: '#1565c0', fontWeight: 600, flexShrink: 0 }}>
+            #{ticket.ticketNumber ?? ticket.id}
+          </Box>
+          <Box component="span" sx={{ fontSize: 13, color: '#9e9e9e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
+            — {ticket.title}
+          </Box>
+        </Box>
+        {/* Action buttons */}
+        <Box display="flex" gap={0.75} alignItems="center" flexShrink={0}>
+          {canEdit && (
+            isMobile ? (
+              <Tooltip title={t.ticketDetail.editButton}>
+                <IconButton size="small" onClick={openEditDialog} sx={{ border: '1px solid #e8e8e8', borderRadius: '6px' }}>
+                  <EditOutlined sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button size="small" onClick={openEditDialog} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: '1px solid #e8e8e8', background: 'none', fontSize: 12, color: '#616161', fontWeight: 400, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { background: '#f9f9f9', boxShadow: 'none' } }}>
+                {t.ticketDetail.editButton}
+              </Button>
+            )
+          )}
+          {isAdmin && (
+            <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : t.ticketDetail.recurrenceButton}>
+              {isMobile ? (
+                <IconButton size="small" onClick={openRecurrenceDialog} sx={{ border: '1px solid', borderColor: (ticket as any).recurrenceRule ? 'primary.main' : '#e8e8e8', borderRadius: '6px', bgcolor: (ticket as any).recurrenceRule ? 'primary.main' : 'transparent', color: (ticket as any).recurrenceRule ? 'white' : 'inherit' }}>
+                  <RepeatIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              ) : (
+                <Button size="small" onClick={openRecurrenceDialog} variant={(ticket as any).recurrenceRule ? 'contained' : 'text'} color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'} sx={{ px: '14px', py: '5px', borderRadius: '6px', fontSize: 12, textTransform: 'none', minWidth: 0, ...((!(ticket as any).recurrenceRule) && { border: '1px solid #e8e8e8', color: '#616161', fontWeight: 400, boxShadow: 'none', '&:hover': { background: '#f9f9f9', boxShadow: 'none' } }) }}>
+                  {t.ticketDetail.recurrenceButton}
                 </Button>
               )}
-              {isAdmin && (
-                <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : ''}>
-                  <Button
-                    startIcon={<RepeatIcon />}
-                    size="small"
-                    variant={(ticket as any).recurrenceRule ? 'contained' : 'outlined'}
-                    color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'}
-                    onClick={openRecurrenceDialog}
-                  >
-                    {t.ticketDetail.recurrenceButton}
-                  </Button>
-                </Tooltip>
-              )}
-              {isAdmin && (
-                <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
-                  <Button startIcon={<DeleteOutline />} color="error" size="small" variant="outlined" onClick={() => setDeleteDialog(true)}>
-                    {lang === 'it' ? 'Elimina' : 'Delete'}
-                  </Button>
-                </Tooltip>
-              )}
-            </>
+            </Tooltip>
+          )}
+          {isAdmin && (
+            isMobile ? (
+              <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
+                <IconButton size="small" onClick={() => setDeleteDialog(true)} sx={{ borderRadius: '6px', background: '#fde8e8', color: '#b71c1c', '&:hover': { background: '#fcc' } }}>
+                  <DeleteOutline sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button size="small" onClick={() => setDeleteDialog(true)} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: 'none', background: '#fde8e8', fontSize: 12, color: '#b71c1c', fontWeight: 600, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { background: '#fbbdbd', boxShadow: 'none' } }}>
+                {lang === 'it' ? 'Elimina' : 'Delete'}
+              </Button>
+            )
           )}
         </Box>
       </Box>
 
-      {/* ── Flat header ── */}
-      <Box sx={{ mb: { xs: 1, sm: 1.5 } }}>
+      {/* ── Two-column layout: left (main) + right (sidebar) ── */}
+      <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: { lg: '28px' }, alignItems: 'flex-start' }}>
+
+        {/* ── LEFT: main content ── */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar: status · priority · category · due date */}
-          <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mb={1.5}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+            {/* Status pill */}
             {(() => {
               const customColor = getColorForKey(ticket.status);
-              return customColor ? (
-                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.3, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: '0.72rem', lineHeight: 1.6 }}>
-                  {getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status}
+              const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
+              if (customColor) {
+                return (
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+                    {label}
+                  </Box>
+                );
+              }
+              const muiColor = getStatusColor(ticket.status);
+              const softMap: Record<string, { bg: string; fg: string }> = {
+                open: { bg: '#e3f0fd', fg: '#1565c0' },
+                in_progress: { bg: '#fff3e0', fg: '#e65100' },
+                waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
+                resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
+                closed: { bg: '#f5f5f5', fg: '#424242' },
+              };
+              const soft = softMap[ticket.status];
+              return soft ? (
+                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+                  {label}
                 </Box>
               ) : (
-                <Chip label={getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status} size="small" color={getStatusColor(ticket.status) as any} sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }} />
+                <Chip label={label} size="small" color={muiColor as any} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20 }} />
               );
             })()}
-            <Box display="flex" alignItems="center" gap={0.5}>
-              <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: getPriorityColor(ticket.priority) === 'error' ? 'error.main' : getPriorityColor(ticket.priority) === 'warning' ? 'warning.main' : getPriorityColor(ticket.priority) === 'success' ? 'success.main' : 'text.disabled' }} />
-              <Typography variant="caption" fontWeight={600} sx={{ color: getPriorityColor(ticket.priority) === 'error' ? 'error.main' : getPriorityColor(ticket.priority) === 'warning' ? 'warning.main' : 'text.secondary' }}>
+            {/* Priority dot + text */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: priorityColor(ticket.priority) }} />
+              <Box component="span" sx={{ fontWeight: 600, fontSize: 12, color: priorityColor(ticket.priority) }}>
                 {t.priority[ticket.priority] || ticket.priority}
-              </Typography>
+              </Box>
             </Box>
             {ticket.category && (
               <>
-                <Typography variant="caption" color="text.disabled">·</Typography>
-                <Typography variant="caption" color="text.secondary">{ticket.category}</Typography>
+                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
               </>
             )}
             {(ticket as any).dueAt && (
               <>
-                <Typography variant="caption" color="text.disabled">·</Typography>
-                <Typography variant="caption" fontWeight={600} color={new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed' ? 'error.main' : 'warning.main'}>
-                  ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale)}
-                </Typography>
+                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100' }}>
+                  ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })}
+                </Box>
               </>
             )}
-          </Box>
-
-          {/* Row 2: ticket title */}
-          <Box display="flex" alignItems="flex-start" gap={1} mb={{ xs: 1, sm: 1.5 }} flexWrap="wrap">
-            <Typography variant="h5" fontWeight={800} sx={{ wordBreak: 'break-word', lineHeight: 1.2, letterSpacing: '-0.01em', fontSize: { xs: '1.1rem', sm: '1.4rem' } }}>
-              #{ticket.ticketNumber ?? ticket.id} — {ticket.title}
-            </Typography>
             {ticket.inboundChannelId && (
               <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
-                <Chip
-                  icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />}
-                  label="Email"
-                  size="small"
-                  color="info"
-                  variant="outlined"
-                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
-                />
+                <Chip icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />} label="Email" size="small" color="info" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
               </Tooltip>
             )}
             {(ticket as any).recurrenceRule && (
               <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
-                <Chip
-                  icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />}
-                  label={t.ticketDetail.recurrenceBadge}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
-                />
+                <Chip icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />} label={t.ticketDetail.recurrenceBadge} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
               </Tooltip>
             )}
             {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
               <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
-                <Chip
-                  icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />}
-                  label={lang === 'it' ? 'Programmata' : 'Scheduled'}
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  sx={{ alignSelf: 'center', height: 22, fontSize: '0.7rem', flexShrink: 0 }}
-                />
+                <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
               </Tooltip>
             )}
           </Box>
-      </Box>
 
-      {/* ── Two-column layout: sidebar (right) + main content (left) ── */}
-      <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: 3, alignItems: 'flex-start' }}>
-        <Box sx={{ width: { lg: 220 }, flexShrink: 0, order: { lg: 2 }, mb: { xs: 2, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
-          {/* Sidebar: all metadata as vertical SideRows */}
-          <Box display="flex" flexDirection="column">
-            {/* Status — admin interactive SideRow */}
+          {/* H1 Title — E style */}
+          <Box component="h1" sx={{ m: 0, mb: 3, fontSize: { xs: '1.2rem', sm: '1.375rem' }, fontWeight: 800, color: '#111', lineHeight: 1.25, letterSpacing: '-0.01em', wordBreak: 'break-word' }}>
+            {ticket.title}
+          </Box>
+
+          {/* Description block — flat, no card border */}
+          <Box sx={{ mb: 3.5, pb: 3, borderBottom: '1px solid #efefef' }}>
+            <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
+              {t.ticketDetail.descriptionLabel}
+            </Box>
+            <MarkdownContent content={ticket.description} />
+            {/* Ticket-level attachments */}
+            {(() => {
+              const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
+              if (!ticketAttachments.length) return null;
+              const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
+              const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
+              return (
+                <Box mt={2}>
+                  {imgs.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
+                      {imgs.map((a: any) => {
+                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                        return (
+                          <Box key={a.id} onClick={() => setLightboxSrc(href)} sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover img': { opacity: 0.85 } }}>
+                            <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 200, maxHeight: 140, objectFit: 'cover' }} />
+                            <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fileName}</Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                  {files.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {files.map((a: any) => {
+                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                        return <Chip key={a.id} icon={<InsertDriveFile fontSize="small" />} label={a.fileName} size="small" variant="outlined" component="a" href={href} target="_blank" rel="noopener noreferrer" clickable deleteIcon={<Download fontSize="small" />} onDelete={() => window.open(href, '_blank')} sx={{ maxWidth: 280 }} />;
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              );
+            })()}
+          </Box>
+
+          {/* Checklist */}
+          <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
+
+          {/* Tabs — E style: minimal underline indicator */}
+          <Box>
+            <Box sx={{ borderBottom: '1px solid #efefef' }}>
+              <Tabs
+                value={tabValue}
+                onChange={(_, v) => setTabValue(v)}
+                textColor="inherit"
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                sx={{
+                  px: 0,
+                  minHeight: 0,
+                  '& .MuiTabs-indicator': { bgcolor: '#111', height: 2 },
+                  '& .MuiTab-root': {
+                    minHeight: 0,
+                    px: 0,
+                    mr: 3,
+                    pb: 1.5,
+                    pt: 0,
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: '#bdbdbd',
+                    textTransform: 'none',
+                    minWidth: 0,
+                  },
+                  '& .MuiTab-root.Mui-selected': { color: '#111', fontWeight: 700 },
+                }}
+              >
+                <Tab label={`${t.ticketDetail.tabComments} (${(comments?.length ?? 0) + ((ticket as any).resolutionNote ? 1 : 0)})`} />
+                <Tab label={t.ticketDetail.tabActivity} />
+                {canAccessNotes && <Tab label={`${t.ticketDetail.tabNotes} (${notes?.length ?? 0})`} />}
+              </Tabs>
+            </Box>
+
+            {/* ── Tab: Comments ── */}
+            <TabPanel value={tabValue} index={0}>
+              <Box display="flex" flexDirection="column" gap={0}>
+                {comments?.length === 0 && !(ticket as any).resolutionNote && (
+                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>
+                    {t.ticketDetail.noComments}
+                  </Box>
+                )}
+
+                {(comments?.length ?? 0) > 0 && (
+                  <Box display="flex" flexDirection="column" gap={0}>
+                    {comments?.flatMap((c) => {
+                      const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
+                      const isSolution = (c as any).isSolution === true;
+                      const canMarkSolution = !!currentUser;
+                      const showInlineEditor = replyingToCommentId === c.id;
+                      const isEditingThis = editingCommentId === c.id;
+                      const isCommentAuthor = c.authorId === currentUser?.id;
+                      const canEditComment = isCommentAuthor;
+                      const canDeleteComment = isCommentAuthor || isAdmin;
+                      const customerReply = parseCustomerReply(c.commentText);
+                      const avatarLetter = customerReply ? customerReply.name.charAt(0).toUpperCase() : c.author?.name?.charAt(0);
+                      const avatarBg = isSolution ? '#2e7d32' : customerReply ? '#7c4dff' : '#1565c0';
+
+                      const commentEl = (
+                        <Box
+                          key={`c-${c.id}`}
+                          display="flex"
+                          gap={1.5}
+                          sx={{ py: 2, borderBottom: '1px solid #f5f5f5', ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
+                          onMouseEnter={() => setHoveredCommentId(c.id)}
+                          onMouseLeave={() => setHoveredCommentId(null)}
+                        >
+                          <Avatar
+                            src={customerReply ? undefined : ((c.author as any)?.avatarUrl ?? undefined)}
+                            sx={{ bgcolor: avatarBg, width: 34, height: 34, fontSize: 14, flexShrink: 0 }}
+                          >
+                            {avatarLetter}
+                          </Avatar>
+                          <Box flex={1} minWidth={0}>
+                            {/* Header: author · time · solution badge */}
+                            <Box display="flex" alignItems="baseline" gap={1.25} mb={0.875} flexWrap="wrap">
+                              {customerReply ? (
+                                <>
+                                  <Box component="span" sx={{ fontWeight: 700, fontSize: 14, color: '#111' }}>{customerReply.name}</Box>
+                                  <Box display="flex" alignItems="center" gap={0.5}>
+                                    <MailOutline sx={{ fontSize: 12, color: '#9e9e9e' }} />
+                                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>Risposta del cliente</Box>
+                                    <Box component="a" href={`mailto:${customerReply.email}`} sx={{ fontSize: 12, color: '#1565c0', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{customerReply.email}</Box>
+                                  </Box>
+                                </>
+                              ) : (
+                                <UserLink
+                                  userId={c.authorId}
+                                  name={c.author?.name}
+                                  typographyProps={{ sx: { fontWeight: 700, fontSize: 14, color: '#111' } } as any}
+                                />
+                              )}
+                              <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd' }}>
+                                {new Date(c.createdAt).toLocaleString(dateLocale)}
+                              </Box>
+                              {c.updatedAt && c.updatedAt !== c.createdAt && (
+                                <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', fontStyle: 'italic' }}>({t.ticketDetail.commentEdited})</Box>
+                              )}
+                              {isSolution && (
+                                <Box component="span" sx={{ fontSize: 11, color: '#2e7d32', fontWeight: 700 }}>✓ {t.ticketDetail.solutionLabel}</Box>
+                              )}
+                            </Box>
+                            {/* Comment text */}
+                            <Box sx={isSolution ? { borderLeft: '3px solid #4caf50', pl: 1.5, color: '#1b5e20' } : customerReply ? { borderLeft: '3px solid #7c4dff', pl: 1.5 } : {}}>
+                              {isEditingThis ? (
+                                <Box mt={0.5} display="flex" flexDirection="column" gap={1}>
+                                  <RichCommentEditor ref={editCommentEditorRef} value={editCommentText} onChange={setEditCommentText} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} minRows={2} />
+                                  <Box display="flex" gap={1} justifyContent="flex-end">
+                                    <Button size="small" onClick={() => { setEditingCommentId(null); setEditCommentText(''); }}>{t.ticketDetail.editCancel}</Button>
+                                    <Button size="small" variant="contained" onClick={() => handleEditCommentSave(c.id)} disabled={!editCommentText.trim() || updateComment.isPending}>
+                                      {updateComment.isPending ? '...' : t.ticketDetail.editCommentSave}
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              ) : (
+                                <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
+                              )}
+                              {/* Comment attachments */}
+                              {commentAttachments.length > 0 && (
+                                <Box mt={1.5}>
+                                  {(() => {
+                                    const imgs = commentAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
+                                    const files = commentAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
+                                    return (
+                                      <>
+                                        {imgs.length > 0 && (
+                                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
+                                            {imgs.map((a: any) => {
+                                              const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                                              return (
+                                                <Box key={a.id} onClick={() => setLightboxSrc(href)} sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover img': { opacity: 0.85 } }}>
+                                                  <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 180, maxHeight: 120, objectFit: 'cover' }} />
+                                                  <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fileName}</Box>
+                                                </Box>
+                                              );
+                                            })}
+                                          </Box>
+                                        )}
+                                        {files.length > 0 && (
+                                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                            {files.map((a: any) => {
+                                              const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                                              return <Chip key={a.id} icon={<InsertDriveFile fontSize="small" />} label={a.fileName} size="small" variant="outlined" component="a" href={href} target="_blank" rel="noopener noreferrer" clickable sx={{ maxWidth: 260 }} />;
+                                            })}
+                                          </Box>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </Box>
+                              )}
+                            </Box>
+                            {!isEditingThis && (
+                              <Box mt={0.5}>
+                                {/* Reaction chips */}
+                                {(() => {
+                                  const reactions = commentReactions[c.id] ?? [];
+                                  if (reactions.length === 0) return null;
+                                  return (
+                                    <Box display="flex" flexWrap="wrap" gap={0.5} mb={0.5}>
+                                      {reactions.map((r) => (
+                                        <Tooltip key={r.emoji} title={formatReactionTooltip(r.users)} placement="top" arrow enterDelay={300} enterTouchDelay={400} leaveTouchDelay={3000}>
+                                          <Box component="span" onClick={() => handleToggleReaction(c.id, r.emoji)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, px: 0.8, py: 0.2, borderRadius: 10, fontSize: '0.78rem', cursor: 'pointer', border: '1px solid', borderColor: r.userReacted ? 'primary.main' : 'divider', bgcolor: r.userReacted ? 'primary.50' : 'action.hover', color: r.userReacted ? 'primary.main' : 'text.secondary', fontWeight: r.userReacted ? 700 : 400, transition: 'all 0.15s', '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' } }}>
+                                            <span>{r.emoji}</span><span>{r.count}</span>
+                                          </Box>
+                                        </Tooltip>
+                                      ))}
+                                    </Box>
+                                  );
+                                })()}
+                                {/* Action links row */}
+                                <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                                  <Box component="span" onClick={() => handleReply(c.id, c.author?.name)} sx={{ fontSize: 12, color: replyingToCommentId === c.id ? '#1565c0' : '#9e9e9e', cursor: 'pointer', '&:hover': { color: '#1565c0', textDecoration: 'underline' } }}>
+                                    {t.ticketDetail.replyComment}
+                                  </Box>
+                                  {(() => {
+                                    const alreadyLiked = (commentReactions[c.id] ?? []).some((r) => r.emoji === '👍' && r.userReacted);
+                                    return (
+                                      <Box component="span" onClick={() => handleToggleReaction(c.id, '👍')} sx={{ cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, color: alreadyLiked ? 'primary.main' : '#9e9e9e', fontWeight: alreadyLiked ? 700 : 400, opacity: hoveredCommentId === c.id || alreadyLiked ? 1 : 0, transition: 'opacity 0.15s, color 0.15s', '@media (pointer: coarse)': { opacity: 1 }, '&:hover': { color: 'primary.main' } }}>
+                                        👍
+                                      </Box>
+                                    );
+                                  })()}
+                                  {(canEditComment || canDeleteComment) && (
+                                    <IconButton size="small" onClick={(e) => setCommentMenuAnchor({ el: e.currentTarget, commentId: c.id })} sx={{ p: 0.25, color: '#9e9e9e', '&:hover': { color: '#111' } }}>
+                                      <MoreVert sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                  )}
+                                  {canMarkSolution && (
+                                    <Button size="small" variant={isSolution ? 'contained' : 'outlined'} color="success" startIcon={isSolution ? <CheckCircle sx={{ fontSize: 13 }} /> : <CheckCircleOutline sx={{ fontSize: 13 }} />} onClick={() => handleMarkSolution(c.id, isSolution)} disabled={markingSolution === c.id} sx={{ fontSize: '0.68rem', py: 0.25, px: 0.75, height: 22, minWidth: 0, ml: 'auto' }}>
+                                      {isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}
+                                    </Button>
+                                  )}
+                                </Box>
+                              </Box>
+                            )}
+                          </Box>
+                        </Box>
+                      );
+
+                      if (!showInlineEditor) return [commentEl];
+                      const editorEl = (
+                        <Box key={`r-${c.id}`} sx={{ pl: { xs: 3, sm: 5 }, display: 'flex', gap: { xs: 1, sm: 2 } }}>
+                          <Avatar src={(currentUser as any)?.avatarUrl ?? undefined} sx={{ bgcolor: 'primary.main', width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 }, flexShrink: 0 }}>{currentUser?.name?.charAt(0)}</Avatar>
+                          <Box flex={1} display="flex" flexDirection="column" gap={1}>
+                            <RichCommentEditor ref={inlineEditorRef} value={inlineReplyText} onChange={setInlineReplyText} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setInlinePendingAttachments} minRows={2} />
+                            <Box display="flex" gap={1} justifyContent="flex-end">
+                              <Button size="small" onClick={() => { setReplyingToCommentId(null); setInlineReplyText(''); }}>{t.ticketDetail.editCancel}</Button>
+                              <Button size="small" variant="contained" onClick={submitInlineReply} disabled={(!inlineReplyText.trim() && inlinePendingAttachments.length === 0) || addComment.isPending}>
+                                {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.replyComment}
+                              </Button>
+                            </Box>
+                          </Box>
+                        </Box>
+                      );
+                      return [commentEl, editorEl];
+                    })}
+                  </Box>
+                )}
+
+                {/* Comment actions menu */}
+                <Menu anchorEl={commentMenuAnchor?.el} open={Boolean(commentMenuAnchor)} onClose={() => setCommentMenuAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }} slotProps={{ paper: { elevation: 3, sx: { minWidth: 150 } } }}>
+                  {(() => {
+                    const mc = comments?.find((c) => c.id === commentMenuAnchor?.commentId);
+                    if (!mc) return null;
+                    const canEdit = mc.authorId === currentUser?.id;
+                    const canDelete = mc.authorId === currentUser?.id || isAdmin;
+                    return [
+                      canEdit && <MenuItem key="edit" onClick={() => { handleEditComment(commentMenuAnchor!.commentId, mc.commentText); setCommentMenuAnchor(null); }}><ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon><ListItemText>{t.ticketDetail.editComment}</ListItemText></MenuItem>,
+                      canDelete && <MenuItem key="delete" onClick={() => { setDeleteCommentId(commentMenuAnchor!.commentId); setCommentMenuAnchor(null); }} sx={{ color: 'error.main' }}><ListItemIcon sx={{ color: 'error.main' }}><DeleteOutline fontSize="small" /></ListItemIcon><ListItemText>{t.ticketDetail.deleteComment}</ListItemText></MenuItem>,
+                    ].filter(Boolean);
+                  })()}
+                </Menu>
+
+                {/* Resolution note */}
+                {(ticket as any).resolutionNote && (
+                  <Box display="flex" gap={1.5} mt={1}>
+                    <Avatar sx={{ bgcolor: 'success.main', width: 34, height: 34, flexShrink: 0 }}><CheckCircleOutline sx={{ fontSize: 16 }} /></Avatar>
+                    <Box flex={1} borderRadius={1} overflow="hidden" sx={{ border: '1px solid', borderColor: 'success.200' }}>
+                      <Box display="flex" alignItems="center" gap={1} px={1.5} py={0.6} sx={{ bgcolor: 'success.100', borderBottom: '1px solid', borderColor: 'success.200' }}>
+                        <Box component="span" sx={{ fontWeight: 700, fontSize: 12, color: '#1b5e20', flexShrink: 0 }}>✓ {t.ticketDetail.resolutionNoteLabel}</Box>
+                        {closerActivity?.user?.name && <Box component="span" sx={{ fontSize: 12, color: '#1b5e20', opacity: 0.75, flexShrink: 0 }}>· {closerActivity.user.name}</Box>}
+                      </Box>
+                      <Box px={1.5} py={1} sx={{ background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)` }}>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>{(ticket as any).resolutionNote}</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Email reply compose panel */}
+                {emailReplyOpen && ticket.status !== 'closed' && isEmailResource && (
+                  <Box mt={2} sx={{ border: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.35), borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ bgcolor: (theme) => alpha(theme.palette.info.main, 0.08), px: 2, py: 1, borderBottom: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.2), display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EmailIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                      <Typography variant="caption" fontWeight={600} color="info.dark">{t.ticketDetail.replyViaEmail}</Typography>
+                    </Box>
+                    <Box px={2} py={1.5} display="flex" flexDirection="column" gap={1}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>{t.ticketDetail.emailReplyTo}:</Typography>
+                        <Typography variant="caption" fontWeight={600} color="info.main">{(ticket as any).resource}</Typography>
+                      </Box>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>{t.ticketDetail.emailReplySubject}:</Typography>
+                        <Typography variant="caption" color="text.secondary">Re: [#{ticket.ticketNumber ?? ticket.id}] {ticket.title}</Typography>
+                      </Box>
+                      <TextField multiline minRows={4} maxRows={12} fullWidth size="small" value={emailReplyBody} onChange={(e) => setEmailReplyBody(e.target.value)} placeholder={t.ticketDetail.emailReplyBodyPlaceholder} disabled={emailReplySending} sx={{ mt: 0.5 }} />
+                      {emailReplyAttachments.length > 0 && (
+                        <Box display="flex" flexWrap="wrap" gap={0.75} mt={0.5}>
+                          {emailReplyAttachments.map((att) => (
+                            <Chip key={att.objectPath} icon={<AttachFile sx={{ fontSize: 14 }} />} label={att.fileName} size="small" onDelete={() => setEmailReplyAttachments((prev) => prev.filter((a) => a.objectPath !== att.objectPath))} deleteIcon={<Tooltip title={t.ticketDetail.emailReplyRemoveAttachment}><CloseIcon sx={{ fontSize: 14 }} /></Tooltip>} sx={{ maxWidth: 200 }} />
+                          ))}
+                        </Box>
+                      )}
+                      {emailReplyAttachError && <Alert severity="warning" sx={{ py: 0.5 }} onClose={() => setEmailReplyAttachError(null)}>{emailReplyAttachError}</Alert>}
+                      {emailReplyError && <Alert severity="error" sx={{ py: 0.5 }}>{emailReplyError}</Alert>}
+                      <input type="file" multiple ref={emailReplyFileInputRef} style={{ display: 'none' }} onChange={handleEmailReplyFileChange} accept={EMAIL_REPLY_ALLOWED_TYPES.join(',')} />
+                      <Box display="flex" gap={1} justifyContent="space-between" alignItems="center">
+                        <Tooltip title={t.ticketDetail.emailReplyAttach}>
+                          <span>
+                            <IconButton size="small" onClick={() => emailReplyFileInputRef.current?.click()} disabled={emailReplySending || emailReplyUploading}>
+                              {emailReplyUploading ? <CircularProgress size={16} /> : <AttachFile sx={{ fontSize: 18 }} />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Box display="flex" gap={1}>
+                          <Button size="small" onClick={() => { setEmailReplyOpen(false); setEmailReplyBody(''); setEmailReplyError(null); setEmailReplyAttachments([]); setEmailReplyAttachError(null); }} disabled={emailReplySending}>{t.ticketDetail.emailReplyCancel}</Button>
+                          <Button variant="contained" color="info" size="small" startIcon={<EmailIcon />} onClick={submitEmailReply} disabled={!emailReplyBody.trim() || emailReplySending || emailReplyUploading}>
+                            {emailReplySending ? t.ticketDetail.emailReplySending : t.ticketDetail.emailReplySend}
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Compose — new comment */}
+                {ticket.status === 'closed' ? (
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>{t.ticketDetail.closedTicketComment(entityTerm.singular)}</Alert>
+                ) : !replyingToCommentId && (
+                  <Box display="flex" gap={1.5} alignItems="flex-start" sx={{ pt: 2.5, mt: 1, borderTop: '1px solid #efefef' }}>
+                    <Avatar src={(currentUser as any)?.avatarUrl ?? undefined} sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0, fontSize: 12 }}>
+                      {currentUser?.name?.charAt(0)}
+                    </Avatar>
+                    <Box flex={1} display="flex" flexDirection="column" gap={1}>
+                      <RichCommentEditor ref={editorRef} value={newComment} onChange={setNewComment} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setPendingAttachments} />
+                      <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+                        {isEmailResource && (
+                          <Tooltip title={`${t.ticketDetail.replyWillBeSentTo} ${(ticket as any).resource}`}>
+                            <FormControlLabel
+                              control={<Checkbox size="small" checked={sendToCustomer} onChange={(e) => setSendToCustomer(e.target.checked)} color="primary" />}
+                              label={<Typography variant="caption" color="text.secondary">{t.ticketDetail.sendReplyToCustomer}{' '}<Typography component="span" variant="caption" color="primary.main" fontWeight={600}>{(ticket as any).resource}</Typography></Typography>}
+                            />
+                          </Tooltip>
+                        )}
+                        <Button variant="contained" sx={{ alignSelf: 'flex-end', ml: 'auto', borderRadius: '8px', px: 2.5 }} onClick={submitComment} disabled={(!newComment.trim() && pendingAttachments.length === 0) || addComment.isPending}>
+                          {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </TabPanel>
+
+            {/* ── Tab: Activity ── */}
+            <TabPanel value={tabValue} index={1}>
+              <Box sx={{ pt: 0.5, pb: 0.5 }}>
+                {activities?.length === 0 && (
+                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>{t.ticketDetail.noActivity}</Box>
+                )}
+                {activities?.map((a) => {
+                  const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
+                  return (
+                    <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
+                      <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
+                      <Box component="span" sx={{ flex: 1, fontSize: 12, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
+                      <Box component="span" sx={{ fontSize: 11, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </TabPanel>
+
+            {/* ── Tab: Notes ── */}
+            {canAccessNotes && (
+              <TabPanel value={tabValue} index={2}>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <Box display="flex" alignItems="center" justifyContent="flex-end">
+                    <PermissionGateButton permission="add_notes" sectionLabel={t.ticketDetail.tabNotes} />
+                  </Box>
+                  {notes?.length === 0 && <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>{t.ticketDetail.noNotes}</Box>}
+                  {notes?.map((n: any) => (
+                    <Box key={n.id} display="flex" gap={2} sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200', borderRadius: 1, p: 2 }}>
+                      <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>{n.author?.name?.charAt(0)}</Avatar>
+                      <Box flex={1}>
+                        <Box display="flex" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="subtitle2" fontWeight={700}>{n.author?.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">{new Date(n.createdAt).toLocaleString(dateLocale)}</Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{n.noteText}</Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                  <Box display="flex" gap={2} mt={1}>
+                    <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>{currentUser?.name?.charAt(0)}</Avatar>
+                    <Box flex={1} display="flex" flexDirection="column" gap={1}>
+                      <TextField multiline rows={3} fullWidth placeholder={t.ticketDetail.addNotePlaceholder} value={newNote} onChange={(e) => setNewNote(e.target.value)} />
+                      <Button variant="contained" color="warning" sx={{ alignSelf: 'flex-end' }} disabled={!newNote.trim() || addNote.isPending}
+                        onClick={async () => {
+                          if (!newNote.trim()) return;
+                          const note = await addNote.mutateAsync({ id: ticketId, data: { noteText: newNote } });
+                          setNewNote('');
+                          queryClient.setQueryData(getListTicketNotesQueryKey(ticketId), (old: any[] = []) => [...old, note]);
+                        }}>
+                        {addNote.isPending ? t.ticketDetail.sending : t.ticketDetail.addNote}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+              </TabPanel>
+            )}
+          </Box>
+        </Box>
+
+        {/* ── RIGHT: sidebar ── */}
+        <Box sx={{ width: { xs: '100%', lg: 220 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+          <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
+
+            {/* Status — admin interactive */}
             {canChangeStatus && (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Box display="flex" alignItems="center" gap={0.5} mb={0.25}>
-                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                    {t.ticketDetail.statusLabel}
-                  </Typography>
-                  <PermissionGateButton
-                    permission="change_status"
-                    sectionLabel={t.ticketDetail.statusLabel}
-                  />
+              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
+                  {t.ticketDetail.statusLabel}
+                  <PermissionGateButton permission="change_status" sectionLabel={t.ticketDetail.statusLabel} />
                 </Box>
                 <Box display="flex" flexWrap="wrap" gap={0.5}>
                   {orgStatuses.map((s) => {
                     const isActive = ticket.status === s.key;
                     const customColor = s.color;
                     return (
-                      <Chip
-                        key={s.key}
-                        label={s.label}
-                        size="small"
-                        variant={isActive ? 'filled' : 'outlined'}
-                        onClick={() => handleStatusChange(s.key)}
-                        disabled={updateTicket.isPending}
-                        {...(isActive && customColor
-                          ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700 } }
-                          : isActive
-                          ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700 } }
-                          : { sx: { cursor: 'pointer', fontWeight: 400 } })}
+                      <Chip key={s.key} label={s.label} size="small" variant={isActive ? 'filled' : 'outlined'} onClick={() => handleStatusChange(s.key)} disabled={updateTicket.isPending}
+                        {...(isActive && customColor ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : isActive ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : { sx: { cursor: 'pointer', fontWeight: 400, fontSize: 11 } })}
                       />
                     );
                   })}
@@ -830,154 +1225,68 @@ export default function TicketDetail() {
               </Box>
             )}
 
-            {/* Priority — admin interactive SideRow */}
+            {/* Priority — admin interactive */}
             {canChangeStatus && (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
+              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
                   {t.ticketDetail.priorityLabel}
-                </Typography>
+                </Box>
                 <Box display="flex" flexWrap="wrap" gap={0.5}>
                   {PRIORITY_OPTIONS.map((p) => (
-                    <Chip
-                      key={p}
-                      label={t.priority[p] || p}
-                      size="small"
-                      color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'}
-                      variant={ticket.priority === p ? 'filled' : 'outlined'}
-                      onClick={() => handlePriorityChange(p)}
-                      disabled={updateTicket.isPending}
-                      sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400 }}
-                    />
+                    <Chip key={p} label={t.priority[p] || p} size="small" color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'} variant={ticket.priority === p ? 'filled' : 'outlined'} onClick={() => handlePriorityChange(p)} disabled={updateTicket.isPending} sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400, fontSize: 11 }} />
                   ))}
                 </Box>
               </Box>
             )}
+
             {/* Assignee */}
-            <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                {t.ticketDetail.assignedTo}
-              </Typography>
+            <SideRow label={t.ticketDetail.assignedTo}>
               {isAdmin ? (
                 <>
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    gap={1}
-                    sx={{ cursor: 'pointer' }}
-                    onClick={(e) => setAssignAnchor(e.currentTarget)}
-                  >
+                  <Box display="flex" alignItems="center" gap={0.875} sx={{ cursor: 'pointer' }} onClick={(e) => setAssignAnchor(e.currentTarget)}>
                     {assignedGroup ? (
-                      <Chip
-                        icon={<Group fontSize="small" />}
-                        label={assignedGroup}
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }}
-                      />
+                      <Chip icon={<Group fontSize="small" />} label={assignedGroup} size="small" variant="outlined" color="primary" onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }} />
                     ) : assignee ? (
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar
-                          src={assignee.avatarUrl ?? undefined}
-                          sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
-                        >
-                          {assignee.name?.charAt(0)}
-                        </Avatar>
-                        <Typography variant="body2">{assignee.name}</Typography>
+                      <Box display="flex" alignItems="center" gap={0.875}>
+                        <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 9, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>
+                        <Box component="span" sx={{ fontWeight: 600 }}>{assignee.name}</Box>
                       </Box>
                     ) : (
-                      <Typography variant="body2" color="text.disabled">—</Typography>
+                      <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
                     )}
-                    <IconButton size="small">
-                      <EditOutlined fontSize="small" />
-                    </IconButton>
+                    <IconButton size="small" sx={{ p: 0.25, color: '#bdbdbd', ml: 0.25 }}><EditOutlined sx={{ fontSize: 13 }} /></IconButton>
                   </Box>
-
-                  <Popover
-                    open={Boolean(assignAnchor)}
-                    anchorEl={assignAnchor}
-                    onClose={() => setAssignAnchor(null)}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                  >
+                  <Popover open={Boolean(assignAnchor)} anchorEl={assignAnchor} onClose={() => setAssignAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
                     <Box p={2} minWidth={220}>
-                      <ToggleButtonGroup
-                        value={assignMode}
-                        exclusive
-                        size="small"
-                        fullWidth
-                        onChange={(_, v) => { if (!v) return; setAssignMode(v); }}
-                        sx={{ mb: 1.5 }}
-                      >
+                      <ToggleButtonGroup value={assignMode} exclusive size="small" fullWidth onChange={(_, v) => { if (!v) return; setAssignMode(v); }} sx={{ mb: 1.5 }}>
                         <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignUser}</ToggleButton>
                         <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignGroup}</ToggleButton>
                       </ToggleButtonGroup>
-
                       {assignMode === 'user' ? (
                         <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                          <Box
-                            px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                            onClick={() => handleAssigneeChange('')}
-                          >
+                          <Box px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => handleAssigneeChange('')}>
                             <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
                           </Box>
-                          {[...(users ?? [])].sort((a, b) => {
-                            if (a.isAvailable === b.isAvailable) return 0;
-                            return a.isAvailable ? -1 : 1;
-                          }).map(u => (
-                            <Box
-                              key={u.id}
-                              px={1} py={0.5} borderRadius={1}
-                              display="flex" alignItems="center" gap={1}
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': { bgcolor: 'action.hover' },
-                                bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined,
-                                opacity: u.isAvailable ? 1 : 0.55,
-                              }}
-                              onClick={() => handleAssigneeChange(String(u.id))}
-                            >
-                              <Avatar
-                                src={u.avatarUrl ?? undefined}
-                                sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}
-                              >
-                                {u.name?.charAt(0)}
-                              </Avatar>
+                          {[...(users ?? [])].sort((a, b) => { if (a.isAvailable === b.isAvailable) return 0; return a.isAvailable ? -1 : 1; }).map(u => (
+                            <Box key={u.id} px={1} py={0.5} borderRadius={1} display="flex" alignItems="center" gap={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined, opacity: u.isAvailable ? 1 : 0.55 }} onClick={() => handleAssigneeChange(String(u.id))}>
+                              <Avatar src={u.avatarUrl ?? undefined} sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}>{u.name?.charAt(0)}</Avatar>
                               <Tooltip title={u.isAvailable ? (lang === 'it' ? 'Disponibile' : 'Available') : (lang === 'it' ? 'Non disponibile' : 'Unavailable')} placement="right">
-                                <Box
-                                  component="span"
-                                  sx={{
-                                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                                    bgcolor: u.isAvailable ? 'success.main' : 'text.disabled',
-                                    display: 'inline-block',
-                                  }}
-                                />
+                                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, bgcolor: u.isAvailable ? 'success.main' : 'text.disabled', display: 'inline-block' }} />
                               </Tooltip>
                               <Box flex={1} display="flex" alignItems="center" justifyContent="space-between" minWidth={0}>
                                 <Typography variant="body2">{u.name}</Typography>
-                                {(openByUser[u.id] ?? 0) > 0 && (
-                                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>
-                                    {openByUser[u.id]} {lang === 'it' ? 'aperti' : 'open'}
-                                  </Typography>
-                                )}
+                                {(openByUser[u.id] ?? 0) > 0 && <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>{openByUser[u.id]} {lang === 'it' ? 'aperti' : 'open'}</Typography>}
                               </Box>
                             </Box>
                           ))}
                         </Box>
                       ) : (
                         <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                          <Box
-                            px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                            onClick={() => handleGroupChange('')}
-                          >
+                          <Box px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => handleGroupChange('')}>
                             <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
                           </Box>
                           {groups.map(g => (
-                            <Box
-                              key={g}
-                              px={1} py={0.5} borderRadius={1}
-                              sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }}
-                              onClick={() => handleGroupChange(g)}
-                            >
+                            <Box key={g} px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }} onClick={() => handleGroupChange(g)}>
                               <Typography variant="body2">{g}</Typography>
                             </Box>
                           ))}
@@ -987,1126 +1296,199 @@ export default function TicketDetail() {
                   </Popover>
                 </>
               ) : (assignee || assignedGroup) ? (
-                <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                  {assignee && (
-                    <Avatar
-                      src={assignee.avatarUrl ?? undefined}
-                      sx={{ width: 26, height: 26, fontSize: 12, bgcolor: 'secondary.main' }}
-                    >
-                      {assignee.name?.charAt(0)}
-                    </Avatar>
-                  )}
-                  <Typography variant="body2">
-                    {assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name}
-                  </Typography>
-                  {canRemoveSelf && (
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="text"
-                      sx={{ minWidth: 0, px: 0.5, fontSize: '0.72rem' }}
-                      disabled={updateTicket.isPending}
-                      onClick={() => handleAssigneeChange('')}
-                    >
-                      {t.ticketDetail.removeSelfAssign}
-                    </Button>
-                  )}
+                <Box display="flex" alignItems="center" gap={0.875} flexWrap="wrap">
+                  {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 9, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
+                  <Box component="span" sx={{ fontWeight: 600 }}>{assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name}</Box>
+                  {canRemoveSelf && <Button size="small" color="error" variant="text" sx={{ minWidth: 0, px: 0.5, fontSize: '0.72rem' }} disabled={updateTicket.isPending} onClick={() => handleAssigneeChange('')}>{t.ticketDetail.removeSelfAssign}</Button>}
                 </Box>
               ) : (
-                <Box>
-                  {canSelfAssign ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: '0.72rem' }}
-                      disabled={updateTicket.isPending}
-                      onClick={() => handleAssigneeChange(String(currentUser?.id))}
-                    >
-                      {t.ticketDetail.selfAssign}
-                    </Button>
-                  ) : (
-                    <Typography variant="body2" color="text.disabled">—</Typography>
-                  )}
-                </Box>
+                canSelfAssign ? (
+                  <Button size="small" variant="outlined" sx={{ fontSize: '0.72rem' }} disabled={updateTicket.isPending} onClick={() => handleAssigneeChange(String(currentUser?.id))}>{t.ticketDetail.selfAssign}</Button>
+                ) : (
+                  <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
+                )
               )}
-            </Box>
+            </SideRow>
 
             {/* Category */}
-            <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                {t.ticketDetail.categoryLabel}
-              </Typography>
-              <Typography variant="body2">{ticket.category}</Typography>
-            </Box>
+            <SideRow label={t.ticketDetail.categoryLabel}>
+              {ticket.category || '—'}
+            </SideRow>
 
-            {/* Location — hidden when org has only 1 location */}
+            {/* Location */}
             {!singleLocation && (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.locationLabel}
-                </Typography>
-                <Typography variant="body2">{ticket.location}</Typography>
-              </Box>
+              <SideRow label={t.ticketDetail.locationLabel}>
+                {ticket.location || '—'}
+              </SideRow>
             )}
 
             {/* Resource */}
             {ticket.resource && !ticket.inboundChannelId && (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.resourceLabel}
-                </Typography>
-                <Typography variant="body2">{ticket.resource}</Typography>
-              </Box>
+              <SideRow label={t.ticketDetail.resourceLabel}>
+                {ticket.resource}
+              </SideRow>
             )}
 
-            {/* Email origin info */}
-            {ticket.inboundChannelId && (
-              <>
-                {isEmailResource && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                      {t.ticketDetail.senderEmailLabel}
-                    </Typography>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <EmailIcon sx={{ fontSize: 14, color: 'info.main' }} />
-                      <Typography variant="body2" component="a" href={`mailto:${ticket.resource}`} sx={{ color: 'info.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                        {ticket.resource}
-                      </Typography>
-                    </Box>
-                    {ticket.status !== 'closed' && (
-                      <Button
-                        startIcon={<MailOutline />}
-                        size="small"
-                        variant="outlined"
-                        color="info"
-                        sx={{ mt: 1, fontSize: '0.75rem' }}
-                        onClick={() => { setEmailReplyOpen(true); setTabValue(0); }}
-                      >
-                        {t.ticketDetail.replyViaEmail}
-                      </Button>
-                    )}
-                  </Box>
+            {/* Email origin */}
+            {ticket.inboundChannelId && isEmailResource && (
+              <SideRow label={t.ticketDetail.senderEmailLabel}>
+                <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                  <EmailIcon sx={{ fontSize: 13, color: 'info.main' }} />
+                  <Box component="a" href={`mailto:${ticket.resource}`} sx={{ color: 'info.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{ticket.resource}</Box>
+                </Box>
+                {ticket.status !== 'closed' && (
+                  <Button startIcon={<MailOutline />} size="small" variant="outlined" color="info" sx={{ mt: 0.5, fontSize: '0.72rem' }} onClick={() => { setEmailReplyOpen(true); setTabValue(0); }}>
+                    {t.ticketDetail.replyViaEmail}
+                  </Button>
                 )}
-                {ticket.inboundChannelName && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                      {t.ticketDetail.inboundChannelLabel}
-                    </Typography>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <MailOutline sx={{ fontSize: 14, color: 'text.secondary' }} />
-                      <Typography variant="body2">{ticket.inboundChannelName}</Typography>
-                    </Box>
-                  </Box>
-                )}
-              </>
+              </SideRow>
+            )}
+            {ticket.inboundChannelId && ticket.inboundChannelName && (
+              <SideRow label={t.ticketDetail.inboundChannelLabel}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <MailOutline sx={{ fontSize: 13, color: 'text.secondary' }} />
+                  {ticket.inboundChannelName}
+                </Box>
+              </SideRow>
             )}
 
             {/* Client */}
             {(ticket as any).clientId && (currentUser as any)?.clientsEnabled !== false && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  {t.clients.clientField}
-                </Typography>
+              <SideRow label={t.clients.clientField}>
                 {isAdmin ? (
-                  <Typography
-                    variant="body2"
-                    sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
-                    onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}
-                  >
+                  <Box component="span" sx={{ color: '#1565c0', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}>
                     {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}
-                  </Typography>
+                  </Box>
                 ) : (
-                  <Typography variant="body2">
-                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}
-                  </Typography>
+                  <>{(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}</>
                 )}
-              </Box>
+              </SideRow>
             )}
 
             {/* Due date */}
             {(isAdmin || isAssignee) ? (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.dueAtLabel}
-                </Typography>
+              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>{t.ticketDetail.dueAtLabel}</Box>
                 <Box display="flex" alignItems="center" gap={0.5}>
-                  <TextField
-                    type="datetime-local"
-                    size="small"
-                    value={dueEditVal}
-                    onChange={(e) => setDueEditVal(e.target.value)}
-                    onBlur={() => handleDueAtChange(dueEditVal)}
-                    inputProps={{ style: { fontSize: 13 } }}
-                    sx={{ minWidth: 190 }}
-                    disabled={updateTicket.isPending}
-                  />
+                  <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 170 }} disabled={updateTicket.isPending} />
                   {dueEditVal && (
                     <Tooltip title={t.ticketDetail.dueAtClear}>
                       <span>
-                        <IconButton
-                          size="small"
-                          disabled={updateTicket.isPending}
-                          onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
+                        <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}><CloseIcon fontSize="small" /></IconButton>
                       </span>
                     </Tooltip>
                   )}
                 </Box>
               </Box>
             ) : (ticket as any).dueAt ? (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.dueAtLabel}
-                </Typography>
-                <Typography variant="body2" color={new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && ticket.status !== 'closed' ? 'error.main' : 'text.primary'}>
-                  {new Date((ticket as any).dueAt).toLocaleString(dateLocale)}
-                </Typography>
-              </Box>
+              <SideRow label={t.ticketDetail.dueAtLabel}>
+                <Box component="span" sx={{ color: new Date((ticket as any).dueAt) < new Date() && !isClosedKey(ticket.status) ? '#d32f2f' : '#212121', fontWeight: new Date((ticket as any).dueAt) < new Date() ? 600 : 400 }}>
+                  ⚠ {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Box>
+              </SideRow>
             ) : null}
 
-            {/* Closed on + resolver */}
+            {/* Closed on */}
             {ticket.closedAt && (
-              <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                  {t.ticketDetail.closedOn}
-                </Typography>
-                <Typography variant="body2">
-                  {new Date(ticket.closedAt).toLocaleString(dateLocale)}
-                  {closerActivity?.user?.name && (
-                    <Box component="span" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                      · {closerActivity.user.name}
-                    </Box>
-                  )}
-                </Typography>
+              <SideRow label={t.ticketDetail.closedOn}>
+                {new Date(ticket.closedAt).toLocaleString(dateLocale)}
+                {closerActivity?.user?.name && <Box component="span" sx={{ color: '#9e9e9e' }}> · {closerActivity.user.name}</Box>}
+              </SideRow>
+            )}
+
+            {/* Created by + date */}
+            <SideRow label={t.ticketDetail.openedOn}>
+              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
+                <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 18, height: 18, fontSize: 9, bgcolor: 'primary.main' }}>{creator?.name?.charAt(0)}</Avatar>
+                <Box component="span">{creator?.name}</Box>
+              </Box>
+              <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>
+                {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}, {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+              </Box>
+            </SideRow>
+
+            {/* AZIONI */}
+            {isAdmin && (
+              <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #f0f0f0' }}>
+                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1.25 }}>
+                  {lang === 'it' ? 'Azioni' : 'Actions'}
+                </Box>
+                {ticket.status !== 'closed' && (
+                  <Button fullWidth size="small" onClick={() => handleStatusChange('closed')}
+                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
+                    {lang === 'it' ? 'Chiudi ticket' : 'Close ticket'}
+                  </Button>
+                )}
+                {!ticket.assignedTo && !assignedGroup && currentUser?.id && (
+                  <Button fullWidth size="small" onClick={() => handleAssigneeChange(String(currentUser.id))}
+                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
+                    {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
+                  </Button>
+                )}
+                {ticket.status !== 'resolved' && !isClosedKey(ticket.status) && (
+                  <Button fullWidth size="small" onClick={() => handleStatusChange('resolved')}
+                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
+                    {lang === 'it' ? 'Segna risolto' : 'Mark resolved'}
+                  </Button>
+                )}
               </Box>
             )}
           </Box>
-
-          {/* Creator info */}
-          <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-              {t.ticketDetail.openedOn}
-            </Typography>
-            <Box display="flex" alignItems="center" gap={0.75}>
-              <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 20, height: 20, fontSize: 10, bgcolor: 'primary.main' }}>
-                {creator?.name?.charAt(0)}
-              </Avatar>
-              <Typography variant="body2" noWrap>{creator?.name}</Typography>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
-            </Typography>
-          </Box>
-
-          {/* Azioni sidebar — quick action buttons */}
-          {isAdmin && (
-            <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={1} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
-                {lang === 'it' ? 'Azioni' : 'Actions'}
-              </Typography>
-              {ticket.status !== 'closed' && (
-                <Button fullWidth size="small" variant="outlined" sx={{ mb: 0.75, justifyContent: 'flex-start', borderColor: 'divider', color: 'text.primary', fontSize: '0.75rem', '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' } }}
-                  onClick={() => handleStatusChange('closed')}>
-                  {lang === 'it' ? 'Chiudi ticket' : 'Close ticket'}
-                </Button>
-              )}
-              {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
-                <Button fullWidth size="small" variant="outlined" sx={{ justifyContent: 'flex-start', borderColor: 'divider', color: 'text.primary', fontSize: '0.75rem', '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' } }}
-                  onClick={() => handleStatusChange('resolved')}>
-                  {lang === 'it' ? 'Segna risolto' : 'Mark resolved'}
-                </Button>
-              )}
-            </Box>
-          )}
-
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0, order: { lg: 1 } }}>
-          <Box sx={{ mb: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 2.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.1em', fontSize: '0.68rem' }}>{t.ticketDetail.descriptionLabel}</Typography>
-              <Box mt={1}>
-                <MarkdownContent content={ticket.description} />
-              </Box>
-              {(() => {
-                const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
-                if (!ticketAttachments.length) return null;
-                const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
-                const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
-                return (
-                  <Box mt={2}>
-                    {imgs.length > 0 && (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
-                        {imgs.map((a: any) => {
-                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                          return (
-                            <Box
-                              key={a.id}
-                              onClick={() => setLightboxSrc(href)}
-                              sx={{
-                                borderRadius: 1, overflow: 'hidden', border: '1px solid',
-                                borderColor: 'divider', cursor: 'zoom-in',
-                                '&:hover img': { opacity: 0.85 },
-                              }}
-                            >
-                              <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 200, maxHeight: 140, objectFit: 'cover' }} />
-                              <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {a.fileName}
-                              </Box>
-                            </Box>
-                          );
-                        })}
-                      </Box>
-                    )}
-                    {files.length > 0 && (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {files.map((a: any) => {
-                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                          return (
-                            <Chip
-                              key={a.id}
-                              icon={<InsertDriveFile fontSize="small" />}
-                              label={a.fileName}
-                              size="small"
-                              variant="outlined"
-                              component="a"
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              clickable
-                              deleteIcon={<Download fontSize="small" />}
-                              onDelete={() => window.open(href, '_blank')}
-                              sx={{ maxWidth: 280 }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })()}
-            </Box>
-          </Box>
-
-          <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
-
-          <Box>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs
-                value={tabValue}
-                onChange={(_, v) => setTabValue(v)}
-                textColor="inherit"
-                sx={{ px: { xs: 0, sm: 2 }, '& .MuiTabs-indicator': { bgcolor: 'text.primary' }, '& .MuiTab-root.Mui-selected': { color: 'text.primary', fontWeight: 700 } }}
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-              >
-                <Tab label={`${t.ticketDetail.tabComments} (${(comments?.length ?? 0) + ((ticket as any).resolutionNote ? 1 : 0)})`} />
-                <Tab label={t.ticketDetail.tabActivity} />
-                {canAccessNotes && <Tab label={`${t.ticketDetail.tabNotes} (${notes?.length ?? 0})`} />}
-              </Tabs>
-            </Box>
-            <Box>
-              <TabPanel value={tabValue} index={0}>
-                <Box display="flex" flexDirection="column" gap={0}>
-                  {comments?.length === 0 && !(ticket as any).resolutionNote && (
-                    <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                      {t.ticketDetail.noComments}
-                    </Typography>
-                  )}
-                  {(comments?.length ?? 0) > 0 && (
-                  <Box>
-                    <Box display="flex" flexDirection="column" gap={0}>
-                  {comments?.flatMap((c) => {
-                    const commentAttachments = (attachments ?? []).filter((a: any) => a.commentId === c.id);
-                    const isSolution = (c as any).isSolution === true;
-                    const canMarkSolution = !!currentUser;
-                    const showInlineEditor = replyingToCommentId === c.id;
-                    const isEditingThis = editingCommentId === c.id;
-                    const isCommentAuthor = c.authorId === currentUser?.id;
-                    const canEditComment = isCommentAuthor;
-                    const canDeleteComment = isCommentAuthor || isAdmin;
-                    const customerReply = parseCustomerReply(c.commentText);
-                    const avatarLetter = customerReply
-                      ? customerReply.name.charAt(0).toUpperCase()
-                      : c.author?.name?.charAt(0);
-                    const avatarBg = isSolution
-                      ? 'success.main'
-                      : customerReply
-                      ? '#7c4dff'
-                      : 'primary.main';
-                    const commentEl = (
-                    <Box
-                      key={`c-${c.id}`}
-                      display="flex"
-                      gap={{ xs: 1, sm: 1.5 }}
-                      sx={{ py: 2, borderBottom: '1px solid', borderColor: 'divider', ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
-                      onMouseEnter={() => setHoveredCommentId(c.id)}
-                      onMouseLeave={() => setHoveredCommentId(null)}
-                    >
-                      <Avatar
-                        src={customerReply ? undefined : ((c.author as any)?.avatarUrl ?? undefined)}
-                        sx={{ bgcolor: avatarBg, width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 }, fontSize: { xs: 14, sm: 16 }, flexShrink: 0 }}
-                      >
-                        {avatarLetter}
-                      </Avatar>
-                      <Box flex={1} minWidth={0}>
-                        {/* Header: autore · timestamp · badge soluzione — stessa riga baseline come nel mockup */}
-                        <Box display="flex" alignItems="baseline" gap={1.25} mb={0.875} flexWrap="wrap">
-                          {customerReply ? (
-                            <>
-                              <Typography variant="body2" fontWeight={700} color="text.primary">
-                                {customerReply.name}
-                              </Typography>
-                              <Box display="flex" alignItems="center" gap={0.5}>
-                                <MailOutline sx={{ fontSize: 12, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary">
-                                  Risposta del cliente
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  component="a"
-                                  href={`mailto:${customerReply.email}`}
-                                  sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                                >
-                                  {customerReply.email}
-                                </Typography>
-                              </Box>
-                            </>
-                          ) : (
-                            <UserLink
-                              userId={c.authorId}
-                              name={c.author?.name}
-                              typographyProps={{ variant: 'body2', fontWeight: 'bold' }}
-                            />
-                          )}
-                          <Typography variant="caption" color="text.secondary">
-                            {new Date(c.createdAt).toLocaleString(dateLocale)}
-                          </Typography>
-                          {c.updatedAt && c.updatedAt !== c.createdAt && (
-                            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-                              ({t.ticketDetail.commentEdited})
-                            </Typography>
-                          )}
-                          {isSolution && (
-                            <Typography variant="caption" fontWeight={700} sx={{ color: 'success.dark', fontSize: 11 }}>
-                              ✓ {t.ticketDetail.solutionLabel}
-                            </Typography>
-                          )}
-                        </Box>
-                        {/* Testo commento — borderLeft per soluzione/risposta cliente */}
-                        <Box
-                          sx={isSolution ? (theme) => ({
-                            borderLeft: `3px solid ${theme.palette.success.main}`,
-                            pl: 1.5,
-                            color: theme.palette.success.dark,
-                          }) : customerReply ? (theme) => ({
-                            borderLeft: `3px solid ${theme.palette.secondary.main}`,
-                            pl: 1.5,
-                          }) : {}}
-                        >
-                          {isEditingThis ? (
-                            <Box mt={0.5} display="flex" flexDirection="column" gap={1}>
-                              <RichCommentEditor
-                                ref={editCommentEditorRef}
-                                value={editCommentText}
-                                onChange={setEditCommentText}
-                                placeholder={t.ticketDetail.addCommentPlaceholder}
-                                ticketId={ticketId}
-                                minRows={2}
-                              />
-                              <Box display="flex" gap={1} justifyContent="flex-end">
-                                <Button size="small" onClick={() => { setEditingCommentId(null); setEditCommentText(''); }}>
-                                  {t.ticketDetail.editCancel}
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  onClick={() => handleEditCommentSave(c.id)}
-                                  disabled={!editCommentText.trim() || updateComment.isPending}
-                                >
-                                  {updateComment.isPending ? '...' : t.ticketDetail.editCommentSave}
-                                </Button>
-                              </Box>
-                            </Box>
-                          ) : (
-                            <MarkdownContent content={customerReply ? customerReply.body : c.commentText} />
-                          )}
-                          {commentAttachments.length > 0 && (
-                            <Box mt={1.5}>
-                              {(() => {
-                                const imgs = commentAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
-                                const files = commentAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
-                                return (
-                                  <>
-                                    {imgs.length > 0 && (
-                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
-                                        {imgs.map((a: any) => {
-                                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                                          return (
-                                            <Box
-                                              key={a.id}
-                                              onClick={() => setLightboxSrc(href)}
-                                              sx={{
-                                                borderRadius: 1, overflow: 'hidden', border: '1px solid',
-                                                borderColor: 'divider', cursor: 'zoom-in',
-                                                '&:hover img': { opacity: 0.85 },
-                                              }}
-                                            >
-                                              <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 180, maxHeight: 120, objectFit: 'cover' }} />
-                                              <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {a.fileName}
-                                              </Box>
-                                            </Box>
-                                          );
-                                        })}
-                                      </Box>
-                                    )}
-                                    {files.length > 0 && (
-                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        {files.map((a: any) => {
-                                          const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                                          return (
-                                            <Chip
-                                              key={a.id}
-                                              icon={<InsertDriveFile fontSize="small" />}
-                                              label={a.fileName}
-                                              size="small"
-                                              variant="outlined"
-                                              component="a"
-                                              href={href}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              clickable
-                                              sx={{ maxWidth: 260 }}
-                                            />
-                                          );
-                                        })}
-                                      </Box>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </Box>
-                          )}
-                        </Box>
-                        {!isEditingThis && (
-                        <Box mt={0.5}>
-                          {/* Reaction chips row */}
-                          {(() => {
-                            const reactions = commentReactions[c.id] ?? [];
-                            if (reactions.length === 0) return null;
-                            return (
-                              <Box display="flex" flexWrap="wrap" gap={0.5} mb={0.5}>
-                                {reactions.map((r) => (
-                                  <Tooltip
-                                    key={r.emoji}
-                                    title={formatReactionTooltip(r.users)}
-                                    placement="top"
-                                    arrow
-                                    enterDelay={300}
-                                    enterTouchDelay={400}
-                                    leaveTouchDelay={3000}
-                                  >
-                                    <Box
-                                      component="span"
-                                      onClick={() => handleToggleReaction(c.id, r.emoji)}
-                                      sx={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 0.4,
-                                        px: 0.8,
-                                        py: 0.2,
-                                        borderRadius: 10,
-                                        fontSize: '0.78rem',
-                                        cursor: 'pointer',
-                                        border: '1px solid',
-                                        borderColor: r.userReacted ? 'primary.main' : 'divider',
-                                        bgcolor: r.userReacted ? 'primary.50' : 'action.hover',
-                                        color: r.userReacted ? 'primary.main' : 'text.secondary',
-                                        fontWeight: r.userReacted ? 700 : 400,
-                                        transition: 'all 0.15s',
-                                        '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
-                                      }}
-                                    >
-                                      <span>{r.emoji}</span>
-                                      <span>{r.count}</span>
-                                    </Box>
-                                  </Tooltip>
-                                ))}
-                              </Box>
-                            );
-                          })()}
-                          {/* Action row: links */}
-                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                          <Typography
-                            variant="caption"
-                            component="span"
-                            onClick={() => handleReply(c.id, c.author?.name)}
-                            sx={{
-                              color: replyingToCommentId === c.id ? 'primary.main' : 'text.secondary',
-                              cursor: 'pointer',
-                              fontWeight: replyingToCommentId === c.id ? 'bold' : 'normal',
-                              '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                            }}
-                          >
-                            {t.ticketDetail.replyComment}
-                          </Typography>
-                          {/* Mi Piace 👍 — toggle diretto */}
-                          {(() => {
-                            const alreadyLiked = (commentReactions[c.id] ?? []).some((r) => r.emoji === '👍' && r.userReacted);
-                            return (
-                              <Tooltip title={alreadyLiked ? t.ticketDetail.addReaction : t.ticketDetail.addReaction}>
-                                <Typography
-                                  variant="caption"
-                                  component="span"
-                                  onClick={() => handleToggleReaction(c.id, '👍')}
-                                  sx={{
-                                    cursor: 'pointer',
-                                    lineHeight: 1,
-                                    fontSize: '0.85rem',
-                                    color: alreadyLiked ? 'primary.main' : 'text.secondary',
-                                    fontWeight: alreadyLiked ? 700 : 400,
-                                    opacity: hoveredCommentId === c.id || alreadyLiked ? 1 : 0,
-                                    transition: 'opacity 0.15s, color 0.15s',
-                                    '@media (pointer: coarse)': { opacity: 1 },
-                                    '&:hover': { color: 'primary.main' },
-                                  }}
-                                >
-                                  👍
-                                </Typography>
-                              </Tooltip>
-                            );
-                          })()}
-                          {(canEditComment || canDeleteComment) && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => setCommentMenuAnchor({ el: e.currentTarget, commentId: c.id })}
-                              sx={{ p: 0.25, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-                            >
-                              <MoreVert sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          )}
-                          {canMarkSolution && (
-                            <Button
-                              size="small"
-                              variant={isSolution ? 'contained' : 'outlined'}
-                              color="success"
-                              startIcon={isSolution ? <CheckCircle sx={{ fontSize: 13 }} /> : <CheckCircleOutline sx={{ fontSize: 13 }} />}
-                              onClick={() => handleMarkSolution(c.id, isSolution)}
-                              disabled={markingSolution === c.id}
-                              sx={{ fontSize: '0.68rem', py: 0.25, px: 0.75, height: 22, minWidth: 0, ml: 'auto' }}
-                            >
-                              {isSolution ? t.ticketDetail.removeSolution : t.ticketDetail.markSolution}
-                            </Button>
-                          )}
-                          </Box>
-                        </Box>
-                        )}
-                      </Box>
-                    </Box>
-                    );
-                    if (!showInlineEditor) return [commentEl];
-                    const editorEl = (
-                      <Box key={`r-${c.id}`} sx={{ pl: { xs: 3, sm: 5 }, display: 'flex', gap: { xs: 1, sm: 2 } }}>
-                        <Avatar
-                          src={(currentUser as any)?.avatarUrl ?? undefined}
-                          sx={{ bgcolor: 'primary.main', width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 }, flexShrink: 0 }}
-                        >
-                          {currentUser?.name?.charAt(0)}
-                        </Avatar>
-                        <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                          <RichCommentEditor
-                            ref={inlineEditorRef}
-                            value={inlineReplyText}
-                            onChange={setInlineReplyText}
-                            placeholder={t.ticketDetail.addCommentPlaceholder}
-                            ticketId={ticketId}
-                            onAttachmentsChange={setInlinePendingAttachments}
-                            minRows={2}
-                          />
-                          <Box display="flex" gap={1} justifyContent="flex-end">
-                            <Button size="small" onClick={() => { setReplyingToCommentId(null); setInlineReplyText(''); }}>
-                              {t.ticketDetail.editCancel}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={submitInlineReply}
-                              disabled={(!inlineReplyText.trim() && inlinePendingAttachments.length === 0) || addComment.isPending}
-                            >
-                              {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.replyComment}
-                            </Button>
-                          </Box>
-                        </Box>
-                      </Box>
-                    );
-                    return [commentEl, editorEl];
-                  })}
-                    </Box>
-                  </Box>
-                  )}
-
-                  {/* Comment actions menu (edit / delete) */}
-                  <Menu
-                    anchorEl={commentMenuAnchor?.el}
-                    open={Boolean(commentMenuAnchor)}
-                    onClose={() => setCommentMenuAnchor(null)}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    slotProps={{ paper: { elevation: 3, sx: { minWidth: 150 } } }}
-                  >
-                    {(() => {
-                      const mc = comments?.find((c) => c.id === commentMenuAnchor?.commentId);
-                      if (!mc) return null;
-                      const canEdit = mc.authorId === currentUser?.id;
-                      const canDelete = mc.authorId === currentUser?.id || isAdmin;
-                      return [
-                        canEdit && (
-                          <MenuItem
-                            key="edit"
-                            onClick={() => {
-                              handleEditComment(commentMenuAnchor!.commentId, mc.commentText);
-                              setCommentMenuAnchor(null);
-                            }}
-                          >
-                            <ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon>
-                            <ListItemText>{t.ticketDetail.editComment}</ListItemText>
-                          </MenuItem>
-                        ),
-                        canDelete && (
-                          <MenuItem
-                            key="delete"
-                            onClick={() => {
-                              setDeleteCommentId(commentMenuAnchor!.commentId);
-                              setCommentMenuAnchor(null);
-                            }}
-                            sx={{ color: 'error.main' }}
-                          >
-                            <ListItemIcon sx={{ color: 'error.main' }}><DeleteOutline fontSize="small" /></ListItemIcon>
-                            <ListItemText>{t.ticketDetail.deleteComment}</ListItemText>
-                          </MenuItem>
-                        ),
-                      ].filter(Boolean);
-                    })()}
-                  </Menu>
-
-                  {/* Resolution note shown inline among comments */}
-                  {(ticket as any).resolutionNote && (
-                    <Box display="flex" gap={1.5}>
-                      <Avatar sx={{ bgcolor: 'success.main', width: 32, height: 32, flexShrink: 0 }}>
-                        <CheckCircleOutline sx={{ fontSize: 16 }} />
-                      </Avatar>
-                      <Box
-                        flex={1}
-                        borderRadius={1}
-                        overflow="hidden"
-                        sx={{ border: '1px solid', borderColor: 'success.200' }}
-                      >
-                        {/* Metadata bar */}
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          gap={1}
-                          px={1.5}
-                          py={0.6}
-                          sx={{ bgcolor: 'success.100', borderBottom: '1px solid', borderColor: 'success.200' }}
-                        >
-                          <Typography variant="caption" fontWeight="bold" color="success.dark" sx={{ flexShrink: 0 }}>
-                            ✓ {t.ticketDetail.resolutionNoteLabel}
-                          </Typography>
-                          {closerActivity?.user?.name && (
-                            <Typography variant="caption" color="success.dark" sx={{ opacity: 0.75, flexShrink: 0 }}>
-                              · {closerActivity.user.name}
-                            </Typography>
-                          )}
-                        </Box>
-                        {/* Note text */}
-                        <Box px={1.5} py={1} sx={{ background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.main, 0.16)} 100%)` }}>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'success.dark' }}>
-                            {(ticket as any).resolutionNote}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  )}
-                  {/* Email reply compose panel */}
-                  {emailReplyOpen && ticket.status !== 'closed' && isEmailResource && (
-                    <Box mt={2} sx={{ border: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.35), borderRadius: 2, overflow: 'hidden' }}>
-                      <Box sx={{ bgcolor: (theme) => alpha(theme.palette.info.main, 0.08), px: 2, py: 1, borderBottom: '1px solid', borderColor: (theme) => alpha(theme.palette.info.main, 0.2), display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <EmailIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                        <Typography variant="caption" fontWeight={600} color="info.dark">
-                          {t.ticketDetail.replyViaEmail}
-                        </Typography>
-                      </Box>
-                      <Box px={2} py={1.5} display="flex" flexDirection="column" gap={1}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>
-                            {t.ticketDetail.emailReplyTo}:
-                          </Typography>
-                          <Typography variant="caption" fontWeight={600} color="info.main">
-                            {(ticket as any).resource}
-                          </Typography>
-                        </Box>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 56, flexShrink: 0 }}>
-                            {t.ticketDetail.emailReplySubject}:
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Re: [#{ticket.ticketNumber ?? ticket.id}] {ticket.title}
-                          </Typography>
-                        </Box>
-                        <TextField
-                          multiline
-                          minRows={4}
-                          maxRows={12}
-                          fullWidth
-                          size="small"
-                          value={emailReplyBody}
-                          onChange={(e) => setEmailReplyBody(e.target.value)}
-                          placeholder={t.ticketDetail.emailReplyBodyPlaceholder}
-                          disabled={emailReplySending}
-                          sx={{ mt: 0.5 }}
-                        />
-                        {/* Attached files list */}
-                        {emailReplyAttachments.length > 0 && (
-                          <Box display="flex" flexWrap="wrap" gap={0.75} mt={0.5}>
-                            {emailReplyAttachments.map((att) => (
-                              <Chip
-                                key={att.objectPath}
-                                icon={<AttachFile sx={{ fontSize: 14 }} />}
-                                label={att.fileName}
-                                size="small"
-                                onDelete={() => setEmailReplyAttachments((prev) => prev.filter((a) => a.objectPath !== att.objectPath))}
-                                deleteIcon={
-                                  <Tooltip title={t.ticketDetail.emailReplyRemoveAttachment}>
-                                    <CloseIcon sx={{ fontSize: 14 }} />
-                                  </Tooltip>
-                                }
-                                sx={{ maxWidth: 200 }}
-                              />
-                            ))}
-                          </Box>
-                        )}
-                        {emailReplyAttachError && (
-                          <Alert severity="warning" sx={{ py: 0.5 }} onClose={() => setEmailReplyAttachError(null)}>
-                            {emailReplyAttachError}
-                          </Alert>
-                        )}
-                        {emailReplyError && (
-                          <Alert severity="error" sx={{ py: 0.5 }}>
-                            {emailReplyError}
-                          </Alert>
-                        )}
-                        {/* Hidden file input */}
-                        <input
-                          type="file"
-                          multiple
-                          ref={emailReplyFileInputRef}
-                          style={{ display: 'none' }}
-                          onChange={handleEmailReplyFileChange}
-                          accept={EMAIL_REPLY_ALLOWED_TYPES.join(',')}
-                        />
-                        <Box display="flex" gap={1} justifyContent="space-between" alignItems="center">
-                          <Tooltip title={t.ticketDetail.emailReplyAttach}>
-                            <span>
-                              <IconButton
-                                size="small"
-                                onClick={() => emailReplyFileInputRef.current?.click()}
-                                disabled={emailReplySending || emailReplyUploading}
-                                color="default"
-                              >
-                                {emailReplyUploading
-                                  ? <CircularProgress size={16} />
-                                  : <AttachFile sx={{ fontSize: 18 }} />
-                                }
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                          <Box display="flex" gap={1}>
-                            <Button
-                              size="small"
-                              onClick={() => { setEmailReplyOpen(false); setEmailReplyBody(''); setEmailReplyError(null); setEmailReplyAttachments([]); setEmailReplyAttachError(null); }}
-                              disabled={emailReplySending}
-                            >
-                              {t.ticketDetail.emailReplyCancel}
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="info"
-                              size="small"
-                              startIcon={<EmailIcon />}
-                              onClick={submitEmailReply}
-                              disabled={!emailReplyBody.trim() || emailReplySending || emailReplyUploading}
-                            >
-                              {emailReplySending ? t.ticketDetail.emailReplySending : t.ticketDetail.emailReplySend}
-                            </Button>
-                          </Box>
-                        </Box>
-                      </Box>
-                    </Box>
-                  )}
-
-                  {ticket.status === 'closed' ? (
-                    <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                      {t.ticketDetail.closedTicketComment(entityTerm.singular)}
-                    </Alert>
-                  ) : !replyingToCommentId && (
-                  <Box display="flex" gap={1.5} alignItems="flex-start" sx={{ pt: 2.5, mt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Avatar
-                      src={(currentUser as any)?.avatarUrl ?? undefined}
-                      sx={{ bgcolor: 'primary.main', width: 34, height: 34, flexShrink: 0, fontSize: 14 }}
-                    >
-                      {currentUser?.name?.charAt(0)}
-                    </Avatar>
-                    <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                      <RichCommentEditor
-                        ref={editorRef}
-                        value={newComment}
-                        onChange={setNewComment}
-                        placeholder={t.ticketDetail.addCommentPlaceholder}
-                        ticketId={ticketId}
-                        onAttachmentsChange={setPendingAttachments}
-                      />
-                      <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
-                        {isEmailResource && (
-                          <Tooltip title={`${t.ticketDetail.replyWillBeSentTo} ${(ticket as any).resource}`}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  size="small"
-                                  checked={sendToCustomer}
-                                  onChange={(e) => setSendToCustomer(e.target.checked)}
-                                  color="primary"
-                                />
-                              }
-                              label={
-                                <Typography variant="caption" color="text.secondary">
-                                  {t.ticketDetail.sendReplyToCustomer}{' '}
-                                  <Typography component="span" variant="caption" color="primary.main" fontWeight={600}>
-                                    {(ticket as any).resource}
-                                  </Typography>
-                                </Typography>
-                              }
-                            />
-                          </Tooltip>
-                        )}
-                        <Button
-                          variant="contained"
-                          sx={{ alignSelf: 'flex-end', ml: 'auto' }}
-                          onClick={submitComment}
-                          disabled={(!newComment.trim() && pendingAttachments.length === 0) || addComment.isPending}
-                        >
-                          {addComment.isPending ? t.ticketDetail.sending : t.ticketDetail.sendComment}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                  )}
-                </Box>
-              </TabPanel>
-
-              <TabPanel value={tabValue} index={1}>
-                <Box sx={{ pt: 1.5, pb: 0.5 }}>
-                  {activities?.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                      {t.ticketDetail.noActivity}
-                    </Typography>
-                  )}
-                  {activities?.map((a) => {
-                    const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
-                    return (
-                      <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
-                        <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: 1.75, bgcolor: isHighlight ? 'warning.main' : 'divider' }} />
-                        <Typography variant="caption" sx={{ flex: 1, color: isHighlight ? 'warning.dark' : 'text.secondary' }}>
-                          {a.actionDescription}
-                        </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
-                          {new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </TabPanel>
-
-              {canAccessNotes && (
-                <TabPanel value={tabValue} index={2}>
-                  <Box display="flex" flexDirection="column" gap={2}>
-                    <Box display="flex" alignItems="center" justifyContent="flex-end">
-                      <PermissionGateButton
-                        permission="add_notes"
-                        sectionLabel={t.ticketDetail.tabNotes}
-                      />
-                    </Box>
-                    {notes?.length === 0 && (
-                      <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
-                        {t.ticketDetail.noNotes}
-                      </Typography>
-                    )}
-                    {notes?.map((n: any) => (
-                      <Box key={n.id} display="flex" gap={2} sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200', borderRadius: 1, p: 2 }}>
-                        <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>
-                          {n.author?.name?.charAt(0)}
-                        </Avatar>
-                        <Box flex={1}>
-                          <Box display="flex" justifyContent="space-between" mb={0.5}>
-                            <Typography variant="subtitle2" fontWeight={700}>{n.author?.name}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {new Date(n.createdAt).toLocaleString(dateLocale)}
-                            </Typography>
-                          </Box>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{n.noteText}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                    <Box display="flex" gap={2} mt={1}>
-                      <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>
-                        {currentUser?.name?.charAt(0)}
-                      </Avatar>
-                      <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                        <TextField
-                          multiline
-                          rows={3}
-                          fullWidth
-                          placeholder={t.ticketDetail.addNotePlaceholder}
-                          value={newNote}
-                          onChange={(e) => setNewNote(e.target.value)}
-                        />
-                        <Button
-                          variant="contained"
-                          color="warning"
-                          sx={{ alignSelf: 'flex-end' }}
-                          disabled={!newNote.trim() || addNote.isPending}
-                          onClick={async () => {
-                            if (!newNote.trim()) return;
-                            const note = await addNote.mutateAsync({ id: ticketId, data: { noteText: newNote } });
-                            setNewNote('');
-                            queryClient.setQueryData(getListTicketNotesQueryKey(ticketId), (old: any[] = []) => [...old, note]);
-                          }}
-                        >
-                          {addNote.isPending ? t.ticketDetail.sending : t.ticketDetail.addNote}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                </TabPanel>
-              )}
-            </Box>
-          </Box>
         </Box>
       </Box>
+
+      {/* ── Dialogs ── */}
 
       {/* Resolution note dialog */}
       <Dialog open={resolutionDialog} onClose={() => setResolutionDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t.ticketDetail.resolutionNoteTitle}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            {t.ticketDetail.resolutionNoteSubtitle}
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            placeholder={t.ticketDetail.resolutionNotePlaceholder}
-            value={resolutionNote}
-            onChange={(e) => setResolutionNote(e.target.value)}
-            autoFocus
-          />
+          <Typography variant="body2" color="text.secondary" mb={2}>{t.ticketDetail.resolutionNoteSubtitle}</Typography>
+          <TextField fullWidth multiline rows={4} placeholder={t.ticketDetail.resolutionNotePlaceholder} value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} autoFocus />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">
-            {t.ticketDetail.resolutionNoteSkip}
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            onClick={() => confirmResolved(resolutionNote)}
-            disabled={updateTicket.isPending}
-            startIcon={<CheckCircleOutline />}
-          >
+          <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
+          <Button variant="contained" color="success" onClick={() => confirmResolved(resolutionNote)} disabled={updateTicket.isPending} startIcon={<CheckCircleOutline />}>
             {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Email reply sent confirmation ── */}
-      <Snackbar
-        open={emailReplySent}
-        autoHideDuration={4000}
-        onClose={() => setEmailReplySent(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>
-          {t.ticketDetail.emailReplySentOk}
-        </Alert>
+      {/* Email reply sent */}
+      <Snackbar open={emailReplySent} autoHideDuration={4000} onClose={() => setEmailReplySent(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>{t.ticketDetail.emailReplySentOk}</Alert>
       </Snackbar>
 
-      {/* ── Status change error feedback ── */}
-      <Snackbar
-        open={statusError != null}
-        autoHideDuration={5000}
-        onClose={() => setStatusError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="error" onClose={() => setStatusError(null)} sx={{ width: '100%' }}>
-          {statusError}
-        </Alert>
+      {/* Status change error */}
+      <Snackbar open={statusError != null} autoHideDuration={5000} onClose={() => setStatusError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setStatusError(null)} sx={{ width: '100%' }}>{statusError}</Alert>
       </Snackbar>
 
-      {/* ── Reaction error feedback ── */}
-      <Snackbar
-        open={reactionError != null}
-        autoHideDuration={4000}
-        onClose={() => setReactionError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="error" onClose={() => setReactionError(null)} sx={{ width: '100%' }}>
-          {reactionError}
-        </Alert>
+      {/* Reaction error */}
+      <Snackbar open={reactionError != null} autoHideDuration={4000} onClose={() => setReactionError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setReactionError(null)} sx={{ width: '100%' }}>{reactionError}</Alert>
       </Snackbar>
 
-      {/* ── Comment error feedback ── */}
-      <Snackbar
-        open={commentError != null}
-        autoHideDuration={5000}
-        onClose={() => setCommentError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="warning" onClose={() => setCommentError(null)} sx={{ width: '100%' }}>
-          {commentError}
-        </Alert>
+      {/* Comment error */}
+      <Snackbar open={commentError != null} autoHideDuration={5000} onClose={() => setCommentError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="warning" onClose={() => setCommentError(null)} sx={{ width: '100%' }}>{commentError}</Alert>
       </Snackbar>
 
-
-      {/* ── Delete comment confirm dialog ── */}
+      {/* Delete comment confirm */}
       <Dialog open={deleteCommentId != null} onClose={() => setDeleteCommentId(null)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
           <DeleteOutline /> {t.ticketDetail.deleteCommentTitle}
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            {t.ticketDetail.deleteCommentConfirm}
-          </Typography>
-        </DialogContent>
+        <DialogContent><Typography variant="body2">{t.ticketDetail.deleteCommentConfirm}</Typography></DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setDeleteCommentId(null)} color="inherit" disabled={deleteComment.isPending}>
-            {t.ticketDetail.editCancel}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteCommentConfirm}
-            disabled={deleteComment.isPending}
-            startIcon={<DeleteOutline />}
-          >
+          <Button onClick={() => setDeleteCommentId(null)} color="inherit" disabled={deleteComment.isPending}>{t.ticketDetail.editCancel}</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteCommentConfirm} disabled={deleteComment.isPending} startIcon={<DeleteOutline />}>
             {deleteComment.isPending ? t.ticketDetail.deleting : t.ticketDetail.deleteCommentAction}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Delete confirm dialog ── */}
+      {/* Delete ticket confirm */}
       <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
           <DeleteOutline /> {lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}
@@ -2122,204 +1504,75 @@ export default function TicketDetail() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setDeleteDialog(false)} color="inherit" disabled={deleteTicket.isPending}>
-            Annulla
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteConfirm}
-            disabled={deleteTicket.isPending}
-            startIcon={<DeleteOutline />}
-          >
+          <Button onClick={() => setDeleteDialog(false)} color="inherit" disabled={deleteTicket.isPending}>Annulla</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteConfirm} disabled={deleteTicket.isPending} startIcon={<DeleteOutline />}>
             {deleteTicket.isPending ? t.ticketDetail.deleting : t.ticketDetail.deletePermanently}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Lightbox ── */}
+      {/* Lightbox */}
       <Dialog open={!!lightboxSrc} onClose={() => setLightboxSrc(null)} maxWidth="xl" PaperProps={{ sx: { bgcolor: 'black', m: 1 } }}>
         <Box sx={{ position: 'relative', lineHeight: 0 }}>
-          <IconButton
-            onClick={() => setLightboxSrc(null)}
-            size="small"
-            sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
-          >
-            ✕
-          </IconButton>
-          {lightboxSrc && (
-            <img
-              src={lightboxSrc}
-              alt="anteprima"
-              style={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
-            />
-          )}
+          <IconButton onClick={() => setLightboxSrc(null)} size="small" sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>✕</IconButton>
+          {lightboxSrc && <img src={lightboxSrc} alt="anteprima" style={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }} />}
         </Box>
       </Dialog>
 
-      {/* ── Edit ticket dialog ── */}
+      {/* Edit ticket dialog */}
       <Dialog open={editDialog} onClose={() => !editSaving && setEditDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>
           {lang === 'it' ? `Modifica ${entityTerm.singularLower}` : `Edit ${entityTerm.singular}`} #{ticket?.ticketNumber ?? ticket?.id}
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          {editError && (
-            <Alert severity="error" onClose={() => setEditError(null)}>
-              {editError}
-            </Alert>
-          )}
-          <TextField
-            label={t.ticketDetail.editTitleField}
-            fullWidth
-            size="small"
-            value={editForm.title}
-            onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
-            disabled={editSaving}
-            required
-          />
-          <TextField
-            label={t.ticketDetail.descriptionLabel}
-            fullWidth
-            multiline
-            minRows={4}
-            size="small"
-            value={editForm.description}
-            onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-            disabled={editSaving}
-          />
-          <TextField
-            label={t.ticketDetail.categoryLabel}
-            fullWidth
-            size="small"
-            select={editCategories.length > 0}
-            value={editForm.category}
-            onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-            disabled={editSaving}
-          >
-            {editCategories.map((c) => (
-              <MenuItem key={c} value={c}>{c}</MenuItem>
-            ))}
+          {editError && <Alert severity="error" onClose={() => setEditError(null)}>{editError}</Alert>}
+          <TextField label={t.ticketDetail.editTitleField} fullWidth size="small" value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} disabled={editSaving} required />
+          <TextField label={t.ticketDetail.descriptionLabel} fullWidth multiline minRows={4} size="small" value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} disabled={editSaving} />
+          <TextField label={t.ticketDetail.categoryLabel} fullWidth size="small" select={editCategories.length > 0} value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} disabled={editSaving}>
+            {editCategories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
           </TextField>
           {!singleLocation && (
-            <TextField
-              label={t.ticketDetail.locationLabel}
-              fullWidth
-              size="small"
-              select={editLocations.length > 0}
-              value={editForm.location}
-              onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
-              disabled={editSaving}
-            >
-              {editLocations.map((l) => (
-                <MenuItem key={l} value={l}>{l}</MenuItem>
-              ))}
+            <TextField label={t.ticketDetail.locationLabel} fullWidth size="small" select={editLocations.length > 0} value={editForm.location} onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))} disabled={editSaving}>
+              {editLocations.map((l) => <MenuItem key={l} value={l}>{l}</MenuItem>)}
             </TextField>
           )}
-          <TextField
-            label={t.ticketDetail.resourceLabel}
-            fullWidth
-            size="small"
-            value={editForm.resource}
-            onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))}
-            disabled={editSaving}
-            placeholder={t.ticketDetail.resourceLabel}
-          />
+          <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
           {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
-            <Autocomplete
-              options={clientsList}
-              getOptionLabel={(o) => o.name}
-              value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null}
-              onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))}
-              disabled={editSaving}
-              renderInput={(params) => (
-                <TextField {...params} label={t.clients.clientField} fullWidth size="small" />
-              )}
-            />
+            <Autocomplete options={clientsList} getOptionLabel={(o) => o.name} value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null} onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))} disabled={editSaving} renderInput={(params) => <TextField {...params} label={t.clients.clientField} fullWidth size="small" />} />
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setEditDialog(false)} color="inherit" disabled={editSaving}>
-            {t.ticketDetail.editCancel}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleEditSave}
-            disabled={editSaving || !editForm.title.trim()}
-            startIcon={editSaving ? <CircularProgress size={16} color="inherit" /> : <EditOutlined />}
-          >
-            {t.ticketDetail.editSave}
-          </Button>
+          <Button onClick={() => setEditDialog(false)} color="inherit" disabled={editSaving}>{t.ticketDetail.editCancel}</Button>
+          <Button variant="contained" onClick={handleEditSave} disabled={editSaving || !editForm.title.trim()} startIcon={editSaving ? <CircularProgress size={16} color="inherit" /> : <EditOutlined />}>{t.ticketDetail.editSave}</Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Recurrence Dialog ── */}
+      {/* Recurrence dialog */}
       <Dialog open={recurrenceDialog} onClose={() => setRecurrenceDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <RepeatIcon fontSize="small" />
-          {t.ticketDetail.recurrenceDialogTitle}
+          <RepeatIcon fontSize="small" /> {t.ticketDetail.recurrenceDialogTitle}
         </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             {recurrenceError && <Alert severity="error">{recurrenceError}</Alert>}
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label={t.ticketDetail.recurrenceFrequency}
-              value={recurrenceFreq}
-              onChange={(e) => setRecurrenceFreq(e.target.value as any)}
-            >
+            <TextField select fullWidth size="small" label={t.ticketDetail.recurrenceFrequency} value={recurrenceFreq} onChange={(e) => setRecurrenceFreq(e.target.value as any)}>
               <MenuItem value="daily">{t.ticketDetail.recurrenceFreqDaily}</MenuItem>
               <MenuItem value="weekly">{t.ticketDetail.recurrenceFreqWeekly}</MenuItem>
               <MenuItem value="monthly">{t.ticketDetail.recurrenceFreqMonthly}</MenuItem>
               <MenuItem value="yearly">{t.ticketDetail.recurrenceFreqYearly}</MenuItem>
             </TextField>
-            <TextField
-              fullWidth
-              size="small"
-              type="number"
-              label={lang === 'it' ? 'Ogni' : 'Every'}
-              value={recurrenceInterval}
-              onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
-              inputProps={{ min: 1, max: 365 }}
-            />
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label={t.ticketDetail.recurrenceEndDate}
-              value={recurrenceEndDate}
-              onChange={(e) => setRecurrenceEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ min: new Date().toISOString().slice(0, 10) }}
-            />
+            <TextField fullWidth size="small" type="number" label={lang === 'it' ? 'Ogni' : 'Every'} value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))} inputProps={{ min: 1, max: 365 }} />
+            <TextField fullWidth size="small" type="date" label={t.ticketDetail.recurrenceEndDate} value={recurrenceEndDate} onChange={(e) => setRecurrenceEndDate(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ min: new Date().toISOString().slice(0, 10) }} />
             {(ticket as any).recurrenceNextAt && (
-              <Typography variant="caption" color="text.secondary">
-                {t.ticketDetail.recurrenceNextAt}: {new Date((ticket as any).recurrenceNextAt).toLocaleDateString(dateLocale)}
-              </Typography>
+              <Typography variant="caption" color="text.secondary">{t.ticketDetail.recurrenceNextAt}: {new Date((ticket as any).recurrenceNextAt).toLocaleDateString(dateLocale)}</Typography>
             )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
-          <Box>
-            {(ticket as any).recurrenceRule && (
-              <Button color="error" onClick={handleRecurrenceRemove} disabled={recurrenceSaving}>
-                {t.ticketDetail.recurrenceRemove}
-              </Button>
-            )}
-          </Box>
+          <Box>{(ticket as any).recurrenceRule && <Button color="error" onClick={handleRecurrenceRemove} disabled={recurrenceSaving}>{t.ticketDetail.recurrenceRemove}</Button>}</Box>
           <Box display="flex" gap={1}>
-            <Button onClick={() => setRecurrenceDialog(false)} color="inherit" disabled={recurrenceSaving}>
-              {t.ticketDetail.recurrenceCancel}
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleRecurrenceSave}
-              disabled={recurrenceSaving}
-              startIcon={recurrenceSaving ? <CircularProgress size={16} color="inherit" /> : <RepeatIcon />}
-            >
-              {t.ticketDetail.recurrenceSave}
-            </Button>
+            <Button onClick={() => setRecurrenceDialog(false)} color="inherit" disabled={recurrenceSaving}>{t.ticketDetail.recurrenceCancel}</Button>
+            <Button variant="contained" onClick={handleRecurrenceSave} disabled={recurrenceSaving} startIcon={recurrenceSaving ? <CircularProgress size={16} color="inherit" /> : <RepeatIcon />}>{t.ticketDetail.recurrenceSave}</Button>
           </Box>
         </DialogActions>
       </Dialog>
