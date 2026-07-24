@@ -464,6 +464,29 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
   return (
     <Box ref={wrapperRef} sx={{ position: 'relative' }}>
       <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleTextChange}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          rows={minRows}
+          style={{
+            width: '100%',
+            border: 'none',
+            outline: 'none',
+            resize: 'vertical',
+            padding: '12px',
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+            lineHeight: 1.6,
+            boxSizing: 'border-box',
+            background: 'transparent',
+            minHeight: `${minRows * 1.6 * 14 + 24}px`,
+          }}
+        />
+
         {/* Toolbar */}
         <Box
           sx={{
@@ -473,7 +496,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             px: 1,
             py: 0.5,
             bgcolor: 'grey.50',
-            borderBottom: '1px solid',
+            borderTop: '1px solid',
             borderColor: 'divider',
             flexWrap: 'wrap',
           }}
@@ -529,8 +552,9 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             px: 1.5,
             py: 0.75,
             bgcolor: 'primary.50',
-            borderBottom: '1px solid',
+            borderTop: '1px solid',
             borderColor: 'primary.100',
+            flexWrap: 'wrap',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
@@ -553,29 +577,6 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             </Typography>
           </Box>
         </Box>
-
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleTextChange}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          rows={minRows}
-          style={{
-            width: '100%',
-            border: 'none',
-            outline: 'none',
-            resize: 'vertical',
-            padding: '12px',
-            fontFamily: 'inherit',
-            fontSize: '0.875rem',
-            lineHeight: 1.6,
-            boxSizing: 'border-box',
-            background: 'transparent',
-            minHeight: `${minRows * 1.6 * 14 + 24}px`,
-          }}
-        />
       </Paper>
 
       {/* Autocomplete dropdown — rendered via Portal to avoid overflow clipping */}
