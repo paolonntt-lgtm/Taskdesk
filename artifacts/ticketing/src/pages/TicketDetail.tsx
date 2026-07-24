@@ -66,8 +66,8 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
 function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
-      <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 13, color: '#212121' }}>{children}</Box>
+      <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
+      <Box sx={{ fontSize: 14, color: '#212121' }}>{children}</Box>
     </Box>
   );
 }
@@ -1119,8 +1119,8 @@ export default function TicketDetail() {
                       return (
                         <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
                           <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
-                          <Box component="span" sx={{ flex: 1, fontSize: 12, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
-                          <Box component="span" sx={{ fontSize: 11, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                          <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
+                          <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
                         </Box>
                       );
                     })}
@@ -1167,8 +1167,8 @@ export default function TicketDetail() {
                   return (
                     <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
                       <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
-                      <Box component="span" sx={{ flex: 1, fontSize: 12, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
-                      <Box component="span" sx={{ fontSize: 11, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                      <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
+                      <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
                     </Box>
                   );
                 })}
