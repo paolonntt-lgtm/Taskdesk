@@ -1062,7 +1062,7 @@ export default function TicketList() {
               <TableRow sx={{ bgcolor: 'grey.50', borderBottom: '2px solid', borderColor: 'divider' }}>
                 <TableCell padding="none" sx={{ p: 0, width: 4, border: 'none' }} />
                 {isAdmin && (
-                  <TableCell padding="none" sx={{ width: 28, pl: 0.25, pr: 0 }}>
+                  <TableCell padding="none" sx={{ width: 28, pl: 0.5, pr: 0, verticalAlign: 'middle' }}>
                     <Checkbox
                       size="small"
                       indeterminate={someSelected}
@@ -1164,11 +1164,11 @@ export default function TicketList() {
                         }}
                       />
                       {isAdmin && (
-                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.25, pr: 0 }}>
+                        <TableCell padding="none" onClick={(e) => toggleSelectOne(ticket.id, e)} sx={{ width: 28, pl: 0.5, pr: 0, verticalAlign: 'middle' }}>
                           <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
                         </TableCell>
                       )}
-                      {(visibleCols.id ?? true) && <TableCell style={{ padding: '10px 6px 10px 12px' }} sx={{ fontWeight: 700, color: '#9e9e9e', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: '0.75rem' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>}
+                      {(visibleCols.id ?? true) && <TableCell style={{ padding: '10px 6px 10px 0' }} sx={{ fontWeight: 700, color: '#9e9e9e', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: '0.75rem' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>}
                       <TableCell style={{ padding: '10px 8px' }} sx={{ width: { xs: 'auto', sm: 180, md: 220, lg: 260 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
