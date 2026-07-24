@@ -1297,6 +1297,10 @@ export default function TicketList() {
                       {(visibleCols.createdAt ?? true) && (
                       <TableCell style={{ padding: '10px 12px 10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#9e9e9e', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
                         {new Date(ticket.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' })}
+                        {' '}
+                        <Box component="span" sx={{ color: '#bdbdbd' }}>
+                          {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+                        </Box>
                       </TableCell>
                       )}
                     </TableRow>
