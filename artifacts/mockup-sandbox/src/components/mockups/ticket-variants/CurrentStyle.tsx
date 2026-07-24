@@ -36,7 +36,7 @@ function Avatar({ name }: { name: string }) {
 
 export function CurrentStyle() {
   return (
-    <div style={{ fontFamily: '"Inter", "Roboto", sans-serif', background: '#f5f5f5', minHeight: '100vh', padding: '24px' }}>
+    <div style={{ fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif', background: '#f5f5f5', minHeight: '100vh', padding: '24px' }}>
       <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
           <thead>

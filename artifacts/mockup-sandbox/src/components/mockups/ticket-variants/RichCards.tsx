@@ -36,7 +36,7 @@ function Avatar({ name }: { name: string }) {
 
 export function RichCards() {
   return (
-    <div style={{ fontFamily: '"Inter", "Roboto", sans-serif', background: '#f0f2f5', minHeight: '100vh', padding: '20px 24px' }}>
+    <div style={{ fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif', background: '#f0f2f5', minHeight: '100vh', padding: '20px 24px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {tickets.map((t) => {
           const s = statusMap[t.status];
