@@ -1,7 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* Self-hosted Inter variable font — eliminates the Google Fonts render-blocking request.
+   The font is declared under both 'Inter' (matches existing component usage) and
+   'Inter Variable' (matches @fontsource-variable/inter default name). */
+@font-face {
+  font-family: 'Inter';
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2') tech('variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter Variable';
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2') tech('variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));

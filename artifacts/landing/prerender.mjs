@@ -42,28 +42,39 @@ function stripDynamicHeadTags(html) {
 }
 
 /**
- * Inject the collected react-helmet-async output into the <head>.
- * Reads title, meta, and link tag strings from the helmet context object
- * and appends them before </head>. Also updates the lang attribute on <html>.
+ * Extract SEO/Helmet tags that React 19 hoists to the start of the SSR body
+ * string. When using React 19, react-helmet-async does NOT populate the
+ * helmetContext — instead React itself moves <title>, <meta>, <link>, and
+ * similar tags to the very beginning of the renderToString output (before
+ * any real component markup). Everything before the first real DOM element
+ * (i.e. before the first "<div", "<nav", "<main", "<header", or "<section")
+ * is collected as the hoisted head content.
  */
-function injectHelmetToHead(html, helmet) {
+function extractHelmetTagsFromBody(bodyHtml) {
+  // Find the start of real page markup — the first block-level element.
+  const firstContentIdx = bodyHtml.search(/<(?:div|nav|main|header|section|article|footer|ul|ol|form|h[1-6])\b/i);
+  if (firstContentIdx <= 0) return '';
+  return bodyHtml.slice(0, firstContentIdx).trim();
+}
+
+/**
+ * Inject per-route head tags into the HTML template and set the correct
+ * lang attribute on <html>. Works with both the legacy helmetContext API
+ * (v2 / React < 19) and the React 19 path where tags are passed as a raw
+ * HTML string extracted from the SSR body.
+ *
+ * @param {string} html - The full HTML template string.
+ * @param {string} lang - The page language ('it' | 'en').
+ * @param {string} headTags - Raw HTML string of tags to inject before </head>.
+ */
+function injectHeadTags(html, lang, headTags) {
   let h = html;
 
-  // Update the lang attribute on <html> from helmet.htmlAttributes
-  const htmlAttrs = helmet.htmlAttributes?.toString?.() ?? '';
-  if (htmlAttrs) {
-    h = h.replace(/<html[^>]*>/, `<html ${htmlAttrs}>`);
-  }
+  // Always set the correct lang attribute based on the route.
+  h = h.replace(/<html[^>]*>/, `<html lang="${lang}">`);
 
-  // Collect per-route head tag strings from the helmet context
-  const tags = [
-    helmet.title?.toString?.() ?? '',
-    helmet.meta?.toString?.() ?? '',
-    helmet.link?.toString?.() ?? '',
-  ].filter(s => s.trim()).join('\n    ');
-
-  if (tags) {
-    h = h.replace('</head>', `    ${tags}\n  </head>`);
+  if (headTags && headTags.trim()) {
+    h = h.replace('</head>', `    ${headTags}\n  </head>`);
   }
 
   return h;
@@ -71,16 +82,36 @@ function injectHelmetToHead(html, helmet) {
 
 /**
  * Strip elements that react-helmet-async renders into the SSR body string.
- * The library marks every element it manages with data-rh="true". These tags
- * belong in <head> (already injected via injectHelmetToHead) and must not
- * appear a second time inside #root.
+ *
+ * react-helmet-async adds data-rh="true" to elements only during client-side
+ * hydration, NOT during SSR renderToString. In SSR the library emits bare tags
+ * (no data-rh attribute) into the body HTML while simultaneously collecting
+ * them in the helmetContext. We must strip both forms so that metadata appears
+ * exactly once — inside <head>, injected by injectHelmetToHead.
  */
 function stripHelmetFromBody(bodyHtml) {
   let h = bodyHtml;
-  // Self-closing tags: <meta data-rh="true" .../>, <link data-rh="true" .../>
+
+  // --- 1. data-rh="true" variants (client-hydration path, belt-and-suspenders) ---
+  // Self-closing: <meta data-rh="true" .../>, <link data-rh="true" .../>
   h = h.replace(/<(?:meta|link|base)[^>]*data-rh="true"[^>]*\/?>/g, '');
-  // Paired tags: <title data-rh="true">...</title>, <script data-rh="true">...</script>
+  // Paired: <title data-rh="true">...</title>
   h = h.replace(/<(title|script|style|noscript)[^>]*data-rh="true"[^>]*>[\s\S]*?<\/\1>/g, '');
+
+  // --- 2. Bare SEO tags emitted by Helmet during SSR renderToString ---
+  // <title>…</title>
+  h = h.replace(/<title>[^<]*<\/title>/g, '');
+  // <meta name="description|keywords|robots|author|…" …/>
+  h = h.replace(/<meta name="(?:description|keywords|robots|author|twitter:[^"]*)"[^>]*\/?>/gi, '');
+  // <meta property="og:…" …/>
+  h = h.replace(/<meta property="og:[^"]*"[^>]*\/?>/gi, '');
+  // <link rel="canonical" …/>
+  h = h.replace(/<link rel="canonical"[^>]*\/?>/gi, '');
+  // <link rel="alternate" …hreflang… or …hrefLang… (SSR renders camelCase hrefLang)
+  h = h.replace(/<link rel="alternate"\s[^>]*href[Ll]ang[^>]*\/?>/gi, '');
+  // <link rel="preload" …/> (Helmet sometimes renders logo/image preloads into body)
+  h = h.replace(/<link rel="preload"[^>]*\/?>/gi, '');
+
   return h;
 }
 
@@ -203,24 +234,29 @@ async function writeRoute(routePath, isLandingPage = false) {
   const template = readTemplate();
   let html = stripDynamicHeadTags(template);
 
+  const lang = routePath.startsWith('/en') ? 'en' : 'it';
+
   try {
     const ssrUrl = routePath.endsWith('/') ? routePath : `${routePath}/`;
-    const { html: bodyHtml, helmet } = render(ssrUrl);
+    const { html: bodyHtml } = render(ssrUrl);
 
-    // Inject the collected helmet context (title, meta, link) into <head>
-    if (helmet) {
-      html = injectHelmetToHead(html, helmet);
-    }
+    // React 19 + react-helmet-async: the library's helmetContext is never
+    // populated because React 19 natively hoists <title>/<meta>/<link> tags
+    // to the start of the renderToString output instead. Extract those hoisted
+    // tags from the body and inject them into <head> before stripping them.
+    const headTags = extractHelmetTagsFromBody(bodyHtml);
+    html = injectHeadTags(html, lang, headTags);
 
     if (bodyHtml && bodyHtml.length > 0) {
       html = injectBody(html, bodyHtml);
     }
   } catch (e) {
     console.warn(`  ⚠ SSR failed for ${routePath}: ${e.message}`);
+    // Even on SSR failure, set the correct lang attribute on <html>.
+    html = injectHeadTags(html, lang, '');
   }
 
   // JSON-LD: landing pages (/it/, /en/) get a full @graph; all other pages get none.
-  const lang = routePath.startsWith('/en') ? 'en' : 'it';
   const newJsonLd = isLandingPage ? generateLandingJsonLd(lang) : null;
   html = replaceJsonLd(html, newJsonLd);
 
