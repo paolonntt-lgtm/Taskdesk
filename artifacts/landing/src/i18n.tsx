@@ -357,12 +357,12 @@ const translations: Record<Language, Translations> = {
       text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane."
     },
     seo: {
-      title: "TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese + IVA",
-      description: "TaskDesk è il sistema di gestione pratiche per studi commerciali, agenzie e consulenti. Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica fino alla chiusura. Prezzi di lancio da €35/mese + IVA, prova gratuita 7 giorni.",
+      title: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
+      description: "Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica. Per studi commerciali e agenzie. Da €35/mese + IVA, 7 giorni gratis.",
       keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, software consulenza, gestione richieste clienti, sistema ticket studio commercialista",
-      ogTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese",
-      ogDescription: "Gestisci le pratiche e le richieste dei tuoi clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.",
-      twitterTitle: "TaskDesk — Software per Studi Commerciali e Agenzie | Prezzi di lancio da €35/mese",
+      ogTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
+      ogDescription: "Gestisci pratiche e richieste senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.",
+      twitterTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
       twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA.",
     },
     ticker: {
@@ -596,13 +596,13 @@ const translations: Record<Language, Translations> = {
       text: "© 2025 TaskDesk. The request management system for Italian firms and agencies."
     },
     seo: {
-      title: "TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month + VAT",
-      description: "TaskDesk is the request management system for accounting firms, agencies and consultants. Collect every client request in one place, assign it to your team and track it to completion. Launch prices from €35/month + VAT, 7-day free trial.",
+      title: "TaskDesk — Practice Management for Firms & Agencies",
+      description: "Collect every client request in one place, assign it to your team and track it to completion. Built for accounting firms and agencies. From €35/month + VAT, 7-day free trial.",
       keywords: "software for accounting firms, client request management, ticketing for agencies, consulting software, client task tracking, accountant ticket system",
-      ogTitle: "TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month",
-      ogDescription: "Manage client requests and filings without scattered emails. Comments, deadlines, tracked solutions. Launch prices from €35/month + VAT, all included.",
-      twitterTitle: "TaskDesk — Software for Accounting Firms & Agencies | Launch prices from €35/month",
-      twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. Launch prices from €35/month + VAT.",
+      ogTitle: "TaskDesk — Practice Management for Firms & Agencies",
+      ogDescription: "Manage client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.",
+      twitterTitle: "TaskDesk — Practice Management for Firms & Agencies",
+      twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT.",
     },
     ticker: {
       rating: "⭐ 4.9/5 average satisfaction",
