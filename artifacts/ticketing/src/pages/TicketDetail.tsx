@@ -776,7 +776,9 @@ export default function TicketDetail() {
             <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
-            <MarkdownContent content={ticket.description} />
+            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, px: 1.5, py: 1, bgcolor: 'background.paper' }}>
+              <MarkdownContent content={ticket.description} />
+            </Box>
             {/* Ticket-level attachments */}
             {(() => {
               const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
@@ -1231,7 +1233,7 @@ export default function TicketDetail() {
         </Box>
 
         {/* ── RIGHT: sidebar ── */}
-        <Box sx={{ width: { xs: '100%', lg: 360 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+        <Box sx={{ width: { xs: '100%', lg: 420 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
 
             {/* Assignee */}
