@@ -1118,10 +1118,16 @@ export default function TicketDetail() {
                   <Box sx={{ py: 1, mt: 0.5, borderTop: '1px solid #f5f5f5' }}>
                     {activities?.map((a) => {
                       const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
+                      const actorName = (a as any).user?.name as string | undefined;
                       return (
                         <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
                           <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
-                          <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
+                          <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>
+                            {actorName && (
+                              <Box component="span" sx={{ fontWeight: 700, color: isHighlight ? '#e65100' : '#616161', mr: 0.5 }}>{actorName}</Box>
+                            )}
+                            {a.actionDescription}
+                          </Box>
                           <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
                         </Box>
                       );
@@ -1166,11 +1172,17 @@ export default function TicketDetail() {
                 )}
                 {activities?.map((a) => {
                   const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
+                  const actorName = (a as any).user?.name as string | undefined;
                   return (
                     <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
                       <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
-                      <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
-                      <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                      <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>
+                        {actorName && (
+                          <Box component="span" sx={{ fontWeight: 700, color: isHighlight ? '#e65100' : '#616161', mr: 0.5 }}>{actorName}</Box>
+                        )}
+                        {a.actionDescription}
+                      </Box>
+                      <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</Box>
                     </Box>
                   );
                 })}
