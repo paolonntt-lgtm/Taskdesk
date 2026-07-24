@@ -529,9 +529,9 @@ export default function NewTicket() {
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                     inputProps={{ style: { fontSize: 12 } }}
-                    SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } } } }}
+                    SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } }, MenuListProps: { dense: true } } }}
                   >
-                    {categories.map(c => <MenuItem key={c} value={c} sx={{ fontSize: 12 }}>{c}</MenuItem>)}
+                    {categories.map(c => <MenuItem key={c} value={c} sx={{ fontSize: 12, py: 0.5, minHeight: 0 }}>{c}</MenuItem>)}
                   </TextField>
                 </SideSection>
 
@@ -555,7 +555,7 @@ export default function NewTicket() {
                           variant="body2"
                           fontWeight={formData.priority === p ? 700 : 400}
                           color={formData.priority === p ? 'primary' : 'text.primary'}
-                          sx={{ flex: 1, fontSize: 10 }}
+                          sx={{ flex: 1, fontSize: 11 }}
                         >
                           {t.priority[p]}
                         </Typography>
@@ -638,7 +638,7 @@ export default function NewTicket() {
                       exclusive
                       onChange={(_, v) => { if (v) setAssignMode(v); }}
                       size="small"
-                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: 10 } }}
+                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: 11 } }}
                       fullWidth
                     >
                       <ToggleButton value="user">
@@ -670,7 +670,7 @@ export default function NewTicket() {
                           }}
                         >
                           <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'action.disabledBackground' }}>—</Avatar>
-                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: 10 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: 11 }}>
                             {t.newTicket.unassigned}
                           </Typography>
                         </Box>
@@ -695,7 +695,7 @@ export default function NewTicket() {
                                 variant="body2"
                                 fontWeight={selected ? 700 : 400}
                                 color={selected ? 'primary' : 'text.primary'}
-                                sx={{ flex: 1, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                sx={{ flex: 1, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                               >
                                 {u.name}
                               </Typography>
