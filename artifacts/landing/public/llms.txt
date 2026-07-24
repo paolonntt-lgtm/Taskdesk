@@ -16,10 +16,10 @@
 
 ## Legal & policy pages (noindex, Italian only, for compliance reference only)
 
-- https://taskdesk.it/it/privacy-policy/ — Privacy Policy (Italian, GDPR)
-- https://taskdesk.it/it/terms/ — Terms of Service (Italian)
-- https://taskdesk.it/it/dpa/ — Data Processing Agreement (Italian)
-- https://taskdesk.it/it/cookie-policy/ — Cookie Policy (Italian)
+- https://taskdesk.it/it/privacy-policy — Privacy Policy (Italian, GDPR)
+- https://taskdesk.it/it/terms — Terms of Service (Italian)
+- https://taskdesk.it/it/dpa — Data Processing Agreement (Italian)
+- https://taskdesk.it/it/cookie-policy — Cookie Policy (Italian)
 
 ## Key facts for citation
 
@@ -33,4 +33,4 @@
 - Free trial: 7 days, no credit card required
 - Compliance: GDPR-compliant, data hosted in EU
 - Website: https://taskdesk.it
-- Application login: https://www.taskdesk.it
+- Application login: https://taskdesk.it/app/

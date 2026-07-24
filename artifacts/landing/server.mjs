@@ -14,6 +14,15 @@ app.get("/healthz", (_req, res) => {
   res.status(200).send("ok");
 });
 
+// Redirect /<path>/index.html → /<path>/ (301 permanent — eliminates duplicate crawl paths)
+app.use((req, res, next) => {
+  if (req.path.endsWith("/index.html")) {
+    const cleanPath = req.path.slice(0, -"index.html".length) || "/";
+    return res.redirect(301, cleanPath);
+  }
+  next();
+});
+
 // Real HTTP 302 redirects for bare (language-less) routes
 const BARE_REDIRECTS = {
   "/privacy-policy": "/it/privacy-policy",
@@ -22,9 +31,21 @@ const BARE_REDIRECTS = {
   "/cookie-policy": "/it/cookie-policy",
 };
 
+// 301 permanent redirects: English legal pages → Italian canonical (legal content is IT-only)
+const EN_LEGAL_REDIRECTS = {
+  "/en/privacy-policy": "/it/privacy-policy",
+  "/en/terms": "/it/terms",
+  "/en/dpa": "/it/dpa",
+  "/en/cookie-policy": "/it/cookie-policy",
+};
+
 app.use((req, res, next) => {
   if (req.path === "/") {
     return res.redirect(302, "/it/");
+  }
+  const enLegalTarget = EN_LEGAL_REDIRECTS[req.path];
+  if (enLegalTarget) {
+    return res.redirect(301, enLegalTarget);
   }
   const target = BARE_REDIRECTS[req.path];
   if (target) {

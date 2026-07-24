@@ -14,7 +14,7 @@ function makeStaticHook(url: string) {
   return (): [string, (path: string) => void] => [url, () => {}];
 }
 
-function PageRoutes() {
+function ItPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
@@ -22,6 +22,14 @@ function PageRoutes() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+    </Switch>
+  );
+}
+
+function EnPageRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={Landing} />
     </Switch>
   );
 }
@@ -36,10 +44,10 @@ export function render(url: string): { html: string; helmet: unknown } {
           <LanguageProvider>
             <Switch>
               <Route path="/it" nest>
-                <PageRoutes />
+                <ItPageRoutes />
               </Route>
               <Route path="/en" nest>
-                <PageRoutes />
+                <EnPageRoutes />
               </Route>
               <Route path="/404">
                 <NotFound />

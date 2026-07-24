@@ -35,7 +35,7 @@ function LangRedirect({ suffix }: { suffix: string }) {
   return null;
 }
 
-function PageRoutes() {
+function ItPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
@@ -48,14 +48,23 @@ function PageRoutes() {
   );
 }
 
+function EnPageRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={Landing} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/it" nest>
-        <PageRoutes />
+        <ItPageRoutes />
       </Route>
       <Route path="/en" nest>
-        <PageRoutes />
+        <EnPageRoutes />
       </Route>
       <Route path="/">
         <LangRedirect suffix="/" />
