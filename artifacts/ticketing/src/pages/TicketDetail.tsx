@@ -696,7 +696,7 @@ export default function TicketDetail() {
       <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: { lg: '28px' }, alignItems: 'flex-start' }}>
 
         {/* ── LEFT: main content ── */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: { lg: 600 } }}>
 
           {/* Meta bar: status · priority · category · due date */}
           <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
