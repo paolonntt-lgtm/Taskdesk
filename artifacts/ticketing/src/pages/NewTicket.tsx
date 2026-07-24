@@ -528,7 +528,7 @@ export default function NewTicket() {
                     select fullWidth size="small" required
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    inputProps={{ style: { fontSize: 12 } }}
+                    sx={{ '& .MuiSelect-select': { fontSize: 12, py: '6px' } }}
                     SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } }, MenuListProps: { dense: true } } }}
                   >
                     {categories.map(c => <MenuItem key={c} value={c} sx={{ fontSize: 12, py: 0.5, minHeight: 0 }}>{c}</MenuItem>)}
