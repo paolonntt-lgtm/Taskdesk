@@ -1231,7 +1231,7 @@ export default function TicketDetail() {
         </Box>
 
         {/* ── RIGHT: sidebar ── */}
-        <Box sx={{ width: { xs: '100%', lg: 260 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+        <Box sx={{ width: { xs: '100%', lg: 200 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
 
             {/* Assignee */}
