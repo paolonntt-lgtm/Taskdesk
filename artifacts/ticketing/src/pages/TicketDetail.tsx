@@ -696,7 +696,7 @@ export default function TicketDetail() {
       <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: { lg: '28px' }, alignItems: 'flex-start' }}>
 
         {/* ── LEFT: main content ── */}
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: { lg: 600 } }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar: status · priority · category · due date */}
           <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
@@ -1231,7 +1231,7 @@ export default function TicketDetail() {
         </Box>
 
         {/* ── RIGHT: sidebar ── */}
-        <Box sx={{ width: { xs: '100%', lg: 360 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+        <Box sx={{ width: { xs: '100%', lg: 260 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
 
             {/* Assignee */}
