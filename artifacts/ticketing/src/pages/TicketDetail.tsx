@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Typography, Tabs, Tab, Chip, Button,
+  Box, Typography, Tabs, Tab, Chip, Button, Divider,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
@@ -67,7 +67,7 @@ function SideRow({ label, children }: { label: string; children: React.ReactNode
   return (
     <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
       <Box sx={{ fontSize: 12, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 15, color: '#212121' }}>{children}</Box>
+      <Box sx={{ fontSize: 14, color: '#212121' }}>{children}</Box>
     </Box>
   );
 }
@@ -814,6 +814,8 @@ export default function TicketDetail() {
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
+          <Divider sx={{ mt: 3, mb: 3 }} />
+
           {/* Tabs — E style: minimal underline indicator */}
           <Box>
             <Box sx={{ borderBottom: '1px solid #efefef' }}>
@@ -893,7 +895,7 @@ export default function TicketDetail() {
                             <Box display="flex" alignItems="baseline" gap={1.25} mb={0.875} flexWrap="wrap">
                               {customerReply ? (
                                 <>
-                                  <Box component="span" sx={{ fontWeight: 700, fontSize: 15, color: '#111' }}>{customerReply.name}</Box>
+                                  <Box component="span" sx={{ fontWeight: 700, fontSize: 14, color: '#111' }}>{customerReply.name}</Box>
                                   <Box display="flex" alignItems="center" gap={0.5}>
                                     <MailOutline sx={{ fontSize: 12, color: '#9e9e9e' }} />
                                     <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>Risposta del cliente</Box>
@@ -904,7 +906,7 @@ export default function TicketDetail() {
                                 <UserLink
                                   userId={c.authorId}
                                   name={c.author?.name}
-                                  typographyProps={{ sx: { fontWeight: 700, fontSize: 15, color: '#111' } } as any}
+                                  typographyProps={{ sx: { fontWeight: 700, fontSize: 14, color: '#111' } } as any}
                                 />
                               )}
                               <Box component="span" sx={{ fontSize: 13, color: '#bdbdbd' }}>
