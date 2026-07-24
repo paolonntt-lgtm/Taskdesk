@@ -369,7 +369,7 @@ export default function NewTicket() {
                 onKeyDown={e => { if (e.key === 'Escape') setTitleDropdownOpen(false); }}
                 placeholder={t.newTicket.titlePlaceholder}
                 inputProps={{ style: { fontSize: '1rem', fontWeight: 600 } }}
-                sx={{ bgcolor: 'background.paper', '& .MuiOutlinedInput-notchedOutline': { borderColor: '#8a96a3', borderWidth: 2 }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568', borderWidth: 2 } }}
+                sx={{ bgcolor: 'background.paper', '& .MuiOutlinedInput-root fieldset': { border: '2px solid #8a96a3' }, '& .MuiOutlinedInput-root:hover fieldset': { border: '2px solid #4a5568' } }}
               />
               {titleDropdownOpen && titleHistory.length > 0 && (
                 <Paper
