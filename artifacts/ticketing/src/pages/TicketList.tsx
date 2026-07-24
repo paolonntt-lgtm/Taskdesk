@@ -548,7 +548,7 @@ export default function TicketList() {
   };
 
   const col = (id: SortCol, label: string, sx?: object) => (
-    <TableCell style={{ padding: '6px 4px', width: colWidths[id] ?? DEFAULT_COL_WIDTHS[id] }} sx={{ fontWeight: 600, fontSize: '0.68rem', color: 'text.secondary', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden', ...sx }}>
+    <TableCell style={{ padding: '10px 8px', width: colWidths[id] ?? DEFAULT_COL_WIDTHS[id] }} sx={{ whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden', ...sx }}>
       <TableSortLabel
         active={sortCol === id}
         direction={sortCol === id ? sortDir : 'asc'}
@@ -1168,8 +1168,8 @@ export default function TicketList() {
                           <Checkbox size="small" checked={isSelected} sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }} />
                         </TableCell>
                       )}
-                      {(visibleCols.id ?? true) && <TableCell style={{ paddingLeft: 0, paddingRight: 4 }} sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: { xs: '0.65rem', sm: '0.875rem' } }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>}
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ width: { xs: 'auto', sm: 180, md: 220, lg: 260 } }}>
+                      {(visibleCols.id ?? true) && <TableCell style={{ padding: '10px 6px 10px 12px' }} sx={{ fontWeight: 700, color: '#9e9e9e', whiteSpace: 'nowrap', width: { xs: 28, sm: 48 }, fontSize: '0.75rem' }}>#{(ticket as any).ticketNumber ?? ticket.id}</TableCell>}
+                      <TableCell style={{ padding: '10px 8px' }} sx={{ width: { xs: 'auto', sm: 180, md: 220, lg: 260 } }}>
                         <Box display="flex" alignItems="flex-start" gap={0.5}>
                           {((ticket as any).hasSolution || (ticket as any).resolutionNote) && (
                             <Tooltip title={(ticket as any).resolutionNote || 'Soluzione trovata'} placement="top" arrow>
@@ -1192,7 +1192,7 @@ export default function TicketList() {
                             </Tooltip>
                           )}
                           <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3, fontWeight: ticket.priority === 'urgent' ? 600 : undefined }}>{ticket.title}</Box>
+                            <Box component="span" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: { xs: '0.82rem', sm: '0.9rem' }, lineHeight: 1.3, fontWeight: ticket.priority === 'urgent' ? 600 : 500, color: 'text.primary' }}>{ticket.title}</Box>
                             {ticket.priority === 'urgent' && (ticket as any).dueAt && (
                               <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 600, mt: 0.25, lineHeight: 1.2 }}>
                                 ⚠ {t.ticketList.deadlineColumn}: {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short' })}
@@ -1211,9 +1211,9 @@ export default function TicketList() {
                           )}
                         </Box>
                       </TableCell>
-                      {(visibleCols.category ?? true) && <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' } }}>{ticket.category}</TableCell>}
+                      {(visibleCols.category ?? true) && <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#616161', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{ticket.category}</TableCell>}
                       {(visibleCols.status ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ overflow: 'hidden' }}>
+                      <TableCell style={{ padding: '10px 8px' }} sx={{ overflow: 'hidden' }}>
                         {(() => {
                           const customColor = getColorForKey(ticket.status);
                           const muiColor = getStatusColor(ticket.status);
@@ -1242,67 +1242,61 @@ export default function TicketList() {
                       </TableCell>
                       )}
                       {(visibleCols.priority ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         {(() => {
                           const dotColor = ({ urgent: '#d32f2f', high: '#e65100', medium: '#1976d2', low: '#9e9e9e' } as Record<string, string>)[ticket.priority] ?? '#9e9e9e';
                           return (
-                            <Box display="flex" alignItems="center" gap={0.75}>
+                            <Box display="flex" alignItems="center" gap={0.625}>
                               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
-                              <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.82rem' }, fontWeight: 600, color: dotColor }}>
+                              <Box component="span" sx={{ fontSize: '0.8rem', fontWeight: 600, color: dotColor, whiteSpace: 'nowrap' }}>
                                 {t.priority[ticket.priority] || ticket.priority}
-                              </Typography>
+                              </Box>
                             </Box>
                           );
                         })()}
                       </TableCell>
                       )}
                       {(visibleCols.dueAt ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <DeadlineCell dueAt={(ticket as any).dueAt} />
                       </TableCell>
                       )}
                       {(visibleCols.assignee ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                      <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                         {ticket.assignee ? (
                           <Tooltip title={ticket.assignee.name} arrow placement="top">
-                            <Box display="flex" alignItems="center" gap={0.75} sx={{ overflow: 'hidden' }}>
+                            <Box display="flex" alignItems="center" gap={0.875} sx={{ overflow: 'hidden' }}>
                               <Avatar
                                 sx={{
-                                  width: 24,
-                                  height: 24,
-                                  fontSize: '0.65rem',
+                                  width: 26,
+                                  height: 26,
+                                  fontSize: '0.6rem',
                                   fontWeight: 700,
                                   bgcolor: hashAvatarColor(ticket.assignee.name),
                                   flexShrink: 0,
+                                  background: hashAvatarColor(ticket.assignee.name),
                                 }}
                               >
                                 {getInitials(ticket.assignee.name)}
                               </Avatar>
-                              <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
+                              <Box component="span" sx={{ fontSize: '0.8rem', color: '#424242', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {ticket.assignee.name}
-                              </Typography>
+                              </Box>
                             </Box>
                           </Tooltip>
                         ) : (
-                          <Typography variant="body2" color="text.disabled">—</Typography>
+                          <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
                         )}
                       </TableCell>
                       )}
                       {showLocation && (visibleCols.location ?? true) && (
-                        <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                        <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#616161', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                           {(ticket as any).location || '—'}
                         </TableCell>
                       )}
                       {(visibleCols.createdAt ?? true) && (
-                      <TableCell style={{ padding: '6px 4px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
-                        <Box>
-                          <Typography variant="body2" component="span">
-                            {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
-                          </Typography>
-                          <Typography variant="caption" component="div" color="text.secondary">
-                            {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-                          </Typography>
-                        </Box>
+                      <TableCell style={{ padding: '10px 12px 10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#9e9e9e', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                        {new Date(ticket.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' })}
                       </TableCell>
                       )}
                     </TableRow>

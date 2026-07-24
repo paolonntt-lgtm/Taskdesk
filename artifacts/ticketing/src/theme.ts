@@ -162,16 +162,16 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #1f2937',
+          borderBottom: mode === 'light' ? '1px solid #f5f5f5' : '1px solid #1f2937',
           fontSize: '0.875rem',
         },
         head: {
-          fontWeight: 700,
-          backgroundColor: mode === 'light' ? '#f8faff' : '#0f1117',
-          color: mode === 'light' ? '#6b7280' : '#9ca3af',
-          fontSize: '0.75rem',
+          fontWeight: 600,
+          backgroundColor: mode === 'light' ? '#fafafa' : '#0f1117',
+          color: mode === 'light' ? '#9e9e9e' : '#6b7280',
+          fontSize: '0.68rem',
           textTransform: 'uppercase',
-          letterSpacing: '0.05em',
+          letterSpacing: '0.06em',
         },
       },
     },
