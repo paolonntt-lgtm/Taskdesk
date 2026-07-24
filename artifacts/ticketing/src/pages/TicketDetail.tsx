@@ -1111,6 +1111,22 @@ export default function TicketDetail() {
                   </Box>
                 )}
 
+                {/* Inline activity — mockup style, below comments */}
+                {(activities?.length ?? 0) > 0 && (
+                  <Box sx={{ py: 1, mt: 0.5, borderTop: '1px solid #f5f5f5' }}>
+                    {activities?.map((a) => {
+                      const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
+                      return (
+                        <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
+                          <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
+                          <Box component="span" sx={{ flex: 1, fontSize: 12, color: isHighlight ? '#e65100' : '#9e9e9e' }}>{a.actionDescription}</Box>
+                          <Box component="span" sx={{ fontSize: 11, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+
                 {/* Compose — new comment */}
                 {ticket.status === 'closed' ? (
                   <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>{t.ticketDetail.closedTicketComment(entityTerm.singular)}</Alert>
@@ -1204,41 +1220,6 @@ export default function TicketDetail() {
         <Box sx={{ width: { xs: '100%', lg: 220 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
 
-            {/* Status — admin interactive */}
-            {canChangeStatus && (
-              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box display="flex" alignItems="center" gap={0.5} sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
-                  {t.ticketDetail.statusLabel}
-                  <PermissionGateButton permission="change_status" sectionLabel={t.ticketDetail.statusLabel} />
-                </Box>
-                <Box display="flex" flexWrap="wrap" gap={0.5}>
-                  {orgStatuses.map((s) => {
-                    const isActive = ticket.status === s.key;
-                    const customColor = s.color;
-                    return (
-                      <Chip key={s.key} label={s.label} size="small" variant={isActive ? 'filled' : 'outlined'} onClick={() => handleStatusChange(s.key)} disabled={updateTicket.isPending}
-                        {...(isActive && customColor ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : isActive ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : { sx: { cursor: 'pointer', fontWeight: 400, fontSize: 11 } })}
-                      />
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-
-            {/* Priority — admin interactive */}
-            {canChangeStatus && (
-              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
-                  {t.ticketDetail.priorityLabel}
-                </Box>
-                <Box display="flex" flexWrap="wrap" gap={0.5}>
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <Chip key={p} label={t.priority[p] || p} size="small" color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'} variant={ticket.priority === p ? 'filled' : 'outlined'} onClick={() => handlePriorityChange(p)} disabled={updateTicket.isPending} sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400, fontSize: 11 }} />
-                  ))}
-                </Box>
-              </Box>
-            )}
-
             {/* Assignee */}
             <SideRow label={t.ticketDetail.assignedTo}>
               {isAdmin ? (
@@ -1322,6 +1303,48 @@ export default function TicketDetail() {
               </SideRow>
             )}
 
+            {/* Due date */}
+            {(isAdmin || isAssignee) ? (
+              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>{t.ticketDetail.dueAtLabel}</Box>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 170 }} disabled={updateTicket.isPending} />
+                  {dueEditVal && (
+                    <Tooltip title={t.ticketDetail.dueAtClear}>
+                      <span>
+                        <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}><CloseIcon fontSize="small" /></IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            ) : (ticket as any).dueAt ? (
+              <SideRow label={t.ticketDetail.dueAtLabel}>
+                <Box component="span" sx={{ color: new Date((ticket as any).dueAt) < new Date() && !isClosedKey(ticket.status) ? '#d32f2f' : '#212121', fontWeight: new Date((ticket as any).dueAt) < new Date() ? 600 : 400 }}>
+                  ⚠ {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Box>
+              </SideRow>
+            ) : null}
+
+            {/* Closed on */}
+            {ticket.closedAt && (
+              <SideRow label={t.ticketDetail.closedOn}>
+                {new Date(ticket.closedAt).toLocaleString(dateLocale)}
+                {closerActivity?.user?.name && <Box component="span" sx={{ color: '#9e9e9e' }}> · {closerActivity.user.name}</Box>}
+              </SideRow>
+            )}
+
+            {/* Created by + date */}
+            <SideRow label={t.ticketDetail.openedOn}>
+              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
+                <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 18, height: 18, fontSize: 9, bgcolor: 'primary.main' }}>{creator?.name?.charAt(0)}</Avatar>
+                <Box component="span">{creator?.name}</Box>
+              </Box>
+              <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>
+                {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}, {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+              </Box>
+            </SideRow>
+
             {/* Resource */}
             {ticket.resource && !ticket.inboundChannelId && (
               <SideRow label={t.ticketDetail.resourceLabel}>
@@ -1365,47 +1388,40 @@ export default function TicketDetail() {
               </SideRow>
             )}
 
-            {/* Due date */}
-            {(isAdmin || isAssignee) ? (
+            {/* Status — admin interactive */}
+            {canChangeStatus && (
               <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>{t.ticketDetail.dueAtLabel}</Box>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 170 }} disabled={updateTicket.isPending} />
-                  {dueEditVal && (
-                    <Tooltip title={t.ticketDetail.dueAtClear}>
-                      <span>
-                        <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}><CloseIcon fontSize="small" /></IconButton>
-                      </span>
-                    </Tooltip>
-                  )}
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
+                  {t.ticketDetail.statusLabel}
+                  <PermissionGateButton permission="change_status" sectionLabel={t.ticketDetail.statusLabel} />
+                </Box>
+                <Box display="flex" flexWrap="wrap" gap={0.5}>
+                  {orgStatuses.map((s) => {
+                    const isActive = ticket.status === s.key;
+                    const customColor = s.color;
+                    return (
+                      <Chip key={s.key} label={s.label} size="small" variant={isActive ? 'filled' : 'outlined'} onClick={() => handleStatusChange(s.key)} disabled={updateTicket.isPending}
+                        {...(isActive && customColor ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : isActive ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : { sx: { cursor: 'pointer', fontWeight: 400, fontSize: 11 } })}
+                      />
+                    );
+                  })}
                 </Box>
               </Box>
-            ) : (ticket as any).dueAt ? (
-              <SideRow label={t.ticketDetail.dueAtLabel}>
-                <Box component="span" sx={{ color: new Date((ticket as any).dueAt) < new Date() && !isClosedKey(ticket.status) ? '#d32f2f' : '#212121', fontWeight: new Date((ticket as any).dueAt) < new Date() ? 600 : 400 }}>
-                  ⚠ {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Box>
-              </SideRow>
-            ) : null}
-
-            {/* Closed on */}
-            {ticket.closedAt && (
-              <SideRow label={t.ticketDetail.closedOn}>
-                {new Date(ticket.closedAt).toLocaleString(dateLocale)}
-                {closerActivity?.user?.name && <Box component="span" sx={{ color: '#9e9e9e' }}> · {closerActivity.user.name}</Box>}
-              </SideRow>
             )}
 
-            {/* Created by + date */}
-            <SideRow label={t.ticketDetail.openedOn}>
-              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
-                <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 18, height: 18, fontSize: 9, bgcolor: 'primary.main' }}>{creator?.name?.charAt(0)}</Avatar>
-                <Box component="span">{creator?.name}</Box>
+            {/* Priority — admin interactive */}
+            {canChangeStatus && (
+              <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
+                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
+                  {t.ticketDetail.priorityLabel}
+                </Box>
+                <Box display="flex" flexWrap="wrap" gap={0.5}>
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <Chip key={p} label={t.priority[p] || p} size="small" color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'} variant={ticket.priority === p ? 'filled' : 'outlined'} onClick={() => handlePriorityChange(p)} disabled={updateTicket.isPending} sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400, fontSize: 11 }} />
+                  ))}
+                </Box>
               </Box>
-              <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>
-                {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}, {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-              </Box>
-            </SideRow>
+            )}
 
             {/* AZIONI */}
             {isAdmin && (
