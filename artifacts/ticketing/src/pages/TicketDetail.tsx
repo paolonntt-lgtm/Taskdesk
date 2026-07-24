@@ -66,8 +66,8 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
 function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-      <Box sx={{ fontSize: 8, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 10, color: '#212121' }}>{children}</Box>
+      <Box sx={{ fontSize: 12, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
+      <Box sx={{ fontSize: 14, color: '#212121' }}>{children}</Box>
     </Box>
   );
 }
@@ -1231,7 +1231,7 @@ export default function TicketDetail() {
         </Box>
 
         {/* ── RIGHT: sidebar ── */}
-        <Box sx={{ width: { xs: '100%', lg: 420 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
+        <Box sx={{ width: { xs: '100%', lg: 360 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
           <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
 
             {/* Assignee */}
