@@ -528,8 +528,10 @@ export default function NewTicket() {
                     select fullWidth size="small" required
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    inputProps={{ style: { fontSize: 12 } }}
+                    SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } } } }}
                   >
-                    {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                    {categories.map(c => <MenuItem key={c} value={c} sx={{ fontSize: 12 }}>{c}</MenuItem>)}
                   </TextField>
                 </SideSection>
 
@@ -553,7 +555,7 @@ export default function NewTicket() {
                           variant="body2"
                           fontWeight={formData.priority === p ? 700 : 400}
                           color={formData.priority === p ? 'primary' : 'text.primary'}
-                          sx={{ flex: 1 }}
+                          sx={{ flex: 1, fontSize: 10 }}
                         >
                           {t.priority[p]}
                         </Typography>
@@ -573,9 +575,11 @@ export default function NewTicket() {
                       select fullWidth size="small"
                       value={formData.location}
                       onChange={e => setFormData({ ...formData, location: e.target.value })}
+                      inputProps={{ style: { fontSize: 12 } }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } } } }}
                     >
-                      <MenuItem value=""><em>{t.newTicket.noLocation}</em></MenuItem>
-                      {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                      <MenuItem value="" sx={{ fontSize: 12 }}><em>{t.newTicket.noLocation}</em></MenuItem>
+                      {locations.map(l => <MenuItem key={l} value={l} sx={{ fontSize: 12 }}>{l}</MenuItem>)}
                     </TextField>
                   </SideSection>
                 )}
@@ -588,7 +592,7 @@ export default function NewTicket() {
                     value={formData.dueAt}
                     onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
                     InputLabelProps={{ shrink: true }}
-                    inputProps={{ min: toLocalDatetimeInput(new Date()) }}
+                    inputProps={{ min: toLocalDatetimeInput(new Date()), style: { fontSize: 12 } }}
                     label=""
                   />
                 </SideSection>
@@ -599,7 +603,7 @@ export default function NewTicket() {
                     <SideLabel>{t.clients.clientField}</SideLabel>
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <Autocomplete
-                        sx={{ flex: 1 }}
+                        sx={{ flex: 1, '& input': { fontSize: 12 }, '& .MuiAutocomplete-option': { fontSize: 12 } }}
                         size="small"
                         options={clientsList}
                         getOptionLabel={(o) => o.name}
@@ -607,7 +611,7 @@ export default function NewTicket() {
                         onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
                         noOptionsText={t.newTicket.noClientFound}
                         renderInput={(params) => (
-                          <TextField {...params} placeholder={t.clients.clientField} />
+                          <TextField {...params} placeholder={t.clients.clientField} inputProps={{ ...params.inputProps, style: { fontSize: 12 } }} />
                         )}
                       />
                       {currentUser?.role === 'admin' && (
@@ -634,7 +638,7 @@ export default function NewTicket() {
                       exclusive
                       onChange={(_, v) => { if (v) setAssignMode(v); }}
                       size="small"
-                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: '0.7rem' } }}
+                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: 10 } }}
                       fullWidth
                     >
                       <ToggleButton value="user">
@@ -666,7 +670,7 @@ export default function NewTicket() {
                           }}
                         >
                           <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'action.disabledBackground' }}>—</Avatar>
-                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: '0.75rem' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: 10 }}>
                             {t.newTicket.unassigned}
                           </Typography>
                         </Box>
@@ -691,7 +695,7 @@ export default function NewTicket() {
                                 variant="body2"
                                 fontWeight={selected ? 700 : 400}
                                 color={selected ? 'primary' : 'text.primary'}
-                                sx={{ flex: 1, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                sx={{ flex: 1, fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                               >
                                 {u.name}
                               </Typography>
