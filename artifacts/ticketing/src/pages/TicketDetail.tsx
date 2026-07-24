@@ -1185,7 +1185,7 @@ export default function TicketDetail() {
           </Box>
 
           {/* Creator info */}
-          <Box sx={{ py: 1 }}>
+          <Box sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.25} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
               {t.ticketDetail.openedOn}
             </Typography>
@@ -1199,6 +1199,27 @@ export default function TicketDetail() {
               {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}
             </Typography>
           </Box>
+
+          {/* Azioni sidebar — quick action buttons */}
+          {isAdmin && (
+            <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={1} sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, fontSize: '0.62rem' }}>
+                {lang === 'it' ? 'Azioni' : 'Actions'}
+              </Typography>
+              {ticket.status !== 'closed' && (
+                <Button fullWidth size="small" variant="outlined" sx={{ mb: 0.75, justifyContent: 'flex-start', borderColor: 'divider', color: 'text.primary', fontSize: '0.75rem', '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' } }}
+                  onClick={() => handleStatusChange('closed')}>
+                  {lang === 'it' ? 'Chiudi ticket' : 'Close ticket'}
+                </Button>
+              )}
+              {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
+                <Button fullWidth size="small" variant="outlined" sx={{ justifyContent: 'flex-start', borderColor: 'divider', color: 'text.primary', fontSize: '0.75rem', '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' } }}
+                  onClick={() => handleStatusChange('resolved')}>
+                  {lang === 'it' ? 'Segna risolto' : 'Mark resolved'}
+                </Button>
+              )}
+            </Box>
+          )}
 
         </Box>
         <Box sx={{ flex: 1, minWidth: 0, order: { lg: 1 } }}>
@@ -1275,7 +1296,8 @@ export default function TicketDetail() {
               <Tabs
                 value={tabValue}
                 onChange={(_, v) => setTabValue(v)}
-                sx={{ px: { xs: 0, sm: 2 } }}
+                textColor="inherit"
+                sx={{ px: { xs: 0, sm: 2 }, '& .MuiTabs-indicator': { bgcolor: 'text.primary' }, '& .MuiTab-root.Mui-selected': { color: 'text.primary', fontWeight: 700 } }}
                 variant="scrollable"
                 scrollButtons="auto"
                 allowScrollButtonsMobile
@@ -1831,10 +1853,10 @@ export default function TicketDetail() {
                       {t.ticketDetail.closedTicketComment(entityTerm.singular)}
                     </Alert>
                   ) : !replyingToCommentId && (
-                  <Box display="flex" gap={2} mt={2}>
+                  <Box display="flex" gap={1.5} alignItems="flex-start" sx={{ pt: 2.5, mt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Avatar
                       src={(currentUser as any)?.avatarUrl ?? undefined}
-                      sx={{ bgcolor: 'primary.main' }}
+                      sx={{ bgcolor: 'primary.main', width: 34, height: 34, flexShrink: 0, fontSize: 14 }}
                     >
                       {currentUser?.name?.charAt(0)}
                     </Avatar>
@@ -1886,25 +1908,26 @@ export default function TicketDetail() {
               </TabPanel>
 
               <TabPanel value={tabValue} index={1}>
-                <Box display="flex" flexDirection="column" gap={2}>
+                <Box sx={{ pt: 1.5, pb: 0.5 }}>
                   {activities?.length === 0 && (
                     <Typography variant="body2" color="text.secondary" textAlign="center" py={2}>
                       {t.ticketDetail.noActivity}
                     </Typography>
                   )}
-                  {activities?.map((a) => (
-                    <Box key={a.id} display="flex" alignItems="flex-start" gap={2}>
-                      <Box width={8} height={8} borderRadius="50%" bgcolor="primary.main" mt={0.8} flexShrink={0} />
-                      <Box flex={1}>
-                        <Typography variant="body2">
-                          <strong>{a.user?.name}</strong> — {a.actionDescription}
+                  {activities?.map((a) => {
+                    const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
+                    return (
+                      <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
+                        <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: 1.75, bgcolor: isHighlight ? 'warning.main' : 'divider' }} />
+                        <Typography variant="caption" sx={{ flex: 1, color: isHighlight ? 'warning.dark' : 'text.secondary' }}>
+                          {a.actionDescription}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(a.createdAt).toLocaleString(dateLocale)}
+                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                          {new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                         </Typography>
                       </Box>
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Box>
               </TabPanel>
 
