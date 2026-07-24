@@ -548,11 +548,12 @@ export default function TicketList() {
   };
 
   const col = (id: SortCol, label: string, sx?: object) => (
-    <TableCell style={{ padding: '6px 4px', width: colWidths[id] ?? DEFAULT_COL_WIDTHS[id] }} sx={{ fontWeight: 'bold', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden', ...sx }}>
+    <TableCell style={{ padding: '6px 4px', width: colWidths[id] ?? DEFAULT_COL_WIDTHS[id] }} sx={{ fontWeight: 600, fontSize: '0.68rem', color: 'text.secondary', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', position: 'relative', overflow: 'hidden', ...sx }}>
       <TableSortLabel
         active={sortCol === id}
         direction={sortCol === id ? sortDir : 'asc'}
         onClick={() => handleSort(id)}
+        sx={{ '& .MuiTableSortLabel-icon': { fontSize: '0.75rem' } }}
       >
         {label}
       </TableSortLabel>
@@ -1058,7 +1059,7 @@ export default function TicketList() {
               </colgroup>
             )}
             <TableHead>
-              <TableRow>
+              <TableRow sx={{ bgcolor: 'grey.50', borderBottom: '2px solid', borderColor: 'divider' }}>
                 <TableCell padding="none" sx={{ p: 0, width: 4, border: 'none' }} />
                 {isAdmin && (
                   <TableCell padding="none" sx={{ width: 28, pl: 0.25, pr: 0 }}>
@@ -1145,7 +1146,7 @@ export default function TicketList() {
                         cursor: 'pointer',
                         bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.04)' : undefined,
                         '&:hover': {
-                          bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.08) !important' : undefined,
+                          bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.08) !important' : '#f9f9f9 !important',
                           boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
                           position: 'relative',
                           zIndex: 1,
