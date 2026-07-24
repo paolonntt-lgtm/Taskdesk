@@ -767,7 +767,7 @@ export default function TicketDetail() {
           </Box>
 
           {/* H1 Title — E style */}
-          <Box component="h1" sx={{ m: 0, mb: 3, fontSize: { xs: '1.2rem', sm: '1.375rem' }, fontWeight: 800, color: '#111', lineHeight: 1.25, letterSpacing: '-0.01em', wordBreak: 'break-word' }}>
+          <Box component="h1" sx={{ m: 0, mb: 3, fontSize: { xs: '1.45rem', sm: '1.75rem' }, fontWeight: 800, color: '#111', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
           </Box>
 

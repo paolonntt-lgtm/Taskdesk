@@ -71,7 +71,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <Box
       sx={{
-        fontSize: '0.875rem',
+        fontSize: '1rem',
         lineHeight: 1.6,
         '& p': { m: 0, mb: 0.5 },
         '& p:last-child': { mb: 0 },
