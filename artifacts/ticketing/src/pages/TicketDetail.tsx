@@ -776,9 +776,7 @@ export default function TicketDetail() {
             <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
-            <Box sx={{ border: '2px solid #c5cdd6', borderRadius: 1, px: 1.5, py: 1, bgcolor: 'background.paper' }}>
-              <MarkdownContent content={ticket.description} />
-            </Box>
+            <MarkdownContent content={ticket.description} />
             {/* Ticket-level attachments */}
             {(() => {
               const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
