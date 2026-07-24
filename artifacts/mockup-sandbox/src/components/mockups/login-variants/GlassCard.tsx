@@ -30,13 +30,8 @@ export function GlassCard() {
       </div>
 
       {/* Logo */}
-      <div style={{ position: 'relative', zIndex: 10, marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #2563eb, #7c3aed)', boxShadow: '0 4px 12px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <span style={{ fontWeight: 700, fontSize: 20, color: '#111827', letterSpacing: '-0.02em' }}>TaskDesk</span>
+      <div style={{ position: 'relative', zIndex: 10, marginBottom: 28 }}>
+        <img src="/__mockup/taskdesk-logo.png" alt="TaskDesk" style={{ height: 48, width: 'auto', display: 'block' }} />
       </div>
 
       {/* Glass card */}
