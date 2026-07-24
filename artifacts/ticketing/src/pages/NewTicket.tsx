@@ -48,7 +48,7 @@ const PRIORITY_DOTS: Record<string, string> = {
 function SideLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography variant="caption" fontWeight={700} color="text.disabled"
-      sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 0.4 }}>
+      sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 0.25 }}>
       {children}
     </Typography>
   );
@@ -56,7 +56,7 @@ function SideLabel({ children }: { children: React.ReactNode }) {
 
 function SideSection({ children, divider = true }: { children: React.ReactNode; divider?: boolean }) {
   return (
-    <Box pb={1} mb={1} sx={divider ? { borderBottom: '1px solid', borderColor: 'divider' } : {}}>
+    <Box pb={0.6} mb={0.6} sx={divider ? { borderBottom: '1px solid', borderColor: 'divider' } : {}}>
       {children}
     </Box>
   );
@@ -351,7 +351,7 @@ export default function NewTicket() {
           flexDirection={{ xs: 'column', lg: 'row' }}>
 
           {/* ── LEFT: main content ── */}
-          <Box flex={1} minWidth={0} display="flex" flexDirection="column" gap={2.5}>
+          <Box flex={1} minWidth={0} display="flex" flexDirection="column" gap={1.5}>
 
             {/* Title field */}
             <Box ref={titleFieldRef} sx={{ position: 'relative' }}>
@@ -514,10 +514,10 @@ export default function NewTicket() {
             sx={{ position: { lg: 'sticky' }, top: { lg: 20 } }}
           >
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
 
                 <Typography variant="caption" fontWeight={700} color="text.disabled"
-                  sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 1 }}>
+                  sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 0.6 }}>
                   {lang === 'it' ? 'Dettagli' : 'Details'}
                 </Typography>
 
@@ -543,7 +543,7 @@ export default function NewTicket() {
                         onClick={() => setFormData({ ...formData, priority: p })}
                         sx={{
                           display: 'flex', alignItems: 'center', gap: 1,
-                          px: 1, py: 0.3, borderRadius: 1, cursor: 'pointer',
+                          px: 0.75, py: 0.2, borderRadius: 1, cursor: 'pointer',
                           bgcolor: formData.priority === p ? 'action.selected' : 'transparent',
                           '&:hover': { bgcolor: 'action.hover' },
                         }}
@@ -659,7 +659,7 @@ export default function NewTicket() {
                         <Box
                           onClick={() => setFormData({ ...formData, assignedTo: '' })}
                           sx={{
-                            display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.3,
+                            display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
                             borderRadius: 1, cursor: 'pointer',
                             bgcolor: !formData.assignedTo ? 'action.selected' : 'transparent',
                             '&:hover': { bgcolor: 'action.hover' },
@@ -678,7 +678,7 @@ export default function NewTicket() {
                               key={u.id}
                               onClick={() => setFormData({ ...formData, assignedTo: selected ? '' : u.id.toString() })}
                               sx={{
-                                display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.3,
+                                display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
                                 borderRadius: 1, cursor: 'pointer',
                                 bgcolor: selected ? 'action.selected' : 'transparent',
                                 '&:hover': { bgcolor: 'action.hover' },
@@ -719,7 +719,7 @@ export default function NewTicket() {
                 )}
 
                 {/* Buttons */}
-                <Box display="flex" flexDirection="column" gap={1} mt={0.5}>
+                <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
                   <Button
                     type="submit"
                     variant="contained"
