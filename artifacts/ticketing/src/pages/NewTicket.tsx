@@ -479,7 +479,7 @@ export default function NewTicket() {
             )}
 
             {/* Description */}
-            <Box sx={{ '& .MuiPaper-outlined': { borderColor: '#8a96a3', borderWidth: 2 } }}>
+            <Box sx={{ '& .MuiPaper-outlined': { border: '2px solid #8a96a3' } }}>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
                 {t.newTicket.descriptionField} *
               </Typography>
