@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Box, Card, Typography, LinearProgress, Checkbox, IconButton,
+  Box, Typography, LinearProgress, Checkbox, IconButton,
   TextField, Button, CircularProgress, Collapse, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
   Chip, Menu, MenuItem,
@@ -87,11 +87,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   async function handleRename() {
     if (!renameVal.trim() || renameVal.trim() === checklist.title) { setRenaming(false); return; }
     try {
-      await updateChecklist.mutateAsync({
-        ticketId,
-        checklistId: checklist.id,
-        data: { title: renameVal.trim() },
-      });
+      await updateChecklist.mutateAsync({ ticketId, checklistId: checklist.id, data: { title: renameVal.trim() } });
       invalidate();
     } catch {
       onError(ct.updateError);
@@ -125,12 +121,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   async function handleToggleItem(itemId: number, checked: boolean) {
     if (!checked) playCheckSound();
     try {
-      await updateItem.mutateAsync({
-        ticketId,
-        checklistId: checklist.id,
-        itemId,
-        data: { checked: !checked },
-      });
+      await updateItem.mutateAsync({ ticketId, checklistId: checklist.id, itemId, data: { checked: !checked } });
       invalidate();
     } catch {
       onError(ct.itemError);
@@ -149,12 +140,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   async function handleRenameItem(itemId: number) {
     if (!editingItemText.trim()) return;
     try {
-      await updateItem.mutateAsync({
-        ticketId,
-        checklistId: checklist.id,
-        itemId,
-        data: { text: editingItemText.trim() },
-      });
+      await updateItem.mutateAsync({ ticketId, checklistId: checklist.id, itemId, data: { text: editingItemText.trim() } });
       setEditingItemId(null);
       setEditingItemText('');
       invalidate();
@@ -184,115 +170,108 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   const fromTemplateName = (checklist as any).fromTemplateName as string | null | undefined;
 
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          px: 2,
-          py: 1,
-          bgcolor: 'action.hover',
-          gap: 1,
-          flexWrap: 'wrap',
-        }}
-      >
-        <IconButton size="small" onClick={() => setExpanded((v) => !v)} sx={{ mr: 0.5 }}>
-          {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+    <Box sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+      {/* Compact header row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.75, px: 0.5 }}>
+        <IconButton size="small" onClick={() => setExpanded((v) => !v)} sx={{ p: 0.25 }}>
+          {expanded ? <ExpandLess sx={{ fontSize: 16 }} /> : <ExpandMore sx={{ fontSize: 16 }} />}
         </IconButton>
 
         {renaming ? (
-          <TextField
-            size="small"
-            value={renameVal}
-            onChange={(e) => setRenameVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(false); }}
-            autoFocus
-            sx={{ flex: 1 }}
-            disabled={updateChecklist.isPending}
-          />
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, flexWrap: 'wrap' }}>
-            <Typography variant="subtitle2" fontWeight={700}>
-              {checklist.title}
-            </Typography>
-            {fromTemplateName && (
-              <Chip
-                icon={<Label sx={{ fontSize: 12 }} />}
-                label={ct.fromTemplate(fromTemplateName)}
-                size="small"
-                variant="outlined"
-                color="primary"
-                sx={{ height: 20, fontSize: '0.65rem', '& .MuiChip-label': { px: 0.75 } }}
-              />
-            )}
-          </Box>
-        )}
-
-        {renaming ? (
           <>
-            <Button size="small" onClick={handleRename} disabled={updateChecklist.isPending}>
+            <TextField
+              size="small"
+              value={renameVal}
+              onChange={(e) => setRenameVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(false); }}
+              autoFocus
+              sx={{ flex: 1, '& .MuiInputBase-input': { py: '4px', fontSize: 13 } }}
+              disabled={updateChecklist.isPending}
+            />
+            <Button size="small" onClick={handleRename} disabled={updateChecklist.isPending} sx={{ minWidth: 0, px: 1, fontSize: 12 }}>
               {ct.save}
             </Button>
-            <Button size="small" onClick={() => { setRenaming(false); setRenameVal(checklist.title); }}>
+            <Button size="small" onClick={() => { setRenaming(false); setRenameVal(checklist.title); }} sx={{ minWidth: 0, px: 1, fontSize: 12 }}>
               {ct.cancel}
             </Button>
           </>
-        ) : isAdmin ? (
+        ) : (
           <>
-            <Tooltip title={ct.moveUp}>
-              <span>
-                <IconButton size="small" onClick={onMoveUp} disabled={!canMoveUp}>
-                  <ArrowUpward fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={ct.moveDown}>
-              <span>
-                <IconButton size="small" onClick={onMoveDown} disabled={!canMoveDown}>
-                  <ArrowDownward fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={ct.renameChecklist}>
-              <IconButton size="small" onClick={() => setRenaming(true)}>
-                <EditOutlined fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={ct.deleteChecklist}>
-              <IconButton size="small" color="error" onClick={() => setDeleteDialogOpen(true)}>
-                <Delete fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={700} fontSize={13} noWrap>
+                {checklist.title}
+              </Typography>
+              {fromTemplateName && (
+                <Chip
+                  icon={<Label sx={{ fontSize: 10 }} />}
+                  label={ct.fromTemplate(fromTemplateName)}
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  sx={{ height: 16, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.5 } }}
+                />
+              )}
+              {total > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, flexShrink: 0 }}>
+                  {done}/{total}
+                </Typography>
+              )}
+            </Box>
+
+            {isAdmin && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                <Tooltip title={ct.moveUp}>
+                  <span>
+                    <IconButton size="small" onClick={onMoveUp} disabled={!canMoveUp} sx={{ p: 0.25 }}>
+                      <ArrowUpward sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title={ct.moveDown}>
+                  <span>
+                    <IconButton size="small" onClick={onMoveDown} disabled={!canMoveDown} sx={{ p: 0.25 }}>
+                      <ArrowDownward sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title={ct.renameChecklist}>
+                  <IconButton size="small" onClick={() => setRenaming(true)} sx={{ p: 0.25 }}>
+                    <EditOutlined sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={ct.deleteChecklist}>
+                  <IconButton size="small" color="error" onClick={() => setDeleteDialogOpen(true)} sx={{ p: 0.25 }}>
+                    <Delete sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
           </>
-        ) : null}
+        )}
       </Box>
 
-      {/* Progress bar */}
+      {/* Thin progress bar */}
       {total > 0 && (
-        <Box sx={{ px: 2, pt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ px: 1, pb: 0.5 }}>
           <LinearProgress
             variant="determinate"
             value={progress}
-            sx={{ flex: 1, height: 6, borderRadius: 3 }}
+            sx={{ height: 3, borderRadius: 2 }}
             color={progress === 100 ? 'success' : 'primary'}
           />
-          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-            {ct.progress(done, total)}
-          </Typography>
         </Box>
       )}
 
       {/* Items */}
       <Collapse in={expanded}>
-        <Box sx={{ px: 1, pb: 1 }}>
+        <Box sx={{ pb: 0.5, pl: 0.5 }}>
           {items.map((item) => (
             <Box
               key={item.id}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                py: 0.25,
+                py: 0.1,
                 '&:hover .item-actions': { opacity: 1 },
               }}
             >
@@ -300,9 +279,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                 <Tooltip
                   title={ct.checkedBy(
                     item.checkedByName,
-                    item.checkedAt
-                      ? new Date(item.checkedAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
-                      : ''
+                    item.checkedAt ? new Date(item.checkedAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : ''
                   )}
                   arrow
                 >
@@ -310,8 +287,8 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                     size="small"
                     checked={item.checked}
                     onChange={() => handleToggleItem(item.id, item.checked)}
-                    icon={<CheckBoxOutlineBlank fontSize="small" />}
-                    sx={{ p: 0.5 }}
+                    icon={<CheckBoxOutlineBlank sx={{ fontSize: 16 }} />}
+                    sx={{ p: 0.4 }}
                     disabled={editingItemId === item.id}
                   />
                 </Tooltip>
@@ -320,8 +297,8 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                   size="small"
                   checked={item.checked}
                   onChange={() => handleToggleItem(item.id, item.checked)}
-                  icon={<CheckBoxOutlineBlank fontSize="small" />}
-                  sx={{ p: 0.5 }}
+                  icon={<CheckBoxOutlineBlank sx={{ fontSize: 16 }} />}
+                  sx={{ p: 0.4 }}
                   disabled={editingItemId === item.id}
                 />
               )}
@@ -340,11 +317,12 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                     autoFocus
                     disabled={updateItem.isPending}
                     variant="standard"
+                    sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
                   />
-                  <Button size="small" onClick={() => handleRenameItem(item.id)} disabled={!editingItemText.trim() || updateItem.isPending}>
+                  <Button size="small" onClick={() => handleRenameItem(item.id)} disabled={!editingItemText.trim() || updateItem.isPending} sx={{ fontSize: 12, minWidth: 0, px: 1 }}>
                     {ct.save}
                   </Button>
-                  <Button size="small" onClick={() => { setEditingItemId(null); setEditingItemText(''); }}>
+                  <Button size="small" onClick={() => { setEditingItemId(null); setEditingItemText(''); }} sx={{ fontSize: 12, minWidth: 0, px: 1 }}>
                     {ct.cancel}
                   </Button>
                 </Box>
@@ -354,7 +332,8 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                     variant="body2"
                     sx={{
                       flex: 1,
-                      ml: 0.5,
+                      ml: 0.25,
+                      fontSize: 13,
                       textDecoration: item.checked ? 'line-through' : 'none',
                       color: item.checked ? 'text.disabled' : 'text.primary',
                     }}
@@ -366,35 +345,28 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                       <>
                         <Tooltip title={ct.moveUp}>
                           <span>
-                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'up')} disabled={items.indexOf(item) === 0 || updateItem.isPending}>
-                              <ArrowUpward sx={{ fontSize: 13 }} />
+                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'up')} disabled={items.indexOf(item) === 0 || updateItem.isPending} sx={{ p: 0.25 }}>
+                              <ArrowUpward sx={{ fontSize: 12 }} />
                             </IconButton>
                           </span>
                         </Tooltip>
                         <Tooltip title={ct.moveDown}>
                           <span>
-                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'down')} disabled={items.indexOf(item) === itemCount - 1 || updateItem.isPending}>
-                              <ArrowDownward sx={{ fontSize: 13 }} />
+                            <IconButton size="small" onClick={() => handleReorderItem(item.id, 'down')} disabled={items.indexOf(item) === itemCount - 1 || updateItem.isPending} sx={{ p: 0.25 }}>
+                              <ArrowDownward sx={{ fontSize: 12 }} />
                             </IconButton>
                           </span>
                         </Tooltip>
                         <Tooltip title={ct.renameItem}>
-                          <IconButton
-                            size="small"
-                            onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }}
-                          >
-                            <EditOutlined sx={{ fontSize: 14 }} />
+                          <IconButton size="small" onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }} sx={{ p: 0.25 }}>
+                            <EditOutlined sx={{ fontSize: 12 }} />
                           </IconButton>
                         </Tooltip>
                       </>
                     )}
                     <Tooltip title={ct.deleteItem}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteItem(item.id)}
-                      >
-                        <Delete sx={{ fontSize: 14 }} />
+                      <IconButton size="small" color="error" onClick={() => handleDeleteItem(item.id)} sx={{ p: 0.25 }}>
+                        <Delete sx={{ fontSize: 12 }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
@@ -405,7 +377,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
 
           {/* Add item row */}
           {addingItem ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pl: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, pl: 0.5 }}>
               <TextField
                 size="small"
                 fullWidth
@@ -415,20 +387,21 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setNewItemText(''); } }}
                 autoFocus
                 disabled={addItem.isPending}
+                sx={{ '& .MuiInputBase-input': { py: '4px', fontSize: 13 } }}
               />
-              <Button size="small" variant="contained" onClick={handleAddItem} disabled={!newItemText.trim() || addItem.isPending}>
-                {addItem.isPending ? <CircularProgress size={14} color="inherit" /> : ct.save}
+              <Button size="small" variant="contained" onClick={handleAddItem} disabled={!newItemText.trim() || addItem.isPending} sx={{ minWidth: 0, px: 1.5, fontSize: 12 }}>
+                {addItem.isPending ? <CircularProgress size={12} color="inherit" /> : ct.save}
               </Button>
-              <Button size="small" onClick={() => { setAddingItem(false); setNewItemText(''); }}>
+              <Button size="small" onClick={() => { setAddingItem(false); setNewItemText(''); }} sx={{ minWidth: 0, px: 1, fontSize: 12 }}>
                 {ct.cancel}
               </Button>
             </Box>
           ) : (
             <Button
               size="small"
-              startIcon={<Add />}
+              startIcon={<Add sx={{ fontSize: '14px !important' }} />}
               onClick={() => setAddingItem(true)}
-              sx={{ mt: 0.5, ml: 0.5 }}
+              sx={{ mt: 0.25, ml: 0.25, fontSize: 12, px: 1, py: 0.25, textTransform: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
             >
               {ct.addItem}
             </Button>
@@ -438,7 +411,7 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
 
       {/* Delete checklist confirm */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
           <Delete /> {ct.deleteChecklistTitle}
         </DialogTitle>
         <DialogContent>
@@ -496,10 +469,7 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
       setTemplatesLoading(true);
       try {
         const res = await fetch('/api/checklist-templates', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setTemplates(data);
-        }
+        if (res.ok) setTemplates(await res.json());
       } catch {
         // swallow
       } finally {
@@ -512,10 +482,7 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
     setTemplateMenuAnchor(null);
     setApplyingTemplateId(templateId);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}/checklists/from-template/${templateId}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const res = await fetch(`/api/tickets/${ticketId}/checklists/from-template/${templateId}`, { method: 'POST', credentials: 'include' });
       if (!res.ok) throw new Error('Failed');
       invalidate();
     } catch {
@@ -557,118 +524,108 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
 
   if (isLoading) {
     return (
-      <Card>
-        <Box p={2} display="flex" justifyContent="center">
-          <CircularProgress size={20} />
-        </Box>
-      </Card>
+      <Box display="flex" justifyContent="center" py={2}>
+        <CircularProgress size={18} />
+      </Box>
     );
   }
 
   return (
-    <Card>
-      <Box p={{ xs: 1.5, sm: 2.5 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={checklists.length > 0 || isAdmin ? 2 : 0} flexWrap="wrap" gap={1}>
-          <Typography variant="h6" fontWeight={700} fontSize={{ xs: 15, sm: 17 }}>
-            {ct.sectionTitle}
-          </Typography>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Tooltip title={ct.addFromTemplateTitle}>
-              <Button
-                size="small"
-                startIcon={applyingTemplateId ? <CircularProgress size={14} color="inherit" /> : <PlaylistAdd />}
-                onClick={openTemplateMenu}
-                disabled={applyingTemplateId != null}
-                variant="outlined"
-              >
-                {ct.addFromTemplate}
-              </Button>
-            </Tooltip>
-            {!addingChecklist && (
-              <Button
-                size="small"
-                startIcon={<Add />}
-                onClick={() => setAddingChecklist(true)}
-              >
-                {ct.addChecklist}
-              </Button>
-            )}
-          </Box>
-        </Box>
-
-        {/* Template picker menu */}
-        <Menu
-          anchorEl={templateMenuAnchor}
-          open={Boolean(templateMenuAnchor)}
-          onClose={() => setTemplateMenuAnchor(null)}
-          PaperProps={{ sx: { minWidth: 240, maxHeight: 320 } }}
-        >
-          {templatesLoading ? (
-            <MenuItem disabled><CircularProgress size={16} sx={{ mr: 1 }} /> {ct.addFromTemplateTitle}…</MenuItem>
-          ) : templates.length === 0 ? (
-            <MenuItem disabled>{ct.noTemplatesAvailable}</MenuItem>
-          ) : (
-            templates.map((tpl) => (
-              <MenuItem key={tpl.id} onClick={() => handleApplyTemplate(tpl.id)}>
-                <Box>
-                  <Typography variant="body2" fontWeight={600}>{tpl.title}</Typography>
-                  {tpl.category && (
-                    <Typography variant="caption" color="text.secondary">{tpl.category}</Typography>
-                  )}
-                </Box>
-              </MenuItem>
-            ))
-          )}
-        </Menu>
-
-        {checklists.length === 0 && !addingChecklist && (
-          <Typography variant="body2" color="text.secondary" textAlign="center" py={1}>
-            {ct.noChecklists}
-          </Typography>
-        )}
-
-        <Box display="flex" flexDirection="column" gap={1.5}>
-          {([...(checklists as ChecklistWithItems[])].sort((a, b) => a.position - b.position)).map((cl, idx, arr) => (
-            <SingleChecklist
-              key={cl.id}
-              checklist={cl}
-              ticketId={ticketId}
-              isAdmin={isAdmin}
-              onError={setErrorMsg}
-              onDeleted={() => invalidate()}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < arr.length - 1}
-              onMoveUp={() => handleReorderChecklist(cl.id, 'up')}
-              onMoveDown={() => handleReorderChecklist(cl.id, 'down')}
-            />
-          ))}
-        </Box>
-
-        {addingChecklist && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: checklists.length > 0 ? 1.5 : 0 }}>
-            <TextField
+    <Box>
+      {/* Section header */}
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+        <Typography variant="body2" fontWeight={700} fontSize={13} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {ct.sectionTitle}
+        </Typography>
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Tooltip title={ct.addFromTemplateTitle}>
+            <IconButton
               size="small"
-              fullWidth
-              placeholder={ct.checklistTitlePlaceholder}
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setAddingChecklist(false); setNewTitle(''); } }}
-              autoFocus
-              disabled={createChecklist.isPending}
-            />
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleCreate}
-              disabled={!newTitle.trim() || createChecklist.isPending}
+              onClick={openTemplateMenu}
+              disabled={applyingTemplateId != null}
+              sx={{ p: 0.5 }}
             >
-              {createChecklist.isPending ? <CircularProgress size={14} color="inherit" /> : ct.save}
-            </Button>
-            <Button size="small" onClick={() => { setAddingChecklist(false); setNewTitle(''); }}>
-              {ct.cancel}
-            </Button>
-          </Box>
+              {applyingTemplateId ? <CircularProgress size={14} color="inherit" /> : <PlaylistAdd sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={ct.addChecklist}>
+            <IconButton size="small" onClick={() => setAddingChecklist(true)} disabled={addingChecklist} sx={{ p: 0.5 }}>
+              <Add sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+
+      {/* Template picker menu */}
+      <Menu
+        anchorEl={templateMenuAnchor}
+        open={Boolean(templateMenuAnchor)}
+        onClose={() => setTemplateMenuAnchor(null)}
+        PaperProps={{ sx: { minWidth: 220, maxHeight: 300 } }}
+      >
+        {templatesLoading ? (
+          <MenuItem disabled><CircularProgress size={14} sx={{ mr: 1 }} /> {ct.addFromTemplateTitle}…</MenuItem>
+        ) : templates.length === 0 ? (
+          <MenuItem disabled>{ct.noTemplatesAvailable}</MenuItem>
+        ) : (
+          templates.map((tpl) => (
+            <MenuItem key={tpl.id} onClick={() => handleApplyTemplate(tpl.id)} dense>
+              <Box>
+                <Typography variant="body2" fontWeight={600} fontSize={13}>{tpl.title}</Typography>
+                {tpl.category && (
+                  <Typography variant="caption" color="text.secondary" fontSize={11}>{tpl.category}</Typography>
+                )}
+              </Box>
+            </MenuItem>
+          ))
         )}
+      </Menu>
+
+      {/* New checklist name row */}
+      {addingChecklist && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder={ct.checklistTitlePlaceholder}
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setAddingChecklist(false); setNewTitle(''); } }}
+            autoFocus
+            disabled={createChecklist.isPending}
+            sx={{ '& .MuiInputBase-input': { py: '5px', fontSize: 13 } }}
+          />
+          <Button size="small" variant="contained" onClick={handleCreate} disabled={!newTitle.trim() || createChecklist.isPending} sx={{ minWidth: 0, px: 1.5, fontSize: 12 }}>
+            {createChecklist.isPending ? <CircularProgress size={12} color="inherit" /> : ct.save}
+          </Button>
+          <Button size="small" onClick={() => { setAddingChecklist(false); setNewTitle(''); }} sx={{ minWidth: 0, px: 1, fontSize: 12 }}>
+            {ct.cancel}
+          </Button>
+        </Box>
+      )}
+
+      {/* Checklist list */}
+      {checklists.length === 0 && !addingChecklist && (
+        <Typography variant="body2" color="text.secondary" fontSize={12} sx={{ py: 0.5 }}>
+          {ct.noChecklists}
+        </Typography>
+      )}
+
+      <Box>
+        {([...(checklists as ChecklistWithItems[])].sort((a, b) => a.position - b.position)).map((cl, idx, arr) => (
+          <SingleChecklist
+            key={cl.id}
+            checklist={cl}
+            ticketId={ticketId}
+            isAdmin={isAdmin}
+            onError={setErrorMsg}
+            onDeleted={() => invalidate()}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < arr.length - 1}
+            onMoveUp={() => handleReorderChecklist(cl.id, 'up')}
+            onMoveDown={() => handleReorderChecklist(cl.id, 'down')}
+          />
+        ))}
       </Box>
 
       <Snackbar
@@ -681,6 +638,6 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
           {errorMsg}
         </Alert>
       </Snackbar>
-    </Card>
+    </Box>
   );
 }
