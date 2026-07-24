@@ -66,8 +66,8 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
 function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Box sx={{ py: '9px', borderBottom: '1px solid #f5f5f5' }}>
-      <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 13, color: '#212121' }}>{children}</Box>
+      <Box sx={{ fontSize: 9, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
+      <Box sx={{ fontSize: 11, color: '#212121' }}>{children}</Box>
     </Box>
   );
 }
