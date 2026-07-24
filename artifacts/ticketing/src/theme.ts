@@ -83,7 +83,7 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
     divider: mode === 'light' ? '#f3f4f6' : '#1f2937',
   },
   typography: {
-    fontFamily: '"Plus Jakarta Sans", "Inter", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
     h1: { fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em' },
     h2: { fontSize: '2rem',   fontWeight: 800, letterSpacing: '-0.02em' },
     h3: { fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.01em' },
