@@ -2,16 +2,19 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/calendar-variants/MonthlyCalendar.tsx": () => import("../components/mockups/calendar-variants/MonthlyCalendar.tsx"),
-  "./components/mockups/landing-variants/DarkBold.tsx": () => import("../components/mockups/landing-variants/DarkBold.tsx"),
-  "./components/mockups/landing-variants/VividAnimated.tsx": () => import("../components/mockups/landing-variants/VividAnimated.tsx"),
-  "./components/mockups/login-variants/GlassCard.tsx": () => import("../components/mockups/login-variants/GlassCard.tsx"),
-  "./components/mockups/login-variants/SplitScreen.tsx": () => import("../components/mockups/login-variants/SplitScreen.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Slate.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Slate.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Teal.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Teal.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Violet.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Violet.tsx"),
   "./components/mockups/client-detail-variants/SidebarSummary.tsx": () => import("../components/mockups/client-detail-variants/SidebarSummary.tsx"),
   "./components/mockups/client-detail-variants/TabNav.tsx": () => import("../components/mockups/client-detail-variants/TabNav.tsx"),
+  "./components/mockups/landing-variants/DarkBold.tsx": () => import("../components/mockups/landing-variants/DarkBold.tsx"),
+  "./components/mockups/landing-variants/VividAnimated.tsx": () => import("../components/mockups/landing-variants/VividAnimated.tsx"),
+  "./components/mockups/login-variants/GlassCard.tsx": () => import("../components/mockups/login-variants/GlassCard.tsx"),
+  "./components/mockups/login-variants/SplitScreen.tsx": () => import("../components/mockups/login-variants/SplitScreen.tsx"),
+  "./components/mockups/ticket-variants/CurrentStyle.tsx": () => import("../components/mockups/ticket-variants/CurrentStyle.tsx"),
+  "./components/mockups/ticket-variants/PriorityBar.tsx": () => import("../components/mockups/ticket-variants/PriorityBar.tsx"),
+  "./components/mockups/ticket-variants/RichCards.tsx": () => import("../components/mockups/ticket-variants/RichCards.tsx"),
   "./components/mockups/new-ticket-variants/CardSections.tsx": () => import("../components/mockups/new-ticket-variants/CardSections.tsx"),
   "./components/mockups/new-ticket-variants/CompactPower.tsx": () => import("../components/mockups/new-ticket-variants/CompactPower.tsx"),
   "./components/mockups/new-ticket-variants/SplitImmersive.tsx": () => import("../components/mockups/new-ticket-variants/SplitImmersive.tsx"),
@@ -23,8 +26,5 @@ export const modules: ModuleMap = {
   "./components/mockups/ticket-detail-variants/HybridAE.tsx": () => import("../components/mockups/ticket-detail-variants/HybridAE.tsx"),
   "./components/mockups/ticket-detail-variants/MinimalClean.tsx": () => import("../components/mockups/ticket-detail-variants/MinimalClean.tsx"),
   "./components/mockups/ticket-detail-variants/SidebarLayout.tsx": () => import("../components/mockups/ticket-detail-variants/SidebarLayout.tsx"),
-  "./components/mockups/ticket-detail-variants/TimelineView.tsx": () => import("../components/mockups/ticket-detail-variants/TimelineView.tsx"),
-  "./components/mockups/ticket-variants/CurrentStyle.tsx": () => import("../components/mockups/ticket-variants/CurrentStyle.tsx"),
-  "./components/mockups/ticket-variants/PriorityBar.tsx": () => import("../components/mockups/ticket-variants/PriorityBar.tsx"),
-  "./components/mockups/ticket-variants/RichCards.tsx": () => import("../components/mockups/ticket-variants/RichCards.tsx")
+  "./components/mockups/ticket-detail-variants/TimelineView.tsx": () => import("../components/mockups/ticket-detail-variants/TimelineView.tsx")
 };
