@@ -579,17 +579,6 @@ export default function NewTicket() {
                   </SideSection>
                 )}
 
-                {/* Resource */}
-                <SideSection>
-                  <SideLabel>{t.newTicket.resourceField}</SideLabel>
-                  <TextField
-                    fullWidth size="small"
-                    value={formData.resource}
-                    onChange={e => setFormData({ ...formData, resource: e.target.value })}
-                    placeholder={t.newTicket.resourcePlaceholder}
-                  />
-                </SideSection>
-
                 {/* Due date */}
                 <SideSection>
                   <SideLabel>{t.newTicket.dueAtField}</SideLabel>
