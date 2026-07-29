@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
+import { logger } from "../lib/logger";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
 import { getTrialStatus } from "../lib/trialStatus";
@@ -246,6 +247,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       registeredViaInvite: usersTable.registeredViaInvite,
       entitySingular: organizationsTable.entitySingular,
       entityPlural: organizationsTable.entityPlural,
+      lastLoginAt: usersTable.lastLoginAt,
     })
     .from(usersTable)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
@@ -261,6 +263,16 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     if (sessionId) await destroySession(sessionId);
     res.status(401).json({ error: "Account disabled" });
     return;
+  }
+
+  // Refresh lastLoginAt at most once per day (fire-and-forget — does not block the response).
+  // This covers users who stay logged in via session cookie without going through the login form.
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (!row.lastLoginAt || row.lastLoginAt < oneDayAgo) {
+    db.update(usersTable)
+      .set({ lastLoginAt: sql`now()` })
+      .where(eq(usersTable.id, userId))
+      .catch((err: unknown) => logger.error({ err }, "Failed to refresh lastLoginAt on auth/me"));
   }
 
   // Collect all permissions the user has through group memberships (scoped to the user's org)
