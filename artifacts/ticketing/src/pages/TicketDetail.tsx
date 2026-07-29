@@ -448,15 +448,44 @@ export default function TicketDetail() {
     setEditSaving(true);
     setEditError(null);
     try {
+      const existingClientId = (ticket as any).clientId ?? null;
+      const newClientId = editForm.clientId ? parseInt(editForm.clientId) : null;
+
+      // Mirror the NewTicket behaviour: if a client is being assigned where there was none,
+      // prefix the title with the client name (or alias). If the client changes, swap the prefix.
+      let finalTitle = editForm.title;
+      if (newClientId) {
+        const selectedClient = clientsList.find((c) => c.id === newClientId);
+        if (selectedClient) {
+          const prefix = `${(selectedClient as any).alias || selectedClient.name}: `;
+          if (!existingClientId) {
+            // No client before → add prefix
+            finalTitle = `${prefix}${editForm.title}`;
+          } else if (existingClientId !== newClientId) {
+            // Different client → replace old prefix if present, otherwise prepend
+            const oldClient = clientsList.find((c) => c.id === existingClientId);
+            if (oldClient) {
+              const oldPrefix = `${(oldClient as any).alias || oldClient.name}: `;
+              finalTitle = editForm.title.startsWith(oldPrefix)
+                ? `${prefix}${editForm.title.slice(oldPrefix.length)}`
+                : `${prefix}${editForm.title}`;
+            } else {
+              finalTitle = `${prefix}${editForm.title}`;
+            }
+          }
+          // same client → title unchanged
+        }
+      }
+
       await updateTicket.mutateAsync({
         id: ticketId,
         data: {
-          title: editForm.title,
+          title: finalTitle,
           description: editForm.description,
           category: editForm.category,
           location: editForm.location,
           resource: editForm.resource || undefined,
-          clientId: editForm.clientId ? parseInt(editForm.clientId) : null,
+          clientId: newClientId,
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
