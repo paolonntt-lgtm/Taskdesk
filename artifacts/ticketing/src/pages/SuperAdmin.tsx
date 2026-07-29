@@ -50,8 +50,8 @@ function formatDate(iso: string | null, locale: string): string {
   return new Date(iso).toLocaleDateString(locale);
 }
 
-function formatDateTime(iso: string | null, locale: string): string {
-  if (!iso) return 'Mai';
+function formatDateTime(iso: string | null, locale: string, never: string): string {
+  if (!iso) return never;
   return new Date(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
 }
 
@@ -346,7 +346,7 @@ export default function SuperAdmin() {
                                 variant="caption"
                                 sx={{ color: u.lastLoginAt ? 'success.main' : 'text.disabled' }}
                               >
-                                {formatDateTime(u.lastLoginAt, dateLocale)}
+                                {formatDateTime(u.lastLoginAt, dateLocale, sa.lastLoginNever)}
                               </Typography>
                             </Box>
                           </Tooltip>
