@@ -368,6 +368,27 @@ router.patch("/settings/client-layout", requireAuth, requireAdmin, async (req, r
   res.json({ layout: normalized });
 });
 
+// ── EMAIL NOTIFICATIONS ────────────────────────────────────────────────────
+
+router.get("/settings/email-notifications", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  const [org] = await db.select({ sendClosureEmail: organizationsTable.sendClosureEmail }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  if (!org) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  res.json({ sendClosureEmail: org.sendClosureEmail });
+});
+
+router.put("/settings/email-notifications", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
+  const { sendClosureEmail } = req.body ?? {};
+  if (typeof sendClosureEmail !== "boolean") { res.status(400).json({ message: "sendClosureEmail deve essere un booleano" }); return; }
+  await db.update(organizationsTable).set({ sendClosureEmail }).where(eq(organizationsTable.id, orgId));
+  res.json({ sendClosureEmail });
+});
+
 // ── OUTBOUND EMAIL (SMTP) ──────────────────────────────────────────────────
 
 router.get("/settings/outbound-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {

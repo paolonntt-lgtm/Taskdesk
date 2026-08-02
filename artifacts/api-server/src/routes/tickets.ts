@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt, asc } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
@@ -738,7 +738,14 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     const notifLabel = statusChangeLabel ?? updates.status!;
     await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato lo stato del ticket #${displayNum} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
 
-    if (newIsClosed && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
+    // Check org preference before sending closure email
+    let orgSendClosureEmail = true;
+    if (orgId != null) {
+      const [orgPref] = await db.select({ sendClosureEmail: organizationsTable.sendClosureEmail }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
+      orgSendClosureEmail = orgPref?.sendClosureEmail ?? true;
+    }
+
+    if (orgSendClosureEmail && newIsClosed && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {
       const customerEmail = existing.resource;
       const ticketNum = existing.ticketNumber ?? existing.id;
       void (async () => {

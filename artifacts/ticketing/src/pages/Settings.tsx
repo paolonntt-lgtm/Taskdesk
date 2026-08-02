@@ -2260,7 +2260,67 @@ function EmailChannelsTab() {
         </DialogActions>
       </Dialog>
     </Section>
+    <Box mt={4} />
+    <ClosureEmailSection />
     </>
+  );
+}
+
+// ── CLOSURE EMAIL TOGGLE ──────────────────────────────────────────────────
+function ClosureEmailSection() {
+  const { t } = useLanguage();
+  const [enabled, setEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings/email-notifications', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (typeof d.sendClosureEmail === 'boolean') setEnabled(d.sendClosureEmail); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async (value: boolean) => {
+    setSaving(true); setMsg(null);
+    try {
+      const res = await fetch('/api/settings/email-notifications', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendClosureEmail: value }),
+      });
+      if (!res.ok) throw new Error();
+      setEnabled(value);
+      setMsg({ type: 'success', text: t.settings.closureEmailSaved });
+    } catch {
+      setMsg({ type: 'error', text: t.settings.closureEmailError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <Section title={t.settings.closureEmailSectionTitle} icon={<MailOutline color="primary" />}>
+      <Typography variant="body2" color="text.secondary" mb={2}>
+        {t.settings.closureEmailDesc}
+      </Typography>
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+      <Box display="flex" alignItems="center" gap={1.5}>
+        <Switch
+          checked={enabled}
+          disabled={saving}
+          onChange={(e) => save(e.target.checked)}
+          color="primary"
+        />
+        <Typography variant="body2" fontWeight={500}>
+          {t.settings.closureEmailLabel}
+        </Typography>
+        {saving && <CircularProgress size={16} />}
+      </Box>
+    </Section>
   );
 }
 
