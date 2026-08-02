@@ -55,7 +55,8 @@ function toLocalDatetimeInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n([\s\S]*)$/;
+// Matches both legacy format (header\n\nbody) and new format (header\n\n---\n\nbody)
+const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n(?:---\n\n)?([\s\S]*)$/;
 function parseCustomerReply(text: string): { name: string; email: string; body: string } | null {
   const m = CUSTOMER_REPLY_RE.exec(text);
   if (!m) return null;

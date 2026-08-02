@@ -260,6 +260,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const description = [
     `${channelIcon} ${channelLabel}: ${senderLabel}`,
     "",
+    "---",
+    "",
     bodyText || "(nessun testo)",
   ].join("\n");
 
@@ -418,6 +420,8 @@ async function threadReplyAsComment(
   const cleanBody = stripEmailQuotes(bodyText || "").trim() || "(nessun testo)";
   const commentText = [
     `📧 **Risposta del cliente** — da: ${fromName} <${fromEmail}>`,
+    "",
+    "---",
     "",
     cleanBody,
   ].join("\n");
