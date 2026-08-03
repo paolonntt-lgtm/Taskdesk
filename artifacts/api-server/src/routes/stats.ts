@@ -477,6 +477,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
       .from(usersTable)
       .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
@@ -487,8 +488,8 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketCommentsTable,
         and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .innerJoin(ticketsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
-      .where(and(userOrgFilter, eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
   ]);
@@ -593,6 +594,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
     })
       .from(usersTable)
       .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
+      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
@@ -608,8 +610,8 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketCommentsTable,
         and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .innerJoin(ticketsTable, eq(ticketCommentsTable.ticketId, ticketsTable.id))
-      .where(and(userOrgFilter, eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
       .limit(5),

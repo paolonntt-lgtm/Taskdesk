@@ -76,12 +76,14 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
   // Always filter by organization
-  if (orgId != null) conditions.push(eq(ticketsTable.organizationId, orgId));
+  conditions.push(eq(ticketsTable.organizationId, orgId));
 
   // Scheduled filter: when scheduled=true show only future-scheduled tickets; otherwise hide them
   if (scheduled === 'true') {
@@ -286,6 +288,8 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
+  if (currentUser.organizationId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const { title, description, category, location, resource, priority, assignedTo, assignedToGroup, dueAt, clientId } = parsed.data;
 
   if (assignedTo) {
@@ -458,6 +462,8 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
     return;
@@ -466,7 +472,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [ticket] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+      eq(ticketsTable.organizationId, orgId)
     )
   );
   if (!ticket) {
@@ -514,6 +520,8 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   const isAdmin = currentUser.role === "admin";
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
     return;
@@ -533,7 +541,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [existing] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+      eq(ticketsTable.organizationId, orgId)
     )
   );
   if (!existing) {
@@ -720,7 +728,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [updated] = await db
     .update(ticketsTable)
     .set({ ...updates, updatedAt: new Date() })
-    .where(eq(ticketsTable.id, id))
+    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
     .returning();
 
   for (const log of activityLogs) {
@@ -862,6 +870,8 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
     return;
@@ -870,7 +880,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
   const { scheduledAt } = (req.body ?? {}) as { scheduledAt?: string | null };
 
   const [existing] = await db.select().from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId))
   );
   if (!existing) {
     res.status(404).json({ error: "Ticket not found" });
@@ -975,8 +985,10 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
   }
   const interval = Math.max(1, Math.round(Number(rawInterval) || 1));
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const [existing] = await db.select().from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId))
   );
   if (!existing) {
     res.status(404).json({ error: "Ticket not found" });
@@ -989,7 +1001,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
 
   const [updated] = await db.update(ticketsTable)
     .set({ recurrenceRule: rule, recurrenceNextAt: nextAt, updatedAt: new Date() })
-    .where(eq(ticketsTable.id, id))
+    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
     .returning();
 
   await db.insert(ticketActivityLogsTable).values({
@@ -1088,8 +1100,10 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
     return;
   }
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const [existing] = await db.select().from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId))
   );
   if (!existing) {
     res.status(404).json({ error: "Ticket not found" });
@@ -1098,7 +1112,7 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
 
   const [updated] = await db.update(ticketsTable)
     .set({ recurrenceRule: null, recurrenceNextAt: null, updatedAt: new Date() })
-    .where(eq(ticketsTable.id, id))
+    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
     .returning();
 
   await db.insert(ticketActivityLogsTable).values({
@@ -1128,11 +1142,13 @@ router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promi
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [existing] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
+      eq(ticketsTable.organizationId, orgId)
     )
   );
   if (!existing) {
