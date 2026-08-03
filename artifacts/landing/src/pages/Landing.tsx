@@ -447,6 +447,7 @@ export default function Landing() {
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="TaskDesk" />
         <meta property="og:locale" content={lang === 'en' ? 'en_US' : 'it_IT'} />
+        <meta property="og:locale:alternate" content={lang === 'en' ? 'it_IT' : 'en_US'} />
         <meta property="og:title" content={t.seo.ogTitle} />
         <meta property="og:description" content={t.seo.ogDescription} />
         <meta property="og:image" content={`${SITE_BASE}/opengraph.jpg`} />

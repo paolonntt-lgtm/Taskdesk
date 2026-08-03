@@ -14,8 +14,10 @@ function readTemplate() {
  * Remove all dynamic head tags from the template that will be injected
  * via the collected Helmet context from SSR. Static tags (charset, viewport,
  * theme-color, GA script, favicon, preconnects, fonts, og:type, og:site_name,
- * og:image:width/height/alt, og:locale:alternate, twitter:card,
- * twitter:image:alt) are left in place — they never vary per-route.
+ * og:image:width/height/alt, twitter:card, twitter:image:alt) are left in
+ * place — they never vary per-route. og:locale:alternate is stripped here
+ * because it differs between /it/ and /en/ and is injected per-locale by
+ * the Landing component's <Helmet> block.
  */
 function stripDynamicHeadTags(html) {
   let h = html;
@@ -32,8 +34,9 @@ function stripDynamicHeadTags(html) {
   h = h.replace(/\s*<meta property="og:description"[^>]*\/?>/gi, '');
   // og:image (not og:image:width / og:image:height / og:image:alt)
   h = h.replace(/\s*<meta property="og:image"(?!:)[^>]*\/?>/gi, '');
-  // og:locale (not og:locale:alternate)
-  h = h.replace(/\s*<meta property="og:locale"(?!:)[^>]*\/?>/gi, '');
+  // og:locale and og:locale:alternate (both vary per locale)
+  h = h.replace(/\s*<meta property="og:locale"[^>]*\/?>/gi, '');
+  h = h.replace(/\s*<meta property="og:locale:alternate"[^>]*\/?>/gi, '');
   // twitter:title / twitter:description / twitter:image (not twitter:image:alt or twitter:card)
   h = h.replace(/\s*<meta name="twitter:title"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:description"[^>]*\/?>/gi, '');
