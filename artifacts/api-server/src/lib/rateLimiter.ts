@@ -70,3 +70,17 @@ export const botChatRateLimiter = rateLimit({
   },
   message: { message: "Troppe richieste al bot. Riprova tra qualche secondo." },
 });
+
+/**
+ * Inbound-email webhook: 60 requests per minute per IP.
+ * The endpoint is protected by a shared secret token, but rate-limiting
+ * limits the blast radius if that token is ever compromised — an attacker
+ * can no longer flood thousands of tickets per minute from a single IP.
+ */
+export const inboundEmailRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});

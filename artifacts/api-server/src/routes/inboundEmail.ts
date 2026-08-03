@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
+import { timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, inboundEmailChannelsTable } from "@workspace/db";
 import { processInboundEmail } from "../lib/ticketFromEmail";
+import { inboundEmailRateLimiter } from "../lib/rateLimiter";
 import type { InboundAttachment } from "../lib/ticketFromEmail";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -213,7 +215,7 @@ function extractTextAndAttachments(body: any): {
   return { text: "", attachments: [] };
 }
 
-router.post("/inbound-email", async (req, res): Promise<void> => {
+router.post("/inbound-email", inboundEmailRateLimiter, async (req, res): Promise<void> => {
   const expectedToken = process.env.INBOUND_EMAIL_TOKEN;
 
   // Normalise the received token: the Cloudflare Worker may send the value
@@ -228,8 +230,16 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     return;
   }
 
-  if (receivedToken !== expectedToken) {
-    req.log.warn({ received: receivedToken, raw: rawToken }, "Invalid inbound email token");
+  // Use timing-safe comparison to prevent character-by-character timing oracle.
+  // Both buffers must be the same length; if not, the token is definitively wrong.
+  const expectedBuf = Buffer.from(expectedToken, "utf8");
+  const receivedBuf = Buffer.from(receivedToken, "utf8");
+  const tokenValid =
+    expectedBuf.length === receivedBuf.length &&
+    timingSafeEqual(expectedBuf, receivedBuf);
+
+  if (!tokenValid) {
+    req.log.warn({ raw: rawToken }, "Invalid inbound email token");
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
