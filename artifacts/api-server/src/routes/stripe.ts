@@ -101,7 +101,7 @@ function maxAddonForPlan(planSeats: number | null, unlimited: boolean): number {
   return 0;
 }
 
-router.get('/stripe/seat-usage', requireAuth, async (req: any, res): Promise<void> => {
+router.get('/stripe/seat-usage', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     const maxAddonSeats = maxAddonForPlan(usage.planSeats, usage.unlimited);

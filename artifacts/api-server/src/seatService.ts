@@ -66,7 +66,7 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
   let subscriptionId: string | null = null;
   let subscriptionItemId: string | null = null;
   let status: string | null = null;
-  let unlimited = true;
+  let unlimited = false;
   let hasActiveSubscription = false;
 
   if (adminCustomerIds.length > 0) {
@@ -132,9 +132,11 @@ export async function getSeatUsage(organizationId: number | null): Promise<SeatU
         }
       }
     } catch (err) {
-      // Stripe failure → fail-open, no seat limit
+      // Stripe failure → fail-closed: propagate the error so callers return 503
+      // rather than silently granting unlimited seat access.
       // eslint-disable-next-line no-console
-      console.warn('[seatService] Stripe lookup failed, defaulting to unlimited:', (err as any)?.message);
+      console.warn('[seatService] Stripe lookup failed, rejecting seat check:', (err as any)?.message);
+      throw err;
     }
   }
 
