@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "992078706751",
-    "project_id": "taskdesk-ec527",
-    "storage_bucket": "taskdesk-ec527.firebasestorage.app"
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "project_id": "YOUR_PROJECT_ID",
+    "storage_bucket": "YOUR_PROJECT_ID.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:992078706751:android:4b3b19034935328ff0e08a",
+        "mobilesdk_app_id": "YOUR_MOBILESDK_APP_ID",
         "android_client_info": {
           "package_name": "com.taskdesk.mobile"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDeF7myn3dqfPnUr40YKygfFnMk9ahvCRs"
+          "current_key": "YOUR_FIREBASE_ANDROID_API_KEY"
         }
       ],
       "services": {
