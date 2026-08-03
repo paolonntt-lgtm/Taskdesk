@@ -39,3 +39,6 @@ yarn-error.*
 .vercel
 
 .env
+
+# Firebase — contains API keys; obtain from Firebase Console and do NOT commit
+google-services.json
