@@ -44,7 +44,7 @@ export default function CookiePolicy() {
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/">
-            <img src="/taskdesk-logo.png" alt="TaskDesk" style={{ height: 32, width: "auto", cursor: "pointer" }} />
+            <img src="/taskdesk-logo.webp" alt="TaskDesk" style={{ height: 32, width: "auto", cursor: "pointer" }} />
           </Link>
           <span style={{ color: "#9ca3af", fontSize: 14 }}>/ Cookie Policy</span>
         </div>
