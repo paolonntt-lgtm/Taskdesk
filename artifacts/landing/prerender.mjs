@@ -153,6 +153,12 @@ function generateLandingJsonLd(lang) {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "WebSite",
+        "name": "TaskDesk",
+        "url": "https://taskdesk.it",
+        "inLanguage": lang === "en" ? "en" : "it",
+      },
+      {
         "@type": "Organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
@@ -171,12 +177,6 @@ function generateLandingJsonLd(lang) {
           "highPrice": "100",
           "priceCurrency": "EUR",
           "offerCount": "4",
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.9",
-          "bestRating": "5",
-          "ratingCount": "47",
         },
       },
       {
