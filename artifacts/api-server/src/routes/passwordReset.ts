@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gt } from "drizzle-orm";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
 import { hashPassword } from "./auth";
 import { destroySessionsForUser } from "../lib/session";
@@ -10,6 +10,10 @@ import { logger } from "../lib/logger";
 import { forgotPasswordRateLimiter, resetPasswordRateLimiter } from "../lib/rateLimiter";
 
 const router: IRouter = Router();
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 router.post("/auth/forgot-password", forgotPasswordRateLimiter, async (req, res): Promise<void> => {
   const { email } = req.body ?? {};
@@ -39,7 +43,7 @@ router.post("/auth/forgot-password", forgotPasswordRateLimiter, async (req, res)
 
     await db.insert(passwordResetTokensTable).values({
       userId: user.id,
-      token,
+      token: hashToken(token),
       expiresAt,
     });
 
@@ -73,7 +77,7 @@ router.post("/auth/reset-password", resetPasswordRateLimiter, async (req, res): 
     .from(passwordResetTokensTable)
     .where(
       and(
-        eq(passwordResetTokensTable.token, token),
+        eq(passwordResetTokensTable.token, hashToken(token)),
         eq(passwordResetTokensTable.usedAt, null as any),
         gt(passwordResetTokensTable.expiresAt, new Date()),
       )
