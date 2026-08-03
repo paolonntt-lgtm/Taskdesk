@@ -414,12 +414,6 @@ export default function Landing() {
           "offerCount": String(t.pricing.plans.length),
           "description": offerDescription,
         },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.9",
-          "bestRating": "5",
-          "ratingCount": "47",
-        },
       },
       {
         "@type": "FAQPage",
