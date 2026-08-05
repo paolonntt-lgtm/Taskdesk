@@ -443,6 +443,7 @@ export default function Landing() {
         <link rel="alternate" hrefLang="it" href={`${SITE_BASE}/it/`} />
         <link rel="alternate" hrefLang="en" href={`${SITE_BASE}/en/`} />
         <link rel="alternate" hrefLang="x-default" href={`${SITE_BASE}/it/`} />
+        <link rel="manifest" href={`/${lang}/manifest.webmanifest`} />
         <meta property="og:url" content={`${SITE_BASE}/${lang}/`} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="TaskDesk" />

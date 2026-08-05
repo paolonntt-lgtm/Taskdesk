@@ -28,6 +28,8 @@ function stripDynamicHeadTags(html) {
   h = h.replace(/\s*<link rel="canonical"[^>]*\/?>/gi, '');
   // Remove all hreflang alternate links (vary per route/language)
   h = h.replace(/\s*<link rel="alternate"\s[^>]*hreflang[^>]*\/?>/gi, '');
+  // Remove the static generic manifest link; each locale injects its own via Helmet
+  h = h.replace(/\s*<link rel="manifest"[^>]*\/?>/gi, '');
   // Remove per-route og/twitter tags; keep static ones (type, site_name, image:*, locale:alternate)
   h = h.replace(/\s*<meta property="og:url"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta property="og:title"[^>]*\/?>/gi, '');
@@ -112,6 +114,8 @@ function stripHelmetFromBody(bodyHtml) {
   h = h.replace(/<link rel="canonical"[^>]*\/?>/gi, '');
   // <link rel="alternate" …hreflang… or …hrefLang… (SSR renders camelCase hrefLang)
   h = h.replace(/<link rel="alternate"\s[^>]*href[Ll]ang[^>]*\/?>/gi, '');
+  // <link rel="manifest" …/> (locale-aware manifest injected by Helmet; must only appear in <head>)
+  h = h.replace(/<link rel="manifest"[^>]*\/?>/gi, '');
   // <link rel="preload" …/> (Helmet sometimes renders logo/image preloads into body)
   h = h.replace(/<link rel="preload"[^>]*\/?>/gi, '');
 
