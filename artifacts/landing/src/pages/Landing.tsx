@@ -398,7 +398,10 @@ export default function Landing() {
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
         "logo": "https://taskdesk.it/taskdesk-logo.webp",
-        "sameAs": [],
+        "sameAs": [
+          "https://www.linkedin.com/company/taskdesk",
+          "https://twitter.com/taskdesk"
+        ],
       },
       {
         "@type": "SoftwareApplication",
