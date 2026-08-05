@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Real HTTP 302 redirects for bare (language-less) routes
+// 301 permanent redirects for bare (language-less) routes
 const BARE_REDIRECTS = {
   "/privacy-policy": "/it/privacy-policy",
   "/terms": "/it/terms",
@@ -41,7 +41,7 @@ const EN_LEGAL_REDIRECTS = {
 
 app.use((req, res, next) => {
   if (req.path === "/") {
-    return res.redirect(302, "/it/");
+    return res.redirect(301, "/it/");
   }
   const enLegalTarget = EN_LEGAL_REDIRECTS[req.path];
   if (enLegalTarget) {
@@ -49,7 +49,7 @@ app.use((req, res, next) => {
   }
   const target = BARE_REDIRECTS[req.path];
   if (target) {
-    return res.redirect(302, target);
+    return res.redirect(301, target);
   }
   next();
 });
