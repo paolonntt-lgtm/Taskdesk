@@ -1035,14 +1035,24 @@ function ClientNotesWidget() {
               </IconButton>
             </Box>
           )}
-          {!isLoading && rows.some(r => r.count > 0) && (
-            <Chip
-              label={rows.reduce((sum, r) => sum + r.count, 0)}
-              size="small"
-              color="primary"
-              sx={{ height: 18, fontSize: '0.65rem', ml: 'auto' }}
-            />
-          )}
+          {!isLoading && (() => {
+            const total = rows.reduce((sum, r) => sum + r.count, 0);
+            return (
+              <Chip
+                label={total}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: '0.65rem',
+                  ml: 'auto',
+                  bgcolor: total === 0 ? '#c8e6c9' : '#ffcdd2',
+                  color: total === 0 ? '#2e7d32' : '#c62828',
+                  fontWeight: 700,
+                  border: 'none',
+                }}
+              />
+            );
+          })()}
         </Box>
         <Divider sx={{ flexShrink: 0 }} />
         <Box sx={{ flex: 1, overflowY: 'auto' }}>
@@ -1084,9 +1094,15 @@ function ClientNotesWidget() {
                 <Chip
                   label={row.count}
                   size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ minWidth: 32, height: 20, fontSize: '0.7rem' }}
+                  sx={{
+                    minWidth: 32,
+                    height: 20,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    bgcolor: row.count === 0 ? '#c8e6c9' : '#ffcdd2',
+                    color: row.count === 0 ? '#2e7d32' : '#c62828',
+                    border: 'none',
+                  }}
                 />
               </Box>
             ))
