@@ -9,6 +9,7 @@ import {
   organizationsTable,
   clientsTable,
   clientNotesTable,
+  appointmentsTable,
   getDefaultStatuses,
 } from "@workspace/db";
 import { hashPassword } from "./auth";
@@ -18,6 +19,13 @@ const router: IRouter = Router();
 function daysAgo(n: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - n);
+  return d;
+}
+
+function daysFromNow(n: number, hour = 10, minute = 0): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  d.setHours(hour, minute, 0, 0);
   return d;
 }
 
@@ -421,6 +429,54 @@ async function seedStudioLegale(pw: string) {
       authorId: admin.id,
       commentText: "Parere in fase di redazione. Si consiglia procedura di licenziamento collettivo ex L. 223/91.",
       createdAt: daysAgo(2),
+    },
+  ]);
+
+  await db.insert(appointmentsTable).values([
+    {
+      organizationId: orgId,
+      title: "Udienza Tribunale di Milano — Causa Esposito",
+      description: "Deposito comparsa conclusionale e memoria di replica. Tribunale di Milano, Sezione IX Civile.",
+      startsAt: daysFromNow(3, 9, 30),
+      endsAt: daysFromNow(3, 12, 0),
+      createdBy: admin.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Firma compromesso — Immobiliare Visconti",
+      description: "Firma contratto di locazione commerciale in Corso Buenos Aires. Portare 2 copie del documento.",
+      startsAt: daysFromNow(5, 15, 0),
+      endsAt: daysFromNow(5, 16, 30),
+      createdBy: user1.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Colloquio Sig.ra Colombo — successione",
+      description: "Illustrare stato pratica di successione e raccogliere documenti mancanti sull'asse ereditario.",
+      startsAt: daysFromNow(7, 11, 0),
+      endsAt: daysFromNow(7, 12, 0),
+      createdBy: admin.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Deposito ricorso — Costruzioni Lombarde",
+      description: "Deposito telematico ricorso per decreto ingiuntivo €42.000. Versare contributo unificato prima del deposito.",
+      startsAt: daysFromNow(2, 10, 0),
+      endsAt: daysFromNow(2, 11, 0),
+      createdBy: admin.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Udienza presidenziale — Famiglia Ricci-Neri",
+      description: "Prima udienza presidenziale per separazione consensuale. Entrambe le parti convocate.",
+      startsAt: daysFromNow(10, 9, 0),
+      endsAt: daysFromNow(10, 11, 0),
+      createdBy: admin.id,
+      assignedTo: user1.id,
     },
   ]);
 }
@@ -828,6 +884,54 @@ async function seedCommercialista(pw: string) {
       createdAt: daysAgo(2),
     },
   ]);
+
+  await db.insert(appointmentsTable).values([
+    {
+      organizationId: orgId,
+      title: "Scadenza versamento IVA trimestrale — Ristorante Da Mario",
+      description: "Versamento F24 IVA Q1: importo netto €5.600. Effettuare entro le ore 16:00.",
+      startsAt: daysFromNow(4, 9, 0),
+      endsAt: daysFromNow(4, 10, 0),
+      createdBy: user1.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Appuntamento Famiglia Donati — consegna documenti 730",
+      description: "Il cliente porta CU, spese mediche e interessi passivi mutuo per completare il modello 730.",
+      startsAt: daysFromNow(2, 11, 0),
+      endsAt: daysFromNow(2, 12, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Riunione urgente — verifica anomalie IVA Brambilla",
+      description: "Analisi dell'incongruenza segnalata dall'Agenzia delle Entrate. Portare dichiarazioni IVA 2022.",
+      startsAt: daysFromNow(1, 14, 30),
+      endsAt: daysFromNow(1, 16, 0),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Revisione bozza bilancio — Panificio Rossi & Figli",
+      description: "Presentare bozza bilancio CEE abbreviato esercizio 2023 al cliente per approvazione.",
+      startsAt: daysFromNow(6, 10, 0),
+      endsAt: daysFromNow(6, 11, 30),
+      createdBy: admin.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Consulenza regime IVA OSS — Consulenze & Formazione",
+      description: "Illustrare vantaggi e adempimenti del regime OSS per vendite B2C UE. Portare prospetto fatturato per paese.",
+      startsAt: daysFromNow(9, 15, 0),
+      endsAt: daysFromNow(9, 16, 0),
+      createdBy: user2.id,
+      assignedTo: admin.id,
+    },
+  ]);
 }
 
 // ─── Agenzia Immobiliare (agency) ─────────────────────────────────────────────
@@ -1226,6 +1330,54 @@ async function seedImmobiliare(pw: string) {
       createdAt: daysAgo(1),
     },
   ]);
+
+  await db.insert(appointmentsTable).values([
+    {
+      organizationId: orgId,
+      title: "Visita appartamento Via Ampere — Famiglia Romano",
+      description: "Visita trilocale 125mq con doppio box. Prezzo €595.000. Appuntamento con il proprietario alle 10:30.",
+      startsAt: daysFromNow(1, 10, 30),
+      endsAt: daysFromNow(1, 11, 30),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Firma compromesso — Bernardi / Via Garibaldi 14",
+      description: "Firma contratto preliminare bilocale 65mq. Caparra €43.000. Notaio presente.",
+      startsAt: daysFromNow(5, 15, 0),
+      endsAt: daysFromNow(5, 17, 0),
+      createdBy: admin.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Sopralluogo due diligence — Ferrari, Via Lecco 12",
+      description: "Verifica documentazione catastale e ispezione immobile prima dell'offerta. APE classe C.",
+      startsAt: daysFromNow(3, 9, 0),
+      endsAt: daysFromNow(3, 10, 30),
+      createdBy: user1.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Open day palazzina Edilcasa — 8 unità",
+      description: "Giornata porte aperte per i potenziali acquirenti. Allestire sala mostra con planimetrie e brochure.",
+      startsAt: daysFromNow(8, 10, 0),
+      endsAt: daysFromNow(8, 18, 0),
+      createdBy: admin.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Visita locale commerciale — Studio Benessere",
+      description: "Sopralluogo locale 200mq zona Navigli per attività benessere. Verificare conformità urbanistica.",
+      startsAt: daysFromNow(4, 14, 0),
+      endsAt: daysFromNow(4, 15, 0),
+      createdBy: admin.id,
+      assignedTo: user2.id,
+    },
+  ]);
 }
 
 // ─── Agenzia Assicurazioni (agency) ──────────────────────────────────────────
@@ -1620,6 +1772,54 @@ async function seedAssicurazioni(pw: string) {
       authorId: admin.id,
       commentText: "Verificato: la copertura RC somministrazione è limitata a €500.000. Proporre estensione a €1.000.000.",
       createdAt: daysAgo(1),
+    },
+  ]);
+
+  await db.insert(appointmentsTable).values([
+    {
+      organizationId: orgId,
+      title: "Perizia RC auto — Ing. Colombo / Sig. Riva",
+      description: "Sopralluogo perito su tamponamento Via Torino. Il cliente non deve riparare il veicolo prima della perizia.",
+      startsAt: daysFromNow(1, 9, 0),
+      endsAt: daysFromNow(1, 10, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Appuntamento polizza infortuni — Sig.ra Riva",
+      description: "Presentare preventivo polizza infortuni casalinga 40 anni, massimale invalidità €100.000.",
+      startsAt: daysFromNow(2, 15, 30),
+      endsAt: daysFromNow(2, 16, 30),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Sopralluogo sinistro casa — Famiglia De Santis",
+      description: "Geom. Russo effettua sopralluogo per infiltrazioni tetto. Stima danno da confermare.",
+      startsAt: daysFromNow(3, 10, 0),
+      endsAt: daysFromNow(3, 11, 30),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Revisione annuale polizza All Risks — Bar Centrale",
+      description: "Adeguamento massimali polizza multirischio per aumento fatturato 20%. Portare bilancio 2023.",
+      startsAt: daysFromNow(6, 11, 0),
+      endsAt: daysFromNow(6, 12, 0),
+      createdBy: admin.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Preventivo rinnovo flotta — Trasporti Veloci (12 veicoli)",
+      description: "Presentare proposta multi-polizza con sconto flotta 5%. Storico sinistri ricevuto.",
+      startsAt: daysFromNow(10, 14, 0),
+      endsAt: daysFromNow(10, 15, 30),
+      createdBy: user2.id,
+      assignedTo: user2.id,
     },
   ]);
 }
