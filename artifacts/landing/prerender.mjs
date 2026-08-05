@@ -30,7 +30,7 @@ function stripDynamicHeadTags(html) {
   h = h.replace(/\s*<link rel="alternate"\s[^>]*hreflang[^>]*\/?>/gi, '');
   // Remove the static generic manifest link; each locale injects its own via Helmet
   h = h.replace(/\s*<link rel="manifest"[^>]*\/?>/gi, '');
-  // Remove per-route og/twitter tags; keep static ones (type, site_name, image:*, locale:alternate)
+  // Remove per-route og/twitter tags; Helmet is the single source of truth for all of these
   h = h.replace(/\s*<meta property="og:url"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta property="og:title"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta property="og:description"[^>]*\/?>/gi, '');
@@ -39,7 +39,7 @@ function stripDynamicHeadTags(html) {
   // og:locale and og:locale:alternate (both vary per locale)
   h = h.replace(/\s*<meta property="og:locale"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta property="og:locale:alternate"[^>]*\/?>/gi, '');
-  // twitter:title / twitter:description / twitter:image (not twitter:image:alt or twitter:card)
+  // twitter:title / twitter:description / twitter:image (not twitter:image:alt)
   h = h.replace(/\s*<meta name="twitter:title"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:description"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:image"(?!:)[^>]*\/?>/gi, '');
@@ -79,7 +79,10 @@ function injectHeadTags(html, lang, headTags) {
   h = h.replace(/<html[^>]*>/, `<html lang="${lang}">`);
 
   if (headTags && headTags.trim()) {
-    h = h.replace('</head>', `    ${headTags}\n  </head>`);
+    // React SSR (via react-helmet-async) emits hrefLang (camelCase) in raw HTML
+    // output; normalise to the spec-correct lowercase hreflang before injection.
+    const normalised = headTags.replace(/\bhrefLang=/g, 'hreflang=');
+    h = h.replace('</head>', `    ${normalised}\n  </head>`);
   }
 
   return h;

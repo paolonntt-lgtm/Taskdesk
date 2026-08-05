@@ -448,14 +448,11 @@ export default function Landing() {
         <link rel="alternate" hrefLang="x-default" href={`${SITE_BASE}/it/`} />
         <link rel="manifest" href={`/${lang}/manifest.webmanifest`} />
         <meta property="og:url" content={`${SITE_BASE}/${lang}/`} />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="TaskDesk" />
         <meta property="og:locale" content={lang === 'en' ? 'en_US' : 'it_IT'} />
         <meta property="og:locale:alternate" content={lang === 'en' ? 'it_IT' : 'en_US'} />
         <meta property="og:title" content={t.seo.ogTitle} />
         <meta property="og:description" content={t.seo.ogDescription} />
         <meta property="og:image" content={`${SITE_BASE}/opengraph.jpg`} />
-        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={t.seo.twitterTitle} />
         <meta name="twitter:description" content={t.seo.twitterDescription} />
         <meta name="twitter:image" content={`${SITE_BASE}/opengraph.jpg`} />
