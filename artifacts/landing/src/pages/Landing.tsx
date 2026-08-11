@@ -394,6 +394,13 @@ export default function Landing() {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "WebSite",
+        "@id": "https://taskdesk.it/#website",
+        "name": "TaskDesk",
+        "url": "https://taskdesk.it",
+        "inLanguage": lang === "en" ? "en" : "it",
+      },
+      {
         "@type": "Organization",
         "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
