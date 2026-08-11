@@ -88,7 +88,33 @@ app.post(
   }
 );
 
-app.use(cors({ origin: true, credentials: true, maxAge: 86400 }));
+// Explicit CORS origin allowlist — never reflect arbitrary origins with
+// credentials enabled, as that allows any site to make credentialed requests
+// on behalf of a logged-in user (cross-origin session hijacking / CSRF).
+// Additional origins can be added via the ALLOWED_ORIGINS env var as a
+// comma-separated list (e.g. for staging or preview environments).
+const defaultAllowedOrigins = [
+  "https://www.taskdesk.it",
+  "https://taskdesk.it",
+  "https://taskdesk.replit.app",
+];
+const extraOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...extraOrigins])];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no Origin header (e.g. same-origin, curl, mobile apps).
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+    maxAge: 86400,
+  })
+);
 app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
