@@ -29,6 +29,7 @@ TaskDesk is a publicly deployed internal ticketing platform with a React web cli
 - **API to object storage** — uploaded files and private object paths cross into a storage system with ACL support; storage routes must not treat object paths as bearer secrets.
 - **API to external providers** — Stripe webhooks and API calls, Google OAuth exchanges, inbound-email webhooks, SMTP/Resend email delivery, and OpenAI requests cross service boundaries and require integrity validation.
 - **Internal/development to production** — committed config files, logs, and development helpers are out of scope unless they materially weaken a production path or expose production secrets.
+- **CORS boundary** — the API must restrict cross-origin credentialed access to known-trusted origins only. The current `cors({ origin: true, credentials: true })` configuration reflects any origin and is a confirmed HIGH vulnerability (see scan findings). CORS MUST be restricted to an explicit allowlist before this boundary is considered enforced.
 
 ## Scan Anchors
 
@@ -50,11 +51,15 @@ Invite links are intentionally reusable, seat-scoped onboarding links in the cur
 
 ### Tampering
 
-Authenticated users can create and update tickets, comments, attachments, profiles, clients, and some settings. The API must enforce which roles may mutate which fields, and it must validate that cross-entity references such as `ticketId`, `assignedTo`, `clientId`, attachment `objectPath`, inbound channel IDs, and billing changes stay within the caller’s organization and privilege level. Client-side affordances such as hiding admin screens are not a security control.
+Authenticated users can create and update tickets, comments, attachments, profiles, clients, and some settings. The API must enforce which roles may mutate which fields, and it must validate that cross-entity references such as `ticketId`, `assignedTo`, `clientId`, attachment `objectPath`, inbound channel IDs, and billing changes stay within the caller's organization and privilege level. Client-side affordances such as hiding admin screens are not a security control.
 
 ### Information Disclosure
 
-Ticket details, internal notes, comments, attachments, client records, billing details, user records, knowledge-base articles, and object storage contents are all sensitive organization-scoped data. Every read path must verify both authentication and tenant/role authorization, and private object storage paths must never become a bearer secret that grants unauthorized download access. Secondary convenience surfaces such as stats, reports, bot context search, and attachment metadata must not reveal data outside the caller’s role or organization.
+Ticket details, internal notes, comments, attachments, client records, billing details, user records, knowledge-base articles, and object storage contents are all sensitive organization-scoped data. Every read path must verify both authentication and tenant/role authorization, and private object storage paths must never become a bearer secret that grants unauthorized download access. Secondary convenience surfaces such as stats, reports, bot context search, and attachment metadata must not reveal data outside the caller's role or organization.
+
+**CORS risk (confirmed HIGH)**: The current `cors({ origin: true, credentials: true })` configuration allows any third-party website to make credentialed API requests on behalf of an authenticated user and read the full response. This breaks the cross-origin information-disclosure boundary for all authenticated API endpoints. The CORS origin option MUST be changed to an explicit domain allowlist.
+
+**Legacy password hashing (confirmed MEDIUM)**: Accounts that pre-date the bcrypt migration retain SHA-256 hashes with a hardcoded salt (`"ticketing_salt"`), which is crackable in minutes upon database compromise. A forced password-reset migration should be completed.
 
 ### Denial of Service
 
@@ -63,3 +68,5 @@ The API exposes unauthenticated auth, OAuth, invite, seed/bootstrap, Stripe webh
 ### Elevation of Privilege
 
 This project has a user/admin/superadmin hierarchy. Server-side route handlers must enforce those privileges directly, not rely on frontend controls, and subordinate ticket resources such as comments, notes, activity, attachments, clients, knowledge-base content, and object downloads must inherit the same organization and role restrictions as the parent ticket. All database writes must remain parameterized and any direct SQL usage must avoid attacker-controlled interpolation.
+
+**SSRF risk (confirmed MEDIUM)**: The email channel SMTP test endpoint (`POST /api/settings/email-channels/:id/test`) will open a TCP connection to whatever `host` an admin configured, including internal/cloud-metadata IPs. The `host` field must be validated against an allowlist or RFC 1918 blocklist before storage or use.
