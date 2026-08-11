@@ -310,7 +310,7 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
   res.json(updatedItem);
 });
 
-router.delete("/tickets/:ticketId/checklists/:checklistId/items/:itemId", requireAuth, async (req, res): Promise<void> => {
+router.delete("/tickets/:ticketId/checklists/:checklistId/items/:itemId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const ticketId = parseParam(req.params.ticketId);
   const checklistId = parseParam(req.params.checklistId);
   const itemId = parseParam(req.params.itemId);
