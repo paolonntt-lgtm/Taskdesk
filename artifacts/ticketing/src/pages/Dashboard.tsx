@@ -338,14 +338,11 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: 
         ) : (
           <Avatar sx={{
             width: 30, height: 30, fontSize: '0.65rem', flexShrink: 0,
-            bgcolor: ticket.status === 'open' ? `${theme.palette.primary.main}26`
-              : ticket.status === 'waiting' ? `${theme.palette.secondary.main}26`
-              : ticket.status === 'resolved' ? `${theme.palette.success.main}26`
-              : `${theme.palette.text.secondary}1a`,
-            color: ticket.status === 'open' ? theme.palette.primary.main
+            bgcolor: ticket.status === 'open' ? theme.palette.primary.main
               : ticket.status === 'waiting' ? theme.palette.secondary.main
               : ticket.status === 'resolved' ? theme.palette.success.main
               : theme.palette.text.secondary,
+            color: '#fff',
           }}>
             #{ticket.ticketNumber ?? ticket.id}
           </Avatar>
