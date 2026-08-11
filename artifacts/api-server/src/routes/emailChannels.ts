@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, emailChannelsTable, settingsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import nodemailer from "nodemailer";
+import { validateSmtpHost } from "../lib/smtpHostValidator";
 
 const router: IRouter = Router();
 
@@ -29,6 +30,9 @@ router.post("/settings/email-channels", requireAuth, requireAdmin, async (req, r
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
   if (!password || typeof password !== "string") { res.status(400).json({ message: "Password obbligatoria" }); return; }
+
+  const hostError = await validateSmtpHost(host);
+  if (hostError) { res.status(400).json({ message: hostError }); return; }
 
   if (isPrimary) {
     await db.update(emailChannelsTable)
@@ -71,6 +75,9 @@ router.put("/settings/email-channels/:id", requireAuth, requireAdmin, async (req
 
   if (!host || typeof host !== "string") { res.status(400).json({ message: "Host obbligatorio" }); return; }
   if (!user || typeof user !== "string") { res.status(400).json({ message: "Utente/email obbligatorio" }); return; }
+
+  const hostErrorPut = await validateSmtpHost(host);
+  if (hostErrorPut) { res.status(400).json({ message: hostErrorPut }); return; }
 
   const resolvedPassword = (typeof password === "string" && password !== "***" && password.length > 0)
     ? password

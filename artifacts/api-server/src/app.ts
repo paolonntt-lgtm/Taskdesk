@@ -17,13 +17,32 @@ app.set("trust proxy", 1);
 // was HTTP (X-Forwarded-Proto: http). The healthcheck path is always exempted
 // because the Replit deployment proxy adds X-Forwarded-Proto: http even on
 // internal startup probes, and a 301 response fails the health check.
+
+// Allowlist of hostnames permitted in HTTPS redirect targets.
+// This prevents Host-header injection turning the 301 into an open redirect.
+// Add additional production hostnames here as needed.
+const HTTPS_ALLOWED_HOSTS = new Set<string>([
+  "taskdesk.it",
+  "www.taskdesk.it",
+  "www.taskdesk.uk",
+  "taskdesk.replit.app",
+  // Include any REPLIT_DOMAINS values at startup (comma-separated list)
+  ...(process.env.REPLIT_DOMAINS ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+]);
+
 if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
     if (req.path === "/api/healthz") {
       return next();
     }
     if (req.headers["x-forwarded-proto"] === "http") {
-      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+      const rawHost = req.headers.host ?? "";
+      // Strip port suffix for comparison, then validate against the allowlist.
+      const hostOnly = rawHost.toLowerCase().replace(/:\d+$/, "");
+      if (!hostOnly || !HTTPS_ALLOWED_HOSTS.has(hostOnly)) {
+        return res.status(400).end();
+      }
+      return res.redirect(301, `https://${rawHost}${req.url}`);
     }
     // Tell browsers to only ever use HTTPS for this origin for the next year
     // and to include all subdomains, so no plaintext request can carry the
