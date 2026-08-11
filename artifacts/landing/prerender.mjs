@@ -164,12 +164,14 @@ function generateLandingJsonLd(lang) {
     "@graph": [
       {
         "@type": "WebSite",
+        "@id": "https://taskdesk.it/#website",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
         "inLanguage": lang === "en" ? "en" : "it",
       },
       {
         "@type": "Organization",
+        "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
         "logo": "https://taskdesk.it/taskdesk-logo.png",
@@ -180,7 +182,9 @@ function generateLandingJsonLd(lang) {
       },
       {
         "@type": "SoftwareApplication",
+        "@id": "https://taskdesk.it/#software",
         "name": "TaskDesk",
+        "url": "https://taskdesk.it",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web, iOS, Android",
         "description": description,

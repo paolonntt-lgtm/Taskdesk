@@ -395,6 +395,7 @@ export default function Landing() {
     "@graph": [
       {
         "@type": "Organization",
+        "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
         "logo": "https://taskdesk.it/taskdesk-logo.webp",
@@ -405,7 +406,9 @@ export default function Landing() {
       },
       {
         "@type": "SoftwareApplication",
+        "@id": "https://taskdesk.it/#software",
         "name": "TaskDesk",
+        "url": "https://taskdesk.it",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web, iOS, Android",
         "description": t.seo.description,
