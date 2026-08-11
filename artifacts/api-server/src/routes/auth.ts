@@ -4,7 +4,6 @@ import { db, usersTable, organizationsTable, settingsTable, groupMembersTable, g
 import { createSession, destroySession, getSessionId, getCurrentUserId, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 import { logger } from "../lib/logger";
@@ -20,25 +19,17 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-function legacySha256Hash(password: string): string {
-  return createHash("sha256").update(password + "ticketing_salt").digest("hex");
+function isBcryptHash(hash: string): boolean {
+  return hash.startsWith("$2b$") || hash.startsWith("$2a$");
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  if (hash.startsWith("$2b$") || hash.startsWith("$2a$")) {
-    return bcrypt.compare(password, hash);
+  if (!isBcryptHash(hash)) {
+    // Legacy SHA-256 hashes are no longer accepted for authentication.
+    // Affected accounts must reset their password via the "forgot password" flow.
+    return false;
   }
-  return legacySha256Hash(password) === hash;
-}
-
-export async function upgradePasswordHashIfNeeded(
-  userId: number,
-  password: string,
-  currentHash: string
-): Promise<void> {
-  if (currentHash.startsWith("$2b$") || currentHash.startsWith("$2a$")) return;
-  const newHash = await hashPassword(password);
-  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
+  return bcrypt.compare(password, hash);
 }
 
 router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
@@ -77,7 +68,18 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
     .leftJoin(organizationsTable, eq(usersTable.organizationId, organizationsTable.id))
     .where(eq(usersTable.email, email));
 
-  if (!row || !(await verifyPassword(password, row.passwordHash ?? ""))) {
+  // Accounts with legacy SHA-256 hashes can no longer authenticate.
+  // They must reset their password before logging in again.
+  const storedHash = row?.passwordHash ?? "";
+  if (row && storedHash && !storedHash.startsWith("$2b$") && !storedHash.startsWith("$2a$")) {
+    res.status(401).json({
+      error: "PasswordResetRequired",
+      message: "Per motivi di sicurezza, è necessario reimpostare la password. Usa 'Password dimenticata'.",
+    });
+    return;
+  }
+
+  if (!row || !(await verifyPassword(password, storedHash))) {
     res.status(401).json({ error: "Invalid credentials", message: "Email o password non corretti" });
     return;
   }
@@ -87,10 +89,7 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
     return;
   }
 
-  await Promise.all([
-    db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, row.id)),
-    upgradePasswordHashIfNeeded(row.id, password, row.passwordHash ?? ""),
-  ]);
+  await db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, row.id));
 
   const sessionId = await createSession(row.id);
 
