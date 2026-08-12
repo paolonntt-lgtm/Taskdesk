@@ -197,7 +197,9 @@ export default function ConsoleHistoryTab() {
                     color="text.primary"
                     sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.55 }}
                   >
-                    {note.body}
+                    {note.body || (Array.isArray(note.checklist) && note.checklist.length > 0
+                      ? note.checklist.map((item: any) => item.text).join('\n')
+                      : '')}
                   </Typography>
                 </Box>
 

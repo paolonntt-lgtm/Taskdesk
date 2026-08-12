@@ -150,6 +150,13 @@ export default function NotesConsole() {
       monthOverride = hashResult.monthOverride;
       noteBody = hashResult.strippedBody;
     }
+    // Default to current month when no hashtag was provided
+    if (!monthOverride) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const mo = String(now.getMonth() + 1).padStart(2, '0');
+      monthOverride = `${y}-${mo}`;
+    }
 
     if (!noteBody) { showToast('error', tc.errorRequired); return; }
 
@@ -364,7 +371,9 @@ export default function NotesConsole() {
                                 mt: 0.25,
                               }}
                             >
-                              {note.body}
+                              {note.body || (Array.isArray(note.checklist) && note.checklist.length > 0
+                                ? note.checklist.map((item: any) => item.text).join(' ')
+                                : '')}
                             </Typography>
                           </Box>
                           {note.clientId && (
