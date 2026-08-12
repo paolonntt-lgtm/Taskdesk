@@ -115,6 +115,8 @@ app.post(
 const defaultAllowedOrigins = [
   "https://www.taskdesk.it",
   "https://taskdesk.it",
+  "https://www.taskdesk.uk",
+  "https://taskdesk.uk",
   "https://taskdesk.replit.app",
 ];
 const extraOrigins = process.env.ALLOWED_ORIGINS
