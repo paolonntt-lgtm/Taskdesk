@@ -1469,32 +1469,6 @@ export default function TicketDetail() {
               </Box>
             )}
 
-            {/* AZIONI */}
-            {isAdmin && (
-              <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #f0f0f0' }}>
-                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1.25 }}>
-                  {lang === 'it' ? 'Azioni' : 'Actions'}
-                </Box>
-                {ticket.status !== 'closed' && (
-                  <Button fullWidth size="small" onClick={() => handleStatusChange('closed')}
-                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
-                    {lang === 'it' ? 'Chiudi ticket' : 'Close ticket'}
-                  </Button>
-                )}
-                {!ticket.assignedTo && !assignedGroup && currentUser?.id && (
-                  <Button fullWidth size="small" onClick={() => handleAssigneeChange(String(currentUser.id))}
-                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
-                    {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
-                  </Button>
-                )}
-                {ticket.status !== 'resolved' && !isClosedKey(ticket.status) && (
-                  <Button fullWidth size="small" onClick={() => handleStatusChange('resolved')}
-                    sx={{ display: 'block', mb: 0.75, px: '10px', py: '7px', borderRadius: '6px', border: '1px solid #efefef', background: '#fff', fontSize: 12, textAlign: 'left', color: '#424242', textTransform: 'none', fontWeight: 400, justifyContent: 'flex-start', boxShadow: 'none', '&:hover': { borderColor: '#bdbdbd', bgcolor: '#fafafa', boxShadow: 'none' } }}>
-                    {lang === 'it' ? 'Segna risolto' : 'Mark resolved'}
-                  </Button>
-                )}
-              </Box>
-            )}
           </Box>
         </Box>
       </Box>
