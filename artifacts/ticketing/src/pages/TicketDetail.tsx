@@ -654,7 +654,8 @@ export default function TicketDetail() {
     p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
 
   return (
-    <Box maxWidth={640} mx="auto">
+    <Box sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: '#f4f6f8', minHeight: '100%' }}>
+    <Box maxWidth={640} mx="auto" sx={{ bgcolor: 'white', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid #e8e8e8', px: { xs: 2, sm: 3 }, py: 2.5 }}>
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid #efefef' }}>
         {/* Breadcrumb */}
@@ -1518,6 +1519,7 @@ export default function TicketDetail() {
         </DialogActions>
       </Dialog>
 
+    </Box>
     </Box>
   );
 }
