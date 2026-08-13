@@ -103,7 +103,7 @@ export default function TicketDetail() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '' });
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
@@ -443,6 +443,7 @@ export default function TicketDetail() {
       location: ticket.location,
       resource: (ticket as any).resource || '',
       clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
+      dueAt: (ticket as any).dueAt ? new Date((ticket as any).dueAt).toISOString().slice(0, 16) : '',
     });
     setEditError(null);
     setEditDialog(true);
@@ -490,6 +491,7 @@ export default function TicketDetail() {
           location: editForm.location,
           resource: editForm.resource || undefined,
           clientId: newClientId,
+          dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
@@ -1621,6 +1623,9 @@ export default function TicketDetail() {
             </TextField>
           )}
           <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
+          {(isAdmin || isAssignee) && (
+            <TextField type="datetime-local" label={t.ticketDetail.dueAtLabel} fullWidth size="small" value={editForm.dueAt} onChange={(e) => setEditForm((f) => ({ ...f, dueAt: e.target.value }))} disabled={editSaving} InputLabelProps={{ shrink: true }} />
+          )}
           {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
             <Autocomplete options={clientsList} getOptionLabel={(o) => o.name} value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null} onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))} disabled={editSaving} renderInput={(params) => <TextField {...params} label={t.clients.clientField} fullWidth size="small" />} />
           )}
