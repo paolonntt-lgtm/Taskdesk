@@ -1323,11 +1323,6 @@ export default function TicketDetail() {
               )}
             </SideRow>
 
-            {/* Category */}
-            <SideRow label={t.ticketDetail.categoryLabel}>
-              {ticket.category || '—'}
-            </SideRow>
-
             {/* Location */}
             {!singleLocation && (
               <SideRow label={t.ticketDetail.locationLabel}>
