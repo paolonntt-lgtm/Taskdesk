@@ -654,25 +654,25 @@ export default function TicketDetail() {
     p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
 
   return (
-    <Box sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: '#f4f6f8', minHeight: '100%' }}>
-    <Box maxWidth={720} sx={{ bgcolor: 'white', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid #e8e8e8', px: { xs: 2, sm: 3 }, py: 2.5, ml: { xs: 'auto', sm: '15%' }, mr: 'auto' }}>
+    <Box sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: theme.palette.mode === 'dark' ? 'background.default' : '#f4f6f8', minHeight: '100%' }}>
+    <Box maxWidth={720} sx={{ bgcolor: 'background.paper', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid', borderColor: 'divider', px: { xs: 2, sm: 3 }, py: 2.5, ml: { xs: 'auto', sm: '15%' }, mr: 'auto' }}>
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid #efefef' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
         {/* Breadcrumb */}
         <Box display="flex" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <MuiLink
             underline="hover"
             onClick={() => setLocation(backTo)}
-            sx={{ fontSize: 13, color: '#9e9e9e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, whiteSpace: 'nowrap' }}
+            sx={{ fontSize: 13, color: 'text.secondary', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <ArrowBack sx={{ fontSize: 14 }} />
             {breadcrumbLabel}
           </MuiLink>
-          <Box component="span" sx={{ color: '#ddd', fontSize: 14, flexShrink: 0 }}>/</Box>
+          <Box component="span" sx={{ color: 'text.disabled', fontSize: 14, flexShrink: 0 }}>/</Box>
           <Box component="span" sx={{ fontSize: 13, color: '#1565c0', fontWeight: 600, flexShrink: 0 }}>
             #{ticket.ticketNumber ?? ticket.id}
           </Box>
-          <Box component="span" sx={{ fontSize: 13, color: '#9e9e9e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
+          <Box component="span" sx={{ fontSize: 13, color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
             — {ticket.title}
           </Box>
         </Box>
@@ -681,12 +681,12 @@ export default function TicketDetail() {
           {canEdit && (
             isMobile ? (
               <Tooltip title={t.ticketDetail.editButton}>
-                <IconButton size="small" onClick={openEditDialog} sx={{ border: '1px solid #e8e8e8', borderRadius: '6px' }}>
+                <IconButton size="small" onClick={openEditDialog} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '6px' }}>
                   <EditOutlined sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button size="small" onClick={openEditDialog} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: '1px solid #e8e8e8', background: 'none', fontSize: 12, color: '#616161', fontWeight: 400, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { background: '#f9f9f9', boxShadow: 'none' } }}>
+              <Button size="small" onClick={openEditDialog} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: '1px solid', borderColor: 'divider', background: 'none', fontSize: 12, color: 'text.secondary', fontWeight: 400, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { bgcolor: 'action.hover', boxShadow: 'none' } }}>
                 {t.ticketDetail.editButton}
               </Button>
             )
@@ -694,11 +694,11 @@ export default function TicketDetail() {
           {isAdmin && (
             <Tooltip title={(ticket as any).recurrenceRule ? t.ticketDetail.recurrenceBadge : t.ticketDetail.recurrenceButton}>
               {isMobile ? (
-                <IconButton size="small" onClick={openRecurrenceDialog} sx={{ border: '1px solid', borderColor: (ticket as any).recurrenceRule ? 'primary.main' : '#e8e8e8', borderRadius: '6px', bgcolor: (ticket as any).recurrenceRule ? 'primary.main' : 'transparent', color: (ticket as any).recurrenceRule ? 'white' : 'inherit' }}>
+                <IconButton size="small" onClick={openRecurrenceDialog} sx={{ border: '1px solid', borderColor: (ticket as any).recurrenceRule ? 'primary.main' : 'divider', borderRadius: '6px', bgcolor: (ticket as any).recurrenceRule ? 'primary.main' : 'transparent', color: (ticket as any).recurrenceRule ? 'white' : 'inherit' }}>
                   <RepeatIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               ) : (
-                <Button size="small" onClick={openRecurrenceDialog} variant={(ticket as any).recurrenceRule ? 'contained' : 'text'} color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'} sx={{ px: '14px', py: '5px', borderRadius: '6px', fontSize: 12, textTransform: 'none', minWidth: 0, ...((!(ticket as any).recurrenceRule) && { border: '1px solid #e8e8e8', color: '#616161', fontWeight: 400, boxShadow: 'none', '&:hover': { background: '#f9f9f9', boxShadow: 'none' } }) }}>
+                <Button size="small" onClick={openRecurrenceDialog} variant={(ticket as any).recurrenceRule ? 'contained' : 'text'} color={(ticket as any).recurrenceRule ? 'primary' : 'inherit'} sx={{ px: '14px', py: '5px', borderRadius: '6px', fontSize: 12, textTransform: 'none', minWidth: 0, ...((!(ticket as any).recurrenceRule) && { border: '1px solid', borderColor: 'divider', color: 'text.secondary', fontWeight: 400, boxShadow: 'none', '&:hover': { bgcolor: 'action.hover', boxShadow: 'none' } }) }}>
                   {t.ticketDetail.recurrenceButton}
                 </Button>
               )}
@@ -707,12 +707,12 @@ export default function TicketDetail() {
           {isAdmin && (
             isMobile ? (
               <Tooltip title={lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}>
-                <IconButton size="small" onClick={() => setDeleteDialog(true)} sx={{ borderRadius: '6px', background: '#fde8e8', color: '#b71c1c', '&:hover': { background: '#fcc' } }}>
+                <IconButton size="small" onClick={() => setDeleteDialog(true)} sx={{ borderRadius: '6px', bgcolor: theme.palette.mode === 'dark' ? alpha('#b71c1c', 0.18) : '#fde8e8', color: '#b71c1c', '&:hover': { bgcolor: theme.palette.mode === 'dark' ? alpha('#b71c1c', 0.3) : '#fcc' } }}>
                   <DeleteOutline sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button size="small" onClick={() => setDeleteDialog(true)} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: 'none', background: '#fde8e8', fontSize: 12, color: '#b71c1c', fontWeight: 600, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { background: '#fbbdbd', boxShadow: 'none' } }}>
+              <Button size="small" onClick={() => setDeleteDialog(true)} sx={{ px: '14px', py: '5px', borderRadius: '6px', border: 'none', bgcolor: theme.palette.mode === 'dark' ? alpha('#b71c1c', 0.18) : '#fde8e8', fontSize: 12, color: '#b71c1c', fontWeight: 600, textTransform: 'none', minWidth: 0, boxShadow: 'none', '&:hover': { bgcolor: theme.palette.mode === 'dark' ? alpha('#b71c1c', 0.3) : '#fbbdbd', boxShadow: 'none' } }}>
                 {lang === 'it' ? 'Elimina' : 'Delete'}
               </Button>
             )
@@ -749,7 +749,7 @@ export default function TicketDetail() {
                   in_progress: { bg: '#fff3e0', fg: '#e65100' },
                   waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
                   resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
-                  closed: { bg: '#f5f5f5', fg: '#424242' },
+                  closed: { bg: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : '#f5f5f5', fg: theme.palette.mode === 'dark' ? '#9ca3af' : '#424242' },
                 };
                 const soft = softMap[ticket.status];
                 return soft ? (
@@ -850,13 +850,13 @@ export default function TicketDetail() {
           </Box>
 
           {/* H1 Title — E style */}
-          <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: '#111', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+          <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
           </Box>
 
           {/* Description block — flat, no card border */}
-          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid #efefef' }}>
-            <Box sx={{ fontSize: 11, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
+          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
+            <Box sx={{ fontSize: 11, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
               {t.ticketDetail.descriptionLabel}
             </Box>
             <MarkdownContent content={ticket.description} />
@@ -901,7 +901,7 @@ export default function TicketDetail() {
 
           {/* Tabs — E style: minimal underline indicator */}
           <Box>
-            <Box sx={{ borderBottom: '1px solid #efefef' }}>
+            <Box sx={{ borderBottom: '1px solid', borderBottomColor: 'divider' }}>
               <Tabs
                 value={tabValue}
                 onChange={(_, v) => setTabValue(v)}
@@ -912,7 +912,7 @@ export default function TicketDetail() {
                 sx={{
                   px: 0,
                   minHeight: 0,
-                  '& .MuiTabs-indicator': { bgcolor: '#111', height: 2 },
+                  '& .MuiTabs-indicator': { bgcolor: 'text.primary', height: 2 },
                   '& .MuiTab-root': {
                     minHeight: 0,
                     px: 0,
@@ -921,11 +921,11 @@ export default function TicketDetail() {
                     pt: 0,
                     fontSize: 14,
                     fontWeight: 400,
-                    color: '#bdbdbd',
+                    color: 'text.disabled',
                     textTransform: 'none',
                     minWidth: 0,
                   },
-                  '& .MuiTab-root.Mui-selected': { color: '#111', fontWeight: 700 },
+                  '& .MuiTab-root.Mui-selected': { color: 'text.primary', fontWeight: 700 },
                 }}
               >
                 <Tab label={`${t.ticketDetail.tabComments} (${(comments?.length ?? 0) + ((ticket as any).resolutionNote ? 1 : 0)})`} />
@@ -978,7 +978,7 @@ export default function TicketDetail() {
                             <Box display="flex" alignItems="baseline" gap={1.25} mb={0.875} flexWrap="wrap">
                               {customerReply ? (
                                 <>
-                                  <Box component="span" sx={{ fontWeight: 700, fontSize: 14, color: '#111' }}>{customerReply.name}</Box>
+                                  <Box component="span" sx={{ fontWeight: 700, fontSize: 14, color: 'text.primary' }}>{customerReply.name}</Box>
                                   <Box display="flex" alignItems="center" gap={0.5}>
                                     <MailOutline sx={{ fontSize: 12, color: '#9e9e9e' }} />
                                     <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>Risposta del cliente</Box>
@@ -989,14 +989,14 @@ export default function TicketDetail() {
                                 <UserLink
                                   userId={c.authorId}
                                   name={c.author?.name}
-                                  typographyProps={{ sx: { fontWeight: 700, fontSize: 14, color: '#111' } } as any}
+                                  typographyProps={{ sx: { fontWeight: 700, fontSize: 14, color: 'text.primary' } } as any}
                                 />
                               )}
-                              <Box component="span" sx={{ fontSize: 13, color: '#bdbdbd' }}>
+                              <Box component="span" sx={{ fontSize: 13, color: 'text.disabled' }}>
                                 {new Date(c.createdAt).toLocaleString(dateLocale)}
                               </Box>
                               {c.updatedAt && c.updatedAt !== c.createdAt && (
-                                <Box component="span" sx={{ fontSize: 13, color: '#bdbdbd', fontStyle: 'italic' }}>({t.ticketDetail.commentEdited})</Box>
+                                <Box component="span" sx={{ fontSize: 13, color: 'text.disabled', fontStyle: 'italic' }}>({t.ticketDetail.commentEdited})</Box>
                               )}
                               {isSolution && (
                                 <Box component="span" sx={{ fontSize: 12, color: '#2e7d32', fontWeight: 700 }}>✓ {t.ticketDetail.solutionLabel}</Box>
@@ -1200,7 +1200,7 @@ export default function TicketDetail() {
                 {ticket.status === 'closed' ? (
                   <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>{t.ticketDetail.closedTicketComment(entityTerm.singular)}</Alert>
                 ) : !replyingToCommentId && (
-                  <Box display="flex" gap={1.5} alignItems="flex-start" sx={{ pt: 2.5, mt: 1, borderTop: '1px solid #efefef' }}>
+                  <Box display="flex" gap={1.5} alignItems="flex-start" sx={{ pt: 2.5, mt: 1, borderTop: '1px solid', borderTopColor: 'divider' }}>
                     <Avatar src={(currentUser as any)?.avatarUrl ?? undefined} sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0, fontSize: 12 }}>
                       {currentUser?.name?.charAt(0)}
                     </Avatar>
@@ -1230,21 +1230,21 @@ export default function TicketDetail() {
             <TabPanel value={tabValue} index={1}>
               <Box sx={{ pt: 0.5, pb: 0.5 }}>
                 {activities?.length === 0 && (
-                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>{t.ticketDetail.noActivity}</Box>
+                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: 'text.secondary' }}>{t.ticketDetail.noActivity}</Box>
                 )}
                 {[...(activities ?? [])].reverse().map((a) => {
                   const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
                   const actorName = (a as any).user?.name as string | undefined;
                   return (
                     <Box key={a.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
-                      <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : '#e0e0e0' }} />
-                      <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : '#9e9e9e' }}>
+                      <Box sx={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, ml: '14px', bgcolor: isHighlight ? '#e65100' : 'action.disabled' }} />
+                      <Box component="span" sx={{ flex: 1, fontSize: 13, color: isHighlight ? '#e65100' : 'text.secondary' }}>
                         {actorName && (
-                          <Box component="span" sx={{ fontWeight: 700, color: isHighlight ? '#e65100' : '#616161', mr: 0.5 }}>{actorName}</Box>
+                          <Box component="span" sx={{ fontWeight: 700, color: isHighlight ? '#e65100' : 'text.secondary', mr: 0.5 }}>{actorName}</Box>
                         )}
                         {a.actionDescription}
                       </Box>
-                      <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</Box>
+                      <Box component="span" sx={{ fontSize: 12, color: 'text.disabled', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</Box>
                     </Box>
                   );
                 })}
@@ -1296,11 +1296,11 @@ export default function TicketDetail() {
 
       {/* ── Popover: cambia categoria dalla metabar ── */}
       <Popover open={Boolean(categoryAnchor)} anchorEl={categoryAnchor} onClose={() => setCategoryAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
-        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.categoryLabel}</Box>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.categoryLabel}</Box>
         <Box display="flex" flexDirection="column" gap={0.5}>
           {editCategories.map((c) => (
             <Box key={c} onClick={async () => { await updateTicket.mutateAsync({ id: ticketId, data: { category: c } as any }); queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }); setCategoryAnchor(null); }}
-              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.category === c ? 'primary.50' : 'transparent', color: ticket.category === c ? 'primary.main' : '#424242', fontWeight: ticket.category === c ? 700 : 400, '&:hover': { bgcolor: '#f5f5f5' } }}>
+              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.category === c ? 'primary.50' : 'transparent', color: ticket.category === c ? 'primary.main' : 'text.primary', fontWeight: ticket.category === c ? 700 : 400, '&:hover': { bgcolor: 'action.hover' } }}>
               {c}
             </Box>
           ))}
@@ -1309,11 +1309,11 @@ export default function TicketDetail() {
 
       {/* ── Popover: cambia sede dalla metabar ── */}
       <Popover open={Boolean(locationAnchor)} anchorEl={locationAnchor} onClose={() => setLocationAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
-        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.locationLabel}</Box>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.locationLabel}</Box>
         <Box display="flex" flexDirection="column" gap={0.5}>
           {editLocations.map((l) => (
             <Box key={l} onClick={async () => { await updateTicket.mutateAsync({ id: ticketId, data: { location: l } as any }); queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }); setLocationAnchor(null); }}
-              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.location === l ? 'primary.50' : 'transparent', color: ticket.location === l ? 'primary.main' : '#424242', fontWeight: ticket.location === l ? 700 : 400, '&:hover': { bgcolor: '#f5f5f5' } }}>
+              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.location === l ? 'primary.50' : 'transparent', color: ticket.location === l ? 'primary.main' : 'text.primary', fontWeight: ticket.location === l ? 700 : 400, '&:hover': { bgcolor: 'action.hover' } }}>
               {l}
             </Box>
           ))}

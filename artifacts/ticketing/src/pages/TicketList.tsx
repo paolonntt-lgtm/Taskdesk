@@ -1146,7 +1146,7 @@ export default function TicketList() {
                         cursor: 'pointer',
                         bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.04)' : undefined,
                         '&:hover': {
-                          bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.08) !important' : '#f9f9f9 !important',
+                          bgcolor: ticket.priority === 'urgent' ? 'rgba(211,47,47,0.08) !important' : 'action.hover !important',
                           boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
                           position: 'relative',
                           zIndex: 1,
@@ -1211,7 +1211,7 @@ export default function TicketList() {
                           )}
                         </Box>
                       </TableCell>
-                      {(visibleCols.category ?? true) && <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#616161', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{ticket.category}</TableCell>}
+                      {(visibleCols.category ?? true) && <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: 'text.secondary', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{ticket.category}</TableCell>}
                       {(visibleCols.status ?? true) && (
                       <TableCell style={{ padding: '10px 8px' }} sx={{ overflow: 'hidden' }}>
                         {(() => {
@@ -1290,7 +1290,7 @@ export default function TicketList() {
                       </TableCell>
                       )}
                       {showLocation && (visibleCols.location ?? true) && (
-                        <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#616161', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                        <TableCell style={{ padding: '10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: 'text.secondary', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                           {(ticket as any).location || '—'}
                         </TableCell>
                       )}
