@@ -648,14 +648,14 @@ export default function TicketDetail() {
     highPriority: t.ticketList.quickFilterHighPriority,
     open: t.ticketList.quickFilterOpen,
   };
-  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : backTo === '/calendar' ? t.nav.calendar : (bql && bqlLabels[bql]) || t.ticketDetail.breadcrumbList;
+  const breadcrumbLabel = backTo === '/' ? t.nav.dashboard : backTo === '/calendar' ? t.nav.calendar : (bql && bqlLabels[bql]) || entityTerm.navAll;
 
   const priorityColor = (p: string) =>
     p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
 
   return (
     <Box sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: '#f4f6f8', minHeight: '100%' }}>
-    <Box maxWidth={720} sx={{ bgcolor: 'white', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid #e8e8e8', px: { xs: 2, sm: 3 }, py: 2.5, ml: { xs: 'auto', sm: '20%' }, mr: 'auto' }}>
+    <Box maxWidth={720} sx={{ bgcolor: 'white', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid #e8e8e8', px: { xs: 2, sm: 3 }, py: 2.5, ml: { xs: 'auto', sm: '15%' }, mr: 'auto' }}>
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid #efefef' }}>
         {/* Breadcrumb */}
