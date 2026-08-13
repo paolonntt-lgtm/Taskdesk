@@ -726,7 +726,7 @@ export default function TicketDetail() {
         <Box sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar — righe esplicite */}
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', alignItems: { sm: 'center' }, gap: { xs: 0.5, sm: 1.5 }, mb: 2.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
 
             {/* Riga 1: status · priorità · categoria · sede */}
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
@@ -789,57 +789,62 @@ export default function TicketDetail() {
               )}
             </Box>
 
-            {/* Riga 2 (se assegnatario): chi ha aperto → assegnatario */}
-            {(creator?.name || assignee || assignedGroup) && (
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(isAdmin ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
-                onClick={isAdmin ? (e) => setAssignAnchor(e.currentTarget) : undefined}
-              >
-                {creator?.name && (
-                  <>
-                    <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
-                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a' }}>{creator.name}</Box>
-                  </>
-                )}
-                {creator?.name && (assignee || assignedGroup) && (
-                  <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, color: '#bdbdbd', mx: 0.25 }}>→</Box>
-                )}
-                {(assignee || assignedGroup) && (
-                  <>
-                    {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#1565c0' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
-                  </>
-                )}
-              </Box>
-            )}
+            {/* Riga 2 desktop: nomi + scadenza/chip sulla stessa riga */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', alignItems: { sm: 'center' }, gap: { xs: 0.5, sm: 2 } }}>
 
-            {/* Riga 2 o 3: scadenza + chip */}
-            {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                {(ticket as any).dueAt && (
-                  <Box component="span"
-                    onClick={(isAdmin || isAssignee) ? (e) => setDueAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
-                    ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </Box>
-                )}
-                {ticket.inboundChannelId && (
-                  <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
-                    <Chip icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />} label="Email" size="small" color="info" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-                  </Tooltip>
-                )}
-                {(ticket as any).recurrenceRule && (
-                  <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
-                    <Chip icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />} label={t.ticketDetail.recurrenceBadge} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-                  </Tooltip>
-                )}
-                {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
-                  <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
-                    <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-                  </Tooltip>
-                )}
-              </Box>
-            )}
+              {/* Chi ha aperto → assegnatario */}
+              {(creator?.name || assignee || assignedGroup) && (
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(isAdmin ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
+                  onClick={isAdmin ? (e) => setAssignAnchor(e.currentTarget) : undefined}
+                >
+                  {creator?.name && (
+                    <>
+                      <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
+                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a' }}>{creator.name}</Box>
+                    </>
+                  )}
+                  {creator?.name && (assignee || assignedGroup) && (
+                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, color: '#bdbdbd', mx: 0.25 }}>→</Box>
+                  )}
+                  {(assignee || assignedGroup) && (
+                    <>
+                      {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
+                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#1565c0' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                    </>
+                  )}
+                </Box>
+              )}
+
+              {/* Scadenza + chip */}
+              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                  {(ticket as any).dueAt && (
+                    <Box component="span"
+                      onClick={(isAdmin || isAssignee) ? (e) => setDueAnchor(e.currentTarget) : undefined}
+                      sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
+                      ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </Box>
+                  )}
+                  {ticket.inboundChannelId && (
+                    <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
+                      <Chip icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />} label="Email" size="small" color="info" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                    </Tooltip>
+                  )}
+                  {(ticket as any).recurrenceRule && (
+                    <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
+                      <Chip icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />} label={t.ticketDetail.recurrenceBadge} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                    </Tooltip>
+                  )}
+                  {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
+                    <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
+                      <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                    </Tooltip>
+                  )}
+                </Box>
+              )}
+
+            </Box>
 
           </Box>
 
