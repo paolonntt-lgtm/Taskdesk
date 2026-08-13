@@ -88,12 +88,27 @@ export default function Layout({ children }: LayoutProps) {
     try { return sessionStorage.getItem('td_bot_open') === '1'; } catch { return false; }
   });
   const [botUnreadCount, setBotUnreadCount] = useState(0);
+  const [dailyReportUnread, setDailyReportUnread] = useState(0);
 
   // Persist bot open state so it survives page refresh
   const setBotOpenPersist = React.useCallback((val: boolean) => {
     try { sessionStorage.setItem('td_bot_open', val ? '1' : '0'); } catch { /* ignore */ }
     setBotOpen(val);
   }, []);
+
+  // Poll for unread daily reports from colleagues — updates the FAB badge
+  useEffect(() => {
+    if (!user) return;
+    const fetchUnread = () => {
+      fetch('/api/daily-reports/unread', { credentials: 'include' })
+        .then((r) => r.ok ? r.json() : { reports: [] })
+        .then((d) => setDailyReportUnread((d.reports ?? []).length))
+        .catch(() => { /* ignore */ });
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 60_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -729,7 +744,7 @@ export default function Layout({ children }: LayoutProps) {
           }}
         >
           <Badge
-            badgeContent={botUnreadCount}
+            badgeContent={botUnreadCount + dailyReportUnread}
             color="error"
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
@@ -751,9 +766,11 @@ export default function Layout({ children }: LayoutProps) {
       <BotDialog
         open={botOpen}
         unreadCount={botUnreadCount}
+        dailyReportUnread={dailyReportUnread}
         onClose={() => { setBotOpenPersist(false); setBotUnreadCount(0); }}
         onExpand={() => setBotUnreadCount(0)}
         onBotMessage={() => setBotUnreadCount((c) => c + 1)}
+        onDailyReportsRead={() => setDailyReportUnread(0)}
         onCreateTicket={(title, description, category, resource, location) => {
           setBotOpenPersist(false);
           setBotUnreadCount(0);

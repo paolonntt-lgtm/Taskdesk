@@ -32,7 +32,12 @@ interface ViewTicketAction {
   date?: string;
 }
 
-type BotAction = CreateTicketAction | ViewTicketAction;
+interface SubmitDailyReportAction {
+  action: 'submit_daily_report';
+  content: string;
+}
+
+type BotAction = CreateTicketAction | ViewTicketAction | SubmitDailyReportAction;
 
 interface ParsedOption {
   label: string;
@@ -42,9 +47,11 @@ interface ParsedOption {
 interface BotDialogProps {
   open: boolean;
   unreadCount?: number;
+  dailyReportUnread?: number;
   onClose: () => void;
   onExpand?: () => void;
   onBotMessage?: () => void;
+  onDailyReportsRead?: () => void;
   onCreateTicket: (title: string, description: string, category?: string, resource?: string, location?: string) => void;
   onViewTicket?: (id: number) => void;
 }
@@ -67,7 +74,7 @@ function parseActionFromText(text: string): BotAction | null {
       if (depth === 0) {
         try {
           const obj = JSON.parse(text.slice(start, i + 1));
-          if (obj.action === 'create_ticket' || obj.action === 'view_ticket') return obj as BotAction;
+          if (obj.action === 'create_ticket' || obj.action === 'view_ticket' || obj.action === 'submit_daily_report') return obj as BotAction;
           return null;
         } catch {
           return null;
@@ -240,7 +247,7 @@ function saveSession(messages: Message[], pendingAction: BotAction | null) {
   } catch { /* ignore */ }
 }
 
-export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, onBotMessage, onCreateTicket, onViewTicket }: BotDialogProps) {
+export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0, onClose, onExpand, onBotMessage, onDailyReportsRead, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
@@ -265,10 +272,122 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   // welcome already shown if we restored a session
   const welcomeShownRef = useRef(messages.length > 0);
 
+  // Daily report state
+  const [todayReportSubmitted, setTodayReportSubmitted] = useState<boolean | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const briefingFiredRef = useRef(false); // prevent double-firing within a single open
+  // Report wizard active flag — persisted across turns; server fetches activity on every turn
+  const [reportWizardActive, setReportWizardActive] = useState(false);
+  const reportWizardActiveRef = useRef(false); // mirror for async closures
+
   // Persist to sessionStorage whenever messages or pendingAction change
   useEffect(() => {
     saveSession(messages, pendingAction);
   }, [messages, pendingAction]);
+
+  // ── Core streaming helper ─────────────────────────────────────────────────
+  // Streams a bot response for the given fetch body. If `userMsg` is provided,
+  // it is prepended to the chat (visible). If null, only the bot reply appears.
+  // `onSuccess` is called only after the stream delivers [DONE] successfully.
+  const streamBotResponse = async (
+    fetchBody: object,
+    userMsg: Message | null = null,
+    onSuccess?: () => void,
+  ): Promise<void> => {
+    if (userMsg) setMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+    setPendingAction(null);
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+
+    let fullContent = '';
+    let streamComplete = false;
+    try {
+      const res = await fetch('/api/bot/chat', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fetchBody),
+      });
+
+      if (!res.ok || !res.body) {
+        setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: t.bot.errorBot }; return c; });
+        if (minimizedRef.current) onBotMessage?.();
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') { streamComplete = true; break; }
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              fullContent += parsed.content;
+              setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: fullContent }; return c; });
+            }
+            if (parsed.error) {
+              setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: parsed.error }; return c; });
+            }
+          } catch {}
+        }
+      }
+
+      const action = parseActionFromText(fullContent);
+      if (action) setPendingAction(action);
+      if (minimizedRef.current) onBotMessage?.();
+      // Call success callback only when briefing fully delivered
+      if (streamComplete) onSuccess?.();
+    } catch {
+      setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: t.bot.errorNetwork }; return c; });
+      if (minimizedRef.current) onBotMessage?.();
+    } finally {
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
+  // ── Auto-briefing: fires once when bot opens with unread daily reports ────
+  // The server fetches unread reports server-side and marks them read only after
+  // [DONE] is delivered. The frontend clears the badge via the onSuccess callback.
+  const sendBriefingMode = async () => {
+    await streamBotResponse(
+      { message: '__briefing__', history: [], lang, briefingMode: true },
+      null,
+      () => onDailyReportsRead?.(),  // clear badge only after successful streaming
+    );
+  };
+
+  // ── Report mode: kick off EOD report wizard ───────────────────────────────
+  // Server fetches today's activity; client only sends the reportMode flag.
+  const sendReportMode = async () => {
+    if (loading) return;
+    setReportWizardActive(true);
+    reportWizardActiveRef.current = true;
+    const userIntroMsg: Message = {
+      role: 'user',
+      content: lang === 'it' ? '📋 Voglio fare il report di oggi' : '📋 I want to submit today\'s report',
+    };
+    await streamBotResponse(
+      { message: '📋 Avvia modalità report', history: [], lang, reportMode: true },
+      userIntroMsg,
+    );
+  };
+
+  // Exit report wizard (called on submit or clearChat)
+  const exitReportWizard = () => {
+    setReportWizardActive(false);
+    reportWizardActiveRef.current = false;
+  };
 
   // Show welcome message only on the very first open (no saved session)
   useEffect(() => {
@@ -289,6 +408,37 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     }
   }, [open]);
 
+  // Reset briefing guard each time the dialog closes, so a new batch of
+  // unread reports can trigger a fresh briefing on the next open.
+  useEffect(() => {
+    if (!open) {
+      briefingFiredRef.current = false;
+    }
+  }, [open]);
+
+  // Auto-briefing: fire when bot opens with unread daily reports from colleagues.
+  // Guard ensures at most one briefing per open, but resets when dialog closes.
+  useEffect(() => {
+    if (open && dailyReportUnread > 0 && !briefingFiredRef.current && !loading) {
+      briefingFiredRef.current = true;
+      // Clear welcome if present and send briefing
+      welcomeShownRef.current = true;
+      setMessages([]);
+      void sendBriefingMode();
+    }
+  }, [open, dailyReportUnread]);
+
+  // Re-fetch today's report status every time the dialog opens so the button
+  // refreshes correctly if the SPA stays open overnight into the next day.
+  useEffect(() => {
+    if (open) {
+      fetch('/api/daily-reports/today-mine', { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => setTodayReportSubmitted(!!d.submitted))
+        .catch(() => setTodayReportSubmitted(false));
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!minimized) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -302,11 +452,13 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     setPendingAction(null);
     saveSession(welcome, null);
     setInput('');
+    exitReportWizard();
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  // Keep ref in sync so async closures always read the current value
+  // Keep refs in sync so async closures always read the current value
   useEffect(() => { minimizedRef.current = minimized; }, [minimized]);
+  useEffect(() => { reportWizardActiveRef.current = reportWizardActive; }, [reportWizardActive]);
 
   const handleExpand = () => {
     setMinimized(false);
@@ -317,80 +469,48 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
 
   const sendWithText = async (text: string) => {
     if (!text || loading) return;
-
-    const userMsg: Message = { role: 'user', content: text };
     const history = messages.map((m) => ({
       role: m.role,
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
     }));
-    setMessages((prev) => [...prev, userMsg]);
     setInput('');
-    setLoading(true);
-    setPendingAction(null);
+    // If an EOD report wizard is active, carry forward reportMode flag on every turn
+    // so the server can re-fetch today's activity and keep wizard context.
+    const extraBody = reportWizardActiveRef.current ? { reportMode: true } : {};
+    await streamBotResponse(
+      { message: text, history, lang, ...extraBody },
+      { role: 'user', content: text },
+    );
+  };
 
+  const handleSubmitReport = async () => {
+    if (pendingAction?.action !== 'submit_daily_report') return;
+    const { content } = pendingAction as SubmitDailyReportAction;
+    setReportSubmitting(true);
     try {
-      const res = await fetch('/api/bot/chat', {
+      const res = await fetch('/api/daily-reports', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history, lang }),
+        body: JSON.stringify({ content }),
       });
-
-      if (!res.ok || !res.body) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorBot }]);
-        setLoading(false);
-        if (minimizedRef.current) onBotMessage?.();
-        return;
+      if (res.ok) {
+        setTodayReportSubmitted(true);
+        setPendingAction(null);
+        exitReportWizard(); // wizard complete — exit report mode
+        const confMsg = lang === 'it'
+          ? '✅ Report pubblicato! I tuoi colleghi riceveranno una notifica.'
+          : '✅ Report published! Your colleagues will receive a notification.';
+        setMessages((prev) => [...prev, { role: 'assistant', content: confMsg }]);
+      } else {
+        const err = lang === 'it' ? 'Errore nel salvataggio del report.' : 'Error saving the report.';
+        setMessages((prev) => [...prev, { role: 'assistant', content: err }]);
       }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
-              fullContent += parsed.content;
-              setMessages((prev) => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: 'assistant', content: fullContent };
-                return copy;
-              });
-            }
-            if (parsed.error) {
-              setMessages((prev) => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: 'assistant', content: parsed.error };
-                return copy;
-              });
-            }
-          } catch {}
-        }
-      }
-
-      const action = parseActionFromText(fullContent);
-      if (action) setPendingAction(action);
-      if (minimizedRef.current) onBotMessage?.();
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorNetwork }]);
-      if (minimizedRef.current) onBotMessage?.();
+      const err = lang === 'it' ? 'Errore di rete.' : 'Network error.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: err }]);
     } finally {
-      setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setReportSubmitting(false);
     }
   };
 
@@ -620,6 +740,81 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
               )}
               <div ref={bottomRef} />
             </Box>
+
+            {/* ── Daily report quick-action button ── */}
+            {todayReportSubmitted === false && (
+              <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  disabled={loading}
+                  onClick={sendReportMode}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '0.8rem',
+                    justifyContent: 'flex-start',
+                    gap: 1,
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
+                  }}
+                >
+                  📋 {lang === 'it' ? 'Fai il report di oggi' : 'Submit today\'s report'}
+                </Button>
+              </Box>
+            )}
+            {todayReportSubmitted === true && (
+              <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
+                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  ✅ {lang === 'it' ? 'Report già inviato oggi' : 'Report already submitted today'}
+                </Typography>
+              </Box>
+            )}
+
+            {/* ── Submit daily report pending action card ── */}
+            {pendingAction?.action === 'submit_daily_report' && (
+              <Box
+                sx={{
+                  mx: 2, mt: 1, mb: 0.5, p: 2, borderRadius: 2,
+                  border: '2px solid', borderColor: 'success.main',
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(34,197,94,0.1)' : 'success.50',
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} mb={0.5} color="success.dark">
+                  {lang === 'it' ? 'Pronto per la pubblicazione' : 'Ready to publish'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                  {lang === 'it'
+                    ? 'Vuoi pubblicare questo report? I colleghi riceveranno una notifica.'
+                    : 'Publish this report? Your colleagues will receive a notification.'}
+                </Typography>
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color="success"
+                    disabled={reportSubmitting}
+                    onClick={handleSubmitReport}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {reportSubmitting
+                      ? (lang === 'it' ? 'Invio...' : 'Sending...')
+                      : (lang === 'it' ? 'Pubblica report' : 'Publish report')}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="inherit"
+                    onClick={() => { setPendingAction(null); /* Keep wizard active — user may want to continue refining */ }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {lang === 'it' ? 'Modifica' : 'Edit'}
+                  </Button>
+                </Box>
+              </Box>
+            )}
 
             <Divider />
             <Box sx={{ px: 2, py: 1.5, display: 'flex', gap: 1, alignItems: 'flex-end' }}>

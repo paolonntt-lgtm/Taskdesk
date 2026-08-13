@@ -213,6 +213,49 @@ export async function createNotificationsForTicket(
   void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
 }
 
+/**
+ * Send an in-app (+ push + email) notification to every active member of an org,
+ * excluding the author. ticketId is null for non-ticket notifications.
+ */
+export async function createNotificationsForOrg(
+  organizationId: number,
+  excludeUserId: number,
+  text: string,
+  type: NotificationType = "system",
+  ticketId: number | null = null,
+): Promise<void> {
+  const candidates = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .from(usersTable)
+    .where(and(
+      eq(usersTable.organizationId, organizationId),
+      ne(usersTable.id, excludeUserId),
+      eq(usersTable.isActive, true),
+    ));
+  if (candidates.length === 0) return;
+
+  const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
+
+  const inAppTargets = candidates.filter((u) => prefs.get(u.id)?.inApp !== false).map((u) => u.id);
+  if (inAppTargets.length > 0) {
+    await db.insert(notificationsTable).values(
+      inAppTargets.map((id) => ({
+        userId: id,
+        ticketId: ticketId ?? undefined,
+        type,
+        notificationText: text,
+        isRead: false,
+      }))
+    );
+  }
+
+  const pushTokens = candidates
+    .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
+    .map((u) => u.expoPushToken!);
+  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
+  void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
+}
+
 export async function createNotificationForUser(
   userId: number,
   ticketId: number | null,

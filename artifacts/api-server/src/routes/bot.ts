@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
 import { botChatRateLimiter } from "../lib/rateLimiter";
-import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable, settingsTable } from "@workspace/db";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { db, ticketsTable, knowledgeArticlesTable, ticketCommentsTable, settingsTable, dailyReportsTable, dailyReportReadsTable, ticketActivityLogsTable, usersTable } from "@workspace/db";
+import { eq, and, sql, desc, gte, lt, ne, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -387,14 +387,267 @@ Regole per i campi JSON:
 Rispondi sempre in italiano. Sii sintetico. Non aggiungere mai passi o consigli non presenti nel contesto fornito.${historySection}`;
 }
 
+// ── Daily report / briefing types ────────────────────────────────────────────
+
+interface ActivityTicket {
+  id: number;
+  ticketNumber?: number | null;
+  title: string;
+  status: string;
+  priority: string;
+  category?: string | null;
+  actions: string[];
+}
+
+interface BriefingReport {
+  id: number;
+  date: string;
+  content: string;
+  authorName: string;
+}
+
+interface TicketSummary {
+  openTickets: number;
+  overdueTickets: number;
+  urgentTickets: number;
+}
+
+interface BriefingContext {
+  reports: BriefingReport[];
+  ticketSummary: TicketSummary;
+}
+
+// ── Report-mode system prompt ─────────────────────────────────────────────────
+
+function buildReportModePrompt(
+  userName: string,
+  activityToday: ActivityTicket[],
+  lang: "it" | "en",
+): string {
+  const locale = lang === "en" ? "en-GB" : "it-IT";
+  const today = new Date().toLocaleDateString(locale);
+
+  const ticketList = activityToday.length === 0
+    ? (lang === "it" ? "Nessun ticket registrato oggi nel sistema." : "No tickets recorded today in the system.")
+    : activityToday.map((t, i) => {
+        const num = t.ticketNumber ?? t.id;
+        const actions = t.actions.join(", ");
+        return lang === "it"
+          ? `${i + 1}. #${num} — "${t.title}" (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — azioni: ${actions}`
+          : `${i + 1}. #${num} — "${t.title}" (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — actions: ${actions}`;
+      }).join("\n");
+
+  if (lang === "en") {
+    return `You are TaskBot in END-OF-DAY REPORT mode. Today: ${today}.
+
+The operator ${userName} is writing their daily report. Here are the tickets they worked on today (from the system activity log):
+
+${ticketList}
+
+Your task:
+1. Present this list in a friendly summary format.
+2. Ask if they want to add any notes or context not visible in the system (e.g. "customer X will call back tomorrow", "issue resolved but waiting for confirmation").
+3. When the operator confirms (says "ok", "publish", "send", "fine", "pubblica", "invia", "sì", "perfetto", or similar): output ONLY this JSON on a single line with no other text:
+{"action":"submit_daily_report","content":"FULL_REPORT_TEXT"}
+
+The content field must be a complete, readable report in plain text that includes both the ticket list and any additional notes the operator provided.
+
+Always reply in English.`;
+  }
+
+  return `Sei TaskBot in modalità REPORT DI FINE GIORNATA. Data: ${today}.
+
+L'operatore ${userName} sta scrivendo il report giornaliero. Ecco i ticket su cui ha lavorato oggi (dall'activity log di sistema):
+
+${ticketList}
+
+Il tuo compito:
+1. Presenta questo elenco in modo amichevole e leggibile.
+2. Chiedi se vuole aggiungere note o contesto che non risulta dal sistema (es. "il cliente X richiamerà domani", "problema risolto ma in attesa di conferma").
+3. Quando l'operatore conferma (dice "ok", "pubblica", "invia", "sì", "perfetto" o simili): emetti SOLO questo JSON su una riga senza altro testo:
+{"action":"submit_daily_report","content":"TESTO_COMPLETO_DEL_REPORT"}
+
+Il campo content deve contenere un report completo e leggibile in testo semplice che includa sia l'elenco dei ticket che le note aggiuntive fornite dall'operatore.
+
+Rispondi sempre in italiano.`;
+}
+
+// ── Briefing system prompt ─────────────────────────────────────────────────────
+
+function buildBriefingPrompt(
+  ctx: BriefingContext,
+  userName: string,
+  lang: "it" | "en",
+): string {
+  const locale = lang === "en" ? "en-GB" : "it-IT";
+  const today = new Date().toLocaleDateString(locale);
+  const { reports, ticketSummary } = ctx;
+
+  const reportsSection = reports.length === 0
+    ? (lang === "it" ? "Nessun report di colleghi da leggere." : "No colleague reports to read.")
+    : reports.map((r, i) => {
+        const date = new Date(r.date).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+        return lang === "it"
+          ? `--- Report di ${r.authorName} (${date}) ---\n${r.content.slice(0, 600)}`
+          : `--- Report by ${r.authorName} (${date}) ---\n${r.content.slice(0, 600)}`;
+      }).join("\n\n");
+
+  if (lang === "en") {
+    return `You are TaskBot in AUTO-BRIEFING mode. Today: ${today}.
+
+${userName} just opened the bot. Deliver a concise morning/shift briefing based on the data below.
+
+=== UNREAD COLLEAGUE REPORTS ===
+${reportsSection}
+
+=== CURRENT TICKET SITUATION ===
+- Open tickets: ${ticketSummary.openTickets}
+- Overdue tickets: ${ticketSummary.overdueTickets}
+- Urgent tickets: ${ticketSummary.urgentTickets}
+
+Instructions:
+1. Start immediately with the briefing — no preamble.
+2. Summarise each colleague report in 1–3 sentences.
+3. Mention the ticket situation if there is anything urgent or overdue.
+4. End with a short offer to help: "Any questions, or shall I help you with something?"
+5. You can answer questions about any of the reports above or about the ticket situation.
+
+Always reply in English.`;
+  }
+
+  return `Sei TaskBot in modalità BRIEFING AUTOMATICO. Data: ${today}.
+
+${userName} ha appena aperto il bot. Fornisci un briefing conciso basato sui dati seguenti.
+
+=== REPORT DEI COLLEGHI NON LETTI ===
+${reportsSection}
+
+=== SITUAZIONE TICKET ATTUALE ===
+- Ticket aperti: ${ticketSummary.openTickets}
+- Ticket scaduti: ${ticketSummary.overdueTickets}
+- Ticket urgenti: ${ticketSummary.urgentTickets}
+
+Istruzioni:
+1. Inizia subito con il briefing — nessun preambolo.
+2. Riassumi ogni report del collega in 1–3 frasi.
+3. Segnala la situazione ticket se ci sono urgenze o scaduti.
+4. Concludi con una breve offerta di aiuto: "Hai domande, o posso aiutarti con qualcosa?"
+5. Puoi rispondere a domande su qualunque report sopra o sulla situazione ticket.
+
+Rispondi sempre in italiano.`;
+}
+
+// ── Historical keyword detection ──────────────────────────────────────────────
+
+const HISTORICAL_KEYWORDS_IT = ["ieri", "settimana scorsa", "settimana fa", "mese scorso", "scorso", "giorni fa", "ieri l'altro"];
+const HISTORICAL_KEYWORDS_EN = ["yesterday", "last week", "last month", "days ago", "week ago", "the other day"];
+
+function hasHistoricalRef(text: string, lang: "it" | "en"): boolean {
+  const lower = text.toLowerCase();
+  const keywords = lang === "it" ? HISTORICAL_KEYWORDS_IT : HISTORICAL_KEYWORDS_EN;
+  return keywords.some((k) => lower.includes(k));
+}
+
+async function fetchRecentReports(orgId: number, limit = 10): Promise<BriefingReport[]> {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const rows = await db.execute(sql`
+    SELECT dr.id, dr.date, SUBSTRING(dr.content FOR 600) AS content, u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.organization_id = ${orgId}
+      AND dr.created_at >= ${sevenDaysAgo.toISOString()}
+    ORDER BY dr.date DESC, dr.created_at DESC
+    LIMIT ${limit}
+  `);
+  return rows.rows as unknown as BriefingReport[];
+}
+
+// ── Server-side data fetching for bot special modes ───────────────────────────
+
+/** Fetch unread reports from colleagues (up to 10, content capped at 600 chars). */
+async function fetchUnreadReportsForBriefing(orgId: number, userId: number): Promise<BriefingReport[]> {
+  const rows = await db.execute(sql`
+    SELECT dr.id, dr.date::text AS date, SUBSTRING(dr.content FOR 600) AS content, u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.organization_id = ${orgId}
+      AND dr.author_user_id <> ${userId}
+      AND NOT EXISTS (
+        SELECT 1 FROM daily_report_reads drr
+        WHERE drr.daily_report_id = dr.id AND drr.user_id = ${userId}
+      )
+    ORDER BY dr.date DESC, dr.created_at DESC
+    LIMIT 10
+  `);
+  return rows.rows as unknown as BriefingReport[];
+}
+
+/** Fetch current org ticket summary for the briefing prompt. */
+async function fetchTicketSummary(orgId: number): Promise<TicketSummary> {
+  const [counts] = await db.select({
+    openTickets: sql<number>`count(*) filter (where status = 'open')`,
+    overdueTickets: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
+    urgentTickets: sql<number>`count(*) filter (where priority = 'urgent' and status not in ('resolved','closed'))`,
+  }).from(ticketsTable).where(eq(ticketsTable.organizationId, orgId));
+  return {
+    openTickets: Number(counts.openTickets),
+    overdueTickets: Number(counts.overdueTickets),
+    urgentTickets: Number(counts.urgentTickets),
+  };
+}
+
+/** Fetch tickets the operator interacted with today (UTC day boundary). */
+async function fetchTodayActivity(userId: number, orgId: number): Promise<ActivityTicket[]> {
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
+
+  const activityRows = await db
+    .select({ ticketId: ticketActivityLogsTable.ticketId, actionType: ticketActivityLogsTable.actionType })
+    .from(ticketActivityLogsTable)
+    .where(and(
+      eq(ticketActivityLogsTable.userId, userId),
+      gte(ticketActivityLogsTable.createdAt, todayStart),
+      lt(ticketActivityLogsTable.createdAt, tomorrowStart),
+    ));
+
+  const ticketActionMap = new Map<number, Set<string>>();
+  for (const row of activityRows) {
+    if (!ticketActionMap.has(row.ticketId)) ticketActionMap.set(row.ticketId, new Set());
+    ticketActionMap.get(row.ticketId)!.add(row.actionType);
+  }
+  if (ticketActionMap.size === 0) return [];
+
+  const ticketIds = Array.from(ticketActionMap.keys());
+  const tickets = await db
+    .select({
+      id: ticketsTable.id, ticketNumber: ticketsTable.ticketNumber,
+      title: ticketsTable.title, status: ticketsTable.status,
+      priority: ticketsTable.priority, category: ticketsTable.category,
+    })
+    .from(ticketsTable)
+    .where(and(inArray(ticketsTable.id, ticketIds), eq(ticketsTable.organizationId, orgId)));
+
+  return tickets.map((t) => ({ ...t, actions: Array.from(ticketActionMap.get(t.id) ?? []) }));
+}
+
+// ── Main chat route ───────────────────────────────────────────────────────────
+
 router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const { message, history, lang } = req.body as {
+  // Only accept the mode flags from the client — all report/activity data is
+  // fetched server-side from the authenticated user's organization so that
+  // client-supplied content never reaches the system prompt.
+  const { message, history, lang, reportMode, briefingMode } = req.body as {
     message: string;
     history: { role: "user" | "assistant"; content: string }[];
     lang?: string;
+    reportMode?: boolean;
+    briefingMode?: boolean;
   };
 
   if (!message || typeof message !== "string") {
@@ -429,19 +682,51 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
       return acc;
     }, []);
 
-  // Build a combined search query from all user turns so that short follow-up
-  // messages (e.g. "sono in sede Verdi") still retrieve the relevant tickets.
-  const userTurns = cappedHistory
-    .filter((m) => m.role === "user")
-    .map((m) => m.content);
-  const searchQuery = [...userTurns, message].join(" ");
+  let systemPrompt: string;
+  let maxTokens = 800;
+  // IDs of unread reports fetched for this briefing — marked read after success
+  let briefingUnreadIds: number[] = [];
 
-  const [context, categories, locations] = await Promise.all([
-    searchContext(searchQuery, orgId, isAdmin),
-    fetchOrgCategories(orgId),
-    fetchOrgLocations(orgId),
-  ]);
-  const systemPrompt = buildSystemPrompt(context, resolvedLang, categories, locations, userLocation);
+  if (briefingMode) {
+    // Server-side fetch: authenticated org data only; no client-supplied content reaches the prompt
+    const [unreadReports, ticketSummary] = await Promise.all([
+      fetchUnreadReportsForBriefing(orgId, currentUser.id),
+      fetchTicketSummary(orgId),
+    ]);
+    briefingUnreadIds = unreadReports.map((r) => r.id);
+    systemPrompt = buildBriefingPrompt({ reports: unreadReports, ticketSummary }, currentUser.name ?? "Operatore", resolvedLang);
+    maxTokens = 600;
+  } else if (reportMode) {
+    // Server-side fetch: activity from the authenticated user's own org
+    const activityToday = await fetchTodayActivity(currentUser.id, orgId);
+    systemPrompt = buildReportModePrompt(currentUser.name ?? "Operatore", activityToday, resolvedLang);
+    maxTokens = 700;
+  } else {
+    // Normal support mode — check if message has historical references → inject recent reports
+    const allUserText = [...cappedHistory.filter(m => m.role === "user").map(m => m.content), message].join(" ");
+    const [context, categories, locations, historicalReports] = await Promise.all([
+      searchContext(allUserText, orgId, isAdmin),
+      fetchOrgCategories(orgId),
+      fetchOrgLocations(orgId),
+      hasHistoricalRef(allUserText, resolvedLang) ? fetchRecentReports(orgId) : Promise.resolve([] as BriefingReport[]),
+    ]);
+
+    systemPrompt = buildSystemPrompt(context, resolvedLang, categories, locations, userLocation);
+
+    if (historicalReports.length > 0) {
+      const locale = resolvedLang === "en" ? "en-GB" : "it-IT";
+      const section = historicalReports.map((r) => {
+        const date = new Date(r.date).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+        return resolvedLang === "it"
+          ? `Report di ${r.authorName} (${date}): ${r.content}`
+          : `Report by ${r.authorName} (${date}): ${r.content}`;
+      }).join("\n\n");
+      const header = resolvedLang === "it"
+        ? "\n\n--- REPORT GIORNALIERI RECENTI (ultimi 7 giorni, per rispondere a domande storiche) ---\n"
+        : "\n\n--- RECENT DAILY REPORTS (last 7 days, for answering historical questions) ---\n";
+      systemPrompt += header + section;
+    }
+  }
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
@@ -454,12 +739,13 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
+  let streamedDone = false;
   try {
     const stream = await openai.chat.completions.create({
       model: "gpt-5.4-mini",
       messages,
       stream: true,
-      max_completion_tokens: 800,
+      max_completion_tokens: maxTokens,
     });
 
     for await (const chunk of stream) {
@@ -470,6 +756,16 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
     }
 
     res.write("data: [DONE]\n\n");
+    streamedDone = true;
+
+    // Mark briefing reports as read only after the full briefing has been
+    // streamed successfully. If the bot API fails, reports remain unread.
+    if (briefingMode && briefingUnreadIds.length > 0) {
+      await db
+        .insert(dailyReportReadsTable)
+        .values(briefingUnreadIds.map((id) => ({ userId: currentUser.id, dailyReportId: id })))
+        .onConflictDoNothing();
+    }
   } catch (err: any) {
     req.log.error({ err }, "Bot chat error");
     const errMsg = resolvedLang === "en" ? "Bot error. Please try again." : "Errore del bot. Riprova.";

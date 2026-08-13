@@ -213,6 +213,31 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS entity_plural TEXT;
     `);
 
+    // Daily reports — operator EOD report saved in DB; colleagues see badge + auto-briefing
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS daily_reports (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        author_user_id INTEGER NOT NULL REFERENCES users(id),
+        date DATE NOT NULL,
+        content TEXT NOT NULL,
+        tickets_snapshot JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT daily_reports_author_date_uniq UNIQUE (organization_id, author_user_id, date)
+      );
+      CREATE INDEX IF NOT EXISTS daily_reports_org_date_idx ON daily_reports (organization_id, date);
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS daily_report_reads (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        daily_report_id INTEGER NOT NULL REFERENCES daily_reports(id) ON DELETE CASCADE,
+        read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT daily_report_reads_user_report_uniq UNIQUE (user_id, daily_report_id)
+      );
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

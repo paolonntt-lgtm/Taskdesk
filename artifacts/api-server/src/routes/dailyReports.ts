@@ -1,0 +1,226 @@
+import { Router, type IRouter } from "express";
+import { requireAuth } from "../middlewares/auth";
+import { db, ticketsTable, ticketActivityLogsTable, usersTable, dailyReportsTable, dailyReportReadsTable } from "@workspace/db";
+import { eq, and, sql, desc, gte, lt, inArray, ne } from "drizzle-orm";
+import { createNotificationsForOrg } from "../lib/notifications";
+
+const router: IRouter = Router();
+
+// ── helpers: all date boundaries use UTC so activity filtering and the
+//   report's uniqueness key (DATE column) always agree on which day it is. ──
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD" in UTC
+}
+
+function utcDayBoundaries(): { todayStart: Date; tomorrowStart: Date } {
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
+  return { todayStart, tomorrowStart };
+}
+
+// GET /daily-reports/my-activity-today
+// Returns tickets the current user acted on today (via ticket_activity_logs).
+router.get("/daily-reports/my-activity-today", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+
+  const { todayStart, tomorrowStart } = utcDayBoundaries();
+
+  // Distinct ticket IDs the user touched today
+  const activityRows = await db
+    .select({ ticketId: ticketActivityLogsTable.ticketId, actionType: ticketActivityLogsTable.actionType })
+    .from(ticketActivityLogsTable)
+    .where(and(
+      eq(ticketActivityLogsTable.userId, currentUser.id),
+      gte(ticketActivityLogsTable.createdAt, todayStart),
+      lt(ticketActivityLogsTable.createdAt, tomorrowStart),
+    ))
+    .orderBy(ticketActivityLogsTable.createdAt);
+
+  // Deduplicate, keeping the most interesting actionType per ticket
+  const ticketActionMap = new Map<number, Set<string>>();
+  for (const row of activityRows) {
+    if (!ticketActionMap.has(row.ticketId)) ticketActionMap.set(row.ticketId, new Set());
+    ticketActionMap.get(row.ticketId)!.add(row.actionType);
+  }
+
+  if (ticketActionMap.size === 0) {
+    res.json({ tickets: [] });
+    return;
+  }
+
+  const ticketIds = Array.from(ticketActionMap.keys());
+  const tickets = await db
+    .select({
+      id: ticketsTable.id,
+      ticketNumber: ticketsTable.ticketNumber,
+      title: ticketsTable.title,
+      status: ticketsTable.status,
+      priority: ticketsTable.priority,
+      category: ticketsTable.category,
+    })
+    .from(ticketsTable)
+    .where(and(
+      inArray(ticketsTable.id, ticketIds),
+      eq(ticketsTable.organizationId, orgId),
+    ));
+
+  const result = tickets.map((t) => ({
+    ...t,
+    actions: Array.from(ticketActionMap.get(t.id) ?? []),
+  }));
+
+  res.json({ tickets: result });
+});
+
+// GET /daily-reports/today-mine
+// Returns whether the current user has already submitted a report today.
+router.get("/daily-reports/today-mine", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const today = todayDateStr();
+
+  const rows = await db
+    .select({ id: dailyReportsTable.id })
+    .from(dailyReportsTable)
+    .where(and(
+      eq(dailyReportsTable.organizationId, currentUser.organizationId),
+      eq(dailyReportsTable.authorUserId, currentUser.id),
+      eq(dailyReportsTable.date, today),
+    ))
+    .limit(1);
+
+  res.json({ submitted: rows.length > 0, reportId: rows[0]?.id ?? null });
+});
+
+// POST /daily-reports
+// Save the current user's daily report (one per day, idempotent).
+router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const { content, ticketsSnapshot } = req.body as {
+    content: string;
+    ticketsSnapshot?: unknown;
+  };
+
+  if (!content || typeof content !== "string" || content.trim().length < 5) {
+    res.status(400).json({ error: "content is required" });
+    return;
+  }
+
+  const today = todayDateStr();
+
+  try {
+    const [report] = await db
+      .insert(dailyReportsTable)
+      .values({
+        organizationId: currentUser.organizationId,
+        authorUserId: currentUser.id,
+        date: today,
+        content: content.trim(),
+        ticketsSnapshot: ticketsSnapshot ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [dailyReportsTable.organizationId, dailyReportsTable.authorUserId, dailyReportsTable.date],
+        set: { content: content.trim(), ticketsSnapshot: ticketsSnapshot ?? null },
+      })
+      .returning();
+
+    // Notify all other org members
+    void createNotificationsForOrg(
+      currentUser.organizationId,
+      currentUser.id,
+      `${currentUser.name} ha pubblicato il report di oggi`,
+      "daily_report_submitted",
+      null,
+    );
+
+    res.json({ ok: true, report });
+  } catch (err: any) {
+    if (err.code === "23505") {
+      // Duplicate (shouldn't happen with onConflictDoUpdate, but safety net)
+      res.status(409).json({ error: "Report already submitted today" });
+      return;
+    }
+    throw err;
+  }
+});
+
+// GET /daily-reports/unread
+// Returns reports published by colleagues that the current user hasn't read yet.
+router.get("/daily-reports/unread", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+
+  const rows = await db.execute(sql`
+    SELECT
+      dr.id,
+      dr.date,
+      dr.content,
+      dr.tickets_snapshot AS "ticketsSnapshot",
+      dr.created_at AS "createdAt",
+      u.id AS "authorId",
+      u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.organization_id = ${currentUser.organizationId}
+      AND dr.author_user_id <> ${currentUser.id}
+      AND NOT EXISTS (
+        SELECT 1 FROM daily_report_reads drr
+        WHERE drr.daily_report_id = dr.id
+          AND drr.user_id = ${currentUser.id}
+      )
+    ORDER BY dr.date DESC, dr.created_at DESC
+    LIMIT 20
+  `);
+
+  res.json({ reports: rows.rows });
+});
+
+// POST /daily-reports/:id/read
+// Mark a specific report as read by the current user.
+router.post("/daily-reports/:id/read", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const reportId = parseInt(String(req.params.id));
+  if (isNaN(reportId)) { res.status(400).json({ error: "invalid id" }); return; }
+
+  await db
+    .insert(dailyReportReadsTable)
+    .values({ userId: currentUser.id, dailyReportId: reportId })
+    .onConflictDoNothing();
+
+  res.json({ ok: true });
+});
+
+// GET /daily-reports
+// List reports for the org (used by bot for historical queries).
+// Query params: ?userId=&from=YYYY-MM-DD&to=YYYY-MM-DD&limit=
+router.get("/daily-reports", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const userId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+  const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+  const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+  const limitQ = typeof req.query.limit === 'string' ? req.query.limit : undefined;
+  const limit = Math.min(parseInt(limitQ ?? "20") || 20, 50);
+
+  const rows = await db.execute(sql`
+    SELECT
+      dr.id,
+      dr.date,
+      dr.content,
+      dr.tickets_snapshot AS "ticketsSnapshot",
+      dr.created_at AS "createdAt",
+      u.id AS "authorId",
+      u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.organization_id = ${currentUser.organizationId}
+      ${userId ? sql`AND dr.author_user_id = ${parseInt(userId)}` : sql``}
+      ${from ? sql`AND dr.date >= ${from}` : sql``}
+      ${to ? sql`AND dr.date <= ${to}` : sql``}
+    ORDER BY dr.date DESC, dr.created_at DESC
+    LIMIT ${limit}
+  `);
+
+  res.json({ reports: rows.rows });
+});
+
+export default router;
