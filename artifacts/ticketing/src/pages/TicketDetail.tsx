@@ -737,7 +737,7 @@ export default function TicketDetail() {
                 const clickProps = canChangeStatus ? { onClick: (e: React.MouseEvent<HTMLElement>) => setStatusAnchor(e.currentTarget), sx: { cursor: 'pointer' } } : {};
                 if (customColor) {
                   return (
-                    <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
+                    <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: { xs: 12, sm: 14 }, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
                       {label}
                     </Box>
                   );
@@ -752,18 +752,18 @@ export default function TicketDetail() {
                 };
                 const soft = softMap[ticket.status];
                 return soft ? (
-                  <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
+                  <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: { xs: 12, sm: 14 }, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
                     {label}
                   </Box>
                 ) : (
-                  <Chip label={label} size="small" color={muiColor as any} onClick={canChangeStatus ? (e) => setStatusAnchor(e.currentTarget) : undefined} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20, ...(canChangeStatus ? { cursor: 'pointer' } : {}) }} />
+                  <Chip label={label} size="small" color={muiColor as any} onClick={canChangeStatus ? (e) => setStatusAnchor(e.currentTarget) : undefined} sx={{ fontWeight: 700, height: 22, fontSize: { xs: 12, sm: 14 }, borderRadius: 20, ...(canChangeStatus ? { cursor: 'pointer' } : {}) }} />
                 );
               })()}
               {/* Priority dot + text — cliccabile se permesso */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
                 onClick={canChangeStatus ? (e) => setPriorityAnchor(e.currentTarget) : undefined}>
                 <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: priorityColor(ticket.priority) }} />
-                <Box component="span" sx={{ fontWeight: 600, fontSize: 12, color: priorityColor(ticket.priority) }}>
+                <Box component="span" sx={{ fontWeight: 600, fontSize: { xs: 12, sm: 14 }, color: priorityColor(ticket.priority) }}>
                   {t.priority[ticket.priority] || ticket.priority}
                 </Box>
               </Box>
@@ -772,7 +772,7 @@ export default function TicketDetail() {
                   <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
                   <Box component="span"
                     onClick={canEdit ? (e) => setCategoryAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: 12, color: '#9e9e9e', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
                     {ticket.category}
                   </Box>
                 </>
@@ -782,7 +782,7 @@ export default function TicketDetail() {
                   <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
                   <Box component="span"
                     onClick={canEdit ? (e) => setLocationAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: 12, color: '#9e9e9e', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#00838f', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
                     {ticket.location}
                   </Box>
                 </>
@@ -798,16 +798,16 @@ export default function TicketDetail() {
                 {creator?.name && (
                   <>
                     <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
-                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{creator.name}</Box>
+                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a' }}>{creator.name}</Box>
                   </>
                 )}
                 {creator?.name && (assignee || assignedGroup) && (
-                  <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', mx: 0.25 }}>→</Box>
+                  <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, color: '#bdbdbd', mx: 0.25 }}>→</Box>
                 )}
                 {(assignee || assignedGroup) && (
                   <>
                     {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#1565c0' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
                   </>
                 )}
               </Box>
@@ -819,7 +819,7 @@ export default function TicketDetail() {
                 {(ticket as any).dueAt && (
                   <Box component="span"
                     onClick={(isAdmin || isAssignee) ? (e) => setDueAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
+                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
                     ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </Box>
                 )}
