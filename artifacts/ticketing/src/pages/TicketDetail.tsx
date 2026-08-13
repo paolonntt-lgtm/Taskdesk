@@ -98,6 +98,8 @@ export default function TicketDetail() {
   const [statusAnchor, setStatusAnchor] = useState<null | HTMLElement>(null);
   const [priorityAnchor, setPriorityAnchor] = useState<null | HTMLElement>(null);
   const [dueAnchor, setDueAnchor] = useState<null | HTMLElement>(null);
+  const [categoryAnchor, setCategoryAnchor] = useState<null | HTMLElement>(null);
+  const [locationAnchor, setLocationAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -778,13 +780,21 @@ export default function TicketDetail() {
               {ticket.category && (
                 <>
                   <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
+                  <Box component="span"
+                    onClick={canEdit ? (e) => setCategoryAnchor(e.currentTarget) : undefined}
+                    sx={{ fontSize: 12, color: '#9e9e9e', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    {ticket.category}
+                  </Box>
                 </>
               )}
               {!singleLocation && ticket.location && (
                 <>
                   <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.location}</Box>
+                  <Box component="span"
+                    onClick={canEdit ? (e) => setLocationAnchor(e.currentTarget) : undefined}
+                    sx={{ fontSize: 12, color: '#9e9e9e', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    {ticket.location}
+                  </Box>
                 </>
               )}
             </Box>
@@ -1466,6 +1476,32 @@ export default function TicketDetail() {
           </Box>
         </Box>
       </Box>
+
+      {/* ── Popover: cambia categoria dalla metabar ── */}
+      <Popover open={Boolean(categoryAnchor)} anchorEl={categoryAnchor} onClose={() => setCategoryAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.categoryLabel}</Box>
+        <Box display="flex" flexDirection="column" gap={0.5}>
+          {editCategories.map((c) => (
+            <Box key={c} onClick={async () => { await updateTicket.mutateAsync({ id: ticketId, data: { category: c } as any }); queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }); setCategoryAnchor(null); }}
+              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.category === c ? 'primary.50' : 'transparent', color: ticket.category === c ? 'primary.main' : '#424242', fontWeight: ticket.category === c ? 700 : 400, '&:hover': { bgcolor: '#f5f5f5' } }}>
+              {c}
+            </Box>
+          ))}
+        </Box>
+      </Popover>
+
+      {/* ── Popover: cambia sede dalla metabar ── */}
+      <Popover open={Boolean(locationAnchor)} anchorEl={locationAnchor} onClose={() => setLocationAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.locationLabel}</Box>
+        <Box display="flex" flexDirection="column" gap={0.5}>
+          {editLocations.map((l) => (
+            <Box key={l} onClick={async () => { await updateTicket.mutateAsync({ id: ticketId, data: { location: l } as any }); queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }); setLocationAnchor(null); }}
+              sx={{ px: 1, py: 0.75, borderRadius: 1, fontSize: 13, cursor: 'pointer', bgcolor: ticket.location === l ? 'primary.50' : 'transparent', color: ticket.location === l ? 'primary.main' : '#424242', fontWeight: ticket.location === l ? 700 : 400, '&:hover': { bgcolor: '#f5f5f5' } }}>
+              {l}
+            </Box>
+          ))}
+        </Box>
+      </Popover>
 
       {/* ── Popover: modifica scadenza dalla metabar ── */}
       <Popover open={Boolean(dueAnchor)} anchorEl={dueAnchor} onClose={() => setDueAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5 } } }}>
