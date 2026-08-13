@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   Box, IconButton, Tooltip, Divider, LinearProgress, Chip,
   Typography, Paper, List, ListItemButton, ListItemText, ListItemAvatar, Avatar,
+  useTheme,
 } from '@mui/material';
 import {
   FormatBold, FormatItalic, FormatListBulleted, FormatListNumbered,
@@ -156,6 +157,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
 }: RichCommentEditorProps, ref) {
   const { t } = useLanguage();
   const tr = t.richEditor;
+  const theme = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useImperativeHandle(ref, () => ({
@@ -483,6 +485,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             lineHeight: 1.6,
             boxSizing: 'border-box',
             background: 'transparent',
+            color: 'inherit',
             minHeight: `${minRows * 1.6 * 14 + 24}px`,
           }}
         />
@@ -495,7 +498,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             gap: 0.25,
             px: 1,
             py: 0.5,
-            bgcolor: 'grey.50',
+            bgcolor: theme.palette.mode === 'dark' ? '#1e2330' : 'grey.50',
             borderTop: '1px solid',
             borderColor: 'divider',
             flexWrap: 'wrap',
@@ -551,25 +554,25 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             gap: 2,
             px: 1.5,
             py: 0.75,
-            bgcolor: 'primary.50',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.12)' : 'rgba(37,99,235,0.06)',
             borderTop: '1px solid',
-            borderColor: 'primary.100',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.25)' : 'rgba(37,99,235,0.15)',
             flexWrap: 'wrap',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-            <AlternateEmail sx={{ fontSize: 14, color: 'primary.600' }} />
-            <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
+            <AlternateEmail sx={{ fontSize: 14, color: 'primary.main' }} />
+            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '0.75rem' }}>
               {tr.mentionAtName} / {tr.mentionAtGroup}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
               — {tr.mentionHint}
             </Typography>
           </Box>
-          <Divider orientation="vertical" flexItem sx={{ borderColor: 'primary.200' }} />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'divider' }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-            <Tag sx={{ fontSize: 14, color: 'primary.600' }} />
-            <Typography variant="caption" sx={{ color: 'primary.700', fontWeight: 600, fontSize: '0.75rem' }}>
+            <Tag sx={{ fontSize: 14, color: 'primary.main' }} />
+            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '0.75rem' }}>
               #42
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
@@ -598,7 +601,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             borderColor: 'divider',
           }}
         >
-          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', position: 'sticky', top: 0, zIndex: 1 }}>
+          <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', position: 'sticky', top: 0, zIndex: 1 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
               {autocomplete!.type === 'mention' ? tr.mentionDropdownTitle : tr.ticketDropdownTitle}
             </Typography>
