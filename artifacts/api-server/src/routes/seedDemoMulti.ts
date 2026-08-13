@@ -1824,6 +1824,683 @@ async function seedAssicurazioni(pw: string) {
   ]);
 }
 
+// ─── Impianti Industriali / Engineering (agency) ─────────────────────────────
+// Valid statuses: open | in_progress | in_review | approved | closed
+async function seedImpiantiIndustriali(pw: string) {
+  const [org] = await db.insert(organizationsTable).values({
+    name: "DG Engineering S.p.A.",
+    businessType: "agency",
+    entitySingular: "Commessa",
+    entityPlural: "Commesse",
+    onboardingDone: true,
+    clientsEnabled: true,
+  }).returning();
+
+  const orgId = org.id;
+
+  const defaultStatuses = getDefaultStatuses("agency" as any);
+  await db.insert(ticketStatusesTable).values(
+    defaultStatuses.map((s) => ({ ...s, organizationId: orgId }))
+  ).onConflictDoNothing();
+
+  const [admin, user1, user2] = await db.insert(usersTable).values([
+    {
+      name: "Ing. Lorenzo Ferretti",
+      email: "demo.industria.admin@taskdesk.it",
+      passwordHash: pw,
+      role: "admin",
+      organizationId: orgId,
+      avatarUrl: "https://i.pravatar.cc/150?u=demo.industria.admin@taskdesk.it",
+      isActive: true,
+    },
+    {
+      name: "Ing. Martina Conti",
+      email: "demo.industria.user1@taskdesk.it",
+      passwordHash: pw,
+      role: "user",
+      organizationId: orgId,
+      avatarUrl: "https://i.pravatar.cc/150?u=demo.industria.user1@taskdesk.it",
+      isActive: true,
+    },
+    {
+      name: "Ing. Davide Romano",
+      email: "demo.industria.user2@taskdesk.it",
+      passwordHash: pw,
+      role: "user",
+      organizationId: orgId,
+      avatarUrl: "https://i.pravatar.cc/150?u=demo.industria.user2@taskdesk.it",
+      isActive: true,
+    },
+  ]).returning();
+
+  const clients = await db.insert(clientsTable).values([
+    {
+      organizationId: orgId,
+      name: "ENI S.p.A.",
+      vatNumber: "IT00905811006",
+      address: "Piazzale Enrico Mattei 1, 00144 Roma",
+      pec: "eni@pecaziendale.eni.it",
+      contactPerson: "Ing. Francesco Palumbo",
+      email: "f.palumbo@eni.com",
+      phone: "06 59821",
+    },
+    {
+      organizationId: orgId,
+      name: "Snam Rete Gas S.p.A.",
+      vatNumber: "IT13271390158",
+      address: "Piazza Santa Barbara 7, 20097 San Donato Milanese (MI)",
+      pec: "snam@pec.snam.it",
+      contactPerson: "Ing. Roberto Carbone",
+      email: "r.carbone@snam.it",
+      phone: "02 3703 1",
+    },
+    {
+      organizationId: orgId,
+      name: "Terna S.p.A.",
+      vatNumber: "IT05779661007",
+      address: "Viale Egidio Galbani 70, 00156 Roma",
+      pec: "terna@pec.terna.it",
+      contactPerson: "Ing. Alessia Mancini",
+      email: "a.mancini@terna.it",
+      phone: "06 8313 1",
+    },
+    {
+      organizationId: orgId,
+      name: "Enel Green Power S.p.A.",
+      vatNumber: "IT05655971007",
+      address: "Viale Regina Margherita 125, 00198 Roma",
+      pec: "enelgreenpower@pec.enel.it",
+      contactPerson: "Ing. Marco Vitelli",
+      email: "m.vitelli@enelgreenpower.com",
+      phone: "06 8305 1",
+    },
+    {
+      organizationId: orgId,
+      name: "EniProgetti S.p.A.",
+      vatNumber: "IT00876981005",
+      address: "Via Maritano 26, 20097 San Donato Milanese (MI)",
+      pec: "eniprogetti@pec.eni.it",
+      contactPerson: "Ing. Silvia Ferrara",
+      email: "s.ferrara@eniprogetti.it",
+      phone: "02 5202 1",
+    },
+    {
+      organizationId: orgId,
+      name: "Saras Raffinerie Sarde S.p.A.",
+      vatNumber: "IT00136230924",
+      address: "Loc. Sarroch, 09018 Sarroch (CA)",
+      pec: "saras@pec.saras.it",
+      contactPerson: "Ing. Antonio Piras",
+      email: "a.piras@saras.it",
+      phone: "070 900 8001",
+    },
+    {
+      organizationId: orgId,
+      name: "Maire Tecnimont S.p.A.",
+      vatNumber: "IT02145590969",
+      address: "Via Gaetano De Castillia 6/A, 20124 Milano",
+      pec: "mairetecnimont@pec.mairetecnimont.it",
+      contactPerson: "Ing. Luca Giordano",
+      email: "l.giordano@mairetecnimont.com",
+      phone: "02 6313 1",
+    },
+    {
+      organizationId: orgId,
+      name: "Kuwait Petroleum Italia S.p.A.",
+      vatNumber: "IT00497660109",
+      address: "Via XX Settembre 2, 16121 Genova",
+      pec: "kpitalia@pec.kpitalia.it",
+      contactPerson: "Ing. Giovanni Bruni",
+      email: "g.bruni@kpitalia.it",
+      phone: "010 5761 1",
+    },
+  ]).returning();
+
+  await db.insert(clientNotesTable).values([
+    {
+      clientId: clients[0].id,
+      organizationId: orgId,
+      authorId: admin.id,
+      body: "ENI — Commessa FEED impianto gas Basilicata avanzata al 65%. KOM previsto a metà agosto per avanzamento al Detailed Engineering. Ing. Palumbo ha confermato disponibilità budget per FY2026.",
+    },
+    {
+      clientId: clients[1].id,
+      organizationId: orgId,
+      authorId: user1.id,
+      body: "Snam — Revisione documentale Rev. C in corso. Attesa emissione P&ID aggiornati entro fine luglio. Il PM lato cliente ha richiesto report mensile agosto per giovedì 29.",
+    },
+    {
+      clientId: clients[5].id,
+      organizationId: orgId,
+      authorId: user2.id,
+      body: "Saras Sarroch — Ispezione HSE completata il 22/07. Rilievi minori su procedure PTW area flare: pianificato piano di azione entro 30 giorni. Nessun NC critico.",
+    },
+    {
+      clientId: clients[6].id,
+      organizationId: orgId,
+      authorId: admin.id,
+      body: "Maire Tecnimont — Detailed Engineering impianto etilene: emissione doc. DE-3421-PID-0012 Rev. B prevista per 15/08. Fornitore vessel Belleli confermato lead time 14 settimane.",
+      monthOverride: "2026-07",
+    },
+    {
+      clientId: clients[3].id,
+      organizationId: orgId,
+      authorId: user1.id,
+      body: "Enel Green Power — Completata VIA per impianto fotovoltaico 50MW Puglia. Decreto autorizzativo atteso Q4. Monitoraggio ambientale Q3 da avviare entro fine settembre.",
+    },
+    {
+      clientId: clients[7].id,
+      organizationId: orgId,
+      authorId: user2.id,
+      body: "Kuwait Petroleum — Audit sistema PTW programmato per agosto. Ing. Bruni ha richiesto pre-audit checklist entro 10 giorni. Contratto quadro rinnovato fino a dicembre 2027.",
+    },
+  ]);
+
+  // agency statuses: open | in_progress | in_review | approved | closed
+  const ticketData = [
+    // ── Commesse recenti / in corso ──
+    {
+      organizationId: orgId,
+      title: "Engineering Design impianto gas — Fase FEED, Raffineria Sarroch",
+      description: "Front End Engineering & Design per nuovo impianto di trattamento gas associato presso la Raffineria Sarroch. Capacità nominale 250 MMSCFD. Disciplinari coinvolti: Process, Piping, Civil, Instrumentation.",
+      category: "FEED Engineering",
+      location: "Sarroch (CA)",
+      priority: "urgent" as const,
+      status: "open",
+      clientId: clients[0].id,
+      createdBy: admin.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(5),
+      updatedAt: daysAgo(2),
+    },
+    {
+      organizationId: orgId,
+      title: "Procurement valvole DN400 per gasdotto — Snam Rete Gas",
+      description: "Gestione acquisti valvole a sfera DN400 PN64 per potenziamento gasdotto Minerbio–Poggio Renatico. Richiesta offerta inviata a 5 vendor qualificati. Analisi offerte in corso.",
+      category: "Procurement",
+      location: "San Donato Milanese (MI)",
+      priority: "high" as const,
+      status: "in_progress",
+      clientId: clients[1].id,
+      createdBy: user1.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(12),
+      updatedAt: daysAgo(3),
+    },
+    {
+      organizationId: orgId,
+      title: "HSE Assessment piattaforma offshore — AGIP KCO Kazakhstan",
+      description: "Valutazione rischi HSE per piattaforma di estrazione offshore. Safety Case aggiornato alla normativa kazaka OSPAR equivalente. Deliverable: Risk Register Rev. 2, HAZID report.",
+      category: "HSE",
+      location: "Atyrau, Kazakhstan",
+      priority: "high" as const,
+      status: "in_review",
+      clientId: clients[0].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(20),
+      updatedAt: daysAgo(4),
+    },
+    {
+      organizationId: orgId,
+      title: "Project Management upgrade turbine — Enel Green Power",
+      description: "Gestione commessa per revamping 3 turbine a gas GE Frame 9E presso centrale termoelettrica. Coordinamento tra OEM, subappaltatori civili e team Engineering interno.",
+      category: "Project Management",
+      location: "Brindisi",
+      priority: "medium" as const,
+      status: "open",
+      clientId: clients[3].id,
+      createdBy: admin.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(8),
+      updatedAt: daysAgo(5),
+    },
+    {
+      organizationId: orgId,
+      title: "Studio ambientale VIA impianto fotovoltaico 50MW",
+      description: "Valutazione di Impatto Ambientale per parco fotovoltaico 50MW in Puglia. Elaborati: Studio di Impatto Ambientale, Relazione Paesaggistica, Screening Fauna. Autorizzazione MiTE prevista Q4.",
+      category: "Studi Ambientali",
+      location: "Foggia",
+      priority: "medium" as const,
+      status: "in_progress",
+      clientId: clients[3].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(25),
+      updatedAt: daysAgo(6),
+    },
+    {
+      organizationId: orgId,
+      title: "Detailed Engineering impianto etilene — Maire Tecnimont",
+      description: "Ingegneria di dettaglio per impianto steam cracking etilene 400 KTA. Emissione P&ID Rev. B in corso. Documento DE-3421-PID-0012 in revisione interna. Coordinamento con vendor Belleli per vessel.",
+      category: "Detailed Engineering",
+      location: "Porto Marghera (VE)",
+      priority: "urgent" as const,
+      status: "in_review",
+      clientId: clients[6].id,
+      createdBy: admin.id,
+      assignedTo: admin.id,
+      createdAt: daysAgo(30),
+      updatedAt: daysAgo(2),
+    },
+    {
+      organizationId: orgId,
+      title: "Inspection pre-commissioning stazione SCADA — Terna",
+      description: "Ispezione e collaudo sistema SCADA per nuova stazione elettrica 380kV. Checklist pre-commissioning: 248 item. Disciplinari: Electrical, I&C, Telecomunicazioni.",
+      category: "Inspection & Commissioning",
+      location: "Montalto di Castro (VT)",
+      priority: "high" as const,
+      status: "open",
+      clientId: clients[2].id,
+      createdBy: user1.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(7),
+      updatedAt: daysAgo(3),
+    },
+    {
+      organizationId: orgId,
+      title: "Gestione procurement tubazioni API 5L — Kuwait Petroleum",
+      description: "Acquisto tubazioni in acciaio API 5L Gr. X65 per oleodotto costiero. Ordine emesso a Tenaris per 18km di tubo DN500. Consegna confermata in tre lotti da agosto a ottobre.",
+      category: "Procurement",
+      location: "Genova",
+      priority: "medium" as const,
+      status: "approved",
+      clientId: clients[7].id,
+      createdBy: user1.id,
+      assignedTo: admin.id,
+      createdAt: daysAgo(18),
+      updatedAt: daysAgo(8),
+      resolutionNote: "Ordine confermato con Tenaris. Purchase Order n. KPI-2026-0347 emesso. Primo lotto atteso il 25/08.",
+    },
+    {
+      organizationId: orgId,
+      title: "Safety Case aggiornamento — Raffineria Sarroch",
+      description: "Aggiornamento del Safety Case della raffineria in conformità al D.Lgs. 105/2015 (Seveso III). Revisione scenari incidentali e misure di mitigazione. Deliverable atteso: Rapporto di Sicurezza Rev. 4.",
+      category: "HSE",
+      location: "Sarroch (CA)",
+      priority: "high" as const,
+      status: "open",
+      clientId: clients[5].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(15),
+      updatedAt: daysAgo(5),
+    },
+    {
+      organizationId: orgId,
+      title: "Modularization design condensatori — EniProgetti",
+      description: "Progettazione layout modulare per skid condensatori aria forzata su impianto GAS. Ottimizzazione spazio con approccio modular yard. Interfaccia con discipline Civil e Piping.",
+      category: "Detailed Engineering",
+      location: "San Donato Milanese (MI)",
+      priority: "medium" as const,
+      status: "in_review",
+      clientId: clients[4].id,
+      createdBy: user1.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(22),
+      updatedAt: daysAgo(7),
+    },
+    {
+      organizationId: orgId,
+      title: "Commissioning impianto desolforazione — Snam, Minerbio",
+      description: "Attività di commissioning e avviamento impianto desolforazione gas naturale presso compressore Minerbio. Tutte le punch list di categoria A risolte. Performance test superato.",
+      category: "Inspection & Commissioning",
+      location: "Minerbio (BO)",
+      priority: "low" as const,
+      status: "closed",
+      clientId: clients[1].id,
+      createdBy: admin.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(45),
+      updatedAt: daysAgo(10),
+      closedAt: daysAgo(10),
+      resolutionNote: "Commissioning completato con successo. Certificato di accettazione provvisoria firmato il 03/08. Impianto in esercizio regolare.",
+    },
+    {
+      organizationId: orgId,
+      title: "Decommissioning vecchio impianto pompaggio — Terna",
+      description: "Dismantling e decommissioning impianto di pompaggio olio diatermico obsoleto presso sottostazione. Piano di gestione rifiuti redatto secondo D.Lgs. 152/2006.",
+      category: "Decommissioning",
+      location: "Roma",
+      priority: "low" as const,
+      status: "closed",
+      clientId: clients[2].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(40),
+      updatedAt: daysAgo(14),
+      closedAt: daysAgo(14),
+      resolutionNote: "Decommissioning ultimato. Rifiuti speciali smaltiti tramite ditta autorizzata CER 130507. Rapporto finale consegnato al cliente il 30/07.",
+    },
+    // ── Commesse future fino a fine settembre ──
+    {
+      organizationId: orgId,
+      title: "HAZOP Review impianto trattamento gas — ENI Basilicata",
+      description: "Conduzione studio HAZOP su P&ID Rev. C dell'impianto di trattamento gas associato Tempa Rossa. Sessioni previste in due giornate. Chairman: Ing. Ferretti. Scadenza: metà agosto.",
+      category: "HSE",
+      location: "Corleto Perticara (PZ)",
+      priority: "urgent" as const,
+      status: "open",
+      clientId: clients[0].id,
+      createdBy: admin.id,
+      assignedTo: admin.id,
+      createdAt: daysAgo(3),
+      updatedAt: daysAgo(1),
+      dueAt: daysFromNow(7),
+    },
+    {
+      organizationId: orgId,
+      title: "Procurement pompe centrifughe API 610 — Saras Raffinerie",
+      description: "Acquisto 4 pompe centrifughe API 610 tipo BB2 per servizio gasolio. RFQ inviata a Flowserve, KSB, Sulzer. Offerte attese entro 20/08. Fornitura prevista settembre.",
+      category: "Procurement",
+      location: "Sarroch (CA)",
+      priority: "high" as const,
+      status: "open",
+      clientId: clients[5].id,
+      createdBy: user1.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(2),
+      dueAt: daysFromNow(35),
+    },
+    {
+      organizationId: orgId,
+      title: "Audit sistema permessi di lavoro — Kuwait Petroleum Italia",
+      description: "Verifica conformità sistema PTW (Permit To Work) secondo normativa HSE interna KPI e standard internazionali ISM. Pre-audit checklist da inviare al cliente. Programmato agosto.",
+      category: "HSE",
+      location: "Genova",
+      priority: "medium" as const,
+      status: "open",
+      clientId: clients[7].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(2),
+      updatedAt: daysAgo(1),
+      dueAt: daysFromNow(18),
+    },
+    {
+      organizationId: orgId,
+      title: "As-built documentazione impianto GAS — EniProgetti",
+      description: "Redazione e aggiornamento documentazione as-built (P&ID, isometrici, layout) a chiusura costruzione impianto GAS modulare. Circa 120 documenti da aggiornare. Consegna fine agosto.",
+      category: "Detailed Engineering",
+      location: "San Donato Milanese (MI)",
+      priority: "medium" as const,
+      status: "in_progress",
+      clientId: clients[4].id,
+      createdBy: user1.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(6),
+      updatedAt: daysAgo(2),
+      dueAt: daysFromNow(18),
+    },
+    {
+      organizationId: orgId,
+      title: "FAT (Factory Acceptance Test) valvole — Fornitore Pian Camuno",
+      description: "Partecipazione al FAT presso stabilimento produttore (Valvitalia, Pian Camuno) per 24 valvole a sfera DN400. Test previsti: body pressure, seat leakage, operability. FAT pianificato settembre.",
+      category: "Inspection & Commissioning",
+      location: "Pian Camuno (BS)",
+      priority: "high" as const,
+      status: "open",
+      clientId: clients[1].id,
+      createdBy: admin.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(5),
+      updatedAt: daysAgo(1),
+      dueAt: daysFromNow(27),
+    },
+    {
+      organizationId: orgId,
+      title: "Revisione P&ID rev. C — Maire Tecnimont",
+      description: "Emissione P&ID Rev. C a seguito delle action items HAZOP. Circa 18 commenti da incorporare. Revisione interna da completare prima dell'approvazione cliente. Scadenza: metà settembre.",
+      category: "Detailed Engineering",
+      location: "Milano",
+      priority: "high" as const,
+      status: "in_review",
+      clientId: clients[6].id,
+      createdBy: user1.id,
+      assignedTo: admin.id,
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(1),
+      dueAt: daysFromNow(33),
+    },
+    {
+      organizationId: orgId,
+      title: "Environmental monitoring report Q3 — Enel Green Power",
+      description: "Redazione rapporto monitoraggio ambientale Q3 (luglio–settembre) per parco fotovoltaico Puglia. Parametri: qualità aria, rumore, fauna. Scadenza di consegna: 30 settembre.",
+      category: "Studi Ambientali",
+      location: "Foggia",
+      priority: "medium" as const,
+      status: "open",
+      clientId: clients[3].id,
+      createdBy: user2.id,
+      assignedTo: user2.id,
+      createdAt: daysAgo(3),
+      updatedAt: daysAgo(1),
+      dueAt: daysFromNow(48),
+    },
+    {
+      organizationId: orgId,
+      title: "Progress meeting report mensile agosto — Snam Rete Gas",
+      description: "Preparazione e presentazione del report mensile di avanzamento commessa per riunione di progetto Snam. Include: stato procurement, curva S, outstanding actions, outlook settembre. Data report: fine agosto.",
+      category: "Project Management",
+      location: "San Donato Milanese (MI)",
+      priority: "low" as const,
+      status: "open",
+      clientId: clients[1].id,
+      createdBy: admin.id,
+      assignedTo: user1.id,
+      createdAt: daysAgo(1),
+      updatedAt: daysAgo(0),
+      dueAt: daysFromNow(16),
+    },
+  ];
+
+  const insertedTickets = await db.insert(ticketsTable).values(ticketData).returning();
+
+  await db.insert(ticketCommentsTable).values([
+    {
+      ticketId: insertedTickets[0].id,
+      authorId: user1.id,
+      commentText: "Emesso documento FEED-PRO-001 Rev. B — Process Design Basis. In attesa commento ENI entro 5 giorni lavorativi. Disciplina Piping ha avviato la preparazione del Plot Plan.",
+      createdAt: daysAgo(2),
+    },
+    {
+      ticketId: insertedTickets[0].id,
+      authorId: admin.id,
+      commentText: "Verificare allineamento con specifica materiali ENI GEN-SPC-031 Rev. 4 per i materiali in zona H2S. Ing. Palumbo ha sollevato il punto nell'ultima call.",
+      createdAt: daysAgo(1),
+    },
+    {
+      ticketId: insertedTickets[1].id,
+      authorId: user1.id,
+      commentText: "Ricevute offerte da Velan (€312.000), Trevi-Flow (€287.500) e IMI CCI (€334.000). Analisi tecnico-commerciale in corso. Raccomandazione vendor entesa per venerdì.",
+      createdAt: daysAgo(3),
+    },
+    {
+      ticketId: insertedTickets[2].id,
+      authorId: user2.id,
+      commentText: "HAZID completato il 18/07. Identificati 12 scenari con rischio residuo medio-alto. Risk Register Rev. 2 in emissione, doc. HSE-KAZ-2026-003. Attesa revisione cliente.",
+      createdAt: daysAgo(4),
+    },
+    {
+      ticketId: insertedTickets[5].id,
+      authorId: admin.id,
+      commentText: "Riunione interna disciplina Piping: i P&ID Rev. B DE-3421-PID-0012÷0018 sono pronti per emissione. Manca ancora il nulla osta della disciplina Process sui tie-in points.",
+      createdAt: daysAgo(2),
+    },
+    {
+      ticketId: insertedTickets[5].id,
+      authorId: user1.id,
+      commentText: "Confermato con vendor Belleli: lead time vessel V-3401 e V-3402 è 14 settimane dalla data ordine. Ordine da emettere entro 25/08 per rispettare il piano.",
+      createdAt: daysAgo(1),
+    },
+    {
+      ticketId: insertedTickets[8].id,
+      authorId: user2.id,
+      commentText: "Completata analisi scenari incidentali per aree stoccaggio gasolio e GPL. Frequenze di accadimento calcolate secondo API 581. Integrazione nel Rapporto di Sicurezza Rev. 4 in corso.",
+      createdAt: daysAgo(5),
+    },
+    {
+      ticketId: insertedTickets[9].id,
+      authorId: user1.id,
+      commentText: "Layout modulare ottimizzato: da 6 a 4 skid grazie alla revisione del processo di selezione condensatori. Risparmio area stimato 15%. Approvazione EniProgetti attesa per la prossima settimana.",
+      createdAt: daysAgo(7),
+    },
+    {
+      ticketId: insertedTickets[14].id,
+      authorId: user1.id,
+      commentText: "RFQ emessa a Valvitalia (doc. PO-SRG-2026-FAT-001). Piano FAT proposto: 8 settembre mattina test di pressione, pomeriggio seat leakage. Conferma dal fornitore attesa.",
+      createdAt: daysAgo(1),
+    },
+    {
+      ticketId: insertedTickets[15].id,
+      authorId: admin.id,
+      commentText: "Incorporate 14 delle 18 action items HAZOP. Restano 4 commenti disciplina Process in attesa di chiarimento da Maire Tecnimont. Convocata call di allineamento per questa settimana.",
+      createdAt: daysAgo(1),
+    },
+  ]);
+
+  // ── Appuntamenti recenti ──
+  await db.insert(appointmentsTable).values([
+    {
+      organizationId: orgId,
+      title: "Kickoff Meeting Commessa — ENI Tempa Rossa",
+      description: "Riunione di avvio commessa FEED impianto gas Basilicata. Presentazione organigramma di progetto e cronoprogramma fase FEED. Location: sede ENI Roma.",
+      startsAt: daysFromNow(-5, 10, 0),
+      endsAt: daysFromNow(-5, 13, 0),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Site Visit Raffineria Sarroch — HSE Inspection",
+      description: "Sopralluogo in campo per ispezione HSE area flare e stoccaggio GPL. Partecipanti: Ing. Romano (HSE Mgr), responsabile sicurezza Saras.",
+      startsAt: daysFromNow(-3, 8, 30),
+      endsAt: daysFromNow(-3, 17, 0),
+      createdBy: user2.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Milestone Review Snam — Avanzamento Engineering",
+      description: "Riunione mensile di avanzamento commessa Snam. Presentazione curva S, stato deliverable e piano procurement. Approvazione milestone M3 attesa.",
+      startsAt: daysFromNow(-1, 14, 0),
+      endsAt: daysFromNow(-1, 16, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Inspection pre-commissioning — Stazione SCADA Terna",
+      description: "Prima giornata inspection sistema SCADA. Verifica cablaggi, configurazione RTU e test comunicazione con centro di controllo Roma.",
+      startsAt: daysFromNow(-2, 9, 0),
+      endsAt: daysFromNow(-2, 17, 30),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "HSE Audit Kazakhstan — Piattaforma AGIP KCO",
+      description: "Presentazione Risk Register Rev. 2 al cliente AGIP KCO. Revisione scenari incidentali e validazione misure di mitigazione. Riunione in videoconferenza.",
+      startsAt: daysFromNow(-4, 15, 0),
+      endsAt: daysFromNow(-4, 17, 0),
+      createdBy: user2.id,
+      assignedTo: user2.id,
+    },
+    // ── Appuntamenti fino a fine settembre ──
+    {
+      organizationId: orgId,
+      title: "HAZOP Session 1 — ENI Basilicata, Impianto Tempa Rossa",
+      description: "Prima sessione studio HAZOP su P&ID Rev. C impianto trattamento gas. Nodi 1–6 (Feed Reception, Separation, Stabilization). Chairman: Ing. Ferretti.",
+      startsAt: daysFromNow(10, 9, 0),
+      endsAt: daysFromNow(10, 17, 0),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Progress Meeting mensile agosto — Maire Tecnimont",
+      description: "Riunione mensile con Maire Tecnimont per aggiornamento stato Detailed Engineering impianto etilene. Presentazione stato emissioni e outlook settembre.",
+      startsAt: daysFromNow(12, 10, 0),
+      endsAt: daysFromNow(12, 12, 0),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "FAT valvole Pian Camuno — Snam Rete Gas",
+      description: "Factory Acceptance Test valvole a sfera DN400 presso stabilimento Valvitalia. Test: body pressure 1,5x PN64, seat leakage classe VI, operability. Ispettore: Ing. Conti.",
+      startsAt: daysFromNow(15, 8, 30),
+      endsAt: daysFromNow(15, 17, 30),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Audit permessi di lavoro — Kuwait Petroleum Italia, Genova",
+      description: "Audit sistema PTW presso sede Kuwait Petroleum Genova. Verifica documentazione, interviste operatori, test scenario simulato. Rapporto bozza entro 5 giorni.",
+      startsAt: daysFromNow(18, 9, 0),
+      endsAt: daysFromNow(18, 16, 0),
+      createdBy: user2.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Vendor Inspection pompe centrifughe — Saras Raffinerie",
+      description: "Ispezione intermedia in officina fornitore (Flowserve, Bergamo) per pompe API 610 tipo BB2. Verifica lavorazioni meccaniche e conformità materiali al data sheet.",
+      startsAt: daysFromNow(20, 10, 0),
+      endsAt: daysFromNow(20, 15, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "As-built delivery review — EniProgetti",
+      description: "Riunione di consegna documentazione as-built impianto GAS. Verifica completezza e conformità con IDC (Indice Documenti di Commessa). Firma ricevuta consegna.",
+      startsAt: daysFromNow(25, 14, 0),
+      endsAt: daysFromNow(25, 16, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+    {
+      organizationId: orgId,
+      title: "HAZOP Session 2 — ENI Basilicata, Impianto Tempa Rossa",
+      description: "Seconda sessione HAZOP, Nodi 7–12 (Compression, Export, Utilities). Chiusura studio e emissione report HAZOP Rev. 0.",
+      startsAt: daysFromNow(30, 9, 0),
+      endsAt: daysFromNow(30, 17, 0),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Revisione P&ID rev. C — Maire Tecnimont (kick-off approvazione)",
+      description: "Kick-off riunione per approvazione P&ID Rev. C. Presentazione delle modifiche post-HAZOP e Action Items risolti. Approvazione formale del cliente attesa entro fine riunione.",
+      startsAt: daysFromNow(35, 10, 0),
+      endsAt: daysFromNow(35, 12, 30),
+      createdBy: admin.id,
+      assignedTo: admin.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Environmental Q3 site survey — Enel Green Power",
+      description: "Campagna di monitoraggio ambientale in campo per rapporto Q3: misure rumore, campionamento aria, censimento fauna. 2 giornate di rilievi in campo.",
+      startsAt: daysFromNow(38, 8, 0),
+      endsAt: daysFromNow(38, 17, 0),
+      createdBy: user2.id,
+      assignedTo: user2.id,
+    },
+    {
+      organizationId: orgId,
+      title: "Progress Meeting mensile settembre — Snam Rete Gas",
+      description: "Riunione mensile settembre con Snam per avanzamento commessa gasdotto. Presentazione stato fornitura tubazioni, curva S aggiornata e piano ottobre.",
+      startsAt: daysFromNow(45, 14, 0),
+      endsAt: daysFromNow(45, 16, 0),
+      createdBy: user1.id,
+      assignedTo: user1.id,
+    },
+  ]);
+}
+
 // ─── Main route ──────────────────────────────────────────────────────────────
 router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<void> => {
   if (process.env.NODE_ENV === "production") {
@@ -1837,23 +2514,29 @@ router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  // Check if demo accounts already exist (by checking first admin email)
-  const existing = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, "demo.legale.admin@taskdesk.it"));
+  // Check which demo tenants already exist
+  const [existingLegale, existingIndustria] = await Promise.all([
+    db.select().from(usersTable).where(eq(usersTable.email, "demo.legale.admin@taskdesk.it")),
+    db.select().from(usersTable).where(eq(usersTable.email, "demo.industria.admin@taskdesk.it")),
+  ]);
 
-  if (existing.length > 0) {
+  if (existingLegale.length > 0 && existingIndustria.length > 0) {
     res.json({ skipped: true, message: "Demo multi-settore già presenti" });
     return;
   }
 
   const pw = await hashPassword("Demo2024!");
 
-  await seedStudioLegale(pw);
-  await seedCommercialista(pw);
-  await seedImmobiliare(pw);
-  await seedAssicurazioni(pw);
+  if (existingLegale.length === 0) {
+    await seedStudioLegale(pw);
+    await seedCommercialista(pw);
+    await seedImmobiliare(pw);
+    await seedAssicurazioni(pw);
+  }
+
+  if (existingIndustria.length === 0) {
+    await seedImpiantiIndustriali(pw);
+  }
 
   res.json({
     message: "Demo multi-settore creati con successo",
@@ -1877,6 +2560,11 @@ router.post("/seed-demo-multi", async (req: Request, res: Response): Promise<voi
         settore: "Agenzia Assicurazioni",
         admin: "demo.assic.admin@taskdesk.it",
         users: ["demo.assic.user1@taskdesk.it", "demo.assic.user2@taskdesk.it"],
+      },
+      {
+        settore: "Impianti Industriali (DG Engineering S.p.A.)",
+        admin: "demo.industria.admin@taskdesk.it",
+        users: ["demo.industria.user1@taskdesk.it", "demo.industria.user2@taskdesk.it"],
       },
     ],
     password: "Demo2024!",
