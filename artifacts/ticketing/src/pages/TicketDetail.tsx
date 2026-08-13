@@ -728,103 +728,107 @@ export default function TicketDetail() {
         {/* ── LEFT: main content ── */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
 
-          {/* Meta bar: status · priority · category · due date */}
-          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-            {/* Status pill */}
-            {(() => {
-              const customColor = getColorForKey(ticket.status);
-              const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
-              if (customColor) {
-                return (
-                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+          {/* Meta bar — righe esplicite */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
+
+            {/* Riga 1: status · priorità · categoria · sede */}
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              {/* Status pill */}
+              {(() => {
+                const customColor = getColorForKey(ticket.status);
+                const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
+                if (customColor) {
+                  return (
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+                      {label}
+                    </Box>
+                  );
+                }
+                const muiColor = getStatusColor(ticket.status);
+                const softMap: Record<string, { bg: string; fg: string }> = {
+                  open: { bg: '#e3f0fd', fg: '#1565c0' },
+                  in_progress: { bg: '#fff3e0', fg: '#e65100' },
+                  waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
+                  resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
+                  closed: { bg: '#f5f5f5', fg: '#424242' },
+                };
+                const soft = softMap[ticket.status];
+                return soft ? (
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
                     {label}
                   </Box>
+                ) : (
+                  <Chip label={label} size="small" color={muiColor as any} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20 }} />
                 );
-              }
-              const muiColor = getStatusColor(ticket.status);
-              const softMap: Record<string, { bg: string; fg: string }> = {
-                open: { bg: '#e3f0fd', fg: '#1565c0' },
-                in_progress: { bg: '#fff3e0', fg: '#e65100' },
-                waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
-                resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
-                closed: { bg: '#f5f5f5', fg: '#424242' },
-              };
-              const soft = softMap[ticket.status];
-              return soft ? (
-                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
-                  {label}
+              })()}
+              {/* Priority dot + text */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: priorityColor(ticket.priority) }} />
+                <Box component="span" sx={{ fontWeight: 600, fontSize: 12, color: priorityColor(ticket.priority) }}>
+                  {t.priority[ticket.priority] || ticket.priority}
                 </Box>
-              ) : (
-                <Chip label={label} size="small" color={muiColor as any} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20 }} />
-              );
-            })()}
-            {/* Priority dot + text */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
-              <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: priorityColor(ticket.priority) }} />
-              <Box component="span" sx={{ fontWeight: 600, fontSize: 12, color: priorityColor(ticket.priority) }}>
-                {t.priority[ticket.priority] || ticket.priority}
               </Box>
+              {ticket.category && (
+                <>
+                  <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
+                </>
+              )}
+              {!singleLocation && ticket.location && (
+                <>
+                  <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.location}</Box>
+                </>
+              )}
             </Box>
-            {ticket.category && (
-              <>
-                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
-              </>
-            )}
-            {!singleLocation && ticket.location && (
-              <>
-                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.location}</Box>
-              </>
-            )}
+
+            {/* Riga 2 (se assegnatario): chi ha aperto → assegnatario */}
             {(creator?.name || assignee || assignedGroup) && (
-              <>
-                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                <Box display="inline-flex" alignItems="center" gap={0.5}>
-                  {/* Chi ha aperto */}
-                  {creator?.name && (
-                    <>
-                      <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
-                      <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{creator.name}</Box>
-                    </>
-                  )}
-                  {/* Freccia solo se c'è anche un assegnatario */}
-                  {creator?.name && (assignee || assignedGroup) && (
-                    <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', mx: 0.25 }}>→</Box>
-                  )}
-                  {/* A chi è assegnato */}
-                  {(assignee || assignedGroup) && (
-                    <>
-                      {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                      <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
-                    </>
-                  )}
-                </Box>
-              </>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {creator?.name && (
+                  <>
+                    <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
+                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{creator.name}</Box>
+                  </>
+                )}
+                {creator?.name && (assignee || assignedGroup) && (
+                  <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', mx: 0.25 }}>→</Box>
+                )}
+                {(assignee || assignedGroup) && (
+                  <>
+                    {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
+                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                  </>
+                )}
+              </Box>
             )}
-            {(ticket as any).dueAt && (
-              <>
-                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
-                <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100' }}>
-                  ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })}
-                </Box>
-              </>
+
+            {/* Riga 2 o 3: scadenza + chip */}
+            {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                {(ticket as any).dueAt && (
+                  <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100' }}>
+                    ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })}
+                  </Box>
+                )}
+                {ticket.inboundChannelId && (
+                  <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
+                    <Chip icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />} label="Email" size="small" color="info" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                  </Tooltip>
+                )}
+                {(ticket as any).recurrenceRule && (
+                  <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
+                    <Chip icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />} label={t.ticketDetail.recurrenceBadge} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                  </Tooltip>
+                )}
+                {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
+                  <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
+                    <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                  </Tooltip>
+                )}
+              </Box>
             )}
-            {ticket.inboundChannelId && (
-              <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
-                <Chip icon={<EmailIcon sx={{ fontSize: '0.875rem !important' }} />} label="Email" size="small" color="info" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-              </Tooltip>
-            )}
-            {(ticket as any).recurrenceRule && (
-              <Tooltip title={t.ticketList.recurrenceBadgeTooltip} placement="top" arrow>
-                <Chip icon={<RepeatIcon sx={{ fontSize: '0.875rem !important' }} />} label={t.ticketDetail.recurrenceBadge} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-              </Tooltip>
-            )}
-            {(ticket as any).scheduledAt && new Date((ticket as any).scheduledAt) > new Date() && !((ticket as any).recurrenceRule) && (
-              <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
-                <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
-              </Tooltip>
-            )}
+
           </Box>
 
           {/* H1 Title — E style */}
