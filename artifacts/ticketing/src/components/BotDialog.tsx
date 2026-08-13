@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, TextField, IconButton, Button,
-  Avatar, CircularProgress, Divider,
+  Avatar, CircularProgress, Divider, Paper, Tooltip,
 } from '@mui/material';
 import {
   Send, SmartToy, Close, ConfirmationNumber,
+  KeyboardArrowDown, KeyboardArrowUp, DeleteOutline,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { useTheme } from '@mui/material/styles';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -98,7 +99,6 @@ function stripActionJson(text: string): string {
 }
 
 // Detect lines like "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
-// or              "1 - No  2 - Già provato  3 - Risolto ✓"
 const OPTIONS_RE = /\b1\s*-\s*(.+?)\s{2,}2\s*-\s*(.+?)\s{2,}3\s*-\s*(.+?)(?:\s*)(?:\n|$)/m;
 
 function parseOptions(text: string): ParsedOption[] | null {
@@ -161,7 +161,7 @@ function MessageBubble({
               px: 1.75,
               py: 1.25,
               borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-              bgcolor: isUser ? 'primary.main' : 'grey.100',
+              bgcolor: isUser ? 'primary.main' : 'action.hover',
               color: isUser ? 'primary.contrastText' : 'text.primary',
             }}
           >
@@ -179,15 +179,11 @@ function MessageBubble({
                 size="small"
                 onClick={() => onOptionClick(opt.value)}
                 sx={{
-                  borderRadius: 2,
+                  borderRadius: 3,
                   textTransform: 'none',
                   fontSize: '0.78rem',
-                  py: 0.5,
-                  px: 1.5,
-                  borderColor: 'divider',
-                  color: 'text.primary',
-                  bgcolor: 'background.paper',
-                  '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
+                  py: 0.4,
+                  px: 1.25,
                 }}
               >
                 {opt.label}
@@ -224,12 +220,7 @@ function MessageBubble({
 export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState<BotAction | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const theme = useTheme();
 
   const botWelcome = lang === 'it'
     ? `Ciao! Sono TaskBot, il tuo assistente. Descrivi il problema che stai riscontrando e cercherò di aiutarti a risolverlo prima di aprire ${entityTerm.articleIndef} ${entityTerm.singularLower}.`
@@ -239,21 +230,45 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
     ? `Ho preparato ${entityTerm.articleIndef} ${entityTerm.singularLower} basato${entityTerm.articleIndef === 'una' ? 'a' : ''} sul tuo problema.`
     : `I've prepared ${entityTerm.articleIndef} ${entityTerm.singularLower} based on your issue.`;
 
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<BotAction | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // track whether welcome has been shown so navigating never resets it
+  const welcomeShownRef = useRef(false);
+
+  // Show welcome message only on the very first open
   useEffect(() => {
-    if (open) {
-      setMessages([{
-        role: 'assistant',
-        content: botWelcome,
-      }]);
-      setPendingAction(null);
-      setInput('');
+    if (open && !welcomeShownRef.current) {
+      welcomeShownRef.current = true;
+      setMessages([{ role: 'assistant', content: botWelcome }]);
+    }
+    if (open && !minimized) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
 
+  // Expand automatically when reopened after being minimized
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    if (open && minimized) setMinimized(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!minimized) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loading, minimized]);
+
+  const clearChat = () => {
+    welcomeShownRef.current = true; // keep flag so we don't re-add welcome from effect
+    setMessages([{ role: 'assistant', content: botWelcome }]);
+    setPendingAction(null);
+    setInput('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
 
   const sendWithText = async (text: string) => {
     if (!text || loading) return;
@@ -267,7 +282,6 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
     setInput('');
     setLoading(true);
     setPendingAction(null);
-
 
     try {
       const res = await fetch('/api/bot/chat', {
@@ -358,170 +372,205 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
     }
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 3, height: { xs: '90vh', sm: 580 }, display: 'flex', flexDirection: 'column' } }}
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: { xs: 16, sm: 24 },
+        right: { xs: 16, sm: 24 },
+        width: { xs: 'calc(100vw - 32px)', sm: 380 },
+        zIndex: theme.zIndex.modal,
+        display: 'flex',
+        flexDirection: 'column',
+        // subtle entrance animation
+        animation: 'botSlideIn 0.2s ease-out',
+        '@keyframes botSlideIn': {
+          from: { opacity: 0, transform: 'translateY(12px)' },
+          to:   { opacity: 1, transform: 'translateY(0)' },
+        },
+      }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
-          <SmartToy sx={{ fontSize: 20 }} />
-        </Avatar>
-        <Box flex={1}>
-          <Typography fontWeight={700} lineHeight={1.2}>TaskBot</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {lang === 'it' ? `Assistente per apertura ${entityTerm.singularLower}` : `${entityTerm.singular} assistant`}
-          </Typography>
-        </Box>
-        <IconButton onClick={onClose} size="small">
-          <Close />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
-        {messages.map((msg, i) => {
-          const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && pendingAction?.action !== 'create_ticket';
-          const isWelcome = i === 0;
-          return (
-            <MessageBubble
-              key={i}
-              msg={msg}
-              fallbackActionText={botFallback}
-              onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
-              onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
-              openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
-            />
-          );
-        })}
-        {loading && (
-          <Box display="flex" gap={1} alignItems="center" mb={1.5}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0 }}>
-              <SmartToy sx={{ fontSize: 18 }} />
-            </Avatar>
-            <Box sx={{ px: 1.75, py: 1.25, borderRadius: '4px 18px 18px 18px', bgcolor: 'grey.100' }}>
-              <CircularProgress size={14} />
-            </Box>
-          </Box>
-        )}
-        {pendingAction?.action === 'create_ticket' && (
-          <Box
-            sx={{
-              mt: 1,
-              mb: 1.5,
-              p: 2,
-              borderRadius: 2,
-              border: '2px solid',
-              borderColor: 'primary.main',
-              bgcolor: 'primary.50',
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} mb={0.5} color="primary.main">
-              {lang === 'it'
-                ? `Vuoi creare ${entityTerm.articleIndef} ${entityTerm.singularLower} per questo problema?`
-                : `Would you like to create ${entityTerm.articleIndef} ${entityTerm.singularLower} for this issue?`}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              {lang === 'it'
-                ? `Il/La ${entityTerm.singularLower} verrà pre-compilato/a con le informazioni della chat.`
-                : `The ${entityTerm.singularLower} will be pre-filled with information from this chat.`}
-            </Typography>
-            <Box display="flex" gap={1} flexWrap="wrap">
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<ConfirmationNumber />}
-                onClick={handleCreateTicket}
-                sx={{ borderRadius: 2 }}
-              >
-                {lang === 'it' ? `Crea ${entityTerm.singularLower}` : `Create ${entityTerm.singularLower}`}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                color="inherit"
-                onClick={() => setPendingAction(null)}
-                sx={{ borderRadius: 2 }}
-              >
-                {t.bot.continueChat}
-              </Button>
-            </Box>
-          </Box>
-        )}
-        {pendingAction?.action === 'view_ticket' && (
-          <Box
-            sx={{
-              mt: 1,
-              mb: 1.5,
-              p: 2,
-              borderRadius: 2,
-              border: '2px solid',
-              borderColor: 'warning.main',
-              bgcolor: 'warning.50',
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} mb={0.25} color="warning.dark">
-              {lang === 'it'
-                ? `Esiste già ${entityTerm.articleIndef} ${entityTerm.singularLower} aperto/a su questo problema:`
-                : `There is already an open ${entityTerm.singularLower} for this issue:`}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              «{pendingAction.title}»{pendingAction.date ? ` — ${pendingAction.date}` : ''}
-            </Typography>
-            <Box display="flex" gap={1} flexWrap="wrap">
-              <Button
-                variant="contained"
-                size="small"
-                color="warning"
-                startIcon={<ConfirmationNumber />}
-                onClick={handleViewTicket}
-                sx={{ borderRadius: 2 }}
-              >
-                {lang === 'it' ? `Vai al ${entityTerm.singularLower}` : `Go to ${entityTerm.singularLower}`}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                color="inherit"
-                onClick={() => setPendingAction(null)}
-                sx={{ borderRadius: 2 }}
-              >
-                {t.bot.continueChat}
-              </Button>
-            </Box>
-          </Box>
-        )}
-        <div ref={bottomRef} />
-      </DialogContent>
-
-      <Divider />
-      <DialogActions sx={{ px: 2, py: 1.5, gap: 1 }}>
-        <TextField
-          inputRef={inputRef}
-          fullWidth
-          size="small"
-          multiline
-          maxRows={3}
-          placeholder={t.bot.placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          disabled={loading}
+      <Paper
+        elevation={12}
+        sx={{
+          borderRadius: 3,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          height: minimized ? 'auto' : { xs: '70vh', sm: 520 },
+          maxHeight: minimized ? 'auto' : { xs: '70vh', sm: 520 },
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        {/* ── Header ── */}
+        <Box
           sx={{
-            '& .MuiOutlinedInput-root': { borderRadius: 3 },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            px: 2,
+            py: 1.25,
+            borderBottom: minimized ? 'none' : '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            cursor: 'pointer',
+            userSelect: 'none',
           }}
-        />
-        <IconButton
-          color="primary"
-          onClick={sendMessage}
-          disabled={!input.trim() || loading}
-          sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&:disabled': { bgcolor: 'grey.200', color: 'grey.400' }, borderRadius: 2, flexShrink: 0 }}
+          onClick={() => setMinimized((v) => !v)}
         >
-          <Send sx={{ fontSize: 20 }} />
-        </IconButton>
-      </DialogActions>
-    </Dialog>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0 }}>
+            <SmartToy sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Box flex={1} minWidth={0}>
+            <Typography fontWeight={700} fontSize="0.9rem" lineHeight={1.2}>TaskBot</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap display="block">
+              {lang === 'it' ? `Assistente per apertura ${entityTerm.singularLower}` : `${entityTerm.singular} assistant`}
+            </Typography>
+          </Box>
+          {/* header actions — stop click propagation so they don't toggle minimize */}
+          <Box display="flex" alignItems="center" gap={0.25} onClick={(e) => e.stopPropagation()}>
+            <Tooltip title={lang === 'it' ? 'Nuova conversazione' : 'New conversation'}>
+              <IconButton size="small" onClick={clearChat} sx={{ color: 'text.secondary' }}>
+                <DeleteOutline fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={minimized ? (lang === 'it' ? 'Espandi' : 'Expand') : (lang === 'it' ? 'Riduci' : 'Minimize')}>
+              <IconButton size="small" onClick={() => setMinimized((v) => !v)} sx={{ color: 'text.secondary' }}>
+                {minimized ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={lang === 'it' ? 'Chiudi' : 'Close'}>
+              <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary' }}>
+                <Close fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* ── Body (hidden when minimized) ── */}
+        {!minimized && (
+          <>
+            <Box sx={{ flex: 1, overflowY: 'auto', py: 2, px: 2 }}>
+              {messages.map((msg, i) => {
+                const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && pendingAction?.action !== 'create_ticket';
+                const isWelcome = i === 0;
+                return (
+                  <MessageBubble
+                    key={i}
+                    msg={msg}
+                    fallbackActionText={botFallback}
+                    onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
+                    onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+                    openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
+                  />
+                );
+              })}
+              {loading && (
+                <Box display="flex" gap={1} alignItems="center" mb={1.5}>
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0 }}>
+                    <SmartToy sx={{ fontSize: 18 }} />
+                  </Avatar>
+                  <Box sx={{ px: 1.75, py: 1.25, borderRadius: '4px 18px 18px 18px', bgcolor: 'action.hover' }}>
+                    <CircularProgress size={14} />
+                  </Box>
+                </Box>
+              )}
+              {pendingAction?.action === 'create_ticket' && (
+                <Box
+                  sx={{
+                    mt: 1, mb: 1.5, p: 2, borderRadius: 2,
+                    border: '2px solid', borderColor: 'primary.main',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.1)' : 'primary.50',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} mb={0.5} color="primary.main">
+                    {lang === 'it'
+                      ? `Vuoi creare ${entityTerm.articleIndef} ${entityTerm.singularLower} per questo problema?`
+                      : `Would you like to create ${entityTerm.articleIndef} ${entityTerm.singularLower} for this issue?`}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                    {lang === 'it'
+                      ? `Il/La ${entityTerm.singularLower} verrà pre-compilato/a con le informazioni della chat.`
+                      : `The ${entityTerm.singularLower} will be pre-filled with information from this chat.`}
+                  </Typography>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    <Button variant="contained" size="small" startIcon={<ConfirmationNumber />}
+                      onClick={handleCreateTicket} sx={{ borderRadius: 2 }}>
+                      {lang === 'it' ? `Crea ${entityTerm.singularLower}` : `Create ${entityTerm.singularLower}`}
+                    </Button>
+                    <Button variant="outlined" size="small" color="inherit"
+                      onClick={() => setPendingAction(null)} sx={{ borderRadius: 2 }}>
+                      {t.bot.continueChat}
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+              {pendingAction?.action === 'view_ticket' && (
+                <Box
+                  sx={{
+                    mt: 1, mb: 1.5, p: 2, borderRadius: 2,
+                    border: '2px solid', borderColor: 'warning.main',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(245,158,11,0.1)' : 'warning.50',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} mb={0.25} color="warning.dark">
+                    {lang === 'it'
+                      ? `Esiste già ${entityTerm.articleIndef} ${entityTerm.singularLower} aperto/a su questo problema:`
+                      : `There is already an open ${entityTerm.singularLower} for this issue:`}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                    «{pendingAction.title}»{pendingAction.date ? ` — ${pendingAction.date}` : ''}
+                  </Typography>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    <Button variant="contained" size="small" color="warning"
+                      startIcon={<ConfirmationNumber />} onClick={handleViewTicket} sx={{ borderRadius: 2 }}>
+                      {lang === 'it' ? `Vai al ${entityTerm.singularLower}` : `Go to ${entityTerm.singularLower}`}
+                    </Button>
+                    <Button variant="outlined" size="small" color="inherit"
+                      onClick={() => setPendingAction(null)} sx={{ borderRadius: 2 }}>
+                      {t.bot.continueChat}
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+              <div ref={bottomRef} />
+            </Box>
+
+            <Divider />
+            <Box sx={{ px: 2, py: 1.5, display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+              <TextField
+                inputRef={inputRef}
+                fullWidth
+                size="small"
+                multiline
+                maxRows={3}
+                placeholder={t.bot.placeholder}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKey}
+                disabled={loading}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+              />
+              <IconButton
+                color="primary"
+                onClick={sendMessage}
+                disabled={!input.trim() || loading}
+                sx={{
+                  bgcolor: 'primary.main', color: 'white', flexShrink: 0,
+                  '&:hover': { bgcolor: 'primary.dark' },
+                  '&:disabled': { bgcolor: 'action.disabledBackground', color: 'action.disabled' },
+                  borderRadius: 2,
+                }}
+              >
+                <Send sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Box>
+          </>
+        )}
+      </Paper>
+    </Box>
   );
 }
