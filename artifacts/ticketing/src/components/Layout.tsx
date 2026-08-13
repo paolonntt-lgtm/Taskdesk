@@ -448,6 +448,17 @@ export default function Layout({ children }: LayoutProps) {
             </IconButton>
           </Tooltip>
 
+          {/* Dark mode toggle */}
+          <Tooltip title={mode === 'dark' ? t.nav.lightMode : t.nav.darkMode}>
+            <IconButton
+              onClick={toggleColorMode}
+              size="small"
+              sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+            >
+              {mode === 'dark' ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+
           {/* Language toggle */}
           <Button
             onClick={toggleLang}
