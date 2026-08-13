@@ -771,12 +771,28 @@ export default function TicketDetail() {
                 <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
               </>
             )}
-            {(assignee || assignedGroup) && (
+            {(creator?.name || assignee || assignedGroup) && (
               <>
                 <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
                 <Box display="inline-flex" alignItems="center" gap={0.5}>
-                  {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                  {/* Chi ha aperto */}
+                  {creator?.name && (
+                    <>
+                      <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
+                      <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{creator.name}</Box>
+                    </>
+                  )}
+                  {/* Freccia solo se c'è anche un assegnatario */}
+                  {creator?.name && (assignee || assignedGroup) && (
+                    <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', mx: 0.25 }}>→</Box>
+                  )}
+                  {/* A chi è assegnato */}
+                  {(assignee || assignedGroup) && (
+                    <>
+                      {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
+                      <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                    </>
+                  )}
                 </Box>
               </>
             )}
