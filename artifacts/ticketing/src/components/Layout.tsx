@@ -84,7 +84,16 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try { return localStorage.getItem('sidebar_open') !== 'false'; } catch { return true; }
   });
-  const [botOpen, setBotOpen] = useState(false);
+  const [botOpen, setBotOpen] = useState(() => {
+    try { return sessionStorage.getItem('td_bot_open') === '1'; } catch { return false; }
+  });
+
+  // Persist bot open state so it survives page refresh
+  const setBotOpenPersist = React.useCallback((val: boolean) => {
+    try { sessionStorage.setItem('td_bot_open', val ? '1' : '0'); } catch { /* ignore */ }
+    setBotOpen(val);
+  }, []);
+
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -707,7 +716,7 @@ export default function Layout({ children }: LayoutProps) {
       <Tooltip title={t.bot.fabTooltip} placement="left">
         <Fab
           color="primary"
-          onClick={() => setBotOpen(true)}
+          onClick={() => setBotOpenPersist(true)}
           sx={{
             position: 'fixed',
             bottom: 88,
@@ -731,9 +740,9 @@ export default function Layout({ children }: LayoutProps) {
 
       <BotDialog
         open={botOpen}
-        onClose={() => setBotOpen(false)}
+        onClose={() => setBotOpenPersist(false)}
         onCreateTicket={(title, description, category, resource, location) => {
-          setBotOpen(false);
+          setBotOpenPersist(false);
           const params = new URLSearchParams();
           if (title) params.set('title', title);
           if (description) params.set('description', description);
@@ -743,7 +752,7 @@ export default function Layout({ children }: LayoutProps) {
           setLocation(`/tickets/new?${params.toString()}`);
         }}
         onViewTicket={(id) => {
-          setBotOpen(false);
+          setBotOpenPersist(false);
           setLocation(`/tickets/${id}`);
         }}
       />

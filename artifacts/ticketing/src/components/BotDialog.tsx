@@ -217,6 +217,26 @@ function MessageBubble({
   );
 }
 
+const BOT_SESSION_KEY = 'td_bot_session';
+
+export function clearBotSession() {
+  try { sessionStorage.removeItem(BOT_SESSION_KEY); } catch { /* ignore */ }
+}
+
+function loadSession(): { messages: Message[]; pendingAction: BotAction | null } | null {
+  try {
+    const raw = sessionStorage.getItem(BOT_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as { messages: Message[]; pendingAction: BotAction | null };
+  } catch { return null; }
+}
+
+function saveSession(messages: Message[], pendingAction: BotAction | null) {
+  try {
+    sessionStorage.setItem(BOT_SESSION_KEY, JSON.stringify({ messages, pendingAction }));
+  } catch { /* ignore */ }
+}
+
 export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
@@ -230,17 +250,23 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
     ? `Ho preparato ${entityTerm.articleIndef} ${entityTerm.singularLower} basato${entityTerm.articleIndef === 'una' ? 'a' : ''} sul tuo problema.`
     : `I've prepared ${entityTerm.articleIndef} ${entityTerm.singularLower} based on your issue.`;
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Restore from sessionStorage on first mount; fall back to empty
+  const [messages, setMessages] = useState<Message[]>(() => loadSession()?.messages ?? []);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState<BotAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<BotAction | null>(() => loadSession()?.pendingAction ?? null);
   const [minimized, setMinimized] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // track whether welcome has been shown so navigating never resets it
-  const welcomeShownRef = useRef(false);
+  // welcome already shown if we restored a session
+  const welcomeShownRef = useRef(messages.length > 0);
 
-  // Show welcome message only on the very first open
+  // Persist to sessionStorage whenever messages or pendingAction change
+  useEffect(() => {
+    saveSession(messages, pendingAction);
+  }, [messages, pendingAction]);
+
+  // Show welcome message only on the very first open (no saved session)
   useEffect(() => {
     if (open && !welcomeShownRef.current) {
       welcomeShownRef.current = true;
@@ -263,9 +289,11 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
   }, [messages, loading, minimized]);
 
   const clearChat = () => {
-    welcomeShownRef.current = true; // keep flag so we don't re-add welcome from effect
-    setMessages([{ role: 'assistant', content: botWelcome }]);
+    welcomeShownRef.current = true;
+    const welcome = [{ role: 'assistant' as const, content: botWelcome }];
+    setMessages(welcome);
     setPendingAction(null);
+    saveSession(welcome, null);
     setInput('');
     setTimeout(() => inputRef.current?.focus(), 50);
   };

@@ -20,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/Layout";
+import { clearBotSession } from "./components/BotDialog";
 import Onboarding from "./pages/Onboarding";
 import StickyNotesLayer from "./components/StickyNotesLayer";
 import MiniTour from "./components/MiniTour";
@@ -186,6 +187,8 @@ function AppShell() {
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    clearBotSession();
+    try { sessionStorage.removeItem('td_bot_open'); } catch { /* ignore */ }
     setUser(null);
     qc.clear();
     setLocation("/login");
