@@ -63,15 +63,7 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
   return { name: m[1].trim(), email: m[2].trim(), body: m[3].trim() };
 }
 
-/** HybridAE sidebar row — label + value */
-function SideRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-      <Box sx={{ fontSize: 12, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '3px' }}>{label}</Box>
-      <Box sx={{ fontSize: 14, color: '#212121' }}>{children}</Box>
-    </Box>
-  );
-}
+
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -163,7 +155,6 @@ export default function TicketDetail() {
     staleTime: 30_000,
     enabled: currentUser?.role === 'admin',
   });
-  const openByUser = Object.fromEntries(workload.map(w => [w.id, w.open]));
   const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
 
   const updateTicket = useUpdateTicket();
@@ -643,8 +634,7 @@ export default function TicketDetail() {
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
-  const canSelfAssign = !isAdmin && !assignedGroup && !assignee;
-  const canRemoveSelf = !isAdmin && isAssignee;
+
   const closerActivity = [...(activities ?? [])].reverse().find(
     (a: any) => a.actionType === 'status_changed' &&
       (a.actionDescription?.includes('Risolto') || a.actionDescription?.includes('Chiuso') ||
@@ -730,7 +720,7 @@ export default function TicketDetail() {
       </Box>
 
       {/* ── Two-column layout: left (main) + right (sidebar) ── */}
-      <Box sx={{ display: { xs: 'block', lg: 'flex' }, gap: { lg: '28px' }, alignItems: 'flex-start' }}>
+      <Box>
 
         {/* ── LEFT: main content ── */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1296,185 +1286,6 @@ export default function TicketDetail() {
           </Box>
         </Box>
 
-        {/* ── RIGHT: sidebar ── */}
-        <Box sx={{ width: { xs: '100%', lg: 200 }, flexShrink: 0, order: { xs: -1, lg: 0 }, mb: { xs: 3, lg: 0 }, pt: { xs: 0, lg: '2px' } }}>
-          <Box sx={{ position: { lg: 'sticky' }, top: 24 }}>
-
-            {/* Assignee */}
-            <SideRow label={t.ticketDetail.assignedTo}>
-              {isAdmin ? (
-                <>
-                  <Box display="flex" alignItems="center" gap={0.875} sx={{ cursor: 'pointer' }} onClick={(e) => setAssignAnchor(e.currentTarget)}>
-                    {assignedGroup ? (
-                      <Chip icon={<Group fontSize="small" />} label={assignedGroup} size="small" variant="outlined" color="primary" onClick={(e) => { e.stopPropagation(); setAssignAnchor(e.currentTarget); }} />
-                    ) : assignee ? (
-                      <Box display="flex" alignItems="center" gap={0.875}>
-                        <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 9, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>
-                        <Box component="span" sx={{ fontWeight: 600 }}>{assignee.name}</Box>
-                      </Box>
-                    ) : (
-                      <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
-                    )}
-                    <IconButton size="small" sx={{ p: 0.25, color: '#bdbdbd', ml: 0.25 }}><EditOutlined sx={{ fontSize: 13 }} /></IconButton>
-                  </Box>
-                  <Popover open={Boolean(assignAnchor)} anchorEl={assignAnchor} onClose={() => setAssignAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
-                    <Box p={2} minWidth={220}>
-                      <ToggleButtonGroup value={assignMode} exclusive size="small" fullWidth onChange={(_, v) => { if (!v) return; setAssignMode(v); }} sx={{ mb: 1.5 }}>
-                        <ToggleButton value="user"><Person sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignUser}</ToggleButton>
-                        <ToggleButton value="group"><Group sx={{ mr: 0.5 }} fontSize="small" />{t.ticketDetail.assignGroup}</ToggleButton>
-                      </ToggleButtonGroup>
-                      {assignMode === 'user' ? (
-                        <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                          <Box px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => handleAssigneeChange('')}>
-                            <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
-                          </Box>
-                          {[...(users ?? [])].sort((a, b) => { if (a.isAvailable === b.isAvailable) return 0; return a.isAvailable ? -1 : 1; }).map(u => (
-                            <Box key={u.id} px={1} py={0.5} borderRadius={1} display="flex" alignItems="center" gap={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: ticket.assignedTo === u.id ? 'action.selected' : undefined, opacity: u.isAvailable ? 1 : 0.55 }} onClick={() => handleAssigneeChange(String(u.id))}>
-                              <Avatar src={u.avatarUrl ?? undefined} sx={{ width: 24, height: 24, fontSize: 11, bgcolor: 'primary.main' }}>{u.name?.charAt(0)}</Avatar>
-                              <Tooltip title={u.isAvailable ? (lang === 'it' ? 'Disponibile' : 'Available') : (lang === 'it' ? 'Non disponibile' : 'Unavailable')} placement="right">
-                                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, bgcolor: u.isAvailable ? 'success.main' : 'text.disabled', display: 'inline-block' }} />
-                              </Tooltip>
-                              <Box flex={1} display="flex" alignItems="center" justifyContent="space-between" minWidth={0}>
-                                <Typography variant="body2">{u.name}</Typography>
-                                {(openByUser[u.id] ?? 0) > 0 && <Typography variant="caption" color="text.secondary" sx={{ ml: 1, flexShrink: 0 }}>{openByUser[u.id]} {lang === 'it' ? 'aperti' : 'open'}</Typography>}
-                              </Box>
-                            </Box>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Box display="flex" flexDirection="column" gap={0.5} maxHeight={220} overflow="auto">
-                          <Box px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => handleGroupChange('')}>
-                            <Typography variant="body2" color="text.secondary">{t.ticketDetail.unassigned}</Typography>
-                          </Box>
-                          {groups.map(g => (
-                            <Box key={g} px={1} py={0.5} borderRadius={1} sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, bgcolor: assignedGroup === g ? 'action.selected' : undefined }} onClick={() => handleGroupChange(g)}>
-                              <Typography variant="body2">{g}</Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      )}
-                    </Box>
-                  </Popover>
-                </>
-              ) : (assignee || assignedGroup) ? (
-                <Box display="flex" alignItems="center" gap={0.875} flexWrap="wrap">
-                  {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 9, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                  <Box component="span" sx={{ fontWeight: 600 }}>{assignedGroup ? `Gruppo: ${assignedGroup}` : assignee?.name}</Box>
-                  {canRemoveSelf && <Button size="small" color="error" variant="text" sx={{ minWidth: 0, px: 0.5, fontSize: '0.72rem' }} disabled={updateTicket.isPending} onClick={() => handleAssigneeChange('')}>{t.ticketDetail.removeSelfAssign}</Button>}
-                </Box>
-              ) : (
-                canSelfAssign ? (
-                  <Button size="small" variant="outlined" sx={{ fontSize: '0.72rem' }} disabled={updateTicket.isPending} onClick={() => handleAssigneeChange(String(currentUser?.id))}>{t.ticketDetail.selfAssign}</Button>
-                ) : (
-                  <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
-                )
-              )}
-            </SideRow>
-
-            {/* Due date */}
-            {(isAdmin || isAssignee) ? (
-              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>{t.ticketDetail.dueAtLabel}</Box>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 170 }} disabled={updateTicket.isPending} />
-                  {dueEditVal && (
-                    <Tooltip title={t.ticketDetail.dueAtClear}>
-                      <span>
-                        <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); }}><CloseIcon fontSize="small" /></IconButton>
-                      </span>
-                    </Tooltip>
-                  )}
-                </Box>
-              </Box>
-            ) : (ticket as any).dueAt ? (
-              <SideRow label={t.ticketDetail.dueAtLabel}>
-                <Box component="span" sx={{ color: new Date((ticket as any).dueAt) < new Date() && !isClosedKey(ticket.status) ? '#d32f2f' : '#212121', fontWeight: new Date((ticket as any).dueAt) < new Date() ? 600 : 400 }}>
-                  ⚠ {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
-                </Box>
-              </SideRow>
-            ) : null}
-
-            {/* Closed on */}
-            {ticket.closedAt && (
-              <SideRow label={t.ticketDetail.closedOn}>
-                {new Date(ticket.closedAt).toLocaleString(dateLocale)}
-                {closerActivity?.user?.name && <Box component="span" sx={{ color: '#9e9e9e' }}> · {closerActivity.user.name}</Box>}
-              </SideRow>
-            )}
-
-            {/* Email origin */}
-            {ticket.inboundChannelId && isEmailResource && (
-              <SideRow label={t.ticketDetail.senderEmailLabel}>
-                <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                  <EmailIcon sx={{ fontSize: 13, color: 'info.main' }} />
-                  <Box component="a" href={`mailto:${ticket.resource}`} sx={{ color: 'info.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{ticket.resource}</Box>
-                </Box>
-                {ticket.status !== 'closed' && (
-                  <Button startIcon={<MailOutline />} size="small" variant="outlined" color="info" sx={{ mt: 0.5, fontSize: '0.72rem' }} onClick={() => { setEmailReplyOpen(true); setTabValue(0); }}>
-                    {t.ticketDetail.replyViaEmail}
-                  </Button>
-                )}
-              </SideRow>
-            )}
-            {ticket.inboundChannelId && ticket.inboundChannelName && (
-              <SideRow label={t.ticketDetail.inboundChannelLabel}>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <MailOutline sx={{ fontSize: 13, color: 'text.secondary' }} />
-                  {ticket.inboundChannelName}
-                </Box>
-              </SideRow>
-            )}
-
-            {/* Client */}
-            {(ticket as any).clientId && (currentUser as any)?.clientsEnabled !== false && (
-              <SideRow label={t.clients.clientField}>
-                {isAdmin ? (
-                  <Box component="span" sx={{ color: '#1565c0', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => setLocation(`/clients/${(ticket as any).clientId}`)}>
-                    {(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}
-                  </Box>
-                ) : (
-                  <>{(ticket as any).client?.name ?? `#${(ticket as any).clientId}`}{(ticket as any).client?.alias ? ` (${(ticket as any).client.alias})` : ''}</>
-                )}
-              </SideRow>
-            )}
-
-            {/* Status — admin interactive */}
-            {canChangeStatus && (
-              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box display="flex" alignItems="center" gap={0.5} sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
-                  {t.ticketDetail.statusLabel}
-                  <PermissionGateButton permission="change_status" sectionLabel={t.ticketDetail.statusLabel} />
-                </Box>
-                <Box display="flex" flexWrap="wrap" gap={0.5}>
-                  {orgStatuses.map((s) => {
-                    const isActive = ticket.status === s.key;
-                    const customColor = s.color;
-                    return (
-                      <Chip key={s.key} label={s.label} size="small" variant={isActive ? 'filled' : 'outlined'} onClick={() => handleStatusChange(s.key)} disabled={updateTicket.isPending}
-                        {...(isActive && customColor ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : isActive ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : { sx: { cursor: 'pointer', fontWeight: 400, fontSize: 11 } })}
-                      />
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-
-            {/* Priority — admin interactive */}
-            {canChangeStatus && (
-              <Box sx={{ py: '5px', borderBottom: '1px solid #f5f5f5' }}>
-                <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '5px' }}>
-                  {t.ticketDetail.priorityLabel}
-                </Box>
-                <Box display="flex" flexWrap="wrap" gap={0.5}>
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <Chip key={p} label={t.priority[p] || p} size="small" color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'} variant={ticket.priority === p ? 'filled' : 'outlined'} onClick={() => handlePriorityChange(p)} disabled={updateTicket.isPending} sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400, fontSize: 11 }} />
-                  ))}
-                </Box>
-              </Box>
-            )}
-
-          </Box>
-        </Box>
       </Box>
 
       {/* ── Popover: cambia categoria dalla metabar ── */}
