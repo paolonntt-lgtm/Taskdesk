@@ -726,7 +726,7 @@ export default function TicketDetail() {
         <Box sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar — righe esplicite */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', alignItems: { sm: 'center' }, gap: { xs: 0.5, sm: 1.5 }, mb: 2.5 }}>
 
             {/* Riga 1: status · priorità · categoria · sede */}
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
