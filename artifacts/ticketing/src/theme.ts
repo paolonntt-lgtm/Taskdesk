@@ -80,7 +80,13 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
       primary:   mode === 'light' ? '#111827' : '#f9fafb',
       secondary: mode === 'light' ? '#6b7280' : '#9ca3af',
     },
-    divider: mode === 'light' ? '#f3f4f6' : '#1f2937',
+    divider: mode === 'light' ? '#f3f4f6' : '#2d3748',
+    action: {
+      hover: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)',
+      selected: mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+      disabled: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.26)',
+      disabledBackground: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)',
+    },
   },
   typography: {
     fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
@@ -134,7 +140,7 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
           boxShadow: mode === 'light'
             ? '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)'
             : 'none',
-          border: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #1f2937',
+          border: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #2d3748',
           borderRadius: '16px',
           transition: 'box-shadow 0.2s, transform 0.2s',
         },
@@ -144,8 +150,8 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
       styleOverrides: {
         root: {
           boxShadow: 'none',
-          borderBottom: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #1f2937',
-          backgroundColor: mode === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(26,29,39,0.85)',
+          borderBottom: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #2d3748',
+          backgroundColor: mode === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(26,29,39,0.9)',
           backdropFilter: 'blur(16px)',
           color: mode === 'light' ? '#111827' : '#f9fafb',
         },
@@ -154,7 +160,7 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRight: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #1f2937',
+          borderRight: mode === 'light' ? '1px solid #f3f4f6' : '1px solid #2d3748',
           backgroundColor: mode === 'light' ? '#ffffff' : '#1a1d27',
         },
       },
@@ -162,12 +168,12 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: mode === 'light' ? '1px solid #f5f5f5' : '1px solid #1f2937',
+          borderBottom: mode === 'light' ? '1px solid #f5f5f5' : '1px solid #2d3748',
           fontSize: '0.875rem',
         },
         head: {
           fontWeight: 600,
-          backgroundColor: mode === 'light' ? '#fafafa' : '#0f1117',
+          backgroundColor: mode === 'light' ? '#fafafa' : '#131620',
           color: mode === 'light' ? '#9e9e9e' : '#6b7280',
           fontSize: '0.68rem',
           textTransform: 'uppercase',
@@ -239,7 +245,7 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
             },
           },
           '&:hover': {
-            backgroundColor: mode === 'light' ? '#f3f4f6' : '#1f2937',
+            backgroundColor: mode === 'light' ? '#f3f4f6' : '#2d3748',
           },
         },
       },
@@ -247,7 +253,7 @@ const getDesignTokens = (mode: 'light' | 'dark', c: ColorSet = DEFAULT_COLORS): 
     MuiDivider: {
       styleOverrides: {
         root: {
-          borderColor: mode === 'light' ? '#f3f4f6' : '#1f2937',
+          borderColor: mode === 'light' ? '#f3f4f6' : '#2d3748',
         },
       },
     },

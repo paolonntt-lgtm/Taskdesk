@@ -669,7 +669,7 @@ export default function TicketDetail() {
             {breadcrumbLabel}
           </MuiLink>
           <Box component="span" sx={{ color: 'text.disabled', fontSize: 14, flexShrink: 0 }}>/</Box>
-          <Box component="span" sx={{ fontSize: 13, color: '#1565c0', fontWeight: 600, flexShrink: 0 }}>
+          <Box component="span" sx={{ fontSize: 13, color: 'primary.main', fontWeight: 600, flexShrink: 0 }}>
             #{ticket.ticketNumber ?? ticket.id}
           </Box>
           <Box component="span" sx={{ fontSize: 13, color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
@@ -745,10 +745,10 @@ export default function TicketDetail() {
                 }
                 const muiColor = getStatusColor(ticket.status);
                 const softMap: Record<string, { bg: string; fg: string }> = {
-                  open: { bg: '#e3f0fd', fg: '#1565c0' },
-                  in_progress: { bg: '#fff3e0', fg: '#e65100' },
-                  waiting: { bg: '#f3e5f5', fg: '#6a1b9a' },
-                  resolved: { bg: '#e8f5e9', fg: '#1b5e20' },
+                  open: { bg: theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.25)' : '#e3f0fd', fg: theme.palette.mode === 'dark' ? '#60a5fa' : '#1565c0' },
+                  in_progress: { bg: theme.palette.mode === 'dark' ? 'rgba(230,81,0,0.25)' : '#fff3e0', fg: theme.palette.mode === 'dark' ? '#fb923c' : '#e65100' },
+                  waiting: { bg: theme.palette.mode === 'dark' ? 'rgba(124,58,237,0.25)' : '#f3e5f5', fg: theme.palette.mode === 'dark' ? '#a78bfa' : '#6a1b9a' },
+                  resolved: { bg: theme.palette.mode === 'dark' ? 'rgba(16,185,129,0.25)' : '#e8f5e9', fg: theme.palette.mode === 'dark' ? '#6ee7b7' : '#1b5e20' },
                   closed: { bg: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : '#f5f5f5', fg: theme.palette.mode === 'dark' ? '#9ca3af' : '#424242' },
                 };
                 const soft = softMap[ticket.status];
@@ -770,20 +770,20 @@ export default function TicketDetail() {
               </Box>
               {ticket.category && (
                 <>
-                  <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                  <Box component="span" sx={{ color: 'text.disabled' }}>·</Box>
                   <Box component="span"
                     onClick={canEdit ? (e) => setCategoryAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: 'text.secondary', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
                     {ticket.category}
                   </Box>
                 </>
               )}
               {!singleLocation && ticket.location && (
                 <>
-                  <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                  <Box component="span" sx={{ color: 'text.disabled' }}>·</Box>
                   <Box component="span"
                     onClick={canEdit ? (e) => setLocationAnchor(e.currentTarget) : undefined}
-                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#00838f', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
+                    sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: 'secondary.main', ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.7 } } : {}) }}>
                     {ticket.location}
                   </Box>
                 </>
@@ -802,16 +802,16 @@ export default function TicketDetail() {
                   {creator?.name && (
                     <>
                       <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
-                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#546e7a' }}>{creator.name}</Box>
+                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: 'text.secondary' }}>{creator.name}</Box>
                     </>
                   )}
                   {creator?.name && (assignee || assignedGroup) && (
-                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, color: '#bdbdbd', mx: 0.25 }}>→</Box>
+                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, color: 'text.disabled', mx: 0.25 }}>→</Box>
                   )}
                   {(assignee || assignedGroup) && (
                     <>
                       {assignee && <Avatar src={assignee.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'secondary.main' }}>{assignee.name?.charAt(0)}</Avatar>}
-                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: '#1565c0' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
+                      <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: 'primary.main' }}>{assignedGroup ? assignedGroup : assignee?.name}</Box>
                     </>
                   )}
                 </Box>
@@ -938,7 +938,7 @@ export default function TicketDetail() {
             <TabPanel value={tabValue} index={0}>
               <Box display="flex" flexDirection="column" gap={0}>
                 {comments?.length === 0 && !(ticket as any).resolutionNote && (
-                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>
+                  <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: 'text.secondary' }}>
                     {t.ticketDetail.noComments}
                   </Box>
                 )}
@@ -963,7 +963,7 @@ export default function TicketDetail() {
                           key={`c-${c.id}`}
                           display="flex"
                           gap={1.5}
-                          sx={{ py: 2, borderBottom: '1px solid #f5f5f5', ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
+                          sx={{ py: 2, borderBottom: '1px solid', borderBottomColor: 'divider', ...(customerReply ? { ml: { xs: 3, sm: 5 } } : {}) }}
                           onMouseEnter={() => setHoveredCommentId(c.id)}
                           onMouseLeave={() => setHoveredCommentId(null)}
                         >
@@ -980,9 +980,9 @@ export default function TicketDetail() {
                                 <>
                                   <Box component="span" sx={{ fontWeight: 700, fontSize: 14, color: 'text.primary' }}>{customerReply.name}</Box>
                                   <Box display="flex" alignItems="center" gap={0.5}>
-                                    <MailOutline sx={{ fontSize: 12, color: '#9e9e9e' }} />
-                                    <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>Risposta del cliente</Box>
-                                    <Box component="a" href={`mailto:${customerReply.email}`} sx={{ fontSize: 12, color: '#1565c0', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{customerReply.email}</Box>
+                                    <MailOutline sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                    <Box component="span" sx={{ fontSize: 12, color: 'text.secondary' }}>Risposta del cliente</Box>
+                                    <Box component="a" href={`mailto:${customerReply.email}`} sx={{ fontSize: 12, color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{customerReply.email}</Box>
                                   </Box>
                                 </>
                               ) : (
@@ -1072,19 +1072,19 @@ export default function TicketDetail() {
                                 })()}
                                 {/* Action links row */}
                                 <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                                  <Box component="span" onClick={() => handleReply(c.id, c.author?.name)} sx={{ fontSize: 12, color: replyingToCommentId === c.id ? '#1565c0' : '#9e9e9e', cursor: 'pointer', '&:hover': { color: '#1565c0', textDecoration: 'underline' } }}>
+                                  <Box component="span" onClick={() => handleReply(c.id, c.author?.name)} sx={{ fontSize: 12, color: replyingToCommentId === c.id ? 'primary.main' : 'text.secondary', cursor: 'pointer', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }}>
                                     {t.ticketDetail.replyComment}
                                   </Box>
                                   {(() => {
                                     const alreadyLiked = (commentReactions[c.id] ?? []).some((r) => r.emoji === '👍' && r.userReacted);
                                     return (
-                                      <Box component="span" onClick={() => handleToggleReaction(c.id, '👍')} sx={{ cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, color: alreadyLiked ? 'primary.main' : '#9e9e9e', fontWeight: alreadyLiked ? 700 : 400, opacity: hoveredCommentId === c.id || alreadyLiked ? 1 : 0, transition: 'opacity 0.15s, color 0.15s', '@media (pointer: coarse)': { opacity: 1 }, '&:hover': { color: 'primary.main' } }}>
+                                      <Box component="span" onClick={() => handleToggleReaction(c.id, '👍')} sx={{ cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, color: alreadyLiked ? 'primary.main' : 'text.secondary', fontWeight: alreadyLiked ? 700 : 400, opacity: hoveredCommentId === c.id || alreadyLiked ? 1 : 0, transition: 'opacity 0.15s, color 0.15s', '@media (pointer: coarse)': { opacity: 1 }, '&:hover': { color: 'primary.main' } }}>
                                         👍
                                       </Box>
                                     );
                                   })()}
                                   {(canEditComment || canDeleteComment) && (
-                                    <IconButton size="small" onClick={(e) => setCommentMenuAnchor({ el: e.currentTarget, commentId: c.id })} sx={{ p: 0.25, color: '#9e9e9e', '&:hover': { color: '#111' } }}>
+                                    <IconButton size="small" onClick={(e) => setCommentMenuAnchor({ el: e.currentTarget, commentId: c.id })} sx={{ p: 0.25, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>
                                       <MoreVert sx={{ fontSize: 16 }} />
                                     </IconButton>
                                   )}
@@ -1258,7 +1258,7 @@ export default function TicketDetail() {
                   <Box display="flex" alignItems="center" justifyContent="flex-end">
                     <PermissionGateButton permission="add_notes" sectionLabel={t.ticketDetail.tabNotes} />
                   </Box>
-                  {notes?.length === 0 && <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>{t.ticketDetail.noNotes}</Box>}
+                  {notes?.length === 0 && <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: 'text.secondary' }}>{t.ticketDetail.noNotes}</Box>}
                   {notes?.map((n: any) => (
                     <Box key={n.id} display="flex" gap={2} sx={{ bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200', borderRadius: 1, p: 2 }}>
                       <Avatar sx={{ bgcolor: 'warning.main', width: 34, height: 34, fontSize: 14 }}>{n.author?.name?.charAt(0)}</Avatar>
@@ -1322,7 +1322,7 @@ export default function TicketDetail() {
 
       {/* ── Popover: modifica scadenza dalla metabar ── */}
       <Popover open={Boolean(dueAnchor)} anchorEl={dueAnchor} onClose={() => setDueAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5 } } }}>
-        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.dueAtLabel}</Box>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.dueAtLabel}</Box>
         <Box display="flex" alignItems="center" gap={0.5}>
           <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 190 }} disabled={updateTicket.isPending} />
           {dueEditVal && (
@@ -1344,7 +1344,7 @@ export default function TicketDetail() {
 
       {/* ── Popover: cambia stato dalla metabar ── */}
       <Popover open={Boolean(statusAnchor)} anchorEl={statusAnchor} onClose={() => setStatusAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
-        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.statusLabel}</Box>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.statusLabel}</Box>
         <Box display="flex" flexWrap="wrap" gap={0.5}>
           {orgStatuses.map((s) => {
             const isActive = ticket.status === s.key;
@@ -1362,7 +1362,7 @@ export default function TicketDetail() {
 
       {/* ── Popover: cambia priorità dalla metabar ── */}
       <Popover open={Boolean(priorityAnchor)} anchorEl={priorityAnchor} onClose={() => setPriorityAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
-        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.priorityLabel}</Box>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.priorityLabel}</Box>
         <Box display="flex" flexWrap="wrap" gap={0.5}>
           {PRIORITY_OPTIONS.map((p) => (
             <Chip key={p} label={t.priority[p] || p} size="small"

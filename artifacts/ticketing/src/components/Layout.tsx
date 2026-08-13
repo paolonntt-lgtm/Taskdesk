@@ -278,7 +278,15 @@ export default function Layout({ children }: LayoutProps) {
     <Box data-tour="sidebar" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo + close button */}
       <Box sx={{ px: 2, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 36, width: 'auto' }} />
+        <Box sx={{
+          display: 'inline-flex', alignItems: 'center',
+          borderRadius: '8px',
+          px: theme.palette.mode === 'dark' ? 1 : 0,
+          py: theme.palette.mode === 'dark' ? 0.5 : 0,
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'transparent',
+        }}>
+          <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 28, width: 'auto' }} />
+        </Box>
         {!isMobile && (
           <IconButton size="small" onClick={toggleSidebar} sx={{ color: 'text.secondary' }}>
             <ChevronLeft />
