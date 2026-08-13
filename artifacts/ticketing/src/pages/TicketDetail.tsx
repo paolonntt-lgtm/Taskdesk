@@ -97,6 +97,7 @@ export default function TicketDetail() {
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
   const [statusAnchor, setStatusAnchor] = useState<null | HTMLElement>(null);
   const [priorityAnchor, setPriorityAnchor] = useState<null | HTMLElement>(null);
+  const [dueAnchor, setDueAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -811,7 +812,9 @@ export default function TicketDetail() {
             {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt) && (
               <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                 {(ticket as any).dueAt && (
-                  <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100' }}>
+                  <Box component="span"
+                    onClick={(isAdmin || isAssignee) ? (e) => setDueAnchor(e.currentTarget) : undefined}
+                    sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
                     ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </Box>
                 )}
@@ -1458,6 +1461,28 @@ export default function TicketDetail() {
           </Box>
         </Box>
       </Box>
+
+      {/* ── Popover: modifica scadenza dalla metabar ── */}
+      <Popover open={Boolean(dueAnchor)} anchorEl={dueAnchor} onClose={() => setDueAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5 } } }}>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.dueAtLabel}</Box>
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 190 }} disabled={updateTicket.isPending} />
+          {dueEditVal && (
+            <Tooltip title={t.ticketDetail.dueAtClear}>
+              <span>
+                <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); setDueAnchor(null); }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+        </Box>
+        <Box display="flex" justifyContent="flex-end" mt={1}>
+          <Button size="small" variant="contained" disabled={updateTicket.isPending} onClick={() => { handleDueAtChange(dueEditVal); setDueAnchor(null); }}>
+            {lang === 'it' ? 'Salva' : 'Save'}
+          </Button>
+        </Box>
+      </Popover>
 
       {/* ── Popover: cambia stato dalla metabar ── */}
       <Popover open={Boolean(statusAnchor)} anchorEl={statusAnchor} onClose={() => setStatusAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
