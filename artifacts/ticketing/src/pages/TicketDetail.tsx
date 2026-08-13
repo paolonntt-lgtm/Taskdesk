@@ -789,7 +789,10 @@ export default function TicketDetail() {
 
             {/* Riga 2 (se assegnatario): chi ha aperto → assegnatario */}
             {(creator?.name || assignee || assignedGroup) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(isAdmin ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
+                onClick={isAdmin ? (e) => setAssignAnchor(e.currentTarget) : undefined}
+              >
                 {creator?.name && (
                   <>
                     <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
