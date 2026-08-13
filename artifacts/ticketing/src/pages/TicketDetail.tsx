@@ -95,6 +95,8 @@ export default function TicketDetail() {
   const [resolutionNote, setResolutionNote] = useState('');
 
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
+  const [statusAnchor, setStatusAnchor] = useState<null | HTMLElement>(null);
+  const [priorityAnchor, setPriorityAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -733,13 +735,14 @@ export default function TicketDetail() {
 
             {/* Riga 1: status · priorità · categoria · sede */}
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-              {/* Status pill */}
+              {/* Status pill — cliccabile se permesso */}
               {(() => {
                 const customColor = getColorForKey(ticket.status);
                 const label = getLabelForKey(ticket.status) || t.status[ticket.status] || ticket.status;
+                const clickProps = canChangeStatus ? { onClick: (e: React.MouseEvent<HTMLElement>) => setStatusAnchor(e.currentTarget), sx: { cursor: 'pointer' } } : {};
                 if (customColor) {
                   return (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+                    <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: customColor, color: 'white', fontWeight: 700, fontSize: 12, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
                       {label}
                     </Box>
                   );
@@ -754,15 +757,16 @@ export default function TicketDetail() {
                 };
                 const soft = softMap[ticket.status];
                 return soft ? (
-                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6 }}>
+                  <Box component="span" {...clickProps} sx={{ display: 'inline-flex', alignItems: 'center', px: 1.375, py: 0.375, borderRadius: 20, bgcolor: soft.bg, color: soft.fg, fontWeight: 700, fontSize: 12, lineHeight: 1.6, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.85 } } : {}) }}>
                     {label}
                   </Box>
                 ) : (
-                  <Chip label={label} size="small" color={muiColor as any} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20 }} />
+                  <Chip label={label} size="small" color={muiColor as any} onClick={canChangeStatus ? (e) => setStatusAnchor(e.currentTarget) : undefined} sx={{ fontWeight: 700, height: 22, fontSize: 12, borderRadius: 20, ...(canChangeStatus ? { cursor: 'pointer' } : {}) }} />
                 );
               })()}
-              {/* Priority dot + text */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625 }}>
+              {/* Priority dot + text — cliccabile se permesso */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, ...(canChangeStatus ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
+                onClick={canChangeStatus ? (e) => setPriorityAnchor(e.currentTarget) : undefined}>
                 <Box sx={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, bgcolor: priorityColor(ticket.priority) }} />
                 <Box component="span" sx={{ fontWeight: 600, fontSize: 12, color: priorityColor(ticket.priority) }}>
                   {t.priority[ticket.priority] || ticket.priority}
@@ -1454,6 +1458,40 @@ export default function TicketDetail() {
           </Box>
         </Box>
       </Box>
+
+      {/* ── Popover: cambia stato dalla metabar ── */}
+      <Popover open={Boolean(statusAnchor)} anchorEl={statusAnchor} onClose={() => setStatusAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.statusLabel}</Box>
+        <Box display="flex" flexWrap="wrap" gap={0.5}>
+          {orgStatuses.map((s) => {
+            const isActive = ticket.status === s.key;
+            const customColor = s.color;
+            return (
+              <Chip key={s.key} label={s.label} size="small" variant={isActive ? 'filled' : 'outlined'}
+                onClick={() => { handleStatusChange(s.key); setStatusAnchor(null); }}
+                disabled={updateTicket.isPending}
+                {...(isActive && customColor ? { sx: { bgcolor: customColor, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : isActive ? { color: getStatusColor(s.key) as any, sx: { cursor: 'pointer', fontWeight: 700, fontSize: 11 } } : { sx: { cursor: 'pointer', fontWeight: 400, fontSize: 11 } })}
+              />
+            );
+          })}
+        </Box>
+      </Popover>
+
+      {/* ── Popover: cambia priorità dalla metabar ── */}
+      <Popover open={Boolean(priorityAnchor)} anchorEl={priorityAnchor} onClose={() => setPriorityAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
+        <Box sx={{ fontSize: 10, fontWeight: 700, color: '#bdbdbd', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.priorityLabel}</Box>
+        <Box display="flex" flexWrap="wrap" gap={0.5}>
+          {PRIORITY_OPTIONS.map((p) => (
+            <Chip key={p} label={t.priority[p] || p} size="small"
+              color={ticket.priority === p ? (getPriorityColor(p) as any) : 'default'}
+              variant={ticket.priority === p ? 'filled' : 'outlined'}
+              onClick={() => { handlePriorityChange(p); setPriorityAnchor(null); }}
+              disabled={updateTicket.isPending}
+              sx={{ cursor: 'pointer', fontWeight: ticket.priority === p ? 700 : 400, fontSize: 11 }}
+            />
+          ))}
+        </Box>
+      </Popover>
 
       {/* ── Dialogs ── */}
 
