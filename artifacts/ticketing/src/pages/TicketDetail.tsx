@@ -808,7 +808,7 @@ export default function TicketDetail() {
               <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                 {(ticket as any).dueAt && (
                   <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100' }}>
-                    ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' })}
+                    ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </Box>
                 )}
                 {ticket.inboundChannelId && (
