@@ -1226,7 +1226,7 @@ export default function TicketDetail() {
                 {activities?.length === 0 && (
                   <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: '#9e9e9e' }}>{t.ticketDetail.noActivity}</Box>
                 )}
-                {activities?.map((a) => {
+                {[...(activities ?? [])].reverse().map((a) => {
                   const isHighlight = a.actionType === 'priority_changed' || (a.actionType === 'status_changed' && (a.actionDescription?.includes('Urgente') || a.actionDescription?.includes('Urgent')));
                   const actorName = (a as any).user?.name as string | undefined;
                   return (
