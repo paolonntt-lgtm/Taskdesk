@@ -771,6 +771,15 @@ export default function TicketDetail() {
                 <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.category}</Box>
               </>
             )}
+            {creator?.name && (
+              <>
+                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                <Box display="inline-flex" alignItems="center" gap={0.5}>
+                  <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
+                  <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{creator.name}</Box>
+                </Box>
+              </>
+            )}
             {(ticket as any).dueAt && (
               <>
                 <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
