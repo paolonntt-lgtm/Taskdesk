@@ -1340,6 +1340,17 @@ export default function TicketDetail() {
               {ticket.category || '—'}
             </SideRow>
 
+            {/* Created by + date */}
+            <SideRow label={t.ticketDetail.openedOn}>
+              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
+                <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 18, height: 18, fontSize: 9, bgcolor: 'primary.main' }}>{creator?.name?.charAt(0)}</Avatar>
+                <Box component="span">{creator?.name}</Box>
+              </Box>
+              <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>
+                {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}, {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+              </Box>
+            </SideRow>
+
             {/* Location */}
             {!singleLocation && (
               <SideRow label={t.ticketDetail.locationLabel}>
@@ -1377,18 +1388,6 @@ export default function TicketDetail() {
                 {closerActivity?.user?.name && <Box component="span" sx={{ color: '#9e9e9e' }}> · {closerActivity.user.name}</Box>}
               </SideRow>
             )}
-
-            {/* Created by + date */}
-            <SideRow label={t.ticketDetail.openedOn}>
-              <Box display="flex" alignItems="center" gap={0.75} mb={0.25}>
-                <Avatar src={creator?.avatarUrl ?? undefined} sx={{ width: 18, height: 18, fontSize: 9, bgcolor: 'primary.main' }}>{creator?.name?.charAt(0)}</Avatar>
-                <Box component="span">{creator?.name}</Box>
-              </Box>
-              <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>
-                {new Date(ticket.createdAt).toLocaleDateString(dateLocale)}, {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-              </Box>
-            </SideRow>
-
 
             {/* Email origin */}
             {ticket.inboundChannelId && isEmailResource && (
