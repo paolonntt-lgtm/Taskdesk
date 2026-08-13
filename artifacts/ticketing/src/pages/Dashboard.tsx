@@ -803,6 +803,7 @@ function FeedOpenWidget() {
       tickets={tickets}
       emptyMsg={t.dashboard.noOpenTickets(entityTerm.singular)}
       viewAllHref="/tickets?status=open"
+      showDueBadge
       colorByStatus={settings.colorByStatus}
     />
   );
