@@ -130,6 +130,8 @@ app.use(
       // Allow requests with no Origin header (e.g. same-origin, curl, mobile apps).
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow all Replit preview/dev domains (*.replit.dev, *.picard.replit.dev, etc.)
+      if (/^https:\/\/[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.replit\.dev$/.test(origin)) return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' not allowed`));
     },
     credentials: true,
