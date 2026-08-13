@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box, Typography, TextField, IconButton, Button,
-  Avatar, CircularProgress, Divider, Paper, Tooltip,
+  Avatar, CircularProgress, Divider, Paper, Tooltip, Badge,
 } from '@mui/material';
 import {
   Send, SmartToy, Close, ConfirmationNumber,
@@ -41,7 +41,10 @@ interface ParsedOption {
 
 interface BotDialogProps {
   open: boolean;
+  unreadCount?: number;
   onClose: () => void;
+  onExpand?: () => void;
+  onBotMessage?: () => void;
   onCreateTicket: (title: string, description: string, category?: string, resource?: string, location?: string) => void;
   onViewTicket?: (id: number) => void;
 }
@@ -237,7 +240,7 @@ function saveSession(messages: Message[], pendingAction: BotAction | null) {
   } catch { /* ignore */ }
 }
 
-export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket }: BotDialogProps) {
+export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, onBotMessage, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
@@ -256,6 +259,7 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<BotAction | null>(() => loadSession()?.pendingAction ?? null);
   const [minimized, setMinimized] = useState(false);
+  const minimizedRef = useRef(false); // kept in sync; safe to read inside async closures
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // welcome already shown if we restored a session
@@ -279,7 +283,10 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
 
   // Expand automatically when reopened after being minimized
   useEffect(() => {
-    if (open && minimized) setMinimized(false);
+    if (open && minimized) {
+      setMinimized(false);
+      onExpand?.();
+    }
   }, [open]);
 
   useEffect(() => {
@@ -296,6 +303,16 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
     saveSession(welcome, null);
     setInput('');
     setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // Keep ref in sync so async closures always read the current value
+  useEffect(() => { minimizedRef.current = minimized; }, [minimized]);
+
+  const handleExpand = () => {
+    setMinimized(false);
+    minimizedRef.current = false;
+    onExpand?.();
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const sendWithText = async (text: string) => {
@@ -322,6 +339,7 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
       if (!res.ok || !res.body) {
         setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorBot }]);
         setLoading(false);
+        if (minimizedRef.current) onBotMessage?.();
         return;
       }
 
@@ -366,8 +384,10 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
 
       const action = parseActionFromText(fullContent);
       if (action) setPendingAction(action);
+      if (minimizedRef.current) onBotMessage?.();
     } catch {
       setMessages((prev) => [...prev, { role: 'assistant', content: t.bot.errorNetwork }]);
+      if (minimizedRef.current) onBotMessage?.();
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -447,26 +467,60 @@ export default function BotDialog({ open, onClose, onCreateTicket, onViewTicket 
             cursor: 'pointer',
             userSelect: 'none',
           }}
-          onClick={() => setMinimized((v) => !v)}
+          onClick={() => {
+            if (minimized) {
+              handleExpand();
+            } else {
+              setMinimized(true);
+              minimizedRef.current = true;
+            }
+          }}
         >
-          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0 }}>
-            <SmartToy sx={{ fontSize: 18 }} />
-          </Avatar>
+          <Badge
+            badgeContent={minimized ? unreadCount : 0}
+            color="error"
+            sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
+          >
+            <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0 }}>
+              <SmartToy sx={{ fontSize: 18 }} />
+            </Avatar>
+          </Badge>
           <Box flex={1} minWidth={0}>
             <Typography fontWeight={700} fontSize="0.9rem" lineHeight={1.2}>TaskBot</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap display="block">
-              {lang === 'it' ? `Assistente per apertura ${entityTerm.singularLower}` : `${entityTerm.singular} assistant`}
-            </Typography>
+            {minimized && unreadCount > 0 ? (
+              <Typography variant="caption" color="primary.main" fontWeight={600} noWrap display="block">
+                {unreadCount === 1
+                  ? (lang === 'it' ? '1 nuovo messaggio' : '1 new message')
+                  : (lang === 'it' ? `${unreadCount} nuovi messaggi` : `${unreadCount} new messages`)}
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                {lang === 'it' ? `Assistente per apertura ${entityTerm.singularLower}` : `${entityTerm.singular} assistant`}
+              </Typography>
+            )}
           </Box>
           {/* header actions — stop click propagation so they don't toggle minimize */}
           <Box display="flex" alignItems="center" gap={0.25} onClick={(e) => e.stopPropagation()}>
-            <Tooltip title={lang === 'it' ? 'Nuova conversazione' : 'New conversation'}>
-              <IconButton size="small" onClick={clearChat} sx={{ color: 'text.secondary' }}>
-                <DeleteOutline fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {!minimized && (
+              <Tooltip title={lang === 'it' ? 'Nuova conversazione' : 'New conversation'}>
+                <IconButton size="small" onClick={clearChat} sx={{ color: 'text.secondary' }}>
+                  <DeleteOutline fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title={minimized ? (lang === 'it' ? 'Espandi' : 'Expand') : (lang === 'it' ? 'Riduci' : 'Minimize')}>
-              <IconButton size="small" onClick={() => setMinimized((v) => !v)} sx={{ color: 'text.secondary' }}>
+              <IconButton
+                size="small"
+                onClick={() => {
+                  if (minimized) {
+                    handleExpand();
+                  } else {
+                    setMinimized(true);
+                    minimizedRef.current = true;
+                  }
+                }}
+                sx={{ color: 'text.secondary' }}
+              >
                 {minimized ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
               </IconButton>
             </Tooltip>

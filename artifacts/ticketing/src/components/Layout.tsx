@@ -87,6 +87,7 @@ export default function Layout({ children }: LayoutProps) {
   const [botOpen, setBotOpen] = useState(() => {
     try { return sessionStorage.getItem('td_bot_open') === '1'; } catch { return false; }
   });
+  const [botUnreadCount, setBotUnreadCount] = useState(0);
 
   // Persist bot open state so it survives page refresh
   const setBotOpenPersist = React.useCallback((val: boolean) => {
@@ -716,7 +717,10 @@ export default function Layout({ children }: LayoutProps) {
       <Tooltip title={t.bot.fabTooltip} placement="left">
         <Fab
           color="primary"
-          onClick={() => setBotOpenPersist(true)}
+          onClick={() => {
+            setBotOpenPersist(true);
+            setBotUnreadCount(0);
+          }}
           sx={{
             position: 'fixed',
             bottom: 88,
@@ -724,7 +728,13 @@ export default function Layout({ children }: LayoutProps) {
             zIndex: theme.zIndex.speedDial,
           }}
         >
-          <SmartToy />
+          <Badge
+            badgeContent={botUnreadCount}
+            color="error"
+            sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
+          >
+            <SmartToy />
+          </Badge>
         </Fab>
       </Tooltip>
 
@@ -740,9 +750,13 @@ export default function Layout({ children }: LayoutProps) {
 
       <BotDialog
         open={botOpen}
-        onClose={() => setBotOpenPersist(false)}
+        unreadCount={botUnreadCount}
+        onClose={() => { setBotOpenPersist(false); setBotUnreadCount(0); }}
+        onExpand={() => setBotUnreadCount(0)}
+        onBotMessage={() => setBotUnreadCount((c) => c + 1)}
         onCreateTicket={(title, description, category, resource, location) => {
           setBotOpenPersist(false);
+          setBotUnreadCount(0);
           const params = new URLSearchParams();
           if (title) params.set('title', title);
           if (description) params.set('description', description);
@@ -753,6 +767,7 @@ export default function Layout({ children }: LayoutProps) {
         }}
         onViewTicket={(id) => {
           setBotOpenPersist(false);
+          setBotUnreadCount(0);
           setLocation(`/tickets/${id}`);
         }}
       />
