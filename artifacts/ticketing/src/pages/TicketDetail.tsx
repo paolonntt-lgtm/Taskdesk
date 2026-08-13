@@ -1185,7 +1185,7 @@ export default function TicketDetail() {
                             )}
                             {a.actionDescription}
                           </Box>
-                          <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</Box>
+                          <Box component="span" sx={{ fontSize: 12, color: '#bdbdbd', flexShrink: 0 }}>{new Date(a.createdAt).toLocaleString(dateLocale, { dateStyle: 'short', timeStyle: 'short' })}</Box>
                         </Box>
                       );
                     })}
