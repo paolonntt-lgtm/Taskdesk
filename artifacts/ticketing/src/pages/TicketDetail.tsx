@@ -780,6 +780,12 @@ export default function TicketDetail() {
                 </Box>
               </>
             )}
+            {!singleLocation && ticket.location && (
+              <>
+                <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
+                <Box component="span" sx={{ fontSize: 12, color: '#9e9e9e' }}>{ticket.location}</Box>
+              </>
+            )}
             {(ticket as any).dueAt && (
               <>
                 <Box component="span" sx={{ color: '#e0e0e0' }}>·</Box>
@@ -1322,13 +1328,6 @@ export default function TicketDetail() {
                 )
               )}
             </SideRow>
-
-            {/* Location */}
-            {!singleLocation && (
-              <SideRow label={t.ticketDetail.locationLabel}>
-                {ticket.location || '—'}
-              </SideRow>
-            )}
 
             {/* Due date */}
             {(isAdmin || isAssignee) ? (
