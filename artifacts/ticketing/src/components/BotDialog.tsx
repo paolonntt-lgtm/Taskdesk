@@ -291,6 +291,8 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const [orgLocations, setOrgLocations] = useState<string[]>([]);
   const [reportWizardLocation, setReportWizardLocation] = useState<string | null>(null);
   const reportWizardLocationRef = useRef<string | null>(null);
+  // Transitional state: user clicked "Fai il report" but still needs to pick a sede
+  const [pickingLocation, setPickingLocation] = useState(false);
 
   // Team reports panel: list of recent colleague reports with read status
   const [teamReports, setTeamReports] = useState<TeamReportItem[] | null>(null);
@@ -413,6 +415,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   // optionally the selected location (validated server-side against org locations).
   const sendReportMode = async (location: string | null) => {
     if (loading) return;
+    setPickingLocation(false); // always collapse picker when wizard actually starts
     setReportWizardActive(true);
     reportWizardActiveRef.current = true;
     setReportWizardLocation(location);
@@ -436,6 +439,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     reportWizardActiveRef.current = false;
     setReportWizardLocation(null);
     reportWizardLocationRef.current = null;
+    setPickingLocation(false);
   };
 
   // Show welcome message only on the very first open (no saved session)
@@ -457,11 +461,11 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     }
   }, [open]);
 
-  // Reset briefing guard each time the dialog closes, so a new batch of
-  // unread reports can trigger a fresh briefing on the next open.
+  // Reset transient state each time the dialog closes.
   useEffect(() => {
     if (!open) {
       briefingFiredRef.current = false;
+      setPickingLocation(false);
     }
   }, [open]);
 
@@ -874,58 +878,72 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
             {/* ── Daily report quick-action button ── */}
             {todayReportSubmitted === false && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
-                {/* Location picker — shown only when org has >1 locations and wizard not yet active */}
-                {orgLocations.length > 1 && !reportWizardActive && (
-                  <Box mb={1}>
-                    <Box sx={{ fontSize: '0.7rem', color: 'text.disabled', mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {lang === 'it' ? 'Sede del report' : 'Report location'}
+                {pickingLocation ? (
+                  /* Post-click sede picker: shown instead of the button after the user clicks it */
+                  <Box>
+                    <Box sx={{ fontSize: '0.7rem', color: 'text.disabled', mb: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {lang === 'it' ? 'Per quale sede?' : 'Which location?'}
                     </Box>
                     <Box display="flex" flexWrap="wrap" gap={0.5}>
                       {orgLocations.map((loc) => (
                         <Box
                           key={loc}
                           component="button"
-                          onClick={() => setReportWizardLocation((prev) => prev === loc ? null : loc)}
+                          disabled={loading}
+                          onClick={() => { void sendReportMode(loc); }}
                           sx={{
-                            px: 1.25, py: 0.35, borderRadius: 10, border: '1px solid', cursor: 'pointer',
-                            fontSize: '0.72rem', fontWeight: 600, transition: 'all 0.15s',
-                            borderColor: reportWizardLocation === loc ? 'primary.main' : 'divider',
-                            bgcolor: reportWizardLocation === loc ? 'primary.main' : 'transparent',
-                            color: reportWizardLocation === loc ? 'white' : 'text.secondary',
-                            '&:hover': { borderColor: 'primary.main', color: reportWizardLocation === loc ? 'white' : 'primary.main' },
+                            px: 1.5, py: 0.5, borderRadius: 10, border: '1px solid', cursor: 'pointer',
+                            fontSize: '0.78rem', fontWeight: 600, transition: 'all 0.15s',
+                            borderColor: 'primary.main', bgcolor: 'transparent', color: 'primary.main',
+                            '&:hover:not(:disabled)': { bgcolor: 'primary.main', color: 'white' },
+                            '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
                           }}
                         >
                           {loc}
                         </Box>
                       ))}
+                      <Box
+                        component="button"
+                        onClick={() => setPickingLocation(false)}
+                        sx={{
+                          px: 1.5, py: 0.5, borderRadius: 10, border: '1px solid', cursor: 'pointer',
+                          fontSize: '0.78rem', fontWeight: 500, transition: 'all 0.15s',
+                          borderColor: 'divider', bgcolor: 'transparent', color: 'text.disabled',
+                          '&:hover': { borderColor: 'text.secondary', color: 'text.secondary' },
+                        }}
+                      >
+                        ✕
+                      </Box>
                     </Box>
                   </Box>
+                ) : (
+                  /* Normal state: single button, always clickable */
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    disabled={loading}
+                    onClick={() => {
+                      if (orgLocations.length > 1) {
+                        setPickingLocation(true);
+                      } else {
+                        void sendReportMode(null);
+                      }
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontSize: '0.8rem',
+                      justifyContent: 'flex-start',
+                      gap: 1,
+                      borderColor: 'divider',
+                      color: 'text.secondary',
+                      '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
+                    }}
+                  >
+                    📋 {lang === 'it' ? 'Fai il report di oggi' : 'Submit today\'s report'}
+                  </Button>
                 )}
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  size="small"
-                  disabled={loading || (orgLocations.length > 1 && !reportWizardLocation)}
-                  onClick={() => sendReportMode(orgLocations.length > 1 ? reportWizardLocation : null)}
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontSize: '0.8rem',
-                    justifyContent: 'flex-start',
-                    gap: 1,
-                    borderColor: 'divider',
-                    color: 'text.secondary',
-                    '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
-                    '&.Mui-disabled': { opacity: 0.45 },
-                  }}
-                >
-                  📋 {lang === 'it' ? 'Fai il report di oggi' : 'Submit today\'s report'}
-                  {reportWizardLocation && (
-                    <Box component="span" sx={{ ml: 'auto', fontSize: '0.7rem', fontWeight: 700, color: 'primary.main' }}>
-                      {reportWizardLocation}
-                    </Box>
-                  )}
-                </Button>
               </Box>
             )}
             {todayReportSubmitted === true && (
