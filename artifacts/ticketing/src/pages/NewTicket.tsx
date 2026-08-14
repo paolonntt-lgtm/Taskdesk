@@ -722,6 +722,44 @@ export default function NewTicket() {
                   </SideSection>
                 )}
 
+                {/* Auto-assign to self (non-admin only — admins use the full picker above) */}
+                {currentUser?.role !== 'admin' && (
+                  <SideSection divider={false}>
+                    <Box
+                      display="flex" alignItems="center" gap={1}
+                      onClick={() => setFormData(f => ({
+                        ...f,
+                        assignedTo: f.assignedTo === String((currentUser as any)?.id)
+                          ? ''
+                          : String((currentUser as any)?.id),
+                      }))}
+                      sx={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <Box
+                        sx={{
+                          width: 36, height: 20, borderRadius: 10, flexShrink: 0, position: 'relative',
+                          bgcolor: formData.assignedTo === String((currentUser as any)?.id) ? 'primary.main' : 'action.disabledBackground',
+                          transition: 'background-color 0.2s',
+                        }}
+                      >
+                        <Box sx={{
+                          position: 'absolute', top: 2, left: formData.assignedTo === String((currentUser as any)?.id) ? 18 : 2,
+                          width: 16, height: 16, borderRadius: '50%', bgcolor: 'white',
+                          boxShadow: 1, transition: 'left 0.2s',
+                        }} />
+                      </Box>
+                      <Box>
+                        <Box sx={{ fontSize: 12, fontWeight: 600, color: 'text.primary', lineHeight: 1.2 }}>
+                          {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
+                        </Box>
+                        <Box sx={{ fontSize: 11, color: 'text.disabled', lineHeight: 1.2 }}>
+                          {currentUser?.name}
+                        </Box>
+                      </Box>
+                    </Box>
+                  </SideSection>
+                )}
+
                 {/* Buttons */}
                 <Box display="flex" flexDirection="column" gap={0.5} mt={0.25}>
                   <Button
