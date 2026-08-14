@@ -230,7 +230,7 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
   const articles: ContextResult[] = (articleRows.rows as any[]).map((row) => ({
     type: "article" as const,
     title: row.title,
-    content: String(row.content).slice(0, 600),
+    content: String(row.content),
     rank: Number(row.rank),
   }));
 
