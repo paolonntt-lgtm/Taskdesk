@@ -110,7 +110,6 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
         to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
         @@ plainto_tsquery('italian', ${ftsQuery})
         OR t.title ~* ${keywordRegex}
-        OR t.description ~* ${keywordRegex}
       )
     ORDER BY rank DESC
     LIMIT 3
@@ -180,7 +179,6 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
         to_tsvector('italian', t.title || ' ' || t.description)
         @@ plainto_tsquery('italian', ${ftsQuery})
         OR t.title ~* ${keywordRegex}
-        OR t.description ~* ${keywordRegex}
       )
     ORDER BY rank DESC
     LIMIT 2
@@ -205,23 +203,28 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
     };
   });
 
-  // KB articles — available to all authenticated users of the organization
+  // KB articles — title gets weight 'A' so title matches rank much higher than body matches.
+  // The regex fallback is title-only (not body) to avoid false positives where a generic
+  // word like "circuito" appears in an unrelated article's text.
   const articleRows = await db.execute(sql`
     SELECT
       id,
       title,
       content,
       ts_rank(
-        to_tsvector('italian', title || ' ' || content),
+        setweight(to_tsvector('italian', title), 'A') ||
+        setweight(to_tsvector('italian', content), 'B'),
         plainto_tsquery('italian', ${ftsQuery})
       ) AS rank
     FROM knowledge_articles
     WHERE
       organization_id = ${orgId}
       AND (
-        to_tsvector('italian', title || ' ' || content) @@ plainto_tsquery('italian', ${ftsQuery})
+        (
+          setweight(to_tsvector('italian', title), 'A') ||
+          setweight(to_tsvector('italian', content), 'B')
+        ) @@ plainto_tsquery('italian', ${ftsQuery})
         OR title ~* ${keywordRegex}
-        OR content ~* ${keywordRegex}
       )
     ORDER BY rank DESC
     LIMIT 3
