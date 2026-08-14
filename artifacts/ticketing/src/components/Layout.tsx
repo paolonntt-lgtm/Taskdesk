@@ -770,7 +770,13 @@ export default function Layout({ children }: LayoutProps) {
         onClose={() => { setBotOpenPersist(false); setBotUnreadCount(0); }}
         onExpand={() => setBotUnreadCount(0)}
         onBotMessage={() => setBotUnreadCount((c) => c + 1)}
-        onDailyReportsRead={() => setDailyReportUnread(0)}
+        onDailyReportsRead={() => {
+              // Re-fetch the actual count so the badge is always accurate
+              fetch('/api/daily-reports/unread', { credentials: 'include' })
+                .then((r) => r.ok ? r.json() : { reports: [] })
+                .then((d) => setDailyReportUnread((d.reports ?? []).length))
+                .catch(() => {});
+            }}
         onCreateTicket={(title, description, category, resource, location) => {
           setBotOpenPersist(false);
           setBotUnreadCount(0);

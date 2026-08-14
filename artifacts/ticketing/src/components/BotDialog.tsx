@@ -39,6 +39,14 @@ interface SubmitDailyReportAction {
 
 type BotAction = CreateTicketAction | ViewTicketAction | SubmitDailyReportAction;
 
+interface TeamReportItem {
+  id: number;
+  date: string;
+  authorId: number;
+  authorName: string;
+  isRead: boolean;
+}
+
 interface ParsedOption {
   label: string;
   value: string;
@@ -284,6 +292,11 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const [reportWizardLocation, setReportWizardLocation] = useState<string | null>(null);
   const reportWizardLocationRef = useRef<string | null>(null);
 
+  // Team reports panel: list of recent colleague reports with read status
+  const [teamReports, setTeamReports] = useState<TeamReportItem[] | null>(null);
+  const [showTeamReports, setShowTeamReports] = useState(false);
+  const [teamReportsLoading, setTeamReportsLoading] = useState(false);
+
   // Persist to sessionStorage whenever messages or pendingAction change
   useEffect(() => {
     saveSession(messages, pendingAction);
@@ -360,14 +373,38 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     }
   };
 
-  // ── Auto-briefing: fires once when bot opens with unread daily reports ────
-  // The server fetches unread reports server-side and marks them read only after
-  // [DONE] is delivered. The frontend clears the badge via the onSuccess callback.
-  const sendBriefingMode = async () => {
+  // ── Fetch team reports list (recent 7 days, with isRead per user) ────────
+  const fetchAndShowTeamReports = async () => {
+    setTeamReportsLoading(true);
+    try {
+      const res = await fetch('/api/daily-reports/recent', { credentials: 'include' });
+      const { reports } = await res.json();
+      setTeamReports((reports as TeamReportItem[]) ?? []);
+      setShowTeamReports(true);
+    } catch {
+      setTeamReports([]);
+      setShowTeamReports(true);
+    } finally {
+      setTeamReportsLoading(false);
+    }
+  };
+
+  // ── Single-report briefing: user chose one colleague's report to read ─────
+  const sendSingleReportBriefing = async (reportId: number, authorName: string) => {
+    if (loading) return;
+    setShowTeamReports(false);
+    const userMsg: Message = {
+      role: 'user',
+      content: lang === 'it' ? `📖 Leggi il report di ${authorName}` : `📖 Read ${authorName}'s report`,
+    };
     await streamBotResponse(
-      { message: '__briefing__', history: [], lang, briefingMode: true },
-      null,
-      () => onDailyReportsRead?.(),  // clear badge only after successful streaming
+      { message: '__briefing_single__', history: [], lang, briefingMode: true, briefingReportId: reportId },
+      userMsg,
+      () => {
+        // Mark read locally for instant UI feedback + refresh badge from server
+        setTeamReports((prev) => prev ? prev.map((r) => r.id === reportId ? { ...r, isRead: true } : r) : prev);
+        onDailyReportsRead?.();
+      },
     );
   };
 
@@ -428,15 +465,12 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     }
   }, [open]);
 
-  // Auto-briefing: fire when bot opens with unread daily reports from colleagues.
-  // Guard ensures at most one briefing per open, but resets when dialog closes.
+  // When bot opens with unread colleague reports: show the report picker panel
+  // instead of auto-briefing. Guard resets on close so it fires once per open.
   useEffect(() => {
-    if (open && dailyReportUnread > 0 && !briefingFiredRef.current && !loading) {
+    if (open && dailyReportUnread > 0 && !briefingFiredRef.current) {
       briefingFiredRef.current = true;
-      // Clear welcome if present and send briefing
-      welcomeShownRef.current = true;
-      setMessages([]);
-      void sendBriefingMode();
+      void fetchAndShowTeamReports();
     }
   }, [open, dailyReportUnread]);
 
@@ -760,6 +794,83 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
               <div ref={bottomRef} />
             </Box>
 
+            {/* ── Team reports panel (shown when user clicks "Report del team" or auto-triggered by unread) ── */}
+            {showTeamReports && teamReports !== null && (
+              <Box sx={{ mx: 2, mt: 1, mb: 0, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  px: 1.5, py: 0.7,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.50',
+                  borderBottom: '1px solid', borderColor: 'divider',
+                }}>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary"
+                    sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.67rem' }}>
+                    {lang === 'it' ? 'Report dei colleghi' : 'Team reports'}
+                  </Typography>
+                  <IconButton size="small" onClick={() => setShowTeamReports(false)} sx={{ p: 0.25 }}>
+                    <Close sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+                {teamReports.length === 0 ? (
+                  <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="caption" color="text.disabled">
+                      {lang === 'it' ? 'Nessun report negli ultimi 7 giorni.' : 'No reports in the last 7 days.'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ maxHeight: 168, overflowY: 'auto' }}>
+                    {teamReports.map((report) => {
+                      const initials = report.authorName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?';
+                      const palette = ['#7C3AED','#0891B2','#059669','#D97706','#DC2626','#9333EA','#0284C7'];
+                      const bgColor = palette[Math.abs(report.authorId ?? 0) % palette.length];
+                      const dateObj = new Date(report.date);
+                      const todayStr = new Date().toDateString();
+                      const yestStr = new Date(Date.now() - 86400000).toDateString();
+                      const dateLabel = dateObj.toDateString() === todayStr
+                        ? (lang === 'it' ? 'Oggi' : 'Today')
+                        : dateObj.toDateString() === yestStr
+                          ? (lang === 'it' ? 'Ieri' : 'Yesterday')
+                          : dateObj.toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                      return (
+                        <Box
+                          key={report.id}
+                          component="button"
+                          disabled={loading}
+                          onClick={() => sendSingleReportBriefing(report.id, report.authorName)}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1.25,
+                            width: '100%', textAlign: 'left', px: 1.5, py: 0.85,
+                            border: 'none', bgcolor: 'transparent', cursor: 'pointer',
+                            borderBottom: '1px solid', borderColor: 'divider',
+                            transition: 'background 0.12s',
+                            '&:last-child': { borderBottom: 'none' },
+                            '&:hover:not(:disabled)': { bgcolor: 'action.hover' },
+                            '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+                          }}
+                        >
+                          <Avatar sx={{ width: 26, height: 26, bgcolor: bgColor, fontSize: '0.62rem', fontWeight: 700, flexShrink: 0 }}>
+                            {initials}
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="caption" fontWeight={700} display="block" noWrap sx={{ fontSize: '0.78rem' }}>
+                              {report.authorName}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled" display="block" sx={{ fontSize: '0.67rem' }}>
+                              {dateLabel}
+                            </Typography>
+                          </Box>
+                          {!report.isRead
+                            ? <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
+                            : <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>✓</Typography>
+                          }
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+            )}
+
             {/* ── Daily report quick-action button ── */}
             {todayReportSubmitted === false && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
@@ -822,6 +933,51 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                 <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   ✅ {lang === 'it' ? 'Report già inviato oggi' : 'Report already submitted today'}
                 </Typography>
+              </Box>
+            )}
+
+            {/* ── Report del team button (always visible when not in report wizard) ── */}
+            {!reportWizardActive && (
+              <Box sx={{ px: 2, pt: 0.75, pb: 0 }}>
+                <Button
+                  fullWidth
+                  variant="text"
+                  size="small"
+                  disabled={loading || teamReportsLoading}
+                  onClick={async () => {
+                    if (teamReports === null) {
+                      await fetchAndShowTeamReports();
+                    } else {
+                      setShowTeamReports((prev) => !prev);
+                    }
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '0.78rem',
+                    justifyContent: 'flex-start',
+                    gap: 1,
+                    color: 'text.secondary',
+                    '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                  }}
+                >
+                  👥 {lang === 'it' ? 'Report del team' : 'Team reports'}
+                  {dailyReportUnread > 0 && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.5, px: 0.75, py: 0.1, borderRadius: 10,
+                        bgcolor: 'primary.main', color: 'white',
+                        fontSize: '0.65rem', fontWeight: 700, lineHeight: 1.4,
+                      }}
+                    >
+                      {dailyReportUnread}
+                    </Box>
+                  )}
+                  {teamReportsLoading && (
+                    <CircularProgress size={10} sx={{ ml: 'auto' }} />
+                  )}
+                </Button>
               </Box>
             )}
 

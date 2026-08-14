@@ -541,6 +541,64 @@ Istruzioni:
 Rispondi sempre in italiano.`;
 }
 
+/** Fetch a single report by id, validated against the org. */
+async function fetchSingleReport(reportId: number, orgId: number): Promise<BriefingReport | null> {
+  const rows = await db.execute(sql`
+    SELECT dr.id, dr.date::text AS date, SUBSTRING(dr.content FOR 1200) AS content, u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.id = ${reportId}
+      AND dr.organization_id = ${orgId}
+    LIMIT 1
+  `);
+  const result = rows.rows as unknown as BriefingReport[];
+  return result[0] ?? null;
+}
+
+/** Prompt for reading one specific colleague report in detail. */
+function buildSingleReportBriefingPrompt(
+  report: BriefingReport,
+  userName: string,
+  lang: "it" | "en",
+): string {
+  const locale = lang === "en" ? "en-GB" : "it-IT";
+  const date = new Date(report.date).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+
+  if (lang === "en") {
+    return `You are TaskBot in SINGLE REPORT BRIEFING mode.
+
+${userName} wants to read the daily report written by ${report.authorName} on ${date}.
+
+Report content:
+---
+${report.content}
+---
+
+Instructions:
+1. Summarise the report in 2–4 concise sentences highlighting the main points.
+2. Call out any notable items (urgent issues, follow-ups needed, blockers).
+3. End with: "Any questions about this report?"
+
+Always reply in English.`;
+  }
+
+  return `Sei TaskBot in modalità LETTURA REPORT.
+
+${userName} vuole leggere il report giornaliero scritto da ${report.authorName} il ${date}.
+
+Contenuto del report:
+---
+${report.content}
+---
+
+Istruzioni:
+1. Riassumi il report in 2–4 frasi concise mettendo in evidenza i punti principali.
+2. Segnala eventuali elementi rilevanti (problemi urgenti, follow-up necessari, blocchi).
+3. Concludi con: "Hai domande su questo report?"
+
+Rispondi sempre in italiano.`;
+}
+
 // ── Historical keyword detection ──────────────────────────────────────────────
 
 const HISTORICAL_KEYWORDS_IT = ["ieri", "settimana scorsa", "settimana fa", "mese scorso", "scorso", "giorni fa", "ieri l'altro"];
@@ -648,13 +706,14 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
   // Only accept the mode flags from the client — all report/activity data is
   // fetched server-side from the authenticated user's organization so that
   // client-supplied content never reaches the system prompt.
-  const { message, history, lang, reportMode, briefingMode, reportLocation } = req.body as {
+  const { message, history, lang, reportMode, briefingMode, reportLocation, briefingReportId } = req.body as {
     message: string;
     history: { role: "user" | "assistant"; content: string }[];
     lang?: string;
     reportMode?: boolean;
     briefingMode?: boolean;
     reportLocation?: string;
+    briefingReportId?: number;
   };
 
   if (!message || typeof message !== "string") {
@@ -695,14 +754,26 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
   let briefingUnreadIds: number[] = [];
 
   if (briefingMode) {
-    // Server-side fetch: authenticated org data only; no client-supplied content reaches the prompt
-    const [unreadReports, ticketSummary] = await Promise.all([
-      fetchUnreadReportsForBriefing(orgId, currentUser.id),
-      fetchTicketSummary(orgId),
-    ]);
-    briefingUnreadIds = unreadReports.map((r) => r.id);
-    systemPrompt = buildBriefingPrompt({ reports: unreadReports, ticketSummary }, currentUser.name ?? "Operatore", resolvedLang);
-    maxTokens = 600;
+    if (typeof briefingReportId === "number" && Number.isInteger(briefingReportId)) {
+      // Single-report briefing: the user chose a specific colleague's report to read.
+      const report = await fetchSingleReport(briefingReportId, orgId);
+      if (!report) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+      briefingUnreadIds = [briefingReportId];
+      systemPrompt = buildSingleReportBriefingPrompt(report, currentUser.name ?? "Operatore", resolvedLang);
+      maxTokens = 500;
+    } else {
+      // All-unread briefing (kept for backward compat; UI now uses the single-report path)
+      const [unreadReports, ticketSummary] = await Promise.all([
+        fetchUnreadReportsForBriefing(orgId, currentUser.id),
+        fetchTicketSummary(orgId),
+      ]);
+      briefingUnreadIds = unreadReports.map((r) => r.id);
+      systemPrompt = buildBriefingPrompt({ reports: unreadReports, ticketSummary }, currentUser.name ?? "Operatore", resolvedLang);
+      maxTokens = 600;
+    }
   } else if (reportMode) {
     // Validate reportLocation against org locations (server-side) before using it in the prompt.
     const orgLocations: string[] = (await fetchOrgLocations(orgId)) as unknown as string[];
