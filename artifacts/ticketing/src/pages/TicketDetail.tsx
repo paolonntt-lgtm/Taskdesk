@@ -796,8 +796,8 @@ export default function TicketDetail() {
               {/* Chi ha aperto → assegnatario */}
               {(creator?.name || assignee || assignedGroup) && (
                 <Box
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(isAdmin ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
-                  onClick={isAdmin ? (e) => setAssignAnchor(e.currentTarget) : undefined}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
+                  onClick={canEdit ? (e) => setAssignAnchor(e.currentTarget) : undefined}
                 >
                   {creator?.name && (
                     <>
@@ -1385,80 +1385,98 @@ export default function TicketDetail() {
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 200, maxWidth: 280 } } }}
       >
-        {/* Mode toggle: user vs group */}
-        <Box display="flex" gap={0.5} mb={1}>
-          <Box
-            component="button"
-            onClick={() => setAssignMode('user')}
-            sx={{
-              flex: 1, py: 0.5, border: '1px solid', borderRadius: 1, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              borderColor: assignMode === 'user' ? 'primary.main' : 'divider',
-              bgcolor: assignMode === 'user' ? 'primary.main' : 'transparent',
-              color: assignMode === 'user' ? 'white' : 'text.secondary',
-            }}
-          >
-            {lang === 'it' ? 'Persona' : 'Person'}
-          </Box>
-          <Box
-            component="button"
-            onClick={() => setAssignMode('group')}
-            sx={{
-              flex: 1, py: 0.5, border: '1px solid', borderRadius: 1, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              borderColor: assignMode === 'group' ? 'primary.main' : 'divider',
-              bgcolor: assignMode === 'group' ? 'primary.main' : 'transparent',
-              color: assignMode === 'group' ? 'white' : 'text.secondary',
-            }}
-          >
-            {lang === 'it' ? 'Gruppo' : 'Group'}
-          </Box>
-        </Box>
+        {isAdmin ? (
+          <>
+            {/* Mode toggle: user vs group (admin only) */}
+            <Box display="flex" gap={0.5} mb={1}>
+              {(['user', 'group'] as const).map((mode) => (
+                <Box
+                  key={mode}
+                  component="button"
+                  onClick={() => setAssignMode(mode)}
+                  sx={{
+                    flex: 1, py: 0.5, border: '1px solid', borderRadius: 1, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    borderColor: assignMode === mode ? 'primary.main' : 'divider',
+                    bgcolor: assignMode === mode ? 'primary.main' : 'transparent',
+                    color: assignMode === mode ? 'white' : 'text.secondary',
+                  }}
+                >
+                  {mode === 'user' ? (lang === 'it' ? 'Persona' : 'Person') : (lang === 'it' ? 'Gruppo' : 'Group')}
+                </Box>
+              ))}
+            </Box>
 
-        {assignMode === 'user' ? (
-          <Box display="flex" flexDirection="column" gap={0.25}>
-            <Box
-              onClick={() => handleAssigneeChange('')}
-              sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, color: 'text.secondary', fontStyle: 'italic', '&:hover': { bgcolor: 'action.hover' } }}
-            >
-              {lang === 'it' ? 'Nessun assegnatario' : 'No assignee'}
-            </Box>
-            {(users ?? []).map((u: any) => {
-              const load = (workload as any[]).find((w) => w.id === u.id)?.open ?? 0;
-              const isCurrent = (ticket as any).assignedTo === u.id;
-              return (
+            {assignMode === 'user' ? (
+              <Box display="flex" flexDirection="column" gap={0.25}>
                 <Box
-                  key={u.id}
-                  onClick={() => handleAssigneeChange(String(u.id))}
-                  sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, bgcolor: isCurrent ? 'action.selected' : 'transparent', '&:hover': { bgcolor: 'action.hover' } }}
+                  onClick={() => handleAssigneeChange('')}
+                  sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, color: 'text.secondary', fontStyle: 'italic', '&:hover': { bgcolor: 'action.hover' } }}
                 >
-                  <Avatar src={u.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: 'secondary.main' }}>{u.name?.charAt(0)}</Avatar>
-                  <Box component="span" sx={{ fontSize: 13, flex: 1, fontWeight: isCurrent ? 700 : 400 }}>{u.name}</Box>
-                  {load > 0 && (
-                    <Box component="span" sx={{ fontSize: 11, color: load >= 10 ? 'error.main' : 'text.disabled', fontWeight: 600 }}>{load}</Box>
-                  )}
+                  {lang === 'it' ? 'Nessun assegnatario' : 'No assignee'}
                 </Box>
-              );
-            })}
-          </Box>
+                {(users ?? []).map((u: any) => {
+                  const load = (workload as any[]).find((w) => w.id === u.id)?.open ?? 0;
+                  const isCurrent = (ticket as any).assignedTo === u.id;
+                  return (
+                    <Box
+                      key={u.id}
+                      onClick={() => handleAssigneeChange(String(u.id))}
+                      sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, bgcolor: isCurrent ? 'action.selected' : 'transparent', '&:hover': { bgcolor: 'action.hover' } }}
+                    >
+                      <Avatar src={u.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: 'secondary.main' }}>{u.name?.charAt(0)}</Avatar>
+                      <Box component="span" sx={{ fontSize: 13, flex: 1, fontWeight: isCurrent ? 700 : 400 }}>{u.name}</Box>
+                      {load > 0 && <Box component="span" sx={{ fontSize: 11, color: load >= 10 ? 'error.main' : 'text.disabled', fontWeight: 600 }}>{load}</Box>}
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Box display="flex" flexDirection="column" gap={0.25}>
+                <Box
+                  onClick={() => handleGroupChange('')}
+                  sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, color: 'text.secondary', fontStyle: 'italic', '&:hover': { bgcolor: 'action.hover' } }}
+                >
+                  {lang === 'it' ? 'Nessun gruppo' : 'No group'}
+                </Box>
+                {groups.map((g) => {
+                  const isCurrent = (ticket as any).assignedToGroup === g;
+                  return (
+                    <Box
+                      key={g}
+                      onClick={() => handleGroupChange(g)}
+                      sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, bgcolor: isCurrent ? 'action.selected' : 'transparent', fontWeight: isCurrent ? 700 : 400, '&:hover': { bgcolor: 'action.hover' } }}
+                    >
+                      {g}
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </>
         ) : (
+          /* Non-admin: solo "Assegna a me" / "Rimuovi assegnazione" */
           <Box display="flex" flexDirection="column" gap={0.25}>
-            <Box
-              onClick={() => handleGroupChange('')}
-              sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, color: 'text.secondary', fontStyle: 'italic', '&:hover': { bgcolor: 'action.hover' } }}
-            >
-              {lang === 'it' ? 'Nessun gruppo' : 'No group'}
-            </Box>
-            {groups.map((g) => {
-              const isCurrent = (ticket as any).assignedToGroup === g;
-              return (
-                <Box
-                  key={g}
-                  onClick={() => handleGroupChange(g)}
-                  sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, bgcolor: isCurrent ? 'action.selected' : 'transparent', fontWeight: isCurrent ? 700 : 400, '&:hover': { bgcolor: 'action.hover' } }}
-                >
-                  {g}
+            {(ticket as any).assignedTo !== (currentUser as any)?.id && (
+              <Box
+                onClick={() => handleAssigneeChange(String((currentUser as any)?.id))}
+                sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1, '&:hover': { bgcolor: 'action.hover' } }}
+              >
+                <Avatar src={(currentUser as any)?.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 11, bgcolor: 'primary.main' }}>
+                  {currentUser?.name?.charAt(0)}
+                </Avatar>
+                <Box component="span" sx={{ fontSize: 13, fontWeight: 600 }}>
+                  {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
                 </Box>
-              );
-            })}
+              </Box>
+            )}
+            {(ticket as any).assignedTo && (
+              <Box
+                onClick={() => handleAssigneeChange('')}
+                sx={{ px: 1, py: 0.75, borderRadius: 1, cursor: 'pointer', fontSize: 13, color: 'text.secondary', fontStyle: 'italic', '&:hover': { bgcolor: 'action.hover' } }}
+              >
+                {lang === 'it' ? 'Rimuovi assegnazione' : 'Remove assignee'}
+              </Box>
+            )}
           </Box>
         )}
       </Popover>
