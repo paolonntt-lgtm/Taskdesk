@@ -44,6 +44,7 @@ interface TeamReportItem {
   date: string;
   authorId: number;
   authorName: string;
+  location?: string | null;
   isRead: boolean;
 }
 
@@ -549,7 +550,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, location: reportWizardLocationRef.current ?? undefined }),
       });
       if (res.ok) {
         setTodayReportSubmitted(true);
@@ -860,7 +861,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                               {report.authorName}
                             </Typography>
                             <Typography variant="caption" color="text.disabled" display="block" sx={{ fontSize: '0.67rem' }}>
-                              {dateLabel}
+                              {dateLabel}{report.location ? ` · ${report.location}` : ''}
                             </Typography>
                           </Box>
                           {!report.isRead

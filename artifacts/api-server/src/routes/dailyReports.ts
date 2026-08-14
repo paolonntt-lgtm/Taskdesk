@@ -97,9 +97,10 @@ router.get("/daily-reports/today-mine", requireAuth, async (req, res): Promise<v
 // Save the current user's daily report (one per day, idempotent).
 router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
-  const { content, ticketsSnapshot } = req.body as {
+  const { content, ticketsSnapshot, location } = req.body as {
     content: string;
     ticketsSnapshot?: unknown;
+    location?: string;
   };
 
   if (!content || typeof content !== "string" || content.trim().length < 5) {
@@ -108,6 +109,9 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   }
 
   const today = todayDateStr();
+  const sanitizedLocation = typeof location === "string" && location.trim().length > 0
+    ? location.trim().slice(0, 100)
+    : null;
 
   try {
     const [report] = await db
@@ -117,11 +121,12 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
         authorUserId: currentUser.id,
         date: today,
         content: content.trim(),
+        location: sanitizedLocation,
         ticketsSnapshot: ticketsSnapshot ?? null,
       })
       .onConflictDoUpdate({
         target: [dailyReportsTable.organizationId, dailyReportsTable.authorUserId, dailyReportsTable.date],
-        set: { content: content.trim(), ticketsSnapshot: ticketsSnapshot ?? null },
+        set: { content: content.trim(), location: sanitizedLocation, ticketsSnapshot: ticketsSnapshot ?? null },
       })
       .returning();
 
@@ -202,6 +207,7 @@ router.get("/daily-reports/recent", requireAuth, async (req, res): Promise<void>
       dr.id,
       dr.date::text AS date,
       dr.created_at AS "createdAt",
+      dr.location,
       u.id AS "authorId",
       u.name AS "authorName",
       EXISTS (

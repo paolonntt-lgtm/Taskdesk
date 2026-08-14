@@ -8,6 +8,7 @@ export const dailyReportsTable = pgTable("daily_reports", {
   authorUserId: integer("author_user_id").notNull().references(() => usersTable.id),
   date: date("date").notNull(),
   content: text("content").notNull(),
+  location: text("location"),
   ticketsSnapshot: jsonb("tickets_snapshot"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

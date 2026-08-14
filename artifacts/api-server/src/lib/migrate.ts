@@ -228,6 +228,11 @@ export async function runAppMigrations(): Promise<void> {
       CREATE INDEX IF NOT EXISTS daily_reports_org_date_idx ON daily_reports (organization_id, date);
     `);
 
+    // Add location column to daily_reports (for sede-aware reports)
+    await client.query(`
+      ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS location TEXT;
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_report_reads (
         id SERIAL PRIMARY KEY,
