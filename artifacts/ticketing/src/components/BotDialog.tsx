@@ -279,6 +279,10 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   // Report wizard active flag — persisted across turns; server fetches activity on every turn
   const [reportWizardActive, setReportWizardActive] = useState(false);
   const reportWizardActiveRef = useRef(false); // mirror for async closures
+  // Location picker for report wizard: populated from org settings on open
+  const [orgLocations, setOrgLocations] = useState<string[]>([]);
+  const [reportWizardLocation, setReportWizardLocation] = useState<string | null>(null);
+  const reportWizardLocationRef = useRef<string | null>(null);
 
   // Persist to sessionStorage whenever messages or pendingAction change
   useEffect(() => {
@@ -368,17 +372,23 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   };
 
   // ── Report mode: kick off EOD report wizard ───────────────────────────────
-  // Server fetches today's activity; client only sends the reportMode flag.
-  const sendReportMode = async () => {
+  // Server fetches today's activity; client only sends the reportMode flag +
+  // optionally the selected location (validated server-side against org locations).
+  const sendReportMode = async (location: string | null) => {
     if (loading) return;
     setReportWizardActive(true);
     reportWizardActiveRef.current = true;
+    setReportWizardLocation(location);
+    reportWizardLocationRef.current = location;
+    const locationLabel = location ? ` — ${location}` : '';
     const userIntroMsg: Message = {
       role: 'user',
-      content: lang === 'it' ? '📋 Voglio fare il report di oggi' : '📋 I want to submit today\'s report',
+      content: lang === 'it'
+        ? `📋 Voglio fare il report di oggi${locationLabel}`
+        : `📋 I want to submit today's report${locationLabel}`,
     };
     await streamBotResponse(
-      { message: '📋 Avvia modalità report', history: [], lang, reportMode: true },
+      { message: '📋 Avvia modalità report', history: [], lang, reportMode: true, ...(location ? { reportLocation: location } : {}) },
       userIntroMsg,
     );
   };
@@ -387,6 +397,8 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const exitReportWizard = () => {
     setReportWizardActive(false);
     reportWizardActiveRef.current = false;
+    setReportWizardLocation(null);
+    reportWizardLocationRef.current = null;
   };
 
   // Show welcome message only on the very first open (no saved session)
@@ -428,14 +440,17 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     }
   }, [open, dailyReportUnread]);
 
-  // Re-fetch today's report status every time the dialog opens so the button
-  // refreshes correctly if the SPA stays open overnight into the next day.
+  // Re-fetch today's report status + org locations every time the dialog opens.
   useEffect(() => {
     if (open) {
       fetch('/api/daily-reports/today-mine', { credentials: 'include' })
         .then((r) => r.json())
         .then((d) => setTodayReportSubmitted(!!d.submitted))
         .catch(() => setTodayReportSubmitted(false));
+      fetch('/api/settings/locations', { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => setOrgLocations(Array.isArray(d?.value) ? d.value : []))
+        .catch(() => setOrgLocations([]));
     }
   }, [open]);
 
@@ -459,6 +474,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   // Keep refs in sync so async closures always read the current value
   useEffect(() => { minimizedRef.current = minimized; }, [minimized]);
   useEffect(() => { reportWizardActiveRef.current = reportWizardActive; }, [reportWizardActive]);
+  useEffect(() => { reportWizardLocationRef.current = reportWizardLocation; }, [reportWizardLocation]);
 
   const handleExpand = () => {
     setMinimized(false);
@@ -474,9 +490,12 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
     }));
     setInput('');
-    // If an EOD report wizard is active, carry forward reportMode flag on every turn
-    // so the server can re-fetch today's activity and keep wizard context.
-    const extraBody = reportWizardActiveRef.current ? { reportMode: true } : {};
+    // If an EOD report wizard is active, carry forward reportMode + location on every turn
+    // so the server re-fetches activity filtered by the chosen sede.
+    const loc = reportWizardLocationRef.current;
+    const extraBody = reportWizardActiveRef.current
+      ? { reportMode: true, ...(loc ? { reportLocation: loc } : {}) }
+      : {};
     await streamBotResponse(
       { message: text, history, lang, ...extraBody },
       { role: 'user', content: text },
@@ -744,12 +763,39 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
             {/* ── Daily report quick-action button ── */}
             {todayReportSubmitted === false && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
+                {/* Location picker — shown only when org has >1 locations and wizard not yet active */}
+                {orgLocations.length > 1 && !reportWizardActive && (
+                  <Box mb={1}>
+                    <Box sx={{ fontSize: '0.7rem', color: 'text.disabled', mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {lang === 'it' ? 'Sede del report' : 'Report location'}
+                    </Box>
+                    <Box display="flex" flexWrap="wrap" gap={0.5}>
+                      {orgLocations.map((loc) => (
+                        <Box
+                          key={loc}
+                          component="button"
+                          onClick={() => setReportWizardLocation((prev) => prev === loc ? null : loc)}
+                          sx={{
+                            px: 1.25, py: 0.35, borderRadius: 10, border: '1px solid', cursor: 'pointer',
+                            fontSize: '0.72rem', fontWeight: 600, transition: 'all 0.15s',
+                            borderColor: reportWizardLocation === loc ? 'primary.main' : 'divider',
+                            bgcolor: reportWizardLocation === loc ? 'primary.main' : 'transparent',
+                            color: reportWizardLocation === loc ? 'white' : 'text.secondary',
+                            '&:hover': { borderColor: 'primary.main', color: reportWizardLocation === loc ? 'white' : 'primary.main' },
+                          }}
+                        >
+                          {loc}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
                 <Button
                   fullWidth
                   variant="outlined"
                   size="small"
-                  disabled={loading}
-                  onClick={sendReportMode}
+                  disabled={loading || (orgLocations.length > 1 && !reportWizardLocation)}
+                  onClick={() => sendReportMode(orgLocations.length > 1 ? reportWizardLocation : null)}
                   sx={{
                     borderRadius: 2,
                     textTransform: 'none',
@@ -759,9 +805,15 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                     borderColor: 'divider',
                     color: 'text.secondary',
                     '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
+                    '&.Mui-disabled': { opacity: 0.45 },
                   }}
                 >
                   📋 {lang === 'it' ? 'Fai il report di oggi' : 'Submit today\'s report'}
+                  {reportWizardLocation && (
+                    <Box component="span" sx={{ ml: 'auto', fontSize: '0.7rem', fontWeight: 700, color: 'primary.main' }}>
+                      {reportWizardLocation}
+                    </Box>
+                  )}
                 </Button>
               </Box>
             )}

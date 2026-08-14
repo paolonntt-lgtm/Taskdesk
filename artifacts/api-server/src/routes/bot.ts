@@ -423,12 +423,16 @@ function buildReportModePrompt(
   userName: string,
   activityToday: ActivityTicket[],
   lang: "it" | "en",
+  location?: string | null,
 ): string {
   const locale = lang === "en" ? "en-GB" : "it-IT";
   const today = new Date().toLocaleDateString(locale);
+  const locationLine = location
+    ? (lang === "it" ? `Sede: ${location}.` : `Location: ${location}.`)
+    : "";
 
   const ticketList = activityToday.length === 0
-    ? (lang === "it" ? "Nessun ticket registrato oggi nel sistema." : "No tickets recorded today in the system.")
+    ? (lang === "it" ? "Nessun ticket registrato oggi nel sistema per questa sede." : "No tickets recorded today in the system for this location.")
     : activityToday.map((t, i) => {
         const num = t.ticketNumber ?? t.id;
         const actions = t.actions.join(", ");
@@ -438,36 +442,36 @@ function buildReportModePrompt(
       }).join("\n");
 
   if (lang === "en") {
-    return `You are TaskBot in END-OF-DAY REPORT mode. Today: ${today}.
+    return `You are TaskBot in END-OF-DAY REPORT mode. Today: ${today}. ${locationLine}
 
 The operator ${userName} is writing their daily report. Here are the tickets they worked on today (from the system activity log):
 
 ${ticketList}
 
 Your task:
-1. Present this list in a friendly summary format.
+1. Present this list in a friendly summary format${location ? ` for the ${location} location` : ""}.
 2. Ask if they want to add any notes or context not visible in the system (e.g. "customer X will call back tomorrow", "issue resolved but waiting for confirmation").
 3. When the operator confirms (says "ok", "publish", "send", "fine", "pubblica", "invia", "sì", "perfetto", or similar): output ONLY this JSON on a single line with no other text:
 {"action":"submit_daily_report","content":"FULL_REPORT_TEXT"}
 
-The content field must be a complete, readable report in plain text that includes both the ticket list and any additional notes the operator provided.
+The content field must be a complete, readable report in plain text that includes the location, the ticket list, and any additional notes the operator provided.
 
 Always reply in English.`;
   }
 
-  return `Sei TaskBot in modalità REPORT DI FINE GIORNATA. Data: ${today}.
+  return `Sei TaskBot in modalità REPORT DI FINE GIORNATA. Data: ${today}. ${locationLine}
 
-L'operatore ${userName} sta scrivendo il report giornaliero. Ecco i ticket su cui ha lavorato oggi (dall'activity log di sistema):
+L'operatore ${userName} sta scrivendo il report giornaliero${location ? ` per la sede di ${location}` : ""}. Ecco i ticket su cui ha lavorato oggi (dall'activity log di sistema):
 
 ${ticketList}
 
 Il tuo compito:
-1. Presenta questo elenco in modo amichevole e leggibile.
+1. Presenta questo elenco in modo amichevole e leggibile${location ? `, indicando la sede (${location})` : ""}.
 2. Chiedi se vuole aggiungere note o contesto che non risulta dal sistema (es. "il cliente X richiamerà domani", "problema risolto ma in attesa di conferma").
 3. Quando l'operatore conferma (dice "ok", "pubblica", "invia", "sì", "perfetto" o simili): emetti SOLO questo JSON su una riga senza altro testo:
 {"action":"submit_daily_report","content":"TESTO_COMPLETO_DEL_REPORT"}
 
-Il campo content deve contenere un report completo e leggibile in testo semplice che includa sia l'elenco dei ticket che le note aggiuntive fornite dall'operatore.
+Il campo content deve contenere un report completo e leggibile in testo semplice che includa la sede, l'elenco dei ticket e le note aggiuntive fornite dall'operatore.
 
 Rispondi sempre in italiano.`;
 }
@@ -598,8 +602,9 @@ async function fetchTicketSummary(orgId: number): Promise<TicketSummary> {
   };
 }
 
-/** Fetch tickets the operator interacted with today (UTC day boundary). */
-async function fetchTodayActivity(userId: number, orgId: number): Promise<ActivityTicket[]> {
+/** Fetch tickets the operator interacted with today (UTC day boundary).
+ *  If `location` is provided, only tickets at that location are returned. */
+async function fetchTodayActivity(userId: number, orgId: number, location?: string | null): Promise<ActivityTicket[]> {
   const now = new Date();
   const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
@@ -621,6 +626,7 @@ async function fetchTodayActivity(userId: number, orgId: number): Promise<Activi
   if (ticketActionMap.size === 0) return [];
 
   const ticketIds = Array.from(ticketActionMap.keys());
+  const locationFilter = location ? eq(ticketsTable.location, location) : undefined;
   const tickets = await db
     .select({
       id: ticketsTable.id, ticketNumber: ticketsTable.ticketNumber,
@@ -628,7 +634,7 @@ async function fetchTodayActivity(userId: number, orgId: number): Promise<Activi
       priority: ticketsTable.priority, category: ticketsTable.category,
     })
     .from(ticketsTable)
-    .where(and(inArray(ticketsTable.id, ticketIds), eq(ticketsTable.organizationId, orgId)));
+    .where(and(inArray(ticketsTable.id, ticketIds), eq(ticketsTable.organizationId, orgId), locationFilter));
 
   return tickets.map((t) => ({ ...t, actions: Array.from(ticketActionMap.get(t.id) ?? []) }));
 }
@@ -642,12 +648,13 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
   // Only accept the mode flags from the client — all report/activity data is
   // fetched server-side from the authenticated user's organization so that
   // client-supplied content never reaches the system prompt.
-  const { message, history, lang, reportMode, briefingMode } = req.body as {
+  const { message, history, lang, reportMode, briefingMode, reportLocation } = req.body as {
     message: string;
     history: { role: "user" | "assistant"; content: string }[];
     lang?: string;
     reportMode?: boolean;
     briefingMode?: boolean;
+    reportLocation?: string;
   };
 
   if (!message || typeof message !== "string") {
@@ -697,9 +704,13 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
     systemPrompt = buildBriefingPrompt({ reports: unreadReports, ticketSummary }, currentUser.name ?? "Operatore", resolvedLang);
     maxTokens = 600;
   } else if (reportMode) {
-    // Server-side fetch: activity from the authenticated user's own org
-    const activityToday = await fetchTodayActivity(currentUser.id, orgId);
-    systemPrompt = buildReportModePrompt(currentUser.name ?? "Operatore", activityToday, resolvedLang);
+    // Validate reportLocation against org locations (server-side) before using it in the prompt.
+    const orgLocations: string[] = (await fetchOrgLocations(orgId)) as unknown as string[];
+    const validatedLocation = (typeof reportLocation === "string" && orgLocations.includes(reportLocation))
+      ? reportLocation
+      : null;
+    const activityToday = await fetchTodayActivity(currentUser.id, orgId, validatedLocation);
+    systemPrompt = buildReportModePrompt(currentUser.name ?? "Operatore", activityToday, resolvedLang, validatedLocation);
     maxTokens = 700;
   } else {
     // Normal support mode — check if message has historical references → inject recent reports
