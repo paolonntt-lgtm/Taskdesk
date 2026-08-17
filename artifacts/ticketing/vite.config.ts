@@ -10,9 +10,36 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 const port = Number(process.env.PORT ?? 3000);
 const basePath = process.env.BASE_PATH ?? "/app/";
 
+// Plugin that prevents browsers from caching index.html so deploys take effect immediately.
+// Hashed JS/CSS assets are unaffected and can still be cached long-term.
+const noCacheHtml = (): import("vite").Plugin => ({
+  name: "no-cache-html",
+  configureServer(server) {
+    server.middlewares.use((_req, res, next) => {
+      const url = _req.url ?? "";
+      if (url === "/" || url.startsWith("/?") || url.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+      }
+      next();
+    });
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use((_req, res, next) => {
+      const url = _req.url ?? "";
+      if (url === "/" || url.startsWith("/?") || url.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+      }
+      next();
+    });
+  },
+});
+
 export default defineConfig({
   base: basePath,
   plugins: [
+    noCacheHtml(),
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),

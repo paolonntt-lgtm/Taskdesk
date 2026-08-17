@@ -36,9 +36,25 @@ function interFontPreloadPlugin(): Plugin {
 const port = Number(process.env.PORT ?? 3000);
 const basePath = process.env.BASE_PATH ?? "/";
 
+// Prevents browsers from caching index.html so deploys take effect immediately.
+function noCacheHtml(): Plugin {
+  const mw = (server: { middlewares: { use: (fn: (req: any, res: any, next: any) => void) => void } }) => {
+    server.middlewares.use((req: any, res: any, next: any) => {
+      const url: string = req.url ?? "";
+      if (url === "/" || url.startsWith("/?") || url.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+      }
+      next();
+    });
+  };
+  return { name: "no-cache-html", configureServer: mw, configurePreviewServer: mw };
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
+    noCacheHtml(),
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
