@@ -17,6 +17,7 @@ export const ticketsTable = pgTable("tickets", {
   resource: text("resource"),
   priority: text("priority").notNull().default("medium"),
   status: text("status").notNull().default("open"),
+  visibility: text("visibility").notNull().default("organization"),
   createdBy: integer("created_by").notNull().references(() => usersTable.id),
   assignedTo: integer("assigned_to").references(() => usersTable.id),
   assignedToGroup: text("assigned_to_group"),

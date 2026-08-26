@@ -10,6 +10,7 @@ export const inboundEmailChannelsTable = pgTable("inbound_email_channels", {
   defaultCategory: text("default_category"),
   defaultGroup: text("default_group"),
   defaultAssignee: integer("default_assignee").references(() => usersTable.id, { onDelete: "set null" }),
+  defaultVisibility: text("default_visibility").notNull().default("organization"),
   enabled: boolean("enabled").notNull().default(true),
   slug: text("slug"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -243,6 +243,14 @@ export async function runAppMigrations(): Promise<void> {
       );
     `);
 
+    // Ticket visibility: existing tickets remain visible to the organization.
+    await client.query(`
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'organization';
+      ALTER TABLE inbound_email_channels
+        ADD COLUMN IF NOT EXISTS default_visibility TEXT NOT NULL DEFAULT 'organization';
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

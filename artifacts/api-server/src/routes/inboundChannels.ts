@@ -38,7 +38,7 @@ router.post("/settings/inbound-channels", requireAuth, requireAdmin, async (req,
   const orgId = currentUser.organizationId;
   if (!orgId) { res.status(404).json({ message: "Organizzazione non trovata" }); return; }
 
-  const { label, defaultCategory, defaultGroup, defaultAssignee, enabled, slug } = req.body ?? {};
+  const { label, defaultCategory, defaultGroup, defaultAssignee, defaultVisibility, enabled, slug } = req.body ?? {};
 
   if (!label || typeof label !== "string" || !label.trim()) {
     res.status(400).json({ message: "Etichetta obbligatoria" }); return;
@@ -64,6 +64,7 @@ router.post("/settings/inbound-channels", requireAuth, requireAdmin, async (req,
   }
 
   const cleanAssignee = typeof defaultAssignee === "number" && defaultAssignee > 0 ? defaultAssignee : null;
+  const cleanVisibility = defaultVisibility === "admins" ? "admins" : "organization";
 
   const [channel] = await db.insert(inboundEmailChannelsTable).values({
     organizationId: orgId,
@@ -72,6 +73,7 @@ router.post("/settings/inbound-channels", requireAuth, requireAdmin, async (req,
     defaultCategory: defaultCategory || null,
     defaultGroup: defaultGroup || null,
     defaultAssignee: cleanAssignee,
+    defaultVisibility: cleanVisibility,
     enabled: enabled !== false,
     slug: cleanSlug,
   }).returning();
@@ -89,7 +91,7 @@ router.put("/settings/inbound-channels/:id", requireAuth, requireAdmin, async (r
     .where(and(eq(inboundEmailChannelsTable.id, channelId), eq(inboundEmailChannelsTable.organizationId, orgId)));
   if (!existing) { res.status(404).json({ message: "Canale non trovato" }); return; }
 
-  const { label, defaultCategory, defaultGroup, defaultAssignee, enabled, slug } = req.body ?? {};
+  const { label, defaultCategory, defaultGroup, defaultAssignee, defaultVisibility, enabled, slug } = req.body ?? {};
 
   if (!label || typeof label !== "string" || !label.trim()) {
     res.status(400).json({ message: "Etichetta obbligatoria" }); return;
@@ -110,12 +112,14 @@ router.put("/settings/inbound-channels/:id", requireAuth, requireAdmin, async (r
   }
 
   const cleanAssignee = typeof defaultAssignee === "number" && defaultAssignee > 0 ? defaultAssignee : null;
+  const cleanVisibility = defaultVisibility === "admins" ? "admins" : "organization";
 
   const [updated] = await db.update(inboundEmailChannelsTable).set({
     label: label.trim(),
     defaultCategory: defaultCategory || null,
     defaultGroup: defaultGroup || null,
     defaultAssignee: cleanAssignee,
+    defaultVisibility: cleanVisibility,
     enabled: enabled !== false,
     slug: cleanSlug,
     updatedAt: new Date(),

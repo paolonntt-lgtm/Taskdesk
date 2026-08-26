@@ -62,7 +62,7 @@ function buildChannelAddress(ch: { token: string; slug: string | null }): string
   return ch.slug ?? `tickets-${ch.token}`;
 }
 
-async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string; defaultAssignee?: number | null; channelLocalPart?: string }> {
+async function getInboundRouting(orgId: number | null | undefined, inboundChannelId?: number | null): Promise<{ defaultCategory?: string; defaultGroup?: string; defaultAssignee?: number | null; defaultVisibility?: string; channelLocalPart?: string }> {
   if (!orgId || !inboundChannelId) return {};
 
   try {
@@ -73,6 +73,7 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
         defaultCategory: ch.defaultCategory ?? undefined,
         defaultGroup: ch.defaultGroup ?? undefined,
         defaultAssignee: ch.defaultAssignee ?? null,
+        defaultVisibility: ch.defaultVisibility ?? "organization",
         channelLocalPart: buildChannelAddress(ch),
       };
     }
@@ -267,9 +268,13 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
 
-  // Auto-assign to the least-loaded available operator in the default group
+  const isAdminOnly = routing.defaultVisibility === "admins";
+
+  // Private tickets remain strictly admin-only, so never auto-assign them to
+  // an operator or notify/subcribe that operator before publication.
+  // Public email tickets keep the existing least-loaded routing behavior.
   let autoAssignedUserId: number | null = null;
-  if (routing.defaultGroup && orgId) {
+  if (!isAdminOnly && routing.defaultGroup && orgId) {
     try {
       const groupMembers = await db
         .select({ id: usersTable.id, groups: usersTable.groups })
@@ -331,6 +336,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       resource: fromEmail,
       priority: "medium",
       status: "open",
+      visibility: isAdminOnly ? "admins" : "organization",
       createdBy: systemUser.id,
       organizationId: orgId,
       ticketNumber: nextTicketNumber,
@@ -379,7 +385,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       orgId
     );
     if (orgId != null) await subscribeUserToTicket(autoAssignedUserId, ticket.id, orgId);
-  } else {
+  } else if (!isAdminOnly) {
     await createNotificationsForTicket(
       ticket.id,
       `Nuova richiesta via email da ${fromName}: "${title}" (ticket #${nextTicketNumber})`,
