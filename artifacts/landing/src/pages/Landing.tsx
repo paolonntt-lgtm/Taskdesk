@@ -405,7 +405,7 @@ export default function Landing() {
         "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
-        "logo": "https://taskdesk.it/taskdesk-logo.webp",
+        "logo": "https://taskdesk.it/taskdesk-logo.png",
         "sameAs": [
           "https://www.linkedin.com/company/taskdesk",
           "https://twitter.com/taskdesk"
@@ -430,6 +430,7 @@ export default function Landing() {
       },
       {
         "@type": "FAQPage",
+        "@id": `${SITE_BASE}/${lang}/#faq`,
         "mainEntity": t.faq.items.map((item) => ({
           "@type": "Question",
           "name": item.q,

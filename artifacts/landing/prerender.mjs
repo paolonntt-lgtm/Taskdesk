@@ -198,6 +198,7 @@ function generateLandingJsonLd(lang) {
       },
       {
         "@type": "FAQPage",
+        "@id": `https://taskdesk.it/${lang}/#faq`,
         "mainEntity": faqItems.map((item) => ({
           "@type": "Question",
           "name": item.q,
