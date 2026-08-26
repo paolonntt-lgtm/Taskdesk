@@ -31,11 +31,14 @@ const runId = crypto.randomUUID();
 let server: Server;
 let baseUrl: string;
 let organizationId: number;
+let otherOrganizationId: number;
 let adminId: number;
 let userId: number;
+let otherAdminId: number;
 let notesGroupId: number;
 let adminSessionId: string;
 let userSessionId: string;
+let otherAdminSessionId: string;
 const privateAttachmentObjectPath = `/objects/${runId}/private.txt`;
 const objectStorageService = new ObjectStorageService();
 let privateAttachmentUploaded = false;
@@ -97,6 +100,24 @@ describe("manual ticket visibility", () => {
       .returning({ id: usersTable.id });
     userId = user.id;
 
+    const [otherOrganization] = await db
+      .insert(organizationsTable)
+      .values({ name: `Other ticket visibility test ${runId}` })
+      .returning({ id: organizationsTable.id });
+    otherOrganizationId = otherOrganization.id;
+
+    const [otherAdmin] = await db
+      .insert(usersTable)
+      .values({
+        name: "Other Visibility Test Admin",
+        email: `other-visibility-admin-${runId}@example.test`,
+        passwordHash: "not-used-in-test",
+        role: "admin",
+        organizationId: otherOrganizationId,
+      })
+      .returning({ id: usersTable.id });
+    otherAdminId = otherAdmin.id;
+
     // Give the test user note access so a 404 proves ticket visibility rather
     // than the separate permission check in the notes router.
     const [notesGroup] = await db
@@ -112,6 +133,7 @@ describe("manual ticket visibility", () => {
 
     adminSessionId = await createSession(adminId);
     userSessionId = await createSession(userId);
+    otherAdminSessionId = await createSession(otherAdminId);
 
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
@@ -142,9 +164,13 @@ describe("manual ticket visibility", () => {
     if (privateAttachmentUploaded) {
       await objectStorageService.deleteObjectEntityByPath(privateAttachmentObjectPath);
     }
-    await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
-    await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
-    await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
+    await db
+      .delete(sessionsTable)
+      .where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId, otherAdminSessionId]));
+    await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId, otherAdminId]));
+    await db
+      .delete(organizationsTable)
+      .where(inArray(organizationsTable.id, [organizationId, otherOrganizationId]));
     await pool.end();
   });
 
@@ -243,6 +269,8 @@ describe("manual ticket visibility", () => {
     const directDownloadPath = `/api/storage/objects/${runId}/private.txt`;
     const userDownloadResponse = await request(directDownloadPath, userSessionId);
     expect(userDownloadResponse.status).toBe(403);
+    const otherOrganizationDownloadResponse = await request(directDownloadPath, otherAdminSessionId);
+    expect(otherOrganizationDownloadResponse.status).toBe(403);
 
     const searchResponse = await request(`/api/search?q=${encodeURIComponent(privateTitle)}`, userSessionId);
     expect(searchResponse.status).toBe(200);
