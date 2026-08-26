@@ -39,6 +39,7 @@ const TICKET_LIST_COLS = {
   resource: ticketsTable.resource,
   priority: ticketsTable.priority,
   status: ticketsTable.status,
+  visibility: ticketsTable.visibility,
   createdBy: ticketsTable.createdBy,
   assignedTo: ticketsTable.assignedTo,
   assignedToGroup: ticketsTable.assignedToGroup,
@@ -59,7 +60,10 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
   const trialStatus = getTrialStatus(currentUser.trialEndsAt, currentUser.stripeSubscriptionId);
 
   const [counts] = await db.select({
@@ -103,7 +107,10 @@ router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -139,7 +146,10 @@ router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -158,7 +168,10 @@ router.get("/stats/by-location", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -177,7 +190,10 @@ router.get("/stats/by-priority", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -350,6 +366,9 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
     notInArray(ticketsTable.status, ["resolved", "closed"]),
     eq(ticketsTable.organizationId, orgId),
   ];
+  if (currentUser.role !== "admin") {
+    conditions.push(eq(ticketsTable.visibility, "organization"));
+  }
 
   const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(and(...conditions))

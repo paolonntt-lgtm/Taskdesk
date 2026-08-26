@@ -21,10 +21,10 @@ router.get("/tickets/:id/notes", requireAuth, requireNoteAccess, async (req, res
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+  const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
     and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
-  if (!ticket) {
+  if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });
     return;
   }
@@ -61,10 +61,10 @@ router.post("/tickets/:id/notes", requireAuth, requireNoteAccess, async (req, re
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
-  const [ticket] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+  const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
     and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
-  if (!ticket) {
+  if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });
     return;
   }

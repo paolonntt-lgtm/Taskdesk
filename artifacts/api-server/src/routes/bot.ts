@@ -105,6 +105,7 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
     FROM tickets t
     WHERE
       t.organization_id = ${orgId}
+      AND (${isAdmin} OR t.visibility = 'organization')
       AND t.status IN ('resolved', 'closed')
       AND (
         to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, ''))
@@ -174,6 +175,7 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
     LEFT JOIN users u ON u.id = t.assigned_to
     WHERE
       t.organization_id = ${orgId}
+      AND (${isAdmin} OR t.visibility = 'organization')
       AND t.status NOT IN ('resolved', 'closed')
       AND (
         to_tsvector('italian', t.title || ' ' || t.description)
@@ -650,12 +652,15 @@ async function fetchUnreadReportsForBriefing(orgId: number, userId: number): Pro
 }
 
 /** Fetch current org ticket summary for the briefing prompt. */
-async function fetchTicketSummary(orgId: number): Promise<TicketSummary> {
+async function fetchTicketSummary(orgId: number, isAdmin: boolean): Promise<TicketSummary> {
   const [counts] = await db.select({
     openTickets: sql<number>`count(*) filter (where status = 'open')`,
     overdueTickets: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
     urgentTickets: sql<number>`count(*) filter (where priority = 'urgent' and status not in ('resolved','closed'))`,
-  }).from(ticketsTable).where(eq(ticketsTable.organizationId, orgId));
+  }).from(ticketsTable).where(and(
+    eq(ticketsTable.organizationId, orgId),
+    isAdmin ? undefined : eq(ticketsTable.visibility, "organization"),
+  ));
   return {
     openTickets: Number(counts.openTickets),
     overdueTickets: Number(counts.overdueTickets),
@@ -665,7 +670,7 @@ async function fetchTicketSummary(orgId: number): Promise<TicketSummary> {
 
 /** Fetch tickets the operator interacted with today (UTC day boundary).
  *  If `location` is provided, only tickets at that location are returned. */
-async function fetchTodayActivity(userId: number, orgId: number, location?: string | null): Promise<ActivityTicket[]> {
+async function fetchTodayActivity(userId: number, orgId: number, isAdmin: boolean, location?: string | null): Promise<ActivityTicket[]> {
   const now = new Date();
   const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
@@ -695,7 +700,12 @@ async function fetchTodayActivity(userId: number, orgId: number, location?: stri
       priority: ticketsTable.priority, category: ticketsTable.category,
     })
     .from(ticketsTable)
-    .where(and(inArray(ticketsTable.id, ticketIds), eq(ticketsTable.organizationId, orgId), locationFilter));
+    .where(and(
+      inArray(ticketsTable.id, ticketIds),
+      eq(ticketsTable.organizationId, orgId),
+      isAdmin ? undefined : eq(ticketsTable.visibility, "organization"),
+      locationFilter,
+    ));
 
   return tickets.map((t) => ({ ...t, actions: Array.from(ticketActionMap.get(t.id) ?? []) }));
 }
@@ -771,7 +781,7 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
       // All-unread briefing (kept for backward compat; UI now uses the single-report path)
       const [unreadReports, ticketSummary] = await Promise.all([
         fetchUnreadReportsForBriefing(orgId, currentUser.id),
-        fetchTicketSummary(orgId),
+        fetchTicketSummary(orgId, isAdmin),
       ]);
       briefingUnreadIds = unreadReports.map((r) => r.id);
       systemPrompt = buildBriefingPrompt({ reports: unreadReports, ticketSummary }, currentUser.name ?? "Operatore", resolvedLang);
@@ -783,7 +793,7 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
     const validatedLocation = (typeof reportLocation === "string" && orgLocations.includes(reportLocation))
       ? reportLocation
       : null;
-    const activityToday = await fetchTodayActivity(currentUser.id, orgId, validatedLocation);
+    const activityToday = await fetchTodayActivity(currentUser.id, orgId, isAdmin, validatedLocation);
     systemPrompt = buildReportModePrompt(currentUser.name ?? "Operatore", activityToday, resolvedLang, validatedLocation);
     maxTokens = 700;
   } else {

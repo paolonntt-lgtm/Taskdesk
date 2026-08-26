@@ -175,6 +175,13 @@ export const TicketStatus = {
   closed: "closed",
 } as const;
 
+export type TicketVisibility = (typeof TicketVisibility)[keyof typeof TicketVisibility];
+
+export const TicketVisibility = {
+  organization: "organization",
+  admins: "admins",
+} as const;
+
 export interface Ticket {
   id: number;
   ticketNumber?: number | null;
@@ -185,6 +192,7 @@ export interface Ticket {
   resource?: string | null;
   priority: TicketPriority;
   status: TicketStatus;
+  visibility: TicketVisibility;
   createdBy: number;
   assignedTo?: number | null;
   inboundChannelId?: number | null;

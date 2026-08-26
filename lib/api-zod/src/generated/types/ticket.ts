@@ -9,6 +9,8 @@ import type { RecurrenceRule } from "./recurrenceRule";
 import type { TicketPriority } from "./ticketPriority";
 import type { TicketStatus } from "./ticketStatus";
 
+export type TicketVisibility = "organization" | "admins";
+
 export interface Ticket {
   id: number;
   ticketNumber?: number | null;
@@ -19,6 +21,7 @@ export interface Ticket {
   resource?: string | null;
   priority: TicketPriority;
   status: TicketStatus;
+  visibility: TicketVisibility;
   createdBy: number;
   assignedTo?: number | null;
   inboundChannelId?: number | null;

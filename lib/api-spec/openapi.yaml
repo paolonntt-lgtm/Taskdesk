@@ -2590,6 +2590,9 @@ components:
         status:
           type: string
           enum: [open, waiting, resolved, closed]
+        visibility:
+          type: string
+          enum: [organization, admins]
         createdBy:
           type: integer
         assignedTo:
@@ -2640,6 +2643,7 @@ components:
         - location
         - priority
         - status
+        - visibility
         - createdBy
         - createdAt
         - updatedAt

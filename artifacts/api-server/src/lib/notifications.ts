@@ -5,6 +5,7 @@ import {
   notificationPreferencesTable,
   ticketSubscriptionsTable,
   usersTable,
+  ticketsTable,
   type NotificationType,
 } from "@workspace/db";
 import { sendEmailForOrg, buildNotificationEmail } from "./email";
@@ -128,6 +129,10 @@ export async function createNotificationsForSubscribers(
   alsoExcludeIds?: number[]
 ): Promise<void> {
   const excludeSet = new Set([excludeUserId, ...(alsoExcludeIds ?? [])]);
+  const [ticket] = ticketId
+    ? await db.select({ visibility: ticketsTable.visibility }).from(ticketsTable).where(eq(ticketsTable.id, ticketId)).limit(1)
+    : [];
+  const adminsOnly = ticket?.visibility === "admins";
 
   const subs = await db
     .select({ userId: ticketSubscriptionsTable.userId })
@@ -145,7 +150,11 @@ export async function createNotificationsForSubscribers(
   const candidates = await db
     .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
     .from(usersTable)
-    .where(and(inArray(usersTable.id, candidateIds), eq(usersTable.isActive, true)));
+    .where(and(
+      inArray(usersTable.id, candidateIds),
+      eq(usersTable.isActive, true),
+      adminsOnly ? eq(usersTable.role, "admin") : undefined,
+    ));
   if (candidates.length === 0) return;
 
   const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
@@ -178,7 +187,9 @@ export async function createNotificationsForTicket(
   type: NotificationType = "system",
   organizationId?: number | null
 ): Promise<void> {
-  const conditions = [ne(usersTable.id, excludeUserId), eq(usersTable.isActive, true)];
+  const [ticket] = await db.select({ visibility: ticketsTable.visibility }).from(ticketsTable).where(eq(ticketsTable.id, ticketId)).limit(1);
+  const adminsOnly = ticket?.visibility === "admins";
+  const conditions = [ne(usersTable.id, excludeUserId), eq(usersTable.isActive, true), adminsOnly ? eq(usersTable.role, "admin") : undefined];
   if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
 
   const candidates = await db
@@ -224,6 +235,10 @@ export async function createNotificationsForOrg(
   type: NotificationType = "system",
   ticketId: number | null = null,
 ): Promise<void> {
+  const [ticket] = ticketId
+    ? await db.select({ visibility: ticketsTable.visibility }).from(ticketsTable).where(eq(ticketsTable.id, ticketId)).limit(1)
+    : [];
+  const adminsOnly = ticket?.visibility === "admins";
   const candidates = await db
     .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
     .from(usersTable)
@@ -231,6 +246,7 @@ export async function createNotificationsForOrg(
       eq(usersTable.organizationId, organizationId),
       ne(usersTable.id, excludeUserId),
       eq(usersTable.isActive, true),
+      adminsOnly ? eq(usersTable.role, "admin") : undefined,
     ));
   if (candidates.length === 0) return;
 
@@ -267,10 +283,14 @@ export async function createNotificationForUser(
   if (organizationId != null) conditions.push(eq(usersTable.organizationId, organizationId));
 
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken, role: usersTable.role })
     .from(usersTable)
     .where(and(...conditions));
   if (!user) return;
+  if (ticketId != null) {
+    const [ticket] = await db.select({ visibility: ticketsTable.visibility }).from(ticketsTable).where(eq(ticketsTable.id, ticketId)).limit(1);
+    if (ticket?.visibility === "admins" && user.role !== "admin") return;
+  }
 
   const prefs = await getChannelPrefs([userId], type);
   const p = prefs.get(userId);

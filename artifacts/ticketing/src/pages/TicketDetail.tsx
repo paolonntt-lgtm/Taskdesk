@@ -8,7 +8,7 @@ import {
   useTheme, useMediaQuery,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
+import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, LockOutlined } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
@@ -85,6 +85,8 @@ export default function TicketDetail() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
+  const [visibilityDialog, setVisibilityDialog] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
 
   const [assignAnchor, setAssignAnchor] = useState<null | HTMLElement>(null);
   const [statusAnchor, setStatusAnchor] = useState<null | HTMLElement>(null);
@@ -136,6 +138,25 @@ export default function TicketDetail() {
   const deleteComment = useDeleteTicketComment();
   const setRecurrenceMut = useSetTicketRecurrence();
   const deleteRecurrenceMut = useDeleteTicketRecurrence();
+
+  const publishTicket = async () => {
+    if (!ticket) return;
+    setVisibilitySaving(true);
+    try {
+      const response = await fetch(`/api/tickets/${ticketId}/visibility`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: 'organization' }),
+      });
+      if (!response.ok) throw new Error('visibility update failed');
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setVisibilityDialog(false);
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
 
   const [recurrenceDialog, setRecurrenceDialog] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
@@ -678,6 +699,18 @@ export default function TicketDetail() {
         </Box>
         {/* Action buttons */}
         <Box display="flex" gap={0.75} alignItems="center" flexShrink={0}>
+          {(ticket as any).visibility === 'admins' && isAdmin && (
+            <Button
+              size="small"
+              variant="contained"
+              color="warning"
+              onClick={() => setVisibilityDialog(true)}
+              startIcon={<LockOutlined sx={{ fontSize: 15 }} />}
+              sx={{ px: '12px', py: '5px', borderRadius: '6px', fontSize: 12, textTransform: 'none', minWidth: 0 }}
+            >
+              {lang === 'it' ? 'Rendi visibile al team' : 'Make visible to team'}
+            </Button>
+          )}
           {canEdit && (
             isMobile ? (
               <Tooltip title={t.ticketDetail.editButton}>
@@ -787,6 +820,16 @@ export default function TicketDetail() {
                     {ticket.location}
                   </Box>
                 </>
+              )}
+              {(ticket as any).visibility === 'admins' && (
+                <Chip
+                  icon={<LockOutlined sx={{ fontSize: '14px !important' }} />}
+                  label={lang === 'it' ? 'Solo admin' : 'Admins only'}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ height: 24, fontWeight: 700 }}
+                />
               )}
             </Box>
 
@@ -1621,6 +1664,28 @@ export default function TicketDetail() {
             <Button onClick={() => setRecurrenceDialog(false)} color="inherit" disabled={recurrenceSaving}>{t.ticketDetail.recurrenceCancel}</Button>
             <Button variant="contained" onClick={handleRecurrenceSave} disabled={recurrenceSaving} startIcon={recurrenceSaving ? <CircularProgress size={16} color="inherit" /> : <RepeatIcon />}>{t.ticketDetail.recurrenceSave}</Button>
           </Box>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={visibilityDialog} onClose={() => !visibilitySaving && setVisibilityDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LockOutlined color="warning" />
+          {lang === 'it' ? 'Rendi il ticket visibile al team?' : 'Make this ticket visible to the team?'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {lang === 'it'
+              ? 'Il ticket e i suoi commenti, allegati, note e attività saranno accessibili agli utenti autorizzati dell’organizzazione.'
+              : 'The ticket and its comments, attachments, notes, and activity will become accessible to authorized organization users.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setVisibilityDialog(false)} disabled={visibilitySaving}>
+            {lang === 'it' ? 'Annulla' : 'Cancel'}
+          </Button>
+          <Button variant="contained" color="warning" onClick={publishTicket} disabled={visibilitySaving}>
+            {visibilitySaving ? <CircularProgress size={18} color="inherit" /> : (lang === 'it' ? 'Rendi visibile' : 'Make visible')}
+          </Button>
         </DialogActions>
       </Dialog>
 

@@ -6,9 +6,9 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-async function getTicketForUser(ticketId: number, orgId: number | null) {
+async function getTicketForUser(ticketId: number, orgId: number | null, isAdmin: boolean) {
   const [ticket] = await db
-    .select({ id: ticketsTable.id, organizationId: ticketsTable.organizationId })
+    .select({ id: ticketsTable.id, organizationId: ticketsTable.organizationId, visibility: ticketsTable.visibility })
     .from(ticketsTable)
     .where(
       and(
@@ -16,7 +16,8 @@ async function getTicketForUser(ticketId: number, orgId: number | null) {
         orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
       )
     );
-  return ticket ?? null;
+  if (!ticket || (!isAdmin && ticket.visibility === "admins")) return null;
+  return ticket;
 }
 
 async function getChecklistForTicket(checklistId: number, ticketId: number) {
@@ -64,7 +65,7 @@ router.get("/tickets/:ticketId/checklists", requireAuth, async (req, res): Promi
 
   if (isNaN(ticketId)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklists = await db
@@ -117,7 +118,7 @@ router.post("/tickets/:ticketId/checklists", requireAuth, async (req, res): Prom
   const parsed = z.object({ title: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input", message: parsed.error.message }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const existing = await db
@@ -146,7 +147,7 @@ router.patch("/tickets/:ticketId/checklists/:checklistId", requireAuth, requireA
 
   if (isNaN(ticketId) || isNaN(checklistId)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklist = await getChecklistForTicket(checklistId, ticketId);
@@ -177,7 +178,7 @@ router.delete("/tickets/:ticketId/checklists/:checklistId", requireAuth, require
 
   if (isNaN(ticketId) || isNaN(checklistId)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklist = await getChecklistForTicket(checklistId, ticketId);
@@ -199,7 +200,7 @@ router.post("/tickets/:ticketId/checklists/:checklistId/items", requireAuth, asy
   const parsed = z.object({ text: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklist = await getChecklistForTicket(checklistId, ticketId);
@@ -242,7 +243,7 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
   }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklist = await getChecklistForTicket(checklistId, ticketId);
@@ -321,7 +322,7 @@ router.delete("/tickets/:ticketId/checklists/:checklistId/items/:itemId", requir
     res.status(400).json({ error: "Invalid ID" }); return;
   }
 
-  const ticket = await getTicketForUser(ticketId, orgId);
+  const ticket = await getTicketForUser(ticketId, orgId, currentUser.role === "admin");
   if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
 
   const checklist = await getChecklistForTicket(checklistId, ticketId);

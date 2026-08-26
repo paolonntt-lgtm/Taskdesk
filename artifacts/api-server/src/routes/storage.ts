@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -157,7 +157,11 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
     // Regular users must belong to the same organization as the ticket.
     const whereClause = currentUser.isSuperAdmin
       ? orgCondition
-      : and(orgCondition, eq(ticketsTable.organizationId, orgId!));
+      : and(
+          orgCondition,
+          eq(ticketsTable.organizationId, orgId!),
+          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        );
 
     const [attachment] = await attachmentQuery.where(whereClause).limit(1);
 

@@ -20,6 +20,7 @@ const TICKET_LIST_COLS = {
   resource: ticketsTable.resource,
   priority: ticketsTable.priority,
   status: ticketsTable.status,
+  visibility: ticketsTable.visibility,
   createdBy: ticketsTable.createdBy,
   assignedTo: ticketsTable.assignedTo,
   assignedToGroup: ticketsTable.assignedToGroup,
@@ -84,6 +85,10 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   // Always filter by organization
   conditions.push(eq(ticketsTable.organizationId, orgId));
+  // Admin-only tickets must never appear in non-admin list/search results.
+  if (currentUser.role !== "admin") {
+    conditions.push(eq(ticketsTable.visibility, "organization"));
+  }
 
   // Scheduled filter: when scheduled=true show only future-scheduled tickets; otherwise hide them
   if (scheduled === 'true') {
@@ -344,6 +349,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     resource: resource ?? null,
     priority,
     status: defaultStatusKey,
+    visibility: "organization",
     createdBy: currentUser.id,
     organizationId: currentUser.organizationId,
     ticketNumber: nextTicketNumber,
@@ -480,6 +486,11 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (currentUser.role !== "admin" && ticket.visibility === "admins") {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
   const [creator] = await db.select().from(usersTable).where(
     and(eq(usersTable.id, ticket.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
   );
@@ -511,6 +522,45 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient));
+});
+
+// Admin-only visibility switch for tickets created through private email channels.
+router.patch("/tickets/:id/visibility", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const visibility = req.body?.visibility;
+
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  if (isNaN(id) || !["organization", "admins"].includes(visibility)) {
+    res.status(400).json({ error: "Invalid ticket visibility" });
+    return;
+  }
+
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId))
+  );
+  if (!existing) { res.status(404).json({ error: "Ticket not found" }); return; }
+  if (existing.visibility === visibility) {
+    res.json(existing);
+    return;
+  }
+
+  const [updated] = await db.update(ticketsTable)
+    .set({ visibility, updatedAt: new Date() })
+    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
+    .returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: id,
+    userId: currentUser.id,
+    actionType: "visibility_changed",
+    actionDescription: visibility === "organization"
+      ? `${currentUser.name} ha reso il ticket visibile al team`
+      : `${currentUser.name} ha reso il ticket visibile solo agli admin`,
+  });
+
+  res.json(updated);
 });
 
 router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -545,6 +595,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     )
   );
   if (!existing) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+
+  if (!isAdmin && existing.visibility === "admins") {
     res.status(404).json({ error: "Ticket not found" });
     return;
   }
@@ -905,6 +960,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
     resource: existing.resource,
     priority: existing.priority,
     status: "open",
+    visibility: existing.visibility,
     createdBy: currentUser.id,
     assignedTo: existing.assignedTo,
     assignedToGroup: existing.assignedToGroup,
@@ -1027,6 +1083,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     resource: existing.resource,
     priority: existing.priority,
     status: "open",
+    visibility: existing.visibility,
     createdBy: existing.createdBy,
     assignedTo: existing.assignedTo,
     assignedToGroup: existing.assignedToGroup,

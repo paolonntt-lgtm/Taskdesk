@@ -1539,6 +1539,7 @@ interface InboundChannel {
   defaultCategory: string | null;
   defaultGroup: string | null;
   defaultAssignee: number | null;
+  defaultVisibility: 'organization' | 'admins';
   enabled: boolean;
 }
 
@@ -1561,6 +1562,7 @@ function InboundAddressesSection() {
   const [formCategory, setFormCategory] = useState('');
   const [formGroup, setFormGroup] = useState('');
   const [formAssignee, setFormAssignee] = useState<number | ''>('');
+  const [formVisibility, setFormVisibility] = useState<'organization' | 'admins'>('organization');
   const [formSlug, setFormSlug] = useState('');
   const [slugError, setSlugError] = useState('');
   const [users, setUsers] = useState<SimpleUser[]>([]);
@@ -1599,13 +1601,13 @@ function InboundAddressesSection() {
   }, []);
 
   const openAdd = () => {
-    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup(''); setFormAssignee(''); setFormSlug(''); setSlugError('');
+    setEditTarget(null); setFormLabel(''); setFormCategory(''); setFormGroup(''); setFormAssignee(''); setFormVisibility('organization'); setFormSlug(''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
   const openEdit = (ch: InboundChannel) => {
     setEditTarget(ch); setFormLabel(ch.label);
     setFormCategory(ch.defaultCategory ?? ''); setFormGroup(ch.defaultGroup ?? '');
-    setFormAssignee(ch.defaultAssignee ?? ''); setFormSlug(ch.slug ?? ''); setSlugError('');
+    setFormAssignee(ch.defaultAssignee ?? ''); setFormVisibility(ch.defaultVisibility === 'admins' ? 'admins' : 'organization'); setFormSlug(ch.slug ?? ''); setSlugError('');
     setMenuAnchor(null); setDialogOpen(true);
   };
 
@@ -1624,7 +1626,7 @@ function InboundAddressesSection() {
       const res = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null, defaultAssignee: formAssignee || null, slug: cleanSlug || null }),
+        body: JSON.stringify({ label: formLabel, defaultCategory: formCategory || null, defaultGroup: formGroup || null, defaultAssignee: formAssignee || null, defaultVisibility: formVisibility, slug: cleanSlug || null }),
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ type: 'error', text: data.message || t.settings.inboundAddressError }); return; }
@@ -1711,6 +1713,15 @@ function InboundAddressesSection() {
                         const u = users.find(x => x.id === ch.defaultAssignee);
                         return u ? <Chip label={u.name} size="small" variant="outlined" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} /> : null;
                       })()}
+                      <Chip
+                        label={ch.defaultVisibility === 'admins'
+                          ? (lang === 'it' ? 'Solo admin' : 'Admins only')
+                          : (lang === 'it' ? 'Visibile al team' : 'Team visible')}
+                        size="small"
+                        variant="outlined"
+                        color={ch.defaultVisibility === 'admins' ? 'warning' : 'default'}
+                        sx={{ height: 18, fontSize: '0.65rem' }}
+                      />
                     </Box>
                     <Box display="flex" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
                       <Typography variant="caption" color="text.secondary"
@@ -1835,6 +1846,20 @@ function InboundAddressesSection() {
                 {users.filter(u => u.id).map((u) => (
                   <MenuItem key={u.id} value={u.id}>{u.name} ({u.email})</MenuItem>
                 ))}
+              </TextField>
+              <TextField
+                select
+                label={lang === 'it' ? 'Visibilità dei ticket' : 'Ticket visibility'}
+                value={formVisibility}
+                size="small"
+                fullWidth
+                helperText={lang === 'it'
+                  ? 'I ticket privati saranno visibili esclusivamente agli amministratori.'
+                  : 'Private tickets are visible only to administrators.'}
+                onChange={(e) => setFormVisibility(e.target.value === 'admins' ? 'admins' : 'organization')}
+              >
+                <MenuItem value="organization">{lang === 'it' ? 'Visibile all’organizzazione' : 'Visible to organization'}</MenuItem>
+                <MenuItem value="admins">{lang === 'it' ? 'Solo amministratori' : 'Admins only'}</MenuItem>
               </TextField>
             </Box>
           </DialogContent>
