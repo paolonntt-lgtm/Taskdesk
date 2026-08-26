@@ -20,6 +20,7 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 type HttpResult = {
   status: number;
@@ -35,6 +36,9 @@ let userId: number;
 let notesGroupId: number;
 let adminSessionId: string;
 let userSessionId: string;
+const privateAttachmentObjectPath = `/objects/${runId}/private.txt`;
+const objectStorageService = new ObjectStorageService();
+let privateAttachmentUploaded = false;
 const createdTicketIds: number[] = [];
 
 async function request(
@@ -135,6 +139,9 @@ describe("manual ticket visibility", () => {
       await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, notesGroupId));
       await db.delete(groupsTable).where(eq(groupsTable.id, notesGroupId));
     }
+    if (privateAttachmentUploaded) {
+      await objectStorageService.deleteObjectEntityByPath(privateAttachmentObjectPath);
+    }
     await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
     await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
     await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
@@ -193,13 +200,19 @@ describe("manual ticket visibility", () => {
       orgId: organizationId,
       text: "Private checklist item",
     });
+    await objectStorageService.uploadBuffer(
+      `${runId}/private.txt`,
+      Buffer.from("Private attachment"),
+      "text/plain",
+    );
+    privateAttachmentUploaded = true;
     await db.insert(ticketAttachmentsTable).values({
       ticketId: privateTicketId,
       commentId: comment.id,
       uploadedBy: adminId,
-      objectPath: `/objects/${runId}/private.txt`,
+      objectPath: privateAttachmentObjectPath,
       fileName: "private.txt",
-      fileSize: 12,
+      fileSize: Buffer.byteLength("Private attachment"),
       mimeType: "text/plain",
     });
     await db.insert(notificationsTable).values({
@@ -227,6 +240,10 @@ describe("manual ticket visibility", () => {
       expect(response.status, path).toBe(404);
     }
 
+    const directDownloadPath = `/api/storage/objects/${runId}/private.txt`;
+    const userDownloadResponse = await request(directDownloadPath, userSessionId);
+    expect(userDownloadResponse.status).toBe(403);
+
     const searchResponse = await request(`/api/search?q=${encodeURIComponent(privateTitle)}`, userSessionId);
     expect(searchResponse.status).toBe(200);
     expect(searchResponse.body.tickets).toEqual([]);
@@ -240,6 +257,10 @@ describe("manual ticket visibility", () => {
     const adminResponse = await request(`/api/tickets/${privateTicketId}`, adminSessionId);
     expect(adminResponse.status).toBe(200);
     expect(adminResponse.body.visibility).toBe("admins");
+
+    const adminDownloadResponse = await request(directDownloadPath, adminSessionId);
+    expect(adminDownloadResponse.status).toBe(200);
+    expect(adminDownloadResponse.body).toBe("Private attachment");
 
     const publicResponse = await request("/api/tickets", adminSessionId, {
       method: "POST",
