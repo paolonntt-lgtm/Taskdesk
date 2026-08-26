@@ -36,7 +36,8 @@ router.get("/search", requireAuth, async (req, res) => {
       .where(
         and(
           eq(ticketsTable.organizationId, orgId),
-          ilike(ticketsTable.title, pattern)
+          ilike(ticketsTable.title, pattern),
+          user.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         )
       )
       .limit(limit),

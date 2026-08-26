@@ -31,6 +31,7 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
   if (orgId != null) ticketConditions.push(eq(ticketsTable.organizationId, orgId));
   if (!isAdmin) {
     ticketConditions.push(
+      eq(ticketsTable.visibility, "organization"),
       // Regular users only see tickets they created or are assigned to
       eq(ticketsTable.createdBy, currentUser.id),
     );
@@ -58,6 +59,7 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
       gte(ticketsTable.dueAt, start),
       lt(ticketsTable.dueAt, end),
       eq(ticketsTable.organizationId, orgId),
+      eq(ticketsTable.visibility, "organization"),
       eq(ticketsTable.assignedTo, currentUser.id),
     ];
     assignedTickets = await db

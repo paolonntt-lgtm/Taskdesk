@@ -217,8 +217,17 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
 
   const validDays = parseValidDays(req.query.days);
   const joinCondition = validDays
-    ? and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId), gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`))
-    : and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId));
+    ? and(
+        eq(ticketsTable.assignedTo, usersTable.id),
+        eq(ticketsTable.organizationId, orgId),
+        currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`),
+      )
+    : and(
+        eq(ticketsTable.assignedTo, usersTable.id),
+        eq(ticketsTable.organizationId, orgId),
+        currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+      );
 
   const rows = await db.select({
     id: usersTable.id,
@@ -238,7 +247,10 @@ router.get("/stats/trend", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const validDays = parseValidDays(req.query.days) ?? 30;
 
@@ -258,7 +270,10 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(orgFilter)
@@ -297,6 +312,7 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
 
   const orgAndUser = and(
     eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
     sql`(created_by = ${currentUser.id} OR assigned_to = ${currentUser.id})`
   );
 
@@ -346,7 +362,11 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
     .from(usersTable)
     .leftJoin(
       ticketsTable,
-      and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+      and(
+        eq(ticketsTable.assignedTo, usersTable.id),
+        eq(ticketsTable.organizationId, orgId),
+        currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+      )
     )
     .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name, usersTable.email)
@@ -402,7 +422,11 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
-  const filter = and(eq(ticketsTable.organizationId, orgId), eq(ticketsTable.assignedTo, currentUser.id));
+  const filter = and(
+    eq(ticketsTable.organizationId, orgId),
+    eq(ticketsTable.assignedTo, currentUser.id),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
 
   const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(filter)
@@ -422,7 +446,10 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = eq(ticketsTable.organizationId, orgId);
+  const orgFilter = and(
+    eq(ticketsTable.organizationId, orgId),
+    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+  );
   const userOrgFilter = eq(usersTable.organizationId, orgId);
 
   const [
@@ -469,7 +496,11 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       .from(usersTable)
       .leftJoin(
         ticketsTable,
-        and(eq(ticketsTable.assignedTo, usersTable.id), eq(ticketsTable.organizationId, orgId))
+        and(
+          eq(ticketsTable.assignedTo, usersTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        )
       )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
@@ -487,7 +518,11 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       .from(usersTable)
       .innerJoin(
         ticketsTable,
-        and(eq(ticketsTable.createdBy, usersTable.id), eq(ticketsTable.organizationId, orgId))
+        and(
+          eq(ticketsTable.createdBy, usersTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        )
       )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
@@ -496,7 +531,14 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketCommentsTable.id})` })
       .from(usersTable)
       .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
-      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(
+        ticketsTable,
+        and(
+          eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        )
+      )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
@@ -507,7 +549,14 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketCommentsTable,
         and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(
+        ticketsTable,
+        and(
+          eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+        )
+      )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`).limit(5),
@@ -556,6 +605,9 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
     notInArray(ticketsTable.status, ["resolved", "closed"]),
     eq(ticketsTable.organizationId, orgId),
   ];
+  if (currentUser.role !== "admin") {
+    conditions.push(eq(ticketsTable.visibility, "organization"));
+  }
 
   const tickets = await db.select(TICKET_LIST_COLS).from(ticketsTable)
     .where(and(...conditions))
@@ -589,6 +641,9 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const userOrgFilter = eq(usersTable.organizationId, orgId);
+  const ticketVisibilityFilter = currentUser.role === "admin"
+    ? undefined
+    : eq(ticketsTable.visibility, "organization");
 
   const [openers, commenters, resolvers] = await Promise.all([
     db.select({
@@ -599,7 +654,11 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
       .from(usersTable)
       .innerJoin(
         ticketsTable,
-        and(eq(ticketsTable.createdBy, usersTable.id), eq(ticketsTable.organizationId, orgId))
+        and(
+          eq(ticketsTable.createdBy, usersTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          ticketVisibilityFilter,
+        )
       )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
@@ -613,7 +672,14 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
     })
       .from(usersTable)
       .innerJoin(ticketCommentsTable, eq(ticketCommentsTable.authorId, usersTable.id))
-      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(
+        ticketsTable,
+        and(
+          eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          ticketVisibilityFilter,
+        )
+      )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)
@@ -629,7 +695,14 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketCommentsTable,
         and(eq(ticketCommentsTable.authorId, usersTable.id), eq(ticketCommentsTable.isSolution, true))
       )
-      .innerJoin(ticketsTable, and(eq(ticketCommentsTable.ticketId, ticketsTable.id), eq(ticketsTable.organizationId, orgId)))
+      .innerJoin(
+        ticketsTable,
+        and(
+          eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          eq(ticketsTable.organizationId, orgId),
+          ticketVisibilityFilter,
+        )
+      )
       .where(userOrgFilter)
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`count(${ticketCommentsTable.id}) desc`)

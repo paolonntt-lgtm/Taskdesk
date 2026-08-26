@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
-import { db, notificationsTable, usersTable } from "@workspace/db";
+import { eq, and, desc, isNull, or } from "drizzle-orm";
+import { db, notificationsTable, ticketsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
 
@@ -10,9 +10,23 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
 
   const notifications = await db
-    .select()
+    .select({
+      id: notificationsTable.id,
+      userId: notificationsTable.userId,
+      ticketId: notificationsTable.ticketId,
+      type: notificationsTable.type,
+      notificationText: notificationsTable.notificationText,
+      isRead: notificationsTable.isRead,
+      createdAt: notificationsTable.createdAt,
+    })
     .from(notificationsTable)
-    .where(eq(notificationsTable.userId, currentUser.id))
+    .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+    .where(and(
+      eq(notificationsTable.userId, currentUser.id),
+      currentUser.role === "admin"
+        ? undefined
+        : or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
+    ))
     .orderBy(desc(notificationsTable.createdAt));
 
   res.setHeader("Cache-Control", "no-cache, private");

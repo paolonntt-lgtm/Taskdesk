@@ -64,6 +64,7 @@ router.get("/daily-reports/my-activity-today", requireAuth, async (req, res): Pr
     .where(and(
       inArray(ticketsTable.id, ticketIds),
       eq(ticketsTable.organizationId, orgId),
+      currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
     ));
 
   const result = tickets.map((t) => ({
