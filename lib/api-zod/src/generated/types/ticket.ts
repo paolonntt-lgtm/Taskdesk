@@ -8,8 +8,7 @@
 import type { RecurrenceRule } from "./recurrenceRule";
 import type { TicketPriority } from "./ticketPriority";
 import type { TicketStatus } from "./ticketStatus";
-
-export type TicketVisibility = "organization" | "admins";
+import type { TicketVisibility } from "./ticketVisibility";
 
 export interface Ticket {
   id: number;

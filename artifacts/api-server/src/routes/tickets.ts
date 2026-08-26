@@ -295,7 +295,24 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   if (currentUser.organizationId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
-  const { title, description, category, location, resource, priority, assignedTo, assignedToGroup, dueAt, clientId } = parsed.data;
+  const {
+    title,
+    description,
+    category,
+    location,
+    resource,
+    priority,
+    assignedTo,
+    assignedToGroup,
+    dueAt,
+    clientId,
+    visibility = "organization",
+  } = parsed.data;
+
+  if (visibility === "admins" && currentUser.role !== "admin") {
+    res.status(403).json({ error: "Only admins can create private tickets" });
+    return;
+  }
 
   if (assignedTo) {
     if (currentUser.role !== "admin") {
@@ -349,7 +366,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     resource: resource ?? null,
     priority,
     status: defaultStatusKey,
-    visibility: "organization",
+    visibility,
     createdBy: currentUser.id,
     organizationId: currentUser.organizationId,
     ticketNumber: nextTicketNumber,

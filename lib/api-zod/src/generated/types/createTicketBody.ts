@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreateTicketBodyPriority } from "./createTicketBodyPriority";
+import type { CreateTicketBodyVisibility } from "./createTicketBodyVisibility";
 
 export interface CreateTicketBody {
   title: string;
@@ -18,4 +19,5 @@ export interface CreateTicketBody {
   assignedToGroup?: string | null;
   dueAt?: Date | null;
   clientId?: number | null;
+  visibility?: CreateTicketBodyVisibility;
 }

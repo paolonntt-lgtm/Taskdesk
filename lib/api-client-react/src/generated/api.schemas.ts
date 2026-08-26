@@ -5,6 +5,33 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+export type SearchResultsTicketsItem = {
+  id: number;
+  ticketNumber?: number | null;
+  title: string;
+  status: string;
+  priority: string;
+};
+
+export type SearchResultsClientsItem = {
+  id: number;
+  name: string;
+  email?: string | null;
+};
+
+export type SearchResultsUsersItem = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+};
+
+export interface SearchResults {
+  tickets: SearchResultsTicketsItem[];
+  clients: SearchResultsClientsItem[];
+  users: SearchResultsUsersItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -175,7 +202,8 @@ export const TicketStatus = {
   closed: "closed",
 } as const;
 
-export type TicketVisibility = (typeof TicketVisibility)[keyof typeof TicketVisibility];
+export type TicketVisibility =
+  (typeof TicketVisibility)[keyof typeof TicketVisibility];
 
 export const TicketVisibility = {
   organization: "organization",
@@ -226,6 +254,14 @@ export const CreateTicketBodyPriority = {
   urgent: "urgent",
 } as const;
 
+export type CreateTicketBodyVisibility =
+  (typeof CreateTicketBodyVisibility)[keyof typeof CreateTicketBodyVisibility];
+
+export const CreateTicketBodyVisibility = {
+  organization: "organization",
+  admins: "admins",
+} as const;
+
 export interface CreateTicketBody {
   title: string;
   description: string;
@@ -237,6 +273,7 @@ export interface CreateTicketBody {
   assignedToGroup?: string | null;
   dueAt?: string | null;
   clientId?: number | null;
+  visibility?: CreateTicketBodyVisibility;
 }
 
 export type UpdateTicketBodyPriority =
@@ -730,6 +767,14 @@ export interface CalendarItem {
   description?: string | null;
   createdBy?: number | null;
 }
+
+export type GlobalSearchParams = {
+  /**
+   * @minLength 1
+   */
+  q: string;
+  limit?: number;
+};
 
 export type CompleteOnboardingBodyBusinessType =
   (typeof CompleteOnboardingBodyBusinessType)[keyof typeof CompleteOnboardingBodyBusinessType];

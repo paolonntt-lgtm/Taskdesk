@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
   Alert, Chip, Paper, Avatar,
 } from '@mui/material';
-import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome } from '@mui/icons-material';
+import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -151,6 +151,7 @@ export default function NewTicket() {
     assignedToGroup: '',
     dueAt: '',
     clientId: '',
+    visibility: 'organization' as 'organization' | 'admins',
   });
 
   useEffect(() => {
@@ -287,6 +288,7 @@ export default function NewTicket() {
           assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
           dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
           clientId: formData.clientId ? parseInt(formData.clientId) : null,
+          visibility: formData.visibility,
         },
       });
       for (const att of pendingAttachments) {
@@ -566,6 +568,33 @@ export default function NewTicket() {
                     ))}
                   </Box>
                 </SideSection>
+
+                {/* Visibility (admin only) */}
+                {currentUser?.role === 'admin' && (
+                  <SideSection>
+                    <SideLabel>{t.newTicket.visibilityField}</SideLabel>
+                    <TextField
+                      select fullWidth size="small"
+                      value={formData.visibility}
+                      onChange={e => setFormData({ ...formData, visibility: e.target.value as 'organization' | 'admins' })}
+                      sx={{ '& .MuiSelect-select': { fontSize: 12, py: '6px' } }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { fontSize: 12 } }, MenuListProps: { dense: true } } }}
+                    >
+                      <MenuItem value="organization" sx={{ fontSize: 12, py: 0.5, minHeight: 0 }}>
+                        <Box display="flex" alignItems="center" gap={0.75}>
+                          <PublicOutlined sx={{ fontSize: 15, color: 'text.secondary' }} />
+                          {t.newTicket.visibilityOrganization}
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="admins" sx={{ fontSize: 12, py: 0.5, minHeight: 0 }}>
+                        <Box display="flex" alignItems="center" gap={0.75}>
+                          <LockOutlined sx={{ fontSize: 15, color: 'warning.main' }} />
+                          {t.newTicket.visibilityAdmins}
+                        </Box>
+                      </MenuItem>
+                    </TextField>
+                  </SideSection>
+                )}
 
                 {/* Location */}
                 {!singleLocation && (

@@ -8,6 +8,44 @@
 import * as zod from "zod";
 
 /**
+ * @summary Search tickets, clients and users
+ */
+
+export const globalSearchQueryLimitDefault = 5;
+
+export const GlobalSearchQueryParams = zod.object({
+  q: zod.coerce.string().min(1),
+  limit: zod.coerce.number().default(globalSearchQueryLimitDefault),
+});
+
+export const GlobalSearchResponse = zod.object({
+  tickets: zod.array(
+    zod.object({
+      id: zod.number(),
+      ticketNumber: zod.number().nullish(),
+      title: zod.string(),
+      status: zod.string(),
+      priority: zod.string(),
+    }),
+  ),
+  clients: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      email: zod.string().nullish(),
+    }),
+  ),
+  users: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      email: zod.string(),
+      role: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary List all groups for the current organization
  */
 export const ListGroupsResponseItem = zod.object({
@@ -565,6 +603,7 @@ export const CreateTicketBody = zod.object({
   assignedToGroup: zod.string().nullish(),
   dueAt: zod.coerce.date().nullish(),
   clientId: zod.number().nullish(),
+  visibility: zod.enum(["organization", "admins"]).optional(),
 });
 
 /**
@@ -707,6 +746,7 @@ export const UpdateTicketResponse = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
@@ -836,6 +876,7 @@ export const SetTicketRecurrenceResponse = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
@@ -942,6 +983,7 @@ export const DeleteTicketRecurrenceResponse = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
@@ -1633,6 +1675,7 @@ export const GetRecentTicketsResponseItem = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
@@ -1736,6 +1779,7 @@ export const GetMyTicketsResponseItem = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
@@ -1839,6 +1883,7 @@ export const GetDueSoonTicketsResponseItem = zod
     resource: zod.string().nullish(),
     priority: zod.enum(["low", "medium", "high", "urgent"]),
     status: zod.enum(["open", "waiting", "resolved", "closed"]),
+    visibility: zod.enum(["organization", "admins"]),
     createdBy: zod.number(),
     assignedTo: zod.number().nullish(),
     inboundChannelId: zod.number().nullish(),
