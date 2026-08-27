@@ -114,6 +114,17 @@ interface Translations {
   };
   footer: {
     text: string;
+    terms: string;
+  };
+  installPrompt: {
+    title: string;
+    iosTap: string;
+    share: string;
+    then: string;
+    addToHomeScreen: string;
+    offline: string;
+    install: string;
+    close: string;
   };
   seo: {
     title: string;
@@ -354,7 +365,18 @@ const translations: Record<Language, Translations> = {
       proof3: "GDPR compliant",
     },
     footer: {
-      text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane."
+      text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane.",
+      terms: "Termini di Servizio",
+    },
+    installPrompt: {
+      title: "Aggiungi TaskDesk alla schermata Home",
+      iosTap: "Tocca",
+      share: "Condividi",
+      then: "poi",
+      addToHomeScreen: "Aggiungi a schermata Home",
+      offline: "Accedi più velocemente ai tuoi ticket, anche offline.",
+      install: "Installa app →",
+      close: "Chiudi",
     },
     seo: {
       title: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
@@ -593,7 +615,18 @@ const translations: Record<Language, Translations> = {
       proof3: "GDPR compliant",
     },
     footer: {
-      text: "© 2025 TaskDesk. The request management system for Italian firms and agencies."
+      text: "© 2025 TaskDesk. The request management system for Italian firms and agencies.",
+      terms: "Terms of Service",
+    },
+    installPrompt: {
+      title: "Add TaskDesk to your Home Screen",
+      iosTap: "Tap",
+      share: "Share",
+      then: "then",
+      addToHomeScreen: "Add to Home Screen",
+      offline: "Access your tickets faster, even offline.",
+      install: "Install app →",
+      close: "Close",
     },
     seo: {
       title: "TaskDesk — Practice Management for Firms & Agencies",

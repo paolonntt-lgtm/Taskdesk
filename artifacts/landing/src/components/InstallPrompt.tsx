@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { X, Share, Plus } from "lucide-react";
+import { useLanguage } from "@/i18n";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -28,6 +29,7 @@ function isInStandaloneMode() {
 }
 
 export function InstallPrompt() {
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -112,22 +114,22 @@ export function InstallPrompt() {
         />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#111", marginBottom: 3 }}>
-            Aggiungi TaskDesk alla schermata Home
+            {t.installPrompt.title}
           </div>
           {showIOSHint ? (
             <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.45 }}>
-              Tocca{" "}
+              {t.installPrompt.iosTap}{" "}
               <span style={{ display: "inline-flex", alignItems: "center", gap: 2, color: "#2563eb", fontWeight: 600 }}>
-                <Share size={13} /> Condividi
+                <Share size={13} /> {t.installPrompt.share}
               </span>
-              {" "}poi{" "}
+              {" "}{t.installPrompt.then}{" "}
               <span style={{ display: "inline-flex", alignItems: "center", gap: 2, color: "#2563eb", fontWeight: 600 }}>
-                <Plus size={13} /> Aggiungi a schermata Home
+                <Plus size={13} /> {t.installPrompt.addToHomeScreen}
               </span>
             </div>
           ) : (
             <div style={{ fontSize: 13, color: "#6b7280" }}>
-              Accedi più velocemente ai tuoi ticket, anche offline.
+              {t.installPrompt.offline}
             </div>
           )}
           {!showIOSHint && (
@@ -145,7 +147,7 @@ export function InstallPrompt() {
                 cursor: "pointer",
               }}
             >
-              Installa app →
+              {t.installPrompt.install}
             </button>
           )}
         </div>
@@ -159,7 +161,7 @@ export function InstallPrompt() {
             padding: 4,
             flexShrink: 0,
           }}
-          aria-label="Chiudi"
+          aria-label={t.installPrompt.close}
         >
           <X size={18} />
         </button>

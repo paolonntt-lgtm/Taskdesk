@@ -944,7 +944,7 @@ export default function Landing() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-2 border-t border-gray-100">
             <Link href="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</Link>
             <Link href="/cookie-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cookie Policy</Link>
-            <Link href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Termini di Servizio</Link>
+            <Link href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">{t.footer.terms}</Link>
             <Link href="/dpa" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Data Processing Agreement</Link>
           </div>
         </div>
