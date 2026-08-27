@@ -14,12 +14,13 @@ function readTemplate() {
  * Remove all dynamic head tags from the template that will be injected
  * via the collected Helmet context from SSR. Static tags (charset, viewport,
  * theme-color, GA script, favicon, preconnects, fonts, og:type, og:site_name,
- * og:image:width/height/alt, twitter:card, twitter:image:alt) are left in
- * place — they never vary per-route. og:locale:alternate is stripped here
- * because it differs between /it/ and /en/ and is injected per-locale by
- * the Landing component's <Helmet> block.
+ * og:image:width/height, twitter:card) are left in place because they do not
+ * vary per-route. The landing page image and its alt text are stripped when
+ * prerendering /it/ and /en/ because both vary by locale. og:locale:alternate
+ * is stripped here because it differs between /it/ and /en/ and is injected
+ * per-locale by the Landing component's <Helmet> block.
  */
-function stripDynamicHeadTags(html) {
+function stripDynamicHeadTags(html, isLandingPage = false) {
   let h = html;
   h = h.replace(/\s*<title>[^<]*<\/title>/g, '');
   h = h.replace(/\s*<meta name="description"[^>]*\/?>/gi, '');
@@ -36,6 +37,9 @@ function stripDynamicHeadTags(html) {
   h = h.replace(/\s*<meta property="og:description"[^>]*\/?>/gi, '');
   // og:image (not og:image:width / og:image:height / og:image:alt)
   h = h.replace(/\s*<meta property="og:image"(?!:)[^>]*\/?>/gi, '');
+  if (isLandingPage) {
+    h = h.replace(/\s*<meta property="og:image:alt"[^>]*\/?>/gi, '');
+  }
   // og:locale and og:locale:alternate (both vary per locale)
   h = h.replace(/\s*<meta property="og:locale"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta property="og:locale:alternate"[^>]*\/?>/gi, '');
@@ -43,6 +47,9 @@ function stripDynamicHeadTags(html) {
   h = h.replace(/\s*<meta name="twitter:title"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:description"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:image"(?!:)[^>]*\/?>/gi, '');
+  if (isLandingPage) {
+    h = h.replace(/\s*<meta name="twitter:image:alt"[^>]*\/?>/gi, '');
+  }
   return h;
 }
 
@@ -250,7 +257,7 @@ async function writeRoute(routePath, isLandingPage = false) {
   // Start from the template with all dynamic head tags stripped.
   // The route component's <Helmet> output will be the single source of truth.
   const template = readTemplate();
-  let html = stripDynamicHeadTags(template);
+  let html = stripDynamicHeadTags(template, isLandingPage);
 
   const lang = routePath.startsWith('/en') ? 'en' : 'it';
 
