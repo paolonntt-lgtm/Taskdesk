@@ -76,19 +76,19 @@ export default function PrivacyPolicy() {
 
         <Section title="2. Tipologie di dati raccolti">
           <p>TaskDesk raccoglie le seguenti categorie di dati personali:</p>
-          <h4 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati forniti direttamente dall'utente</h4>
+          <h3 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati forniti direttamente dall'utente</h3>
           <ul>
             <li><strong>Dati di registrazione:</strong> nome, indirizzo email, password (conservata in forma cifrata), nome dell'organizzazione.</li>
             <li><strong>Dati del profilo:</strong> foto profilo, numero di telefono, sede principale, gruppo di appartenenza.</li>
             <li><strong>Contenuti generati:</strong> testo dei ticket, commenti, note interne, allegati caricati sulla piattaforma.</li>
           </ul>
-          <h4 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati raccolti automaticamente</h4>
+          <h3 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati raccolti automaticamente</h3>
           <ul>
             <li><strong>Dati di navigazione:</strong> indirizzo IP, tipo di browser, pagine visitate, data e ora di accesso.</li>
             <li><strong>Dati di sessione:</strong> cookie di sessione necessari al funzionamento del servizio.</li>
             <li><strong>Log di attività:</strong> azioni eseguite sulla piattaforma (apertura ticket, cambio stato, assegnazioni) a fini di audit e cronologia.</li>
           </ul>
-          <h4 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati di fatturazione</h4>
+          <h3 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati di fatturazione</h3>
           <ul>
             <li>I dati relativi ai pagamenti (carta di credito, IBAN, ecc.) sono gestiti esclusivamente da <strong>Stripe Inc.</strong>, nostro fornitore di servizi di pagamento, e non vengono mai memorizzati sui nostri server. Stripe è certificato PCI-DSS.</li>
           </ul>
