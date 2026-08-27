@@ -28,7 +28,7 @@ export default function DPA() {
         <html lang="it" />
         <title>{meta.title}</title>
         <meta name="description" content={meta.description} />
-        <meta name="robots" content="index, follow" />
+        <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={canonicalUrl} />
         <link rel="alternate" hrefLang="it" href={canonicalUrl} />
         <link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
