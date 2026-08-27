@@ -35,6 +35,14 @@ function LangRedirect({ suffix }: { suffix: string }) {
   return null;
 }
 
+function EnLegalRedirect({ suffix }: { suffix: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate(`~/it${suffix}`, { replace: true });
+  }, [suffix, navigate]);
+  return null;
+}
+
 function ItPageRoutes() {
   return (
     <Switch>
@@ -52,6 +60,18 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/privacy-policy">
+        <EnLegalRedirect suffix="/privacy-policy" />
+      </Route>
+      <Route path="/terms">
+        <EnLegalRedirect suffix="/terms" />
+      </Route>
+      <Route path="/dpa">
+        <EnLegalRedirect suffix="/dpa" />
+      </Route>
+      <Route path="/cookie-policy">
+        <EnLegalRedirect suffix="/cookie-policy" />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
