@@ -2294,7 +2294,7 @@ function EmailChannelsTab() {
 // ── CLOSURE EMAIL TOGGLE ──────────────────────────────────────────────────
 function ClosureEmailSection() {
   const { t } = useLanguage();
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);

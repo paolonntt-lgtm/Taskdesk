@@ -819,10 +819,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato lo stato del ticket #${displayNum} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId);
 
     // Check org preference before sending closure email
-    let orgSendClosureEmail = true;
+    let orgSendClosureEmail = false;
     if (orgId != null) {
       const [orgPref] = await db.select({ sendClosureEmail: organizationsTable.sendClosureEmail }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
-      orgSendClosureEmail = orgPref?.sendClosureEmail ?? true;
+      orgSendClosureEmail = orgPref?.sendClosureEmail ?? false;
     }
 
     if (orgSendClosureEmail && newIsClosed && existing.resource && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(existing.resource)) {

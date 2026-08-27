@@ -213,6 +213,29 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS entity_plural TEXT;
     `);
 
+    // Closure emails are opt-in. Apply the default to existing organizations once,
+    // without overwriting a later admin choice on subsequent server starts.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS app_migrations (
+        key TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS send_closure_email BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE organizations
+        ALTER COLUMN send_closure_email SET DEFAULT false;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_migrations
+          WHERE key = 'closure_email_opt_in_default'
+        ) THEN
+          UPDATE organizations SET send_closure_email = false;
+          INSERT INTO app_migrations (key) VALUES ('closure_email_opt_in_default');
+        END IF;
+      END $$;
+    `);
+
     // Daily reports — operator EOD report saved in DB; colleagues see badge + auto-briefing
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_reports (
