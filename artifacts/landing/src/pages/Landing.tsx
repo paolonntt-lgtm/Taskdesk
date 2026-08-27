@@ -486,7 +486,7 @@ export default function Landing() {
           <div className="flex items-center">
             <img src="/taskdesk-logo.webp" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
-          <nav aria-label="Menu principale" className="hidden md:flex gap-8 text-sm text-gray-500">
+          <nav aria-label={t.landmarks.mainNavigation} className="hidden md:flex gap-8 text-sm text-gray-500">
             <a href="#how" className="hover:text-gray-900 transition-colors font-medium">{lang === "it" ? "Come funziona" : "How it works"}</a>
             <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing" className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>
@@ -517,7 +517,7 @@ export default function Landing() {
       <main id="main-content">
 
         {/* ── Hero ── */}
-        <section aria-label="Hero" className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #eff6ff 100%)" }}>
+        <section aria-label={t.landmarks.hero} className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #eff6ff 100%)" }}>
           <div className="absolute top-[-60px] right-[-60px] w-[450px] h-[450px] rounded-full border border-blue-100 opacity-50 pointer-events-none" />
           <div className="absolute bottom-[-40px] left-[-40px] w-[300px] h-[300px] rounded-full border border-violet-100 opacity-40 pointer-events-none" />
 
@@ -583,7 +583,7 @@ export default function Landing() {
         </section>
 
         {/* ── Chi usa TaskDesk ── */}
-        <section id="who-uses" aria-label="Chi usa TaskDesk" className="py-24 px-6 md:px-8 border-b border-gray-100">
+        <section id="who-uses" aria-label={t.landmarks.whoUses} className="py-24 px-6 md:px-8 border-b border-gray-100">
           <div className="max-w-6xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-14">
@@ -610,7 +610,7 @@ export default function Landing() {
         </section>
 
         {/* ── Il problema ── */}
-        <section id="pain" aria-label="Il problema" className="py-24 px-6 md:px-8" style={{ background: "linear-gradient(135deg, #fef9f0 0%, #fdf4ff 100%)" }}>
+        <section id="pain" aria-label={t.landmarks.problem} className="py-24 px-6 md:px-8" style={{ background: "linear-gradient(135deg, #fef9f0 0%, #fdf4ff 100%)" }}>
           <div className="max-w-5xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-14">
@@ -638,7 +638,7 @@ export default function Landing() {
         </section>
 
         {/* ── Testimonial bar ── */}
-        <section id="testimonials" aria-label="Testimonianze" className="py-20 px-6 md:px-8 border-y border-gray-100 bg-white">
+        <section id="testimonials" aria-label={t.landmarks.testimonials} className="py-20 px-6 md:px-8 border-y border-gray-100 bg-white">
           <div className="max-w-5xl mx-auto">
             <ScrollReveal>
               <div className="flex justify-center mb-10">
@@ -672,7 +672,7 @@ export default function Landing() {
         </section>
 
         {/* ── How it works ── */}
-        <section id="how" aria-label="Come funziona" className="py-28 px-6 md:px-8">
+        <section id="how" aria-label={t.landmarks.howItWorks} className="py-28 px-6 md:px-8">
           <div className="max-w-5xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-16">
@@ -728,7 +728,7 @@ export default function Landing() {
         </section>
 
         {/* ── Features ── */}
-        <section id="features" aria-label="Funzionalità" className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
+        <section id="features" aria-label={t.landmarks.features} className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
           <div className="max-w-6xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-20">
@@ -770,7 +770,7 @@ export default function Landing() {
         </section>
 
         {/* ── Pricing ── */}
-        <section id="pricing" aria-label="Prezzi" className="py-28 px-6 md:px-8">
+        <section id="pricing" aria-label={t.landmarks.pricing} className="py-28 px-6 md:px-8">
           <div className="max-w-7xl mx-auto">
             <ScrollReveal>
               <div className="text-center mb-14 max-w-3xl mx-auto">
@@ -888,7 +888,7 @@ export default function Landing() {
         </section>
 
         {/* ── FAQ ── */}
-        <section id="faq" aria-label="Domande frequenti" className="py-28 px-6 md:px-8 bg-gray-50 border-t border-gray-100">
+        <section id="faq" aria-label={t.landmarks.faq} className="py-28 px-6 md:px-8 bg-gray-50 border-t border-gray-100">
           <div className="max-w-3xl mx-auto">
             <ScrollReveal>
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-center mb-16">{t.faq.title}</h2>
@@ -909,7 +909,7 @@ export default function Landing() {
         </section>
 
         {/* ── CTA finale ── */}
-        <section id="final-cta" aria-label="Inizia ora" className="py-28 px-6 md:px-8">
+        <section id="final-cta" aria-label={t.landmarks.finalCta} className="py-28 px-6 md:px-8">
           <ScrollReveal>
             <div className="max-w-4xl mx-auto rounded-3xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #1d4ed8, #7c3aed, #1d4ed8)" }}>
               <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />

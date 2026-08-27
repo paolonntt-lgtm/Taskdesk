@@ -4,6 +4,18 @@ import { useLocation } from "wouter";
 type Language = "it" | "en";
 
 interface Translations {
+  landmarks: {
+    mainNavigation: string;
+    hero: string;
+    whoUses: string;
+    problem: string;
+    testimonials: string;
+    howItWorks: string;
+    features: string;
+    pricing: string;
+    faq: string;
+    finalCta: string;
+  };
   nav: {
     features: string;
     pricing: string;
@@ -145,6 +157,18 @@ interface Translations {
 
 const translations: Record<Language, Translations> = {
   it: {
+    landmarks: {
+      mainNavigation: "Menu principale",
+      hero: "Hero",
+      whoUses: "Chi usa TaskDesk",
+      problem: "Il problema",
+      testimonials: "Testimonianze",
+      howItWorks: "Come funziona",
+      features: "Funzionalità",
+      pricing: "Prezzi",
+      faq: "Domande frequenti",
+      finalCta: "Inizia ora",
+    },
     nav: {
       features: "Funzionalità",
       pricing: "Prezzi",
@@ -395,6 +419,18 @@ const translations: Record<Language, Translations> = {
     },
   },
   en: {
+    landmarks: {
+      mainNavigation: "Main navigation",
+      hero: "Hero",
+      whoUses: "Who uses TaskDesk",
+      problem: "The problem",
+      testimonials: "Testimonials",
+      howItWorks: "How it works",
+      features: "Features",
+      pricing: "Pricing",
+      faq: "Frequently asked questions",
+      finalCta: "Get started",
+    },
     nav: {
       features: "Features",
       pricing: "Pricing",
