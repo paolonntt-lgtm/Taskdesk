@@ -358,7 +358,7 @@ const translations: Record<Language, Translations> = {
     },
     seo: {
       title: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
-      description: "Raccogli le richieste dei clienti in un unico posto, assegnale al team e traccia ogni pratica. Per studi commerciali e agenzie. Da €35/mese + IVA, 7 giorni gratis.",
+      description: "Raccogli le richieste dei clienti, assegnale al team e traccia ogni pratica. Per studi commerciali e agenzie. Da €35/mese + IVA, 7 giorni gratis.",
       keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, software consulenza, gestione richieste clienti, sistema ticket studio commercialista",
       ogTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
       ogDescription: "Gestisci pratiche e richieste senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.",
@@ -597,7 +597,7 @@ const translations: Record<Language, Translations> = {
     },
     seo: {
       title: "TaskDesk — Practice Management for Firms & Agencies",
-      description: "Collect every client request in one place, assign it to your team and track it to completion. Built for accounting firms and agencies. From €35/month + VAT, 7-day free trial.",
+      description: "Collect every client request in one place, assign it to your team, and track it to completion. Built for accounting firms and agencies. 7-day free trial.",
       keywords: "software for accounting firms, client request management, ticketing for agencies, consulting software, client task tracking, accountant ticket system",
       ogTitle: "TaskDesk — Practice Management for Firms & Agencies",
       ogDescription: "Manage client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.",
