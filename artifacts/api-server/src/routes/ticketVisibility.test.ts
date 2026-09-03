@@ -314,9 +314,35 @@ describe("manual ticket visibility", () => {
     expect(publicDetailResponse.body.id).toBe(publicTicketId);
     expect(publicDetailResponse.body.visibility).toBe("organization");
 
+    const selfAssignedResponse = await request("/api/tickets", userSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Self-assigned manual ticket ${runId}`,
+        description: "A collaborator can assign a new ticket to themselves.",
+        category: "Support",
+        priority: "medium",
+        assignedTo: userId,
+      }),
+    });
+    expect(selfAssignedResponse.status).toBe(201);
+    expect(selfAssignedResponse.body.assignedTo).toBe(userId);
+    createdTicketIds.push(selfAssignedResponse.body.id as number);
+
+    const otherAssignedResponse = await request("/api/tickets", userSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Unauthorized assignment ticket ${runId}`,
+        description: "A collaborator cannot assign a new ticket to someone else.",
+        category: "Support",
+        priority: "medium",
+        assignedTo: adminId,
+      }),
+    });
+    expect(otherAssignedResponse.status).toBe(403);
+
     const dashboardResponse = await request("/api/stats/dashboard", userSessionId);
     expect(dashboardResponse.status).toBe(200);
-    expect(dashboardResponse.body.totalTickets).toBe(1);
+    expect(dashboardResponse.body.totalTickets).toBe(2);
 
     const recentTicketsResponse = await request("/api/stats/recent-tickets", userSessionId);
     expect(recentTicketsResponse.status).toBe(200);

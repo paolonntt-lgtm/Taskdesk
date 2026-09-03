@@ -76,6 +76,7 @@ export default function NewTicket() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
   const [checklistError, setChecklistError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [checklistForceExpand, setChecklistForceExpand] = useState(false);
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
@@ -271,6 +272,7 @@ export default function NewTicket() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setChecklistError(false);
+    setSubmitError(null);
     try {
       const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
       const finalTitle = selectedClient
@@ -336,6 +338,16 @@ export default function NewTicket() {
       setLocation(`/tickets/${result.id}`);
     } catch (err) {
       console.error(err);
+      const apiError = err as {
+        data?: { error?: string; message?: string };
+        message?: string;
+      };
+      setSubmitError(
+        apiError.data?.message ??
+          apiError.data?.error ??
+          apiError.message ??
+          t.newTicket.createError,
+      );
     }
   };
 
@@ -505,6 +517,11 @@ export default function NewTicket() {
             {checklistError && (
               <Alert severity="warning" onClose={() => setChecklistError(false)}>
                 {t.newTicket.checklistError}
+              </Alert>
+            )}
+            {submitError && (
+              <Alert severity="error" onClose={() => setSubmitError(null)}>
+                {submitError}
               </Alert>
             )}
           </Box>

@@ -315,8 +315,8 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   if (assignedTo) {
-    if (currentUser.role !== "admin") {
-      res.status(403).json({ error: "Only admins can assign tickets" });
+    if (currentUser.role !== "admin" && assignedTo !== currentUser.id) {
+      res.status(403).json({ error: "Only admins can assign tickets to other users" });
       return;
     }
     const orgId = currentUser.organizationId;
@@ -327,6 +327,11 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
       res.status(400).json({ error: "Assignee not found in organization" });
       return;
     }
+  }
+
+  if (assignedToGroup && currentUser.role !== "admin") {
+    res.status(403).json({ error: "Only admins can assign tickets to groups" });
+    return;
   }
 
   if (clientId != null) {
