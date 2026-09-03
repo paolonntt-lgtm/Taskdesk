@@ -31,6 +31,9 @@ SMTP_PORT = "587"
 INBOUND_EMAIL_ORG_ID = "3"
 INBOUND_EMAIL_DOMAIN = "taskdesk.uk"
 
+[userenv.production]
+STAGING_PROTECTION = "1"
+
 [[ports]]
 localPort = 8080
 externalPort = 8080

@@ -1,5 +1,23 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { Request } from "express";
+
+/**
+ * Global API budget: protects every endpoint, including routes added later,
+ * while the narrower limiters below protect especially expensive operations.
+ * The built-in IP key uses IPv6-safe subnet normalization.
+ */
+export const apiRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) =>
+    req.method === "OPTIONS" ||
+    req.path === "/healthz" ||
+    req.path === "/stripe/webhook" ||
+    req.path === "/inbound-email",
+  message: { message: "Troppe richieste. Riprova tra qualche secondo." },
+});
 
 /**
  * Login: 10 attempts per 15 minutes per IP.
@@ -66,9 +84,30 @@ export const botChatRateLimiter = rateLimit({
   validate: { ip: false },
   keyGenerator: (req: Request) => {
     const user = (req as any).currentUser;
-    return user?.id != null ? `user:${user.id}` : (req.ip ?? "unknown");
+    return user?.id != null
+      ? `user:${user.id}`
+      : `ip:${ipKeyGenerator(req.ip ?? "unknown")}`;
   },
   message: { message: "Troppe richieste al bot. Riprova tra qualche secondo." },
+});
+
+/**
+ * AI title suggestions have a separate budget because each request consumes
+ * an external paid model call.
+ */
+export const aiSuggestRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { ip: false },
+  keyGenerator: (req: Request) => {
+    const user = (req as any).currentUser;
+    return user?.id != null
+      ? `user:${user.id}`
+      : `ip:${ipKeyGenerator(req.ip ?? "unknown")}`;
+  },
+  message: { message: "Troppe richieste AI. Riprova tra qualche secondo." },
 });
 
 /**

@@ -5,6 +5,8 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { WebhookHandlers } from "./webhookHandlers";
 import { logger } from "./lib/logger";
+import { apiRateLimiter } from "./lib/rateLimiter";
+import { securityHeaders, stagingProtection } from "./lib/stagingProtection";
 
 const app: Express = express();
 
@@ -64,6 +66,11 @@ app.use((req, _res, next) => {
   }
   next();
 });
+
+// Apply privacy/security headers to every API response and fail closed on
+// explicitly configured staging hosts (or unknown production hosts).
+app.use(securityHeaders);
+app.use(stagingProtection);
 
 app.use(
   pinoHttp({
@@ -142,6 +149,6 @@ app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
-app.use("/api", router);
+app.use("/api", apiRateLimiter, router);
 
 export default app;

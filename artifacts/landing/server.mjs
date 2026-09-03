@@ -2,12 +2,18 @@ import express from "express";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { existsSync } from "fs";
+import { enforceStagingAccess } from "../web-security.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT ?? 18150);
 const distPublic = resolve(__dirname, "dist/public");
 
 const app = express();
+
+app.use((req, res, next) => {
+  if (enforceStagingAccess(req, res, { healthPaths: ["/healthz"] })) return;
+  next();
+});
 
 // Health check
 app.get("/healthz", (_req, res) => {

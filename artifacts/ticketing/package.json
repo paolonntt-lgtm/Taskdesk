@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node ../../scripts/security-check.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -48,10 +48,10 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
-    "@tiptap/extension-underline": "^3.27.3",
-    "@tiptap/pm": "^3.27.3",
-    "@tiptap/react": "^3.27.3",
-    "@tiptap/starter-kit": "^3.27.3",
+    "@tiptap/extension-underline": "^3.30.4",
+    "@tiptap/pm": "^3.30.4",
+    "@tiptap/react": "^3.30.4",
+    "@tiptap/starter-kit": "^3.30.4",
     "@types/dompurify": "^3.0.5",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

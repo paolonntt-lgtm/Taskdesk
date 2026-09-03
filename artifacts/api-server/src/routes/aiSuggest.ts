@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
+import { aiSuggestRateLimiter } from "../lib/rateLimiter";
 import OpenAI from "openai";
 import { z } from "zod/v4";
 
@@ -15,7 +16,7 @@ const bodySchema = z.object({
   category: z.string().optional(),
 });
 
-router.post("/ai/suggest-title", requireAuth, async (req, res): Promise<void> => {
+router.post("/ai/suggest-title", requireAuth, aiSuggestRateLimiter, async (req, res): Promise<void> => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid input" });

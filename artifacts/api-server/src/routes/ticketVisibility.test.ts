@@ -224,6 +224,20 @@ describe("manual ticket visibility", () => {
       .insert(ticketChecklistsTable)
       .values({ ticketId: privateTicketId, orgId: organizationId, title: "Private checklist" })
       .returning({ id: ticketChecklistsTable.id });
+    await objectStorageService.uploadBuffer(
+      `${runId}/private.txt`,
+      Buffer.from("Private attachment"),
+      "text/plain",
+    );
+    privateAttachmentUploaded = true;
+    await db.insert(ticketAttachmentsTable).values({
+      ticketId: privateTicketId,
+      uploadedBy: adminId,
+      objectPath: privateAttachmentObjectPath,
+      fileName: "private.txt",
+      fileSize: Buffer.byteLength("Private attachment"),
+      mimeType: "text/plain",
+    });
 
     const [privateNotification] = await db.insert(notificationsTable).values({
       userId,
@@ -260,12 +274,63 @@ describe("manual ticket visibility", () => {
     expect(searchResponse.body.tickets).toEqual([]);
 
     const notificationsResponse = await request("/api/notifications", userSessionId);
+    expect(notificationsResponse.status).toBe(200);
+    expect(notificationsResponse.body).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ notificationText: privateTitle })]),
+    );
 
+    const [visibleNotification] = await db.insert(notificationsTable).values({
+      userId,
+      type: "system",
+      notificationText: `Visible notification ${runId}`,
+    }).returning({ id: notificationsTable.id });
     const singleReadResponse = await request(
       `/api/notifications/${visibleNotification.id}/read`,
       userSessionId,
       { method: "PATCH" },
     );
+    expect(singleReadResponse.status).toBe(200);
+
+    const [adminPrivateNotification] = await db.insert(notificationsTable).values({
+      userId: adminId,
+      ticketId: privateTicketId,
+      type: "ticket_commented",
+      notificationText: privateTitle,
+    }).returning({ id: notificationsTable.id });
+    const [adminOwnedNotification] = await db.insert(notificationsTable).values({
+      userId: adminId,
+      type: "system",
+      notificationText: `Admin-owned notification ${runId}`,
+    }).returning({ id: notificationsTable.id });
+    const privateReadResponse = await request(
+      `/api/notifications/${privateNotification.id}/read`,
+      userSessionId,
+      { method: "PATCH" },
+    );
+    expect(privateReadResponse.status).toBe(404);
+    const markAllResponse = await request("/api/notifications/read-all", userSessionId, { method: "PATCH" });
+    expect(markAllResponse.status).toBe(200);
+
+    const adminNotificationsResponse = await request("/api/notifications", adminSessionId);
+    expect(adminNotificationsResponse.status).toBe(200);
+    expect(adminNotificationsResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: adminPrivateNotification.id, notificationText: privateTitle }),
+      ]),
+    );
+    const [privateNotificationAfterMarkAll] = await db
+      .select({ isRead: notificationsTable.isRead })
+      .from(notificationsTable)
+      .where(eq(notificationsTable.id, privateNotification.id));
+    expect(privateNotificationAfterMarkAll?.isRead).toBe(false);
+
+    const ownershipResponse = await request(
+      `/api/notifications/${adminOwnedNotification.id}/read`,
+      userSessionId,
+      { method: "PATCH" },
+    );
+    expect(ownershipResponse.status).toBe(404);
+
     const adminResponse = await request(`/api/tickets/${privateTicketId}`, adminSessionId);
     expect(adminResponse.status).toBe(200);
     expect(adminResponse.body.visibility).toBe("admins");
@@ -339,43 +404,3 @@ describe("manual ticket visibility", () => {
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
   }, 60_000);
 });
-
-    const [adminPrivateNotification] = await db.insert(notificationsTable).values({
-      userId: adminId,
-      ticketId: privateTicketId,
-      type: "ticket_commented",
-      notificationText: privateTitle,
-    }).returning({ id: notificationsTable.id });
-
-    const [adminOwnedNotification] = await db.insert(notificationsTable).values({
-      userId: adminId,
-      type: "system",
-      notificationText: `Admin-owned notification ${runId}`,
-    }).returning({ id: notificationsTable.id });
-
-    const privateReadResponse = await request(
-      `/api/notifications/${privateNotification.id}/read`,
-      userSessionId,
-      { method: "PATCH" },
-    );
-
-    const markAllResponse = await request("/api/notifications/read-all", userSessionId, { method: "PATCH" });
-
-    const adminNotificationsResponse = await request("/api/notifications", adminSessionId);
-
-    const [privateNotificationAfterMarkAll] = await db
-      .select({ isRead: notificationsTable.isRead })
-      .from(notificationsTable)
-      .where(eq(notificationsTable.id, privateNotification.id));
-
-    const [visibleNotification] = await db.insert(notificationsTable).values({
-      userId,
-      type: "system",
-      notificationText: `Visible notification ${runId}`,
-    }).returning({ id: notificationsTable.id });
-
-    const ownershipResponse = await request(
-      `/api/notifications/${adminOwnedNotification.id}/read`,
-      userSessionId,
-      { method: "PATCH" },
-    );
