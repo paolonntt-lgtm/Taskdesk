@@ -82,10 +82,26 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
 }
 
 function serveStaticFile(urlPath, res) {
-  const safePath = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, "");
-  const filePath = path.join(STATIC_ROOT, safePath);
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    res.writeHead(400);
+    res.end("Invalid path");
+    return;
+  }
 
-  if (!filePath.startsWith(STATIC_ROOT)) {
+  const relativePath = path.posix.normalize(`/${decodedPath}`).replace(/^\/+/, "");
+  if (relativePath === ".." || relativePath.startsWith("../")) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+
+  const filePath = path.resolve(STATIC_ROOT, relativePath);
+  const staticRootPrefix = `${STATIC_ROOT}${path.sep}`;
+
+  if (filePath !== STATIC_ROOT && !filePath.startsWith(staticRootPrefix)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;

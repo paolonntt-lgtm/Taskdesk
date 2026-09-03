@@ -24,6 +24,8 @@
       "qs": "6.16.0",
       "fast-uri": "3.1.7",
       "decode-uri-component": "0.5.0",
+      "ip-address": "10.7.0",
+      "postcss": "8.5.26",
       "@xmldom/xmldom": "0.9.12"
     }
   }

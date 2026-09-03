@@ -42,6 +42,11 @@ function relative(filePath) {
   return path.relative(workspaceRoot, filePath);
 }
 
+function isExpoManifest(filePath) {
+  const file = relative(filePath).replaceAll(path.sep, "/");
+  return /^artifacts\/mobile\/static-build\/(?:ios|android)\/manifest\.json$/.test(file);
+}
+
 const findings = [];
 const scannedFiles = new Set();
 for (const root of frontendRoots) {
@@ -53,6 +58,9 @@ for (const root of frontendRoots) {
     if (publicNativeConfigFiles.has(path.basename(filePath))) continue;
     const content = fs.readFileSync(filePath, "utf8");
     for (const { name, pattern } of secretPatterns) {
+      // Expo manifests may carry Firebase client configuration needed by the
+      // native runtime. Scan them for actual secrets, but not public API keys.
+      if (name === "Google API key" && isExpoManifest(filePath)) continue;
       if (pattern.test(content)) findings.push(`${name}: ${relative(filePath)}`);
     }
   }
