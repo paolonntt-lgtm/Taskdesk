@@ -2126,7 +2126,7 @@ export const ListClientsResponseItem = zod.object({
 export const ListClientsResponse = zod.array(ListClientsResponseItem);
 
 /**
- * @summary Create a new client (admin only)
+ * @summary Create a new client for the current organization
  */
 
 export const CreateClientBody = zod.object({

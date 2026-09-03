@@ -180,7 +180,9 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
   res.json(clients);
 });
 
-router.post("/clients", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+// Any authenticated organization member can create a client from the client page.
+// Bulk import and destructive/structural operations remain admin-only.
+router.post("/clients", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const parsed = ClientBody.safeParse(req.body);
   if (!parsed.success) {

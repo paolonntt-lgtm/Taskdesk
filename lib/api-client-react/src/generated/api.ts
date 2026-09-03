@@ -5625,7 +5625,7 @@ export function useListClients<
 }
 
 /**
- * @summary Create a new client (admin only)
+ * @summary Create a new client for the current organization
  */
 export const getCreateClientUrl = () => {
   return `/api/clients`;
@@ -5688,7 +5688,7 @@ export type CreateClientMutationBody = BodyType<ClientInput>;
 export type CreateClientMutationError = ErrorType<void>;
 
 /**
- * @summary Create a new client (admin only)
+ * @summary Create a new client for the current organization
  */
 export const useCreateClient = <
   TError = ErrorType<void>,

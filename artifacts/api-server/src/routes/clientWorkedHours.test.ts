@@ -27,6 +27,7 @@ let adminSessionId: string;
 let userSessionId: string;
 let publicTicketId: number;
 let privateTicketId: number;
+const createdClientIds: number[] = [];
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -122,6 +123,9 @@ describe("client worked-hours report", () => {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
     await db.delete(ticketsTable).where(inArray(ticketsTable.id, [publicTicketId, privateTicketId]));
+    if (createdClientIds.length > 0) {
+      await db.delete(clientsTable).where(inArray(clientsTable.id, createdClientIds));
+    }
     await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
     await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
     await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
@@ -159,5 +163,20 @@ describe("client worked-hours report", () => {
     const backup = await buildBackupPayload(organizationId);
     const backupTicket = backup?.data.tickets.find((ticket: any) => ticket.id === publicTicketId);
     expect(backupTicket?.workedBillingStatus).toBe("billed");
+  });
+
+  it("allows a standard organization member to create a client", async () => {
+    const response = await request("/api/clients", userSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Client created by team member",
+        email: "created-by-team@example.test",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.name).toBe("Client created by team member");
+    expect(response.body.organizationId).toBe(organizationId);
+    createdClientIds.push(response.body.id);
   });
 });
