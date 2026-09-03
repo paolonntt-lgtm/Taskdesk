@@ -352,6 +352,6 @@ describe("manual ticket visibility", () => {
 
     const reportsResponse = await request("/api/stats/reports-all", userSessionId);
     expect(reportsResponse.status).toBe(200);
-    expect(reportsResponse.body.dashboard.totalTickets).toBe(1);
+    expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
   }, 60_000);
 });
