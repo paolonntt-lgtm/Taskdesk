@@ -27,6 +27,7 @@ import MiniTour from "./components/MiniTour";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
+import NotificationsPage from "./pages/Notifications";
 import type { User } from "@workspace/api-client-react";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
@@ -94,6 +95,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />
           <Route path="/calendar" component={CalendarPage} />
+          <Route path="/notifications" component={NotificationsPage} />
           <Route path="/users/:id" component={UserProfile} />
           <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
           {(user as any)?.clientsEnabled !== false ? (

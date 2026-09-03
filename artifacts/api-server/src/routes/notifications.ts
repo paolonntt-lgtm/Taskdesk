@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, isNull, or } from "drizzle-orm";
+import { eq, and, desc, isNull, or, inArray } from "drizzle-orm";
 import { db, notificationsTable, ticketsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
@@ -38,6 +38,29 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
 
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+
+  const [ownedNotification] = await db
+    .select({
+      id: notificationsTable.id,
+      ticketVisibility: ticketsTable.visibility,
+    })
+    .from(notificationsTable)
+    .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .limit(1);
+
+  if (
+    !ownedNotification ||
+    (currentUser.role !== "admin" && ownedNotification.ticketVisibility === "admins")
+  ) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+
   const [notification] = await db
     .update(notificationsTable)
     .set({ isRead: true })
@@ -55,10 +78,29 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
 router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
 
-  await db
-    .update(notificationsTable)
-    .set({ isRead: true })
-    .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false)));
+  if (currentUser.role === "admin") {
+    await db
+      .update(notificationsTable)
+      .set({ isRead: true })
+      .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false)));
+  } else {
+    const visibleNotifications = await db
+      .select({ id: notificationsTable.id })
+      .from(notificationsTable)
+      .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+      .where(and(
+        eq(notificationsTable.userId, currentUser.id),
+        eq(notificationsTable.isRead, false),
+        or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
+      ));
+
+    if (visibleNotifications.length > 0) {
+      await db
+        .update(notificationsTable)
+        .set({ isRead: true })
+        .where(inArray(notificationsTable.id, visibleNotifications.map(({ id }) => id)));
+    }
+  }
 
   res.json({ success: true, message: "Tutte le notifiche marcate come lette" });
 });

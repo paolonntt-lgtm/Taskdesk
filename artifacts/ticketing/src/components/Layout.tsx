@@ -53,7 +53,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useListNotifications, useMarkAllNotificationsRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
+import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
@@ -154,6 +154,7 @@ export default function Layout({ children }: LayoutProps) {
   });
 
   const markAllRead = useMarkAllNotificationsRead();
+  const markNotificationRead = useMarkNotificationRead();
   const queryClient = useQueryClient();
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -221,13 +222,6 @@ export default function Layout({ children }: LayoutProps) {
     setNotifAnchorEl(event.currentTarget);
   };
   const handleMenuClose = () => {
-    if (notifAnchorEl && unreadCount > 0) {
-      markAllRead.mutate(undefined, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-        },
-      });
-    }
     setAnchorEl(null);
     setNotifAnchorEl(null);
   };
@@ -235,42 +229,32 @@ export default function Layout({ children }: LayoutProps) {
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
       onSuccess: () => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] | undefined) =>
+          current?.map((notification) => ({ ...notification, isRead: true })),
+        );
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
       },
     });
     handleMenuClose();
   };
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.isRead) {
+      markNotificationRead.mutate({ id: notification.id }, {
+        onSuccess: (updated) => {
+          queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] | undefined) =>
+            current?.map((item) => item.id === updated.id ? { ...item, isRead: true } : item),
+          );
+          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+        },
+      });
+    }
+    handleMenuClose();
+    if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+  };
+  const recentNotifications = useMemo(() => (notifications as any[]).slice(0, 8), [notifications]);
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-
-  // Group notifications by ticketId+type to reduce visual noise
-  const groupedNotifications = useMemo(() => {
-    const groups = new Map<string, {
-      key: string; type: string; ticketId: number | null;
-      notificationText: string; createdAt: string; isRead: boolean;
-      count: number;
-    }>();
-    for (const n of notifications as any[]) {
-      const key = n.ticketId ? `${n.ticketId}_${n.type ?? 'system'}` : `sys_${n.id}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          key, type: n.type ?? 'system', ticketId: n.ticketId ?? null,
-          notificationText: n.notificationText, createdAt: n.createdAt,
-          isRead: !!n.isRead, count: 1,
-        });
-      } else {
-        const g = groups.get(key)!;
-        g.count++;
-        if (!n.isRead) g.isRead = false;
-        if (new Date(n.createdAt) > new Date(g.createdAt)) {
-          g.createdAt = n.createdAt;
-          g.notificationText = n.notificationText;
-        }
-      }
-    }
-    return Array.from(groups.values());
-  }, [notifications]);
 
   const typeIconMap: Record<string, React.ReactNode> = {
     ticket_created: <FiberNew fontSize="small" sx={{ color: 'primary.main' }} />,
@@ -288,6 +272,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
+    { text: t.nav.notifications, icon: <Notifications />,    path: '/notifications', adminOnly: false },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
       : []),
@@ -577,47 +562,46 @@ export default function Layout({ children }: LayoutProps) {
                 <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
               </MenuItem>
             ) : (
-              groupedNotifications.map((g) => {
-                const ntype = g.type;
+              recentNotifications.map((notification: any) => {
+                const ntype = notification.type ?? 'system';
                 return (
                   <MenuItem
-                    key={g.key}
-                    onClick={() => { handleMenuClose(); if (g.ticketId) setLocation(`/tickets/${g.ticketId}`); }}
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
                     sx={{
                       whiteSpace: 'normal', py: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.25,
-                      bgcolor: g.isRead ? 'transparent' : 'primary.50',
-                      borderLeft: g.isRead ? 'none' : '3px solid',
+                      bgcolor: notification.isRead ? 'transparent' : 'primary.50',
+                      borderLeft: notification.isRead ? 'none' : '3px solid',
                       borderLeftColor: 'primary.main',
                     }}
                   >
                     <Box sx={{ mt: '2px', flexShrink: 0 }}>
-                      <Badge
-                        badgeContent={g.count > 1 ? g.count : 0}
-                        color="primary"
-                        sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 16, height: 16 } }}
-                      >
-                        {typeIconMap[ntype] ?? typeIconMap.system}
-                      </Badge>
+                      {typeIconMap[ntype] ?? typeIconMap.system}
                     </Box>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem', mb: 0.25 }}>
                         {(t.nav.notifTypes as any)[ntype] ?? ntype}
                       </Typography>
                       <Typography variant="body2">
-                        {g.count > 1
-                          ? ((t.nav.notifTypesGrouped as any)[ntype]?.(g.count) ?? `${g.count}×`)
-                            + (g.ticketId ? t.nav.notifGroupSuffix(g.ticketId) : '')
-                          : g.notificationText}
+                        {notification.notificationText}
                       </Typography>
-                      {g.createdAt && (
+                      {notification.createdAt && (
                         <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', mt: 0.25, display: 'block' }}>
-                          {new Date(g.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+                          {new Date(notification.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
                         </Typography>
                       )}
                     </Box>
                   </MenuItem>
                 );
               })
+            )}
+            {notifications.length > 0 && (
+              <>
+                <Divider />
+                <MenuItem onClick={() => { handleMenuClose(); setLocation('/notifications'); }} sx={{ justifyContent: 'center', color: 'primary.main', fontWeight: 700 }}>
+                  {t.notifications.viewAll}
+                </MenuItem>
+              </>
             )}
           </Menu>
 
