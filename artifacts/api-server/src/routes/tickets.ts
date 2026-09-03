@@ -7,6 +7,7 @@ import { createNotificationsForSubscribers, createNotificationForUser, subscribe
 import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { hasGroupPermission } from "../lib/groupPermissions";
+import { isValidWorkedMinutes } from "../lib/workedTime";
 
 const router: IRouter = Router();
 
@@ -25,6 +26,7 @@ const TICKET_LIST_COLS = {
   assignedTo: ticketsTable.assignedTo,
   assignedToGroup: ticketsTable.assignedToGroup,
   resolutionNote: ticketsTable.resolutionNote,
+  workedMinutes: ticketsTable.workedMinutes,
   dueAt: ticketsTable.dueAt,
   createdAt: ticketsTable.createdAt,
   updatedAt: ticketsTable.updatedAt,
@@ -609,6 +611,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (rawStatus !== undefined) {
     (parsed.data as any).status = rawStatus;
   }
+  if (!isValidWorkedMinutes(parsed.data.workedMinutes)) {
+    res.status(400).json({ error: "Invalid request", message: "workedMinutes must be a non-negative integer" });
+    return;
+  }
 
   const [existing] = await db.select().from(ticketsTable).where(
     and(
@@ -663,6 +669,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.priority !== undefined && { priority: parsed.data.priority }),
         ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
+        ...(parsed.data.workedMinutes !== undefined && { workedMinutes: parsed.data.workedMinutes }),
         // Assignees with group status permission can also manage due date
         ...(isAssignee && parsed.data.dueAt !== undefined && { dueAt: parsed.data.dueAt }),
       }
@@ -671,6 +678,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         // Assignee can change status, add a resolution note, and set/clear the due date
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.resolutionNote !== undefined && { resolutionNote: parsed.data.resolutionNote }),
+        ...(parsed.data.workedMinutes !== undefined && { workedMinutes: parsed.data.workedMinutes }),
         ...(parsed.data.dueAt !== undefined && { dueAt: parsed.data.dueAt }),
       }
     : existing.createdBy === currentUser.id

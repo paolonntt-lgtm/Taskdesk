@@ -508,6 +508,7 @@ export const ListTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -633,6 +634,7 @@ export const GetTicketResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -720,6 +722,8 @@ export const UpdateTicketParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const updateTicketBodyWorkedMinutesMin = 0;
+
 export const UpdateTicketBody = zod.object({
   title: zod.string().optional(),
   description: zod.string().optional(),
@@ -731,6 +735,7 @@ export const UpdateTicketBody = zod.object({
   assignedTo: zod.number().nullish(),
   assignedToGroup: zod.string().nullish(),
   resolutionNote: zod.string().nullish(),
+  workedMinutes: zod.number().min(updateTicketBodyWorkedMinutesMin).nullish(),
   dueAt: zod.coerce.date().nullish(),
   clientId: zod.number().nullish(),
 });
@@ -755,6 +760,7 @@ export const UpdateTicketResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -885,6 +891,7 @@ export const SetTicketRecurrenceResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -992,6 +999,7 @@ export const DeleteTicketRecurrenceResponse = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1684,6 +1692,7 @@ export const GetRecentTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1788,6 +1797,7 @@ export const GetMyTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1892,6 +1902,7 @@ export const GetDueSoonTicketsResponseItem = zod
     closedAt: zod.coerce.date().nullish(),
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
+    workedMinutes: zod.number().nullish(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({

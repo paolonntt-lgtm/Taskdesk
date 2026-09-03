@@ -29,6 +29,7 @@ export interface Ticket {
   closedAt?: Date | null;
   dueAt?: Date | null;
   resolutionNote?: string | null;
+  workedMinutes?: number | null;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: Date | null;

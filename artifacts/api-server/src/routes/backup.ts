@@ -118,6 +118,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         createdBy: currentUser.id,
         assignedTo: null,
         resolutionNote: t.resolutionNote ?? null,
+        workedMinutes: t.workedMinutes ?? null,
         dueAt: t.dueAt ? new Date(t.dueAt) : null,
         closedAt: t.closedAt ? new Date(t.closedAt) : null,
         clientId: t.clientId != null ? (clientIdMap.get(t.clientId) ?? null) : null,

@@ -2618,6 +2618,9 @@ components:
         resolutionNote:
           type: string
           nullable: true
+        workedMinutes:
+          type: integer
+          nullable: true
         clientId:
           type: integer
           nullable: true
@@ -2737,6 +2740,10 @@ components:
           nullable: true
         resolutionNote:
           type: string
+          nullable: true
+        workedMinutes:
+          type: integer
+          minimum: 0
           nullable: true
         dueAt:
           type: string

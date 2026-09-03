@@ -229,6 +229,7 @@ export interface Ticket {
   closedAt?: string | null;
   dueAt?: string | null;
   resolutionNote?: string | null;
+  workedMinutes?: number | null;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: string | null;
@@ -307,6 +308,8 @@ export interface UpdateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   resolutionNote?: string | null;
+  /** @minimum 0 */
+  workedMinutes?: number | null;
   dueAt?: string | null;
   clientId?: number | null;
 }

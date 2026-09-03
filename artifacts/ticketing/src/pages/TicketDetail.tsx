@@ -4,7 +4,7 @@ import {
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
-  FormControlLabel, Checkbox, Autocomplete, Link as MuiLink,
+  FormControlLabel, FormHelperText, Checkbox, Autocomplete, Link as MuiLink,
   useTheme, useMediaQuery,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -55,6 +55,36 @@ function toLocalDatetimeInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function splitWorkedMinutes(total: number | null | undefined): { hours: string; minutes: string } {
+  if (total == null || !Number.isFinite(total) || total < 0) return { hours: '', minutes: '' };
+  return { hours: String(Math.floor(total / 60)), minutes: String(total % 60) };
+}
+
+function parseWorkedDuration(hoursText: string, minutesText: string): { total: number | null; error?: 'hours' | 'minutes' } {
+  if (!hoursText.trim() && !minutesText.trim()) return { total: null };
+  const hours = hoursText.trim() ? Number(hoursText) : 0;
+  const minutes = minutesText.trim() ? Number(minutesText) : 0;
+  if (!Number.isInteger(hours) || hours < 0) return { total: null, error: 'hours' };
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return { total: null, error: 'minutes' };
+  return { total: hours * 60 + minutes };
+}
+
+function formatWorkedDuration(total: number, lang: 'it' | 'en'): string {
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (lang === 'it') {
+    const hourLabel = hours === 1 ? 'ora' : 'ore';
+    if (hours === 0) return `${minutes} minuti`;
+    if (minutes === 0) return `${hours} ${hourLabel}`;
+    return `${hours} ${hourLabel} e ${minutes} minuti`;
+  }
+  const hourLabel = hours === 1 ? 'hour' : 'hours';
+  const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
+  if (hours === 0) return `${minutes} ${minuteLabel}`;
+  if (minutes === 0) return `${hours} ${hourLabel}`;
+  return `${hours} ${hourLabel} and ${minutes} ${minuteLabel}`;
+}
+
 // Matches both legacy format (header\n\nbody) and new format (header\n\n---\n\nbody)
 const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n(?:---\n\n)?([\s\S]*)$/;
 function parseCustomerReply(text: string): { name: string; email: string; body: string } | null {
@@ -85,6 +115,9 @@ export default function TicketDetail() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
+  const [workedHours, setWorkedHours] = useState('');
+  const [workedMinutes, setWorkedMinutes] = useState('');
+  const [workedTimeError, setWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
   const [visibilityDialog, setVisibilityDialog] = useState(false);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
 
@@ -99,11 +132,12 @@ export default function TicketDetail() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '', workedHours: '', workedMinutes: '' });
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editWorkedTimeError, setEditWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
   const [dueEditVal, setDueEditVal] = useState<string>('');
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
@@ -281,6 +315,10 @@ export default function TicketDetail() {
     if (newStatus === ticket.status) return;
     if (isClosedKey(newStatus) && !isClosedKey(ticket.status)) {
       setResolutionNote('');
+      const initialWorkedTime = splitWorkedMinutes((ticket as any).workedMinutes);
+      setWorkedHours(initialWorkedTime.hours);
+      setWorkedMinutes(initialWorkedTime.minutes);
+      setWorkedTimeError(null);
       setResolutionDialog(true);
       return;
     }
@@ -295,15 +333,23 @@ export default function TicketDetail() {
 
   const confirmResolved = async (note: string) => {
     const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
+    const workedTime = parseWorkedDuration(workedHours, workedMinutes);
+    if (workedTime.error) {
+      setWorkedTimeError(workedTime.error);
+      return;
+    }
     try {
       await updateTicket.mutateAsync({
         id: ticketId,
-        data: { status: resolvedKey as any, resolutionNote: note || null } as any,
+        data: { status: resolvedKey as any, resolutionNote: note || null, workedMinutes: workedTime.total } as any,
       });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setResolutionDialog(false);
       setResolutionNote('');
+      setWorkedHours('');
+      setWorkedMinutes('');
+      setWorkedTimeError(null);
     } catch (err: any) {
       setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
     }
@@ -450,6 +496,7 @@ export default function TicketDetail() {
   };
 
   const openEditDialog = () => {
+    const initialWorkedTime = splitWorkedMinutes((ticket as any).workedMinutes);
     setEditForm({
       title: ticket.title,
       description: ticket.description,
@@ -458,14 +505,24 @@ export default function TicketDetail() {
       resource: (ticket as any).resource || '',
       clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
       dueAt: (ticket as any).dueAt ? new Date((ticket as any).dueAt).toISOString().slice(0, 16) : '',
+      workedHours: initialWorkedTime.hours,
+      workedMinutes: initialWorkedTime.minutes,
     });
     setEditError(null);
+    setEditWorkedTimeError(null);
     setEditDialog(true);
   };
 
   const handleEditSave = async () => {
     setEditSaving(true);
     setEditError(null);
+    const workedTime = parseWorkedDuration(editForm.workedHours, editForm.workedMinutes);
+    if (workedTime.error) {
+      setEditWorkedTimeError(workedTime.error);
+      setEditSaving(false);
+      return;
+    }
+    setEditWorkedTimeError(null);
     try {
       const existingClientId = (ticket as any).clientId ?? null;
       const newClientId = editForm.clientId ? parseInt(editForm.clientId) : null;
@@ -506,6 +563,7 @@ export default function TicketDetail() {
           resource: editForm.resource || undefined,
           clientId: newClientId,
           dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
+          ...(isAdmin && { workedMinutes: workedTime.total }),
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
@@ -861,7 +919,7 @@ export default function TicketDetail() {
               )}
 
               {/* Scadenza + chip */}
-              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt) && (
+              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt || (ticket as any).workedMinutes != null) && (
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                   {(ticket as any).dueAt && (
                     <Box component="span"
@@ -884,6 +942,11 @@ export default function TicketDetail() {
                     <Tooltip title={`${t.ticketList.scheduledBadgeTooltip} ${new Date((ticket as any).scheduledAt).toLocaleDateString(dateLocale)}`} placement="top" arrow>
                       <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
                     </Tooltip>
+                  )}
+                  {(ticket as any).workedMinutes != null && (
+                    <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: 'success.dark' }}>
+                      ⏱ {t.ticketDetail.workedTime}: {formatWorkedDuration((ticket as any).workedMinutes, lang)}
+                    </Box>
                   )}
                 </Box>
               )}
@@ -1532,6 +1595,32 @@ export default function TicketDetail() {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>{t.ticketDetail.resolutionNoteSubtitle}</Typography>
           <TextField fullWidth multiline rows={4} placeholder={t.ticketDetail.resolutionNotePlaceholder} value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} autoFocus />
+          <Typography variant="body2" color="text.secondary" mt={2} mb={1}>{t.ticketDetail.workedTimeOptional}</Typography>
+          <Box display="flex" gap={1.5}>
+            <TextField
+              label={t.ticketDetail.workedHours}
+              type="number"
+              size="small"
+              value={workedHours}
+              onChange={(e) => { setWorkedHours(e.target.value); setWorkedTimeError(null); }}
+              disabled={updateTicket.isPending}
+              inputProps={{ min: 0, step: 1 }}
+              error={workedTimeError === 'hours'}
+              fullWidth
+            />
+            <TextField
+              label={t.ticketDetail.workedMinutes}
+              type="number"
+              size="small"
+              value={workedMinutes}
+              onChange={(e) => { setWorkedMinutes(e.target.value); setWorkedTimeError(null); }}
+              disabled={updateTicket.isPending}
+              inputProps={{ min: 0, max: 59, step: 1 }}
+              error={workedTimeError === 'minutes'}
+              fullWidth
+            />
+          </Box>
+          {workedTimeError && <FormHelperText error>{workedTimeError === 'hours' ? t.ticketDetail.workedHoursError : t.ticketDetail.workedMinutesError}</FormHelperText>}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
@@ -1624,6 +1713,36 @@ export default function TicketDetail() {
             </TextField>
           )}
           <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
+          {isAdmin && (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t.ticketDetail.workedTime}</Typography>
+              <Box display="flex" gap={1.5}>
+                <TextField
+                  label={t.ticketDetail.workedHours}
+                  type="number"
+                  size="small"
+                  value={editForm.workedHours}
+                  onChange={(e) => { setEditForm((f) => ({ ...f, workedHours: e.target.value })); setEditWorkedTimeError(null); }}
+                  disabled={editSaving}
+                  inputProps={{ min: 0, step: 1 }}
+                  error={editWorkedTimeError === 'hours'}
+                  fullWidth
+                />
+                <TextField
+                  label={t.ticketDetail.workedMinutes}
+                  type="number"
+                  size="small"
+                  value={editForm.workedMinutes}
+                  onChange={(e) => { setEditForm((f) => ({ ...f, workedMinutes: e.target.value })); setEditWorkedTimeError(null); }}
+                  disabled={editSaving}
+                  inputProps={{ min: 0, max: 59, step: 1 }}
+                  error={editWorkedTimeError === 'minutes'}
+                  fullWidth
+                />
+              </Box>
+              {editWorkedTimeError && <FormHelperText error>{editWorkedTimeError === 'hours' ? t.ticketDetail.workedHoursError : t.ticketDetail.workedMinutesError}</FormHelperText>}
+            </>
+          )}
           {(isAdmin || isAssignee) && (
             <TextField type="datetime-local" label={t.ticketDetail.dueAtLabel} fullWidth size="small" value={editForm.dueAt} onChange={(e) => setEditForm((f) => ({ ...f, dueAt: e.target.value }))} disabled={editSaving} InputLabelProps={{ shrink: true }} />
           )}

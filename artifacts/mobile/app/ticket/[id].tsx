@@ -23,6 +23,7 @@ interface Ticket {
   priority: string; status: string;
   createdAt: string; closedAt?: string;
   resolutionNote?: string | null;
+  workedMinutes?: number | null;
   creator: { name: string }; assignee?: { name: string } | null;
   assignedToGroup?: string | null;
   commentCount: number;
@@ -33,6 +34,19 @@ interface Ticket {
 interface Comment {
   id: number; commentText: string; isInternal: boolean;
   author: { name: string }; createdAt: string;
+}
+
+function formatWorkedDuration(total: number, lang: string): string {
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (lang === "it") {
+    if (hours === 0) return `${minutes} minuti`;
+    if (minutes === 0) return `${hours} ${hours === 1 ? "ora" : "ore"}`;
+    return `${hours} ${hours === 1 ? "ora" : "ore"} e ${minutes} minuti`;
+  }
+  if (hours === 0) return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  if (minutes === 0) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return `${hours} ${hours === 1 ? "hour" : "hours"} and ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }
 
 export default function TicketDetailScreen() {
@@ -49,6 +63,9 @@ export default function TicketDetailScreen() {
 
   const [resolutionModal, setResolutionModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
+  const [workedHours, setWorkedHours] = useState("");
+  const [workedMinutes, setWorkedMinutes] = useState("");
+  const [workedTimeError, setWorkedTimeError] = useState(false);
   const [resolving, setResolving] = useState(false);
 
   // Recurrence modal state
@@ -209,6 +226,9 @@ export default function TicketDetailScreen() {
     if (!ticket || ticket.status === status) return;
     if (isClosedKey(status) && !isClosedKey(ticket.status)) {
       setResolutionNote("");
+      setWorkedHours(ticket.workedMinutes == null ? "" : String(Math.floor(ticket.workedMinutes / 60)));
+      setWorkedMinutes(ticket.workedMinutes == null ? "" : String(ticket.workedMinutes % 60));
+      setWorkedTimeError(false);
       setResolutionModal(true);
       return;
     }
@@ -224,6 +244,16 @@ export default function TicketDetailScreen() {
   };
 
   const confirmResolved = async (note: string) => {
+    const hours = workedHours.trim() ? Number(workedHours) : 0;
+    const minutes = workedMinutes.trim() ? Number(workedMinutes) : 0;
+    if (
+      (workedHours.trim() || workedMinutes.trim()) &&
+      (!Number.isInteger(hours) || hours < 0 || !Number.isInteger(minutes) || minutes < 0 || minutes > 59)
+    ) {
+      setWorkedTimeError(true);
+      return;
+    }
+    const totalWorkedMinutes = workedHours.trim() || workedMinutes.trim() ? hours * 60 + minutes : null;
     setResolving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const closedStatusKey = orgStatuses.find((s) => s.isClosed)?.key ?? "resolved";
@@ -231,6 +261,7 @@ export default function TicketDetailScreen() {
       await apiPatch(`/tickets/${id}`, {
         status: closedStatusKey,
         resolutionNote: note || null,
+        workedMinutes: totalWorkedMinutes,
       });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
@@ -369,6 +400,7 @@ export default function TicketDetailScreen() {
     },
     { label: t.ticketDetail.date, value: formatDate(ticket.createdAt) },
     ...(ticket.resource ? [{ label: t.ticketDetail.resource, value: ticket.resource }] : []),
+    ...(ticket.workedMinutes != null ? [{ label: t.ticketDetail.workedTime, value: formatWorkedDuration(ticket.workedMinutes, lang) }] : []),
   ];
 
   return (
@@ -878,6 +910,26 @@ export default function TicketDetailScreen() {
                 textAlignVertical="top"
                 autoFocus
               />
+              <Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
+              <View style={s.durationRow}>
+                <TextInput
+                  style={[s.durationInput, workedTimeError && s.durationInputError]}
+                  value={workedHours}
+                  onChangeText={(value) => { setWorkedHours(value); setWorkedTimeError(false); }}
+                  placeholder={t.ticketDetail.workedHours}
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                />
+                <TextInput
+                  style={[s.durationInput, workedTimeError && s.durationInputError]}
+                  value={workedMinutes}
+                  onChangeText={(value) => { setWorkedMinutes(value); setWorkedTimeError(false); }}
+                  placeholder={t.ticketDetail.workedMinutes}
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                />
+              </View>
+              {workedTimeError && <Text style={s.durationError}>{t.ticketDetail.workedTimeError}</Text>}
             </View>
 
             <View style={s.modalFooter}>
@@ -972,6 +1024,15 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     modalContent: { flex: 1, padding: 24, gap: 16 },
     modalIconRow: { alignItems: "center", paddingVertical: 8 },
     modalSubtitle: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20, textAlign: "center" },
+    workedTimeHint: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    durationRow: { flexDirection: "row", gap: 12 },
+    durationInput: {
+      flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular",
+    },
+    durationInputError: { borderColor: colors.destructive },
+    durationError: { fontSize: 12, color: colors.destructive, fontFamily: "Inter_400Regular" },
     modalInput: {
       backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
       borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,

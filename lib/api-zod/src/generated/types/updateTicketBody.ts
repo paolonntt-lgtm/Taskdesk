@@ -19,6 +19,8 @@ export interface UpdateTicketBody {
   assignedTo?: number | null;
   assignedToGroup?: string | null;
   resolutionNote?: string | null;
+  /** @minimum 0 */
+  workedMinutes?: number | null;
   dueAt?: Date | null;
   clientId?: number | null;
 }
