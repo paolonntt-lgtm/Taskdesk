@@ -9,6 +9,7 @@ import type { RecurrenceRule } from "./recurrenceRule";
 import type { TicketPriority } from "./ticketPriority";
 import type { TicketStatus } from "./ticketStatus";
 import type { TicketVisibility } from "./ticketVisibility";
+import type { TicketWorkedBillingStatus } from "./ticketWorkedBillingStatus";
 
 export interface Ticket {
   id: number;
@@ -30,6 +31,7 @@ export interface Ticket {
   dueAt?: Date | null;
   resolutionNote?: string | null;
   workedMinutes?: number | null;
+  workedBillingStatus?: TicketWorkedBillingStatus;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: Date | null;

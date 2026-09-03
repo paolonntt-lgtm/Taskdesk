@@ -210,6 +210,14 @@ export const TicketVisibility = {
   admins: "admins",
 } as const;
 
+export type TicketWorkedBillingStatus =
+  (typeof TicketWorkedBillingStatus)[keyof typeof TicketWorkedBillingStatus];
+
+export const TicketWorkedBillingStatus = {
+  unbilled: "unbilled",
+  billed: "billed",
+} as const;
+
 export interface Ticket {
   id: number;
   ticketNumber?: number | null;
@@ -230,6 +238,7 @@ export interface Ticket {
   dueAt?: string | null;
   resolutionNote?: string | null;
   workedMinutes?: number | null;
+  workedBillingStatus?: TicketWorkedBillingStatus;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: string | null;
@@ -839,6 +848,22 @@ export type ImportClientsBody = {
   rows: ClientImportRow[];
 };
 
+export type GetClient200TicketsItemWorkedBillingStatus =
+  (typeof GetClient200TicketsItemWorkedBillingStatus)[keyof typeof GetClient200TicketsItemWorkedBillingStatus];
+
+export const GetClient200TicketsItemWorkedBillingStatus = {
+  unbilled: "unbilled",
+  billed: "billed",
+} as const;
+
+export type GetClient200TicketsItemVisibility =
+  (typeof GetClient200TicketsItemVisibility)[keyof typeof GetClient200TicketsItemVisibility];
+
+export const GetClient200TicketsItemVisibility = {
+  organization: "organization",
+  admins: "admins",
+} as const;
+
 export type GetClient200TicketsItem = {
   id?: number;
   ticketNumber?: number | null;
@@ -847,11 +872,40 @@ export type GetClient200TicketsItem = {
   priority?: string;
   category?: string;
   createdAt?: string;
+  closedAt?: string | null;
+  workedMinutes?: number | null;
+  workedBillingStatus?: GetClient200TicketsItemWorkedBillingStatus;
+  visibility?: GetClient200TicketsItemVisibility;
   assignedToName?: string | null;
 };
 
 export type GetClient200 = Client & {
   tickets?: GetClient200TicketsItem[];
+};
+
+export type UpdateClientTicketBillingStatusBodyStatus =
+  (typeof UpdateClientTicketBillingStatusBodyStatus)[keyof typeof UpdateClientTicketBillingStatusBodyStatus];
+
+export const UpdateClientTicketBillingStatusBodyStatus = {
+  unbilled: "unbilled",
+  billed: "billed",
+} as const;
+
+export type UpdateClientTicketBillingStatusBody = {
+  status: UpdateClientTicketBillingStatusBodyStatus;
+};
+
+export type UpdateClientTicketBillingStatus200WorkedBillingStatus =
+  (typeof UpdateClientTicketBillingStatus200WorkedBillingStatus)[keyof typeof UpdateClientTicketBillingStatus200WorkedBillingStatus];
+
+export const UpdateClientTicketBillingStatus200WorkedBillingStatus = {
+  unbilled: "unbilled",
+  billed: "billed",
+} as const;
+
+export type UpdateClientTicketBillingStatus200 = {
+  id: number;
+  workedBillingStatus: UpdateClientTicketBillingStatus200WorkedBillingStatus;
 };
 
 export type UpdateClientLayoutBodyLayoutItem = {

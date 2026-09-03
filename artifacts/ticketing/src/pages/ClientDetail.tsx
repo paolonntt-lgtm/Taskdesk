@@ -27,6 +27,7 @@ import {
 import type { ClientInput } from '@workspace/api-client-react';
 import ClientNotesBlock from '../components/ClientNotesBlock';
 import FixedNotesBlock from '../components/FixedNotesBlock';
+import WorkedHoursReport from '../components/WorkedHoursReport';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -1218,6 +1219,10 @@ export default function ClientDetail() {
           ))}
         </>
       )}
+
+      <Box mb={3}>
+        <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
+      </Box>
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} maxWidth="xs" fullWidth>

@@ -5,6 +5,8 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetClient200TicketsItemVisibility } from "./getClient200TicketsItemVisibility";
+import type { GetClient200TicketsItemWorkedBillingStatus } from "./getClient200TicketsItemWorkedBillingStatus";
 
 export type GetClient200TicketsItem = {
   id?: number;
@@ -14,5 +16,9 @@ export type GetClient200TicketsItem = {
   priority?: string;
   category?: string;
   createdAt?: Date;
+  closedAt?: Date | null;
+  workedMinutes?: number | null;
+  workedBillingStatus?: GetClient200TicketsItemWorkedBillingStatus;
+  visibility?: GetClient200TicketsItemVisibility;
   assignedToName?: string | null;
 };

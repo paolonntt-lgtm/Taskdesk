@@ -1,5 +1,18 @@
 export type Lang = 'it' | 'en';
 
+function formatWorkedHoursLabel(totalMinutes: number, lang: Lang): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (lang === 'it') {
+    if (hours === 0) return `${minutes} minuti`;
+    if (minutes === 0) return `${hours} ${hours === 1 ? 'ora' : 'ore'}`;
+    return `${hours} ${hours === 1 ? 'ora' : 'ore'} e ${minutes} minuti`;
+  }
+  if (hours === 0) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  if (minutes === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
 const it = {
   login: {
     title: 'Bentornato',
@@ -1283,6 +1296,27 @@ const it = {
     kpiResolvedTickets: 'Ticket risolti',
     kpiLastActivity: 'Ultima attività',
     kpiNever: '—',
+    workedHoursTitle: 'Ore extra',
+    workedHoursSummary: (minutes: number, entries: number) =>
+      `${formatWorkedHoursLabel(minutes, 'it')} su ${entries} ${entries === 1 ? 'pratica' : 'pratiche'} chiuse`,
+    workedHoursSearch: 'Cerca',
+    workedHoursSearchPlaceholder: 'Numero, titolo o categoria',
+    workedHoursFrom: 'Dal',
+    workedHoursTo: 'Al',
+    workedHoursBillingFilter: 'Stato fatturazione',
+    workedHoursAll: 'Tutte',
+    workedHoursUnbilled: 'Da fatturare',
+    workedHoursBilled: 'Già fatturate',
+    workedHoursTotal: 'Totale',
+    workedHoursFiltered: 'Totale filtrato',
+    workedHoursOverall: 'Totale complessivo',
+    workedHoursEntries: 'pratiche',
+    workedHoursTicket: 'Pratica',
+    workedHoursClosedAt: 'Chiusa il',
+    workedHoursDuration: 'Tempo',
+    workedHoursBillingStatus: 'Fatturazione',
+    workedHoursEmpty: 'Non ci sono ancora ore extra registrate per questo cliente.',
+    workedHoursNoResults: 'Nessuna pratica corrisponde ai filtri selezionati.',
   },
   clientNotes: {
     consoleTitle: 'Note Clienti',
@@ -2849,6 +2883,27 @@ const en: typeof it = {
     kpiResolvedTickets: 'Resolved tickets',
     kpiLastActivity: 'Last activity',
     kpiNever: '—',
+    workedHoursTitle: 'Extra hours',
+    workedHoursSummary: (minutes: number, entries: number) =>
+      `${formatWorkedHoursLabel(minutes, 'en')} across ${entries} closed ${entries === 1 ? 'ticket' : 'tickets'}`,
+    workedHoursSearch: 'Search',
+    workedHoursSearchPlaceholder: 'Number, title or category',
+    workedHoursFrom: 'From',
+    workedHoursTo: 'To',
+    workedHoursBillingFilter: 'Billing status',
+    workedHoursAll: 'All',
+    workedHoursUnbilled: 'To bill',
+    workedHoursBilled: 'Billed',
+    workedHoursTotal: 'Total',
+    workedHoursFiltered: 'Filtered total',
+    workedHoursOverall: 'Overall total',
+    workedHoursEntries: 'tickets',
+    workedHoursTicket: 'Ticket',
+    workedHoursClosedAt: 'Closed on',
+    workedHoursDuration: 'Time',
+    workedHoursBillingStatus: 'Billing',
+    workedHoursEmpty: 'No extra hours have been recorded for this client yet.',
+    workedHoursNoResults: 'No ticket matches the selected filters.',
   },
   clientNotes: {
     consoleTitle: 'Client Notes',

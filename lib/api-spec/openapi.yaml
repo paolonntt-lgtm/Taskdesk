@@ -1706,6 +1706,19 @@ paths:
                             createdAt:
                               type: string
                               format: date-time
+                            closedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            workedMinutes:
+                              type: integer
+                              nullable: true
+                            workedBillingStatus:
+                              type: string
+                              enum: [unbilled, billed]
+                            visibility:
+                              type: string
+                              enum: [organization, admins]
                             assignedToName:
                               type: string
                               nullable: true
@@ -1761,6 +1774,56 @@ paths:
           description: Forbidden
         "404":
           description: Not found
+
+  /clients/{id}/tickets/{ticketId}/billing-status:
+    patch:
+      operationId: updateClientTicketBillingStatus
+      tags: [clients]
+      summary: Update billing status for a client's worked ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [unbilled, billed]
+      responses:
+        "200":
+          description: Updated billing status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, workedBillingStatus]
+                properties:
+                  id:
+                    type: integer
+                  workedBillingStatus:
+                    type: string
+                    enum: [unbilled, billed]
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Ticket not found
 
   /clients/{id}/layout:
     patch:
@@ -2621,6 +2684,9 @@ components:
         workedMinutes:
           type: integer
           nullable: true
+        workedBillingStatus:
+          type: string
+          enum: [unbilled, billed]
         clientId:
           type: integer
           nullable: true

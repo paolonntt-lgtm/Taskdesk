@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, asc, desc, ne, gte, lt } from "drizzle-orm";
+import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission } from "../lib/groupPermissions";
@@ -344,6 +344,10 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
       priority: ticketsTable.priority,
       category: ticketsTable.category,
       createdAt: ticketsTable.createdAt,
+      closedAt: ticketsTable.closedAt,
+      workedMinutes: ticketsTable.workedMinutes,
+      workedBillingStatus: ticketsTable.workedBillingStatus,
+      visibility: ticketsTable.visibility,
       assignedToName: usersTable.name,
     })
     .from(ticketsTable)
@@ -351,10 +355,49 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
     .where(and(
       eq(ticketsTable.clientId, id),
       eq(ticketsTable.organizationId, currentUser.organizationId),
+      ...(currentUser.role === "admin" ? [] : [eq(ticketsTable.visibility, "organization")]),
     ))
     .orderBy(ticketsTable.createdAt);
 
   res.json({ ...client, tickets });
+});
+
+const WorkedBillingStatus = z.enum(["unbilled", "billed"]);
+
+router.patch("/clients/:id/tickets/:ticketId/billing-status", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const clientId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const ticketId = parseInt(Array.isArray(req.params.ticketId) ? req.params.ticketId[0] : req.params.ticketId, 10);
+  if (isNaN(clientId) || isNaN(ticketId)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const parsed = WorkedBillingStatus.safeParse(req.body?.status);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: "status must be billed or unbilled" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(ticketsTable)
+    .set({ workedBillingStatus: parsed.data })
+    .where(and(
+      eq(ticketsTable.id, ticketId),
+      eq(ticketsTable.clientId, clientId),
+      eq(ticketsTable.organizationId, currentUser.organizationId),
+      isNotNull(ticketsTable.workedMinutes),
+    ))
+    .returning({
+      id: ticketsTable.id,
+      workedBillingStatus: ticketsTable.workedBillingStatus,
+    });
+
+  if (!updated) {
+    res.status(404).json({ error: "Ticket with worked time not found" });
+    return;
+  }
+  res.json(updated);
 });
 
 router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {

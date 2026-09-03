@@ -82,6 +82,8 @@ import type {
   UpdateChecklistBody,
   UpdateChecklistItemBody,
   UpdateClientLayoutBody,
+  UpdateClientTicketBillingStatus200,
+  UpdateClientTicketBillingStatusBody,
   UpdateCommentBody,
   UpdateOrganizationSettings200,
   UpdateOrganizationSettingsBody,
@@ -6048,6 +6050,123 @@ export const useDeleteClient = <
   TContext
 > => {
   return useMutation(getDeleteClientMutationOptions(options));
+};
+
+/**
+ * @summary Update billing status for a client's worked ticket (admin only)
+ */
+export const getUpdateClientTicketBillingStatusUrl = (
+  id: number,
+  ticketId: number,
+) => {
+  return `/api/clients/${id}/tickets/${ticketId}/billing-status`;
+};
+
+export const updateClientTicketBillingStatus = async (
+  id: number,
+  ticketId: number,
+  updateClientTicketBillingStatusBody: UpdateClientTicketBillingStatusBody,
+  options?: RequestInit,
+): Promise<UpdateClientTicketBillingStatus200> => {
+  return customFetch<UpdateClientTicketBillingStatus200>(
+    getUpdateClientTicketBillingStatusUrl(id, ticketId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateClientTicketBillingStatusBody),
+    },
+  );
+};
+
+export const getUpdateClientTicketBillingStatusMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientTicketBillingStatus>>,
+    TError,
+    {
+      id: number;
+      ticketId: number;
+      data: BodyType<UpdateClientTicketBillingStatusBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateClientTicketBillingStatus>>,
+  TError,
+  {
+    id: number;
+    ticketId: number;
+    data: BodyType<UpdateClientTicketBillingStatusBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateClientTicketBillingStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateClientTicketBillingStatus>>,
+    {
+      id: number;
+      ticketId: number;
+      data: BodyType<UpdateClientTicketBillingStatusBody>;
+    }
+  > = (props) => {
+    const { id, ticketId, data } = props ?? {};
+
+    return updateClientTicketBillingStatus(id, ticketId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateClientTicketBillingStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateClientTicketBillingStatus>>
+>;
+export type UpdateClientTicketBillingStatusMutationBody =
+  BodyType<UpdateClientTicketBillingStatusBody>;
+export type UpdateClientTicketBillingStatusMutationError = ErrorType<void>;
+
+/**
+ * @summary Update billing status for a client's worked ticket (admin only)
+ */
+export const useUpdateClientTicketBillingStatus = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientTicketBillingStatus>>,
+    TError,
+    {
+      id: number;
+      ticketId: number;
+      data: BodyType<UpdateClientTicketBillingStatusBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateClientTicketBillingStatus>>,
+  TError,
+  {
+    id: number;
+    ticketId: number;
+    data: BodyType<UpdateClientTicketBillingStatusBody>;
+  },
+  TContext
+> => {
+  return useMutation(
+    getUpdateClientTicketBillingStatusMutationOptions(options),
+  );
 };
 
 /**

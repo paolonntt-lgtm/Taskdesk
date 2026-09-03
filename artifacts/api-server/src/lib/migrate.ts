@@ -14,6 +14,12 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS worked_minutes INTEGER;
     `);
 
+    // Track whether recorded extra work has already been billed.
+    await client.query(`
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS worked_billing_status TEXT NOT NULL DEFAULT 'unbilled';
+    `);
+
     // Backfill ticket_number for rows that don't have it yet,
     // assigning per-organization sequential numbers starting from 1
     await client.query(`

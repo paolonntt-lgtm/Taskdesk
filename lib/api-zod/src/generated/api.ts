@@ -509,6 +509,7 @@ export const ListTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -635,6 +636,7 @@ export const GetTicketResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -761,6 +763,7 @@ export const UpdateTicketResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -892,6 +895,7 @@ export const SetTicketRecurrenceResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1000,6 +1004,7 @@ export const DeleteTicketRecurrenceResponse = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1693,6 +1698,7 @@ export const GetRecentTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1798,6 +1804,7 @@ export const GetMyTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -1903,6 +1910,7 @@ export const GetDueSoonTicketsResponseItem = zod
     dueAt: zod.coerce.date().nullish(),
     resolutionNote: zod.string().nullish(),
     workedMinutes: zod.number().nullish(),
+    workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
     clientId: zod.number().nullish(),
     recurrenceRule: zod
       .object({
@@ -2209,6 +2217,10 @@ export const GetClientResponse = zod
             priority: zod.string().optional(),
             category: zod.string().optional(),
             createdAt: zod.coerce.date().optional(),
+            closedAt: zod.coerce.date().nullish(),
+            workedMinutes: zod.number().nullish(),
+            workedBillingStatus: zod.enum(["unbilled", "billed"]).optional(),
+            visibility: zod.enum(["organization", "admins"]).optional(),
             assignedToName: zod.string().nullish(),
           }),
         )
@@ -2267,6 +2279,23 @@ export const UpdateClientResponse = zod.object({
  */
 export const DeleteClientParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Update billing status for a client's worked ticket (admin only)
+ */
+export const UpdateClientTicketBillingStatusParams = zod.object({
+  id: zod.coerce.number(),
+  ticketId: zod.coerce.number(),
+});
+
+export const UpdateClientTicketBillingStatusBody = zod.object({
+  status: zod.enum(["unbilled", "billed"]),
+});
+
+export const UpdateClientTicketBillingStatusResponse = zod.object({
+  id: zod.number(),
+  workedBillingStatus: zod.enum(["unbilled", "billed"]),
 });
 
 /**

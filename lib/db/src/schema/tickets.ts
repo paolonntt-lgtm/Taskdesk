@@ -23,6 +23,7 @@ export const ticketsTable = pgTable("tickets", {
   assignedToGroup: text("assigned_to_group"),
   resolutionNote: text("resolution_note"),
   workedMinutes: integer("worked_minutes"),
+  workedBillingStatus: text("worked_billing_status").notNull().default("unbilled"),
   dueAt: timestamp("due_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

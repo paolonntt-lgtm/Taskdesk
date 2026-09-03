@@ -45,6 +45,7 @@ const TICKET_LIST_COLS = {
   assignedToGroup: ticketsTable.assignedToGroup,
   resolutionNote: ticketsTable.resolutionNote,
   workedMinutes: ticketsTable.workedMinutes,
+  workedBillingStatus: ticketsTable.workedBillingStatus,
   dueAt: ticketsTable.dueAt,
   createdAt: ticketsTable.createdAt,
   updatedAt: ticketsTable.updatedAt,
