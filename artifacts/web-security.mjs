@@ -28,9 +28,17 @@ function publicProductionHosts() {
 }
 
 export function isStagingRequest(req) {
+  // An explicitly allowlisted production host must remain public even when
+  // staging protection is enabled for the deployment.
+  if (
+    process.env.NODE_ENV === "production" &&
+    publicProductionHosts().has(requestHost(req))
+  ) {
+    return false;
+  }
   if (isTruthy(process.env.STAGING_PROTECTION)) return true;
   if (process.env.NODE_ENV !== "production") return false;
-  return !publicProductionHosts().has(requestHost(req));
+  return true;
 }
 
 export function applyWebSecurityHeaders(res, { staging = false } = {}) {

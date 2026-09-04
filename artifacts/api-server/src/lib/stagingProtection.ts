@@ -28,9 +28,17 @@ function requestHost(req: Request): string {
 }
 
 export function isStagingRequest(req: Request): boolean {
+  // An explicitly allowlisted production host must remain public even when
+  // staging protection is enabled for the deployment.
+  if (
+    process.env.NODE_ENV === "production" &&
+    publicProductionHosts().has(requestHost(req))
+  ) {
+    return false;
+  }
   if (isTruthy(process.env.STAGING_PROTECTION)) return true;
   if (process.env.NODE_ENV !== "production") return false;
-  return !publicProductionHosts().has(requestHost(req));
+  return true;
 }
 
 function hasValidBasicAuth(req: Request, expectedCredentials: string): boolean {
