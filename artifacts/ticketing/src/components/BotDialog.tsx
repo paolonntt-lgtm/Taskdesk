@@ -10,6 +10,7 @@ import {
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTheme } from '@mui/material/styles';
+import { trackEvent } from '../lib/analytics';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -366,7 +367,12 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
       if (action) setPendingAction(action);
       if (minimizedRef.current) onBotMessage?.();
       // Call success callback only when briefing fully delivered
-      if (streamComplete) onSuccess?.();
+      if (streamComplete) {
+        trackEvent('bot_response_received', {
+          mode: 'reportMode' in fetchBody && fetchBody.reportMode ? 'daily_report' : 'chat',
+        });
+        onSuccess?.();
+      }
     } catch {
       setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: t.bot.errorNetwork }; return c; });
       if (minimizedRef.current) onBotMessage?.();
@@ -553,6 +559,9 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
         body: JSON.stringify({ content, location: reportWizardLocationRef.current ?? undefined }),
       });
       if (res.ok) {
+        trackEvent('daily_report_submitted', {
+          has_location: Boolean(reportWizardLocationRef.current),
+        });
         setTodayReportSubmitted(true);
         setPendingAction(null);
         exitReportWizard(); // wizard complete — exit report mode
@@ -587,6 +596,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const handleCreateTicket = () => {
     if (pendingAction?.action === 'create_ticket') {
       onCreateTicket(pendingAction.title, pendingAction.description, pendingAction.category, pendingAction.resource, pendingAction.location);
+      trackEvent('bot_ticket_action', { action: 'create' });
       onClose();
     }
   };
@@ -594,6 +604,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const handleViewTicket = () => {
     if (pendingAction?.action === 'view_ticket') {
       onViewTicket?.(pendingAction.id);
+      trackEvent('bot_ticket_action', { action: 'view' });
       onClose();
     }
   };

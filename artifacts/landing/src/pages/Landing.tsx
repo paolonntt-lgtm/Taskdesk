@@ -2,7 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "wouter";
 import { useLanguage } from "@/i18n";
-import { trackCta, trackScrollDepth, trackSectionView, type CtaLocation, type ScrollDepthPct } from "@/lib/analytics";
+import {
+  trackBillingCycle,
+  trackCta,
+  trackFaqToggle,
+  trackLanguageChange,
+  trackScrollDepth,
+  trackSectionView,
+  type CtaLocation,
+  type ScrollDepthPct,
+} from "@/lib/analytics";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -301,6 +310,10 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
 
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
+  const handleLanguageChange = (next: "it" | "en") => {
+    if (next !== lang) trackLanguageChange(next);
+    setLang(next);
+  };
 
   const tickerItems = [
     t.hero.trialBadge, t.ticker.rating,
@@ -506,8 +519,8 @@ export default function Landing() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-28 min-w-0">
-                <DropdownMenuItem onClick={() => setLang('it')} className={lang === 'it' ? 'bg-muted font-medium' : ''}>Italiano</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLang('en')} className={lang === 'en' ? 'bg-muted font-medium' : ''}>English</DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handleLanguageChange('it')} className={lang === 'it' ? 'bg-muted font-medium' : ''}>Italiano</DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => handleLanguageChange('en')} className={lang === 'en' ? 'bg-muted font-medium' : ''}>English</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <a href={APP_URL} onClick={() => trackCta("navbar")} className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 bg-white">
@@ -798,14 +811,20 @@ export default function Landing() {
             <div className="flex items-center justify-center mb-10">
               <div className="inline-flex items-center gap-1 p-1 bg-gray-100 rounded-full">
                 <button
-                  onClick={() => setBillingCycle('monthly')}
+                  onClick={() => {
+                    trackBillingCycle('monthly');
+                    setBillingCycle('monthly');
+                  }}
                   className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${billingCycle === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                 >
                   {t.pricing.billingMonthly}
                 </button>
                 <div className="relative">
                   <button
-                    onClick={() => setBillingCycle('annual')}
+                   onClick={() => {
+                     trackBillingCycle('annual');
+                     setBillingCycle('annual');
+                   }}
                     className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${billingCycle === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                   >
                     {t.pricing.billingAnnual}
@@ -899,7 +918,12 @@ export default function Landing() {
             <ScrollReveal>
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-center mb-16">{t.faq.title}</h2>
             </ScrollReveal>
-            <Accordion type="single" collapsible className="w-full">
+             <Accordion
+               type="single"
+               collapsible
+               className="w-full"
+               onValueChange={(value) => trackFaqToggle(Boolean(value))}
+             >
               {t.faq.items.map((item, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="border-b border-gray-100 py-1">
                   <AccordionTrigger className="text-base font-semibold hover:no-underline hover:text-blue-600 transition-colors text-left py-5">

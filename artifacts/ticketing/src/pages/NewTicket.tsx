@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
+import { trackEvent } from '../lib/analytics';
 
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -134,6 +135,7 @@ export default function NewTicket() {
       );
       setFormData(f => ({ ...f, clientId: String(newClient.id) }));
       setQuickAddOpen(false);
+       trackEvent('client_created', { source: 'quick_add' });
     } catch {
       // silent
     } finally {
@@ -334,6 +336,13 @@ export default function NewTicket() {
           setChecklistError(true);
         }
       }
+      trackEvent('ticket_created', {
+        priority: formData.priority,
+        visibility: formData.visibility,
+        has_attachment: pendingAttachments.length > 0,
+        has_checklist: checklistReady,
+        source: urlParams.has('title') ? 'bot' : 'form',
+      });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setLocation(`/tickets/${result.id}`);
     } catch (err) {

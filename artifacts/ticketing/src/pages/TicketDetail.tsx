@@ -32,6 +32,7 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
 import PermissionGateButton from '../components/PermissionGateButton';
+import { trackEvent } from '../lib/analytics';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -324,6 +325,7 @@ export default function TicketDetail() {
     }
     try {
       await updateTicket.mutateAsync({ id: ticketId, data: { status: newStatus as any } });
+      trackEvent('ticket_status_changed', { status: newStatus });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     } catch (err: any) {
@@ -342,6 +344,10 @@ export default function TicketDetail() {
       await updateTicket.mutateAsync({
         id: ticketId,
         data: { status: resolvedKey as any, resolutionNote: note || null, workedMinutes: workedTime.total } as any,
+      });
+      trackEvent('ticket_resolved', {
+        worked_minutes: workedTime.total ?? 0,
+        has_resolution_note: Boolean(note.trim()),
       });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
@@ -656,6 +662,7 @@ export default function TicketDetail() {
       setEmailReplyAttachError(null);
       setEmailReplyOpen(false);
       setEmailReplySent(true);
+       trackEvent('customer_reply_sent', { has_attachment: emailReplyAttachments.length > 0 });
     } catch (err: any) {
       setEmailReplyError(err?.message || err?.error || t.ticketDetail.emailReplyErrorPrefix);
     } finally {
@@ -678,6 +685,11 @@ export default function TicketDetail() {
         queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
         setPendingAttachments([]);
       }
+       trackEvent('comment_added', {
+         has_attachment: pendingAttachments.length > 0,
+         sent_to_customer: Boolean(isEmailResource && sendToCustomer),
+         is_reply: false,
+       });
     } catch (err: any) {
       const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment(entityTerm.singular);
       setCommentError(msg);
@@ -700,6 +712,11 @@ export default function TicketDetail() {
         queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
         setInlinePendingAttachments([]);
       }
+       trackEvent('comment_added', {
+         has_attachment: inlinePendingAttachments.length > 0,
+         sent_to_customer: false,
+         is_reply: true,
+       });
     } catch (err: any) {
       const msg = err?.message || err?.error || t.ticketDetail.closedTicketComment(entityTerm.singular);
       setCommentError(msg);

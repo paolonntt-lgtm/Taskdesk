@@ -29,6 +29,7 @@ import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
 import NotificationsPage from "./pages/Notifications";
 import type { User } from "@workspace/api-client-react";
+import { trackEvent } from "./lib/analytics";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
@@ -177,6 +178,7 @@ function AppShell() {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
+      trackEvent("login_failed", { method: "password" });
       const err = await res.json().catch(() => ({ message: "Login fallito" }));
       const msg = err.message || "Login fallito";
       setError(msg);
@@ -184,6 +186,7 @@ function AppShell() {
     }
     const body = await res.json();
     setUser(body.user);
+    trackEvent("login_succeeded", { method: "password" });
     setLocation("/");
   };
 

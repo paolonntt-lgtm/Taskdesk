@@ -64,6 +64,7 @@ import BotDialog from './BotDialog';
 import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
+import { trackEvent } from '../lib/analytics';
 
 const drawerWidth = 264;
 
@@ -763,6 +764,7 @@ export default function Layout({ children }: LayoutProps) {
         <Fab
           color="primary"
           onClick={() => {
+            trackEvent('bot_opened');
             setBotOpenPersist(true);
             setBotUnreadCount(0);
           }}
@@ -797,7 +799,7 @@ export default function Layout({ children }: LayoutProps) {
         open={botOpen}
         unreadCount={botUnreadCount}
         dailyReportUnread={dailyReportUnread}
-        onClose={() => { setBotOpenPersist(false); setBotUnreadCount(0); }}
+        onClose={() => { trackEvent('bot_closed'); setBotOpenPersist(false); setBotUnreadCount(0); }}
         onExpand={() => setBotUnreadCount(0)}
         onBotMessage={() => setBotUnreadCount((c) => c + 1)}
         onDailyReportsRead={() => {

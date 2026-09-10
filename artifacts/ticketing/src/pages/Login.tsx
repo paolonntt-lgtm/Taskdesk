@@ -4,6 +4,7 @@ import { CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Lang } from '../i18n/translations';
+import { trackEvent } from '../lib/analytics';
 
 function GoogleLogo() {
   return (
@@ -96,6 +97,7 @@ export default function Login() {
   }, []);
 
   const switchMode = (m: 'login' | 'register' | 'forgot') => {
+    trackEvent('auth_mode_changed', { mode: m });
     setMode(m); setLocalError(null); setForgotSent(false);
     setEmail(''); setPassword(''); setName(''); setConfirmPassword(''); setOrganizationName('');
   };
@@ -136,6 +138,7 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
+      trackEvent('registration_succeeded', { method: 'password' });
       await login({ email, password });
     } catch { setLocalError(t.login.networkError); }
     finally { setIsSubmitting(false); }
@@ -146,11 +149,12 @@ export default function Login() {
     setLocalError(null);
     setIsSubmitting(true);
     try {
-      await fetch('/api/auth/forgot-password', {
+      const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      if (res.ok) trackEvent('password_reset_requested');
       setForgotSent(true);
     } catch { setLocalError(t.login.networkError); }
     finally { setIsSubmitting(false); }
@@ -246,7 +250,7 @@ export default function Login() {
               <div style={s.dividerLine} />
             </div>
 
-            <button type="button" onClick={() => { window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
+            <button type="button" onClick={() => { trackEvent('oauth_started', { mode: 'login', provider: 'google' }); window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
               <GoogleLogo />
               {t.login.continueWithGoogle}
             </button>
@@ -292,7 +296,7 @@ export default function Login() {
               <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.login.or}</span>
               <div style={s.dividerLine} />
             </div>
-            <button type="button" onClick={() => { window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
+            <button type="button" onClick={() => { trackEvent('oauth_started', { mode: 'register', provider: 'google' }); window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
               <GoogleLogo />
               {t.login.registerWithGoogle}
             </button>

@@ -37,6 +37,7 @@ import {
   PersonAdd,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { trackEvent } from '../lib/analytics';
 
 interface Price {
   id: string;
@@ -132,6 +133,7 @@ export default function Billing() {
       fetch('/api/stripe/sync-subscription', { method: 'POST', credentials: 'include' })
         .then((r) => (r.ok ? r.json() : Promise.reject(r)))
         .then(() => {
+          trackEvent('subscription_checkout_completed');
           // Strip the ?success=1 param and reload so auth/me returns the updated subscription
           window.location.replace(window.location.pathname);
         })
@@ -152,7 +154,10 @@ export default function Billing() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || b.errorCheckout);
-      if (data.url) window.location.href = data.url;
+       if (data.url) {
+         trackEvent('checkout_started', { flow: 'new_subscription' });
+         window.location.href = data.url;
+       }
     } catch (err: any) {
       setError(err.message || b.errorCheckout);
     } finally {
@@ -177,6 +182,7 @@ export default function Billing() {
       }
       setUpgradeTarget(null);
       setSuccessMsg(b.upgradeSuccess);
+       trackEvent('subscription_upgraded');
       refreshData();
     } catch (err: any) {
       setError(err.message || b.errorUpgrade);
@@ -191,7 +197,10 @@ export default function Billing() {
       const res = await fetch('/api/stripe/portal', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || b.errorPortal);
-      if (data.url) window.location.href = data.url;
+       if (data.url) {
+         trackEvent('billing_portal_opened');
+         window.location.href = data.url;
+       }
     } catch (err: any) {
       setError(err.message || b.errorPortal);
     } finally { setPortalLoading(false); }
@@ -235,6 +244,7 @@ export default function Billing() {
       }
       setAddonDialogOpen(false);
       setSuccessMsg(b.addonSeatsSuccess);
+       trackEvent('addon_seats_updated', { quantity: addonQuantity });
       refreshSeatUsage();
     } catch (err: any) {
       setError(err.message || b.addonSeatsError);
