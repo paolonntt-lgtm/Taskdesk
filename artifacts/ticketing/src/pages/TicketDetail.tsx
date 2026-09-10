@@ -335,7 +335,9 @@ export default function TicketDetail() {
 
   const confirmResolved = async (note: string) => {
     const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
-    const workedTime = parseWorkedDuration(workedHours, workedMinutes);
+    const workedTime = billingEnabled
+      ? parseWorkedDuration(workedHours, workedMinutes)
+      : { total: null as number | null };
     if (workedTime.error) {
       setWorkedTimeError(workedTime.error);
       return;
@@ -343,7 +345,11 @@ export default function TicketDetail() {
     try {
       await updateTicket.mutateAsync({
         id: ticketId,
-        data: { status: resolvedKey as any, resolutionNote: note || null, workedMinutes: workedTime.total } as any,
+        data: {
+          status: resolvedKey as any,
+          resolutionNote: note || null,
+          ...(billingEnabled ? { workedMinutes: workedTime.total } : {}),
+        } as any,
       });
       trackEvent('ticket_resolved', {
         worked_minutes: workedTime.total ?? 0,
@@ -522,7 +528,9 @@ export default function TicketDetail() {
   const handleEditSave = async () => {
     setEditSaving(true);
     setEditError(null);
-    const workedTime = parseWorkedDuration(editForm.workedHours, editForm.workedMinutes);
+    const workedTime = billingEnabled
+      ? parseWorkedDuration(editForm.workedHours, editForm.workedMinutes)
+      : { total: null as number | null };
     if (workedTime.error) {
       setEditWorkedTimeError(workedTime.error);
       setEditSaving(false);
@@ -569,7 +577,7 @@ export default function TicketDetail() {
           resource: editForm.resource || undefined,
           clientId: newClientId,
           dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
-          ...(isAdmin && { workedMinutes: workedTime.total }),
+          ...(isAdmin && billingEnabled && { workedMinutes: workedTime.total }),
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
@@ -724,6 +732,7 @@ export default function TicketDetail() {
   };
 
   const isAdmin = currentUser?.role === 'admin';
+  const billingEnabled = (currentUser as any)?.billingEnabled !== false;
   const isAuthor = (ticket as any).createdBy === currentUser?.id;
   const canEdit = isAdmin || isAuthor;
   const canChangeStatus = isAdmin || canChangeStatusByGroup || isAssignee;
@@ -936,7 +945,7 @@ export default function TicketDetail() {
               )}
 
               {/* Scadenza + chip */}
-              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt || (ticket as any).workedMinutes != null) && (
+              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt || (billingEnabled && (ticket as any).workedMinutes != null)) && (
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                   {(ticket as any).dueAt && (
                     <Box component="span"
@@ -960,7 +969,7 @@ export default function TicketDetail() {
                       <Chip icon={<CalendarTodayIcon sx={{ fontSize: '0.875rem !important' }} />} label={lang === 'it' ? 'Programmata' : 'Scheduled'} size="small" color="warning" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
                     </Tooltip>
                   )}
-                  {(ticket as any).workedMinutes != null && (
+                  {billingEnabled && (ticket as any).workedMinutes != null && (
                     <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: 'success.dark' }}>
                       ⏱ {t.ticketDetail.workedTime}: {formatWorkedDuration((ticket as any).workedMinutes, lang)}
                     </Box>
@@ -1612,32 +1621,36 @@ export default function TicketDetail() {
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>{t.ticketDetail.resolutionNoteSubtitle}</Typography>
           <TextField fullWidth multiline rows={4} placeholder={t.ticketDetail.resolutionNotePlaceholder} value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} autoFocus />
-          <Typography variant="body2" color="text.secondary" mt={2} mb={1}>{t.ticketDetail.workedTimeOptional}</Typography>
-          <Box display="flex" gap={1.5}>
-            <TextField
-              label={t.ticketDetail.workedHours}
-              type="number"
-              size="small"
-              value={workedHours}
-              onChange={(e) => { setWorkedHours(e.target.value); setWorkedTimeError(null); }}
-              disabled={updateTicket.isPending}
-              inputProps={{ min: 0, step: 1 }}
-              error={workedTimeError === 'hours'}
-              fullWidth
-            />
-            <TextField
-              label={t.ticketDetail.workedMinutes}
-              type="number"
-              size="small"
-              value={workedMinutes}
-              onChange={(e) => { setWorkedMinutes(e.target.value); setWorkedTimeError(null); }}
-              disabled={updateTicket.isPending}
-              inputProps={{ min: 0, max: 59, step: 1 }}
-              error={workedTimeError === 'minutes'}
-              fullWidth
-            />
-          </Box>
-          {workedTimeError && <FormHelperText error>{workedTimeError === 'hours' ? t.ticketDetail.workedHoursError : t.ticketDetail.workedMinutesError}</FormHelperText>}
+           {billingEnabled && (
+             <>
+               <Typography variant="body2" color="text.secondary" mt={2} mb={1}>{t.ticketDetail.workedTimeOptional}</Typography>
+               <Box display="flex" gap={1.5}>
+                 <TextField
+                   label={t.ticketDetail.workedHours}
+                   type="number"
+                   size="small"
+                   value={workedHours}
+                   onChange={(e) => { setWorkedHours(e.target.value); setWorkedTimeError(null); }}
+                   disabled={updateTicket.isPending}
+                   inputProps={{ min: 0, step: 1 }}
+                   error={workedTimeError === 'hours'}
+                   fullWidth
+                 />
+                 <TextField
+                   label={t.ticketDetail.workedMinutes}
+                   type="number"
+                   size="small"
+                   value={workedMinutes}
+                   onChange={(e) => { setWorkedMinutes(e.target.value); setWorkedTimeError(null); }}
+                   disabled={updateTicket.isPending}
+                   inputProps={{ min: 0, max: 59, step: 1 }}
+                   error={workedTimeError === 'minutes'}
+                   fullWidth
+                 />
+               </Box>
+               {workedTimeError && <FormHelperText error>{workedTimeError === 'hours' ? t.ticketDetail.workedHoursError : t.ticketDetail.workedMinutesError}</FormHelperText>}
+             </>
+           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
@@ -1730,7 +1743,7 @@ export default function TicketDetail() {
             </TextField>
           )}
           <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
-          {isAdmin && (
+           {isAdmin && billingEnabled && (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t.ticketDetail.workedTime}</Typography>
               <Box display="flex" gap={1.5}>

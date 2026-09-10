@@ -10,4 +10,8 @@ export type UpdateOrganizationSettingsBody = {
   /** @minLength 2 */
   name: string;
   businessType?: string | null;
+  clientsEnabled?: boolean;
+  billingEnabled?: boolean;
+  entitySingular?: string | null;
+  entityPlural?: string | null;
 };

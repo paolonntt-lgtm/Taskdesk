@@ -9,4 +9,8 @@
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  clientsEnabled?: boolean;
+  billingEnabled?: boolean;
+  entitySingular?: string | null;
+  entityPlural?: string | null;
 };

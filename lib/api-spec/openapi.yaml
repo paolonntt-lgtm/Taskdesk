@@ -351,6 +351,16 @@ paths:
                   businessType:
                     type: string
                     nullable: true
+                  clientsEnabled:
+                    type: boolean
+                  billingEnabled:
+                    type: boolean
+                  entitySingular:
+                    type: string
+                    nullable: true
+                  entityPlural:
+                    type: string
+                    nullable: true
     patch:
       operationId: updateOrganizationSettings
       tags: [auth]
@@ -369,6 +379,16 @@ paths:
                 businessType:
                   type: string
                   nullable: true
+                clientsEnabled:
+                  type: boolean
+                billingEnabled:
+                  type: boolean
+                entitySingular:
+                  type: string
+                  nullable: true
+                entityPlural:
+                  type: string
+                  nullable: true
       responses:
         "200":
           description: Organization updated
@@ -380,6 +400,16 @@ paths:
                   name:
                     type: string
                   businessType:
+                    type: string
+                    nullable: true
+                  clientsEnabled:
+                    type: boolean
+                  billingEnabled:
+                    type: boolean
+                  entitySingular:
+                    type: string
+                    nullable: true
+                  entityPlural:
                     type: string
                     nullable: true
         "400":
@@ -2506,6 +2536,9 @@ components:
           type: boolean
           nullable: true
         clientsEnabled:
+          type: boolean
+          nullable: true
+        billingEnabled:
           type: boolean
           nullable: true
         organizationId:

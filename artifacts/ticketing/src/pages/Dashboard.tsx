@@ -109,7 +109,7 @@ function TrialBanner() {
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  if (!user || user.role !== 'admin' || !user.trialEndsAt || user.stripeSubscriptionId) {
+  if (!user || user.role !== 'admin' || (user as any).billingEnabled === false || !user.trialEndsAt || user.stripeSubscriptionId) {
     return null;
   }
 

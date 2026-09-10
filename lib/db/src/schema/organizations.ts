@@ -15,6 +15,7 @@ export const organizationsTable = pgTable("organizations", {
   pec: text("pec"),
   businessType: text("business_type"),
   clientsEnabled: boolean("clients_enabled").default(true).notNull(),
+  billingEnabled: boolean("billing_enabled").default(true).notNull(),
   onboardingDone: boolean("onboarding_done").default(false).notNull(),
   clientSharedLayout: jsonb("client_shared_layout"),
   utmSource: text("utm_source"),

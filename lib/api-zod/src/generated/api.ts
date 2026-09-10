@@ -73,6 +73,7 @@ export const ListGroupsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -120,6 +121,7 @@ export const CreateGroupResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -170,6 +172,7 @@ export const UpdateGroupResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -264,6 +267,7 @@ export const LoginResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -300,7 +304,11 @@ export const CompleteOnboardingResponse = zod.object({
  */
 export const GetOrganizationSettingsResponse = zod.object({
   "name": zod.string().optional(),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "clientsEnabled": zod.boolean().optional(),
+  "billingEnabled": zod.boolean().optional(),
+  "entitySingular": zod.string().nullish(),
+  "entityPlural": zod.string().nullish()
 })
 
 
@@ -313,12 +321,20 @@ export const updateOrganizationSettingsBodyNameMin = 2;
 
 export const UpdateOrganizationSettingsBody = zod.object({
   "name": zod.string().min(updateOrganizationSettingsBodyNameMin),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "clientsEnabled": zod.boolean().optional(),
+  "billingEnabled": zod.boolean().optional(),
+  "entitySingular": zod.string().nullish(),
+  "entityPlural": zod.string().nullish()
 })
 
 export const UpdateOrganizationSettingsResponse = zod.object({
   "name": zod.string().optional(),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "clientsEnabled": zod.boolean().optional(),
+  "billingEnabled": zod.boolean().optional(),
+  "entitySingular": zod.string().nullish(),
+  "entityPlural": zod.string().nullish()
 })
 
 
@@ -348,6 +364,7 @@ export const GetCurrentUserResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -380,6 +397,7 @@ export const ListUsersResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -427,6 +445,7 @@ export const CreateUserResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -463,6 +482,7 @@ export const GetUserResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -515,6 +535,7 @@ export const UpdateUserResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -607,6 +628,7 @@ export const ListTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -634,6 +656,7 @@ export const ListTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -716,6 +739,7 @@ export const CreateTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -743,6 +767,7 @@ export const CreateTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -814,6 +839,7 @@ export const GetTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -841,6 +867,7 @@ export const GetTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -932,6 +959,7 @@ export const UpdateTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -959,6 +987,7 @@ export const UpdateTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1044,6 +1073,7 @@ export const CloneTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1071,6 +1101,7 @@ export const CloneTicketResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1147,6 +1178,7 @@ export const SetTicketRecurrenceResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1174,6 +1206,7 @@ export const SetTicketRecurrenceResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1245,6 +1278,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1272,6 +1306,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1321,6 +1356,7 @@ export const ListTicketCommentsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1379,6 +1415,7 @@ export const AddTicketCommentResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1436,6 +1473,7 @@ export const UpdateTicketCommentResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1587,6 +1625,7 @@ export const ListTicketNotesResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1635,6 +1674,7 @@ export const AddTicketNoteResponse = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -1870,6 +1910,7 @@ export const ListTicketActivityResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2056,6 +2097,7 @@ export const GetRecentTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2083,6 +2125,7 @@ export const GetRecentTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2151,6 +2194,7 @@ export const GetMyTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2178,6 +2222,7 @@ export const GetMyTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2246,6 +2291,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
@@ -2273,6 +2319,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
 }).nullish(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
+  "billingEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
