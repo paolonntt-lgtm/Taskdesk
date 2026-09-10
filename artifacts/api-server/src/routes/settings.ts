@@ -279,11 +279,18 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
     res.status(404).json({ message: "Organizzazione non trovata" });
     return;
   }
-  res.json({ name: org.name, businessType: org.businessType, clientsEnabled: org.clientsEnabled, entitySingular: org.entitySingular, entityPlural: org.entityPlural });
+  res.json({
+    name: org.name,
+    businessType: org.businessType,
+    clientsEnabled: org.clientsEnabled,
+    workedTimeEnabled: org.workedTimeEnabled,
+    entitySingular: org.entitySingular,
+    entityPlural: org.entityPlural,
+  });
 });
 
 router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name, businessType, clientsEnabled, entitySingular, entityPlural } = req.body ?? {};
+  const { name, businessType, clientsEnabled, workedTimeEnabled, entitySingular, entityPlural } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
     return;
@@ -300,6 +307,7 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   const updateData: Record<string, unknown> = { name: name.trim() };
   if (businessType !== undefined) updateData.businessType = businessType || null;
   if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
+  if (typeof workedTimeEnabled === "boolean") updateData.workedTimeEnabled = workedTimeEnabled;
   if (typeof entitySingular === "string") updateData.entitySingular = entitySingular.trim() || null;
   if (typeof entityPlural === "string") updateData.entityPlural = entityPlural.trim() || null;
   const [updated] = await db
@@ -307,7 +315,14 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
     .set(updateData as any)
     .where(eq(organizationsTable.id, currentUser.organizationId))
     .returning();
-  res.json({ name: updated.name, businessType: updated.businessType, clientsEnabled: updated.clientsEnabled, entitySingular: updated.entitySingular, entityPlural: updated.entityPlural });
+  res.json({
+    name: updated.name,
+    businessType: updated.businessType,
+    clientsEnabled: updated.clientsEnabled,
+    workedTimeEnabled: updated.workedTimeEnabled,
+    entitySingular: updated.entitySingular,
+    entityPlural: updated.entityPlural,
+  });
 });
 
 // ── CLIENT SHARED LAYOUT ───────────────────────────────────────────────────

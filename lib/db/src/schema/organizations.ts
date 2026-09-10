@@ -24,6 +24,7 @@ export const organizationsTable = pgTable("organizations", {
   trialExpiredReminderSentAt: timestamp("trial_expired_reminder_sent_at", { withTimezone: true }),
   entitySingular: text("entity_singular"),
   entityPlural: text("entity_plural"),
+  workedTimeEnabled: boolean("worked_time_enabled").default(true).notNull(),
   sendClosureEmail: boolean("send_closure_email").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

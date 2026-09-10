@@ -247,6 +247,13 @@ export async function runAppMigrations(): Promise<void> {
       END $$;
     `);
 
+    // Worked time is enabled by default for all organizations. When disabled,
+    // the historical values remain stored but are hidden from the ticket UI and reports.
+    await client.query(`
+      ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS worked_time_enabled BOOLEAN NOT NULL DEFAULT true;
+    `);
+
     // Daily reports — operator EOD report saved in DB; colleagues see badge + auto-briefing
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_reports (

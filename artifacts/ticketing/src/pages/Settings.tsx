@@ -7,7 +7,7 @@ import {
   Avatar, Snackbar, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
   MenuItem, Collapse,
 } from '@mui/material';
-import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History, CloudDownload, PictureAsPdf, CheckBoxOutlineBlank } from '@mui/icons-material';
+import { Add, Delete, Save, Lock, Person, LocationOn, Category, Group as GroupIcon, NotificationsActive, Phone, PhotoCamera, Check, Business, Receipt, EditOutlined, Close, SmartToy, Article, MailOutline, WifiTethering, Send, MoreVert, StarOutlined, ContentCopy, Refresh, ExpandMore, ExpandLess, AlternateEmail, People, OpenInNew, SecurityOutlined, History, CloudDownload, PictureAsPdf, CheckBoxOutlineBlank, AccessTime } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -805,6 +805,7 @@ export default function Settings() {
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
   const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
+  const [orgWorkedTimeEnabled, setOrgWorkedTimeEnabled] = useState<boolean>((user as any)?.workedTimeEnabled !== false);
   const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
@@ -831,6 +832,7 @@ export default function Settings() {
         setOrgName(d.name ?? '');
         if (d.businessType) setOrgBusinessType(d.businessType);
         setOrgClientsEnabled(d.clientsEnabled !== false);
+        setOrgWorkedTimeEnabled(d.workedTimeEnabled !== false);
         setOrgEntitySingular(d.entitySingular ?? '');
         setOrgEntityPlural(d.entityPlural ?? '');
       }).catch(() => {});
@@ -884,6 +886,7 @@ export default function Settings() {
           name: orgName,
           businessType: orgBusinessType || undefined,
           clientsEnabled: orgClientsEnabled,
+          workedTimeEnabled: orgWorkedTimeEnabled,
           entitySingular: orgEntitySingular || undefined,
           entityPlural: orgEntityPlural || undefined,
         }),
@@ -893,10 +896,12 @@ export default function Settings() {
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
       if (data.clientsEnabled !== undefined) setOrgClientsEnabled(data.clientsEnabled !== false);
+      if (data.workedTimeEnabled !== undefined) setOrgWorkedTimeEnabled(data.workedTimeEnabled !== false);
       updateUser({
         ...(user as any),
         businessType: data.businessType ?? null,
         clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
+        workedTimeEnabled: data.workedTimeEnabled !== undefined ? data.workedTimeEnabled : (user as any)?.workedTimeEnabled,
         entitySingular: data.entitySingular ?? null,
         entityPlural: data.entityPlural ?? null,
       });
@@ -1375,6 +1380,17 @@ export default function Settings() {
                   </Box>
                   {!orgClientsEnabled && (
                     <Alert severity="warning" sx={{ py: 0.5 }}>{t.settings.orgClientsDisabledWarning}</Alert>
+                  )}
+                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                    <AccessTime color="primary" fontSize="small" />
+                    <Switch checked={orgWorkedTimeEnabled} onChange={(e) => setOrgWorkedTimeEnabled(e.target.checked)} disabled={orgSaving} size="small" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{t.settings.orgWorkedTimeEnabledLabel}</Typography>
+                      <Typography variant="caption" color="text.secondary">{t.settings.orgWorkedTimeEnabledHint}</Typography>
+                    </Box>
+                  </Box>
+                  {!orgWorkedTimeEnabled && (
+                    <Alert severity="info" sx={{ py: 0.5 }}>{t.settings.orgWorkedTimeDisabledWarning}</Alert>
                   )}
                 </Box>
               </Box>

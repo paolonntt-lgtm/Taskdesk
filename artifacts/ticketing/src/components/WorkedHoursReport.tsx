@@ -23,6 +23,7 @@ import {
   useUpdateClientTicketBillingStatus,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 
 type BillingFilter = 'all' | 'billed' | 'unbilled';
@@ -63,12 +64,23 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
   const { t, lang } = useLanguage();
   const tc = t.clients;
   const queryClient = useQueryClient();
+  const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('organization settings unavailable');
+      return response.json();
+    },
+    staleTime: 5 * 60_000,
+  });
   const updateBillingStatus = useUpdateClientTicketBillingStatus();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all');
   const [updatingTicketId, setUpdatingTicketId] = useState<number | null>(null);
+
+  if (organizationSettings?.workedTimeEnabled === false) return null;
 
   const workedTickets = useMemo(
     () => tickets.filter((ticket) => {
