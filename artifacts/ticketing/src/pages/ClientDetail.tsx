@@ -1220,11 +1220,9 @@ export default function ClientDetail() {
         </>
       )}
 
-      {(user as any)?.billingEnabled !== false && (
-        <Box mb={3}>
-          <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
-        </Box>
-      )}
+      <Box mb={3}>
+        <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
+      </Box>
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} maxWidth="xs" fullWidth>

@@ -59,7 +59,6 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
       clientsEnabled: organizationsTable.clientsEnabled,
-      billingEnabled: organizationsTable.billingEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
       entitySingular: organizationsTable.entitySingular,
@@ -157,7 +156,6 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   const [org] = await db.insert(organizationsTable).values({
     name: organizationName.trim(),
     onboardingDone: false,
-    billingEnabled: false,
     utmSource,
     utmMedium,
     utmCampaign,
@@ -206,7 +204,7 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   );
 
   const { passwordHash: _, ...safeUser } = user;
-  res.status(201).json({ user: { ...safeUser, billingEnabled: org.billingEnabled }, message: "Registrazione completata" });
+  res.status(201).json({ user: safeUser, message: "Registrazione completata" });
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
@@ -242,7 +240,6 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       onboardingDone: organizationsTable.onboardingDone,
       businessType: organizationsTable.businessType,
       clientsEnabled: organizationsTable.clientsEnabled,
-      billingEnabled: organizationsTable.billingEnabled,
       trialEndsAt: usersTable.trialEndsAt,
       stripeSubscriptionId: usersTable.stripeSubscriptionId,
       tourDone: usersTable.tourDone,

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, organizationsTable } from "@workspace/db";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission } from "../lib/groupPermissions";
 import { z } from "zod";
@@ -368,14 +368,6 @@ const WorkedBillingStatus = z.enum(["unbilled", "billed"]);
 
 router.patch("/clients/:id/tickets/:ticketId/billing-status", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
-  const [organization] = await db
-    .select({ billingEnabled: organizationsTable.billingEnabled })
-    .from(organizationsTable)
-    .where(eq(organizationsTable.id, currentUser.organizationId));
-  if (!organization?.billingEnabled) {
-    res.status(403).json({ error: "BILLING_DISABLED", message: "La fatturazione è disattivata nelle impostazioni dell’organizzazione." });
-    return;
-  }
   const clientId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const ticketId = parseInt(Array.isArray(req.params.ticketId) ? req.params.ticketId[0] : req.params.ticketId, 10);
   if (isNaN(clientId) || isNaN(ticketId)) {

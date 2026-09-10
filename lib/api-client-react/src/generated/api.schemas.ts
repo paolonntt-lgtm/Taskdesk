@@ -99,7 +99,6 @@ export interface User {
   trialStatus?: UserTrialStatus;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
-  billingEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
   groupPermissions?: string[] | null;
@@ -815,29 +814,17 @@ export type CompleteOnboarding200 = {
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
-  clientsEnabled?: boolean;
-  billingEnabled?: boolean;
-  entitySingular?: string | null;
-  entityPlural?: string | null;
 };
 
 export type UpdateOrganizationSettingsBody = {
   /** @minLength 2 */
   name: string;
   businessType?: string | null;
-  clientsEnabled?: boolean;
-  billingEnabled?: boolean;
-  entitySingular?: string | null;
-  entityPlural?: string | null;
 };
 
 export type UpdateOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
-  clientsEnabled?: boolean;
-  billingEnabled?: boolean;
-  entitySingular?: string | null;
-  entityPlural?: string | null;
 };
 
 export type ListTicketsParams = {

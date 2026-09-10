@@ -27,7 +27,6 @@ export interface User {
   trialStatus?: UserTrialStatus;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
-  billingEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
   groupPermissions?: string[] | null;

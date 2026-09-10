@@ -200,12 +200,6 @@ export function useGlobalSearch<TData = Awaited<ReturnType<typeof globalSearch>>
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getListGroupsUrl = () => {
 
 
@@ -276,11 +270,6 @@ export function useListGroups<TData = Awaited<ReturnType<typeof listGroups>>, TE
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
 
 
 export const getCreateGroupUrl = () => {
@@ -750,13 +739,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getLoginUrl = () => {
 
 
@@ -1062,12 +1044,6 @@ export function useGetOrganizationSettings<TData = Awaited<ReturnType<typeof get
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getUpdateOrganizationSettingsUrl = () => {
 
 
@@ -1220,11 +1196,6 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
 }
 
 
-
-
-
-
-
 export const getListUsersUrl = () => {
 
 
@@ -1295,12 +1266,6 @@ export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TErr
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
 
 export const getCreateUserUrl = () => {
 
@@ -1452,12 +1417,6 @@ export function useGetUser<TData = Awaited<ReturnType<typeof getUser>>, TError =
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
 
 export const getUpdateUserUrl = (id: number,) => {
 
@@ -1692,12 +1651,6 @@ export function useListTickets<TData = Awaited<ReturnType<typeof listTickets>>, 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-
-
-
-
-
-
 export const getCreateTicketUrl = () => {
 
 
@@ -1848,12 +1801,6 @@ export function useGetTicket<TData = Awaited<ReturnType<typeof getTicket>>, TErr
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
 
 export const getUpdateTicketUrl = (id: number,) => {
 
@@ -2316,12 +2263,6 @@ export function useListTicketComments<TData = Awaited<ReturnType<typeof listTick
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
 
 export const getAddTicketCommentUrl = (id: number,) => {
 

@@ -64,11 +64,9 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
   const [, setLocation] = useLocation();
   const trialEndsAt: string | null = (user as any).trialEndsAt ?? null;
   const hasSubscription = !!(user as any).stripeSubscriptionId;
-  const billingEnabled = (user as any).billingEnabled !== false;
   const isSuperAdmin = !!(user as any).isSuperAdmin;
   const isTrialExpired =
     !isSuperAdmin &&
-    billingEnabled &&
     trialEndsAt != null &&
     new Date(trialEndsAt) < new Date() &&
     !hasSubscription;
@@ -80,7 +78,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
       <Layout>
         <Switch>
           <Route path="/billing" component={Billing} />
-          <Route>{() => { setLocation(billingEnabled ? '/billing' : '/'); return null; }}</Route>
+          <Route>{() => { setLocation('/billing'); return null; }}</Route>
         </Switch>
       </Layout>
     );
@@ -112,7 +110,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
               <Route path="/clients">{() => { setLocation('/tickets'); return null; }}</Route>
             </>
           )}
-          <Route path="/billing">{() => billingEnabled ? <AdminRoute component={Billing} /> : (() => { setLocation('/'); return null; })()}</Route>
+          <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
           <Route path="/settings" component={Settings} />
           <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
         </Switch>

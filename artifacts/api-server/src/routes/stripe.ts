@@ -6,29 +6,10 @@ import { getUncachableStripeClient } from '../stripeClient';
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrl } from '../lib/appUrl';
-import { db, organizationsTable } from '@workspace/db';
-import { eq } from 'drizzle-orm';
 
 const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
-
-async function requireBillingEnabled(req: any, res: any, next: any): Promise<void> {
-  const organizationId = req.currentUser?.organizationId;
-  if (organizationId == null) {
-    res.status(403).json({ error: 'BILLING_DISABLED', message: 'La fatturazione non è disponibile per questo account.' });
-    return;
-  }
-  const [organization] = await db
-    .select({ billingEnabled: organizationsTable.billingEnabled })
-    .from(organizationsTable)
-    .where(eq(organizationsTable.id, organizationId));
-  if (!organization?.billingEnabled) {
-    res.status(403).json({ error: 'BILLING_DISABLED', message: 'La fatturazione è disattivata nelle impostazioni dell’organizzazione.' });
-    return;
-  }
-  next();
-}
 
 /** Returns true when the Stripe error indicates the customer ID is stale/invalid. */
 function isNoSuchCustomer(err: any): boolean {
@@ -38,7 +19,7 @@ function isNoSuchCustomer(err: any): boolean {
   );
 }
 
-router.get('/stripe/products', requireAuth, requireAdmin, requireBillingEnabled, async (_req, res) => {
+router.get('/stripe/products', async (_req, res) => {
   try {
     const stripe = await getUncachableStripeClient();
     const products = await stripe.products.list({ active: true, expand: ['data.default_price'] });
@@ -79,7 +60,7 @@ router.get('/stripe/products', requireAuth, requireAdmin, requireBillingEnabled,
   }
 });
 
-router.get('/stripe/subscription', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
@@ -120,7 +101,7 @@ function maxAddonForPlan(planSeats: number | null, unlimited: boolean): number {
   return 0;
 }
 
-router.get('/stripe/seat-usage', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.get('/stripe/seat-usage', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     const maxAddonSeats = maxAddonForPlan(usage.planSeats, usage.unlimited);
@@ -130,7 +111,7 @@ router.get('/stripe/seat-usage', requireAuth, requireAdmin, requireBillingEnable
   }
 });
 
-router.post('/stripe/checkout', requireAuth, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void> => {
   try {
     const parsed = priceIdBody.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
@@ -181,7 +162,7 @@ router.post('/stripe/checkout', requireAuth, requireBillingEnabled, async (req: 
  * Called by the frontend after a successful Stripe Checkout redirect (?success=1)
  * so the trial-enforcement check in requireAuth can see the active subscription.
  */
-router.post('/stripe/sync-subscription', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.post('/stripe/sync-subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
@@ -217,7 +198,7 @@ router.post('/stripe/sync-subscription', requireAuth, requireAdmin, requireBilli
   }
 });
 
-router.post('/stripe/upgrade', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const parsed = priceIdBody.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
@@ -279,7 +260,7 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, requireBillingEnabled,
  * The admin must create a product in Stripe with metadata.addon = "seat".
  * Returns 404 if not configured.
  */
-router.get('/stripe/addon-price', requireAuth, requireAdmin, requireBillingEnabled, async (_req, res): Promise<void> => {
+router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): Promise<void> => {
   try {
     const stripe = await getUncachableStripeClient();
     const products = await stripe.products.list({ active: true });
@@ -305,7 +286,7 @@ router.get('/stripe/addon-price', requireAuth, requireAdmin, requireBillingEnabl
  * Body: { quantity: number } — total desired addon seat count (not delta).
  * quantity === 0 removes the addon item from the subscription.
  */
-router.post('/stripe/add-seats', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const parsed = z.object({ quantity: z.number().int().min(0).max(500) }).safeParse(req.body);
     if (!parsed.success) {
@@ -382,7 +363,7 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, requireBillingEnable
   }
 });
 
-router.post('/stripe/portal', requireAuth, requireAdmin, requireBillingEnabled, async (req: any, res): Promise<void> => {
+router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {

@@ -805,7 +805,6 @@ export default function Settings() {
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
   const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
-  const [orgBillingEnabled, setOrgBillingEnabled] = useState<boolean>((user as any)?.billingEnabled !== false);
   const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
@@ -832,7 +831,6 @@ export default function Settings() {
         setOrgName(d.name ?? '');
         if (d.businessType) setOrgBusinessType(d.businessType);
         setOrgClientsEnabled(d.clientsEnabled !== false);
-        setOrgBillingEnabled(d.billingEnabled !== false);
         setOrgEntitySingular(d.entitySingular ?? '');
         setOrgEntityPlural(d.entityPlural ?? '');
       }).catch(() => {});
@@ -886,7 +884,6 @@ export default function Settings() {
           name: orgName,
           businessType: orgBusinessType || undefined,
           clientsEnabled: orgClientsEnabled,
-          billingEnabled: orgBillingEnabled,
           entitySingular: orgEntitySingular || undefined,
           entityPlural: orgEntityPlural || undefined,
         }),
@@ -896,12 +893,10 @@ export default function Settings() {
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
       if (data.clientsEnabled !== undefined) setOrgClientsEnabled(data.clientsEnabled !== false);
-      if (data.billingEnabled !== undefined) setOrgBillingEnabled(data.billingEnabled !== false);
       updateUser({
         ...(user as any),
         businessType: data.businessType ?? null,
         clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
-        billingEnabled: data.billingEnabled !== undefined ? data.billingEnabled : (user as any)?.billingEnabled,
         entitySingular: data.entitySingular ?? null,
         entityPlural: data.entityPlural ?? null,
       });
@@ -1092,7 +1087,7 @@ export default function Settings() {
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
     { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
-    ...(orgBillingEnabled ? [{ id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> }] : []),
+    { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
     { id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> },
     { id: 'backup', label: (t.settings as any).navBackup, icon: <CloudDownload fontSize="small" /> },
   ];
@@ -1380,16 +1375,6 @@ export default function Settings() {
                   </Box>
                   {!orgClientsEnabled && (
                     <Alert severity="warning" sx={{ py: 0.5 }}>{t.settings.orgClientsDisabledWarning}</Alert>
-                  )}
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Switch checked={orgBillingEnabled} onChange={(e) => setOrgBillingEnabled(e.target.checked)} disabled={orgSaving} size="small" />
-                    <Box>
-                      <Typography variant="body2" fontWeight={500}>{t.settings.orgBillingEnabledLabel}</Typography>
-                      <Typography variant="caption" color="text.secondary">{t.settings.orgBillingEnabledHint}</Typography>
-                    </Box>
-                  </Box>
-                  {!orgBillingEnabled && (
-                    <Alert severity="warning" sx={{ py: 0.5 }}>{t.settings.orgBillingDisabledWarning}</Alert>
                   )}
                 </Box>
               </Box>
