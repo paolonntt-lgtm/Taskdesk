@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AppBar,
   Box,
@@ -218,9 +218,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
-  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotifAnchorEl(event.currentTarget);
-  };
+  const handleNotifMenuOpen = (event: React.MouseEvent<HTMLElement>) => setNotifAnchorEl(event.currentTarget);
   const handleMenuClose = () => {
     setAnchorEl(null);
     setNotifAnchorEl(null);
@@ -251,11 +249,10 @@ export default function Layout({ children }: LayoutProps) {
     handleMenuClose();
     if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
-  const recentNotifications = useMemo(() => (notifications as any[]).slice(0, 8), [notifications]);
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-
+  const recentNotifications = (notifications as any[]).slice(0, 6);
   const typeIconMap: Record<string, React.ReactNode> = {
     ticket_created: <FiberNew fontSize="small" sx={{ color: 'primary.main' }} />,
     ticket_status_changed: <SwapHoriz fontSize="small" sx={{ color: 'info.main' }} />,
@@ -265,14 +262,12 @@ export default function Layout({ children }: LayoutProps) {
     system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
   };
 
-
   const menuItems = [
     { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false },
     { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false },
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
-    { text: t.nav.notifications, icon: <Notifications />,    path: '/notifications', adminOnly: false },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
       : []),
@@ -442,6 +437,10 @@ export default function Layout({ children }: LayoutProps) {
               <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ flexGrow: 1, ml: 0.5 }}>
                 {active.text}
               </Typography>
+            ) : location === '/notifications' ? (
+              <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ flexGrow: 1, ml: 0.5 }}>
+                {t.nav.notifications}
+              </Typography>
             ) : <Box sx={{ flexGrow: 1 }} />;
           })()}
 
@@ -512,6 +511,7 @@ export default function Layout({ children }: LayoutProps) {
             data-tour="notifications"
             onClick={handleNotifMenuOpen}
             size="small"
+            aria-label={t.nav.notifications}
             title={t.nav.notifications}
             sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
           >
@@ -526,83 +526,129 @@ export default function Layout({ children }: LayoutProps) {
             onClose={handleMenuClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            PaperProps={{ sx: { width: 340, maxHeight: 420, borderRadius: '16px', mt: 1 } }}
+            PaperProps={{
+              sx: {
+                width: { xs: 'calc(100vw - 24px)', sm: 460 },
+                maxWidth: 'calc(100vw - 24px)',
+                maxHeight: 'min(78vh, 680px)',
+                borderRadius: '18px',
+                mt: 1,
+                overflow: 'hidden',
+              },
+            }}
           >
-            <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle2" fontWeight={700}>{t.nav.notifications}</Typography>
+            <Box sx={{ px: { xs: 2, sm: 2.5 }, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2 }}>
+                  {t.notifications.title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {unreadCount > 0 ? `${unreadCount} ${t.notifications.unreadTotal}` : t.nav.noNotifications}
+                </Typography>
+              </Box>
               {unreadCount > 0 && (
-                <Typography
-                  variant="caption" color="primary" fontWeight={700}
-                  sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                <Button
+                  size="small"
                   onClick={handleMarkAllRead}
+                  sx={{ flexShrink: 0, mt: -0.25, fontWeight: 700, textTransform: 'none' }}
                 >
                   {t.nav.markAllRead}
-                </Typography>
+                </Button>
               )}
             </Box>
+
             {notifPermission === 'default' && (
-              <Box sx={{ px: 2, pb: 1 }}>
-                <Button size="small" variant="outlined" fullWidth startIcon={<Notifications fontSize="small" />}
+              <Box sx={{ px: { xs: 2, sm: 2.5 }, pb: 1.5 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<Notifications fontSize="small" />}
                   onClick={handleRequestPermission}
-                  sx={{ fontSize: '0.75rem', textTransform: 'none', borderStyle: 'dashed', borderRadius: '10px' }}>
+                  sx={{ py: 1, fontSize: '0.78rem', textTransform: 'none', borderStyle: 'dashed', borderRadius: '10px' }}
+                >
                   Abilita notifiche browser
                 </Button>
               </Box>
             )}
             {notifPermission === 'granted' && (
-              <Box sx={{ px: 2, pb: 0.5 }}>
-                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}>
+              <Box sx={{ px: { xs: 2, sm: 2.5 }, pb: 1.25 }}>
+                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 700 }}>
                   ✓ Notifiche browser attive
                 </Typography>
               </Box>
             )}
+
             <Divider />
-            {notifications.length === 0 ? (
-              <MenuItem disabled sx={{ justifyContent: 'center', py: 3 }}>
-                <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
-              </MenuItem>
-            ) : (
-              recentNotifications.map((notification: any) => {
-                const ntype = notification.type ?? 'system';
-                return (
-                  <MenuItem
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    sx={{
-                      whiteSpace: 'normal', py: 1.5, display: 'flex', alignItems: 'flex-start', gap: 1.25,
-                      bgcolor: notification.isRead ? 'transparent' : 'primary.50',
-                      borderLeft: notification.isRead ? 'none' : '3px solid',
-                      borderLeftColor: 'primary.main',
-                    }}
-                  >
-                    <Box sx={{ mt: '2px', flexShrink: 0 }}>
-                      {typeIconMap[ntype] ?? typeIconMap.system}
-                    </Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem', mb: 0.25 }}>
-                        {(t.nav.notifTypes as any)[ntype] ?? ntype}
-                      </Typography>
-                      <Typography variant="body2">
-                        {notification.notificationText}
-                      </Typography>
-                      {notification.createdAt && (
-                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', mt: 0.25, display: 'block' }}>
-                          {new Date(notification.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
-                        </Typography>
-                      )}
-                    </Box>
-                  </MenuItem>
-                );
-              })
-            )}
-            {notifications.length > 0 && (
-              <>
-                <Divider />
-                <MenuItem onClick={() => { handleMenuClose(); setLocation('/notifications'); }} sx={{ justifyContent: 'center', color: 'primary.main', fontWeight: 700 }}>
-                  {t.notifications.viewAll}
+            <Box sx={{ maxHeight: { xs: '48vh', sm: 420 }, overflowY: 'auto', py: 0.5 }}>
+              {notifications.length === 0 ? (
+                <MenuItem disabled sx={{ justifyContent: 'center', py: 5 }}>
+                  <Typography variant="body2" color="text.secondary">{t.nav.noNotifications}</Typography>
                 </MenuItem>
-              </>
-            )}
+              ) : (
+                recentNotifications.map((notification: any) => {
+                  const ntype = notification.type ?? 'system';
+                  return (
+                    <MenuItem
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
+                      sx={{
+                        whiteSpace: 'normal',
+                        alignItems: 'flex-start',
+                        gap: 1.5,
+                        px: { xs: 2, sm: 2.5 },
+                        py: 1.75,
+                        minHeight: 82,
+                        bgcolor: notification.isRead ? 'transparent' : (theme.palette.mode === 'dark' ? 'rgba(37,99,235,.12)' : '#f7faff'),
+                        borderLeft: notification.isRead ? '3px solid transparent' : '3px solid',
+                        borderLeftColor: notification.isRead ? 'transparent' : 'primary.main',
+                        '&:hover': { bgcolor: notification.isRead ? 'action.hover' : (theme.palette.mode === 'dark' ? 'rgba(37,99,235,.2)' : '#edf4ff') },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          mt: 0.15,
+                          width: 38,
+                          height: 38,
+                          borderRadius: '12px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          flexShrink: 0,
+                          bgcolor: notification.isRead ? 'action.hover' : (theme.palette.mode === 'dark' ? 'rgba(96,165,250,.15)' : '#e5efff'),
+                        }}
+                      >
+                        {typeIconMap[ntype] ?? typeIconMap.system}
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.45, fontSize: '0.64rem', mb: 0.45 }}
+                        >
+                          {(t.nav.notifTypes as any)[ntype] ?? ntype}
+                        </Typography>
+                        <Typography variant="body2" sx={{ lineHeight: 1.45, fontWeight: notification.isRead ? 500 : 700, overflowWrap: 'anywhere' }}>
+                          {notification.notificationText}
+                        </Typography>
+                        {notification.createdAt && (
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem', mt: 0.65, display: 'block' }}>
+                            {new Date(notification.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+                          </Typography>
+                        )}
+                      </Box>
+                    </MenuItem>
+                  );
+                })
+              )}
+            </Box>
+
+            <Divider />
+            <MenuItem
+              onClick={() => { handleMenuClose(); setLocation('/notifications'); }}
+              sx={{ justifyContent: 'center', py: 1.5, color: 'primary.main', fontWeight: 800 }}
+            >
+              {t.notifications.viewAll}
+            </MenuItem>
           </Menu>
 
           {/* Profile */}
