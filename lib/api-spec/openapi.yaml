@@ -3072,6 +3072,9 @@ components:
         ticketId:
           type: integer
           nullable: true
+        ticketNumber:
+          type: integer
+          nullable: true
         notificationText:
           type: string
         isRead:

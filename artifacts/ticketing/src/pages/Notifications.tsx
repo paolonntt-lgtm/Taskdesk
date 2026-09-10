@@ -43,6 +43,7 @@ type Filter = 'all' | 'unread' | 'read';
 interface NotificationItem {
   id: number;
   ticketId?: number | null;
+  ticketNumber?: number | null;
   notificationText: string;
   isRead: boolean;
   createdAt: string;
@@ -393,7 +394,7 @@ export default function NotificationsPage() {
                               <>
                                 <Chip
                                   icon={<ConfirmationNumberOutlined sx={{ fontSize: '15px !important' }} />}
-                                  label={t.notifications.ticketLabel(notification.ticketId)}
+                                  label={t.notifications.ticketLabel(notification.ticketNumber ?? notification.ticketId)}
                                   size="small"
                                   variant="outlined"
                                   data-testid={`chip-notification-ticket-${notification.id}`}
