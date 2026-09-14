@@ -133,12 +133,11 @@ export default function TicketDetail() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '', workedHours: '', workedMinutes: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '' });
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [editWorkedTimeError, setEditWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
   const [dueEditVal, setDueEditVal] = useState<string>('');
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
@@ -517,7 +516,6 @@ export default function TicketDetail() {
   };
 
   const openEditDialog = () => {
-    const initialWorkedTime = splitWorkedMinutes((ticket as any).workedMinutes);
     setEditForm({
       title: ticket.title,
       description: ticket.description,
@@ -526,24 +524,14 @@ export default function TicketDetail() {
       resource: (ticket as any).resource || '',
       clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
       dueAt: (ticket as any).dueAt ? new Date((ticket as any).dueAt).toISOString().slice(0, 16) : '',
-      workedHours: initialWorkedTime.hours,
-      workedMinutes: initialWorkedTime.minutes,
     });
     setEditError(null);
-    setEditWorkedTimeError(null);
     setEditDialog(true);
   };
 
   const handleEditSave = async () => {
     setEditSaving(true);
     setEditError(null);
-    const workedTime = parseWorkedDuration(editForm.workedHours, editForm.workedMinutes);
-    if (workedTimeEnabled && workedTime.error) {
-      setEditWorkedTimeError(workedTime.error);
-      setEditSaving(false);
-      return;
-    }
-    setEditWorkedTimeError(null);
     try {
       const existingClientId = (ticket as any).clientId ?? null;
       const newClientId = editForm.clientId ? parseInt(editForm.clientId) : null;
@@ -584,7 +572,6 @@ export default function TicketDetail() {
           resource: editForm.resource || undefined,
           clientId: newClientId,
           dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
-          ...(isAdmin && workedTimeEnabled && { workedMinutes: workedTime.total }),
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
@@ -1755,36 +1742,6 @@ export default function TicketDetail() {
             </TextField>
           )}
           <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
-          {isAdmin && workedTimeEnabled && (
-            <>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: -1 }}>{t.ticketDetail.workedTime}</Typography>
-              <Box display="flex" gap={1.5}>
-                <TextField
-                  label={t.ticketDetail.workedHours}
-                  type="number"
-                  size="small"
-                  value={editForm.workedHours}
-                  onChange={(e) => { setEditForm((f) => ({ ...f, workedHours: e.target.value })); setEditWorkedTimeError(null); }}
-                  disabled={editSaving}
-                  inputProps={{ min: 0, step: 1 }}
-                  error={editWorkedTimeError === 'hours'}
-                  fullWidth
-                />
-                <TextField
-                  label={t.ticketDetail.workedMinutes}
-                  type="number"
-                  size="small"
-                  value={editForm.workedMinutes}
-                  onChange={(e) => { setEditForm((f) => ({ ...f, workedMinutes: e.target.value })); setEditWorkedTimeError(null); }}
-                  disabled={editSaving}
-                  inputProps={{ min: 0, max: 59, step: 1 }}
-                  error={editWorkedTimeError === 'minutes'}
-                  fullWidth
-                />
-              </Box>
-              {editWorkedTimeError && <FormHelperText error>{editWorkedTimeError === 'hours' ? t.ticketDetail.workedHoursError : t.ticketDetail.workedMinutesError}</FormHelperText>}
-            </>
-          )}
           {(isAdmin || isAssignee) && (
             <TextField type="datetime-local" label={t.ticketDetail.dueAtLabel} fullWidth size="small" value={editForm.dueAt} onChange={(e) => setEditForm((f) => ({ ...f, dueAt: e.target.value }))} disabled={editSaving} InputLabelProps={{ shrink: true }} />
           )}
