@@ -436,6 +436,9 @@ const it = {
     addFromTemplateTitle: 'Scegli template',
     noTemplatesAvailable: 'Nessun template disponibile.',
     addFromTemplateError: 'Errore durante l\'applicazione del template. Riprova.',
+    saveAsTemplate: 'Salva come template',
+    templateSaved: 'Template salvato.',
+    templateSaveError: 'Errore durante il salvataggio del template. Riprova.',
   },
   checklistTemplates: {
     navLabel: 'Template Checklist',
@@ -2026,6 +2029,9 @@ const en: typeof it = {
     addFromTemplateTitle: 'Choose template',
     noTemplatesAvailable: 'No templates available.',
     addFromTemplateError: 'Error applying template. Please try again.',
+    saveAsTemplate: 'Save as template',
+    templateSaved: 'Template saved.',
+    templateSaveError: 'Error saving the template. Please try again.',
   },
   checklistTemplates: {
     navLabel: 'Checklist Templates',

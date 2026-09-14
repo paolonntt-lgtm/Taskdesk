@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   Add, Delete, ExpandLess, ExpandMore, EditOutlined, CheckBoxOutlineBlank,
-  ArrowUpward, ArrowDownward, PlaylistAdd, Label,
+  ArrowUpward, ArrowDownward, PlaylistAdd, Label, BookmarkAdd,
 } from '@mui/icons-material';
 import {
   useListTicketChecklists, useCreateChecklist, useUpdateChecklist, useDeleteChecklist,
@@ -49,13 +49,14 @@ interface SingleChecklistProps {
   isAdmin: boolean;
   onError: (msg: string) => void;
   onDeleted: (id: number) => void;
+  onTemplateSaved: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
 
-function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: SingleChecklistProps) {
+function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onTemplateSaved, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: SingleChecklistProps) {
   const { t } = useLanguage();
   const ct = t.checklist;
   const queryClient = useQueryClient();
@@ -67,6 +68,8 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   const updateChecklist = useUpdateChecklist();
   const deleteChecklist = useDeleteChecklist();
@@ -167,6 +170,47 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
     }
   }
 
+  async function handleSaveAsTemplate() {
+    if (!isAdmin || !checklist.title.trim() || items.length === 0 || savingAsTemplate) return;
+    setSavingAsTemplate(true);
+    try {
+      const templateResponse = await fetch('/api/checklist-templates', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: checklist.title.trim() }),
+      });
+      if (!templateResponse.ok) throw new Error('template creation failed');
+      const template = await templateResponse.json() as { id: number };
+
+      try {
+        for (const item of items) {
+          const itemResponse = await fetch(`/api/checklist-templates/${template.id}/items`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: item.text }),
+          });
+          if (!itemResponse.ok) throw new Error('template item creation failed');
+        }
+      } catch (error) {
+        await fetch(`/api/checklist-templates/${template.id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        }).catch(() => undefined);
+        throw error;
+      }
+
+      setTemplateSaved(true);
+      onTemplateSaved();
+      window.setTimeout(() => setTemplateSaved(false), 3500);
+    } catch {
+      onError(ct.templateSaveError);
+    } finally {
+      setSavingAsTemplate(false);
+    }
+  }
+
   const fromTemplateName = (checklist as any).fromTemplateName as string | null | undefined;
 
   return (
@@ -238,6 +282,19 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                   <IconButton size="small" onClick={() => setRenaming(true)} sx={{ p: 0.25 }}>
                     <EditOutlined sx={{ fontSize: 13 }} />
                   </IconButton>
+                </Tooltip>
+                <Tooltip title={ct.saveAsTemplate}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      data-testid={`button-save-checklist-as-template-${checklist.id}`}
+                      onClick={handleSaveAsTemplate}
+                      disabled={savingAsTemplate || items.length === 0}
+                      sx={{ p: 0.25 }}
+                    >
+                      {savingAsTemplate ? <CircularProgress size={13} /> : <BookmarkAdd sx={{ fontSize: 13 }} />}
+                    </IconButton>
+                  </span>
                 </Tooltip>
                 <Tooltip title={ct.deleteChecklist}>
                   <IconButton size="small" color="error" onClick={() => setDeleteDialogOpen(true)} sx={{ p: 0.25 }}>
@@ -432,6 +489,16 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={templateSaved}
+        autoHideDuration={3500}
+        onClose={() => setTemplateSaved(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setTemplateSaved(false)} sx={{ width: '100%' }}>
+          {ct.templateSaved}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -620,6 +687,9 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
             isAdmin={isAdmin}
             onError={setErrorMsg}
             onDeleted={() => invalidate()}
+            onTemplateSaved={() => {
+              setTemplates([]);
+            }}
             canMoveUp={idx > 0}
             canMoveDown={idx < arr.length - 1}
             onMoveUp={() => handleReorderChecklist(cl.id, 'up')}
