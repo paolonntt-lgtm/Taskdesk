@@ -783,9 +783,15 @@ export default function TicketDetail() {
           <Box component="span" sx={{ fontSize: 13, color: 'primary.main', fontWeight: 600, flexShrink: 0 }}>
             #{ticket.ticketNumber ?? ticket.id}
           </Box>
-          <Box component="span" sx={{ fontSize: 13, color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
-            — {ticket.title}
-          </Box>
+           <Box component="span" sx={{ color: 'text.disabled', fontSize: 13, flexShrink: 0 }}>·</Box>
+           <Box
+             component="span"
+             data-testid="text-ticket-opened-at"
+             sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, fontSize: { xs: 10, sm: 11 }, color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}
+           >
+             <CalendarTodayIcon sx={{ fontSize: { xs: 12, sm: 13 }, color: 'text.disabled' }} />
+             {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
+           </Box>
         </Box>
         {/* Action buttons */}
         <Box display="flex" gap={0.75} alignItems="center" flexShrink={0}>
@@ -851,16 +857,6 @@ export default function TicketDetail() {
 
           {/* Meta bar — righe esplicite */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
-
-            {/* Data e ora di apertura — sopra lo stato e gli altri metadati */}
-            <Box
-              component="span"
-              data-testid="text-ticket-opened-at"
-              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: { xs: 11, sm: 12 }, color: 'text.secondary', whiteSpace: 'nowrap' }}
-            >
-              <CalendarTodayIcon sx={{ fontSize: { xs: 13, sm: 14 }, color: 'text.disabled' }} />
-              {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
-            </Box>
 
             {/* Riga 1: status · priorità · categoria · sede */}
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
