@@ -3,7 +3,7 @@ import {
   Box, Typography, LinearProgress, Checkbox, IconButton,
   TextField, Button, CircularProgress, Collapse, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
-  Chip, Menu, MenuItem,
+  Chip, Menu, MenuItem, Divider,
 } from '@mui/material';
 import {
   Add, Delete, ExpandLess, ExpandMore, EditOutlined, CheckBoxOutlineBlank,
@@ -49,14 +49,13 @@ interface SingleChecklistProps {
   isAdmin: boolean;
   onError: (msg: string) => void;
   onDeleted: (id: number) => void;
-  onTemplateSaved: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
 
-function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onTemplateSaved, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: SingleChecklistProps) {
+function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: SingleChecklistProps) {
   const { t } = useLanguage();
   const ct = t.checklist;
   const queryClient = useQueryClient();
@@ -68,8 +67,6 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onT
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
-  const [templateSaved, setTemplateSaved] = useState(false);
 
   const updateChecklist = useUpdateChecklist();
   const deleteChecklist = useDeleteChecklist();
@@ -170,47 +167,6 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onT
     }
   }
 
-  async function handleSaveAsTemplate() {
-    if (!isAdmin || !checklist.title.trim() || items.length === 0 || savingAsTemplate) return;
-    setSavingAsTemplate(true);
-    try {
-      const templateResponse = await fetch('/api/checklist-templates', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: checklist.title.trim() }),
-      });
-      if (!templateResponse.ok) throw new Error('template creation failed');
-      const template = await templateResponse.json() as { id: number };
-
-      try {
-        for (const item of items) {
-          const itemResponse = await fetch(`/api/checklist-templates/${template.id}/items`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: item.text }),
-          });
-          if (!itemResponse.ok) throw new Error('template item creation failed');
-        }
-      } catch (error) {
-        await fetch(`/api/checklist-templates/${template.id}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        }).catch(() => undefined);
-        throw error;
-      }
-
-      setTemplateSaved(true);
-      onTemplateSaved();
-      window.setTimeout(() => setTemplateSaved(false), 3500);
-    } catch {
-      onError(ct.templateSaveError);
-    } finally {
-      setSavingAsTemplate(false);
-    }
-  }
-
   const fromTemplateName = (checklist as any).fromTemplateName as string | null | undefined;
 
   return (
@@ -282,19 +238,6 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onT
                   <IconButton size="small" onClick={() => setRenaming(true)} sx={{ p: 0.25 }}>
                     <EditOutlined sx={{ fontSize: 13 }} />
                   </IconButton>
-                </Tooltip>
-                <Tooltip title={ct.saveAsTemplate}>
-                  <span>
-                    <IconButton
-                      size="small"
-                      data-testid={`button-save-checklist-as-template-${checklist.id}`}
-                      onClick={handleSaveAsTemplate}
-                      disabled={savingAsTemplate || items.length === 0}
-                      sx={{ p: 0.25 }}
-                    >
-                      {savingAsTemplate ? <CircularProgress size={13} /> : <BookmarkAdd sx={{ fontSize: 13 }} />}
-                    </IconButton>
-                  </span>
                 </Tooltip>
                 <Tooltip title={ct.deleteChecklist}>
                   <IconButton size="small" color="error" onClick={() => setDeleteDialogOpen(true)} sx={{ p: 0.25 }}>
@@ -489,16 +432,6 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, onT
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={templateSaved}
-        autoHideDuration={3500}
-        onClose={() => setTemplateSaved(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="success" onClose={() => setTemplateSaved(false)} sx={{ width: '100%' }}>
-          {ct.templateSaved}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }
@@ -525,6 +458,8 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [applyingTemplateId, setApplyingTemplateId] = useState<number | null>(null);
+  const [savingTemplateChecklistId, setSavingTemplateChecklistId] = useState<number | null>(null);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: getListTicketChecklistsQueryKey(ticketId) });
@@ -556,6 +491,49 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
       setErrorMsg(ct.addFromTemplateError);
     } finally {
       setApplyingTemplateId(null);
+    }
+  }
+
+  async function handleSaveChecklistAsTemplate(checklist: ChecklistWithItems) {
+    const items = [...(checklist.items ?? [])].sort((a, b) => a.position - b.position);
+    if (!isAdmin || !checklist.title.trim() || items.length === 0 || savingTemplateChecklistId != null) return;
+
+    setTemplateMenuAnchor(null);
+    setSavingTemplateChecklistId(checklist.id);
+    try {
+      const templateResponse = await fetch('/api/checklist-templates', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: checklist.title.trim() }),
+      });
+      if (!templateResponse.ok) throw new Error('template creation failed');
+      const template = await templateResponse.json() as { id: number };
+
+      try {
+        for (const item of items) {
+          const itemResponse = await fetch(`/api/checklist-templates/${template.id}/items`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: item.text }),
+          });
+          if (!itemResponse.ok) throw new Error('template item creation failed');
+        }
+      } catch (error) {
+        await fetch(`/api/checklist-templates/${template.id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        }).catch(() => undefined);
+        throw error;
+      }
+
+      setTemplates([]);
+      setTemplateSaved(true);
+    } catch {
+      setErrorMsg(ct.templateSaveError);
+    } finally {
+      setSavingTemplateChecklistId(null);
     }
   }
 
@@ -596,6 +574,8 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
       </Box>
     );
   }
+
+  const sortedChecklists = [...(checklists as ChecklistWithItems[])].sort((a, b) => a.position - b.position);
 
   return (
     <Box>
@@ -646,6 +626,32 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
             </MenuItem>
           ))
         )}
+        {isAdmin && sortedChecklists.length > 0 && (
+          <>
+            <Divider />
+            <MenuItem disabled sx={{ opacity: '1 !important', fontWeight: 700, fontSize: 12 }}>
+              <BookmarkAdd sx={{ fontSize: 16, mr: 1 }} />
+              {ct.saveAsTemplate}
+            </MenuItem>
+            {sortedChecklists.map((checklist) => {
+              const hasItems = (checklist.items ?? []).length > 0;
+              const isSaving = savingTemplateChecklistId === checklist.id;
+              return (
+                <MenuItem
+                  key={`save-template-${checklist.id}`}
+                  data-testid={`menu-save-checklist-as-template-${checklist.id}`}
+                  onClick={() => handleSaveChecklistAsTemplate(checklist)}
+                  disabled={!hasItems || savingTemplateChecklistId != null}
+                  dense
+                  sx={{ pl: 4 }}
+                >
+                  {isSaving ? <CircularProgress size={14} sx={{ mr: 1 }} /> : <BookmarkAdd sx={{ fontSize: 16, mr: 1 }} />}
+                  <Typography variant="body2" noWrap fontSize={13}>{checklist.title}</Typography>
+                </MenuItem>
+              );
+            })}
+          </>
+        )}
       </Menu>
 
       {/* New checklist name row */}
@@ -687,9 +693,6 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
             isAdmin={isAdmin}
             onError={setErrorMsg}
             onDeleted={() => invalidate()}
-            onTemplateSaved={() => {
-              setTemplates([]);
-            }}
             canMoveUp={idx > 0}
             canMoveDown={idx < arr.length - 1}
             onMoveUp={() => handleReorderChecklist(cl.id, 'up')}
@@ -706,6 +709,16 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
       >
         <Alert severity="error" onClose={() => setErrorMsg(null)} sx={{ width: '100%' }}>
           {errorMsg}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={templateSaved}
+        autoHideDuration={3500}
+        onClose={() => setTemplateSaved(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setTemplateSaved(false)} sx={{ width: '100%' }}>
+          {ct.templateSaved}
         </Alert>
       </Snackbar>
     </Box>
