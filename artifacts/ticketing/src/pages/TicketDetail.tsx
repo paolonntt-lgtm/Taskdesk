@@ -856,9 +856,9 @@ export default function TicketDetail() {
             <Box
               component="span"
               data-testid="text-ticket-opened-at"
-              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: { xs: 12, sm: 14 }, color: 'text.secondary', whiteSpace: 'nowrap' }}
+              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: { xs: 11, sm: 12 }, color: 'text.secondary', whiteSpace: 'nowrap' }}
             >
-              <CalendarTodayIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: 'text.disabled' }} />
+              <CalendarTodayIcon sx={{ fontSize: { xs: 13, sm: 14 }, color: 'text.disabled' }} />
               {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
             </Box>
 
