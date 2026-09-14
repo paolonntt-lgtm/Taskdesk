@@ -446,6 +446,7 @@ interface ChecklistTemplate {
 export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   const { t } = useLanguage();
   const ct = t.checklist;
+  const templateCt = t.checklistTemplates;
   const queryClient = useQueryClient();
   const { data: checklists = [], isLoading } = useListTicketChecklists(ticketId);
   const createChecklist = useCreateChecklist();
@@ -460,6 +461,8 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
   const [applyingTemplateId, setApplyingTemplateId] = useState<number | null>(null);
   const [savingTemplateChecklistId, setSavingTemplateChecklistId] = useState<number | null>(null);
   const [templateSaved, setTemplateSaved] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<ChecklistTemplate | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: getListTicketChecklistsQueryKey(ticketId) });
@@ -507,6 +510,7 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: checklist.title.trim() }),
       });
+      if (templateResponse.status === 409) throw new Error('duplicate-template-title');
       if (!templateResponse.ok) throw new Error('template creation failed');
       const template = await templateResponse.json() as { id: number };
 
@@ -530,10 +534,31 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
 
       setTemplates([]);
       setTemplateSaved(true);
-    } catch {
-      setErrorMsg(ct.templateSaveError);
+    } catch (error) {
+      setErrorMsg(error instanceof Error && error.message === 'duplicate-template-title'
+        ? ct.templateDuplicate
+        : ct.templateSaveError);
     } finally {
       setSavingTemplateChecklistId(null);
+    }
+  }
+
+  async function handleDeleteTemplate() {
+    if (!templateToDelete || deletingTemplateId != null) return;
+    const templateId = templateToDelete.id;
+    setDeletingTemplateId(templateId);
+    try {
+      const response = await fetch(`/api/checklist-templates/${templateId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('template deletion failed');
+      setTemplates((current) => current.filter((template) => template.id !== templateId));
+      setTemplateToDelete(null);
+    } catch {
+      setErrorMsg(templateCt.errorDelete);
+    } finally {
+      setDeletingTemplateId(null);
     }
   }
 
@@ -617,10 +642,28 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
         ) : (
           templates.map((tpl) => (
             <MenuItem key={tpl.id} onClick={() => handleApplyTemplate(tpl.id)} dense>
-              <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="body2" fontWeight={600} fontSize={13}>{tpl.title}</Typography>
                 {tpl.category && (
                   <Typography variant="caption" color="text.secondary" fontSize={11}>{tpl.category}</Typography>
+                )}
+                </Box>
+                {isAdmin && (
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label={templateCt.deleteTemplate}
+                    data-testid={`menu-delete-checklist-template-${tpl.id}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setTemplateMenuAnchor(null);
+                      setTemplateToDelete(tpl);
+                    }}
+                    sx={{ p: 0.25, ml: 1 }}
+                  >
+                    <Delete sx={{ fontSize: 16 }} />
+                  </IconButton>
                 )}
               </Box>
             </MenuItem>
@@ -721,6 +764,40 @@ export default function ChecklistSection({ ticketId, isAdmin }: Props) {
           {ct.templateSaved}
         </Alert>
       </Snackbar>
+      <Dialog
+        open={templateToDelete != null}
+        onClose={() => { if (deletingTemplateId == null) setTemplateToDelete(null); }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: 'error.main' }}>
+          {templateCt.deleteTemplateTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {templateCt.deleteTemplateConfirm}
+          </Typography>
+          {templateToDelete && (
+            <Typography variant="body2" fontWeight={700} sx={{ mt: 1 }}>
+              {templateToDelete.title}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setTemplateToDelete(null)} color="inherit" disabled={deletingTemplateId != null}>
+            {templateCt.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteTemplate}
+            disabled={deletingTemplateId != null}
+            startIcon={deletingTemplateId != null ? <CircularProgress size={14} color="inherit" /> : <Delete />}
+          >
+            {templateCt.deleteTemplateAction}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

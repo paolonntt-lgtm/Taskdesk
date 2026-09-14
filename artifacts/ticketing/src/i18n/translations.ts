@@ -439,6 +439,7 @@ const it = {
     saveAsTemplate: 'Salva come template',
     templateSaved: 'Template salvato.',
     templateSaveError: 'Errore durante il salvataggio del template. Riprova.',
+    templateDuplicate: 'Esiste già un template con questo nome.',
   },
   checklistTemplates: {
     navLabel: 'Template Checklist',
@@ -2032,6 +2033,7 @@ const en: typeof it = {
     saveAsTemplate: 'Save as template',
     templateSaved: 'Template saved.',
     templateSaveError: 'Error saving the template. Please try again.',
+    templateDuplicate: 'A template with this name already exists.',
   },
   checklistTemplates: {
     navLabel: 'Checklist Templates',

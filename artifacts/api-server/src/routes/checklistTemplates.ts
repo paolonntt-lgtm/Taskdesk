@@ -24,6 +24,21 @@ async function buildTemplateWithItems(templateId: number) {
   return { ...template, items };
 }
 
+function normalizeTemplateTitle(title: string): string {
+  return title.trim().toLowerCase();
+}
+
+async function findDuplicateTemplate(orgId: number, title: string, excludeId?: number) {
+  const templates = await db
+    .select({ id: checklistTemplatesTable.id, title: checklistTemplatesTable.title })
+    .from(checklistTemplatesTable)
+    .where(eq(checklistTemplatesTable.orgId, orgId));
+  const normalizedTitle = normalizeTemplateTitle(title);
+  return templates.find((template) =>
+    template.id !== excludeId && normalizeTemplateTitle(template.title) === normalizedTitle
+  );
+}
+
 router.get("/checklist-templates", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
@@ -59,10 +74,16 @@ router.post("/checklist-templates", requireAuth, requireAdmin, async (req, res):
   if (orgId == null) { res.status(403).json({ error: "No organization" }); return; }
 
   const parsed = z.object({
-    title: z.string().min(1),
+    title: z.string().trim().min(1),
     category: z.string().nullable().optional(),
   }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+
+  const duplicate = await findDuplicateTemplate(orgId, parsed.data.title);
+  if (duplicate) {
+    res.status(409).json({ error: "A template with this name already exists" });
+    return;
+  }
 
   const existing = await db
     .select({ position: checklistTemplatesTable.position })
@@ -86,6 +107,7 @@ router.patch("/checklist-templates/:id", requireAuth, requireAdmin, async (req, 
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  if (orgId == null) { res.status(403).json({ error: "No organization" }); return; }
 
   const [template] = await db.select().from(checklistTemplatesTable).where(
     and(eq(checklistTemplatesTable.id, id), orgId != null ? eq(checklistTemplatesTable.orgId, orgId) : undefined)
@@ -93,11 +115,19 @@ router.patch("/checklist-templates/:id", requireAuth, requireAdmin, async (req, 
   if (!template) { res.status(404).json({ error: "Template not found" }); return; }
 
   const parsed = z.object({
-    title: z.string().min(1).optional(),
+    title: z.string().trim().min(1).optional(),
     category: z.string().nullable().optional(),
     position: z.number().int().optional(),
   }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+
+  if (parsed.data.title !== undefined) {
+    const duplicate = await findDuplicateTemplate(orgId, parsed.data.title, id);
+    if (duplicate) {
+      res.status(409).json({ error: "A template with this name already exists" });
+      return;
+    }
+  }
 
   const updates: { title?: string; category?: string | null; position?: number } = {};
   if (parsed.data.title !== undefined) updates.title = parsed.data.title;
