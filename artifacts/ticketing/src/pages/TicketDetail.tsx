@@ -852,6 +852,16 @@ export default function TicketDetail() {
           {/* Meta bar — righe esplicite */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>
 
+            {/* Data e ora di apertura — sopra lo stato e gli altri metadati */}
+            <Box
+              component="span"
+              data-testid="text-ticket-opened-at"
+              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: { xs: 12, sm: 14 }, color: 'text.secondary', whiteSpace: 'nowrap' }}
+            >
+              <CalendarTodayIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: 'text.disabled' }} />
+              {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
+            </Box>
+
             {/* Riga 1: status · priorità · categoria · sede */}
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
               {/* Status pill — cliccabile se permesso */}
@@ -983,16 +993,6 @@ export default function TicketDetail() {
                 </Box>
               )}
 
-            </Box>
-
-            {/* Data e ora di apertura — riga dedicata sotto i metadati principali */}
-            <Box
-              component="span"
-              data-testid="text-ticket-opened-at"
-              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: { xs: 12, sm: 14 }, color: 'text.secondary', whiteSpace: 'nowrap' }}
-            >
-              <CalendarTodayIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: 'text.disabled' }} />
-              {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
             </Box>
 
           </Box>
