@@ -1,0 +1,253 @@
+/*
+ * Calm Operational / Blue Precision
+ *
+ * The structure stays intentionally untouched. This layer only changes the
+ * visual language so the same operational rhythm can be compared directly.
+ */
+.taskdesk-calm {
+  --td-ink: #1d3048;
+  --td-ink-soft: #5d7188;
+  --td-ink-faint: #8ea1b5;
+  --td-paper: #f2f7fb;
+  --td-panel: #f9fcff;
+  --td-panel-warm: #eaf3fa;
+  --td-line: #d6e3ef;
+  --td-line-strong: #b9ccdf;
+  --td-moss: #527aa6;
+  --td-moss-deep: #173b63;
+  --td-saffron: #dc7867;
+  --td-saffron-soft: #f8e3de;
+  --td-plum: #75679d;
+  --td-plum-soft: #eeeaf7;
+  --td-sky: #dcecf7;
+  --td-shadow: 0 18px 46px rgba(30, 70, 107, .08), 0 2px 6px rgba(30, 70, 107, .045);
+  background: var(--td-paper);
+  color: var(--td-ink);
+}
+
+.taskdesk-calm button:focus-visible,
+.taskdesk-calm input:focus-visible {
+  outline-color: rgba(220, 120, 103, .36);
+}
+
+.taskdesk-calm__sidebar {
+  background: #e7f1f8;
+}
+
+.taskdesk-calm__brand {
+  color: var(--td-ink);
+}
+
+.taskdesk-calm__brand-mark {
+  background: var(--td-saffron);
+  box-shadow: inset -5px -5px 0 rgba(125, 55, 51, .14);
+}
+
+.taskdesk-calm__brand-mark::before,
+.taskdesk-calm__brand-mark::after {
+  background: #fff6f2;
+}
+
+.taskdesk-calm__brand-name span {
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__nav-button:hover {
+  color: var(--td-moss-deep);
+  background: rgba(249, 252, 255, .78);
+}
+
+.taskdesk-calm__nav-button--active,
+.taskdesk-calm__nav-button--active:hover {
+  color: #f4f8fc;
+  background: var(--td-moss-deep);
+  box-shadow: 0 7px 16px rgba(23, 59, 99, .18);
+}
+
+.taskdesk-calm__nav-count {
+  color: var(--td-saffron);
+  background: var(--td-saffron-soft);
+}
+
+.taskdesk-calm__sidebar-note {
+  background: rgba(249, 252, 255, .62);
+}
+
+.taskdesk-calm__avatar {
+  color: #f7f3ff;
+  background: var(--td-plum);
+}
+
+.taskdesk-calm__search {
+  background: rgba(249, 252, 255, .78);
+}
+
+.taskdesk-calm__search:focus-within {
+  border-color: var(--td-saffron);
+  background: var(--td-panel);
+}
+
+.taskdesk-calm__icon-button:hover {
+  border-color: var(--td-saffron);
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__notification-dot {
+  border-color: var(--td-panel);
+  background: var(--td-saffron);
+}
+
+.taskdesk-calm__hero-copy {
+  background: var(--td-moss-deep);
+  color: #f3f8fc;
+  box-shadow: 0 14px 30px rgba(23, 59, 99, .16);
+}
+
+.taskdesk-calm__hero-copy::after {
+  border-color: rgba(206, 229, 245, .18);
+  box-shadow: 0 0 0 21px rgba(206, 229, 245, .045), 0 0 0 42px rgba(206, 229, 245, .035);
+}
+
+.taskdesk-calm__eyebrow {
+  color: #b7cee3;
+}
+
+.taskdesk-calm__hero-title em {
+  color: #f2a092;
+}
+
+.taskdesk-calm__hero-subtitle {
+  color: #d4e4f1;
+}
+
+.taskdesk-calm__hero-meta {
+  color: #aec6dc;
+}
+
+.taskdesk-calm__focus-bar {
+  background: #e0edf6;
+}
+
+.taskdesk-calm__focus-bar span {
+  background: var(--td-saffron);
+}
+
+.taskdesk-calm__focus-foot strong {
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__metric-change {
+  color: var(--td-moss);
+}
+
+.taskdesk-calm__metric-change--warm {
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__text-button {
+  color: var(--td-moss);
+}
+
+.taskdesk-calm__text-button:hover {
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__ticket {
+  border-bottom-color: #e6eef5;
+}
+
+.taskdesk-calm__ticket:hover {
+  background: #edf5fb;
+}
+
+.taskdesk-calm__priority-dot {
+  background: var(--td-saffron);
+}
+
+.taskdesk-calm__priority-dot--high {
+  background: #7796bc;
+}
+
+.taskdesk-calm__priority-dot--medium {
+  background: #adc1da;
+}
+
+.taskdesk-calm__ticket-status {
+  color: var(--td-moss-deep);
+  background: var(--td-sky);
+}
+
+.taskdesk-calm__ticket-status--waiting {
+  color: var(--td-plum);
+  background: var(--td-plum-soft);
+}
+
+.taskdesk-calm__due--urgent {
+  color: var(--td-saffron);
+}
+
+.taskdesk-calm__person-avatar {
+  color: #f4f8fc;
+  background: var(--td-moss);
+}
+
+.taskdesk-calm__donut {
+  background: conic-gradient(
+    var(--td-saffron) 0 27%,
+    var(--td-moss) 27% 67%,
+    #b9d4e8 67% 84%,
+    #e4eaf3 84% 100%
+  );
+}
+
+.taskdesk-calm__donut-copy span {
+  color: var(--td-ink-faint);
+}
+
+.taskdesk-calm__legend-row i {
+  background: var(--td-saffron);
+}
+
+.taskdesk-calm__legend-row i.moss {
+  background: var(--td-moss);
+}
+
+.taskdesk-calm__legend-row i.blue {
+  background: #b9d4e8;
+}
+
+.taskdesk-calm__legend-row i.grey {
+  background: #e4eaf3;
+}
+
+.taskdesk-calm__timeline-item:not(:last-child)::before {
+  background: var(--td-line);
+}
+
+.taskdesk-calm__timeline-dot {
+  background: var(--td-moss);
+  box-shadow: 0 0 0 1px var(--td-line-strong);
+}
+
+.taskdesk-calm__timeline-item:nth-child(2) .taskdesk-calm__timeline-dot {
+  background: var(--td-saffron);
+}
+
+.taskdesk-calm__timeline-item:nth-child(3) .taskdesk-calm__timeline-dot {
+  background: var(--td-plum);
+}
+
+.taskdesk-calm__waiting-item {
+  border-bottom-color: #e6eef5;
+}
+
+.taskdesk-calm__waiting-mark {
+  background: var(--td-plum);
+}
+
+.taskdesk-calm__toast {
+  border-color: rgba(23, 59, 99, .22);
+  color: #f1f7fc;
+  background: var(--td-moss-deep);
+  box-shadow: 0 13px 30px rgba(23, 59, 99, .22);
+}

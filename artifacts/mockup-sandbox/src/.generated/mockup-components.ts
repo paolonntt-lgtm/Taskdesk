@@ -9,6 +9,7 @@ export const modules: ModuleMap = {
   "./components/mockups/client-detail-variants/SidebarSummary.tsx": () => import("../components/mockups/client-detail-variants/SidebarSummary.tsx"),
   "./components/mockups/client-detail-variants/TabNav.tsx": () => import("../components/mockups/client-detail-variants/TabNav.tsx"),
   "./components/mockups/dashboard-variants/CalmOperational.tsx": () => import("../components/mockups/dashboard-variants/CalmOperational.tsx"),
+  "./components/mockups/dashboard-variants/CalmOperationalAlt.tsx": () => import("../components/mockups/dashboard-variants/CalmOperationalAlt.tsx"),
   "./components/mockups/dashboard-variants/CurrentDashboard.tsx": () => import("../components/mockups/dashboard-variants/CurrentDashboard.tsx"),
   "./components/mockups/landing-variants/DarkBold.tsx": () => import("../components/mockups/landing-variants/DarkBold.tsx"),
   "./components/mockups/landing-variants/VividAnimated.tsx": () => import("../components/mockups/landing-variants/VividAnimated.tsx"),
