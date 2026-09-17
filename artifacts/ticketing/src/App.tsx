@@ -28,6 +28,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
 import NotificationsPage from "./pages/Notifications";
+import TicketTrash from "./pages/TicketTrash";
 import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
 
@@ -92,6 +93,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/tickets/new" component={NewTicket} />
+          <Route path="/tickets/trash">{() => <AdminRoute component={TicketTrash} />}</Route>
           <Route path="/tickets/:id" component={TicketDetail} />
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />

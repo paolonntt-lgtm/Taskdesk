@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, asc, inArray, isNull } from "drizzle-orm";
 import { db, ticketsTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
@@ -13,6 +13,7 @@ async function getTicketForUser(ticketId: number, orgId: number | null, isAdmin:
     .where(
       and(
         eq(ticketsTable.id, ticketId),
+        isNull(ticketsTable.deletedAt),
         orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined
       )
     );

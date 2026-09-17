@@ -5,3 +5,4 @@
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; Metro static builds currently contend for port 8081.
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
+- [Shared DB project refresh](db-project-reference-refresh.md) — Rebuild shared database declarations after schema changes before checking dependent services.

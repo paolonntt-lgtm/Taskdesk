@@ -8,6 +8,7 @@ import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { hasGroupPermission } from "../lib/groupPermissions";
 import { isValidWorkedMinutes } from "../lib/workedTime";
+import { permanentlyDeleteTicket } from "../lib/ticketTrash";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ const TICKET_LIST_COLS = {
   createdAt: ticketsTable.createdAt,
   updatedAt: ticketsTable.updatedAt,
   closedAt: ticketsTable.closedAt,
+  deletedAt: ticketsTable.deletedAt,
   scheduledAt: ticketsTable.scheduledAt,
   clientId: ticketsTable.clientId,
   inboundChannelId: ticketsTable.inboundChannelId,
@@ -88,6 +90,8 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   // Always filter by organization
   conditions.push(eq(ticketsTable.organizationId, orgId));
+  // Deleted tickets are only available through the admin trash view.
+  conditions.push(isNull(ticketsTable.deletedAt));
   // Admin-only tickets must never appear in non-admin list/search results.
   if (currentUser.role !== "admin") {
     conditions.push(eq(ticketsTable.visibility, "organization"));
@@ -286,6 +290,21 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   res.setHeader("Cache-Control", "no-store");
   res.json(result);
+});
+
+router.get("/tickets/trash", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const tickets = await db
+    .select(TICKET_LIST_COLS)
+    .from(ticketsTable)
+    .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.deletedAt)))
+    .orderBy(sql`${ticketsTable.deletedAt} DESC`);
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json(tickets);
 });
 
 router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
@@ -503,7 +522,8 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [ticket] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId)
+      eq(ticketsTable.organizationId, orgId),
+      isNull(ticketsTable.deletedAt)
     )
   );
   if (!ticket) {
@@ -620,7 +640,8 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [existing] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId)
+       eq(ticketsTable.organizationId, orgId),
+       isNull(ticketsTable.deletedAt)
     )
   );
   if (!existing) {
@@ -1226,6 +1247,51 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
   res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null));
 });
 
+router.post("/tickets/:id/restore", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
+
+  const [existing] = await db.select().from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.deletedAt))
+  );
+  if (!existing) { res.status(404).json({ error: "Ticket not found in trash" }); return; }
+
+  const [restored] = await db.update(ticketsTable)
+    .set({ deletedAt: null, updatedAt: new Date() })
+    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
+    .returning();
+
+  await db.insert(ticketActivityLogsTable).values({
+    ticketId: id,
+    userId: currentUser.id,
+    actionType: "ticket_restored",
+    actionDescription: `${currentUser.name} ha ripristinato il ticket dal cestino`,
+  });
+
+  res.json(restored);
+});
+
+router.delete("/tickets/:id/permanent", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+
+  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
+
+  const [existing] = await db.select({ id: ticketsTable.id }).from(ticketsTable).where(
+    and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.deletedAt))
+  );
+  if (!existing) { res.status(404).json({ error: "Ticket not found in trash" }); return; }
+
+  await permanentlyDeleteTicket(id);
+  res.status(204).send();
+});
+
 router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
@@ -1236,7 +1302,8 @@ router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promi
   const [existing] = await db.select().from(ticketsTable).where(
     and(
       eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId)
+       eq(ticketsTable.organizationId, orgId),
+       isNull(ticketsTable.deletedAt)
     )
   );
   if (!existing) {
@@ -1244,15 +1311,26 @@ router.delete("/tickets/:id", requireAuth, requireAdmin, async (req, res): Promi
     return;
   }
 
-  await db.delete(notificationsTable).where(eq(notificationsTable.ticketId, id));
-  await db.delete(ticketActivityLogsTable).where(eq(ticketActivityLogsTable.ticketId, id));
-  await db.delete(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
-  await db.delete(ticketAttachmentsTable).where(eq(ticketAttachmentsTable.ticketId, id));
-  await db.delete(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
-  await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
+   await db.delete(notificationsTable).where(eq(notificationsTable.ticketId, id));
+   const [deleted] = await db.update(ticketsTable)
+     .set({ deletedAt: new Date(), updatedAt: new Date() })
+     .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId), isNull(ticketsTable.deletedAt)))
+     .returning({ id: ticketsTable.id, deletedAt: ticketsTable.deletedAt });
 
-  req.log.info({ ticketId: id }, "Ticket eliminato dall'admin");
-  res.status(204).send();
+   if (!deleted) {
+     res.status(404).json({ error: "Ticket non trovato" });
+     return;
+   }
+
+   await db.insert(ticketActivityLogsTable).values({
+     ticketId: id,
+     userId: currentUser.id,
+     actionType: "ticket_deleted",
+     actionDescription: `${currentUser.name} ha spostato il ticket nel cestino`,
+   });
+
+   req.log.info({ ticketId: id }, "Ticket spostato nel cestino");
+   res.status(200).json(deleted);
 });
 
 export default router;

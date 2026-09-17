@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, inArray, and, sql } from "drizzle-orm";
+import { eq, inArray, and, sql, isNull } from "drizzle-orm";
 import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
@@ -96,7 +96,7 @@ router.get("/tickets/:id/comments", requireAuth, async (req, res): Promise<void>
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });
@@ -142,7 +142,7 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select().from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });
@@ -321,7 +321,7 @@ router.patch("/tickets/:id/comments/:commentId", requireAuth, async (req, res): 
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, ticketId), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, ticketId), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket non trovato" });
@@ -382,7 +382,7 @@ router.delete("/tickets/:id/comments/:commentId", requireAuth, async (req, res):
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, ticketId), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, ticketId), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket non trovato" });
@@ -427,7 +427,7 @@ router.patch("/tickets/:id/comments/:commentId/solution", requireAuth, async (re
 
   const orgId = currentUser.organizationId;
   const [ticket] = await db.select().from(ticketsTable).where(
-    and(eq(ticketsTable.id, ticketId), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, ticketId), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket non trovato" });
@@ -507,7 +507,7 @@ router.post("/tickets/:id/comments/:commentId/reactions", requireAuth, async (re
   }
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, ticketId), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, ticketId), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket non trovato" });

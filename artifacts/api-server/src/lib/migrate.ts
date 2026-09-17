@@ -20,6 +20,12 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS worked_billing_status TEXT NOT NULL DEFAULT 'unbilled';
     `);
 
+    // Keep deleted tickets recoverable in the trash for the retention period.
+    await client.query(`
+      ALTER TABLE tickets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+      CREATE INDEX IF NOT EXISTS tickets_deleted_at_idx ON tickets (organization_id, deleted_at);
+    `);
+
     // Backfill ticket_number for rows that don't have it yet,
     // assigning per-organization sequential numbers starting from 1
     await client.query(`

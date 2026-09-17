@@ -48,6 +48,7 @@ import {
   CalendarMonth,
   AdminPanelSettings,
   Search,
+  DeleteSweep,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -269,6 +270,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
+    { text: t.nav.trash,      icon: <DeleteSweep />,         path: '/tickets/trash', adminOnly: true },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
       : []),
@@ -277,8 +279,13 @@ export default function Layout({ children }: LayoutProps) {
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
 
-  const isActive = (path: string) =>
-    path === '/' ? location === '/' : location.startsWith(path);
+  const isActive = (path: string) => {
+    if (path === '/') return location === '/';
+    if (path === '/tickets') {
+      return location === '/tickets' || (location.startsWith('/tickets/') && location !== '/tickets/trash');
+    }
+    return location.startsWith(path);
+  };
 
   const drawer = (
     <Box data-tour="sidebar" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

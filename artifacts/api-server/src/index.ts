@@ -10,6 +10,7 @@ import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
 import { startAppointmentReminderJob } from "./lib/appointmentReminderJob";
 import { startTicketRecurrenceJob } from "./lib/ticketRecurrenceJob";
 import { startTrialReminderJob } from "./lib/trialReminderJob";
+import { startTicketTrashCleanupJob } from "./lib/ticketTrash";
 
 const rawPort = process.env["PORT"];
 
@@ -60,6 +61,7 @@ seedIfEmpty()
   .then(() => startAppointmentReminderJob())
   .then(() => startTicketRecurrenceJob())
   .then(() => startTrialReminderJob())
+  .then(() => startTicketTrashCleanupJob())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();

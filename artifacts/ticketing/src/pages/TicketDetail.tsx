@@ -1696,22 +1696,22 @@ export default function TicketDetail() {
       {/* Delete ticket confirm */}
       <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DeleteOutline /> {lang === 'it' ? `Elimina ${entityTerm.singularLower}` : `Delete ${entityTerm.singularLower}`}
+           <DeleteOutline /> {lang === 'it' ? `Sposta ${entityTerm.singularLower} nel cestino` : `Move ${entityTerm.singularLower} to trash`}
         </DialogTitle>
         <DialogContent>
           <Typography>
             {lang === 'it'
-              ? <>Sei sicuro di voler eliminare {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?</>
-              : <>Are you sure you want to delete {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?</>}
+               ? <>Vuoi spostare nel cestino {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id} — {ticket?.title}</strong>?</>
+               : <>Are you sure you want to move {entityTerm.articleIndef} {entityTerm.singularLower} <strong>#{ticket?.ticketNumber ?? ticket?.id}</strong> to the trash?</>}
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={1}>
-            Questa operazione è irreversibile: verranno eliminati anche tutti i commenti, allegati e lo storico attività.
+             Il ticket e tutti i suoi commenti, allegati e storico attività resteranno recuperabili nel cestino per 30 giorni. Dopo questo periodo verranno eliminati definitivamente.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setDeleteDialog(false)} color="inherit" disabled={deleteTicket.isPending}>Annulla</Button>
           <Button variant="contained" color="error" onClick={handleDeleteConfirm} disabled={deleteTicket.isPending} startIcon={<DeleteOutline />}>
-            {deleteTicket.isPending ? t.ticketDetail.deleting : t.ticketDetail.deletePermanently}
+             {deleteTicket.isPending ? t.ticketDetail.deleting : lang === 'it' ? 'Sposta nel cestino' : 'Move to trash'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, ticketInternalNotesTable, ticketsTable, usersTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketNoteBody } from "@workspace/api-zod";
@@ -22,7 +22,7 @@ router.get("/tickets/:id/notes", requireAuth, requireNoteAccess, async (req, res
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });
@@ -62,7 +62,7 @@ router.post("/tickets/:id/notes", requireAuth, requireNoteAccess, async (req, re
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
     res.status(404).json({ error: "Ticket not found" });

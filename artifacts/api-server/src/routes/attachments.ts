@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, ticketAttachmentsTable, ticketsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { SaveTicketAttachmentBody } from "@workspace/api-zod";
@@ -18,7 +18,7 @@ router.get("/tickets/:id/attachments", requireAuth, async (req, res): Promise<vo
   const orgId = currentUser.organizationId;
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) { res.status(404).json({ error: "Ticket not found" }); return; }
 
@@ -88,7 +88,7 @@ router.post("/tickets/:id/attachments", requireAuth, async (req, res): Promise<v
   }
 
   const [ticket] = await db.select({ id: ticketsTable.id, visibility: ticketsTable.visibility }).from(ticketsTable).where(
-    and(eq(ticketsTable.id, id), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
+    and(eq(ticketsTable.id, id), isNull(ticketsTable.deletedAt), orgId != null ? eq(ticketsTable.organizationId, orgId) : undefined)
   );
   if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) { res.status(404).json({ error: "Ticket not found" }); return; }
 

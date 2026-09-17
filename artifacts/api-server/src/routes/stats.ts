@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and, gte, isNotNull, inArray, lt, notInArray, asc } from "drizzle-orm";
+import { eq, sql, and, gte, isNotNull, isNull, inArray, lt, notInArray, asc } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
 import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
 import { getTrialStatus } from "../lib/trialStatus";
@@ -63,6 +63,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -110,6 +111,7 @@ router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -149,6 +151,7 @@ router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -171,6 +174,7 @@ router.get("/stats/by-location", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -193,6 +197,7 @@ router.get("/stats/by-priority", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -221,12 +226,14 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
   const joinCondition = validDays
     ? and(
         eq(ticketsTable.assignedTo, usersTable.id),
+        isNull(ticketsTable.deletedAt),
         eq(ticketsTable.organizationId, orgId),
         currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`),
       )
     : and(
         eq(ticketsTable.assignedTo, usersTable.id),
+        isNull(ticketsTable.deletedAt),
         eq(ticketsTable.organizationId, orgId),
         currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
       );
@@ -250,6 +257,7 @@ router.get("/stats/trend", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -273,6 +281,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -313,6 +322,7 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
   const orgAndUser = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
     sql`(created_by = ${currentUser.id} OR assigned_to = ${currentUser.id})`
@@ -366,6 +376,7 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
       ticketsTable,
       and(
         eq(ticketsTable.assignedTo, usersTable.id),
+        isNull(ticketsTable.deletedAt),
         eq(ticketsTable.organizationId, orgId),
         currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
       )
@@ -383,6 +394,7 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
   const conditions: any[] = [
+    isNull(ticketsTable.deletedAt),
     isNotNull(ticketsTable.dueAt),
     lt(ticketsTable.dueAt, sql`now()`),
     notInArray(ticketsTable.status, ["resolved", "closed"]),
@@ -426,6 +438,7 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
 
   const filter = and(
     eq(ticketsTable.organizationId, orgId),
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.assignedTo, currentUser.id),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -449,6 +462,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = and(
+    isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
@@ -500,6 +514,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.assignedTo, usersTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         )
@@ -522,6 +537,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.createdBy, usersTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         )
@@ -537,6 +553,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         )
@@ -555,6 +572,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
         )
@@ -602,6 +620,7 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
   const conditions: any[] = [
+    isNull(ticketsTable.deletedAt),
     isNotNull(ticketsTable.dueAt),
     lt(ticketsTable.dueAt, sql`now() + interval '7 days'`),
     notInArray(ticketsTable.status, ["resolved", "closed"]),
@@ -658,6 +677,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.createdBy, usersTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           ticketVisibilityFilter,
         )
@@ -678,6 +698,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           ticketVisibilityFilter,
         )
@@ -701,6 +722,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           ticketVisibilityFilter,
         )
@@ -737,6 +759,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
         ticketsTable,
         and(
           eq(ticketsTable.assignedTo, usersTable.id),
+          isNull(ticketsTable.deletedAt),
           eq(ticketsTable.organizationId, orgId),
           isNotNull(ticketsTable.closedAt),
         )
@@ -748,7 +771,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
     db.select({
       avgHours: sql<number>`round(avg(extract(epoch from (closed_at - created_at)) / 3600)::numeric, 1)`,
       count: sql<number>`count(*)`,
-    }).from(ticketsTable).where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt))),
+    }).from(ticketsTable).where(and(isNull(ticketsTable.deletedAt), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt))),
 
     db.select({
       bucket: sql<string>`
@@ -762,7 +785,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
       `,
       count: sql<number>`count(*)`,
     }).from(ticketsTable)
-      .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+      .where(and(isNull(ticketsTable.deletedAt), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
       .groupBy(sql`1`)
       .orderBy(sql`1`),
   ]);
@@ -799,7 +822,7 @@ router.get("/stats/resolution-by-category", requireAuth, requireAdmin, async (re
     maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
   })
     .from(ticketsTable)
-    .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+    .where(and(isNull(ticketsTable.deletedAt), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
     .groupBy(ticketsTable.category)
     .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`);
 
@@ -827,7 +850,7 @@ router.get("/stats/resolution-by-priority", requireAuth, requireAdmin, async (re
     maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
   })
     .from(ticketsTable)
-    .where(and(eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
+    .where(and(isNull(ticketsTable.deletedAt), eq(ticketsTable.organizationId, orgId), isNotNull(ticketsTable.closedAt)))
     .groupBy(ticketsTable.priority);
 
   const sorted = rows.sort((a, b) => (PRIORITY_ORDER[a.name] ?? 99) - (PRIORITY_ORDER[b.name] ?? 99));
