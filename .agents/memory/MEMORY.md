@@ -6,3 +6,4 @@
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
 - [Shared DB project refresh](db-project-reference-refresh.md) — Rebuild shared database declarations after schema changes before checking dependent services.
+- [Validated .replit changes](replit-config-validation.md) — Replace `.replit` through schema validation instead of editing the file directly.

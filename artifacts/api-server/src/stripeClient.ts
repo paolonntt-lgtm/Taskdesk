@@ -1,6 +1,25 @@
 import Stripe from 'stripe';
 import { StripeSync } from 'stripe-replit-sync';
 
+export class StripeNotConfiguredError extends Error {
+  readonly code = 'STRIPE_NOT_CONFIGURED';
+
+  constructor() {
+    super('Stripe is not configured for this environment');
+    this.name = 'StripeNotConfiguredError';
+  }
+}
+
+export function isStripeNotConfiguredError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string } | null;
+  return (
+    error instanceof StripeNotConfiguredError ||
+    candidate?.code === 'STRIPE_NOT_CONFIGURED' ||
+    candidate?.message?.includes('Stripe connection not found') === true ||
+    candidate?.message?.includes('Ensure the Stripe integration is connected') === true
+  );
+}
+
 async function fetchConnectionSettings(
   hostname: string,
   token: string,
@@ -38,7 +57,7 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
       : null;
 
   if (!hostname || !xReplitToken) {
-    throw new Error('Missing Replit environment variables. Ensure the Stripe integration is connected.');
+    throw new StripeNotConfiguredError();
   }
 
   const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
@@ -55,7 +74,7 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
     }
   }
 
-  throw new Error('Stripe connection not found. Connect Stripe via the Integrations tab.');
+  throw new StripeNotConfiguredError();
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {

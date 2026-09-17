@@ -77,6 +77,10 @@ interface AddonPrice {
   currency: string;
 }
 
+function isStripeUnavailableResponse(value: unknown): boolean {
+  return value instanceof Response && value.status === 503;
+}
+
 export default function Billing() {
   const { t } = useLanguage();
   const b = t.billing;
@@ -89,6 +93,7 @@ export default function Billing() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripeUnavailable, setStripeUnavailable] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [upgradeTarget, setUpgradeTarget] = useState<{ product: Product; price: Price } | null>(null);
@@ -106,14 +111,18 @@ export default function Billing() {
     fetch('/api/stripe/seat-usage', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((data) => setSeatUsage(data))
-      .catch(() => {});
+      .catch((err: unknown) => {
+        if (isStripeUnavailableResponse(err)) setStripeUnavailable(true);
+      });
   }, []);
 
   const refreshData = useCallback(() => {
     fetch('/api/stripe/subscription', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((data) => setSubscription(data.subscription))
-      .catch(() => {})
+      .catch((err: unknown) => {
+        if (isStripeUnavailableResponse(err)) setStripeUnavailable(true);
+      })
       .finally(() => setLoadingSubscription(false));
 
     refreshSeatUsage();
@@ -123,7 +132,14 @@ export default function Billing() {
     fetch('/api/stripe/products', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((data) => setProducts(data.data ?? []))
-      .catch(() => setError(b.errorLoadProducts))
+      .catch((err: unknown) => {
+        if (isStripeUnavailableResponse(err)) {
+          setStripeUnavailable(true);
+          setError(null);
+        } else {
+          setError(b.errorLoadProducts);
+        }
+      })
       .finally(() => setLoadingProducts(false));
 
     // After a successful Stripe Checkout redirect, sync the subscription ID
@@ -282,6 +298,19 @@ export default function Billing() {
   const seatPct = seatUsage && !seatUsage.unlimited && effectivePlanSeats > 0
     ? Math.min(100, (seatUsage.usedSeats / effectivePlanSeats) * 100) : 0;
   const seatColor: 'primary' | 'warning' | 'error' = seatPct >= 100 ? 'error' : seatPct >= 80 ? 'warning' : 'primary';
+
+  if (stripeUnavailable) {
+    return (
+      <Box>
+        <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em">{b.title}</Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>{b.subtitle}</Typography>
+        <Alert severity="info" icon={<CreditCard />}>
+          <Typography fontWeight={700}>{b.stripeUnavailableTitle}</Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>{b.stripeUnavailableDescription}</Typography>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>

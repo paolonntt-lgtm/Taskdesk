@@ -2,7 +2,7 @@ import { Router, type IRouter } from 'express';
 import { z } from 'zod';
 import { stripeStorage } from '../stripeStorage';
 import { stripeService } from '../stripeService';
-import { getUncachableStripeClient } from '../stripeClient';
+import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripeClient';
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrl } from '../lib/appUrl';
@@ -17,6 +17,17 @@ function isNoSuchCustomer(err: any): boolean {
     err?.code === 'resource_missing' ||
     (typeof err?.message === 'string' && err.message.toLowerCase().includes('no such customer'))
   );
+}
+
+function sendStripeError(res: any, err: any): void {
+  if (isStripeNotConfiguredError(err)) {
+    res.status(503).json({
+      error: 'STRIPE_NOT_CONFIGURED',
+      message: 'Stripe billing is not configured yet.',
+    });
+    return;
+  }
+  res.status(500).json({ error: err?.message ?? 'Stripe request failed' });
 }
 
 router.get('/stripe/products', async (_req, res) => {
@@ -56,7 +67,7 @@ router.get('/stripe/products', async (_req, res) => {
 
     res.json({ data: result });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -89,7 +100,7 @@ router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, r
 
     res.json({ subscription: sub });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -107,7 +118,7 @@ router.get('/stripe/seat-usage', requireAuth, requireAdmin, async (req: any, res
     const maxAddonSeats = maxAddonForPlan(usage.planSeats, usage.unlimited);
     res.json({ ...usage, maxAddonSeats });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -153,7 +164,7 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
 
     res.json({ url: session.url });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -194,7 +205,7 @@ router.post('/stripe/sync-subscription', requireAuth, requireAdmin, async (req: 
     await stripeStorage.updateUserStripeInfo(user.id, { stripeSubscriptionId: subscriptionId });
     res.json({ subscriptionId });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -251,7 +262,7 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
       unlimited: newUnlimited,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -277,7 +288,7 @@ router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): 
     }
     res.json({ priceId: price.id, unitAmount: price.unit_amount, currency: price.currency });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -359,7 +370,7 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
     const updated = await getSeatUsage(req.currentUser.organizationId ?? null);
     res.json({ addonSeats: updated.addonSeats, available: updated.available, limitReached: updated.limitReached });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 
@@ -389,7 +400,7 @@ router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): 
 
     res.json({ url: session.url });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendStripeError(res, err);
   }
 });
 

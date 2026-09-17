@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { seedIfEmpty, backfillOrgTicketStatuses } from "./lib/seed";
 import { runAppMigrations } from "./lib/migrate";
 import { runMigrations } from "stripe-replit-sync";
-import { getStripeSync } from "./stripeClient";
+import { getStripeSync, isStripeNotConfiguredError } from "./stripeClient";
 import { scheduleNightlyBackups } from "./routes/backup";
 import { startUploadCleanupJob } from "./lib/uploadCleanup";
 import { startTicketDueNotifier } from "./lib/ticketDueNotifier";
@@ -48,10 +48,14 @@ async function initStripe() {
       .then(() => logger.info("Stripe data synced"))
       .catch((err: Error) => logger.error({ err }, "Stripe backfill error"));
   } catch (error) {
-    logger.error(
-      { err: error },
-      "Stripe initialization failed — payments will not work until Stripe is connected"
-    );
+    if (isStripeNotConfiguredError(error)) {
+      logger.warn("Stripe is not connected — billing remains disabled until it is configured");
+    } else {
+      logger.error(
+        { err: error },
+        "Stripe initialization failed — payments will not work until Stripe is connected"
+      );
+    }
   }
 }
 
