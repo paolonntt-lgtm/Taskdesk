@@ -8,7 +8,7 @@ import {
   Select, FormControl, InputLabel, OutlinedInput, ListItemText, Menu,
   useTheme, useMediaQuery,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
@@ -592,6 +592,25 @@ export default function TicketList() {
               onClick={() => setParam('scheduled', scheduledFilter ? '' : 'true', 'false')}
               sx={{ cursor: 'pointer' }}
             />
+          )}
+          {isAdmin && (
+            <Tooltip title={lang === 'it' ? 'Apri il cestino' : 'Open ticket trash'} arrow>
+              <IconButton
+                component={Link}
+                href="/tickets/trash"
+                size="small"
+                aria-label={lang === 'it' ? 'Apri il cestino' : 'Open ticket trash'}
+                sx={{
+                  color: 'text.secondary',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1.5,
+                  '&:hover': { color: 'error.main', borderColor: 'error.light', bgcolor: 'error.50' },
+                }}
+              >
+                <DeleteSweepIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
         <Button

@@ -48,7 +48,6 @@ import {
   CalendarMonth,
   AdminPanelSettings,
   Search,
-  DeleteSweep,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -270,7 +269,6 @@ export default function Layout({ children }: LayoutProps) {
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
-    { text: t.nav.trash,      icon: <DeleteSweep />,         path: '/tickets/trash', adminOnly: true },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
       : []),
