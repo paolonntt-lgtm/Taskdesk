@@ -7,3 +7,4 @@
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
 - [Shared DB project refresh](db-project-reference-refresh.md) — Rebuild shared database declarations after schema changes before checking dependent services.
 - [Validated .replit changes](replit-config-validation.md) — Replace `.replit` through schema validation instead of editing the file directly.
+- [Dashboard opening message](dashboard-opening-message.md) — Keep a warm “Buongiorno” greeting when refining the selected TaskDesk dashboard direction.

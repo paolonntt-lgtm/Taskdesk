@@ -133,6 +133,22 @@ export function CurrentDashboard() {
         </header>
 
         <div className="taskdesk-current__content">
+          <section className="taskdesk-current__welcome" aria-labelledby="current-welcome-title">
+            <div className="taskdesk-current__welcome-copy">
+              <div className="taskdesk-current__welcome-eyebrow">Lunedì 22 luglio 2024 · Milano</div>
+              <h2 id="current-welcome-title">Buongiorno, Alessandro.<br /><em>Mettiamo ordine</em> alla giornata.</h2>
+              <p>Il team ha già chiuso 8 richieste. Qui trovi ciò che merita attenzione adesso.</p>
+              <small>Ultimo aggiornamento 2 min fa</small>
+            </div>
+            <div className="taskdesk-current__welcome-focus">
+              <span>Ritmo di oggi</span>
+              <strong>68%</strong>
+              <p>delle richieste è già in buone mani</p>
+              <div className="taskdesk-current__welcome-bar"><i /></div>
+              <small>17 gestite su 25 <b>+12% vs. ieri</b></small>
+            </div>
+          </section>
+
           <div className="taskdesk-current__stats">
             {[
               { label: "Ticket aperti", value: "24", accent: "blue", icon: <ClipboardList size={19} /> },

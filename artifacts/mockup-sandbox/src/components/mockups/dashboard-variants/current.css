@@ -230,6 +230,148 @@
   padding: 26px clamp(22px, 3vw, 44px) 44px;
 }
 
+.taskdesk-current__welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 235px;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.taskdesk-current__welcome-copy {
+  position: relative;
+  overflow: hidden;
+  min-height: 176px;
+  padding: 25px 28px;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #1e4774, #286296);
+  color: #f5f9fd;
+  box-shadow: 0 10px 24px rgba(29, 74, 118, .14);
+}
+
+.taskdesk-current__welcome-copy::after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -58px;
+  top: -116px;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 50%;
+  box-shadow: 0 0 0 20px rgba(255, 255, 255, .04), 0 0 0 42px rgba(255, 255, 255, .025);
+}
+
+.taskdesk-current__welcome-eyebrow {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+  color: #c4d9ee;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.taskdesk-current__welcome-copy h2 {
+  position: relative;
+  z-index: 1;
+  max-width: 510px;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(27px, 3vw, 39px);
+  font-weight: 400;
+  letter-spacing: -.04em;
+  line-height: .98;
+}
+
+.taskdesk-current__welcome-copy h2 em {
+  color: #f3b58a;
+  font-style: normal;
+}
+
+.taskdesk-current__welcome-copy p {
+  position: relative;
+  z-index: 1;
+  max-width: 470px;
+  margin: 12px 0 0;
+  color: #d6e5f2;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.taskdesk-current__welcome-copy small {
+  position: absolute;
+  right: 25px;
+  bottom: 19px;
+  z-index: 1;
+  color: #bdd3e5;
+  font-size: 9px;
+}
+
+.taskdesk-current__welcome-focus {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 176px;
+  padding: 17px 18px 15px;
+  border: 1px solid #dbe4ec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+}
+
+.taskdesk-current__welcome-focus > span {
+  color: #8a96a5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.taskdesk-current__welcome-focus strong {
+  margin-top: 5px;
+  color: #263f5a;
+  font-size: 35px;
+  line-height: 1;
+}
+
+.taskdesk-current__welcome-focus p {
+  max-width: 100px;
+  margin: -2px 0 8px auto;
+  color: #6d7b8c;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.taskdesk-current__welcome-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e4ebf1;
+}
+
+.taskdesk-current__welcome-bar i {
+  display: block;
+  width: 68%;
+  height: 100%;
+  border-radius: inherit;
+  background: #ed835b;
+}
+
+.taskdesk-current__welcome-focus small {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: #96a0ad;
+  font-size: 9px;
+}
+
+.taskdesk-current__welcome-focus small b {
+  color: #c56648;
+  font-weight: 800;
+}
+
 .taskdesk-current__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -569,6 +711,14 @@
   .taskdesk-current__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .taskdesk-current__welcome {
+    grid-template-columns: 1fr;
+  }
+
+  .taskdesk-current__welcome-focus {
+    min-height: 132px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -605,6 +755,20 @@
   .taskdesk-current__stats,
   .taskdesk-current__grid {
     grid-template-columns: 1fr;
+  }
+
+  .taskdesk-current__welcome-copy {
+    padding: 21px 19px 25px;
+  }
+
+  .taskdesk-current__welcome-copy h2 {
+    font-size: 31px;
+  }
+
+  .taskdesk-current__welcome-copy small {
+    position: static;
+    display: block;
+    margin-top: 14px;
   }
 
   .taskdesk-current__ticket-labels {
