@@ -20,13 +20,25 @@ export const STANDARD_CATEGORIES = [
 ];
 const DEFAULT_CATEGORIES = STANDARD_CATEGORIES;
 const DEFAULT_GROUPS = ["IT Support", "Reception", "Administration"];
-const DEFAULT_MOTIVATIONAL_MESSAGES = [
+const DEFAULT_MOTIVATIONAL_MESSAGES_IT = [
   "Ogni richiesta gestita bene libera spazio per il lavoro che conta.",
   "Un passo alla volta: oggi facciamo avanzare ciò che conta.",
   "La chiarezza nel team trasforma la pressione in progresso.",
   "Una buona risposta oggi costruisce fiducia per domani.",
   "Il lavoro ben organizzato si vede nelle giornate più semplici.",
 ];
+const DEFAULT_MOTIVATIONAL_MESSAGES_EN = [
+  "Every request handled well creates space for the work that matters.",
+  "One step at a time: today we move forward what matters.",
+  "Clarity in the team turns pressure into progress.",
+  "A good answer today builds trust for tomorrow.",
+  "Well-organized work makes the simplest days possible.",
+];
+const DEFAULT_MOTIVATIONAL_MESSAGES = {
+  it: DEFAULT_MOTIVATIONAL_MESSAGES_IT,
+  en: DEFAULT_MOTIVATIONAL_MESSAGES_EN,
+};
+type MotivationalMessagesByLanguage = { it: string[]; en: string[] };
 export { DEFAULT_LOCATIONS };
 
 function orgKey(orgId: number | null | undefined, base: string): string {
@@ -55,10 +67,32 @@ function cleanMotivationalMessages(value: unknown): string[] {
   ).slice(0, 50);
 }
 
-async function getMotivationalMessages(key: string): Promise<string[]> {
-  const value = await getSetting(key, DEFAULT_MOTIVATIONAL_MESSAGES);
-  const cleaned = cleanMotivationalMessages(value);
-  return cleaned.length > 0 ? cleaned : DEFAULT_MOTIVATIONAL_MESSAGES;
+async function getMotivationalMessages(key: string): Promise<MotivationalMessagesByLanguage> {
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
+  if (!row) return DEFAULT_MOTIVATIONAL_MESSAGES;
+
+  try {
+    const parsed: unknown = JSON.parse(row.value);
+    if (Array.isArray(parsed)) {
+      const legacy = cleanMotivationalMessages(parsed);
+      return {
+        it: legacy.length > 0 ? legacy : DEFAULT_MOTIVATIONAL_MESSAGES_IT,
+        en: DEFAULT_MOTIVATIONAL_MESSAGES_EN,
+      };
+    }
+    if (parsed && typeof parsed === "object") {
+      const byLanguage = parsed as { it?: unknown; en?: unknown };
+      const it = cleanMotivationalMessages(byLanguage.it);
+      const en = cleanMotivationalMessages(byLanguage.en);
+      return {
+        it: it.length > 0 ? it : DEFAULT_MOTIVATIONAL_MESSAGES_IT,
+        en: en.length > 0 ? en : DEFAULT_MOTIVATIONAL_MESSAGES_EN,
+      };
+    }
+  } catch {
+    // Fall through to the translated defaults for malformed legacy settings.
+  }
+  return DEFAULT_MOTIVATIONAL_MESSAGES;
 }
 
 router.get("/settings/locations", requireAuth, async (req, res): Promise<void> => {
@@ -140,31 +174,49 @@ router.put("/settings/categories", requireAuth, requireAdmin, async (req, res): 
 router.get("/settings/motivational-messages", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const key = orgKey(currentUser.organizationId, "motivational_messages");
-  res.json({ messages: await getMotivationalMessages(key) });
+  const messagesByLanguage = await getMotivationalMessages(key);
+  res.json({ messages: messagesByLanguage.it, messagesByLanguage });
 });
 
 router.put("/settings/motivational-messages", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { messages } = req.body ?? {};
-  if (!Array.isArray(messages) || messages.some((message) => typeof message !== "string")) {
-    res.status(400).json({ message: "I messaggi devono essere un array di stringhe" });
+  const { messages, messagesByLanguage } = req.body ?? {};
+  let nextMessages: MotivationalMessagesByLanguage;
+  if (messagesByLanguage && typeof messagesByLanguage === "object" && !Array.isArray(messagesByLanguage)) {
+    const candidate = messagesByLanguage as { it?: unknown; en?: unknown };
+    if ((candidate.it !== undefined && !Array.isArray(candidate.it)) || (candidate.en !== undefined && !Array.isArray(candidate.en))) {
+      res.status(400).json({ message: "I messaggi devono essere array di stringhe per lingua" });
+      return;
+    }
+    nextMessages = {
+      it: cleanMotivationalMessages(candidate.it),
+      en: cleanMotivationalMessages(candidate.en),
+    };
+  } else if (Array.isArray(messages) && messages.every((message: unknown) => typeof message === "string")) {
+    // Keep older clients compatible: the old single list is the Italian list.
+    nextMessages = { it: cleanMotivationalMessages(messages), en: [] };
+  } else {
+    res.status(400).json({ message: "I messaggi devono essere array di stringhe per lingua" });
     return;
   }
 
   const currentUser = (req as any).currentUser;
   const key = orgKey(currentUser.organizationId, "motivational_messages");
-  const cleaned = cleanMotivationalMessages(messages);
+  const cleaned = {
+    it: nextMessages.it.length > 0 ? nextMessages.it : DEFAULT_MOTIVATIONAL_MESSAGES_IT,
+    en: nextMessages.en.length > 0 ? nextMessages.en : DEFAULT_MOTIVATIONAL_MESSAGES_EN,
+  };
 
-  if (cleaned.length === 0) {
+  if (nextMessages.it.length === 0 && nextMessages.en.length === 0) {
     await db.delete(settingsTable).where(eq(settingsTable.key, key));
-    res.json({ messages: DEFAULT_MOTIVATIONAL_MESSAGES });
+    res.json({ messages: cleaned.it, messagesByLanguage: cleaned });
     return;
   }
 
   await db
     .insert(settingsTable)
-    .values({ key, value: JSON.stringify(cleaned) })
-    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(cleaned) } });
-  res.json({ messages: cleaned });
+    .values({ key, value: JSON.stringify(nextMessages) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(nextMessages) } });
+  res.json({ messages: cleaned.it, messagesByLanguage: cleaned });
 });
 
 router.get("/settings/groups", requireAuth, async (req, res): Promise<void> => {

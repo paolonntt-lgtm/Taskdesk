@@ -810,7 +810,7 @@ export default function Settings() {
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [motivationalMessages, setMotivationalMessages] = useState<string[]>([]);
+  const [motivationalMessages, setMotivationalMessages] = useState<{ it: string[]; en: string[] }>({ it: [], en: [] });
   const [motivationalSaving, setMotivationalSaving] = useState(false);
   const [motivationalMsg, setMotivationalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -841,7 +841,16 @@ export default function Settings() {
       }).catch(() => {});
     fetch('/api/settings/motivational-messages', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => setMotivationalMessages(Array.isArray(d.messages) ? d.messages : []))
+      .then((d) => {
+        if (d.messagesByLanguage && typeof d.messagesByLanguage === 'object') {
+          setMotivationalMessages({
+            it: Array.isArray(d.messagesByLanguage.it) ? d.messagesByLanguage.it : [],
+            en: Array.isArray(d.messagesByLanguage.en) ? d.messagesByLanguage.en : [],
+          });
+        } else if (Array.isArray(d.messages)) {
+          setMotivationalMessages({ it: d.messages, en: [] });
+        }
+      })
       .catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
       .then((r) => r.json()).then((d) => {
@@ -1092,22 +1101,33 @@ export default function Settings() {
     setMotivationalSaving(true);
     setMotivationalMsg(null);
     try {
-      const messages = motivationalMessages
-        .flatMap((message) => message.split('\n'))
-        .map((message) => message.trim())
-        .filter(Boolean);
+      const messagesByLanguage = {
+        it: motivationalMessages.it
+          .flatMap((message) => message.split('\n'))
+          .map((message) => message.trim())
+          .filter(Boolean),
+        en: motivationalMessages.en
+          .flatMap((message) => message.split('\n'))
+          .map((message) => message.trim())
+          .filter(Boolean),
+      };
       const res = await fetch('/api/settings/motivational-messages', {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messagesByLanguage }),
       });
       const data = await res.json();
       if (!res.ok) {
         setMotivationalMsg({ type: 'error', text: data.message || t.settings.motivationalMessagesError });
         return;
       }
-      setMotivationalMessages(Array.isArray(data.messages) ? data.messages : []);
+      if (data.messagesByLanguage && typeof data.messagesByLanguage === 'object') {
+        setMotivationalMessages({
+          it: Array.isArray(data.messagesByLanguage.it) ? data.messagesByLanguage.it : [],
+          en: Array.isArray(data.messagesByLanguage.en) ? data.messagesByLanguage.en : [],
+        });
+      }
       setMotivationalMsg({ type: 'success', text: t.settings.motivationalMessagesSaved });
     } catch {
       setMotivationalMsg({ type: 'error', text: t.settings.motivationalMessagesError });
@@ -1444,16 +1464,30 @@ export default function Settings() {
                   {motivationalMsg.text}
                 </Alert>
               )}
-              <TextField
-                fullWidth
-                multiline
-                minRows={7}
-                value={motivationalMessages.join('\n')}
-                onChange={(event) => setMotivationalMessages(event.target.value.split('\n'))}
-                placeholder={t.settings.motivationalMessagesPlaceholder}
-                disabled={motivationalSaving}
-                inputProps={{ maxLength: 12_000 }}
-              />
+              <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={7}
+                  label="Italiano"
+                  value={motivationalMessages.it.join('\n')}
+                  onChange={(event) => setMotivationalMessages((current) => ({ ...current, it: event.target.value.split('\n') }))}
+                  placeholder={t.settings.motivationalMessagesPlaceholder}
+                  disabled={motivationalSaving}
+                  inputProps={{ maxLength: 12_000 }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={7}
+                  label="English"
+                  value={motivationalMessages.en.join('\n')}
+                  onChange={(event) => setMotivationalMessages((current) => ({ ...current, en: event.target.value.split('\n') }))}
+                  placeholder="One motivational phrase per line..."
+                  disabled={motivationalSaving}
+                  inputProps={{ maxLength: 12_000 }}
+                />
+              </Box>
               <Box display="flex" justifyContent="flex-end" mt={2}>
                 <Button
                   variant="contained"

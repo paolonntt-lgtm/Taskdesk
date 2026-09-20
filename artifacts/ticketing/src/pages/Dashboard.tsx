@@ -189,6 +189,7 @@ type FeedSettings = typeof FEED_SETTINGS_DEFAULTS;
 
 const CHART_SETTINGS_DEFAULTS = { days: '30' };
 type ChartSettings = typeof CHART_SETTINGS_DEFAULTS;
+type MotivationalMessagesByLanguage = { it: string[]; en: string[] };
 
 // ── EXPORTS used by other pages ───────────────────────────────────────────
 
@@ -2136,7 +2137,7 @@ function Dashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
   const [now, setNow] = useState(() => new Date());
-  const [motivationalMessages, setMotivationalMessages] = useState<string[]>([]);
+  const [motivationalMessages, setMotivationalMessages] = useState<MotivationalMessagesByLanguage>({ it: [], en: [] });
 
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -2152,7 +2153,15 @@ function Dashboard() {
     fetch('/api/settings/motivational-messages', { credentials: 'include' })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
-        if (mounted && Array.isArray(data?.messages)) setMotivationalMessages(data.messages);
+        if (!mounted) return;
+        if (data?.messagesByLanguage && typeof data.messagesByLanguage === 'object') {
+          setMotivationalMessages({
+            it: Array.isArray(data.messagesByLanguage.it) ? data.messagesByLanguage.it : [],
+            en: Array.isArray(data.messagesByLanguage.en) ? data.messagesByLanguage.en : [],
+          });
+        } else if (Array.isArray(data?.messages)) {
+          setMotivationalMessages({ it: data.messages, en: [] });
+        }
       })
       .catch(() => {});
     return () => { mounted = false; };
@@ -2281,10 +2290,12 @@ function Dashboard() {
   const greetingKey = getGreetingKey(now.getHours());
   const greeting = (t.dashboard as Record<string, unknown>)[greetingKey] as string;
   const firstName = user?.name?.trim().split(/\s+/)[0] || '';
+  const languageMessages = motivationalMessages[lang === 'it' ? 'it' : 'en'];
   const motivationalMessage =
-    motivationalMessages[getDayIndex(now, motivationalMessages.length)] || t.dashboard.motivationalFallback;
+    languageMessages[getDayIndex(now, languageMessages.length)] || t.dashboard.motivationalFallback;
 
   const totalTickets = dashStats?.totalTickets ?? 0;
+  const actionableTickets = (dashStats?.openTickets ?? 0) + (dashStats?.waitingTickets ?? 0);
   const handledTickets = (dashStats?.resolvedTickets ?? 0) + (dashStats?.closedTickets ?? 0);
   const handledPercent = totalTickets > 0 ? Math.min(100, Math.round((handledTickets / totalTickets) * 100)) : 0;
   const focusDescription = lang === 'it'
@@ -2392,10 +2403,10 @@ function Dashboard() {
             <Box component="em" sx={{ color: '#f3b58a', fontStyle: 'normal' }}>{motivationalMessage}</Box>
           </Typography>
           <Typography sx={{ position: 'relative', zIndex: 1, maxWidth: 510, mt: 1.5, mb: 0, color: '#d6e5f2', fontSize: '0.75rem', lineHeight: 1.45 }}>
-            {totalTickets > 0
+            {actionableTickets > 0
               ? (lang === 'it'
-                ? `Hai ${totalTickets} richieste nel perimetro del team. Qui trovi ciò che merita attenzione adesso.`
-                : `Your team has ${totalTickets} requests in scope. Here is what needs attention now.`)
+                ? `Ci sono ${actionableTickets} richieste ancora da gestire. Qui trovi ciò che merita attenzione adesso.`
+                : `There are ${actionableTickets} requests still to handle. Here is what needs attention now.`)
               : t.dashboard.emptyStateDesc}
           </Typography>
         </Box>
