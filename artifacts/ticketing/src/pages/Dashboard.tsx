@@ -2351,8 +2351,8 @@ function Dashboard() {
         <Box className="td-dashboard__welcome-copy" sx={{
           position: 'relative',
           overflow: 'hidden',
-          minHeight: { xs: 220, sm: 198 },
-          p: { xs: 2.5, sm: 3.5 },
+          minHeight: { xs: 184, sm: 166 },
+          p: { xs: 2.25, sm: 2.75 },
           borderRadius: '10px',
           color: '#f5f9fd',
           background: 'linear-gradient(120deg, #1e4774, #286296)',
@@ -2414,9 +2414,9 @@ function Dashboard() {
         <Box className="td-dashboard__focus" sx={{
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          minHeight: { xs: 150, md: 198 },
-          p: 2.25,
+          justifyContent: 'flex-start',
+          minHeight: { xs: 132, md: 166 },
+          p: { xs: 1.75, md: 2.25 },
           border: '1px solid',
           borderColor: '#dbe4ec',
           borderRadius: '10px',
@@ -2426,10 +2426,10 @@ function Dashboard() {
           <Typography sx={{ color: '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'it' ? 'Ritmo di oggi' : 'Today’s pace'}
           </Typography>
-          <Typography sx={{ mt: 0.5, color: '#263f5a', fontSize: '2.2rem', fontWeight: 800, lineHeight: 1 }}>
+          <Typography sx={{ mt: 0.75, color: '#263f5a', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
             {handledPercent}%
           </Typography>
-          <Typography sx={{ maxWidth: 120, alignSelf: 'flex-end', mt: -0.25, mb: 1, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
+          <Typography sx={{ maxWidth: 150, alignSelf: 'flex-end', mt: 0.25, mb: 1.25, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
             {focusDescription}
           </Typography>
           <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 4, bgcolor: '#e4ebf1' }}>
