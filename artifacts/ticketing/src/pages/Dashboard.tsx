@@ -37,6 +37,7 @@ import {
   FilterList as FilterListIcon,
   PeopleAlt as PeopleAltIcon,
   DeleteOutline as DeleteIcon,
+  LocationOn as LocationOnIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -73,6 +74,16 @@ function getDayIndex(date: Date, length: number): number {
   const start = new Date(date.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86_400_000);
   return length > 0 ? dayOfYear % length : 0;
+}
+
+function formatDashboardDate(date: Date, lang: string): string {
+  const formatted = new Intl.DateTimeFormat(lang === 'it' ? 'it-IT' : 'en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
 // ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────
@@ -2104,7 +2115,7 @@ function useWidgetCustomNames() {
 }
 
 function Dashboard() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const resolveWidgetLabel = (key: string): string => {
     const val = (t.dashboard as Record<string, unknown>)[key];
@@ -2273,8 +2284,17 @@ function Dashboard() {
   const motivationalMessage =
     motivationalMessages[getDayIndex(now, motivationalMessages.length)] || t.dashboard.motivationalFallback;
 
+  const totalTickets = dashStats?.totalTickets ?? 0;
+  const handledTickets = (dashStats?.resolvedTickets ?? 0) + (dashStats?.closedTickets ?? 0);
+  const handledPercent = totalTickets > 0 ? Math.min(100, Math.round((handledTickets / totalTickets) * 100)) : 0;
+  const focusDescription = lang === 'it'
+    ? 'delle richieste è già in buone mani'
+    : 'of requests are already in good hands';
+  const handledLabel = lang === 'it' ? 'gestite' : 'handled';
+  const locationLabel = lang === 'it' ? 'Milano' : 'Milan';
+
   return (
-    <Box sx={{ overflow: 'hidden' }}>
+    <Box className="td-dashboard" sx={{ overflow: 'hidden', maxWidth: 1440, mx: 'auto' }}>
       <TrialBanner />
       {hasNoTickets && isAdmin && (
         <Box
@@ -2307,46 +2327,137 @@ function Dashboard() {
           </Button>
         </Box>
       )}
-      {/* Header */}
-      <Box display="flex" alignItems="center" justifyContent="space-between"
-        mb={{ xs: 1.5, sm: 3 }} flexWrap="wrap" gap={1}>
-        <Box>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em', fontWeight: 700 }}>
-            {greeting}{firstName ? `, ${firstName}` : ''}
+      {/* Welcome hero — production data, visual language from the approved dashboard direction */}
+      <Box
+        className="td-dashboard__welcome"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 235px' },
+          gap: 2,
+          mb: { xs: 2, sm: 2.5 },
+        }}
+      >
+        <Box className="td-dashboard__welcome-copy" sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          minHeight: { xs: 220, sm: 198 },
+          p: { xs: 2.5, sm: 3.5 },
+          borderRadius: '10px',
+          color: '#f5f9fd',
+          background: 'linear-gradient(120deg, #1e4774, #286296)',
+          boxShadow: '0 10px 24px rgba(29, 74, 118, .14)',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            width: 260,
+            height: 260,
+            right: -58,
+            top: -116,
+            border: '1px solid rgba(255,255,255,.17)',
+            borderRadius: '50%',
+            boxShadow: '0 0 0 20px rgba(255,255,255,.04), 0 0 0 42px rgba(255,255,255,.025)',
+          },
+        }}>
+          <Box sx={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1,
+            mb: 1.25,
+            color: '#c4d9ee',
+            fontSize: '0.68rem',
+            fontWeight: 800,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+          }}>
+            <span>{formatDashboardDate(now, lang)}</span>
+            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, color: '#f6c4a7', fontSize: '0.62rem', letterSpacing: '0.04em', textTransform: 'none' }}>
+              <LocationOnIcon sx={{ fontSize: 12 }} /> {locationLabel}
+            </Box>
+          </Box>
+          <Typography component="h1" sx={{
+            position: 'relative',
+            zIndex: 1,
+            maxWidth: 600,
+            m: 0,
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontSize: { xs: '2.05rem', sm: '2.55rem' },
+            fontWeight: 400,
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+          }}>
+            {greeting}{firstName ? `, ${firstName}.` : '.'}<br />
+            <Box component="em" sx={{ color: '#f3b58a', fontStyle: 'normal' }}>{motivationalMessage}</Box>
           </Typography>
-          <Typography variant="h5" fontWeight="bold" fontSize={{ xs: '1.1rem', sm: '1.4rem' }}>
-            {motivationalMessage}
+          <Typography sx={{ position: 'relative', zIndex: 1, maxWidth: 510, mt: 1.5, mb: 0, color: '#d6e5f2', fontSize: '0.75rem', lineHeight: 1.45 }}>
+            {totalTickets > 0
+              ? (lang === 'it'
+                ? `Hai ${totalTickets} richieste nel perimetro del team. Qui trovi ciò che merita attenzione adesso.`
+                : `Your team has ${totalTickets} requests in scope. Here is what needs attention now.`)
+              : t.dashboard.emptyStateDesc}
           </Typography>
         </Box>
 
-        {!isMobile && (
-          <Box display="flex" alignItems="center" gap={1}>
-            {editMode && (
-              <>
-                <Tooltip title={t.dashboard.resetLayout}>
-                  <IconButton size="small" onClick={resetLayout} color="default">
-                    <ResetIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Button
-                  size="small" variant="outlined" startIcon={<AddIcon />}
-                  onClick={() => setAddDialogOpen(true)}
-                  disabled={hiddenWidgets.length === 0}
-                >
-                  {t.dashboard.addWidget}
-                </Button>
-              </>
-            )}
-            <Button
-              size="small"
-              variant={editMode ? 'contained' : 'outlined'}
-              startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-              onClick={() => setEditMode((v) => !v)}
-            >
-              {editMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
-            </Button>
+        <Box className="td-dashboard__focus" sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          minHeight: { xs: 150, md: 198 },
+          p: 2.25,
+          border: '1px solid',
+          borderColor: '#dbe4ec',
+          borderRadius: '10px',
+          bgcolor: 'background.paper',
+          boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+        }}>
+          <Typography sx={{ color: '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            {lang === 'it' ? 'Ritmo di oggi' : 'Today’s pace'}
+          </Typography>
+          <Typography sx={{ mt: 0.5, color: '#263f5a', fontSize: '2.2rem', fontWeight: 800, lineHeight: 1 }}>
+            {handledPercent}%
+          </Typography>
+          <Typography sx={{ maxWidth: 120, alignSelf: 'flex-end', mt: -0.25, mb: 1, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
+            {focusDescription}
+          </Typography>
+          <Box sx={{ height: 6, overflow: 'hidden', borderRadius: 4, bgcolor: '#e4ebf1' }}>
+            <Box sx={{ width: `${handledPercent}%`, height: '100%', borderRadius: 'inherit', bgcolor: '#ed835b', transition: 'width .3s ease' }} />
           </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 1, color: '#96a0ad', fontSize: '0.62rem' }}>
+            <span>{handledTickets} {handledLabel} / {totalTickets}</span>
+            <b style={{ color: '#c56648' }}>{dashStats?.waitingTickets ?? 0} {lang === 'it' ? 'in attesa' : 'waiting'}</b>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Dashboard actions remain connected to the existing widget layout engine */}
+      <Box display="flex" alignItems="center" justifyContent="flex-end" mb={{ xs: 1.5, sm: 2 }} flexWrap="wrap" gap={1}>
+        {editMode && (
+          <>
+            <Tooltip title={t.dashboard.resetLayout}>
+              <IconButton size="small" onClick={resetLayout} color="default">
+                <ResetIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Button
+              size="small" variant="outlined" startIcon={<AddIcon />}
+              onClick={() => setAddDialogOpen(true)}
+              disabled={hiddenWidgets.length === 0}
+            >
+              {t.dashboard.addWidget}
+            </Button>
+          </>
         )}
+        <Button
+          size="small"
+          variant={editMode ? 'contained' : 'outlined'}
+          startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+          onClick={() => setEditMode((v) => !v)}
+          sx={{ borderColor: '#1976d2', color: editMode ? undefined : '#1976d2' }}
+        >
+          {editMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
+        </Button>
       </Box>
 
       {/* Mobile edit bar */}

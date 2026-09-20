@@ -264,15 +264,15 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const menuItems = [
-    { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false },
-    { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false },
-    { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false },
-    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false },
-    { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false },
+    { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     ...((user as any)?.clientsEnabled !== false
-      ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false }]
+      ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
       : []),
-    { text: t.nav.settings,   icon: <Settings />,            path: '/settings',    adminOnly: false },
+    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: t.nav.settings,   icon: <Settings />,            path: '/settings',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
@@ -309,39 +309,38 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Nav items */}
       <List sx={{ px: 1.5, pt: 1.5, flex: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
-              onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
-              selected={isActive(item.path)}
-              sx={{
-                borderRadius: '10px',
-                py: 1,
-                '&.Mui-selected': {
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                  color: '#ffffff',
-                  boxShadow: `0 4px 12px rgba(${parseInt(theme.palette.primary.main.slice(1,3),16)},${parseInt(theme.palette.primary.main.slice(3,5),16)},${parseInt(theme.palette.primary.main.slice(5,7),16)},0.25)`,
-                  '& .MuiListItemIcon-root': { color: '#ffffff' },
-                  '&:hover': { background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})` },
-                },
-                '&:not(.Mui-selected):hover': {
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
-              <ListItemIcon sx={{
-                minWidth: 38,
-                color: isActive(item.path) ? 'inherit' : 'text.secondary',
-              }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 500, fontSize: '0.9rem' }}
-              />
-            </ListItemButton>
-          </ListItem>
+        {menuItems.map((item, index) => (
+          <React.Fragment key={item.text}>
+            {(index === 0 || item.group !== menuItems[index - 1]?.group) && (
+              <Typography sx={{ px: 1.5, pt: index === 0 ? 0 : 1.75, pb: 0.6, color: '#9aa5b2', fontSize: '0.63rem', fontWeight: 800, letterSpacing: '0.12em', lineHeight: 1.2, textTransform: 'uppercase' }}>
+                {item.group}
+              </Typography>
+            )}
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
+                onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
+                selected={isActive(item.path)}
+                sx={{
+                  borderRadius: '8px',
+                  py: 1,
+                  '&.Mui-selected': {
+                    background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
+                    color: theme.palette.primary.main,
+                    boxShadow: 'none',
+                    '& .MuiListItemIcon-root': { color: 'inherit' },
+                    '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#eaf2fb' },
+                  },
+                  '&:not(.Mui-selected):hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 38, color: isActive(item.path) ? 'inherit' : 'text.secondary' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 500, fontSize: '0.9rem' }} />
+              </ListItemButton>
+            </ListItem>
+          </React.Fragment>
         ))}
         {(user as any)?.isSuperAdmin && (
           <>
@@ -424,7 +423,7 @@ export default function Layout({ children }: LayoutProps) {
           }),
         }}
       >
-        <Toolbar sx={{ gap: 1, minHeight: { xs: '48px !important', sm: '64px !important' } }}>
+        <Toolbar sx={{ gap: 1, minHeight: { xs: '48px !important', sm: '64px !important' }, px: { xs: 1.5, sm: 3 } }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
@@ -450,17 +449,40 @@ export default function Layout({ children }: LayoutProps) {
             ) : <Box sx={{ flexGrow: 1 }} />;
           })()}
 
+          {!isMobile && location === '/' && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', mr: 2, ml: 0.5 }}>
+              <Typography sx={{ color: '#9ca3af', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', lineHeight: 1.2, textTransform: 'uppercase' }}>
+                {lang === 'it' ? 'Panoramica' : 'Overview'}
+              </Typography>
+              <Typography sx={{ color: '#25364d', fontSize: '1.1rem', fontWeight: 800, lineHeight: 1.2 }}>
+                {t.nav.dashboard}
+              </Typography>
+            </Box>
+          )}
           {!isMobile && <Box sx={{ flexGrow: 1 }} />}
 
           {/* Search button */}
           <Tooltip title={t.commandPalette.tooltip}>
-            <IconButton
+            <Button
               onClick={() => setCommandPaletteOpen(true)}
               size="small"
-              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              startIcon={<Search fontSize="small" />}
+              sx={{
+                minWidth: { xs: 36, sm: location === '/' ? 205 : 36 },
+                justifyContent: 'flex-start',
+                px: { xs: 1, sm: location === '/' ? 1.25 : 1 },
+                py: 0.65,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                color: 'text.secondary',
+                bgcolor: location === '/' ? 'action.hover' : 'transparent',
+                '& .MuiButton-startIcon': { mr: location === '/' ? 0.75 : 0 },
+                '&:hover': { borderColor: 'primary.light', color: 'text.primary', bgcolor: 'background.paper' },
+              }}
             >
-              <Search fontSize="small" />
-            </IconButton>
+              {location === '/' && <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: '0.72rem', fontWeight: 500 }}>{lang === 'it' ? 'Cerca ticket' : 'Search tickets'}</Box>}
+            </Button>
           </Tooltip>
 
           {/* Dark mode toggle */}

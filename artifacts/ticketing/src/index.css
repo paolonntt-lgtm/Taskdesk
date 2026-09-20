@@ -12,6 +12,35 @@ body {
   min-height: 100vh;
 }
 
+.td-dashboard .MuiCard-root {
+  border: 1px solid #e2e6eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+}
+
+.td-dashboard .MuiCard-root:hover {
+  box-shadow: 0 5px 16px rgba(15, 23, 42, .08);
+}
+
+.td-dashboard .react-grid-layout {
+  margin-inline: -6px;
+}
+
+.td-dashboard .react-grid-item {
+  transition: transform 160ms ease;
+}
+
+.td-dashboard .react-grid-item.react-grid-placeholder {
+  border-radius: 10px;
+  background: rgba(25, 118, 210, .12);
+}
+
+@media (max-width: 600px) {
+  .td-dashboard .react-grid-layout {
+    margin-inline: 0;
+  }
+}
+
 @keyframes tk-fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
