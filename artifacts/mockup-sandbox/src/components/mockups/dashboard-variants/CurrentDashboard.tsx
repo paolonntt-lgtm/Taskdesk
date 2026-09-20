@@ -88,10 +88,6 @@ function getLocalDayNumber(date: Date) {
   return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
 }
 
-function formatCoordinate(value: number, positive: string, negative: string) {
-  return `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positive : negative}`;
-}
-
 function StatusPill({ children, kind }: { children: string; kind: "open" | "waiting" | "resolved" | "urgent" | "high" | "medium" }) {
   return <span className={`taskdesk-current__pill taskdesk-current__pill--${kind}`}>{children}</span>;
 }
@@ -171,13 +167,7 @@ export function CurrentDashboard() {
   const greeting = getGreeting(currentTime.getHours());
   const dateLabel = formatDate(currentTime);
   const dailyPhrase = motivationalPhrases[getLocalDayNumber(currentTime) % motivationalPhrases.length] ?? defaultMotivationalPhrases[0];
-  const locationLabel = coordinates
-    ? `${formatCoordinate(coordinates.latitude, "N", "S")} · ${formatCoordinate(coordinates.longitude, "E", "O")}`
-    : locationState === "loading"
-      ? "Rilevamento posizione…"
-      : locationState === "denied"
-        ? "Posizione non autorizzata · Milano"
-        : "Posizione non disponibile · Milano";
+  const locationLabel = "Milano";
   const locationNote = coordinates
     ? "Posizione rilevata dal dispositivo"
     : locationState === "denied"
