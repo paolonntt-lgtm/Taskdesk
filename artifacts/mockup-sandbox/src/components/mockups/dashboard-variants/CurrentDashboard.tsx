@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -56,6 +56,12 @@ const navGroups = [
   },
 ];
 
+function getGreeting(hour: number) {
+  if (hour < 12) return "Buongiorno";
+  if (hour < 18) return "Buon pomeriggio";
+  return "Buonasera";
+}
+
 function StatusPill({ children, kind }: { children: string; kind: "open" | "waiting" | "resolved" | "urgent" | "high" | "medium" }) {
   return <span className={`taskdesk-current__pill taskdesk-current__pill--${kind}`}>{children}</span>;
 }
@@ -97,6 +103,14 @@ export function CurrentDashboard() {
   const [editMode, setEditMode] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const clock = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
+
+  const greeting = getGreeting(currentTime.getHours());
 
   const visibleTickets = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -175,7 +189,7 @@ export function CurrentDashboard() {
           <section className="taskdesk-current__welcome" aria-labelledby="current-welcome-title">
             <div className="taskdesk-current__welcome-copy">
               <div className="taskdesk-current__welcome-eyebrow">Lunedì 22 luglio 2024 · Milano</div>
-              <h2 id="current-welcome-title">Buongiorno, Alessandro.<br /><em>Mettiamo ordine</em> alla giornata.</h2>
+              <h2 id="current-welcome-title">{greeting}, Alessandro.<br /><em>Mettiamo ordine</em> alla giornata.</h2>
               <p>Il team ha già chiuso 8 richieste. Qui trovi ciò che merita attenzione adesso.</p>
               <small>Ultimo aggiornamento 2 min fa</small>
             </div>
