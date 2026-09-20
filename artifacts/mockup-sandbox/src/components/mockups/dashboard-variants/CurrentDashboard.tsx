@@ -8,6 +8,7 @@ import {
   CircleHelp,
   ClipboardList,
   LayoutDashboard,
+  MapPin,
   Menu,
   Plus,
   Search,
@@ -62,6 +63,21 @@ function getGreeting(hour: number) {
   return "Buonasera";
 }
 
+function formatDate(date: Date) {
+  const formatted = new Intl.DateTimeFormat("it-IT", {
+    day: "numeric",
+    month: "long",
+    weekday: "long",
+    year: "numeric",
+  }).format(date);
+
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function formatCoordinate(value: number, positive: string, negative: string) {
+  return `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positive : negative}`;
+}
+
 function StatusPill({ children, kind }: { children: string; kind: "open" | "waiting" | "resolved" | "urgent" | "high" | "medium" }) {
   return <span className={`taskdesk-current__pill taskdesk-current__pill--${kind}`}>{children}</span>;
 }
@@ -104,13 +120,54 @@ export function CurrentDashboard() {
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [locationState, setLocationState] = useState<"loading" | "granted" | "denied" | "unavailable">("loading");
+  const [coordinates, setCoordinates] = useState<GeolocationCoordinates | null>(null);
 
   useEffect(() => {
     const clock = window.setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => window.clearInterval(clock);
   }, []);
 
+  const requestLocation = () => {
+    if (!("geolocation" in navigator)) {
+      setLocationState("unavailable");
+      return;
+    }
+
+    setLocationState("loading");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates(position.coords);
+        setLocationState("granted");
+      },
+      (error) => {
+        setCoordinates(null);
+        setLocationState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 10_000 },
+    );
+  };
+
+  useEffect(() => {
+    requestLocation();
+  }, []);
+
   const greeting = getGreeting(currentTime.getHours());
+  const dateLabel = formatDate(currentTime);
+  const locationLabel = coordinates
+    ? `${formatCoordinate(coordinates.latitude, "N", "S")} · ${formatCoordinate(coordinates.longitude, "E", "O")}`
+    : locationState === "loading"
+      ? "Rilevamento posizione…"
+      : locationState === "denied"
+        ? "Posizione non autorizzata · Milano"
+        : "Posizione non disponibile · Milano";
+  const locationNote = coordinates
+    ? "Posizione rilevata dal dispositivo"
+    : locationState === "denied"
+      ? "Consenti la posizione per aggiornare questo contesto"
+      : locationState === "loading"
+        ? "Richiesta posizione in corso"
+        : "Usiamo Milano come riferimento";
 
   const visibleTickets = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -188,10 +245,21 @@ export function CurrentDashboard() {
         <div className="taskdesk-current__content">
           <section className="taskdesk-current__welcome" aria-labelledby="current-welcome-title">
             <div className="taskdesk-current__welcome-copy">
-              <div className="taskdesk-current__welcome-eyebrow">Lunedì 22 luglio 2024 · Milano</div>
+              <div className="taskdesk-current__welcome-eyebrow">
+                <span>{dateLabel}</span>
+                <span className="taskdesk-current__location">
+                  <MapPin size={11} aria-hidden="true" />
+                  {locationLabel}
+                </span>
+              </div>
               <h2 id="current-welcome-title">{greeting}, Alessandro.<br /><em>Mettiamo ordine</em> alla giornata.</h2>
               <p>Il team ha già chiuso 8 richieste. Qui trovi ciò che merita attenzione adesso.</p>
-              <small>Ultimo aggiornamento 2 min fa</small>
+              <small className="taskdesk-current__welcome-meta">
+                <span>{locationNote}</span>
+                {locationState !== "granted" && locationState !== "loading" ? (
+                  <button type="button" onClick={requestLocation}>Attiva geolocalizzazione</button>
+                ) : null}
+              </small>
             </div>
             <div className="taskdesk-current__welcome-focus">
               <span>Ritmo di oggi</span>

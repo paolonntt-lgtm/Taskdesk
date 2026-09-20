@@ -320,6 +320,10 @@
 }
 
 .taskdesk-current__welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   position: relative;
   z-index: 1;
   margin-bottom: 10px;
@@ -328,6 +332,16 @@
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
+}
+
+.taskdesk-current__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #f6c4a7;
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: none;
 }
 
 .taskdesk-current__welcome-copy h2 {
@@ -364,6 +378,27 @@
   z-index: 1;
   color: #bdd3e5;
   font-size: 9px;
+}
+
+.taskdesk-current__welcome-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskdesk-current__welcome-meta button {
+  padding: 0;
+  border: 0;
+  color: #f7c09b;
+  background: transparent;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.taskdesk-current__welcome-meta button:hover {
+  color: #fff;
+  text-decoration: underline;
 }
 
 .taskdesk-current__welcome-focus {
