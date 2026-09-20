@@ -2,8 +2,6 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/calendar-variants/MonthlyCalendar.tsx": () => import("../components/mockups/calendar-variants/MonthlyCalendar.tsx"),
-  "./components/mockups/landing-variants/DarkBold.tsx": () => import("../components/mockups/landing-variants/DarkBold.tsx"),
-  "./components/mockups/landing-variants/VividAnimated.tsx": () => import("../components/mockups/landing-variants/VividAnimated.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Slate.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Slate.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Teal.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Teal.tsx"),
@@ -15,6 +13,8 @@ export const modules: ModuleMap = {
   "./components/mockups/dashboard-variants/ControlRoom.tsx": () => import("../components/mockups/dashboard-variants/ControlRoom.tsx"),
   "./components/mockups/dashboard-variants/CurrentDashboard.tsx": () => import("../components/mockups/dashboard-variants/CurrentDashboard.tsx"),
   "./components/mockups/dashboard-variants/EditorialDesk.tsx": () => import("../components/mockups/dashboard-variants/EditorialDesk.tsx"),
+  "./components/mockups/landing-variants/DarkBold.tsx": () => import("../components/mockups/landing-variants/DarkBold.tsx"),
+  "./components/mockups/landing-variants/VividAnimated.tsx": () => import("../components/mockups/landing-variants/VividAnimated.tsx"),
   "./components/mockups/login-variants/GlassCard.tsx": () => import("../components/mockups/login-variants/GlassCard.tsx"),
   "./components/mockups/login-variants/SplitScreen.tsx": () => import("../components/mockups/login-variants/SplitScreen.tsx"),
   "./components/mockups/new-ticket-variants/CardSections.tsx": () => import("../components/mockups/new-ticket-variants/CardSections.tsx"),
