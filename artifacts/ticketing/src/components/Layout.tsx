@@ -327,7 +327,9 @@ export default function Layout({ children }: LayoutProps) {
                   '&.Mui-selected': {
                     background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
                     color: theme.palette.primary.main,
-                    boxShadow: 'none',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? 'inset 3px 0 0 #64b5f6'
+                      : `inset 3px 0 0 ${theme.palette.primary.main}`,
                     '& .MuiListItemIcon-root': { color: 'inherit' },
                     '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#eaf2fb' },
                   },
@@ -417,6 +419,10 @@ export default function Layout({ children }: LayoutProps) {
         sx={{
           width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
           ml: { sm: sidebarOpen ? `${drawerWidth}px` : 0 },
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 2px 12px rgba(15, 23, 42, .05)',
+          backgroundImage: 'none',
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

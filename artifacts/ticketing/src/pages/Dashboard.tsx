@@ -2418,10 +2418,10 @@ function Dashboard() {
           minHeight: { xs: 132, md: 166 },
           p: { xs: 1.75, md: 2.25 },
           border: '1px solid',
-          borderColor: '#dbe4ec',
+          borderColor: '#d5e0ea',
           borderRadius: '10px',
-          bgcolor: 'background.paper',
-          boxShadow: '0 1px 3px rgba(15,23,42,.06)',
+          background: 'linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%)',
+          boxShadow: '0 6px 16px rgba(15,23,42,.055)',
         }}>
           <Typography sx={{ color: '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'it' ? 'Ritmo di oggi' : 'Today’s pace'}
