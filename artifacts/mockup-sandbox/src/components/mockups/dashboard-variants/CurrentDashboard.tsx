@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Menu,
   Plus,
+  Search,
   Settings,
   SlidersHorizontal,
   Users,
@@ -35,13 +36,24 @@ const tickets: Ticket[] = [
   { id: 29, title: "Schermo intermittente sala riunioni", category: "Hardware", status: "Aperto", priority: "Media" },
 ];
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, active: true },
-  { label: "Tutti i ticket", icon: ClipboardList },
-  { label: "Nuovo ticket", icon: Plus },
-  { label: "Report", icon: BarChart3 },
-  { label: "Calendario", icon: CalendarDays },
-  { label: "Clienti", icon: Users },
+const navGroups = [
+  {
+    label: "Operazioni",
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, active: true },
+      { label: "Tutti i ticket", icon: ClipboardList },
+      { label: "Nuovo ticket", icon: Plus },
+      { label: "Clienti", icon: Users },
+    ],
+  },
+  {
+    label: "Controllo",
+    items: [
+      { label: "Report", icon: BarChart3 },
+      { label: "Calendario", icon: CalendarDays },
+      { label: "Impostazioni", icon: Settings },
+    ],
+  },
 ];
 
 function StatusPill({ children, kind }: { children: string; kind: "open" | "waiting" | "resolved" | "urgent" | "high" | "medium" }) {
@@ -60,7 +72,7 @@ function TicketList({ title, icon, items, due = false }: { title: string; icon: 
         <button className="taskdesk-current__link" type="button">Vedi tutti</button>
       </div>
       <div className="taskdesk-current__divider" />
-      {items.map((ticket) => (
+      {items.length ? items.map((ticket) => (
         <button className="taskdesk-current__ticket" type="button" key={ticket.id}>
           <span className={`taskdesk-current__number taskdesk-current__number--${ticket.status === "Risolto" ? "resolved" : ticket.status === "In attesa" ? "waiting" : "open"}`}>#{ticket.id}</span>
           <span className="taskdesk-current__ticket-copy">
@@ -73,7 +85,9 @@ function TicketList({ title, icon, items, due = false }: { title: string; icon: 
             {!due && <StatusPill kind={ticket.priority === "Urgente" ? "urgent" : ticket.priority === "Alta" ? "high" : "medium"}>{ticket.priority}</StatusPill>}
           </span>
         </button>
-      ))}
+      )) : (
+        <div className="taskdesk-current__empty">Nessun ticket corrisponde alla ricerca.</div>
+      )}
     </section>
   );
 }
@@ -81,7 +95,16 @@ function TicketList({ title, icon, items, due = false }: { title: string; icon: 
 export function CurrentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+
+  const visibleTickets = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return tickets;
+    return tickets.filter((ticket) =>
+      `${ticket.id} ${ticket.title} ${ticket.category} ${ticket.status} ${ticket.priority}`.toLowerCase().includes(query),
+    );
+  }, [search]);
 
   const notify = (message: string) => {
     setToast(message);
@@ -97,18 +120,24 @@ export function CurrentDashboard() {
           {sidebarOpen && <button className="taskdesk-current__collapse" type="button" onClick={() => setSidebarOpen(false)} aria-label="Riduci menu"><ChevronLeft size={16} /></button>}
         </div>
         {!sidebarOpen && <button className="taskdesk-current__expand" type="button" onClick={() => setSidebarOpen(true)} aria-label="Espandi menu"><ChevronRight size={16} /></button>}
-        <nav className="taskdesk-current__nav">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <button className={`taskdesk-current__nav-item ${active ? "taskdesk-current__nav-item--active" : ""}`} type="button" key={label} onClick={() => notify(`${label} selezionato`)}>
-              <Icon size={18} />
-              {sidebarOpen && <span>{label}</span>}
-            </button>
+        <nav className="taskdesk-current__nav" aria-label="Navigazione principale">
+          {navGroups.map((group) => (
+            <div className="taskdesk-current__nav-group" key={group.label}>
+              {sidebarOpen && <div className="taskdesk-current__nav-label">{group.label}</div>}
+              <div className="taskdesk-current__nav-group-items">
+                {group.items.map(({ label, icon: Icon, active }) => (
+                  <button className={`taskdesk-current__nav-item ${active ? "taskdesk-current__nav-item--active" : ""}`} type="button" key={label} onClick={() => notify(`${label} selezionato`)}>
+                    <Icon size={18} />
+                    {sidebarOpen && <span>{label}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         {sidebarOpen && (
           <div className="taskdesk-current__sidebar-bottom">
-            <button className="taskdesk-current__nav-item" type="button"><Settings size={18} /><span>Impostazioni</span></button>
-            <button className="taskdesk-current__nav-item" type="button"><CircleHelp size={18} /><span>Aiuto</span></button>
+            <button className="taskdesk-current__nav-item" type="button" onClick={() => notify("Aiuto selezionato")}><CircleHelp size={18} /><span>Aiuto</span></button>
             <div className="taskdesk-current__profile">
               <span className="taskdesk-current__profile-avatar">AD</span>
               <span><strong>Alessandro De Luca</strong><small>Amministratore</small></span>
@@ -125,6 +154,16 @@ export function CurrentDashboard() {
             <h1>Dashboard</h1>
           </div>
           <div className="taskdesk-current__actions">
+            <label className="taskdesk-current__search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                aria-label="Cerca ticket"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Cerca ticket"
+                type="search"
+                value={search}
+              />
+            </label>
             <button className="taskdesk-current__icon-button" type="button" onClick={() => notify("Nessuna nuova notifica")} aria-label="Notifiche"><Bell size={18} /></button>
             <button className="taskdesk-current__edit-button" type="button" onClick={() => { setEditMode((value) => !value); notify(editMode ? "Modifica completata" : "Modalità modifica attiva"); }}>
               <SlidersHorizontal size={16} /> {editMode ? "Fine modifica" : "Modifica layout"}
@@ -164,8 +203,8 @@ export function CurrentDashboard() {
           </div>
 
           <div className="taskdesk-current__grid">
-            <TicketList title="Scadenze imminenti" icon={<CalendarDays size={18} className="taskdesk-current__icon taskdesk-current__icon--orange" />} items={tickets.slice(0, 3)} due />
-            <TicketList title="I miei ticket" icon={<ClipboardList size={18} className="taskdesk-current__icon taskdesk-current__icon--blue" />} items={tickets.slice(1, 4)} />
+            <TicketList title="Scadenze imminenti" icon={<CalendarDays size={18} className="taskdesk-current__icon taskdesk-current__icon--orange" />} items={visibleTickets.slice(0, 3)} due />
+            <TicketList title="I miei ticket" icon={<ClipboardList size={18} className="taskdesk-current__icon taskdesk-current__icon--blue" />} items={visibleTickets.slice(1, 4)} />
             <section className="taskdesk-current__card taskdesk-current__chart">
               <div className="taskdesk-current__card-heading">
                 <div className="taskdesk-current__heading-title"><BarChart3 size={18} className="taskdesk-current__icon taskdesk-current__icon--violet" /><strong>Volume ticket</strong></div>
