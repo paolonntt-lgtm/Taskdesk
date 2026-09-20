@@ -466,6 +466,112 @@
   font-weight: 800;
 }
 
+.taskdesk-current__phrase-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr);
+  gap: 22px;
+  align-items: center;
+  margin: -2px 0 18px;
+  padding: 16px 18px;
+  border-color: #cddff0;
+  background: #f7fbff;
+  box-shadow: 0 5px 16px rgba(29, 74, 118, .06);
+}
+
+.taskdesk-current__phrase-editor-copy {
+  min-width: 0;
+}
+
+.taskdesk-current__phrase-editor-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.taskdesk-current__phrase-editor-icon {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  place-items: center;
+  border-radius: 8px;
+  color: #b45837;
+  background: #fff0e8;
+}
+
+.taskdesk-current__phrase-editor-heading strong {
+  display: block;
+  color: #24415f;
+  font-size: 13px;
+}
+
+.taskdesk-current__phrase-editor-heading p {
+  margin: 4px 0 0;
+  color: #718198;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.taskdesk-current__phrase-editor-note {
+  display: block;
+  margin: 11px 0 0 41px;
+  color: #9aa7b5;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.taskdesk-current__phrase-editor-form {
+  display: flex;
+  align-items: stretch;
+  gap: 9px;
+}
+
+.taskdesk-current__phrase-editor-form textarea {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid #d8e2ec;
+  border-radius: 7px;
+  outline: 0;
+  background: #fff;
+  color: #2b3c51;
+  font-size: 11px;
+  line-height: 1.5;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.taskdesk-current__phrase-editor-form textarea:focus {
+  border-color: #8bb8e5;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, .1);
+}
+
+.taskdesk-current__phrase-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #1976d2;
+  border-radius: 7px;
+  color: #fff;
+  background: #1976d2;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.taskdesk-current__phrase-save:hover {
+  background: #155fa8;
+  transform: translateY(-1px);
+}
+
 .taskdesk-current__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -821,6 +927,11 @@
     grid-template-columns: 1fr;
   }
 
+  .taskdesk-current__phrase-editor {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .taskdesk-current__welcome-focus {
     min-height: 132px;
   }
@@ -879,6 +990,14 @@
     position: static;
     display: block;
     margin-top: 14px;
+  }
+
+  .taskdesk-current__phrase-editor-form {
+    flex-direction: column;
+  }
+
+  .taskdesk-current__phrase-save {
+    align-self: flex-start;
   }
 
   .taskdesk-current__ticket-labels {

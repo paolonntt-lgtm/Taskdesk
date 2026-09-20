@@ -12,7 +12,9 @@ import {
   Menu,
   Plus,
   Search,
+  Save,
   Settings,
+  Sparkles,
   SlidersHorizontal,
   Users,
 } from "lucide-react";
@@ -35,6 +37,14 @@ const tickets: Ticket[] = [
   { id: 35, title: "Problema connessione VPN da remoto", category: "Rete", status: "In attesa", priority: "Media" },
   { id: 31, title: "Aggiornamento antivirus su postazioni", category: "Sicurezza", status: "Risolto", priority: "Media" },
   { id: 29, title: "Schermo intermittente sala riunioni", category: "Hardware", status: "Aperto", priority: "Media" },
+];
+
+const defaultMotivationalPhrases = [
+  "Mettiamo ordine alla giornata.",
+  "Un passo alla volta, il team fa la differenza.",
+  "Oggi trasformiamo le richieste in soluzioni.",
+  "La chiarezza apre la strada al lavoro ben fatto.",
+  "Teniamo il ritmo, senza perdere di vista le persone.",
 ];
 
 const navGroups = [
@@ -72,6 +82,10 @@ function formatDate(date: Date) {
   }).format(date);
 
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function getLocalDayNumber(date: Date) {
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
 }
 
 function formatCoordinate(value: number, positive: string, negative: string) {
@@ -122,6 +136,8 @@ export function CurrentDashboard() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [locationState, setLocationState] = useState<"loading" | "granted" | "denied" | "unavailable">("loading");
   const [coordinates, setCoordinates] = useState<GeolocationCoordinates | null>(null);
+  const [motivationalPhrases, setMotivationalPhrases] = useState(defaultMotivationalPhrases);
+  const [phraseDraft, setPhraseDraft] = useState(defaultMotivationalPhrases.join("\n"));
 
   useEffect(() => {
     const clock = window.setInterval(() => setCurrentTime(new Date()), 60_000);
@@ -154,6 +170,7 @@ export function CurrentDashboard() {
 
   const greeting = getGreeting(currentTime.getHours());
   const dateLabel = formatDate(currentTime);
+  const dailyPhrase = motivationalPhrases[getLocalDayNumber(currentTime) % motivationalPhrases.length] ?? defaultMotivationalPhrases[0];
   const locationLabel = coordinates
     ? `${formatCoordinate(coordinates.latitude, "N", "S")} · ${formatCoordinate(coordinates.longitude, "E", "O")}`
     : locationState === "loading"
@@ -180,6 +197,31 @@ export function CurrentDashboard() {
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2200);
+  };
+
+  const toggleEditMode = () => {
+    setEditMode((value) => {
+      const nextValue = !value;
+      if (nextValue) setPhraseDraft(motivationalPhrases.join("\n"));
+      notify(nextValue ? "Modalità modifica attiva" : "Modifica completata");
+      return nextValue;
+    });
+  };
+
+  const saveMotivationalPhrases = () => {
+    const nextPhrases = phraseDraft
+      .split(/\r?\n/)
+      .map((phrase) => phrase.trim())
+      .filter(Boolean);
+
+    if (!nextPhrases.length) {
+      notify("Inserisci almeno una frase motivazionale");
+      return;
+    }
+
+    setMotivationalPhrases(nextPhrases);
+    setPhraseDraft(nextPhrases.join("\n"));
+    notify("Frasi salvate per tutto il team");
   };
 
   return (
@@ -236,7 +278,7 @@ export function CurrentDashboard() {
               />
             </label>
             <button className="taskdesk-current__icon-button" type="button" onClick={() => notify("Nessuna nuova notifica")} aria-label="Notifiche"><Bell size={18} /></button>
-            <button className="taskdesk-current__edit-button" type="button" onClick={() => { setEditMode((value) => !value); notify(editMode ? "Modifica completata" : "Modalità modifica attiva"); }}>
+            <button className="taskdesk-current__edit-button" type="button" onClick={toggleEditMode}>
               <SlidersHorizontal size={16} /> {editMode ? "Fine modifica" : "Modifica layout"}
             </button>
           </div>
@@ -252,7 +294,7 @@ export function CurrentDashboard() {
                   {locationLabel}
                 </span>
               </div>
-              <h2 id="current-welcome-title">{greeting}, Alessandro.<br /><em>Mettiamo ordine</em> alla giornata.</h2>
+              <h2 id="current-welcome-title">{greeting}, Alessandro.<br /><em>{dailyPhrase}</em></h2>
               <p>Il team ha già chiuso 8 richieste. Qui trovi ciò che merita attenzione adesso.</p>
               <small className="taskdesk-current__welcome-meta">
                 <span>{locationNote}</span>
@@ -269,6 +311,32 @@ export function CurrentDashboard() {
               <small>17 gestite su 25 <b>+12% vs. ieri</b></small>
             </div>
           </section>
+
+          {editMode && (
+            <section className="taskdesk-current__phrase-editor taskdesk-current__card" aria-labelledby="phrase-editor-title">
+              <div className="taskdesk-current__phrase-editor-copy">
+                <div className="taskdesk-current__phrase-editor-heading">
+                  <span className="taskdesk-current__phrase-editor-icon"><Sparkles size={16} /></span>
+                  <div>
+                    <strong id="phrase-editor-title">Messaggi motivazionali</strong>
+                    <p>Imposta le frasi che vedrà tutto il team. Ne verrà mostrata una diversa ogni giorno.</p>
+                  </div>
+                </div>
+                <span className="taskdesk-current__phrase-editor-note">Visibile a tutti · una frase per riga</span>
+              </div>
+              <div className="taskdesk-current__phrase-editor-form">
+                <textarea
+                  aria-label="Frasi motivazionali per il team"
+                  onChange={(event) => setPhraseDraft(event.target.value)}
+                  rows={4}
+                  value={phraseDraft}
+                />
+                <button className="taskdesk-current__phrase-save" type="button" onClick={saveMotivationalPhrases}>
+                  <Save size={14} /> Salva per tutti
+                </button>
+              </div>
+            </section>
+          )}
 
           <div className="taskdesk-current__stats">
             {[

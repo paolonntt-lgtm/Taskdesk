@@ -20,6 +20,13 @@ export const STANDARD_CATEGORIES = [
 ];
 const DEFAULT_CATEGORIES = STANDARD_CATEGORIES;
 const DEFAULT_GROUPS = ["IT Support", "Reception", "Administration"];
+const DEFAULT_MOTIVATIONAL_MESSAGES = [
+  "Ogni richiesta gestita bene libera spazio per il lavoro che conta.",
+  "Un passo alla volta: oggi facciamo avanzare ciò che conta.",
+  "La chiarezza nel team trasforma la pressione in progresso.",
+  "Una buona risposta oggi costruisce fiducia per domani.",
+  "Il lavoro ben organizzato si vede nelle giornate più semplici.",
+];
 export { DEFAULT_LOCATIONS };
 
 function orgKey(orgId: number | null | undefined, base: string): string {
@@ -34,6 +41,24 @@ async function getSetting(key: string, defaultValue: string[]): Promise<string[]
   } catch {
     return defaultValue;
   }
+}
+
+function cleanMotivationalMessages(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().slice(0, 240))
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
+}
+
+async function getMotivationalMessages(key: string): Promise<string[]> {
+  const value = await getSetting(key, DEFAULT_MOTIVATIONAL_MESSAGES);
+  const cleaned = cleanMotivationalMessages(value);
+  return cleaned.length > 0 ? cleaned : DEFAULT_MOTIVATIONAL_MESSAGES;
 }
 
 router.get("/settings/locations", requireAuth, async (req, res): Promise<void> => {
@@ -110,6 +135,36 @@ router.put("/settings/categories", requireAuth, requireAdmin, async (req, res): 
     .values({ key, value: JSON.stringify(sorted) })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(sorted) } });
   res.json({ value: sorted });
+});
+
+router.get("/settings/motivational-messages", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "motivational_messages");
+  res.json({ messages: await getMotivationalMessages(key) });
+});
+
+router.put("/settings/motivational-messages", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { messages } = req.body ?? {};
+  if (!Array.isArray(messages) || messages.some((message) => typeof message !== "string")) {
+    res.status(400).json({ message: "I messaggi devono essere un array di stringhe" });
+    return;
+  }
+
+  const currentUser = (req as any).currentUser;
+  const key = orgKey(currentUser.organizationId, "motivational_messages");
+  const cleaned = cleanMotivationalMessages(messages);
+
+  if (cleaned.length === 0) {
+    await db.delete(settingsTable).where(eq(settingsTable.key, key));
+    res.json({ messages: DEFAULT_MOTIVATIONAL_MESSAGES });
+    return;
+  }
+
+  await db
+    .insert(settingsTable)
+    .values({ key, value: JSON.stringify(cleaned) })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(cleaned) } });
+  res.json({ messages: cleaned });
 });
 
 router.get("/settings/groups", requireAuth, async (req, res): Promise<void> => {

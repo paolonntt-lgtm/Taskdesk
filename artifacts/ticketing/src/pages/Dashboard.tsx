@@ -63,6 +63,18 @@ const POLL_MS = 60_000;
 const CHART_REFRESH_MS = 12 * 60 * 60 * 1000;
 const CHART_OPTS = { query: { staleTime: CHART_REFRESH_MS, refetchInterval: CHART_REFRESH_MS, refetchIntervalInBackground: false } as any };
 
+function getGreetingKey(hour: number): 'greetingMorning' | 'greetingAfternoon' | 'greetingEvening' {
+  if (hour < 12) return 'greetingMorning';
+  if (hour < 18) return 'greetingAfternoon';
+  return 'greetingEvening';
+}
+
+function getDayIndex(date: Date, length: number): number {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86_400_000);
+  return length > 0 ? dayOfYear % length : 0;
+}
+
 // ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────
 
 const SETTINGS_KEY = 'td_dashboard_settings_v1';
@@ -2112,10 +2124,28 @@ function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
+  const [now, setNow] = useState(() => new Date());
+  const [motivationalMessages, setMotivationalMessages] = useState<string[]>([]);
 
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/settings/motivational-messages', { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (mounted && Array.isArray(data?.messages)) setMotivationalMessages(data.messages);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   const superadminDefaultLayout = (): LayoutItem[] => {
     if (!isSuperAdmin) return DEFAULT_LAYOUT;
@@ -2237,6 +2267,11 @@ function Dashboard() {
   const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
   const activeLayout: LayoutItem[] = layout.filter((l) => visibleIds.includes(l.i));
+  const greetingKey = getGreetingKey(now.getHours());
+  const greeting = (t.dashboard as Record<string, unknown>)[greetingKey] as string;
+  const firstName = user?.name?.trim().split(/\s+/)[0] || '';
+  const motivationalMessage =
+    motivationalMessages[getDayIndex(now, motivationalMessages.length)] || t.dashboard.motivationalFallback;
 
   return (
     <Box sx={{ overflow: 'hidden' }}>
@@ -2275,9 +2310,14 @@ function Dashboard() {
       {/* Header */}
       <Box display="flex" alignItems="center" justifyContent="space-between"
         mb={{ xs: 1.5, sm: 3 }} flexWrap="wrap" gap={1}>
-        <Typography variant="h5" fontWeight="bold" fontSize={{ xs: '1.1rem', sm: '1.4rem' }}>
-          {t.dashboard.title}
-        </Typography>
+        <Box>
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em', fontWeight: 700 }}>
+            {greeting}{firstName ? `, ${firstName}` : ''}
+          </Typography>
+          <Typography variant="h5" fontWeight="bold" fontSize={{ xs: '1.1rem', sm: '1.4rem' }}>
+            {motivationalMessage}
+          </Typography>
+        </Box>
 
         {!isMobile && (
           <Box display="flex" alignItems="center" gap={1}>

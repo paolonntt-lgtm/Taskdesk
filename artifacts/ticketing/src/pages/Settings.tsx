@@ -810,6 +810,9 @@ export default function Settings() {
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [motivationalMessages, setMotivationalMessages] = useState<string[]>([]);
+  const [motivationalSaving, setMotivationalSaving] = useState(false);
+  const [motivationalMsg, setMotivationalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [billing, setBilling] = useState({
     ragioneSociale: '', piva: '', codiceFiscale: '',
@@ -836,6 +839,10 @@ export default function Settings() {
         setOrgEntitySingular(d.entitySingular ?? '');
         setOrgEntityPlural(d.entityPlural ?? '');
       }).catch(() => {});
+    fetch('/api/settings/motivational-messages', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setMotivationalMessages(Array.isArray(d.messages) ? d.messages : []))
+      .catch(() => {});
     fetch('/api/settings/billing', { credentials: 'include' })
       .then((r) => r.json()).then((d) => {
         if (d && !d.error) setBilling({
@@ -1081,6 +1088,34 @@ export default function Settings() {
     }
   };
 
+  const saveMotivationalMessages = async () => {
+    setMotivationalSaving(true);
+    setMotivationalMsg(null);
+    try {
+      const messages = motivationalMessages
+        .flatMap((message) => message.split('\n'))
+        .map((message) => message.trim())
+        .filter(Boolean);
+      const res = await fetch('/api/settings/motivational-messages', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMotivationalMsg({ type: 'error', text: data.message || t.settings.motivationalMessagesError });
+        return;
+      }
+      setMotivationalMessages(Array.isArray(data.messages) ? data.messages : []);
+      setMotivationalMsg({ type: 'success', text: t.settings.motivationalMessagesSaved });
+    } catch {
+      setMotivationalMsg({ type: 'error', text: t.settings.motivationalMessagesError });
+    } finally {
+      setMotivationalSaving(false);
+    }
+  };
+
   // Sidebar navigation items
   const personalNav = [
     { id: 'profile', label: t.settings.navProfile, icon: <Person fontSize="small" /> },
@@ -1088,6 +1123,7 @@ export default function Settings() {
   ];
   const orgNav = [
     { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
+    { id: 'messages', label: t.settings.navMessages, icon: <StarOutlined fontSize="small" /> },
     { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
     { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
@@ -1393,6 +1429,40 @@ export default function Settings() {
                     <Alert severity="info" sx={{ py: 0.5 }}>{t.settings.orgWorkedTimeDisabledWarning}</Alert>
                   )}
                 </Box>
+              </Box>
+            </Section>
+          )}
+
+          {/* ── TEAM MESSAGES (admin) ── */}
+          {isAdmin && activeSection === 'messages' && (
+            <Section title={t.settings.motivationalMessagesTitle} icon={<StarOutlined color="primary" />}>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                {t.settings.motivationalMessagesNote}
+              </Typography>
+              {motivationalMsg && (
+                <Alert severity={motivationalMsg.type} sx={{ mb: 2 }} onClose={() => setMotivationalMsg(null)}>
+                  {motivationalMsg.text}
+                </Alert>
+              )}
+              <TextField
+                fullWidth
+                multiline
+                minRows={7}
+                value={motivationalMessages.join('\n')}
+                onChange={(event) => setMotivationalMessages(event.target.value.split('\n'))}
+                placeholder={t.settings.motivationalMessagesPlaceholder}
+                disabled={motivationalSaving}
+                inputProps={{ maxLength: 12_000 }}
+              />
+              <Box display="flex" justifyContent="flex-end" mt={2}>
+                <Button
+                  variant="contained"
+                  startIcon={motivationalSaving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                  onClick={saveMotivationalMessages}
+                  disabled={motivationalSaving}
+                >
+                  {motivationalSaving ? t.settings.motivationalMessagesSaving : t.settings.motivationalMessagesSave}
+                </Button>
               </Box>
             </Section>
           )}
