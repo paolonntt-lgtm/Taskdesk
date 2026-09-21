@@ -325,13 +325,14 @@ export default function Layout({ children }: LayoutProps) {
                   borderRadius: '8px',
                   py: 1,
                   '&.Mui-selected': {
-                    background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
-                    color: theme.palette.primary.main,
+                     background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#365c56',
+                     color: theme.palette.mode === 'dark' ? theme.palette.primary.main : '#ffffff',
                     boxShadow: theme.palette.mode === 'dark'
                       ? 'inset 3px 0 0 #64b5f6'
-                      : `inset 3px 0 0 ${theme.palette.primary.main}`,
+                       : 'inset 3px 0 0 #d77a46',
                     '& .MuiListItemIcon-root': { color: 'inherit' },
-                    '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#eaf2fb' },
+                     '& .MuiListItemText-primary': { color: 'inherit' },
+                     '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#365c56' },
                   },
                   '&:not(.Mui-selected):hover': { bgcolor: 'action.hover' },
                 }}
@@ -423,6 +424,7 @@ export default function Layout({ children }: LayoutProps) {
           borderColor: 'divider',
           boxShadow: '0 2px 12px rgba(15, 23, 42, .05)',
           backgroundImage: 'none',
+           backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,254,249,.9)' : undefined,
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
@@ -746,7 +748,14 @@ export default function Layout({ children }: LayoutProps) {
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
-          sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              backgroundColor: theme.palette.mode === 'light' ? '#eef2eb' : undefined,
+            },
+          }}
         >
           {drawer}
         </Drawer>
@@ -757,6 +766,7 @@ export default function Layout({ children }: LayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              backgroundColor: theme.palette.mode === 'light' ? '#eef2eb' : undefined,
               overflowX: 'hidden',
               transform: sidebarOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
               transition: theme.transitions.create('transform', {
@@ -780,7 +790,7 @@ export default function Layout({ children }: LayoutProps) {
           p: { xs: 1, sm: 3, md: 4 },
           width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
           mt: { xs: '48px', sm: '64px' },
-          bgcolor: 'background.default',
+           bgcolor: theme.palette.mode === 'light' ? '#f7f7f1' : 'background.default',
           minHeight: { xs: 'calc(100vh - 48px)', sm: 'calc(100vh - 64px)' },
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
