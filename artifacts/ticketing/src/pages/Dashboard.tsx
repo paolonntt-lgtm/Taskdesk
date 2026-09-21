@@ -2366,7 +2366,7 @@ function Dashboard() {
     ? 'delle richieste è già in buone mani'
     : 'of requests are already in good hands';
   const handledLabel = lang === 'it' ? 'gestite' : 'handled';
-  const locationLabel = lang === 'it' ? 'Milano' : 'Milan';
+  const locationLabel = user?.mainLocation?.trim() || '';
 
   return (
     <Box className={`td-dashboard${theme.palette.mode === 'dark' ? ' td-dashboard--dark' : ''}`} sx={{
@@ -2424,8 +2424,8 @@ function Dashboard() {
           p: { xs: 2.25, sm: 2.75 },
            borderRadius: '17px',
            color: '#f6f6eb',
-           background: theme.palette.mode === 'light' ? CALM_OPERATIONAL.mossDeep : 'linear-gradient(120deg, #1e4774, #286296)',
-           boxShadow: theme.palette.mode === 'light' ? '0 14px 30px rgba(54, 92, 86, .13)' : '0 10px 24px rgba(29, 74, 118, .14)',
+           background: 'linear-gradient(120deg, #1e4774, #286296)',
+           boxShadow: '0 10px 24px rgba(29, 74, 118, .14)',
           '&::after': {
             content: '""',
             position: 'absolute',
@@ -2446,16 +2446,18 @@ function Dashboard() {
             flexWrap: 'wrap',
             gap: 1,
             mb: 1.25,
-             color: theme.palette.mode === 'light' ? '#c6d7ce' : '#c4d9ee',
+              color: '#c4d9ee',
             fontSize: '0.68rem',
             fontWeight: 800,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
           }}>
             <span>{formatDashboardDate(now, lang)}</span>
-             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, color: theme.palette.mode === 'light' ? '#f0bd8e' : '#f6c4a7', fontSize: '0.62rem', letterSpacing: '0.04em', textTransform: 'none' }}>
-              <LocationOnIcon sx={{ fontSize: 12 }} /> {locationLabel}
-            </Box>
+              {locationLabel && (
+                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, color: '#f6c4a7', fontSize: '0.62rem', letterSpacing: '0.04em', textTransform: 'none' }}>
+                  <LocationOnIcon sx={{ fontSize: 12 }} /> {locationLabel}
+                </Box>
+              )}
           </Box>
           <Typography component="h1" sx={{
             position: 'relative',
@@ -2469,9 +2471,9 @@ function Dashboard() {
             lineHeight: 1,
           }}>
             {greeting}{firstName ? `, ${firstName}.` : '.'}<br />
-             <Box component="em" sx={{ color: theme.palette.mode === 'light' ? '#f0bd8e' : '#f3b58a', fontStyle: 'normal' }}>{motivationalMessage}</Box>
+             <Box component="em" sx={{ color: '#f3b58a', fontStyle: 'normal' }}>{motivationalMessage}</Box>
           </Typography>
-          <Typography sx={{ position: 'relative', zIndex: 1, maxWidth: 510, mt: 1.5, mb: 0, color: theme.palette.mode === 'light' ? '#d6e2d9' : '#d6e5f2', fontSize: '0.75rem', lineHeight: 1.45 }}>
+          <Typography sx={{ position: 'relative', zIndex: 1, maxWidth: 510, mt: 1.5, mb: 0, color: '#d6e5f2', fontSize: '0.75rem', lineHeight: 1.45 }}>
             {actionableTickets > 0
               ? (lang === 'it'
                 ? `Ci sono ${actionableTickets} richieste ancora da gestire. Qui trovi ciò che merita attenzione adesso.`
@@ -2487,24 +2489,24 @@ function Dashboard() {
            minHeight: { xs: 132, md: 178 },
           p: { xs: 1.75, md: 2.25 },
           border: '1px solid',
-           borderColor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.line : '#d5e0ea',
+           borderColor: '#d5e0ea',
            borderRadius: '17px',
-           background: theme.palette.mode === 'light' ? CALM_OPERATIONAL.panel : 'linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%)',
-           boxShadow: theme.palette.mode === 'light' ? CALM_OPERATIONAL.shadow : '0 6px 16px rgba(15,23,42,.055)',
+           background: 'linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%)',
+           boxShadow: '0 6px 16px rgba(15,23,42,.055)',
         }}>
-           <Typography sx={{ color: theme.palette.mode === 'light' ? CALM_OPERATIONAL.inkFaint : '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            <Typography sx={{ color: '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'it' ? 'Ritmo di oggi' : 'Today’s pace'}
           </Typography>
-           <Typography sx={{ mt: 0.75, color: theme.palette.mode === 'light' ? CALM_OPERATIONAL.ink : '#263f5a', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
+            <Typography sx={{ mt: 0.75, color: '#263f5a', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
             {handledPercent}%
           </Typography>
-           <Typography sx={{ maxWidth: 150, alignSelf: 'flex-end', mt: 0.25, mb: 1.25, color: theme.palette.mode === 'light' ? CALM_OPERATIONAL.inkSoft : '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
+            <Typography sx={{ maxWidth: 150, alignSelf: 'flex-end', mt: 0.25, mb: 1.25, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
             {focusDescription}
           </Typography>
-           <Box sx={{ height: 7, overflow: 'hidden', borderRadius: 4, bgcolor: theme.palette.mode === 'light' ? '#e8eee7' : '#e4ebf1' }}>
-             <Box sx={{ width: `${handledPercent}%`, height: '100%', borderRadius: 'inherit', bgcolor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.saffron : '#ed835b', transition: 'width .3s ease' }} />
+            <Box sx={{ height: 7, overflow: 'hidden', borderRadius: 4, bgcolor: '#e4ebf1' }}>
+              <Box sx={{ width: `${handledPercent}%`, height: '100%', borderRadius: 'inherit', bgcolor: '#ed835b', transition: 'width .3s ease' }} />
           </Box>
-           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 1, color: theme.palette.mode === 'light' ? CALM_OPERATIONAL.inkFaint : '#96a0ad', fontSize: '0.62rem' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 1, color: '#96a0ad', fontSize: '0.62rem' }}>
              <span>{handledTickets} {handledLabel} / {totalTickets}</span>
              <b style={{ color: theme.palette.mode === 'light' ? '#c56648' : '#c56648' }}>{dashStats?.waitingTickets ?? 0} {lang === 'it' ? 'in attesa' : 'waiting'}</b>
           </Box>
@@ -2535,12 +2537,10 @@ function Dashboard() {
           startIcon={editMode ? <CheckIcon /> : <EditIcon />}
           onClick={() => setEditMode((v) => !v)}
            sx={{
-             borderColor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.moss : '#1976d2',
-             color: editMode ? undefined : (theme.palette.mode === 'light' ? CALM_OPERATIONAL.mossDeep : '#1976d2'),
-             ...(theme.palette.mode === 'light' ? {
-               '&:hover': { borderColor: CALM_OPERATIONAL.mossDeep, backgroundColor: 'rgba(54,92,86,.06)' },
-               ...(editMode ? { backgroundColor: CALM_OPERATIONAL.mossDeep, color: '#fff' } : {}),
-             } : {}),
+             borderColor: '#1976d2',
+             color: editMode ? undefined : '#1976d2',
+             '&:hover': { borderColor: '#1d4ed8', backgroundColor: 'rgba(25,118,210,.06)' },
+             ...(editMode ? { backgroundColor: '#1976d2', color: '#fff' } : {}),
            }}
         >
           {editMode ? t.dashboard.doneEditing : t.dashboard.editLayout}
@@ -2571,8 +2571,8 @@ function Dashboard() {
       {editMode && (
          <Paper variant="outlined" sx={{
            px: 2, py: 1, mb: 2, borderRadius: 2,
-           bgcolor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.mossDeep : 'primary.main',
-           color: theme.palette.mode === 'light' ? '#fff' : 'primary.contrastText',
+           bgcolor: 'primary.main',
+           color: 'primary.contrastText',
          }}>
           <Typography fontSize="0.8rem">
             {t.dashboard.editHint}

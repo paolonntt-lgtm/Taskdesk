@@ -325,14 +325,13 @@ export default function Layout({ children }: LayoutProps) {
                   borderRadius: '8px',
                   py: 1,
                   '&.Mui-selected': {
-                     background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#365c56',
-                     color: theme.palette.mode === 'dark' ? theme.palette.primary.main : '#ffffff',
+                     background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
+                     color: theme.palette.primary.main,
                     boxShadow: theme.palette.mode === 'dark'
                       ? 'inset 3px 0 0 #64b5f6'
-                       : 'inset 3px 0 0 #d77a46',
+                       : `inset 3px 0 0 ${theme.palette.primary.main}`,
                     '& .MuiListItemIcon-root': { color: 'inherit' },
-                     '& .MuiListItemText-primary': { color: 'inherit' },
-                     '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#365c56' },
+                     '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#eaf2fb' },
                   },
                   '&:not(.Mui-selected):hover': { bgcolor: 'action.hover' },
                 }}
@@ -431,7 +430,7 @@ export default function Layout({ children }: LayoutProps) {
           }),
         }}
       >
-        <Toolbar sx={{ gap: 1, minHeight: { xs: '48px !important', sm: '64px !important' }, px: { xs: 1.5, sm: 3 } }}>
+        <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, minHeight: { xs: '48px !important', sm: '64px !important' }, px: { xs: 1, sm: 3 } }}>
           <IconButton
             color="inherit"
             aria-label="apri menu"
@@ -474,18 +473,21 @@ export default function Layout({ children }: LayoutProps) {
             <Button
               onClick={() => setCommandPaletteOpen(true)}
               size="small"
+              aria-label={t.commandPalette.tooltip}
               startIcon={<Search fontSize="small" />}
               sx={{
                 minWidth: { xs: 36, sm: location === '/' ? 205 : 36 },
+                width: { xs: 36, sm: location === '/' ? 205 : 36 },
+                flexShrink: 0,
                 justifyContent: 'flex-start',
-                px: { xs: 1, sm: location === '/' ? 1.25 : 1 },
+                px: { xs: 0.75, sm: location === '/' ? 1.25 : 1 },
                 py: 0.65,
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
                 color: 'text.secondary',
                 bgcolor: location === '/' ? 'action.hover' : 'transparent',
-                '& .MuiButton-startIcon': { mr: location === '/' ? 0.75 : 0 },
+                '& .MuiButton-startIcon': { mr: { xs: 0, sm: location === '/' ? 0.75 : 0 } },
                 '&:hover': { borderColor: 'primary.light', color: 'text.primary', bgcolor: 'background.paper' },
               }}
             >
@@ -493,23 +495,12 @@ export default function Layout({ children }: LayoutProps) {
             </Button>
           </Tooltip>
 
-          {/* Dark mode toggle */}
-          <Tooltip title={mode === 'dark' ? t.nav.lightMode : t.nav.darkMode}>
-            <IconButton
-              onClick={toggleColorMode}
-              size="small"
-              sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
-            >
-              {mode === 'dark' ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-
           {/* Language toggle */}
           <Button
             onClick={toggleLang}
             size="small"
             sx={{
-              minWidth: 0, px: 1.5,
+              minWidth: { xs: 34, sm: 0 }, px: { xs: 0.75, sm: 1.5 },
               fontWeight: 700, fontSize: '0.7rem',
               border: '1.5px solid', borderColor: 'divider',
               borderRadius: '8px', letterSpacing: '0.05em',
@@ -549,7 +540,7 @@ export default function Layout({ children }: LayoutProps) {
             size="small"
             aria-label={t.nav.notifications}
             title={t.nav.notifications}
-            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            sx={{ color: 'text.secondary', p: { xs: 0.75, sm: 1 }, '&:hover': { color: 'text.primary' } }}
           >
             <Badge badgeContent={unreadCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}>
               <Notifications fontSize="small" />

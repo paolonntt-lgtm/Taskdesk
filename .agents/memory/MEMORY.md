@@ -8,5 +8,6 @@
 - [Shared DB project refresh](db-project-reference-refresh.md) — Rebuild shared database declarations after schema changes before checking dependent services.
 - [Validated .replit changes](replit-config-validation.md) — Replace `.replit` through schema validation instead of editing the file directly.
 - [Dashboard opening message](dashboard-opening-message.md) — Keep a warm “Buongiorno” greeting when refining the selected TaskDesk dashboard direction.
+- [Dashboard visual accent](dashboard-visual-accent.md) — Keep the calm surfaces, but use the previous blue as the dominant Dashboard and hero accent.
 - [Dashboard navigation preferences](dashboard-navigation-preferences.md) — Prefer grouped sidebar navigation and a prominent top-right ticket search.
 - [Shared motivational messages](shared-motivational-messages.md) — Admin-managed organization messages rotate by day and appear to every dashboard user.
