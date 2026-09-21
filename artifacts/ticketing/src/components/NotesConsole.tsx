@@ -216,7 +216,7 @@ export default function NotesConsole() {
           mb={1}
         >
           <EditNote fontSize="small" sx={{ color: 'primary.main' }} />
-          <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ letterSpacing: '0.03em' }}>
+          <Typography variant="caption" fontWeight={800} color="primary.main" sx={{ letterSpacing: '0.03em', fontSize: '0.76rem' }}>
             {tc.consoleTitle}
           </Typography>
         </Box>
@@ -233,7 +233,7 @@ export default function NotesConsole() {
                 sx={{ mb: 1, fontSize: '0.75rem', height: 22 }}
               />
             ) : (
-              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.74rem', lineHeight: 1.35 }}>
                 {tc.consoleHint}
               </Typography>
             )}
@@ -246,7 +246,14 @@ export default function NotesConsole() {
                 value={body}
                 onChange={handleBodyChange}
                 onKeyDown={handleKeyDown}
-                InputProps={{ sx: { fontSize: '0.82rem', borderRadius: '10px' } }}
+                InputProps={{
+                  sx: {
+                    fontSize: '0.84rem',
+                    borderRadius: '10px',
+                    color: 'text.primary',
+                    '& input::placeholder, & textarea::placeholder': { color: 'text.secondary', opacity: 1 },
+                  },
+                }}
               />
 
               <Popper

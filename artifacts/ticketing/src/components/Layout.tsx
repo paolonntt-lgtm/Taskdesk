@@ -312,7 +312,7 @@ export default function Layout({ children }: LayoutProps) {
         {menuItems.map((item, index) => (
           <React.Fragment key={item.text}>
             {(index === 0 || item.group !== menuItems[index - 1]?.group) && (
-              <Typography sx={{ px: 1.5, pt: index === 0 ? 0 : 1.75, pb: 0.6, color: '#9aa5b2', fontSize: '0.63rem', fontWeight: 800, letterSpacing: '0.12em', lineHeight: 1.2, textTransform: 'uppercase' }}>
+              <Typography sx={{ px: 1.5, pt: index === 0 ? 0 : 1.75, pb: 0.6, color: theme.palette.mode === 'dark' ? '#c3d0dc' : '#526579', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', lineHeight: 1.2, textTransform: 'uppercase' }}>
                 {item.group}
               </Typography>
             )}
@@ -324,22 +324,23 @@ export default function Layout({ children }: LayoutProps) {
                 sx={{
                   borderRadius: '8px',
                   py: 1,
+                  color: theme.palette.mode === 'dark' ? '#e4edf5' : '#26384d',
                   '&.Mui-selected': {
                      background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
-                     color: theme.palette.primary.main,
+                     color: theme.palette.mode === 'dark' ? '#f4f8fc' : '#143c5c',
                     boxShadow: theme.palette.mode === 'dark'
                       ? 'inset 3px 0 0 #64b5f6'
                        : `inset 3px 0 0 ${theme.palette.primary.main}`,
-                    '& .MuiListItemIcon-root': { color: 'inherit' },
+                    '& .MuiListItemIcon-root, & .MuiListItemText-primary': { color: 'inherit' },
                      '&:hover': { background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.3)' : '#eaf2fb' },
                   },
-                  '&:not(.Mui-selected):hover': { bgcolor: 'action.hover' },
+                  '&:not(.Mui-selected):hover': { bgcolor: 'action.hover', color: theme.palette.mode === 'dark' ? '#ffffff' : '#172a40' },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 38, color: isActive(item.path) ? 'inherit' : 'text.secondary' }}>
+                <ListItemIcon sx={{ minWidth: 38, color: isActive(item.path) ? 'inherit' : (theme.palette.mode === 'dark' ? '#b9c9d8' : '#506275') }}>
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 500, fontSize: '0.9rem' }} />
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 600, fontSize: '0.94rem' }} />
               </ListItemButton>
             </ListItem>
           </React.Fragment>
@@ -366,7 +367,7 @@ export default function Layout({ children }: LayoutProps) {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 38, color: isActive('/superadmin') ? 'inherit' : 'text.secondary' }}>
+                <ListItemIcon sx={{ minWidth: 38, color: isActive('/superadmin') ? 'inherit' : (theme.palette.mode === 'dark' ? '#b9c9d8' : '#506275') }}>
                   <AdminPanelSettings />
                 </ListItemIcon>
                 <ListItemText
