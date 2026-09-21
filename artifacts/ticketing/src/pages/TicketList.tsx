@@ -578,7 +578,7 @@ export default function TicketList() {
     (visibleCols.createdAt ?? true ? cw('createdAt') : 0);
 
   return (
-    <Box>
+    <Box className={`td-operational-page${theme.palette.mode === 'dark' ? ' td-operational-page--dark' : ''}`}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1.5, sm: 3 }}>
         <Box display="flex" alignItems="center" gap={1.5}>
           <Typography variant="h5" fontWeight="bold">{entityTerm.navAll}</Typography>
@@ -715,7 +715,7 @@ export default function TicketList() {
         </Box>
       )}
 
-      <Card sx={{ mb: { xs: 1.5, sm: 3 }, p: { xs: 1.5, sm: 2 } }}>
+      <Card className="td-operational-card" sx={{ mb: { xs: 1.5, sm: 3 }, p: { xs: 1.5, sm: 2 } }}>
         {/* Row 1: search + stato + priorità + toggle */}
         <Grid container spacing={1.5} alignItems="center">
           <Grid item xs={12} sm={6} md={5}>
@@ -1011,7 +1011,7 @@ export default function TicketList() {
         </Collapse>
       </Card>
 
-      <Card>
+      <Card className="td-operational-card">
         {/* Bulk action toolbar — visible only when items are selected */}
         {isAdmin && selectedIds.size > 0 && (
           <Toolbar
@@ -1059,7 +1059,7 @@ export default function TicketList() {
           </Menu>
         </Box>
         <Box sx={{ width: '100%', overflowX: { xs: 'hidden', sm: 'auto' } }}>
-          <Table size="small" sx={{ tableLayout: { xs: 'auto', sm: 'fixed' }, width: { xs: '100%', sm: tableWidth }, minWidth: { xs: 'unset', sm: '100%' } }}>
+          <Table className="td-ticket-table" size="small" sx={{ tableLayout: { xs: 'auto', sm: 'fixed' }, width: { xs: '100%', sm: tableWidth }, minWidth: { xs: 'unset', sm: '100%' } }}>
             {/* colgroup omitted on mobile — fixed col widths cause page-level overflow
                 even when columns are hidden with display:none */}
             {!isMobile && (
@@ -1078,7 +1078,7 @@ export default function TicketList() {
               </colgroup>
             )}
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.50', borderBottom: '2px solid', borderColor: 'divider' }}>
+              <TableRow className="td-ticket-table-head" sx={{ borderBottom: '2px solid', borderColor: 'divider' }}>
                 <TableCell padding="none" sx={{ p: 0, width: 4, border: 'none' }} />
                 {isAdmin && (
                   <TableCell padding="none" sx={{ width: 28, pl: 0.5, pr: 0, verticalAlign: 'middle' }}>
@@ -1298,13 +1298,13 @@ export default function TicketList() {
                               >
                                 {getInitials(ticket.assignee.name)}
                               </Avatar>
-                              <Box component="span" sx={{ fontSize: '0.8rem', color: '#424242', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                               <Box component="span" sx={{ fontSize: '0.8rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {ticket.assignee.name}
                               </Box>
                             </Box>
                           </Tooltip>
                         ) : (
-                          <Box component="span" sx={{ color: '#bdbdbd' }}>—</Box>
+                           <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>
                         )}
                       </TableCell>
                       )}
@@ -1314,10 +1314,10 @@ export default function TicketList() {
                         </TableCell>
                       )}
                       {(visibleCols.createdAt ?? true) && (
-                      <TableCell style={{ padding: '10px 12px 10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: '#9e9e9e', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                       <TableCell style={{ padding: '10px 12px 10px 8px' }} sx={{ display: { xs: 'none', md: 'table-cell' }, color: 'text.disabled', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
                         {new Date(ticket.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' })}
                         {' '}
-                        <Box component="span" sx={{ color: '#bdbdbd' }}>
+                         <Box component="span" sx={{ color: 'text.disabled' }}>
                           {new Date(ticket.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                         </Box>
                       </TableCell>

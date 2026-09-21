@@ -752,12 +752,12 @@ export default function TicketDetail() {
     p === 'urgent' ? '#d32f2f' : p === 'high' ? '#e65100' : p === 'medium' ? '#1976d2' : '#9e9e9e';
 
   return (
-    <Box sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: theme.palette.mode === 'dark' ? 'background.default' : '#f4f6f8', minHeight: '100%' }}>
-    <Box maxWidth={720} sx={{ bgcolor: 'background.paper', borderRadius: { xs: 0, sm: 2 }, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', border: '1px solid', borderColor: 'divider', px: { xs: 2, sm: 3 }, py: 2.5, ml: { xs: 'auto', sm: '15%' }, mr: 'auto' }}>
+    <Box className={`td-operational-page${theme.palette.mode === 'dark' ? ' td-operational-page--dark' : ''}`} sx={{ mx: { xs: -1, sm: -3, md: -4 }, px: { xs: 1, sm: 3, md: 4 }, bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'var(--td-paper)', minHeight: '100%' }}>
+    <Box className="td-ticket-detail-shell" maxWidth={900} sx={{ px: { xs: 1.5, sm: 3, md: 4 }, py: { xs: 2, sm: 2.75 }, ml: 'auto', mr: 'auto' }}>
       {/* ── Top bar: breadcrumb-style nav + action buttons ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, mb: { xs: 1.5, sm: 1.5 }, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: { xs: 'wrap', sm: 'nowrap' }, gap: 1, pb: 1.5, mb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
         {/* Breadcrumb */}
-        <Box display="flex" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <Box display="flex" alignItems="center" gap={0.75} sx={{ flex: { xs: '1 1 100%', sm: 1 }, minWidth: 0, overflow: 'hidden', flexWrap: { xs: 'wrap', sm: 'nowrap' }, rowGap: 0.5 }}>
           <MuiLink
             underline="hover"
             onClick={() => setLocation(backTo)}
@@ -774,14 +774,14 @@ export default function TicketDetail() {
            <Box
              component="span"
              data-testid="text-ticket-opened-at"
-             sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, fontSize: { xs: 10, sm: 11 }, color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}
+             sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, fontSize: { xs: 10, sm: 11 }, color: 'text.secondary', whiteSpace: { xs: 'normal', sm: 'nowrap' }, flexShrink: { xs: 1, sm: 0 }, minWidth: 0, lineHeight: 1.35 }}
            >
              <CalendarTodayIcon sx={{ fontSize: { xs: 12, sm: 13 }, color: 'text.disabled' }} />
              {t.ticketDetail.openedOn} {new Date(ticket.createdAt).toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })}
            </Box>
         </Box>
         {/* Action buttons */}
-        <Box display="flex" gap={0.75} alignItems="center" flexShrink={0}>
+        <Box display="flex" gap={0.75} alignItems="center" flexShrink={0} flexWrap="wrap" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-end', sm: 'initial' } }}>
           {(ticket as any).visibility === 'admins' && isAdmin && (
             <Button
               size="small"
@@ -840,7 +840,7 @@ export default function TicketDetail() {
       <Box>
 
         {/* ── LEFT: main content ── */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box className="td-ticket-detail-content" sx={{ flex: 1, minWidth: 0 }}>
 
           {/* Meta bar — righe esplicite */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2.5 }}>

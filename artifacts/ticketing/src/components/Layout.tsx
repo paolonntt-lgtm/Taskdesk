@@ -424,7 +424,7 @@ export default function Layout({ children }: LayoutProps) {
           borderColor: 'divider',
           boxShadow: '0 2px 12px rgba(15, 23, 42, .05)',
           backgroundImage: 'none',
-           backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,254,249,.9)' : undefined,
+           backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,254,249,.92)' : undefined,
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
@@ -783,6 +783,7 @@ export default function Layout({ children }: LayoutProps) {
 
       <Box
         component="main"
+        className="td-app-main"
         sx={{
           flexGrow: 1,
           minWidth: 0,
@@ -790,7 +791,7 @@ export default function Layout({ children }: LayoutProps) {
           p: { xs: 1, sm: 3, md: 4 },
           width: { sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
           mt: { xs: '48px', sm: '64px' },
-           bgcolor: theme.palette.mode === 'light' ? '#f7f7f1' : 'background.default',
+            bgcolor: theme.palette.mode === 'light' ? '#f7f7f1' : 'background.default',
           minHeight: { xs: 'calc(100vh - 48px)', sm: 'calc(100vh - 64px)' },
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
