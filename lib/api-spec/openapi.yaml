@@ -3112,6 +3112,10 @@ components:
           type: integer
         last30Days:
           type: integer
+        createdToday:
+          type: integer
+        closedToday:
+          type: integer
         avgResolutionHours:
           type: number
           nullable: true
@@ -3126,6 +3130,8 @@ components:
         - overdueTickets
         - last7Days
         - last30Days
+        - createdToday
+        - closedToday
 
     StatGroup:
       type: object

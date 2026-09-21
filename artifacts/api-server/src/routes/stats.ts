@@ -79,6 +79,8 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     overdue: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
     last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
     last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
+    createdToday: sql<number>`count(*) filter (where created_at >= date_trunc('day', now()))`,
+    closedToday: sql<number>`count(*) filter (where closed_at >= date_trunc('day', now()))`,
   }).from(ticketsTable).where(orgFilter);
 
   const [avgResult] = await db.select({
@@ -95,6 +97,8 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     overdueTickets: Number(counts.overdue),
     last7Days: Number(counts.last7),
     last30Days: Number(counts.last30),
+    createdToday: Number(counts.createdToday),
+    closedToday: Number(counts.closedToday),
     avgResolutionHours: avgResult.avg ? Number(avgResult.avg) : null,
     trialStatus,
   });

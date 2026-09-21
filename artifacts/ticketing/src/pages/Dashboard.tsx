@@ -2396,14 +2396,19 @@ function Dashboard() {
   const motivationalMessage =
     languageMessages[getDayIndex(now, languageMessages.length)] || t.dashboard.motivationalFallback;
 
-  const totalTickets = dashStats?.totalTickets ?? 0;
   const actionableTickets = (dashStats?.openTickets ?? 0) + (dashStats?.waitingTickets ?? 0);
   const handledTickets = (dashStats?.resolvedTickets ?? 0) + (dashStats?.closedTickets ?? 0);
-  const handledPercent = totalTickets > 0 ? Math.min(100, Math.round((handledTickets / totalTickets) * 100)) : 0;
-  const focusDescription = lang === 'it'
-    ? 'delle richieste è già in buone mani'
-    : 'of requests are already in good hands';
-  const handledLabel = lang === 'it' ? 'gestite' : 'handled';
+  const createdToday = dashStats?.createdToday ?? 0;
+  const closedToday = dashStats?.closedToday ?? 0;
+  const dailyNet = createdToday - closedToday;
+  const actionableLabel = lang === 'it'
+    ? (actionableTickets === 1 ? 'richiesta da gestire ora' : 'richieste da gestire ora')
+    : (actionableTickets === 1 ? 'request to handle now' : 'requests to handle now');
+  const dailyNetLabel = dailyNet > 0
+    ? (lang === 'it' ? `Saldo +${dailyNet}` : `Net +${dailyNet}`)
+    : dailyNet < 0
+      ? (lang === 'it' ? `Saldo ${dailyNet}` : `Net ${dailyNet}`)
+      : (lang === 'it' ? 'Saldo 0' : 'Net 0');
   const profileLocation = user?.mainLocation?.trim() || '';
   const locationLabel = profileLocation || detectedLocation;
   const locationActionLabel = locationRequestState === 'loading'
@@ -2562,21 +2567,31 @@ function Dashboard() {
            boxShadow: '0 6px 16px rgba(15,23,42,.055)',
         }}>
             <Typography sx={{ color: '#8a96a5', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            {lang === 'it' ? 'Ritmo di oggi' : 'Today’s pace'}
+            {lang === 'it' ? 'Situazione attuale' : 'Current situation'}
           </Typography>
-            <Typography sx={{ mt: 0.75, color: '#263f5a', fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
-            {handledPercent}%
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mt: 0.75 }}>
+              <Typography sx={{ color: '#263f5a', fontSize: '2.35rem', fontWeight: 800, lineHeight: 1 }}>
+                {actionableTickets}
+              </Typography>
+              <Typography sx={{ color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.2 }}>
+                {actionableLabel}
+              </Typography>
+            </Box>
+            <Typography sx={{ mt: 0.6, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25 }}>
+              {dashStats?.waitingTickets ?? 0} {lang === 'it' ? 'in attesa' : 'waiting'}
           </Typography>
-            <Typography sx={{ maxWidth: 150, alignSelf: 'flex-end', mt: 0.25, mb: 1.25, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25, textAlign: 'right' }}>
-            {focusDescription}
-          </Typography>
-            <Box sx={{ height: 7, overflow: 'hidden', borderRadius: 4, bgcolor: '#e4ebf1' }}>
-              <Box sx={{ width: `${handledPercent}%`, height: '100%', borderRadius: 'inherit', bgcolor: '#ed835b', transition: 'width .3s ease' }} />
-          </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 1, color: '#96a0ad', fontSize: '0.62rem' }}>
-             <span>{handledTickets} {handledLabel} / {totalTickets}</span>
-             <b style={{ color: theme.palette.mode === 'light' ? '#c56648' : '#c56648' }}>{dashStats?.waitingTickets ?? 0} {lang === 'it' ? 'in attesa' : 'waiting'}</b>
-          </Box>
+            <Box sx={{ mt: 1.2, pt: 1, borderTop: '1px solid #e4ebf1' }}>
+              <Typography sx={{ color: '#8a96a5', fontSize: '0.61rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                {lang === 'it' ? 'Oggi' : 'Today'}
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 0.45, color: '#6d7b8c', fontSize: '0.63rem' }}>
+                <span><b style={{ color: '#2f79bb' }}>+{createdToday}</b> {lang === 'it' ? 'ricevute' : 'received'}</span>
+                <span><b style={{ color: '#2aa977' }}>−{closedToday}</b> {lang === 'it' ? 'chiuse' : 'closed'}</span>
+              </Box>
+              <Typography sx={{ mt: 0.35, color: dailyNet > 0 ? '#c56648' : '#7f8b96', fontSize: '0.61rem', textAlign: 'right' }}>
+                {dailyNetLabel} · {handledTickets} {lang === 'it' ? 'gestite in totale' : 'handled overall'}
+              </Typography>
+            </Box>
         </Box>
       </Box>
 

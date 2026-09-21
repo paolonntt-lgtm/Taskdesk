@@ -1934,6 +1934,8 @@ export const GetDashboardStatsResponse = zod.object({
   "overdueTickets": zod.int(),
   "last7Days": zod.int(),
   "last30Days": zod.int(),
+  "createdToday": zod.int(),
+  "closedToday": zod.int(),
   "avgResolutionHours": zod.number().nullish()
 })
 
