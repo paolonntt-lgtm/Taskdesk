@@ -716,6 +716,15 @@ export default function Layout({ children }: LayoutProps) {
                 {mode === 'dark' ? t.nav.lightMode : t.nav.darkMode}
               </Box>
             </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                window.dispatchEvent(new Event('td-open-cookie-settings'));
+              }}
+              sx={{ fontWeight: 500 }}
+            >
+              {t.nav.cookieSettings}
+            </MenuItem>
             <MenuItem onClick={handleLogout} sx={{ color: 'error.main', fontWeight: 600 }}>
               {t.nav.logout}
             </MenuItem>

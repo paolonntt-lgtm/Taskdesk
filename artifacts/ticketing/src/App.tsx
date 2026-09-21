@@ -29,6 +29,7 @@ import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
 import NotificationsPage from "./pages/Notifications";
 import TicketTrash from "./pages/TicketTrash";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
 
@@ -208,30 +209,33 @@ function AppShell() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser }}>
-          <Switch>
-            <Route path="/invite/:token">
-              {(params) => <InviteRegister token={params.token!} />}
-            </Route>
-            <Route path="/reset-password" component={ResetPassword} />
-            <Route>
-              {isLoading ? (
-                <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
-                  <CircularProgress />
-                </Box>
-              ) : !user ? (
-                <Login />
-              ) : user.role === 'admin' && !(user as any).onboardingDone ? (
-                <Onboarding onComplete={(businessType) => {
-                  setUser({ ...user, onboardingDone: true, businessType } as any);
-                }} />
-              ) : (
-                <AuthenticatedApp
-                  user={user}
-                  onTourDone={() => setUser({ ...user, tourDone: true } as any)}
-                />
-              )}
-            </Route>
-          </Switch>
+          <>
+            <Switch>
+              <Route path="/invite/:token">
+                {(params) => <InviteRegister token={params.token!} />}
+              </Route>
+              <Route path="/reset-password" component={ResetPassword} />
+              <Route>
+                {isLoading ? (
+                  <Box sx={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
+                    <CircularProgress />
+                  </Box>
+                ) : !user ? (
+                  <Login />
+                ) : user.role === 'admin' && !(user as any).onboardingDone ? (
+                  <Onboarding onComplete={(businessType) => {
+                    setUser({ ...user, onboardingDone: true, businessType } as any);
+                  }} />
+                ) : (
+                  <AuthenticatedApp
+                    user={user}
+                    onTourDone={() => setUser({ ...user, tourDone: true } as any)}
+                  />
+                )}
+              </Route>
+            </Switch>
+            <CookieConsentBanner />
+          </>
         </AuthContext.Provider>
       </ThemeProvider>
     </ColorModeContext.Provider>

@@ -108,7 +108,7 @@ export default function PrivacyPolicy() {
                 ["Gestione degli account utente e autenticazione", "Esecuzione del contratto (art. 6, par. 1, lett. b GDPR)"],
                 ["Fatturazione e gestione degli abbonamenti", "Esecuzione del contratto / obbligo legale (art. 6, par. 1, lett. b e c GDPR)"],
                 ["Invio di comunicazioni relative al servizio (aggiornamenti, manutenzione)", "Legittimo interesse (art. 6, par. 1, lett. f GDPR)"],
-                ["Miglioramento della piattaforma tramite analisi aggregate anonime", "Legittimo interesse (art. 6, par. 1, lett. f GDPR)"],
+                ["Misurazione aggregata dell'utilizzo tramite Google Analytics, solo previo consenso", "Consenso (art. 6, par. 1, lett. a GDPR)"],
                 ["Sicurezza informatica e prevenzione delle frodi", "Legittimo interesse (art. 6, par. 1, lett. f GDPR)"],
                 ["Adempimento di obblighi di legge", "Obbligo legale (art. 6, par. 1, lett. c GDPR)"],
               ].map(([fin, base], i) => (
@@ -159,12 +159,13 @@ export default function PrivacyPolicy() {
         </Section>
 
         <Section title="7. Cookie e tecnologie di tracciamento">
-          <p>TaskDesk utilizza esclusivamente cookie tecnici strettamente necessari al funzionamento del servizio:</p>
+          <p>TaskDesk utilizza cookie tecnici strettamente necessari al funzionamento del servizio e, solo previo consenso, cookie analitici di Google Analytics:</p>
           <ul>
             <li><strong>Cookie di sessione (<code>session_id</code>):</strong> necessario per mantenere l'utente autenticato durante la navigazione. Non viene utilizzato per profilazione. Scade al termine della sessione o dopo 24 ore.</li>
+            <li><strong>Cookie analitici (<code>_ga</code>, <code>_ga_*</code>):</strong> utilizzati da Google Analytics per statistiche aggregate sull'utilizzo del sito e della piattaforma. Vengono installati esclusivamente dopo il consenso e possono durare fino a 2 anni.</li>
           </ul>
           <p>
-            Non utilizziamo cookie di profilazione, cookie di terze parti a scopo pubblicitario né strumenti di analytics comportamentale. Non è pertanto richiesto il consenso ai cookie ai sensi della normativa vigente.
+            I cookie tecnici non richiedono consenso preventivo. I cookie analitici richiedono invece il consenso, che può essere rifiutato o revocato in qualsiasi momento tramite le preferenze cookie.
           </p>
         </Section>
 

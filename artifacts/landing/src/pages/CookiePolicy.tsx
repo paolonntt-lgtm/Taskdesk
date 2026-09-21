@@ -59,7 +59,7 @@ export default function CookiePolicy() {
         </p>
 
         <InfoBox>
-          TaskDesk utilizza esclusivamente cookie tecnici strettamente necessari al funzionamento del servizio. Non utilizziamo cookie di profilazione, pubblicitari o di tracciamento comportamentale. Per questo motivo, <strong>non è richiesto il tuo consenso</strong> ai cookie ai sensi della normativa vigente (art. 122 Codice Privacy, Provvedimento Garante n. 231/2014).
+          TaskDesk utilizza cookie tecnici strettamente necessari al funzionamento del servizio e, solo previo consenso, cookie analitici di Google Analytics. I cookie analitici non vengono installati prima della tua scelta e puoi modificare o revocare il consenso in qualsiasi momento.
         </InfoBox>
 
         <Section title="1. Cosa sono i cookie">
@@ -76,7 +76,7 @@ export default function CookiePolicy() {
         </Section>
 
         <Section title="2. Cookie utilizzati da TaskDesk">
-          <p>TaskDesk utilizza un solo cookie, strettamente tecnico e necessario:</p>
+          <p>TaskDesk utilizza i seguenti cookie, in base alle preferenze espresse:</p>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, marginTop: 12 }}>
             <thead>
@@ -96,6 +96,13 @@ export default function CookiePolicy() {
                 <td style={tdStyle}>Mantiene l'utente autenticato durante la navigazione. Senza questo cookie non è possibile accedere all'applicazione.</td>
                 <td style={tdStyle}>No</td>
               </tr>
+              <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <td style={tdStyle}><code style={{ backgroundColor: "#f3f4f6", padding: "2px 6px", borderRadius: 4 }}>_ga, _ga_*</code></td>
+                <td style={tdStyle}>Analitico</td>
+                <td style={tdStyle}>Fino a 2 anni</td>
+                <td style={tdStyle}>Statistiche aggregate sull'utilizzo del sito e della piattaforma, solo dopo consenso</td>
+                <td style={tdStyle}>Google LLC</td>
+              </tr>
             </tbody>
           </table>
 
@@ -106,10 +113,9 @@ export default function CookiePolicy() {
 
         <Section title="3. Cookie di terze parti">
           <p>
-            TaskDesk <strong>non installa cookie di terze parti</strong> sul dispositivo dell'utente. Non utilizziamo:
+            TaskDesk non installa cookie analitici di terze parti prima del consenso. Dopo il consenso possono essere installati i cookie di Google Analytics descritti sopra. Non utilizziamo:
           </p>
           <ul>
-            <li>cookie di Google Analytics o altri strumenti di web analytics;</li>
             <li>cookie di social media (Facebook Pixel, LinkedIn Insight, ecc.);</li>
             <li>cookie pubblicitari o di retargeting;</li>
             <li>cookie di tracciamento comportamentale.</li>
@@ -119,18 +125,21 @@ export default function CookiePolicy() {
           </p>
         </Section>
 
-        <Section title="4. Perché non è richiesto il consenso">
+        <Section title="4. Quando è richiesto il consenso">
           <p>
-            Ai sensi dell'art. 122 del D.Lgs. 196/2003 (Codice Privacy) e del Provvedimento del Garante per la protezione dei dati personali n. 231 del 10 giugno 2021, i cookie tecnici strettamente necessari al funzionamento di un servizio esplicitamente richiesto dall'utente <strong>non richiedono il consenso preventivo</strong>.
+            Ai sensi dell'art. 122 del D.Lgs. 196/2003 e del Provvedimento del Garante del 10 giugno 2021, i cookie tecnici strettamente necessari al funzionamento di un servizio esplicitamente richiesto dall'utente <strong>non richiedono il consenso preventivo</strong>.
           </p>
           <p>
             Il cookie <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>session_id</code> rientra in questa categoria, in quanto è indispensabile per permettere l'accesso autenticato alla piattaforma. Non viene utilizzato per alcuna finalità diversa dall'autenticazione.
+          </p>
+          <p>
+            I cookie analitici di Google Analytics vengono invece caricati solo dopo una scelta positiva nel banner di consenso. Se rifiuti, il servizio continua a funzionare con i soli cookie tecnici.
           </p>
         </Section>
 
         <Section title="5. Come gestire i cookie">
           <p>
-            Sebbene non sia richiesto il consenso per i cookie tecnici, puoi sempre gestire o eliminare i cookie tramite le impostazioni del tuo browser. Tieni presente che la disabilitazione del cookie di sessione di TaskDesk renderà <strong>impossibile accedere</strong> alla piattaforma.
+            Puoi modificare o revocare il consenso tramite il link “Preferenze cookie” presente nel footer del sito o nel menu del profilo dell'area riservata. Puoi inoltre gestire o eliminare i cookie tramite le impostazioni del tuo browser. Tieni presente che la disabilitazione del cookie di sessione di TaskDesk renderà <strong>impossibile accedere</strong> alla piattaforma.
           </p>
           <p>Istruzioni per i principali browser:</p>
           <ul>
