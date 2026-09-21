@@ -2202,6 +2202,8 @@ function Dashboard() {
   const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
   const [now, setNow] = useState(() => new Date());
   const [motivationalMessages, setMotivationalMessages] = useState<MotivationalMessagesByLanguage>({ it: [], en: [] });
+  const [detectedLocation, setDetectedLocation] = useState('');
+  const [locationRequestState, setLocationRequestState] = useState<'idle' | 'loading' | 'error'>('idle');
 
   const [editMode, setEditMode] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -2211,6 +2213,42 @@ function Dashboard() {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const requestDetectedLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationRequestState('error');
+      return;
+    }
+
+    setLocationRequestState('loading');
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const params = new URLSearchParams({
+            format: 'jsonv2',
+            zoom: '10',
+            addressdetails: '1',
+            lat: String(coords.latitude),
+            lon: String(coords.longitude),
+          });
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+            headers: { 'Accept-Language': lang === 'it' ? 'it,en;q=0.8' : 'en,it;q=0.8' },
+          });
+          if (!response.ok) throw new Error('Reverse geocoding failed');
+          const data = await response.json() as { address?: Record<string, string> };
+          const address = data.address ?? {};
+          const city = address.city || address.town || address.village || address.municipality || address.county;
+          if (!city) throw new Error('No city found');
+          setDetectedLocation(city);
+          setLocationRequestState('idle');
+        } catch {
+          setLocationRequestState('error');
+        }
+      },
+      () => setLocationRequestState('error'),
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 10_000 },
+    );
+  }, [lang]);
 
   useEffect(() => {
     let mounted = true;
@@ -2366,7 +2404,13 @@ function Dashboard() {
     ? 'delle richieste è già in buone mani'
     : 'of requests are already in good hands';
   const handledLabel = lang === 'it' ? 'gestite' : 'handled';
-  const locationLabel = user?.mainLocation?.trim() || '';
+  const profileLocation = user?.mainLocation?.trim() || '';
+  const locationLabel = profileLocation || detectedLocation;
+  const locationActionLabel = locationRequestState === 'loading'
+    ? (lang === 'it' ? 'Rilevamento…' : 'Detecting…')
+    : locationRequestState === 'error'
+      ? (lang === 'it' ? 'Riprova posizione' : 'Try location again')
+      : (lang === 'it' ? 'Usa la mia posizione' : 'Use my location');
 
   return (
     <Box className={`td-dashboard${theme.palette.mode === 'dark' ? ' td-dashboard--dark' : ''}`} sx={{
@@ -2453,10 +2497,33 @@ function Dashboard() {
             textTransform: 'uppercase',
           }}>
             <span>{formatDashboardDate(now, lang)}</span>
-              {locationLabel && (
+              {locationLabel ? (
                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, color: '#f6c4a7', fontSize: '0.62rem', letterSpacing: '0.04em', textTransform: 'none' }}>
                   <LocationOnIcon sx={{ fontSize: 12 }} /> {locationLabel}
                 </Box>
+              ) : (
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={requestDetectedLocation}
+                  disabled={locationRequestState === 'loading'}
+                  startIcon={<LocationOnIcon sx={{ fontSize: '13px !important' }} />}
+                  title={lang === 'it'
+                    ? 'Richiede il permesso del browser e usa OpenStreetMap per ricavare solo il nome della città.'
+                    : 'Asks for browser permission and uses OpenStreetMap only to resolve the city name.'}
+                  sx={{
+                    minWidth: 0,
+                    p: 0,
+                    color: '#f6c4a7',
+                    fontSize: '0.62rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    textTransform: 'none',
+                    '&:hover': { backgroundColor: 'rgba(255,255,255,.08)' },
+                  }}
+                >
+                  {locationActionLabel}
+                </Button>
               )}
           </Box>
           <Typography component="h1" sx={{
