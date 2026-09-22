@@ -192,19 +192,19 @@ const translations: Record<Language, Translations> = {
       subtitle: "Studi, agenzie e consulenti usano TaskDesk per mettere ordine nelle richieste senza complicazioni.",
       profiles: [
         {
-          icon: "🏛️",
+          icon: "building",
           title: "Studio Commerciale",
           desc: "Gestisci le pratiche fiscali e contabili dei clienti senza email disperse.",
           detail: "Dichiarazioni, F24, visure, revisioni — ogni richiesta ha uno stato, un assegnatario e una scadenza.",
         },
         {
-          icon: "🎯",
+          icon: "target",
           title: "Agenzia",
           desc: "Tieni traccia di brief, revisioni e consegne senza perdere nulla.",
           detail: "Il cliente manda la richiesta, il team la prende in carico, tutti vedono lo stato in tempo reale.",
         },
         {
-          icon: "💼",
+          icon: "briefcase",
           title: "Studio di Consulenza",
           desc: "Organizza le richieste dei clienti e assegnale ai tuoi consulenti.",
           detail: "Ogni consulente vede solo le pratiche assegnate. Niente confusione, niente sovrapposizioni.",
@@ -216,24 +216,24 @@ const translations: Record<Language, Translations> = {
       subtitle: "Senza un sistema dedicato, le richieste dei clienti finiscono ovunque — e alcune non tornano mai.",
       cards: [
         {
-          icon: "📧",
+          icon: "mail",
           title: "Email disperse su più caselle",
           desc: "Le richieste arrivano via email, WhatsApp, telefono e a voce. Non c'è un posto unico dove trovarle tutte.",
         },
         {
-          icon: "⏰",
+          icon: "clock",
           title: "Scadenze che si perdono",
           desc: "Senza un sistema, le pratiche urgenti si seppelliscono tra i messaggi. Il cliente aspetta. Lo studio perde credibilità.",
         },
         {
-          icon: "🤷",
+          icon: "visibility",
           title: "Nessuna visibilità su chi sta facendo cosa",
           desc: "Non sai se un collega ha già preso in carico una pratica, né se il cliente è stato aggiornato sull'avanzamento.",
         },
       ],
     },
     testimonials: {
-      ratingLabel: "⭐ 4.9/5 — Valutazione media",
+      ratingLabel: "4.9/5 — Valutazione media",
       items: [
         {
           name: "Giulia Ferretti",
@@ -317,19 +317,19 @@ const translations: Record<Language, Translations> = {
       steps: [
         {
           n: "1",
-          icon: "✏️",
+          icon: "edit",
           title: "Apri una pratica",
           desc: "Il cliente manda una richiesta o tu la apri per lui. Titolo, categoria, scadenza: in 10 secondi è tracciata e visibile al team.",
         },
         {
           n: "2",
-          icon: "💬",
+          icon: "message",
           title: "Il team lavora in thread",
           desc: "Commenti, @menzioni e allegati in un unico thread — come una chat, ma organizzata e sempre ricercabile.",
         },
         {
           n: "3",
-          icon: "✅",
+          icon: "check",
           title: "Pratica risolta e archiviata",
           desc: "Chi risolve marca la soluzione. La pratica si chiude. Tutti — incluso il cliente — sanno che è fatta.",
         },
@@ -412,10 +412,10 @@ const translations: Record<Language, Translations> = {
       twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA.",
     },
     ticker: {
-      rating: "⭐ 4.9/5 soddisfazione media",
-      setup: "🚀 Setup in 5 minuti",
-      trial: "🎁 7 giorni gratis",
-      gdpr: "🔒 GDPR Compliant",
+      rating: "4.9/5 soddisfazione media",
+      setup: "Setup in 5 minuti",
+      trial: "7 giorni gratis",
+      gdpr: "GDPR Compliant",
     },
   },
   en: {
@@ -454,19 +454,19 @@ const translations: Record<Language, Translations> = {
       subtitle: "Firms, agencies and consultants use TaskDesk to bring order to client requests — without the complexity.",
       profiles: [
         {
-          icon: "🏛️",
+          icon: "building",
           title: "Accounting Firm",
           desc: "Manage client filings and accounting requests without scattered emails.",
           detail: "Tax returns, payments, reviews — every request has a status, an assignee and a deadline.",
         },
         {
-          icon: "🎯",
+          icon: "target",
           title: "Agency",
           desc: "Track briefs, revisions and deliverables without losing anything.",
           detail: "The client sends a request, the team picks it up, everyone sees the status in real time.",
         },
         {
-          icon: "💼",
+          icon: "briefcase",
           title: "Consulting Firm",
           desc: "Organise client requests and assign them to your consultants.",
           detail: "Each consultant sees only their assigned work. No confusion, no overlap.",
@@ -478,24 +478,24 @@ const translations: Record<Language, Translations> = {
       subtitle: "Without a dedicated system, client requests end up everywhere — and some never come back.",
       cards: [
         {
-          icon: "📧",
+          icon: "mail",
           title: "Requests scattered across channels",
           desc: "Requests arrive via email, WhatsApp, phone and in person. There's no single place to find them all.",
         },
         {
-          icon: "⏰",
+          icon: "clock",
           title: "Deadlines that get lost",
           desc: "Without a system, urgent tasks get buried in messages. The client waits. Your firm loses credibility.",
         },
         {
-          icon: "🤷",
+          icon: "visibility",
           title: "No visibility into who's doing what",
           desc: "You don't know whether a colleague has already picked something up, or whether the client has been updated.",
         },
       ],
     },
     testimonials: {
-      ratingLabel: "⭐ 4.9/5 — Average rating",
+      ratingLabel: "4.9/5 — Average rating",
       items: [
         {
           name: "Giulia Ferretti",
@@ -579,19 +579,19 @@ const translations: Record<Language, Translations> = {
       steps: [
         {
           n: "1",
-          icon: "✏️",
+          icon: "edit",
           title: "Open a request",
           desc: "The client sends a request or you open one for them. Title, category, deadline: tracked in 10 seconds and visible to the team.",
         },
         {
           n: "2",
-          icon: "💬",
+          icon: "message",
           title: "Team works in a thread",
           desc: "Comments, @mentions and attachments in a single thread — like a chat, but organised and always searchable.",
         },
         {
           n: "3",
-          icon: "✅",
+          icon: "check",
           title: "Request resolved and archived",
           desc: "Whoever resolves it marks the solution. The request closes. Everyone — including the client — knows it's done.",
         },
@@ -674,10 +674,10 @@ const translations: Record<Language, Translations> = {
       twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT.",
     },
     ticker: {
-      rating: "⭐ 4.9/5 average satisfaction",
-      setup: "🚀 5-min setup",
-      trial: "🎁 7 days free",
-      gdpr: "🔒 GDPR Compliant",
+      rating: "4.9/5 average satisfaction",
+      setup: "5-min setup",
+      trial: "7 days free",
+      gdpr: "GDPR Compliant",
     },
   }
 };

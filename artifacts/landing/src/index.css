@@ -84,7 +84,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* LIGHT MODE */
+/* LIGHT MODE — TaskDesk editorial operations */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -94,58 +94,56 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Milanese Modern: Creamy whites, stark blacks, deep rich blue accents */
-  --background: 40 20% 99%; 
-  --foreground: 220 10% 10%;
-
-  --border: 220 10% 90%;
+  --background: 42 34% 96%;
+  --foreground: 214 32% 15%;
+  --border: 36 19% 84%;
   
-  --card: 0 0% 100%;
-  --card-foreground: 220 10% 10%;
-  --card-border: 220 10% 90%;
+  --card: 42 45% 99%;
+  --card-foreground: 214 32% 15%;
+  --card-border: 36 19% 84%;
 
-  --sidebar: 40 20% 99%;
-  --sidebar-foreground: 220 10% 10%;
-  --sidebar-border: 220 10% 90%;
-  --sidebar-primary: 220 10% 10%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 10% 95%;
-  --sidebar-accent-foreground: 220 10% 10%;
-  --sidebar-ring: 220 80% 50%;
+  --sidebar: 42 34% 96%;
+  --sidebar-foreground: 214 32% 15%;
+  --sidebar-border: 36 19% 84%;
+  --sidebar-primary: 214 32% 15%;
+  --sidebar-primary-foreground: 42 45% 99%;
+  --sidebar-accent: 38 25% 91%;
+  --sidebar-accent-foreground: 214 32% 15%;
+  --sidebar-ring: 173 69% 37%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 220 10% 10%;
-  --popover-border: 220 10% 90%;
+  --popover: 42 45% 99%;
+  --popover-foreground: 214 32% 15%;
+  --popover-border: 36 19% 84%;
 
-  --primary: 220 10% 10%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 214 32% 15%;
+  --primary-foreground: 42 45% 99%;
 
-  --secondary: 220 10% 95%;
-  --secondary-foreground: 220 10% 10%;
+  --secondary: 38 25% 91%;
+  --secondary-foreground: 214 32% 15%;
 
-  --muted: 220 10% 95%;
-  --muted-foreground: 220 10% 40%;
+  --muted: 38 25% 91%;
+  --muted-foreground: 214 13% 45%;
 
-  --accent: 220 80% 50%; /* Sharp blue */
-  --accent-foreground: 0 0% 100%;
+  --accent: 173 69% 37%;
+  --accent-foreground: 42 45% 99%;
 
-  --destructive: 0 80% 50%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 4 69% 49%;
+  --destructive-foreground: 42 45% 99%;
 
-  --input: 220 10% 90%;
-  --ring: 220 80% 50%;
+  --input: 36 19% 84%;
+  --ring: 173 69% 37%;
   
-  --chart-1: 220 80% 50%;
-  --chart-2: 220 10% 20%;
-  --chart-3: 40 20% 80%;
-  --chart-4: 220 20% 80%;
-  --chart-5: 220 10% 60%;
+  --chart-1: 173 69% 37%;
+  --chart-2: 4 69% 49%;
+  --chart-3: 43 94% 55%;
+  --chart-4: 214 32% 15%;
+  --chart-5: 36 19% 64%;
 
-  --app-font-sans: 'Inter', sans-serif;
-  --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-sans: "Avenir Next", "Trebuchet MS", sans-serif;
+  --app-font-serif: Georgia, "Times New Roman", serif;
+  --app-font-mono: "SFMono-Regular", Consolas, monospace;
   
-  --radius: 0.25rem; /* very slight rounding, sharp and modern */
+  --radius: 0.55rem;
   
   --shadow-2xs: 0px 2px 0px 0px rgba(0,0,0,0.02);
   --shadow-xs: 0px 2px 0px 0px rgba(0,0,0,0.02);
@@ -269,4 +267,36 @@
   .glass-panel {
     @apply bg-background/80 backdrop-blur-md border border-border shadow-sm;
   }
+}
+
+@keyframes td-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes td-drift {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+@keyframes td-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.td-rise { animation: td-rise .7s cubic-bezier(.16,1,.3,1) both; }
+.td-delay-1 { animation-delay: .1s; }
+.td-delay-2 { animation-delay: .2s; }
+.td-delay-3 { animation-delay: .3s; }
+.td-drift { animation: td-drift 6s ease-in-out infinite; }
+.td-marquee { animation: td-marquee 28s linear infinite; }
+.td-grid {
+  background-image: linear-gradient(hsl(36 19% 84% / .55) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(36 19% 84% / .55) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.td-ink-shadow { box-shadow: 10px 12px 0 hsl(214 32% 15% / .08); }
+.td-corner { border-radius: 1.25rem 1.25rem .3rem 1.25rem; }
+.td-rule { height: 1px; background: hsl(36 19% 84%); }
+.td-focus-ring:focus-visible { outline: 3px solid hsl(43 94% 55%); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .td-rise, .td-drift, .td-marquee { animation: none !important; }
+  html { scroll-behavior: auto !important; }
 }
