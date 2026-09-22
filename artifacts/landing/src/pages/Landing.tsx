@@ -4,7 +4,6 @@ import { Link } from "wouter";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  BriefcaseBusiness,
   Check,
   ChevronDown,
   CircleCheck,
@@ -17,10 +16,8 @@ import {
   MoreHorizontal,
   Paperclip,
   Plus,
-  Search,
   ShieldCheck,
   Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import { useLanguage } from "@/i18n";
@@ -103,8 +100,8 @@ function Avatar({ initials, className }: { initials: string; className: string }
 
 function WorkspacePreview({ lang }: { lang: "it" | "en" }) {
   const labels = lang === "it"
-    ? { inbox: "Posta in arrivo", open: "Aperte", solved: "Risolte", title: "Documenti per dichiarazione", client: "Carla M.", priority: "Alta", assigned: "Assegnata a Luca B.", reply: "Risposta inviata", today: "Oggi, 10:31" }
-    : { inbox: "Inbox", open: "Open", solved: "Solved", title: "Documents for tax return", client: "Carla M.", priority: "High", assigned: "Assigned to Luca B.", reply: "Reply sent", today: "Today, 10:31" };
+    ? { inbox: "Posta in arrivo", open: "Aperte", solved: "Risolte", title: "Chiusura bilancio mensile", requester: "Marco R.", priority: "Alta", assigned: "Assegnata a Luca B.", reply: "Attività completata", firstMessage: "Ho caricato i documenti aggiornati per la chiusura.", secondMessage: "Elena, controlli i dati e lasci un commento?", finalMessage: "Documenti verificati. La pratica è pronta.", today: "Oggi, 10:31" }
+    : { inbox: "Inbox", open: "Open", solved: "Solved", title: "Monthly close checklist", requester: "Marco R.", priority: "High", assigned: "Assigned to Luca B.", reply: "Task completed", firstMessage: "I uploaded the updated documents for the close.", secondMessage: "Elena, can you check the numbers and comment?", finalMessage: "Documents checked. The task is ready.", today: "Today, 10:31" };
   return (
     <div className="td-drift relative mx-auto w-full max-w-[570px]">
       <div className="absolute -inset-4 rounded-[2rem] bg-[#f8cf53]/30 blur-2xl" />
@@ -137,9 +134,9 @@ function WorkspacePreview({ lang }: { lang: "it" | "en" }) {
               <span className="ml-auto text-[#8b918c]">Due 14 Jun</span>
             </div>
             <div className="space-y-4 bg-[#fffdf8] p-4 sm:p-5">
-              <div className="flex gap-2.5"><Avatar initials="CM" className="bg-[#f7c8bb]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">{labels.client}</b><span className="text-[#9a9d98]">10:12</span></div><div className="td-corner border border-[#e8dfd2] bg-[#faf6ef] p-3 text-[11px] leading-relaxed text-[#53605e]">Salve, ho bisogno della documentazione per la dichiarazione dei redditi.</div></div></div>
-              <div className="flex gap-2.5"><Avatar initials="SL" className="bg-[#f8cf53]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">Sara L.</b><span className="text-[#9a9d98]">10:18</span></div><div className="td-corner border border-[#bce3dc] bg-[#edf9f6] p-3 text-[11px] leading-relaxed text-[#53605e]">{labels.assigned}. Recuperi le CU dal cassetto fiscale?</div></div></div>
-              <div className="flex gap-2.5"><Avatar initials="LB" className="bg-[#b9d9e9]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">Luca B.</b><span className="text-[#9a9d98]">{labels.today}</span></div><div className="td-corner border border-[#9dd6c9] bg-[#dff4ee] p-3 text-[11px] leading-relaxed text-[#355e5a]"><div className="mb-2 flex items-center gap-1 text-[10px] font-bold text-[#087f78]"><CircleCheck size={12} /> {labels.reply}</div>CU recuperate e allegate. Ho verificato tutto: pratica pronta.</div></div></div>
+               <div className="flex gap-2.5"><Avatar initials="MR" className="bg-[#f7c8bb]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">{labels.requester}</b><span className="text-[#9a9d98]">10:12</span></div><div className="td-corner border border-[#e8dfd2] bg-[#faf6ef] p-3 text-[11px] leading-relaxed text-[#53605e]">{labels.firstMessage}</div></div></div>
+               <div className="flex gap-2.5"><Avatar initials="SL" className="bg-[#f8cf53]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">Sara L.</b><span className="text-[#9a9d98]">10:18</span></div><div className="td-corner border border-[#bce3dc] bg-[#edf9f6] p-3 text-[11px] leading-relaxed text-[#53605e]">{labels.secondMessage}</div></div></div>
+               <div className="flex gap-2.5"><Avatar initials="LB" className="bg-[#b9d9e9]" /><div className="min-w-0 flex-1"><div className="mb-1 flex justify-between text-[10px]"><b className="text-[#173047]">Luca B.</b><span className="text-[#9a9d98]">{labels.today}</span></div><div className="td-corner border border-[#9dd6c9] bg-[#dff4ee] p-3 text-[11px] leading-relaxed text-[#355e5a]"><div className="mb-2 flex items-center gap-1 text-[10px] font-bold text-[#087f78]"><CircleCheck size={12} /> {labels.reply}</div>{labels.finalMessage}</div></div></div>
             </div>
             <div className="flex items-center gap-2 border-t border-[#e8dfd2] bg-[#faf6ef] px-4 py-3 text-[11px] text-[#9a9d98] sm:px-5"><Paperclip size={14} /><span className="flex-1">Scrivi un aggiornamento…</span><span className="rounded-md bg-[#173047] px-2 py-1 text-[10px] font-bold text-[#fffdf8]">Invia</span></div>
           </div>
@@ -195,7 +192,7 @@ export default function Landing() {
         trackSectionView(id);
       }
     }), { threshold: 0.3 });
-    ["who-uses", "pain", "testimonials", "how", "features", "pricing", "final-cta"].forEach((id) => {
+    ["how", "features", "pricing", "faq", "final-cta"].forEach((id) => {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
@@ -247,18 +244,12 @@ export default function Landing() {
         <meta property="og:title" content={t.seo.ogTitle} />
         <meta property="og:description" content={t.seo.ogDescription} />
         <meta property="og:image" content={socialImage} />
-        <meta property="og:image:alt" content={lang === "it" ? "TaskDesk — gestione pratiche e richieste clienti" : "TaskDesk — ticket management software"} />
+        <meta property="og:image:alt" content={lang === "it" ? "TaskDesk — organizzazione del lavoro tra collaboratori" : "TaskDesk — team work organization software"} />
         <meta name="twitter:title" content={t.seo.twitterTitle} />
         <meta name="twitter:description" content={t.seo.twitterDescription} />
         <meta name="twitter:image" content={socialImage} />
         <script type="application/ld+json">{jsonLd}</script>
       </Helmet>
-
-      <div className="overflow-hidden border-b border-[#29445b] bg-[#173047] text-[#f6f0e5]">
-        <div className="td-marquee flex w-max items-center gap-9 py-2 text-[10px] font-bold uppercase tracking-[.17em]">
-          {[t.ticker.rating.replace(/^.[ ]*/, ""), t.ticker.setup.replace(/^.[ ]*/, ""), t.ticker.trial.replace(/^.[ ]*/, ""), t.ticker.gdpr.replace(/^.[ ]*/, ""), t.ticker.rating.replace(/^.[ ]*/, ""), t.ticker.setup.replace(/^.[ ]*/, ""), t.ticker.trial.replace(/^.[ ]*/, ""), t.ticker.gdpr.replace(/^.[ ]*/, "")].map((item, index) => <span key={index} className="flex items-center gap-3 whitespace-nowrap"><i className="h-1.5 w-1.5 rounded-full bg-[#f8cf53]" />{item}</span>)}
-        </div>
-      </div>
 
       <header className="sticky top-0 z-40 border-b border-[#ddd2c3] bg-[#f6f0e5]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 md:px-8">
@@ -306,26 +297,8 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="who-uses" aria-label={t.landmarks.whoUses} className="border-b border-[#ddd2c3] bg-[#fffdf8] px-5 py-20 md:px-8 md:py-28">
-          <div className="mx-auto max-w-7xl"><Reveal><div className="grid gap-8 md:grid-cols-[.8fr_1.2fr] md:items-end"><div><SectionLabel>{lang === "it" ? "Per chi è" : "Made for"}</SectionLabel><h2 className="mt-5 max-w-md font-serif text-4xl leading-[1.04] tracking-[-.045em] md:text-5xl">{t.whoUses.title}</h2></div><p className="max-w-md text-[16px] leading-7 text-[#667370]">{t.whoUses.subtitle}</p></div></Reveal>
-            <div className="mt-14 grid gap-4 md:grid-cols-3">{t.whoUses.profiles.map((profile, index) => { const Icon = [BriefcaseBusiness, Sparkles, Users][index] ?? BriefcaseBusiness; return <Reveal key={profile.title} delay={index * .08}><article className="group h-full border-t-2 border-[#173047] py-6 transition-transform hover:-translate-y-1"><div className="mb-10 flex items-center justify-between"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f8cf53]/35 text-[#173047]"><Icon size={19} /></span><span className="font-mono text-[11px] text-[#a0a39d]">0{index + 1}</span></div><h3 className="text-xl font-bold tracking-[-.03em]">{profile.title}</h3><p className="mt-3 text-sm font-semibold leading-6 text-[#52615e]">{profile.desc}</p><p className="mt-3 text-sm leading-6 text-[#89908b]">{profile.detail}</p></article></Reveal>; })}</div>
-          </div>
-        </section>
-
-        <section id="pain" aria-label={t.landmarks.problem} className="bg-[#173047] px-5 py-20 text-[#f6f0e5] md:px-8 md:py-28">
-          <div className="mx-auto max-w-7xl"><Reveal><div className="grid gap-7 md:grid-cols-[1.1fr_.9fr] md:items-end"><div><SectionLabel tone="coral">{lang === "it" ? "Il punto di rottura" : "The breaking point"}</SectionLabel><h2 className="mt-5 max-w-2xl font-serif text-4xl leading-[1.02] tracking-[-.045em] md:text-6xl">{t.pain.title}</h2></div><p className="max-w-sm text-[15px] leading-7 text-[#b7c2bd]">{t.pain.subtitle}</p></div></Reveal>
-            <div className="mt-16 grid gap-px overflow-hidden border border-[#476070] bg-[#476070] md:grid-cols-3">{t.pain.cards.map((card, index) => { const Icon = [Inbox, Clock3, Search][index] ?? Inbox; return <Reveal key={card.title} delay={index * .08}><article className="h-full bg-[#173047] p-7 transition-colors hover:bg-[#21425a] md:p-9"><div className="mb-16 flex h-10 w-10 items-center justify-center rounded-lg bg-[#f8cf53] text-[#173047]"><Icon size={18} /></div><h3 className="max-w-[220px] text-lg font-bold leading-tight">{card.title}</h3><p className="mt-4 text-sm leading-6 text-[#afbfba]">{card.desc}</p></article></Reveal>; })}</div>
-          </div>
-        </section>
-
-        <section id="testimonials" aria-label={t.landmarks.testimonials} className="border-b border-[#ddd2c3] bg-[#f6f0e5] px-5 py-20 md:px-8 md:py-28">
-          <div className="mx-auto max-w-7xl"><Reveal><div className="flex flex-col justify-between gap-5 border-b border-[#d7cdbd] pb-8 md:flex-row md:items-end"><div><SectionLabel>{lang === "it" ? "Voci dal lavoro vero" : "From the work floor"}</SectionLabel><h2 className="mt-4 font-serif text-4xl tracking-[-.045em] md:text-5xl">{lang === "it" ? "Meno rincorse. Più lavoro fatto." : "Less chasing. More done."}</h2></div><span className="text-sm font-bold text-[#087f78]">{t.testimonials.ratingLabel.replace(/^.[ ]*/, "")}</span></div></Reveal>
-            <div className="mt-10 grid gap-8 md:grid-cols-3">{t.testimonials.items.map((item, index) => <Reveal key={item.name} delay={index * .08}><figure className="flex h-full flex-col justify-between"><blockquote className="font-serif text-[21px] leading-[1.25] tracking-[-.02em] text-[#314b5b]">“{item.text}”</blockquote><figcaption className="mt-8 flex items-center gap-3"><Avatar initials={item.initials} className={index === 0 ? "bg-[#f7c8bb]" : index === 1 ? "bg-[#b9d9e9]" : "bg-[#c9e5b7]"} /><span><strong className="block text-sm">{item.name}</strong><span className="block text-xs text-[#818b86]">{item.role}</span></span></figcaption></figure></Reveal>)}</div>
-          </div>
-        </section>
-
         <section id="how" aria-label={t.landmarks.howItWorks} className="border-b border-[#ddd2c3] bg-[#fffdf8] px-5 py-20 md:px-8 md:py-28">
-          <div className="mx-auto max-w-7xl"><Reveal><div className="grid gap-8 md:grid-cols-[.75fr_1.25fr]"><div><SectionLabel>{lang === "it" ? "Il metodo" : "The method"}</SectionLabel><h2 className="mt-5 max-w-sm font-serif text-5xl leading-[.98] tracking-[-.06em]">{lang === "it" ? <>Da richiesta<br /><span className="text-[#087f78]">a risolta.</span></> : <>From request<br /><span className="text-[#087f78]">to resolved.</span></>}</h2></div><p className="max-w-md self-end text-[16px] leading-7 text-[#667370]">{lang === "it" ? "Un flusso corto e leggibile: ogni richiesta trova la persona giusta, il contesto giusto e una fine chiara." : "A short, readable flow: every request finds the right person, the right context and a clear finish."}</p></div></Reveal>
+           <div className="mx-auto max-w-7xl"><Reveal><div className="grid gap-8 md:grid-cols-[.75fr_1.25fr]"><div><SectionLabel>{lang === "it" ? "Il metodo" : "The method"}</SectionLabel><h2 className="mt-5 max-w-sm font-serif text-5xl leading-[.98] tracking-[-.06em]">{lang === "it" ? <>Dal lavoro<br /><span className="text-[#087f78]">a completato.</span></> : <>From assigned<br /><span className="text-[#087f78]">to complete.</span></>}</h2></div><p className="max-w-md self-end text-[16px] leading-7 text-[#667370]">{lang === "it" ? "Un flusso corto e leggibile: ogni attività ha un responsabile, un contesto e uno stato chiaro." : "A short, readable flow: every task has an owner, the right context and a clear status."}</p></div></Reveal>
             <div className="mt-16 grid gap-10 md:grid-cols-3">{t.howItWorks.steps.map((step, index) => { const Icon = [Plus, MessageSquare, FileCheck2][index] ?? Plus; return <Reveal key={step.title} delay={index * .1}><article className="relative border-t border-[#d7cdbd] pt-5"><div className="flex items-center justify-between"><span className="font-mono text-xs font-bold text-[#e66b5d]">0{step.n}</span><Icon size={20} className="text-[#087f78]" /></div><h3 className="mt-12 text-xl font-bold tracking-[-.03em]">{step.title}</h3><p className="mt-3 text-sm leading-6 text-[#7a8580]">{step.desc}</p></article></Reveal>; })}</div>
             <Reveal delay={.2}><button type="button" onClick={() => handleCta("how_it_works")} className="td-focus-ring mt-12 inline-flex items-center gap-2 rounded-lg bg-[#173047] px-5 py-3 text-sm font-bold text-[#fffdf8] transition-colors hover:bg-[#087f78]">{t.howItWorks.cta} <ArrowUpRight size={15} /></button></Reveal>
           </div>
