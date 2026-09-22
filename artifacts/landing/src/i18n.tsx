@@ -176,35 +176,35 @@ const translations: Record<Language, Translations> = {
       login: "Accedi",
     },
     hero: {
-      title: "Il lavoro del team, finalmente in ordine.",
-      titleLine1: "Il lavoro del team,",
+      title: "Le richieste dei tuoi clienti, finalmente in ordine.",
+      titleLine1: "Le richieste dei tuoi clienti,",
       titleLine2: "finalmente in ordine.",
-      subtitle: "TaskDesk organizza attività, pratiche e scadenze in un unico posto. Assegna il lavoro ai collaboratori, confrontati in un thread e sai sempre cosa è stato completato.",
+      subtitle: "Smetti di rincorrere email e WhatsApp. TaskDesk raccoglie ogni pratica, richiesta e scadenza in un unico posto — con commenti, assegnazioni e soluzioni tracciate.",
       cta: "Inizia gratis — 7 giorni",
       secondaryCta: "Scopri come funziona",
       trialBadge: "7 giorni gratis",
       trialNote: "Nessuna carta di credito richiesta",
       microProof: "7 giorni gratis · Nessuna carta · Cancella quando vuoi",
-      reassurance: "Scelto da studi, agenzie e team in tutta Italia",
+      reassurance: "Usato da studi commerciali, agenzie e consulenti in tutta Italia",
     },
     whoUses: {
       title: "Fatto per chi lavora con i clienti ogni giorno",
       subtitle: "Studi, agenzie e consulenti usano TaskDesk per mettere ordine nelle richieste senza complicazioni.",
       profiles: [
         {
-          icon: "building",
+          icon: "🏛️",
           title: "Studio Commerciale",
           desc: "Gestisci le pratiche fiscali e contabili dei clienti senza email disperse.",
           detail: "Dichiarazioni, F24, visure, revisioni — ogni richiesta ha uno stato, un assegnatario e una scadenza.",
         },
         {
-          icon: "target",
+          icon: "🎯",
           title: "Agenzia",
           desc: "Tieni traccia di brief, revisioni e consegne senza perdere nulla.",
           detail: "Il cliente manda la richiesta, il team la prende in carico, tutti vedono lo stato in tempo reale.",
         },
         {
-          icon: "briefcase",
+          icon: "💼",
           title: "Studio di Consulenza",
           desc: "Organizza le richieste dei clienti e assegnale ai tuoi consulenti.",
           detail: "Ogni consulente vede solo le pratiche assegnate. Niente confusione, niente sovrapposizioni.",
@@ -216,24 +216,24 @@ const translations: Record<Language, Translations> = {
       subtitle: "Senza un sistema dedicato, le richieste dei clienti finiscono ovunque — e alcune non tornano mai.",
       cards: [
         {
-          icon: "mail",
+          icon: "📧",
           title: "Email disperse su più caselle",
           desc: "Le richieste arrivano via email, WhatsApp, telefono e a voce. Non c'è un posto unico dove trovarle tutte.",
         },
         {
-          icon: "clock",
+          icon: "⏰",
           title: "Scadenze che si perdono",
           desc: "Senza un sistema, le pratiche urgenti si seppelliscono tra i messaggi. Il cliente aspetta. Lo studio perde credibilità.",
         },
         {
-          icon: "visibility",
+          icon: "🤷",
           title: "Nessuna visibilità su chi sta facendo cosa",
           desc: "Non sai se un collega ha già preso in carico una pratica, né se il cliente è stato aggiornato sull'avanzamento.",
         },
       ],
     },
     testimonials: {
-      ratingLabel: "4.9/5 — Valutazione media",
+      ratingLabel: "⭐ 4.9/5 — Valutazione media",
       items: [
         {
           name: "Giulia Ferretti",
@@ -270,32 +270,32 @@ const translations: Record<Language, Translations> = {
     },
     features: {
       title: "Tutto quello che serve. Niente di più.",
-      subtitle: "Gli strumenti essenziali per coordinare il lavoro e mantenere il team allineato.",
+      subtitle: "Strumenti essenziali progettati per studi e agenzie che vogliono smettere di rincorrere le richieste dei clienti.",
       cta: "Inizia gratis — 7 giorni",
       items: {
         creation: {
-          title: "Crea un'attività in pochi secondi",
-          desc: "Apri una pratica e assegnala al collaboratore giusto, senza frizioni."
+          title: "Apertura pratica in 10 secondi",
+          desc: "Apri una pratica per un cliente in pochi secondi e assegnala al consulente giusto, senza frizioni."
         },
         priority: {
           title: "Priorità e scadenze sempre visibili",
           desc: "Tieni sempre sotto controllo cosa è urgente e cosa è già in lavorazione. Niente pratiche dimenticate."
         },
         history: {
-          title: "Conversazioni in un unico thread",
-          desc: "Commenti, allegati e @menzioni per coinvolgere il collega giusto, senza email disperse."
+          title: "Conversazione per ogni pratica",
+          desc: "Ogni pratica è un thread: commenti, allegati e @menzioni per coinvolgere il collega giusto, senza email disperse."
         },
         solution: {
-          title: "Chiusure sempre tracciate",
-          desc: "Chi completa il lavoro marca la soluzione. Il team vede subito cosa è stato fatto."
+          title: "Soluzione tracciata",
+          desc: "Chi risolve marca il commento giusto come soluzione. Il cliente e il team vedono subito cosa ha funzionato."
         },
         stats: {
           title: "Report e Statistiche",
-          desc: "Dashboard chiara per capire come lavora il tuo team: attività per stato, categoria e collaboratore.",
+          desc: "Dashboard chiara per capire come sta performando il tuo studio: pratiche per stato, categoria, operatore.",
           bullets: [
             "Grafici per stato, priorità e categoria",
             "Trend pratiche degli ultimi 30 giorni",
-            "Statistiche per collaboratore"
+            "Statistiche per operatore e cliente"
           ]
         },
         multi: {
@@ -317,21 +317,21 @@ const translations: Record<Language, Translations> = {
       steps: [
         {
           n: "1",
-          icon: "edit",
-          title: "Crea un'attività",
-          desc: "Titolo, categoria e scadenza: in pochi secondi il lavoro è tracciato e visibile al team.",
+          icon: "✏️",
+          title: "Apri una pratica",
+          desc: "Il cliente manda una richiesta o tu la apri per lui. Titolo, categoria, scadenza: in 10 secondi è tracciata e visibile al team.",
         },
         {
           n: "2",
-          icon: "message",
-          title: "Assegna e lavora insieme",
-          desc: "Commenti, @menzioni e allegati in un unico thread, sempre ricercabile.",
+          icon: "💬",
+          title: "Il team lavora in thread",
+          desc: "Commenti, @menzioni e allegati in un unico thread — come una chat, ma organizzata e sempre ricercabile.",
         },
         {
           n: "3",
-          icon: "check",
-          title: "Completa e archivia",
-          desc: "Chi chiude l'attività marca la soluzione. Il lavoro resta tracciato e il team sa che è fatto.",
+          icon: "✅",
+          title: "Pratica risolta e archiviata",
+          desc: "Chi risolve marca la soluzione. La pratica si chiude. Tutti — incluso il cliente — sanno che è fatta.",
         },
       ],
     },
@@ -372,24 +372,24 @@ const translations: Record<Language, Translations> = {
       cta: "Inizia gratis — 7 giorni"
     },
     faq: {
-      title: "Le risposte che servono",
+      title: "Domande Frequenti",
       items: [
-        { q: "È adatto al mio studio o al mio team?", a: "Sì. TaskDesk aiuta studi, agenzie e team a organizzare attività e pratiche, assegnarle ai collaboratori e seguirle fino alla chiusura — senza email disperse o informazioni introvabili." },
+        { q: "È adatto al mio studio commerciale o alla mia agenzia?", a: "Sì, TaskDesk è pensato esattamente per questo. Studi commerciali, studi di consulenza del lavoro, agenzie e liberi professionisti lo usano per raccogliere le richieste dei clienti in un unico posto, assegnarle ai collaboratori e tracciarle fino alla chiusura — senza email disperse o WhatsApp irrintracciabili." },
         { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese + IVA (o €350/anno + IVA). Enterprise su preventivo." },
         { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti, senza formazione." },
         { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
-        { q: "Posso gestire ruoli e collaboratori?", a: "Sì. Puoi invitare i collaboratori, assegnare le attività e definire ruoli e permessi per mantenere ogni persona concentrata sul lavoro che le compete." },
+        { q: "I miei clienti possono accedere e inviare richieste?", a: "Oggi i clienti vengono aggiunti come utenti dedicati. Ogni cliente vede solo le proprie pratiche. Una funzionalità di portale clienti semplificato è nella roadmap." },
       ]
     },
     finalCta: {
-      headline: "Metti ordine nel lavoro del team.",
+      headline: "Metti ordine nelle pratiche dei tuoi clienti.",
       sub: "Inizia subito — i primi 7 giorni sono gratis, senza carta di credito.",
       proof1: "Nessuna carta di credito",
       proof2: "Setup in 5 minuti",
       proof3: "GDPR compliant",
     },
     footer: {
-      text: "© 2025 TaskDesk. Il sistema per organizzare il lavoro di studi, agenzie e team italiani.",
+      text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane.",
       terms: "Termini di Servizio",
     },
     installPrompt: {
@@ -403,19 +403,19 @@ const translations: Record<Language, Translations> = {
       close: "Chiudi",
     },
     seo: {
-      title: "TaskDesk — Organizza il lavoro del tuo team",
-      description: "Organizza attività, pratiche e scadenze, assegnale ai collaboratori e segui ogni lavoro fino alla chiusura. 7 giorni gratis.",
-      keywords: "software organizzazione team, gestione attività collaboratori, gestione pratiche studio, ticketing per team, software per agenzie, coordinamento lavoro",
-      ogTitle: "TaskDesk — Organizza il lavoro del tuo team",
-      ogDescription: "Attività, pratiche e scadenze in un unico posto. Assegnazioni, commenti e chiusure tracciate per il tuo team.",
-      twitterTitle: "TaskDesk — Organizza il lavoro del tuo team",
-      twitterDescription: "Organizza il lavoro del team senza email disperse. Attività, assegnazioni e scadenze sempre sotto controllo.",
+      title: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
+      description: "Raccogli le richieste dei clienti, assegnale al team e traccia ogni pratica. Per studi commerciali e agenzie. Da €35/mese + IVA, 7 giorni gratis.",
+      keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, software consulenza, gestione richieste clienti, sistema ticket studio commercialista",
+      ogTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
+      ogDescription: "Gestisci pratiche e richieste senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.",
+      twitterTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
+      twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA.",
     },
     ticker: {
-      rating: "4.9/5 soddisfazione media",
-      setup: "Setup in 5 minuti",
-      trial: "7 giorni gratis",
-      gdpr: "GDPR Compliant",
+      rating: "⭐ 4.9/5 soddisfazione media",
+      setup: "🚀 Setup in 5 minuti",
+      trial: "🎁 7 giorni gratis",
+      gdpr: "🔒 GDPR Compliant",
     },
   },
   en: {
@@ -438,35 +438,35 @@ const translations: Record<Language, Translations> = {
       login: "Login",
     },
     hero: {
-      title: "Your team's work, finally under control.",
-      titleLine1: "Your team's work,",
+      title: "Your clients' requests, finally under control.",
+      titleLine1: "Your clients' requests,",
       titleLine2: "finally under control.",
-      subtitle: "TaskDesk organizes tasks, work items and deadlines in one place. Assign work to collaborators, discuss it in a thread and always know what is complete.",
+      subtitle: "Stop chasing emails and WhatsApp messages. TaskDesk collects every client request, task and deadline in one place — with comments, assignments and tracked solutions.",
       cta: "Start free — 7 days",
       secondaryCta: "See how it works",
       trialBadge: "7 days free",
       trialNote: "No credit card required",
       microProof: "7 days free · No credit card · Cancel anytime",
-      reassurance: "Chosen by firms, agencies and teams across Italy",
+      reassurance: "Used by accounting firms, agencies and consultants across Italy",
     },
     whoUses: {
       title: "Built for those who work with clients every day",
       subtitle: "Firms, agencies and consultants use TaskDesk to bring order to client requests — without the complexity.",
       profiles: [
         {
-          icon: "building",
+          icon: "🏛️",
           title: "Accounting Firm",
           desc: "Manage client filings and accounting requests without scattered emails.",
           detail: "Tax returns, payments, reviews — every request has a status, an assignee and a deadline.",
         },
         {
-          icon: "target",
+          icon: "🎯",
           title: "Agency",
           desc: "Track briefs, revisions and deliverables without losing anything.",
           detail: "The client sends a request, the team picks it up, everyone sees the status in real time.",
         },
         {
-          icon: "briefcase",
+          icon: "💼",
           title: "Consulting Firm",
           desc: "Organise client requests and assign them to your consultants.",
           detail: "Each consultant sees only their assigned work. No confusion, no overlap.",
@@ -478,24 +478,24 @@ const translations: Record<Language, Translations> = {
       subtitle: "Without a dedicated system, client requests end up everywhere — and some never come back.",
       cards: [
         {
-          icon: "mail",
+          icon: "📧",
           title: "Requests scattered across channels",
           desc: "Requests arrive via email, WhatsApp, phone and in person. There's no single place to find them all.",
         },
         {
-          icon: "clock",
+          icon: "⏰",
           title: "Deadlines that get lost",
           desc: "Without a system, urgent tasks get buried in messages. The client waits. Your firm loses credibility.",
         },
         {
-          icon: "visibility",
+          icon: "🤷",
           title: "No visibility into who's doing what",
           desc: "You don't know whether a colleague has already picked something up, or whether the client has been updated.",
         },
       ],
     },
     testimonials: {
-      ratingLabel: "4.9/5 — Average rating",
+      ratingLabel: "⭐ 4.9/5 — Average rating",
       items: [
         {
           name: "Giulia Ferretti",
@@ -532,32 +532,32 @@ const translations: Record<Language, Translations> = {
     },
     features: {
       title: "Everything you need. Nothing you don't.",
-      subtitle: "The essential tools to coordinate work and keep your team aligned.",
+      subtitle: "Essential tools designed for firms and agencies that want to stop chasing client requests.",
       cta: "Start free — 7 days",
       items: {
         creation: {
-          title: "Create a task in seconds",
-          desc: "Open a work item and assign it to the right collaborator — friction-free."
+          title: "Open a request in 10 seconds",
+          desc: "Open a client request in seconds and assign it to the right person — friction-free."
         },
         priority: {
           title: "Priorities and deadlines always visible",
           desc: "Always keep track of what's urgent and what's in progress. No more forgotten tasks."
         },
         history: {
-          title: "One thread for every task",
-          desc: "Comments, attachments and @mentions keep the right colleagues involved, without scattered emails."
+          title: "Threaded conversation per request",
+          desc: "Every request is a thread: replies, attachments and @mentions — like a chat, but organised and always searchable."
         },
         solution: {
-          title: "Completion always tracked",
-          desc: "Whoever finishes the work marks the solution. The team can immediately see what is done."
+          title: "Tracked resolution",
+          desc: "Whoever resolves it marks the right comment as the solution. The client and team see immediately what worked."
         },
         stats: {
           title: "Reports & Statistics",
-          desc: "A clear dashboard to understand how your team works: tasks by status, category and collaborator.",
+          desc: "Clear dashboard to understand how your firm is performing: requests by status, category and consultant.",
           bullets: [
             "Charts by status, priority and category",
             "Request trend over the last 30 days",
-            "Statistics by collaborator"
+            "Statistics by consultant and client"
           ]
         },
         multi: {
@@ -579,21 +579,21 @@ const translations: Record<Language, Translations> = {
       steps: [
         {
           n: "1",
-          icon: "edit",
-          title: "Create a task",
-          desc: "Title, category and deadline: the work is tracked in seconds and visible to the team.",
+          icon: "✏️",
+          title: "Open a request",
+          desc: "The client sends a request or you open one for them. Title, category, deadline: tracked in 10 seconds and visible to the team.",
         },
         {
           n: "2",
-          icon: "message",
-          title: "Assign and work together",
-          desc: "Comments, @mentions and attachments in a single thread, always searchable.",
+          icon: "💬",
+          title: "Team works in a thread",
+          desc: "Comments, @mentions and attachments in a single thread — like a chat, but organised and always searchable.",
         },
         {
           n: "3",
-          icon: "check",
-          title: "Complete and archive",
-          desc: "Whoever closes the task marks the solution. The work stays traceable and the team knows it is done.",
+          icon: "✅",
+          title: "Request resolved and archived",
+          desc: "Whoever resolves it marks the solution. The request closes. Everyone — including the client — knows it's done.",
         },
       ],
     },
@@ -634,24 +634,24 @@ const translations: Record<Language, Translations> = {
       cta: "Start free — 7 days"
     },
     faq: {
-      title: "The answers you need",
+      title: "Frequently Asked Questions",
       items: [
-        { q: "Is it right for my firm or team?", a: "Yes. TaskDesk helps firms, agencies and teams organise work, assign it to collaborators and follow it through to completion — without scattered emails or hard-to-find information." },
+        { q: "Is it right for my accounting firm or agency?", a: "Yes, TaskDesk is designed exactly for this. Accounting firms, labour consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them through to completion — without scattered emails or untraceable WhatsApp messages." },
         { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month + VAT (or €350/year + VAT). Enterprise is priced on request." },
         { q: "Is there a setup cost?", a: "Absolutely not. The software is ready to use from your first login. You are up and running in minutes, with no training needed." },
         { q: "Can I cancel at any time?", a: "Yes, there are no contractual commitments or cancellation fees. You can cancel at any time from your account area." },
-        { q: "Can I manage roles and collaborators?", a: "Yes. Invite collaborators, assign tasks and define roles and permissions so everyone stays focused on the work they own." },
+        { q: "Can my clients access the system and submit requests?", a: "Today clients are added as dedicated users. Each client sees only their own requests. A simplified client portal feature is on the roadmap." },
       ]
     },
     finalCta: {
-      headline: "Bring order to your team's work.",
+      headline: "Bring order to your clients' requests.",
       sub: "Start now — the first 7 days are free, no credit card required.",
       proof1: "No credit card",
       proof2: "5-min setup",
       proof3: "GDPR compliant",
     },
     footer: {
-      text: "© 2025 TaskDesk. The work management system for Italian firms, agencies and teams.",
+      text: "© 2025 TaskDesk. The request management system for Italian firms and agencies.",
       terms: "Terms of Service",
     },
     installPrompt: {
@@ -665,19 +665,19 @@ const translations: Record<Language, Translations> = {
       close: "Close",
     },
     seo: {
-      title: "TaskDesk — Organize your team's work",
-      description: "Organize tasks, work items and deadlines, assign them to collaborators and track every job through completion. 7-day free trial.",
-      keywords: "team work management software, collaborator task management, practice management software, agency team ticketing, work coordination software",
-      ogTitle: "TaskDesk — Organize your team's work",
-      ogDescription: "Tasks, work items and deadlines in one place. Assignments, comments and tracked completion for your team.",
-      twitterTitle: "TaskDesk — Organize your team's work",
-      twitterDescription: "Organize team work without scattered emails. Tasks, assignments and deadlines always under control.",
+      title: "TaskDesk — Practice Management for Firms & Agencies",
+      description: "Collect every client request in one place, assign it to your team, and track it to completion. Built for accounting firms and agencies. 7-day free trial.",
+      keywords: "software for accounting firms, client request management, ticketing for agencies, consulting software, client task tracking, accountant ticket system",
+      ogTitle: "TaskDesk — Practice Management for Firms & Agencies",
+      ogDescription: "Manage client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.",
+      twitterTitle: "TaskDesk — Practice Management for Firms & Agencies",
+      twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT.",
     },
     ticker: {
-      rating: "4.9/5 average satisfaction",
-      setup: "5-min setup",
-      trial: "7 days free",
-      gdpr: "GDPR Compliant",
+      rating: "⭐ 4.9/5 average satisfaction",
+      setup: "🚀 5-min setup",
+      trial: "🎁 7 days free",
+      gdpr: "🔒 GDPR Compliant",
     },
   }
 };
