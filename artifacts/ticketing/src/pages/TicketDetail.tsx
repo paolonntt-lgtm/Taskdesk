@@ -195,6 +195,7 @@ export default function TicketDetail() {
   const [recurrenceDialog, setRecurrenceDialog] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(new Date().getDay());
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceSaving, setRecurrenceSaving] = useState(false);
@@ -469,11 +470,13 @@ export default function TicketDetail() {
     if (existing) {
       setRecurrenceFreq(existing.frequency ?? 'weekly');
       setRecurrenceInterval(existing.interval ?? 1);
+      setRecurrenceDayOfWeek(existing.dayOfWeek ?? new Date((ticket as any).createdAt ?? new Date()).getDay());
       setRecurrenceDayOfMonth(existing.dayOfMonth ?? new Date().getDate());
       setRecurrenceEndDate(existing.endDate ? existing.endDate.slice(0, 10) : '');
     } else {
       setRecurrenceFreq('weekly');
       setRecurrenceInterval(1);
+      setRecurrenceDayOfWeek(new Date((ticket as any)?.createdAt ?? new Date()).getDay());
       setRecurrenceDayOfMonth(new Date().getDate());
       setRecurrenceEndDate('');
     }
@@ -490,6 +493,7 @@ export default function TicketDetail() {
         data: {
           frequency: recurrenceFreq,
           interval: recurrenceInterval,
+          ...(recurrenceFreq === 'weekly' ? { dayOfWeek: recurrenceDayOfWeek } : {}),
           ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
           ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
         } as any,
@@ -1773,6 +1777,28 @@ export default function TicketDetail() {
               <MenuItem value="monthly">{t.ticketDetail.recurrenceFreqMonthly}</MenuItem>
               <MenuItem value="yearly">{t.ticketDetail.recurrenceFreqYearly}</MenuItem>
             </TextField>
+            {recurrenceFreq === 'weekly' && (
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={t.ticketDetail.recurrenceDayOfWeek}
+                value={recurrenceDayOfWeek}
+                onChange={(e) => setRecurrenceDayOfWeek(parseInt(e.target.value, 10))}
+              >
+                {[
+                  { value: 1, label: t.ticketDetail.recurrenceDayMonday },
+                  { value: 2, label: t.ticketDetail.recurrenceDayTuesday },
+                  { value: 3, label: t.ticketDetail.recurrenceDayWednesday },
+                  { value: 4, label: t.ticketDetail.recurrenceDayThursday },
+                  { value: 5, label: t.ticketDetail.recurrenceDayFriday },
+                  { value: 6, label: t.ticketDetail.recurrenceDaySaturday },
+                  { value: 0, label: t.ticketDetail.recurrenceDaySunday },
+                ].map((day) => (
+                  <MenuItem key={day.value} value={day.value}>{day.label}</MenuItem>
+                ))}
+              </TextField>
+            )}
             {recurrenceFreq === 'monthly' && (
               <TextField
                 select

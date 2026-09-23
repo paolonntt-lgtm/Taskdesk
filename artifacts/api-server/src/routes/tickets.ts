@@ -67,17 +67,32 @@ function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null):
   return next;
 }
 
+function addWeeksOnDay(from: Date, weeks: number, dayOfWeek?: number | null): Date {
+  if (dayOfWeek == null) {
+    const next = new Date(from);
+    next.setDate(next.getDate() + 7 * weeks);
+    return next;
+  }
+
+  const targetDay = Math.min(6, Math.max(0, Math.round(dayOfWeek)));
+  const next = new Date(from);
+  const daysUntilTarget = (targetDay - next.getDay() + 7) % 7 || 7;
+  next.setDate(next.getDate() + daysUntilTarget + 7 * (weeks - 1));
+  return next;
+}
+
 function computeNextRecurrence(
   from: Date,
   frequency: "daily" | "weekly" | "monthly" | "yearly",
   interval: number = 1,
   dayOfMonth?: number | null,
+  dayOfWeek?: number | null,
 ): Date {
   const n = Math.max(1, Math.round(interval));
   const next = new Date(from);
   switch (frequency) {
     case "daily": next.setDate(next.getDate() + n); break;
-    case "weekly": next.setDate(next.getDate() + 7 * n); break;
+    case "weekly": return addWeeksOnDay(from, n, dayOfWeek);
     case "monthly": {
       const selectedDay = dayOfMonth ?? from.getDate();
       const candidate = new Date(from);
@@ -420,6 +435,8 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
         new Date(),
         recurrenceRule.frequency,
         recurrenceRule.interval ?? 1,
+        recurrenceRule.dayOfMonth ?? null,
+        recurrenceRule.dayOfWeek ?? null,
       )
     : null;
 
@@ -1135,10 +1152,11 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     return;
   }
 
-  const { frequency, interval: rawInterval, dayOfMonth: rawDayOfMonth, endDate } = (req.body ?? {}) as {
+  const { frequency, interval: rawInterval, dayOfMonth: rawDayOfMonth, dayOfWeek: rawDayOfWeek, endDate } = (req.body ?? {}) as {
     frequency?: string;
     interval?: number;
     dayOfMonth?: number | null;
+    dayOfWeek?: number | null;
     endDate?: string | null;
   };
   if (!frequency || !["daily", "weekly", "monthly", "yearly"].includes(frequency)) {
@@ -1147,8 +1165,13 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
   }
   const interval = Math.max(1, Math.round(Number(rawInterval) || 1));
   const dayOfMonth = rawDayOfMonth == null ? null : Math.round(Number(rawDayOfMonth));
+  const dayOfWeek = rawDayOfWeek == null ? null : Math.round(Number(rawDayOfWeek));
   if (frequency === "monthly" && dayOfMonth != null && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
     res.status(400).json({ error: "Invalid day of month" });
+    return;
+  }
+  if (frequency === "weekly" && dayOfWeek != null && (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6)) {
+    res.status(400).json({ error: "Invalid day of week" });
     return;
   }
 
@@ -1166,6 +1189,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     frequency,
     interval,
     ...(frequency === "monthly" && dayOfMonth != null ? { dayOfMonth } : {}),
+    ...(frequency === "weekly" && dayOfWeek != null ? { dayOfWeek } : {}),
     ...(endDate ? { endDate } : {}),
   };
   const now = new Date();
@@ -1174,6 +1198,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     frequency as "daily" | "weekly" | "monthly" | "yearly",
     interval,
     dayOfMonth,
+    dayOfWeek,
   );
 
   const [updated] = await db.update(ticketsTable)

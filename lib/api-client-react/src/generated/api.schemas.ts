@@ -167,6 +167,11 @@ export interface RecurrenceRule {
      * @maximum 31
      */
   dayOfMonth?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek?: number | null;
   endDate?: string | null;
 }
 
@@ -192,6 +197,11 @@ export interface SetRecurrenceBody {
      * @maximum 31
      */
   dayOfMonth?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek?: number | null;
   endDate?: string | null;
 }
 

@@ -555,6 +555,9 @@ export const ListTicketsQueryParams = zod.object({
 
 export const listTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const listTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const listTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const ListTicketsResponseItem = zod.object({
@@ -583,6 +586,7 @@ export const ListTicketsResponseItem = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(listTicketsResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(listTicketsResponseOneRecurrenceRuleOneDayOfWeekMin).max(listTicketsResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -655,6 +659,9 @@ export const ListTicketsResponse = zod.array(ListTicketsResponseItem)
  */
 export const createTicketBodyRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const createTicketBodyRecurrenceRuleOneDayOfWeekMin = 0;
+export const createTicketBodyRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const CreateTicketBody = zod.object({
@@ -673,11 +680,15 @@ export const CreateTicketBody = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(createTicketBodyRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(createTicketBodyRecurrenceRuleOneDayOfWeekMin).max(createTicketBodyRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional()
 })
 
 export const createTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
+
+export const createTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const createTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
 
 
 
@@ -707,6 +718,7 @@ export const CreateTicketResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(createTicketResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(createTicketResponseOneRecurrenceRuleOneDayOfWeekMin).max(createTicketResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -782,6 +794,9 @@ export const GetTicketParams = zod.object({
 
 export const getTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const getTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const getTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const GetTicketResponse = zod.object({
@@ -810,6 +825,7 @@ export const GetTicketResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(getTicketResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(getTicketResponseOneRecurrenceRuleOneDayOfWeekMin).max(getTicketResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -905,6 +921,9 @@ export const UpdateTicketBody = zod.object({
 
 export const updateTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const updateTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const updateTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const UpdateTicketResponse = zod.object({
@@ -933,6 +952,7 @@ export const UpdateTicketResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(updateTicketResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(updateTicketResponseOneRecurrenceRuleOneDayOfWeekMin).max(updateTicketResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -1022,6 +1042,9 @@ export const CloneTicketBody = zod.object({
 
 export const cloneTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const CloneTicketResponse = zod.object({
@@ -1050,6 +1073,7 @@ export const CloneTicketResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(cloneTicketResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMin).max(cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -1125,16 +1149,23 @@ export const SetTicketRecurrenceParams = zod.object({
 
 export const setTicketRecurrenceBodyDayOfMonthMax = 31;
 
+export const setTicketRecurrenceBodyDayOfWeekMin = 0;
+export const setTicketRecurrenceBodyDayOfWeekMax = 6;
+
 
 
 export const SetTicketRecurrenceBody = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(setTicketRecurrenceBodyDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(setTicketRecurrenceBodyDayOfWeekMin).max(setTicketRecurrenceBodyDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 })
 
 export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
+
+export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
 
 
 
@@ -1164,6 +1195,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin).max(setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -1239,6 +1271,9 @@ export const DeleteTicketRecurrenceParams = zod.object({
 
 export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const DeleteTicketRecurrenceResponse = zod.object({
@@ -1267,6 +1302,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin).max(deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -2057,6 +2093,9 @@ export const GetTicketTrendResponse = zod.array(GetTicketTrendResponseItem)
  */
 export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const GetRecentTicketsResponseItem = zod.object({
@@ -2085,6 +2124,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(getRecentTicketsResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMin).max(getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -2157,6 +2197,9 @@ export const GetRecentTicketsResponse = zod.array(GetRecentTicketsResponseItem)
  */
 export const getMyTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const GetMyTicketsResponseItem = zod.object({
@@ -2185,6 +2228,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(getMyTicketsResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMin).max(getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -2257,6 +2301,9 @@ export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem)
  */
 export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
+export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
 
 
 export const GetDueSoonTicketsResponseItem = zod.object({
@@ -2285,6 +2332,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
   "dayOfMonth": zod.int().min(1).max(getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMin).max(getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),

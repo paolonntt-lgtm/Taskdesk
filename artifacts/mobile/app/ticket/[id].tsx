@@ -27,7 +27,7 @@ interface Ticket {
   creator: { name: string }; assignee?: { name: string } | null;
   assignedToGroup?: string | null;
   commentCount: number;
-  recurrenceRule?: { frequency: RecurrenceFreq; interval: number; endDate?: string } | null;
+  recurrenceRule?: { frequency: RecurrenceFreq; interval: number; dayOfWeek?: number | null; endDate?: string } | null;
   recurrenceNextAt?: string | null;
   scheduledAt?: string | null;
 }
@@ -72,6 +72,7 @@ export default function TicketDetailScreen() {
   const [recurrenceModal, setRecurrenceModal] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFreq>("weekly");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(new Date().getDay());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [recurrenceSaving, setRecurrenceSaving] = useState(false);
 
@@ -278,10 +279,12 @@ export default function TicketDetailScreen() {
     if (ticket?.recurrenceRule) {
       setRecurrenceFreq(ticket.recurrenceRule.frequency ?? "weekly");
       setRecurrenceInterval(ticket.recurrenceRule.interval ?? 1);
+      setRecurrenceDayOfWeek(ticket.recurrenceRule.dayOfWeek ?? new Date(ticket.createdAt).getDay());
       setRecurrenceEndDate(ticket.recurrenceRule.endDate ? ticket.recurrenceRule.endDate.slice(0, 10) : "");
     } else {
       setRecurrenceFreq("weekly");
       setRecurrenceInterval(1);
+      setRecurrenceDayOfWeek(new Date(ticket?.createdAt ?? new Date()).getDay());
       setRecurrenceEndDate("");
     }
     setRecurrenceModal(true);
@@ -294,6 +297,7 @@ export default function TicketDetailScreen() {
       await apiPatch(`/tickets/${id}/recurrence`, {
         frequency: recurrenceFreq,
         interval: recurrenceInterval,
+        ...(recurrenceFreq === "weekly" ? { dayOfWeek: recurrenceDayOfWeek } : {}),
         ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
       });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -799,6 +803,30 @@ export default function TicketDetailScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            {recurrenceFreq === "weekly" && (
+              <>
+                <Text style={[s.metaLabel, { marginBottom: 6 }]}>{t.ticketDetail.recurrenceDayOfWeek}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  {[
+                    { value: 1, label: t.ticketDetail.recurrenceDayMonday },
+                    { value: 2, label: t.ticketDetail.recurrenceDayTuesday },
+                    { value: 3, label: t.ticketDetail.recurrenceDayWednesday },
+                    { value: 4, label: t.ticketDetail.recurrenceDayThursday },
+                    { value: 5, label: t.ticketDetail.recurrenceDayFriday },
+                    { value: 6, label: t.ticketDetail.recurrenceDaySaturday },
+                    { value: 0, label: t.ticketDetail.recurrenceDaySunday },
+                  ].map((day) => (
+                    <TouchableOpacity
+                      key={day.value}
+                      onPress={() => setRecurrenceDayOfWeek(day.value)}
+                      style={[s.statusBtn, recurrenceDayOfWeek === day.value && s.statusBtnActive]}
+                    >
+                      <Text style={[s.statusBtnText, recurrenceDayOfWeek === day.value && s.statusBtnTextActive]}>{day.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
             <Text style={[s.metaLabel, { marginBottom: 6 }]}>{t.ticketDetail.recurrenceEndDate}</Text>
             <TextInput
               style={[s.commentInput, { marginBottom: 8, minHeight: 40 }]}

@@ -99,6 +99,7 @@ export default function NewTicket() {
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(new Date().getDay());
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
@@ -303,6 +304,7 @@ export default function NewTicket() {
                 recurrenceRule: {
                   frequency: recurrenceFreq,
                   interval: recurrenceInterval,
+                  ...(recurrenceFreq === 'weekly' ? { dayOfWeek: recurrenceDayOfWeek } : {}),
                   ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
                   ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
                 },
@@ -704,6 +706,29 @@ export default function NewTicket() {
                           <MenuItem value="monthly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqMonthly}</MenuItem>
                           <MenuItem value="yearly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqYearly}</MenuItem>
                         </TextField>
+                        {recurrenceFreq === 'weekly' && (
+                          <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            label={t.newTicket.recurrenceDayOfWeek}
+                            value={recurrenceDayOfWeek}
+                            onChange={(event) => setRecurrenceDayOfWeek(parseInt(event.target.value, 10))}
+                            sx={{ '& .MuiSelect-select': { fontSize: 12, py: '6px' } }}
+                          >
+                            {[
+                              { value: 1, label: t.newTicket.recurrenceDayMonday },
+                              { value: 2, label: t.newTicket.recurrenceDayTuesday },
+                              { value: 3, label: t.newTicket.recurrenceDayWednesday },
+                              { value: 4, label: t.newTicket.recurrenceDayThursday },
+                              { value: 5, label: t.newTicket.recurrenceDayFriday },
+                              { value: 6, label: t.newTicket.recurrenceDaySaturday },
+                              { value: 0, label: t.newTicket.recurrenceDaySunday },
+                            ].map((day) => (
+                              <MenuItem key={day.value} value={day.value} sx={{ fontSize: 12 }}>{day.label}</MenuItem>
+                            ))}
+                          </TextField>
+                        )}
                         {recurrenceFreq === 'monthly' && (
                           <TextField
                             select
