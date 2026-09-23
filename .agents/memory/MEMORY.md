@@ -12,3 +12,4 @@
 - [Dashboard navigation preferences](dashboard-navigation-preferences.md) — Prefer grouped sidebar navigation and a prominent top-right ticket search.
 - [Shared motivational messages](shared-motivational-messages.md) — Admin-managed organization messages rotate by day and appear to every dashboard user.
 - [Dashboard location fallback](dashboard-location-fallback.md) — Profile location wins; browser geolocation is an explicit fallback and coordinates are never persisted.
+- [Monthly recurrence scheduling](recurrence-scheduling.md) — A selected day beyond a month’s length uses that month’s last available day.

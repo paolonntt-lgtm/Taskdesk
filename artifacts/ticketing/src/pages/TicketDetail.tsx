@@ -195,6 +195,7 @@ export default function TicketDetail() {
   const [recurrenceDialog, setRecurrenceDialog] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceSaving, setRecurrenceSaving] = useState(false);
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null);
@@ -468,10 +469,12 @@ export default function TicketDetail() {
     if (existing) {
       setRecurrenceFreq(existing.frequency ?? 'weekly');
       setRecurrenceInterval(existing.interval ?? 1);
+      setRecurrenceDayOfMonth(existing.dayOfMonth ?? new Date().getDate());
       setRecurrenceEndDate(existing.endDate ? existing.endDate.slice(0, 10) : '');
     } else {
       setRecurrenceFreq('weekly');
       setRecurrenceInterval(1);
+      setRecurrenceDayOfMonth(new Date().getDate());
       setRecurrenceEndDate('');
     }
     setRecurrenceError(null);
@@ -487,6 +490,7 @@ export default function TicketDetail() {
         data: {
           frequency: recurrenceFreq,
           interval: recurrenceInterval,
+          ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
           ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
         } as any,
       });
@@ -1769,6 +1773,22 @@ export default function TicketDetail() {
               <MenuItem value="monthly">{t.ticketDetail.recurrenceFreqMonthly}</MenuItem>
               <MenuItem value="yearly">{t.ticketDetail.recurrenceFreqYearly}</MenuItem>
             </TextField>
+            {recurrenceFreq === 'monthly' && (
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={t.ticketDetail.recurrenceDayOfMonth}
+                value={recurrenceDayOfMonth}
+                onChange={(e) => setRecurrenceDayOfMonth(parseInt(e.target.value, 10))}
+                helperText={t.ticketDetail.recurrenceDayOfMonthHint}
+                sx={{ '& .MuiFormHelperText-root': { fontSize: 11 } }}
+              >
+                {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                  <MenuItem key={day} value={day}>{day}</MenuItem>
+                ))}
+              </TextField>
+            )}
             <TextField fullWidth size="small" type="number" label={lang === 'it' ? 'Ogni' : 'Every'} value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))} inputProps={{ min: 1, max: 365 }} />
             <TextField fullWidth size="small" type="date" label={t.ticketDetail.recurrenceEndDate} value={recurrenceEndDate} onChange={(e) => setRecurrenceEndDate(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ min: new Date().toISOString().slice(0, 10) }} />
             {(ticket as any).recurrenceNextAt && (

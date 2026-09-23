@@ -99,6 +99,7 @@ export default function NewTicket() {
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   const urlParams = new URLSearchParams(search);
@@ -302,6 +303,7 @@ export default function NewTicket() {
                 recurrenceRule: {
                   frequency: recurrenceFreq,
                   interval: recurrenceInterval,
+                  ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
                   ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
                 },
               }
@@ -702,6 +704,22 @@ export default function NewTicket() {
                           <MenuItem value="monthly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqMonthly}</MenuItem>
                           <MenuItem value="yearly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqYearly}</MenuItem>
                         </TextField>
+                        {recurrenceFreq === 'monthly' && (
+                          <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            label={t.newTicket.recurrenceDayOfMonth}
+                            value={recurrenceDayOfMonth}
+                            onChange={(event) => setRecurrenceDayOfMonth(parseInt(event.target.value, 10))}
+                            helperText={t.newTicket.recurrenceDayOfMonthHint}
+                            sx={{ '& .MuiSelect-select': { fontSize: 12, py: '6px' }, '& .MuiFormHelperText-root': { fontSize: 10, mx: 0 } }}
+                          >
+                            {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+                              <MenuItem key={day} value={day} sx={{ fontSize: 12 }}>{day}</MenuItem>
+                            ))}
+                          </TextField>
+                        )}
                         <TextField
                           fullWidth
                           size="small"

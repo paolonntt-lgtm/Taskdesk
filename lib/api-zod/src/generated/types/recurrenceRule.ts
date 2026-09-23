@@ -10,5 +10,10 @@ import type { RecurrenceRuleFrequency } from './recurrenceRuleFrequency';
 export interface RecurrenceRule {
   frequency: RecurrenceRuleFrequency;
   interval?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
   endDate?: Date | null;
 }

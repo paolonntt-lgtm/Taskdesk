@@ -15,7 +15,21 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 interface RecurrenceRule {
   frequency: "daily" | "weekly" | "monthly" | "yearly";
   interval?: number;
+  dayOfMonth?: number | null;
   endDate?: string | null;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null): Date {
+  const targetDay = Math.min(31, Math.max(1, Math.round(dayOfMonth ?? from.getDate())));
+  const next = new Date(from);
+  next.setDate(1);
+  next.setMonth(next.getMonth() + months);
+  next.setDate(Math.min(targetDay, daysInMonth(next.getFullYear(), next.getMonth())));
+  return next;
 }
 
 function computeNextAt(current: Date, rule: RecurrenceRule): Date {
@@ -29,8 +43,7 @@ function computeNextAt(current: Date, rule: RecurrenceRule): Date {
       next.setDate(next.getDate() + 7 * n);
       break;
     case "monthly":
-      next.setMonth(next.getMonth() + n);
-      break;
+      return addMonthsOnDay(current, n, rule.dayOfMonth);
     case "yearly":
       next.setFullYear(next.getFullYear() + n);
       break;

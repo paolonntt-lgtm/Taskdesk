@@ -162,6 +162,11 @@ export const RecurrenceRuleFrequency = {
 export interface RecurrenceRule {
   frequency: RecurrenceRuleFrequency;
   interval?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
   endDate?: string | null;
 }
 
@@ -182,6 +187,11 @@ export const SetRecurrenceBodyFrequency = {
 export interface SetRecurrenceBody {
   frequency: SetRecurrenceBodyFrequency;
   interval?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
   endDate?: string | null;
 }
 

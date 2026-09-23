@@ -54,13 +54,37 @@ const USER_LIST_COLS = {
   createdAt: usersTable.createdAt,
 } as const;
 
-function computeNextRecurrence(from: Date, frequency: "daily" | "weekly" | "monthly" | "yearly", interval: number = 1): Date {
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null): Date {
+  const targetDay = Math.min(31, Math.max(1, Math.round(dayOfMonth ?? from.getDate())));
+  const next = new Date(from);
+  next.setDate(1);
+  next.setMonth(next.getMonth() + months);
+  next.setDate(Math.min(targetDay, daysInMonth(next.getFullYear(), next.getMonth())));
+  return next;
+}
+
+function computeNextRecurrence(
+  from: Date,
+  frequency: "daily" | "weekly" | "monthly" | "yearly",
+  interval: number = 1,
+  dayOfMonth?: number | null,
+): Date {
   const n = Math.max(1, Math.round(interval));
   const next = new Date(from);
   switch (frequency) {
     case "daily": next.setDate(next.getDate() + n); break;
     case "weekly": next.setDate(next.getDate() + 7 * n); break;
-    case "monthly": next.setMonth(next.getMonth() + n); break;
+    case "monthly": {
+      const selectedDay = dayOfMonth ?? from.getDate();
+      const candidate = new Date(from);
+      candidate.setDate(Math.min(selectedDay, daysInMonth(candidate.getFullYear(), candidate.getMonth())));
+      const months = n === 1 && candidate > from ? 0 : n;
+      return addMonthsOnDay(from, months, selectedDay);
+    }
     case "yearly": next.setFullYear(next.getFullYear() + n); break;
   }
   return next;
@@ -1111,12 +1135,22 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     return;
   }
 
-  const { frequency, interval: rawInterval, endDate } = (req.body ?? {}) as { frequency?: string; interval?: number; endDate?: string | null };
+  const { frequency, interval: rawInterval, dayOfMonth: rawDayOfMonth, endDate } = (req.body ?? {}) as {
+    frequency?: string;
+    interval?: number;
+    dayOfMonth?: number | null;
+    endDate?: string | null;
+  };
   if (!frequency || !["daily", "weekly", "monthly", "yearly"].includes(frequency)) {
     res.status(400).json({ error: "Invalid or missing frequency" });
     return;
   }
   const interval = Math.max(1, Math.round(Number(rawInterval) || 1));
+  const dayOfMonth = rawDayOfMonth == null ? null : Math.round(Number(rawDayOfMonth));
+  if (frequency === "monthly" && dayOfMonth != null && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
+    res.status(400).json({ error: "Invalid day of month" });
+    return;
+  }
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
@@ -1128,9 +1162,19 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     return;
   }
 
-  const rule = { frequency, interval, ...(endDate ? { endDate } : {}) };
+  const rule = {
+    frequency,
+    interval,
+    ...(frequency === "monthly" && dayOfMonth != null ? { dayOfMonth } : {}),
+    ...(endDate ? { endDate } : {}),
+  };
   const now = new Date();
-  const nextAt = computeNextRecurrence(now, frequency as "daily" | "weekly" | "monthly" | "yearly", interval);
+  const nextAt = computeNextRecurrence(
+    now,
+    frequency as "daily" | "weekly" | "monthly" | "yearly",
+    interval,
+    dayOfMonth,
+  );
 
   const [updated] = await db.update(ticketsTable)
     .set({ recurrenceRule: rule, recurrenceNextAt: nextAt, updatedAt: new Date() })
