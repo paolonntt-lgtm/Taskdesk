@@ -9,5 +9,6 @@ import type { SetRecurrenceBodyFrequency } from './setRecurrenceBodyFrequency';
 
 export interface SetRecurrenceBody {
   frequency: SetRecurrenceBodyFrequency;
+  interval?: number | null;
   endDate?: Date | null;
 }

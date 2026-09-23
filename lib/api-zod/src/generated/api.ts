@@ -659,7 +659,12 @@ export const CreateTicketBody = zod.object({
   "assignedToGroup": zod.string().nullish(),
   "dueAt": zod.coerce.date().nullish(),
   "clientId": zod.int().nullish(),
-  "visibility": zod.enum(['organization', 'admins']).optional()
+  "visibility": zod.enum(['organization', 'admins']).optional(),
+  "recurrenceRule": zod.union([zod.object({
+  "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  "interval": zod.int().nullish(),
+  "endDate": zod.coerce.date().nullish()
+}),zod.null()]).optional()
 })
 
 export const CreateTicketResponse = zod.object({
@@ -1090,6 +1095,7 @@ export const SetTicketRecurrenceParams = zod.object({
 
 export const SetTicketRecurrenceBody = zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  "interval": zod.int().nullish(),
   "endDate": zod.coerce.date().nullish()
 })
 

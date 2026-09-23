@@ -3,9 +3,9 @@ import {
   Box, Card, CardContent, Typography, TextField, Button, MenuItem,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
-  Alert, Chip, Paper, Avatar,
+  Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
 } from '@mui/material';
-import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined } from '@mui/icons-material';
+import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon } from '@mui/icons-material';
 import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -96,6 +96,10 @@ export default function NewTicket() {
   const [groups, setGroups] = useState<string[]>([]);
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [userSearch, setUserSearch] = useState('');
+  const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   const urlParams = new URLSearchParams(search);
   const { data: clientsList = [] } = useListClients();
@@ -293,6 +297,15 @@ export default function NewTicket() {
           dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
           clientId: formData.clientId ? parseInt(formData.clientId) : null,
           visibility: formData.visibility,
+          ...(recurrenceEnabled && currentUser?.role === 'admin'
+            ? {
+                recurrenceRule: {
+                  frequency: recurrenceFreq,
+                  interval: recurrenceInterval,
+                  ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
+                },
+              }
+            : {}),
         },
       });
       for (const att of pendingAttachments) {
@@ -651,6 +664,67 @@ export default function NewTicket() {
                     label=""
                   />
                 </SideSection>
+
+                {/* Recurrence (admin only) */}
+                {currentUser?.role === 'admin' && (
+                  <SideSection>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <RepeatIcon sx={{ fontSize: 16, color: recurrenceEnabled ? 'primary.main' : 'text.secondary' }} />
+                      <FormControlLabel
+                        sx={{ m: 0, flex: 1, justifyContent: 'space-between' }}
+                        label={<Typography variant="body2" fontSize={12} fontWeight={recurrenceEnabled ? 700 : 500}>{t.newTicket.recurrenceToggle}</Typography>}
+                        labelPlacement="start"
+                        control={
+                          <Switch
+                            size="small"
+                            checked={recurrenceEnabled}
+                            onChange={(event) => setRecurrenceEnabled(event.target.checked)}
+                          />
+                        }
+                      />
+                    </Box>
+                    {recurrenceEnabled && (
+                      <Box display="flex" flexDirection="column" gap={0.75} mt={0.75}>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.35 }}>
+                          {t.newTicket.recurrenceHint}
+                        </Typography>
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label={t.newTicket.recurrenceFrequency}
+                          value={recurrenceFreq}
+                          onChange={(event) => setRecurrenceFreq(event.target.value as typeof recurrenceFreq)}
+                          sx={{ '& .MuiSelect-select': { fontSize: 12, py: '6px' } }}
+                        >
+                          <MenuItem value="daily" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqDaily}</MenuItem>
+                          <MenuItem value="weekly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqWeekly}</MenuItem>
+                          <MenuItem value="monthly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqMonthly}</MenuItem>
+                          <MenuItem value="yearly" sx={{ fontSize: 12 }}>{t.newTicket.recurrenceFreqYearly}</MenuItem>
+                        </TextField>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          label={t.newTicket.recurrenceEvery}
+                          value={recurrenceInterval}
+                          onChange={(event) => setRecurrenceInterval(Math.max(1, Math.min(365, parseInt(event.target.value, 10) || 1)))}
+                          inputProps={{ min: 1, max: 365, style: { fontSize: 12 } }}
+                        />
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="date"
+                          label={t.newTicket.recurrenceEndDate}
+                          value={recurrenceEndDate}
+                          onChange={(event) => setRecurrenceEndDate(event.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          inputProps={{ min: new Date().toISOString().slice(0, 10), style: { fontSize: 12 } }}
+                        />
+                      </Box>
+                    )}
+                  </SideSection>
+                )}
 
                 {/* Client */}
                 {showClients && (

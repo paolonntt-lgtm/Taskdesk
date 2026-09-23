@@ -38,6 +38,12 @@ function computeNextAt(current: Date, rule: RecurrenceRule): Date {
   return next;
 }
 
+function parseEndDate(value: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T23:59:59.999`)
+    : new Date(value);
+}
+
 async function checkTicketRecurrences(): Promise<void> {
   try {
     const now = new Date();
@@ -53,6 +59,7 @@ async function checkTicketRecurrences(): Promise<void> {
         location: ticketsTable.location,
         resource: ticketsTable.resource,
         priority: ticketsTable.priority,
+        visibility: ticketsTable.visibility,
         status: ticketsTable.status,
         createdBy: ticketsTable.createdBy,
         assignedTo: ticketsTable.assignedTo,
@@ -77,8 +84,16 @@ async function checkTicketRecurrences(): Promise<void> {
       const rule = ticket.recurrenceRule as RecurrenceRule;
       if (!rule?.frequency) continue;
 
-      const nextAt = computeNextAt(ticket.recurrenceNextAt!, rule);
-      const endDate = rule.endDate ? new Date(rule.endDate) : null;
+      const occurrenceAt = ticket.recurrenceNextAt!;
+      const endDate = rule.endDate ? parseEndDate(rule.endDate) : null;
+      if (endDate && occurrenceAt > endDate) {
+        await db
+          .update(ticketsTable)
+          .set({ recurrenceNextAt: null })
+          .where(eq(ticketsTable.id, ticket.id));
+        continue;
+      }
+      const nextAt = computeNextAt(occurrenceAt, rule);
       const shouldContinue = !endDate || nextAt <= endDate;
 
       const [orgMax] = await db
@@ -103,6 +118,7 @@ async function checkTicketRecurrences(): Promise<void> {
           resource: ticket.resource,
           priority: ticket.priority,
           status: "open",
+          visibility: ticket.visibility,
           createdBy: ticket.createdBy,
           assignedTo: ticket.assignedTo,
           assignedToGroup: ticket.assignedToGroup,

@@ -7,6 +7,7 @@
  */
 import type { CreateTicketBodyPriority } from './createTicketBodyPriority';
 import type { CreateTicketBodyVisibility } from './createTicketBodyVisibility';
+import type { RecurrenceRule } from './recurrenceRule';
 
 export interface CreateTicketBody {
   title: string;
@@ -20,4 +21,5 @@ export interface CreateTicketBody {
   dueAt?: Date | null;
   clientId?: number | null;
   visibility?: CreateTicketBodyVisibility;
+  recurrenceRule?: RecurrenceRule | null;
 }

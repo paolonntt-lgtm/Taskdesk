@@ -181,6 +181,7 @@ export const SetRecurrenceBodyFrequency = {
 
 export interface SetRecurrenceBody {
   frequency: SetRecurrenceBodyFrequency;
+  interval?: number | null;
   endDate?: string | null;
 }
 
@@ -286,6 +287,7 @@ export interface CreateTicketBody {
   dueAt?: string | null;
   clientId?: number | null;
   visibility?: CreateTicketBodyVisibility;
+  recurrenceRule?: RecurrenceRule | null;
 }
 
 export type UpdateTicketBodyPriority = typeof UpdateTicketBodyPriority[keyof typeof UpdateTicketBodyPriority];

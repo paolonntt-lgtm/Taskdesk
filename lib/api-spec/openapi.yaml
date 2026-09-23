@@ -2600,7 +2600,7 @@ components:
           nullable: true
         endDate:
           type: string
-          format: date-time
+          format: date
           nullable: true
       required:
         - frequency
@@ -2619,9 +2619,12 @@ components:
         frequency:
           type: string
           enum: [daily, weekly, monthly, yearly]
+        interval:
+          type: integer
+          nullable: true
         endDate:
           type: string
-          format: date-time
+          format: date
           nullable: true
       required:
         - frequency
@@ -2770,6 +2773,9 @@ components:
         visibility:
           type: string
           enum: [organization, admins]
+        recurrenceRule:
+          $ref: "#/components/schemas/RecurrenceRule"
+          nullable: true
       required:
         - title
         - description

@@ -329,10 +329,16 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     dueAt,
     clientId,
     visibility = "organization",
+    recurrenceRule,
   } = parsed.data;
 
   if (visibility === "admins" && currentUser.role !== "admin") {
     res.status(403).json({ error: "Only admins can create private tickets" });
+    return;
+  }
+
+  if (recurrenceRule && currentUser.role !== "admin") {
+    res.status(403).json({ error: "Only admins can create recurring tickets" });
     return;
   }
 
@@ -385,6 +391,14 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     if (defaultStatus) defaultStatusKey = defaultStatus.key;
   }
 
+  const recurrenceNextAt = recurrenceRule
+    ? computeNextRecurrence(
+        new Date(),
+        recurrenceRule.frequency,
+        recurrenceRule.interval ?? 1,
+      )
+    : null;
+
   const [ticket] = await db.insert(ticketsTable).values({
     title,
     description,
@@ -401,6 +415,8 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     assignedToGroup: assignedToGroup ?? null,
     dueAt: dueAt ? new Date(dueAt) : null,
     clientId: clientId ?? null,
+    recurrenceRule: recurrenceRule ?? null,
+    recurrenceNextAt,
   }).returning();
 
   await db.insert(ticketActivityLogsTable).values({
@@ -416,6 +432,15 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
       userId: currentUser.id,
       actionType: "assigned",
       actionDescription: `Ticket assegnato`,
+    });
+  }
+
+  if (recurrenceRule) {
+    await db.insert(ticketActivityLogsTable).values({
+      ticketId: ticket.id,
+      userId: currentUser.id,
+      actionType: "recurrence_set",
+      actionDescription: `Ricorrenza impostata: ${recurrenceRule.frequency}`,
     });
   }
 
