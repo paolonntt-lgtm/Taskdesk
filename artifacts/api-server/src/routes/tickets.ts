@@ -9,6 +9,7 @@ import { appBaseUrl } from "../lib/appUrl";
 import { hasGroupPermission } from "../lib/groupPermissions";
 import { isValidWorkedMinutes } from "../lib/workedTime";
 import { permanentlyDeleteTicket } from "../lib/ticketTrash";
+import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
 
 const router: IRouter = Router();
 
@@ -92,7 +93,7 @@ function computeNextRecurrence(
   const next = new Date(from);
   switch (frequency) {
     case "daily": next.setDate(next.getDate() + n); break;
-    case "weekly": return addWeeksOnDay(from, n, dayOfWeek);
+    case "weekly": return computeNextWeeklyRecurrence(from, n, dayOfWeek);
     case "monthly": {
       const selectedDay = dayOfMonth ?? from.getDate();
       const candidate = new Date(from);

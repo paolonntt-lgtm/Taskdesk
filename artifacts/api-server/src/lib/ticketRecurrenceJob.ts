@@ -9,6 +9,7 @@ import {
 } from "@workspace/db";
 import { createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
+import { computeNextWeeklyRecurrence } from "./weeklyRecurrence";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -33,20 +34,6 @@ function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null):
   return next;
 }
 
-function addWeeksOnDay(from: Date, weeks: number, dayOfWeek?: number | null): Date {
-  if (dayOfWeek == null) {
-    const next = new Date(from);
-    next.setDate(next.getDate() + 7 * weeks);
-    return next;
-  }
-
-  const targetDay = Math.min(6, Math.max(0, Math.round(dayOfWeek)));
-  const next = new Date(from);
-  const daysUntilTarget = (targetDay - next.getDay() + 7) % 7 || 7;
-  next.setDate(next.getDate() + daysUntilTarget + 7 * (weeks - 1));
-  return next;
-}
-
 function computeNextAt(current: Date, rule: RecurrenceRule): Date {
   const n = Math.max(1, Math.round(rule.interval ?? 1));
   const next = new Date(current);
@@ -55,7 +42,7 @@ function computeNextAt(current: Date, rule: RecurrenceRule): Date {
       next.setDate(next.getDate() + n);
       break;
     case "weekly":
-      return addWeeksOnDay(current, n, rule.dayOfWeek);
+      return computeNextWeeklyRecurrence(current, n, rule.dayOfWeek);
     case "monthly":
       return addMonthsOnDay(current, n, rule.dayOfMonth);
     case "yearly":
