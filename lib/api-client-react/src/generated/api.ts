@@ -88,6 +88,8 @@ import type {
   UpdateClientTicketBillingStatus200,
   UpdateClientTicketBillingStatusBody,
   UpdateCommentBody,
+  UpdateGroupPermissions200,
+  UpdateGroupPermissionsBody,
   UpdateOrganizationSettings200,
   UpdateOrganizationSettingsBody,
   UpdateTicketBody,
@@ -361,6 +363,87 @@ export const useCreateGroup = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateGroupMutationOptions(options));
+    }
+
+export const getUpdateGroupPermissionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/groups/${id}/permissions`
+}
+
+/**
+ * @summary Update a group's permissions (admin only)
+ */
+export const updateGroupPermissions = async (id: number,
+    updateGroupPermissionsBody: UpdateGroupPermissionsBody, options?: Parameters<typeof customFetch>[1]): Promise<UpdateGroupPermissions200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<UpdateGroupPermissions200>(getUpdateGroupPermissionsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateGroupPermissionsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateGroupPermissionsMutationKey = () => ['updateGroupPermissions'] as const;
+
+export const getUpdateGroupPermissionsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroupPermissions>>, TError,UpdateGroupPermissionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGroupPermissions>>, TError,UpdateGroupPermissionsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateGroupPermissionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGroupPermissions>>, UpdateGroupPermissionsMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateGroupPermissions(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGroupPermissionsMutationResult = NonNullable<Awaited<ReturnType<typeof updateGroupPermissions>>>
+    export type UpdateGroupPermissionsMutationBody = BodyType<UpdateGroupPermissionsBody>
+    export type UpdateGroupPermissionsMutationError = ErrorType<void>
+    export type UpdateGroupPermissionsMutationVariables = {id: number;data: BodyType<UpdateGroupPermissionsBody>}
+
+    /**
+ * @summary Update a group's permissions (admin only)
+ */
+export const useUpdateGroupPermissions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroupPermissions>>, TError,UpdateGroupPermissionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGroupPermissions>>,
+        TError,
+        UpdateGroupPermissionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateGroupPermissionsMutationOptions(options));
     }
 
 export const getUpdateGroupUrl = (id: number,) => {

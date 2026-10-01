@@ -76,7 +76,8 @@ export const ListGroupsResponseItem = zod.object({
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
-}))
+})),
+  "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
 })
 export const ListGroupsResponse = zod.array(ListGroupsResponseItem)
 
@@ -123,7 +124,25 @@ export const CreateGroupResponse = zod.object({
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
-}))
+})),
+  "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
+})
+
+
+/**
+ * @summary Update a group's permissions (admin only)
+ */
+export const UpdateGroupPermissionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateGroupPermissionsBody = zod.object({
+  "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
+})
+
+export const UpdateGroupPermissionsResponse = zod.object({
+  "id": zod.int().optional(),
+  "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional()
 })
 
 
@@ -173,7 +192,8 @@ export const UpdateGroupResponse = zod.object({
   "organizationId": zod.int().nullish(),
   "organizationName": zod.string().nullish(),
   "groupPermissions": zod.array(zod.string()).nullish()
-}))
+})),
+  "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
 })
 
 
@@ -580,7 +600,7 @@ export const ListTicketsResponseItem = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -712,7 +732,7 @@ export const CreateTicketResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -819,7 +839,7 @@ export const GetTicketResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -946,7 +966,7 @@ export const UpdateTicketResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1067,7 +1087,7 @@ export const CloneTicketResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1189,7 +1209,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1296,7 +1316,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2118,7 +2138,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2222,7 +2242,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2326,7 +2346,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2654,7 +2674,7 @@ export const GetClientResponse = zod.object({
   "createdAt": zod.coerce.date().optional(),
   "closedAt": zod.coerce.date().nullish(),
   "workedMinutes": zod.int().nullish(),
-  "workedBillingStatus": zod.enum(['unbilled', 'billed']).optional(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
   "visibility": zod.enum(['organization', 'admins']).optional(),
   "assignedToName": zod.string().nullish()
 })).optional()

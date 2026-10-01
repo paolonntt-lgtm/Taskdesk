@@ -6,8 +6,8 @@ import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
-import { hasGroupPermission } from "../lib/groupPermissions";
-import { isValidWorkedMinutes } from "../lib/workedTime";
+import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
+import { isValidWorkedMinutes, redactWorkedHours } from "../lib/workedTime";
 import { permanentlyDeleteTicket } from "../lib/ticketTrash";
 import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
 
@@ -123,6 +123,13 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
 
   const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled } = req.query as Record<string, string>;
 
@@ -329,7 +336,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   }));
 
   res.setHeader("Cache-Control", "no-store");
-  res.json(result);
+  res.json(result.map((ticket) => redactWorkedHours(ticket, canViewWorkedHours)));
 });
 
 router.get("/tickets/trash", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -570,7 +577,16 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     ticketClient = c ?? null;
   }
 
-  res.status(201).json(buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0, null, ticketClient));
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    currentUser.organizationId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.status(201).json(redactWorkedHours(
+    buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0, null, ticketClient),
+    canViewWorkedHours,
+  ));
 });
 
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -633,7 +649,16 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     ticketClient = c ?? null;
   }
 
-  res.json(buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient));
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(redactWorkedHours(
+    buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient),
+    canViewWorkedHours,
+  ));
 });
 
 // Admin-only visibility switch for tickets created through private email channels.
@@ -723,6 +748,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // Check group permissions for non-admins (must happen before the 403 gate)
   const canChangeStatus = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    isAdmin,
+  );
 
   // The ticket assignee can also change status / resolve, even without a group permission
   const isAssignee = existing.assignedTo === currentUser.id;
@@ -1035,7 +1066,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient));
+  res.json(redactWorkedHours(
+    buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient),
+    canViewWorkedHours,
+  ));
 });
 
 router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): Promise<void> => {

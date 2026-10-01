@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetClient200TicketsItemWorkedBillingStatus = typeof GetClient200TicketsItemWorkedBillingStatus[keyof typeof GetClient200TicketsItemWorkedBillingStatus];
+export type GetClient200TicketsItemWorkedBillingStatus = typeof GetClient200TicketsItemWorkedBillingStatus[keyof typeof GetClient200TicketsItemWorkedBillingStatus] | null;
 
 
 export const GetClient200TicketsItemWorkedBillingStatus = {

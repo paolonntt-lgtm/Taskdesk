@@ -18,3 +18,8 @@ export function parseWorkedTimeFields(
 export function isValidWorkedMinutes(value: unknown): value is number | null | undefined {
   return value == null || (typeof value === "number" && Number.isInteger(value) && value >= 0);
 }
+
+export function redactWorkedHours<T extends object>(ticket: T, canViewWorkedHours: boolean): T {
+  if (canViewWorkedHours) return ticket;
+  return { ...ticket, workedMinutes: null, workedBillingStatus: null } as T;
+}

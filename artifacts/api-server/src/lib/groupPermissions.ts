@@ -1,6 +1,8 @@
 import { eq, and } from "drizzle-orm";
 import { db, groupMembersTable, groupsTable } from "@workspace/db";
 
+export const VIEW_WORKED_HOURS_PERMISSION = "view_worked_hours";
+
 export async function hasGroupPermission(
   userId: number,
   organizationId: number | null,

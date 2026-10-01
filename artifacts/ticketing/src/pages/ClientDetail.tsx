@@ -309,6 +309,7 @@ export default function ClientDetail() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const userGroupPerms: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
+  const canViewWorkedHours = isAdmin || userGroupPerms.includes('view_worked_hours');
   const canManageSections = isAdmin || userGroupPerms.includes('manage_client_sections');
   const canEditSectionContent = isAdmin || userGroupPerms.includes('edit_client_section_content');
   const qc = useQueryClient();
@@ -1221,7 +1222,9 @@ export default function ClientDetail() {
       )}
 
       <Box mb={3}>
-        <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
+        {canViewWorkedHours && (
+          <WorkedHoursReport clientId={clientId} tickets={tickets} isAdmin={isAdmin} />
+        )}
       </Box>
 
       {/* Rename Dialog */}

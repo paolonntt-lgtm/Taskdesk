@@ -123,6 +123,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /groups/{id}/permissions:
+    patch:
+      operationId: updateGroupPermissions
+      tags: [groups]
+      summary: Update a group's permissions (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+      responses:
+        "200":
+          description: Group permissions updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                      enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+        "400":
+          description: Invalid permissions
+        "403":
+          description: Forbidden
+        "404":
+          description: Group not found
+
   /groups/{id}:
     put:
       operationId: updateGroup
@@ -1720,6 +1766,7 @@ paths:
                             workedBillingStatus:
                               type: string
                               enum: [unbilled, billed]
+                              nullable: true
                             visibility:
                               type: string
                               enum: [organization, admins]
@@ -2714,6 +2761,7 @@ components:
         workedBillingStatus:
           type: string
           enum: [unbilled, billed]
+          nullable: true
         clientId:
           type: integer
           nullable: true
@@ -3586,12 +3634,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/User"
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
       required:
         - id
         - name
         - createdAt
         - memberCount
         - members
+        - permissions
 
     GroupInput:
       type: object

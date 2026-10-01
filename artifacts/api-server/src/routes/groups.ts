@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-const ALLOWED_PERMISSIONS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments'] as const;
+const ALLOWED_PERMISSIONS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'] as const;
 type GroupPermission = typeof ALLOWED_PERMISSIONS[number];
 
 function parsePermissions(raw: string | null | undefined): GroupPermission[] {

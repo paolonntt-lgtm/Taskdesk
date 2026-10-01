@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TicketWorkedBillingStatus = typeof TicketWorkedBillingStatus[keyof typeof TicketWorkedBillingStatus];
+export type TicketWorkedBillingStatus = typeof TicketWorkedBillingStatus[keyof typeof TicketWorkedBillingStatus] | null;
 
 
 export const TicketWorkedBillingStatus = {

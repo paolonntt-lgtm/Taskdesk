@@ -3127,6 +3127,16 @@ function GroupsManagementTab() {
                 disabled={permissionsSaving}
               />
             </Box>
+            <Divider />
+            <Box display="flex" alignItems="center" justifyContent="space-between" py={1}>
+              <Typography variant="body2">{tg.permViewWorkedHours}</Typography>
+              <Switch
+                size="small"
+                checked={permissionsDraft.includes('view_worked_hours')}
+                onChange={() => togglePermission('view_worked_hours')}
+                disabled={permissionsSaving}
+              />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

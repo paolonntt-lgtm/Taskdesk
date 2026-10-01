@@ -3,6 +3,8 @@ import { eq, sql, and, gte, isNotNull, isNull, inArray, lt, notInArray, asc } fr
 import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
 import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
 import { getTrialStatus } from "../lib/trialStatus";
+import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
+import { redactWorkedHours } from "../lib/workedTime";
 
 async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
   if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
@@ -311,13 +313,19 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
   const userMap = new Map(users.map((u) => [u.id, u]));
 
   const withChecklist = await addChecklistProgress(tickets);
-  res.json(withChecklist.map((t) => ({
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(withChecklist.map((t) => redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  })));
+  }, canViewWorkedHours)));
 });
 
 router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => {
@@ -354,13 +362,19 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
   const userMap = new Map(users.map((u) => [u.id, u]));
 
   const withChecklist = await addChecklistProgress(tickets);
-  res.json(withChecklist.map((t) => ({
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(withChecklist.map((t) => redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  })));
+  }, canViewWorkedHours)));
 });
 
 router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<void> => {
@@ -426,13 +440,19 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
   const userMap = new Map(users.map((u) => [u.id, u]));
 
   const withChecklist = await addChecklistProgress(tickets);
-  res.json(withChecklist.map((t) => ({
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(withChecklist.map((t) => redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  })));
+  }, canViewWorkedHours)));
 });
 
 router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void> => {
@@ -452,13 +472,19 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
     .orderBy(sql`updated_at DESC`)
     .limit(200);
 
-  res.json(tickets.map((t) => ({
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(tickets.map((t) => redactWorkedHours({
     ...t,
     creator: null,
     assignee: null,
     commentCount: 0,
     noteCount: 0,
-  })));
+  }, canViewWorkedHours)));
 });
 
 router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> => {
@@ -652,13 +678,19 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
   const userMap = new Map(users.map((u) => [u.id, u]));
 
   const withChecklist = await addChecklistProgress(tickets);
-  res.json(withChecklist.map((t) => ({
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+  res.json(withChecklist.map((t) => redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  })));
+  }, canViewWorkedHours)));
 });
 
 router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> => {

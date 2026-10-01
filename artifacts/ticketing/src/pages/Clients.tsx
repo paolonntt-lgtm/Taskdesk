@@ -143,6 +143,8 @@ export default function Clients() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const userGroupPermissions: string[] = ((user as any)?.groupPermissions as string[] | undefined) ?? [];
+  const canViewWorkedHours = isAdmin || userGroupPermissions.includes('view_worked_hours');
 
   const [search, setSearch] = useState('');
   const { data: organizationSettings } = useQuery<{ clientsEnabled?: boolean; workedTimeEnabled?: boolean }>({
@@ -154,7 +156,8 @@ export default function Clients() {
     },
     staleTime: 5 * 60_000,
   });
-  const canFilterByUnbilledWorkedTime = organizationSettings != null
+  const canFilterByUnbilledWorkedTime = canViewWorkedHours
+    && organizationSettings != null
     && organizationSettings.clientsEnabled !== false
     && organizationSettings.workedTimeEnabled !== false;
   const [unbilledOnly, setUnbilledOnly] = useState(false);

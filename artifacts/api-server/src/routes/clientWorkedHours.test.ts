@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
   clientsTable,
+  groupsTable,
+  groupMembersTable,
   organizationsTable,
   pool,
   sessionsTable,
@@ -21,6 +23,7 @@ let server: Server;
 let baseUrl: string;
 let organizationId: number;
 let clientId: number;
+let groupId: number;
 let adminId: number;
 let userId: number;
 let adminSessionId: string;
@@ -66,6 +69,12 @@ describe("client worked-hours report", () => {
       })
       .returning({ id: usersTable.id });
     userId = user.id;
+
+    const [group] = await db.insert(groupsTable)
+      .values({ name: `Worked Hours Viewers ${runId}`, organizationId, permissions: "[]" })
+      .returning({ id: groupsTable.id });
+    groupId = group.id;
+    await db.insert(groupMembersTable).values({ groupId, userId });
 
     const [client] = await db.insert(clientsTable)
       .values({ organizationId, name: "Worked Hours Client", slug: `worked-hours-${runId}` })
@@ -123,6 +132,8 @@ describe("client worked-hours report", () => {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
     await db.delete(ticketsTable).where(inArray(ticketsTable.id, [publicTicketId, privateTicketId]));
+    await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
+    await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
     if (createdClientIds.length > 0) {
       await db.delete(clientsTable).where(inArray(clientsTable.id, createdClientIds));
     }
@@ -134,14 +145,52 @@ describe("client worked-hours report", () => {
   });
 
   it("filters private worked time, defaults to unbilled, and persists admin changes in backups", async () => {
-    const initialUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
-    expect(initialUnbilledClients.status).toBe(200);
-    expect(initialUnbilledClients.body.map((client: any) => client.id)).toContain(clientId);
+    const deniedFilter = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(deniedFilter.status).toBe(403);
+
+    const hiddenClient = await request(`/api/clients/${clientId}`, userSessionId);
+    expect(hiddenClient.status).toBe(200);
+    expect(hiddenClient.body.tickets[0].workedMinutes).toBeNull();
+    expect(hiddenClient.body.tickets[0].workedBillingStatus).toBeNull();
+
+    const hiddenTicket = await request(`/api/tickets/${publicTicketId}`, userSessionId);
+    expect(hiddenTicket.status).toBe(200);
+    expect(hiddenTicket.body.workedMinutes).toBeNull();
+    expect(hiddenTicket.body.workedBillingStatus).toBeNull();
+    const hiddenRecentTickets = await request("/api/stats/recent-tickets", userSessionId);
+    const hiddenRecentTicket = hiddenRecentTickets.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(hiddenRecentTicket.workedMinutes).toBeNull();
+    expect(hiddenRecentTicket.workedBillingStatus).toBeNull();
+
+    const grantPermission = await request(`/api/groups/${groupId}/permissions`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ permissions: ["view_worked_hours"] }),
+    });
+    expect(grantPermission.status).toBe(200);
 
     const userResponse = await request(`/api/clients/${clientId}`, userSessionId);
     expect(userResponse.status).toBe(200);
     expect(userResponse.body.tickets.map((ticket: any) => ticket.id)).toEqual([publicTicketId]);
     expect(userResponse.body.tickets[0].workedBillingStatus).toBe("unbilled");
+    expect(userResponse.body.tickets[0].workedMinutes).toBe(90);
+
+    const visibleTicket = await request(`/api/tickets/${publicTicketId}`, userSessionId);
+    expect(visibleTicket.body.workedMinutes).toBe(90);
+    expect(visibleTicket.body.workedBillingStatus).toBe("unbilled");
+    const visibleRecentTickets = await request("/api/stats/recent-tickets", userSessionId);
+    const visibleRecentTicket = visibleRecentTickets.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(visibleRecentTicket.workedMinutes).toBe(90);
+    expect(visibleRecentTicket.workedBillingStatus).toBe("unbilled");
+
+    const visibleTicketList = await request("/api/tickets", userSessionId);
+    expect(visibleTicketList.status).toBe(200);
+    const listedPublicTicket = visibleTicketList.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(listedPublicTicket.workedMinutes).toBe(90);
+    expect(listedPublicTicket.workedBillingStatus).toBe("unbilled");
+
+    const initialUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(initialUnbilledClients.status).toBe(200);
+    expect(initialUnbilledClients.body.map((client: any) => client.id)).toContain(clientId);
 
     const adminResponse = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(adminResponse.status).toBe(200);
@@ -171,6 +220,23 @@ describe("client worked-hours report", () => {
 
     const refreshedResponse = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(refreshedResponse.body.tickets.find((ticket: any) => ticket.id === publicTicketId).workedBillingStatus).toBe("billed");
+
+    const userAfterBilling = await request(`/api/clients/${clientId}`, userSessionId);
+    expect(userAfterBilling.body.tickets[0].workedBillingStatus).toBe("billed");
+    const userAfterBillingFilter = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(userAfterBillingFilter.status).toBe(200);
+    expect(userAfterBillingFilter.body.map((client: any) => client.id)).not.toContain(clientId);
+
+    const revokePermission = await request(`/api/groups/${groupId}/permissions`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ permissions: [] }),
+    });
+    expect(revokePermission.status).toBe(200);
+    const userAfterRevocation = await request(`/api/clients/${clientId}`, userSessionId);
+    expect(userAfterRevocation.body.tickets[0].workedMinutes).toBeNull();
+    expect(userAfterRevocation.body.tickets[0].workedBillingStatus).toBeNull();
+    const revokedFilter = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(revokedFilter.status).toBe(403);
 
     const backup = await buildBackupPayload(organizationId);
     const backupTicket = backup?.data.tickets.find((ticket: any) => ticket.id === publicTicketId);

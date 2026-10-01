@@ -233,7 +233,7 @@ export const TicketVisibility = {
   admins: 'admins',
 } as const;
 
-export type TicketWorkedBillingStatus = typeof TicketWorkedBillingStatus[keyof typeof TicketWorkedBillingStatus];
+export type TicketWorkedBillingStatus = typeof TicketWorkedBillingStatus[keyof typeof TicketWorkedBillingStatus] | null;
 
 
 export const TicketWorkedBillingStatus = {
@@ -641,6 +641,21 @@ export interface ClientNoteWithClient {
   updatedAt: string;
 }
 
+export type GroupWithMembersPermissionsItem = typeof GroupWithMembersPermissionsItem[keyof typeof GroupWithMembersPermissionsItem];
+
+
+export const GroupWithMembersPermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
 export interface GroupWithMembers {
   id: number;
   name: string;
@@ -648,6 +663,7 @@ export interface GroupWithMembers {
   createdAt: string;
   memberCount: number;
   members: User[];
+  permissions: GroupWithMembersPermissionsItem[];
 }
 
 export interface GroupInput {
@@ -815,6 +831,45 @@ q: string;
 limit?: number;
 };
 
+export type UpdateGroupPermissionsBodyPermissionsItem = typeof UpdateGroupPermissionsBodyPermissionsItem[keyof typeof UpdateGroupPermissionsBodyPermissionsItem];
+
+
+export const UpdateGroupPermissionsBodyPermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
+export type UpdateGroupPermissionsBody = {
+  permissions: UpdateGroupPermissionsBodyPermissionsItem[];
+};
+
+export type UpdateGroupPermissions200PermissionsItem = typeof UpdateGroupPermissions200PermissionsItem[keyof typeof UpdateGroupPermissions200PermissionsItem];
+
+
+export const UpdateGroupPermissions200PermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
+export type UpdateGroupPermissions200 = {
+  id?: number;
+  permissions?: UpdateGroupPermissions200PermissionsItem[];
+};
+
 export type CompleteOnboardingBodyBusinessType = typeof CompleteOnboardingBodyBusinessType[keyof typeof CompleteOnboardingBodyBusinessType];
 
 
@@ -879,7 +934,7 @@ export type ImportClientsBody = {
   rows: ClientImportRow[];
 };
 
-export type GetClient200TicketsItemWorkedBillingStatus = typeof GetClient200TicketsItemWorkedBillingStatus[keyof typeof GetClient200TicketsItemWorkedBillingStatus];
+export type GetClient200TicketsItemWorkedBillingStatus = typeof GetClient200TicketsItemWorkedBillingStatus[keyof typeof GetClient200TicketsItemWorkedBillingStatus] | null;
 
 
 export const GetClient200TicketsItemWorkedBillingStatus = {

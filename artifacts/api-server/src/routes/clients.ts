@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-import { hasGroupPermission } from "../lib/groupPermissions";
+import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
+import { redactWorkedHours } from "../lib/workedTime";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -155,6 +156,19 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   const { search, sort, order, hasUnbilledWorkedTime } = parsed.data;
+
+  if (hasUnbilledWorkedTime === "true") {
+    const canViewWorkedHours = await hasGroupPermission(
+      currentUser.id,
+      orgId,
+      VIEW_WORKED_HOURS_PERMISSION,
+      currentUser.role === "admin",
+    );
+    if (!canViewWorkedHours) {
+      res.status(403).json({ error: "Permission to view worked hours is required" });
+      return;
+    }
+  }
 
   const conditions: any[] = [eq(clientsTable.organizationId, orgId)];
 
@@ -352,6 +366,13 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
 
   if (!client) { res.status(404).json({ error: "Not found" }); return; }
 
+  const canViewWorkedHours = await hasGroupPermission(
+    currentUser.id,
+    currentUser.organizationId,
+    VIEW_WORKED_HOURS_PERMISSION,
+    currentUser.role === "admin",
+  );
+
   if (!client.slug) {
     const slug = await generateUniqueSlug(client.name, currentUser.organizationId, client.id);
     await db
@@ -385,7 +406,7 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
     ))
     .orderBy(ticketsTable.createdAt);
 
-  res.json({ ...client, tickets });
+  res.json({ ...client, tickets: tickets.map((ticket) => redactWorkedHours(ticket, canViewWorkedHours)) });
 });
 
 const WorkedBillingStatus = z.enum(["unbilled", "billed"]);
