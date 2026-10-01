@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
 import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission } from "../lib/groupPermissions";
@@ -65,6 +65,7 @@ const ImportRow = z.object({
 
 const ClientsQuerySchema = z.object({
   search: z.string().optional(),
+  hasUnbilledWorkedTime: z.enum(["true", "false"]).optional(),
   sort: z.enum(["name", "createdAt"]).optional().default("name"),
   order: z.enum(["asc", "desc"]).optional().default("asc"),
 });
@@ -153,7 +154,7 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid query parameters" });
     return;
   }
-  const { search, sort, order } = parsed.data;
+  const { search, sort, order, hasUnbilledWorkedTime } = parsed.data;
 
   const conditions: any[] = [eq(clientsTable.organizationId, orgId)];
 
@@ -164,6 +165,29 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
         ilike(clientsTable.email, `%${search.trim()}%`),
         ilike(clientsTable.vatNumber, `%${search.trim()}%`),
         ilike(clientsTable.taxCode, `%${search.trim()}%`),
+      )
+    );
+  }
+
+  if (hasUnbilledWorkedTime === "true") {
+    const workedTicketConditions = [
+      eq(ticketsTable.organizationId, orgId),
+      isNotNull(ticketsTable.clientId),
+      isNotNull(ticketsTable.workedMinutes),
+      isNotNull(ticketsTable.closedAt),
+      isNull(ticketsTable.deletedAt),
+      eq(ticketsTable.workedBillingStatus, "unbilled"),
+    ];
+    if (currentUser.role !== "admin") {
+      workedTicketConditions.push(eq(ticketsTable.visibility, "organization"));
+    }
+    conditions.push(
+      inArray(
+        clientsTable.id,
+        db
+          .select({ clientId: ticketsTable.clientId })
+          .from(ticketsTable)
+          .where(and(...workedTicketConditions))
       )
     );
   }

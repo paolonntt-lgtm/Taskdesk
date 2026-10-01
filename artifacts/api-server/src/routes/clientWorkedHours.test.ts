@@ -134,6 +134,10 @@ describe("client worked-hours report", () => {
   });
 
   it("filters private worked time, defaults to unbilled, and persists admin changes in backups", async () => {
+    const initialUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(initialUnbilledClients.status).toBe(200);
+    expect(initialUnbilledClients.body.map((client: any) => client.id)).toContain(clientId);
+
     const userResponse = await request(`/api/clients/${clientId}`, userSessionId);
     expect(userResponse.status).toBe(200);
     expect(userResponse.body.tickets.map((ticket: any) => ticket.id)).toEqual([publicTicketId]);
@@ -157,13 +161,21 @@ describe("client worked-hours report", () => {
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.workedBillingStatus).toBe("billed");
 
+    const userUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
+    expect(userUnbilledClients.status).toBe(200);
+    expect(userUnbilledClients.body.map((client: any) => client.id)).not.toContain(clientId);
+
+    const adminUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", adminSessionId);
+    expect(adminUnbilledClients.status).toBe(200);
+    expect(adminUnbilledClients.body.map((client: any) => client.id)).toContain(clientId);
+
     const refreshedResponse = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(refreshedResponse.body.tickets.find((ticket: any) => ticket.id === publicTicketId).workedBillingStatus).toBe("billed");
 
     const backup = await buildBackupPayload(organizationId);
     const backupTicket = backup?.data.tickets.find((ticket: any) => ticket.id === publicTicketId);
     expect(backupTicket?.workedBillingStatus).toBe("billed");
-  });
+  }, 30_000);
 
   it("allows a standard organization member to create a client", async () => {
     const response = await request("/api/clients", userSessionId, {

@@ -2519,7 +2519,8 @@ export const DeleteKnowledgeArticleResponse = zod.object({
  * @summary List clients for the current organization
  */
 export const ListClientsQueryParams = zod.object({
-  "search": zod.coerce.string().optional()
+  "search": zod.coerce.string().optional(),
+  "hasUnbilledWorkedTime": zod.coerce.boolean().optional().describe('Return only clients with at least one closed ticket that has worked time still marked as unbilled.')
 })
 
 export const ListClientsResponseItem = zod.object({

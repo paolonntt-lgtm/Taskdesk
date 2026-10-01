@@ -20,6 +20,7 @@ import {
 import { AccessTime, ReceiptLong, Search } from '@mui/icons-material';
 import {
   getGetClientQueryKey,
+  getListClientsQueryKey,
   useUpdateClientTicketBillingStatus,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -142,7 +143,10 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
         ticketId,
         data: { status },
       });
-      await queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) }),
+        queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+      ]);
     } finally {
       setUpdatingTicketId(null);
     }

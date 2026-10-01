@@ -1597,6 +1597,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: hasUnbilledWorkedTime
+          in: query
+          required: false
+          description: Return only clients with at least one closed ticket that has worked time still marked as unbilled.
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of clients

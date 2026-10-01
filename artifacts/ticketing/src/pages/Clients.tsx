@@ -3,12 +3,12 @@ import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent,
   DialogActions, Alert, InputAdornment, Tooltip, Snackbar, Chip,
-  LinearProgress, Divider,
+  LinearProgress, Divider, Checkbox, FormControlLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, Search, OpenInNew, Upload, FileUpload } from '@mui/icons-material';
 import { useListClients, useCreateClient, useUpdateClient, useDeleteClient, getListClientsQueryKey } from '@workspace/api-client-react';
 import type { Client, ClientInput } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -145,7 +145,24 @@ export default function Clients() {
   const isAdmin = user?.role === 'admin';
 
   const [search, setSearch] = useState('');
-  const { data: clients = [], isLoading } = useListClients({ search: search || undefined });
+  const { data: organizationSettings } = useQuery<{ clientsEnabled?: boolean; workedTimeEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('organization settings unavailable');
+      return response.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+  const canFilterByUnbilledWorkedTime = organizationSettings != null
+    && organizationSettings.clientsEnabled !== false
+    && organizationSettings.workedTimeEnabled !== false;
+  const [unbilledOnly, setUnbilledOnly] = useState(false);
+  const isFilteringUnbilled = canFilterByUnbilledWorkedTime && unbilledOnly;
+  const { data: clients = [], isLoading } = useListClients({
+    search: search || undefined,
+    ...(isFilteringUnbilled ? { hasUnbilledWorkedTime: true } : {}),
+  });
   const { data: allClients = [] } = useListClients({});
 
   const createClient = useCreateClient();
@@ -335,7 +352,7 @@ export default function Clients() {
         </Box>
       </Box>
 
-      <Box mb={2}>
+      <Box mb={2} display="flex" alignItems="center" gap={2} flexWrap="wrap">
         <TextField
           size="small"
           placeholder={tc.searchPlaceholder}
@@ -344,6 +361,19 @@ export default function Clients() {
           InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
           sx={{ minWidth: 260 }}
         />
+        {canFilterByUnbilledWorkedTime && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={unbilledOnly}
+                onChange={(event) => setUnbilledOnly(event.target.checked)}
+              />
+            }
+            label={tc.filterClientsWithUnbilledWorkedTime}
+            sx={{ '& .MuiFormControlLabel-label': { fontSize: 13 } }}
+          />
+        )}
       </Box>
 
       <TableContainer component={Paper} variant="outlined">
@@ -361,7 +391,7 @@ export default function Clients() {
             {!isLoading && clients.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  {tc.noClients}
+                  {isFilteringUnbilled ? tc.noClientsWithUnbilledWorkedTime : tc.noClients}
                 </TableCell>
               </TableRow>
             )}

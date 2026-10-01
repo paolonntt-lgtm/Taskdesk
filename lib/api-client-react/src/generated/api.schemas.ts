@@ -869,6 +869,10 @@ scheduled?: boolean;
 
 export type ListClientsParams = {
 search?: string;
+/**
+ * Return only clients with at least one closed ticket that has worked time still marked as unbilled.
+ */
+hasUnbilledWorkedTime?: boolean;
 };
 
 export type ImportClientsBody = {
