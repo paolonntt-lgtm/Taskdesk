@@ -30,13 +30,28 @@ function sendStripeError(res: any, err: any): void {
   res.status(500).json({ error: err?.message ?? 'Stripe request failed' });
 }
 
+function isPlanProduct(product: any): boolean {
+  if (!product || product.metadata?.addon === 'seat') return false;
+  const seats = product.metadata?.seats;
+  return seats === 'unlimited' || (typeof seats === 'string' && /^[1-9]\d*$/.test(seats));
+}
+
+function isSupportedPlanPrice(price: any, product: any): boolean {
+  return (
+    price?.active === true &&
+    price.currency === 'eur' &&
+    ['month', 'year'].includes(price.recurring?.interval) &&
+    isPlanProduct(product)
+  );
+}
+
 router.get('/stripe/products', async (_req, res) => {
   try {
     const stripe = await getUncachableStripeClient();
     const products = await stripe.products.list({ active: true, expand: ['data.default_price'] });
 
     const result = await Promise.all(
-      products.data.map(async (product) => {
+      products.data.filter(isPlanProduct).map(async (product) => {
         const prices = await stripe.prices.list({ product: product.id, active: true });
         const seatsMeta = product.metadata?.seats;
         let seats: number | null = null;
@@ -127,6 +142,14 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
     const parsed = priceIdBody.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
     const { priceId } = parsed.data;
+
+    const stripe = await getUncachableStripeClient();
+    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    const product = price.product as any;
+    if (!isSupportedPlanPrice(price, product)) {
+      res.status(400).json({ error: 'INVALID_PLAN_PRICE' });
+      return;
+    }
 
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
@@ -228,14 +251,17 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
     const stripe = await getUncachableStripeClient();
     const newPrice = await stripe.prices.retrieve(priceId, { expand: ['product'] });
     const newProduct = newPrice.product as any;
+    if (!isSupportedPlanPrice(newPrice, newProduct)) {
+      res.status(400).json({ error: 'INVALID_PLAN_PRICE', message: 'Il prezzo selezionato non è un piano disponibile.' });
+      return;
+    }
     const newSeatsMeta = newProduct?.metadata?.seats;
     let newSeats: number | null = null;
     let newUnlimited = false;
-    if (newSeatsMeta === 'unlimited' || !newSeatsMeta) newUnlimited = true;
+    if (newSeatsMeta === 'unlimited') newUnlimited = true;
     else {
       const n = parseInt(String(newSeatsMeta), 10);
       if (!isNaN(n) && n > 0) newSeats = n;
-      else newUnlimited = true;
     }
 
     if (!newUnlimited && newSeats !== null && newSeats < usage.usedSeats) {
@@ -281,7 +307,9 @@ router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): 
       return;
     }
     const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
-    const price = prices.data.find((p) => p.recurring?.interval === 'month') ?? prices.data[0];
+    const price = prices.data.find((p) =>
+      p.recurring?.interval === 'month' && p.currency === 'eur' && p.unit_amount === 600
+    );
     if (!price) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED' });
       return;
@@ -335,7 +363,9 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
       return;
     }
     const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
-    const addonPrice = prices.data.find((p) => p.recurring?.interval === 'month') ?? prices.data[0];
+    const addonPrice = prices.data.find((p) =>
+      p.recurring?.interval === 'month' && p.currency === 'eur' && p.unit_amount === 600
+    );
     if (!addonPrice) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED', message: 'Prezzo addon non trovato.' });
       return;

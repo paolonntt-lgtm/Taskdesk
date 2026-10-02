@@ -53,6 +53,9 @@ async function buildAll() {
       "handlebars",
       "knex",
       "typeorm",
+      // stripe-replit-sync resolves its SQL migrations relative to its own
+      // package files; bundling it into dist breaks that path lookup.
+      "stripe-replit-sync",
       "protobufjs",
       "onnxruntime-node",
       "@tensorflow/*",

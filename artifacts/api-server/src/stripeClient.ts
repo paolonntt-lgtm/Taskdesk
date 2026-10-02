@@ -60,18 +60,14 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
     throw new StripeNotConfiguredError();
   }
 
-  const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-
-  // Try the preferred environment first, then fall back to the other
-  const preferred: Array<'production' | 'development'> = isProduction
-    ? ['production', 'development']
-    : ['development', 'production'];
-
-  for (const env of preferred) {
-    const settings = await fetchConnectionSettings(hostname, xReplitToken, env);
-    if (settings) {
-      return { publishableKey: settings.publishable, secretKey: settings.secret };
-    }
+  // Never fall back across environments: a missing live connection must not
+  // silently route production billing to test mode (or vice versa).
+  const targetEnvironment = process.env.REPLIT_DEPLOYMENT === '1'
+    ? 'production'
+    : 'development';
+  const settings = await fetchConnectionSettings(hostname, xReplitToken, targetEnvironment);
+  if (settings) {
+    return { publishableKey: settings.publishable, secretKey: settings.secret };
   }
 
   throw new StripeNotConfiguredError();
