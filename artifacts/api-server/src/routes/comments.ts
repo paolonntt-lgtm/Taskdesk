@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray, and, sql, isNull } from "drizzle-orm";
-import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
+import { db, ticketCommentsTable, ticketsTable, usersTable, ticketActivityLogsTable, commentReactionsTable, inboundEmailChannelsTable, ticketAttachmentsTable, groupsTable, groupMembersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
@@ -283,32 +283,92 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
     });
   }
 
-  // Notify subscribers and handle @mentions
-  const mentionedNames = extractMentionedNames(parsed.data.commentText);
-  const mentionedIds: number[] = [];
-  if (mentionedNames.length > 0) {
-    const orgIdForMentions = currentUser.organizationId;
-    const orgUsers = orgIdForMentions != null
-      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.organizationId, orgIdForMentions))
-      : [];
+  // Keep the ticket opener subscribed, including for older tickets created
+  // before opener subscriptions were added. This ensures they receive this
+  // comment notification as well as notifications for later comments.
+  if (ticket.organizationId != null) {
+    await subscribeUserToTicket(ticket.createdBy, id, ticket.organizationId);
+  }
+
+  // Notify directly mentioned users and members of mentioned groups.
+  const mentionedNames = [...new Set(extractMentionedNames(parsed.data.commentText))];
+  const mentionedIds = new Set<number>();
+  const organizationId = ticket.organizationId;
+  const ticketNumber = ticket.ticketNumber ?? ticket.id;
+  if (mentionedNames.length > 0 && organizationId != null) {
+    const [orgUsers, groupMembers] = await Promise.all([
+      db
+        .select({ id: usersTable.id, name: usersTable.name })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.organizationId, organizationId),
+          eq(usersTable.isActive, true),
+          ticket.visibility === "admins" ? eq(usersTable.role, "admin") : undefined,
+        )),
+      db
+        .select({
+          userId: groupMembersTable.userId,
+          groupName: groupsTable.name,
+        })
+        .from(groupMembersTable)
+        .innerJoin(groupsTable, eq(groupsTable.id, groupMembersTable.groupId))
+        .innerJoin(usersTable, eq(usersTable.id, groupMembersTable.userId))
+        .where(and(
+          eq(groupsTable.organizationId, organizationId),
+          inArray(groupsTable.name, mentionedNames),
+          eq(usersTable.organizationId, organizationId),
+          eq(usersTable.isActive, true),
+          ticket.visibility === "admins" ? eq(usersTable.role, "admin") : undefined,
+        )),
+    ]);
+
+    const notificationTextByUser = new Map<number, string>();
     for (const mentionedName of mentionedNames) {
-      const mentioned = orgUsers.find((u) => u.name === mentionedName);
-      if (mentioned && mentioned.id !== currentUser.id) {
-        mentionedIds.push(mentioned.id);
-        if (orgIdForMentions != null) {
-          await subscribeUserToTicket(mentioned.id, id, orgIdForMentions);
+      for (const mentioned of orgUsers.filter((user) => user.name === mentionedName)) {
+        if (mentioned.id !== currentUser.id) {
+          notificationTextByUser.set(
+            mentioned.id,
+            `${currentUser.name} ti ha menzionato nel ticket #${ticketNumber}: "${ticket.title}"`,
+          );
         }
-        void createNotificationForUser(
-          mentioned.id,
-          id,
-          `${currentUser.name} ti ha menzionato nel ticket #${id}: "${ticket.title}"`,
-          "ticket_commented"
-        );
+      }
+
+      for (const member of groupMembers) {
+        if (
+          member.groupName === mentionedName &&
+          member.userId !== currentUser.id &&
+          !notificationTextByUser.has(member.userId)
+        ) {
+          notificationTextByUser.set(
+            member.userId,
+            `${currentUser.name} ha menzionato il gruppo "${mentionedName}" nel ticket #${ticketNumber}: "${ticket.title}"`,
+          );
+        }
       }
     }
+
+    for (const [mentionedId, notificationText] of notificationTextByUser) {
+      mentionedIds.add(mentionedId);
+      await subscribeUserToTicket(mentionedId, id, organizationId);
+      await createNotificationForUser(
+        mentionedId,
+        id,
+        notificationText,
+        "ticket_commented",
+        organizationId,
+      );
+    }
   }
-  // Notify existing subscribers (excluding the commenter and mentioned users who already got a targeted notification)
-  void createNotificationsForSubscribers(id, `${currentUser.name} ha commentato il ticket #${id}: "${ticket.title}"`, currentUser.id, "ticket_commented", ticket.organizationId, mentionedIds);
+
+  // Persist in-app notifications before returning the new comment.
+  await createNotificationsForSubscribers(
+    id,
+    `${currentUser.name} ha commentato il ticket #${ticketNumber}: "${ticket.title}"`,
+    currentUser.id,
+    "ticket_commented",
+    organizationId,
+    [...mentionedIds],
+  );
 
   const { passwordHash: _, ...safeUser } = currentUser;
   res.status(201).json({ ...comment, author: safeUser, reactions: [] });

@@ -14,6 +14,7 @@ import {
   ticketChecklistItemsTable,
   ticketCommentsTable,
   ticketInternalNotesTable,
+  ticketSubscriptionsTable,
   ticketsTable,
   usersTable,
 } from "@workspace/db";
@@ -34,10 +35,12 @@ let organizationId: number;
 let otherOrganizationId: number;
 let adminId: number;
 let userId: number;
+let mentionUserId: number;
 let otherAdminId: number;
 let notesGroupId: number;
 let adminSessionId: string;
 let userSessionId: string;
+let mentionUserSessionId: string;
 let otherAdminSessionId: string;
 const privateAttachmentObjectPath = `/objects/${runId}/private.txt`;
 const objectStorageService = new ObjectStorageService();
@@ -88,6 +91,18 @@ describe("manual ticket visibility", () => {
       .returning({ id: usersTable.id });
     adminId = admin.id;
 
+    const [mentionUser] = await db
+      .insert(usersTable)
+      .values({
+        name: "Visibility Mention User",
+        email: `visibility-mention-${runId}@example.test`,
+        passwordHash: "not-used-in-test",
+        role: "user",
+        organizationId,
+      })
+      .returning({ id: usersTable.id });
+    mentionUserId = mentionUser.id;
+
     const [user] = await db
       .insert(usersTable)
       .values({
@@ -130,9 +145,14 @@ describe("manual ticket visibility", () => {
       .returning({ id: groupsTable.id });
     notesGroupId = notesGroup.id;
     await db.insert(groupMembersTable).values({ groupId: notesGroupId, userId });
+    await db.insert(groupMembersTable).values([
+      { groupId: notesGroupId, userId: adminId },
+      { groupId: notesGroupId, userId: mentionUserId },
+    ]);
 
     adminSessionId = await createSession(adminId);
     userSessionId = await createSession(userId);
+    mentionUserSessionId = await createSession(mentionUserId);
     otherAdminSessionId = await createSession(otherAdminId);
 
     server = createServer(app);
@@ -166,11 +186,11 @@ describe("manual ticket visibility", () => {
     }
     await db
       .delete(sessionsTable)
-      .where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId, otherAdminSessionId]));
+      .where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId, mentionUserSessionId, otherAdminSessionId]));
     await db
       .delete(notificationsTable)
-      .where(inArray(notificationsTable.userId, [adminId, userId, otherAdminId]));
-    await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId, otherAdminId]));
+      .where(inArray(notificationsTable.userId, [adminId, userId, mentionUserId, otherAdminId]));
+    await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId, mentionUserId, otherAdminId]));
     await db
       .delete(organizationsTable)
       .where(inArray(organizationsTable.id, [organizationId, otherOrganizationId]));
@@ -402,5 +422,112 @@ describe("manual ticket visibility", () => {
     const reportsResponse = await request("/api/stats/reports-all", userSessionId);
     expect(reportsResponse.status).toBe(200);
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
+  }, 60_000);
+
+  it("notifies ticket openers and users tagged in comments", async () => {
+    const ownerTicketResponse = await request("/api/tickets", userSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Comment notification owner ${runId}`,
+        description: "The ticket opener should receive comment notifications.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(ownerTicketResponse.status).toBe(201);
+    const ownerTicketId = ownerTicketResponse.body.id as number;
+    createdTicketIds.push(ownerTicketId);
+
+    const beforeCommentSubscriptions = await db
+      .select()
+      .from(ticketSubscriptionsTable)
+      .where(eq(ticketSubscriptionsTable.ticketId, ownerTicketId));
+    expect(beforeCommentSubscriptions.some((subscription) => subscription.userId === userId)).toBe(false);
+
+    const ownerCommentResponse = await request(`/api/tickets/${ownerTicketId}/comments`, adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({ commentText: `Owner notification ${runId}` }),
+    });
+    expect(ownerCommentResponse.status).toBe(201);
+
+    const ownerNotifications = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.ticketId, ownerTicketId));
+    expect(ownerNotifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId,
+          type: "ticket_commented",
+          notificationText: expect.stringContaining("ha commentato"),
+        }),
+      ]),
+    );
+
+    const ownerNotificationList = await request("/api/notifications", userSessionId);
+    expect(ownerNotificationList.status).toBe(200);
+    expect(ownerNotificationList.body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ ticketId: ownerTicketId, type: "ticket_commented" })]),
+    );
+
+    const mentionTicketResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Comment notification mention ${runId}`,
+        description: "A tagged user should receive a targeted notification.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(mentionTicketResponse.status).toBe(201);
+    const mentionTicketId = mentionTicketResponse.body.id as number;
+    createdTicketIds.push(mentionTicketId);
+
+    const mentionCommentResponse = await request(`/api/tickets/${mentionTicketId}/comments`, userSessionId, {
+      method: "POST",
+      body: JSON.stringify({ commentText: `@[Visibility Mention User] ${runId}` }),
+    });
+    expect(mentionCommentResponse.status).toBe(201);
+
+    const mentionNotifications = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.ticketId, mentionTicketId));
+    expect(mentionNotifications.filter((notification) =>
+      notification.userId === mentionUserId &&
+      notification.type === "ticket_commented" &&
+      notification.notificationText.includes("ha menzionato")
+    )).toHaveLength(1);
+
+    const groupTicketResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Comment notification group ${runId}`,
+        description: "Members of a tagged group should receive notifications.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(groupTicketResponse.status).toBe(201);
+    const groupTicketId = groupTicketResponse.body.id as number;
+    createdTicketIds.push(groupTicketId);
+
+    const groupCommentResponse = await request(`/api/tickets/${groupTicketId}/comments`, userSessionId, {
+      method: "POST",
+      body: JSON.stringify({ commentText: `@[Visibility test notes ${runId}] ${runId}` }),
+    });
+    expect(groupCommentResponse.status).toBe(201);
+
+    const groupNotifications = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.ticketId, groupTicketId));
+    for (const recipientId of [adminId, mentionUserId]) {
+      expect(groupNotifications.filter((notification) =>
+        notification.userId === recipientId &&
+        notification.type === "ticket_commented" &&
+        notification.notificationText.includes("menzionato il gruppo")
+      )).toHaveLength(1);
+    }
   }, 60_000);
 });
