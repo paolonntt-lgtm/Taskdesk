@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
   Send, Close, ConfirmationNumber,
-  KeyboardArrowDown, KeyboardArrowUp, DeleteOutline,
+  KeyboardArrowDown, KeyboardArrowUp, DeleteOutline, Fullscreen, FullscreenExit,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
@@ -286,6 +286,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<BotAction | null>(() => loadSession()?.pendingAction ?? null);
   const [minimized, setMinimized] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const minimizedRef = useRef(false); // kept in sync; safe to read inside async closures
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -625,12 +626,23 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
     <Box
       sx={{
         position: 'fixed',
-        bottom: { xs: 16, sm: 24 },
-        right: { xs: 16, sm: 24 },
-        width: { xs: 'calc(100vw - 32px)', sm: 380 },
+        ...(expanded && !minimized
+          ? {
+              top: { xs: 0, sm: 24 },
+              right: { xs: 0, sm: 24 },
+              bottom: { xs: 0, sm: 24 },
+              left: { xs: 0, sm: 'auto' },
+              width: { xs: '100vw', sm: 'min(840px, calc(100vw - 48px))' },
+            }
+          : {
+              bottom: { xs: 12, sm: 24 },
+              right: { xs: 12, sm: 24 },
+              width: { xs: 'calc(100vw - 24px)', sm: 520 },
+            }),
         zIndex: theme.zIndex.modal,
         display: 'flex',
         flexDirection: 'column',
+        transition: 'width 180ms ease, top 180ms ease, right 180ms ease, bottom 180ms ease, left 180ms ease',
         // subtle entrance animation
         animation: 'botSlideIn 0.2s ease-out',
         '@keyframes botSlideIn': {
@@ -646,8 +658,18 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          height: minimized ? 'auto' : { xs: '70vh', sm: 520 },
-          maxHeight: minimized ? 'auto' : { xs: '70vh', sm: 520 },
+          height: minimized
+            ? 'auto'
+            : expanded
+              ? { xs: '100dvh', sm: '100%' }
+              : { xs: '82dvh', sm: 'min(82dvh, 720px)' },
+          maxHeight: minimized
+            ? 'none'
+            : expanded
+              ? { xs: '100dvh', sm: 'none' }
+              : { xs: '82dvh', sm: 'min(82dvh, 720px)' },
+          borderRadius: expanded && !minimized ? { xs: 0, sm: 3 } : 3,
+          transition: 'height 180ms ease, max-height 180ms ease, border-radius 180ms ease',
           border: '1px solid',
           borderColor: 'divider',
         }}
@@ -704,6 +726,23 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
               <Tooltip title={lang === 'it' ? 'Nuova conversazione' : 'New conversation'}>
                 <IconButton size="small" onClick={clearChat} sx={{ color: 'text.secondary' }}>
                   <DeleteOutline fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {!minimized && (
+              <Tooltip title={expanded
+                ? (lang === 'it' ? 'Riduci finestra' : 'Restore window size')
+                : (lang === 'it' ? 'Espandi finestra' : 'Expand window')}>
+                <IconButton
+                  size="small"
+                  aria-label={expanded
+                    ? (lang === 'it' ? 'Riduci finestra' : 'Restore window size')
+                    : (lang === 'it' ? 'Espandi finestra' : 'Expand window')}
+                  data-testid="button-toggle-bot-size"
+                  onClick={() => setExpanded((current) => !current)}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  {expanded ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
                 </IconButton>
               </Tooltip>
             )}
