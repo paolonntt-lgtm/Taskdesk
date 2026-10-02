@@ -67,6 +67,54 @@ import ShortcutsDialog from './ShortcutsDialog';
 import { trackEvent } from '../lib/analytics';
 
 const drawerWidth = 264;
+const botFabPositionStorageKey = 'td_bot_fab_position_v1';
+
+interface BotFabPosition {
+  left: number;
+  top: number;
+}
+
+interface BotFabDragState extends BotFabPosition {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
+
+function readBotFabPosition(): BotFabPosition | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = JSON.parse(localStorage.getItem(botFabPositionStorageKey) ?? 'null');
+    return Number.isFinite(value?.left) && value.left >= 0 &&
+      Number.isFinite(value?.top) && value.top >= 0
+      ? { left: value.left, top: value.top }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBotFabPosition(position: BotFabPosition): void {
+  try {
+    localStorage.setItem(botFabPositionStorageKey, JSON.stringify(position));
+  } catch {
+    // The drag still works for this session when storage is unavailable.
+  }
+}
+
+function constrainBotFabPosition(
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): BotFabPosition {
+  const maxLeft = Math.max(0, window.innerWidth - width);
+  const maxTop = Math.max(0, window.innerHeight - height);
+  return {
+    left: Math.round(Math.min(maxLeft, Math.max(0, left))),
+    top: Math.round(Math.min(maxTop, Math.max(0, top))),
+  };
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -90,12 +138,138 @@ export default function Layout({ children }: LayoutProps) {
   });
   const [botUnreadCount, setBotUnreadCount] = useState(0);
   const [dailyReportUnread, setDailyReportUnread] = useState(0);
+  const [botFabPosition, setBotFabPosition] = useState<BotFabPosition | null>(() => readBotFabPosition());
+  const [isDraggingBotFab, setIsDraggingBotFab] = useState(false);
+  const botFabRef = React.useRef<HTMLButtonElement | null>(null);
+  const botFabDragRef = React.useRef<BotFabDragState | null>(null);
+  const botFabDraggedRef = React.useRef(false);
 
   // Persist bot open state so it survives page refresh
   const setBotOpenPersist = React.useCallback((val: boolean) => {
     try { sessionStorage.setItem('td_bot_open', val ? '1' : '0'); } catch { /* ignore */ }
     setBotOpen(val);
   }, []);
+
+  const handleBotFabPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isMobile || event.button !== 0) return;
+    botFabDraggedRef.current = false;
+    const rect = event.currentTarget.getBoundingClientRect();
+    botFabDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      moved: false,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Continue with pointer events on the button if capture is unavailable.
+    }
+  };
+
+  const handleBotFabPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = botFabDragRef.current;
+    if (!isMobile || !drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
+
+    drag.moved = true;
+    botFabDraggedRef.current = true;
+    setIsDraggingBotFab(true);
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setBotFabPosition(constrainBotFabPosition(
+      drag.left + deltaX,
+      drag.top + deltaY,
+      rect.width,
+      rect.height,
+    ));
+  };
+
+  const handleBotFabPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = botFabDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.moved) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const position = constrainBotFabPosition(
+        drag.left + event.clientX - drag.startX,
+        drag.top + event.clientY - drag.startY,
+        rect.width,
+        rect.height,
+      );
+      setBotFabPosition(position);
+      saveBotFabPosition(position);
+      botFabDraggedRef.current = true;
+    }
+    botFabDragRef.current = null;
+    setIsDraggingBotFab(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleBotFabPointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = botFabDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.moved) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const position = constrainBotFabPosition(
+        drag.left + event.clientX - drag.startX,
+        drag.top + event.clientY - drag.startY,
+        rect.width,
+        rect.height,
+      );
+      setBotFabPosition(position);
+      saveBotFabPosition(position);
+    }
+    botFabDragRef.current = null;
+    botFabDraggedRef.current = false;
+    setIsDraggingBotFab(false);
+  };
+
+  const handleBotFabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!isMobile) return;
+    const movementByKey: Record<string, [number, number]> = {
+      ArrowUp: [0, -24],
+      ArrowDown: [0, 24],
+      ArrowLeft: [-24, 0],
+      ArrowRight: [24, 0],
+    };
+    const movement = movementByKey[event.key];
+    if (!movement) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const current = botFabPosition ?? { left: rect.left, top: rect.top };
+    const position = constrainBotFabPosition(
+      current.left + movement[0],
+      current.top + movement[1],
+      rect.width,
+      rect.height,
+    );
+    setBotFabPosition(position);
+    saveBotFabPosition(position);
+  };
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const constrainSavedPosition = () => {
+      const rect = botFabRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setBotFabPosition((current) => {
+        if (!current) return current;
+        const position = constrainBotFabPosition(current.left, current.top, rect.width, rect.height);
+        if (position.left === current.left && position.top === current.top) return current;
+        saveBotFabPosition(position);
+        return position;
+      });
+    };
+    constrainSavedPosition();
+    window.addEventListener('resize', constrainSavedPosition);
+    return () => window.removeEventListener('resize', constrainSavedPosition);
+  }, [isMobile]);
 
   // Poll for unread daily reports from colleagues — updates the FAB badge
   useEffect(() => {
@@ -805,18 +979,40 @@ export default function Layout({ children }: LayoutProps) {
 
       <BugReportFab />
 
-      <Tooltip title={t.bot.fabTooltip} placement="left">
+      <Tooltip title={t.bot.fabTooltip} placement="left" disableTouchListener={isMobile}>
         <Fab
+          ref={botFabRef}
           color="primary"
+          aria-label={t.bot.fabTooltip}
+          data-testid="bot-fab"
+          onPointerDown={handleBotFabPointerDown}
+          onPointerMove={handleBotFabPointerMove}
+          onPointerUp={handleBotFabPointerUp}
+          onPointerCancel={handleBotFabPointerCancel}
+          onKeyDown={handleBotFabKeyDown}
+          onContextMenu={isMobile ? (event) => event.preventDefault() : undefined}
           onClick={() => {
+            if (botFabDraggedRef.current) {
+              botFabDraggedRef.current = false;
+              return;
+            }
             trackEvent('bot_opened');
             setBotOpenPersist(true);
             setBotUnreadCount(0);
           }}
           sx={{
             position: 'fixed',
-            bottom: 88,
-            right: 24,
+            ...(isMobile && botFabPosition
+              ? {
+                  left: botFabPosition.left,
+                  top: botFabPosition.top,
+                  right: 'auto',
+                  bottom: 'auto',
+                }
+              : { bottom: 88, right: 24 }),
+            touchAction: isMobile ? 'none' : 'auto',
+            userSelect: isMobile ? 'none' : 'auto',
+            cursor: isMobile ? (isDraggingBotFab ? 'grabbing' : 'grab') : 'pointer',
             zIndex: theme.zIndex.speedDial,
           }}
         >
