@@ -30,3 +30,17 @@ uri = "file://artifacts/landing/public/opengraph.jpg"
 type = "image"
 title = "OG Image — Prezzi di lancio (1200×630)"
 logical_id = "940e3832-6728-4daa-b1b7-feb8ab86fedc"
+
+[[outputs]]
+id = "WWIo0u0c2OgOzAKAlS63C"
+uri = "file://attached_assets/generated_images/albert-einstein-icon-v2-avatar-preview.png"
+type = "image"
+title = "Nuova icona di Albert"
+description = "Anteprima monocromatica nel cerchio blu dell’app, alla dimensione effettiva del pulsante."
+logical_id = "e0bb43cf-09f8-45ae-9659-57ba089a6963"
+content_hash = "sha256:e638547dd0d5adf530e713eb1b88b5551c2d07b278e9e19c3b6e3f7ea0db7c6a"
+size = 32684
+mtime_ms = 1790970638748
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/e0bb43cf-09f8-45ae-9659-57ba089a6963/b79f8826-a853-4d3e-8f35-33ece4753cb6"
+storage_version_token = "1790970787899761"
+content_type = "image/png"
