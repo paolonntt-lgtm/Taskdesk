@@ -3,9 +3,11 @@ interface AlbertAvatarIconProps {
 }
 
 export function AlbertAvatarIcon({ size = 22 }: AlbertAvatarIconProps) {
+  const avatarUrl = `${import.meta.env.BASE_URL}albert-einstein-avatar.png`;
+
   return (
     <img
-      src="/albert-einstein-avatar.png"
+      src={avatarUrl}
       alt=""
       aria-hidden="true"
       draggable={false}
