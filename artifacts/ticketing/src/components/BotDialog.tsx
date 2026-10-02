@@ -4,7 +4,7 @@ import {
   Avatar, CircularProgress, Divider, Paper, Tooltip, Badge,
 } from '@mui/material';
 import {
-  Send, SmartToy, Close, ConfirmationNumber,
+  Send, Close, ConfirmationNumber,
   KeyboardArrowDown, KeyboardArrowUp, DeleteOutline,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,6 +12,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
+import { GrandpaAvatarIcon } from './GrandpaAvatarIcon';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -138,6 +139,7 @@ function stripOptions(text: string): string {
 
 function MessageBubble({
   msg,
+  botName,
   fallbackActionText,
   onOptionClick,
   onOpenTicket,
@@ -145,6 +147,7 @@ function MessageBubble({
   openTicketLabel,
 }: {
   msg: Message;
+  botName: string;
   fallbackActionText?: string;
   onOptionClick?: (value: string) => void;
   onOpenTicket?: () => void;
@@ -153,7 +156,8 @@ function MessageBubble({
 }) {
   const isUser = msg.role === 'user';
   const action = !isUser ? parseActionFromText(msg.content) : null;
-  const rawDisplay = action ? stripActionJson(msg.content) : msg.content;
+  const assistantText = msg.content.replace(/\bTaskBot\b/gi, botName);
+  const rawDisplay = action ? stripActionJson(msg.content) : (isUser ? msg.content : assistantText);
   const displayText = rawDisplay || (action ? (fallbackActionText ?? '') : '');
 
   const options = !isUser && onOptionClick ? parseOptions(displayText) : null;
@@ -169,13 +173,13 @@ function MessageBubble({
     >
       {!isUser && (
         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0, mb: 0.5 }}>
-          <SmartToy sx={{ fontSize: 18 }} />
+          <GrandpaAvatarIcon size={25} />
         </Avatar>
       )}
       <Box maxWidth="80%">
         {!isUser && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, mb: 0.25, display: 'block' }}>
-            TaskBot
+            {botName}
           </Typography>
         )}
         {cleanText ? (
@@ -268,10 +272,9 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
+  const botName = lang === 'it' ? 'Nonno' : 'Grandpa';
 
-  const botWelcome = lang === 'it'
-    ? `Ciao! Sono TaskBot, il tuo assistente. Descrivi il problema che stai riscontrando e cercherò di aiutarti a risolverlo prima di aprire ${entityTerm.articleIndef} ${entityTerm.singularLower}.`
-    : `Hi! I'm TaskBot, your assistant. Describe the issue you're experiencing and I'll try to help you resolve it before opening ${entityTerm.articleIndef} ${entityTerm.singularLower}.`;
+  const botWelcome = t.bot.welcome;
 
   const botFallback = lang === 'it'
     ? `Ho preparato ${entityTerm.articleIndef} ${entityTerm.singularLower} basato${entityTerm.articleIndef === 'una' ? 'a' : ''} sul tuo problema.`
@@ -678,11 +681,11 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
             <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0 }}>
-              <SmartToy sx={{ fontSize: 18 }} />
+              <GrandpaAvatarIcon size={25} />
             </Avatar>
           </Badge>
           <Box flex={1} minWidth={0}>
-            <Typography fontWeight={700} fontSize="0.9rem" lineHeight={1.2}>TaskBot</Typography>
+            <Typography fontWeight={700} fontSize="0.9rem" lineHeight={1.2}>{botName}</Typography>
             {minimized && unreadCount > 0 ? (
               <Typography variant="caption" color="primary.main" fontWeight={600} noWrap display="block">
                 {unreadCount === 1
@@ -739,6 +742,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                   <MessageBubble
                     key={i}
                     msg={msg}
+                    botName={botName}
                     fallbackActionText={botFallback}
                     onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
                     onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
@@ -750,7 +754,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
               {loading && (
                 <Box display="flex" gap={1} alignItems="center" mb={1.5}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0 }}>
-                    <SmartToy sx={{ fontSize: 18 }} />
+                    <GrandpaAvatarIcon size={25} />
                   </Avatar>
                   <Box sx={{ px: 1.75, py: 1.25, borderRadius: '4px 18px 18px 18px', bgcolor: 'action.hover' }}>
                     <CircularProgress size={14} />
