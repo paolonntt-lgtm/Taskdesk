@@ -39,6 +39,17 @@ function sessionCookieValue(sessionId: string): string {
   return isProduction ? `${base}; Secure` : base;
 }
 
+function sendOAuthSuccessPage(res: import("express").Response): void {
+  const appPath = "/app/";
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.status(200).send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+    `<meta http-equiv="refresh" content="0;url=${appPath}">` +
+    `<script>window.location.replace(${JSON.stringify(appPath)})</script>` +
+    `</head><body><a href="${appPath}">Continua su TaskDesk</a></body></html>`
+  );
+}
+
 function googleClientId(): string {
   return process.env.GOOGLE_CLIENT_ID ?? "";
 }
@@ -208,7 +219,9 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
 
     const sessionId = await createSession(user.id);
     res.setHeader("Set-Cookie", [clearNonceCookie(), sessionCookieValue(sessionId)]);
-    res.redirect("/app/");
+    // The Replit deployment proxy strips Set-Cookie from 302 responses.
+    // Deliver the session cookie on a 200 page, then navigate to the app.
+    sendOAuthSuccessPage(res);
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
     res.setHeader("Set-Cookie", clearNonceCookie());
