@@ -887,11 +887,15 @@ export default function StickyNotesLayer() {
             bottom: 152,
             right: 24,
             zIndex: theme.zIndex.modal + 100,
-            bgcolor: "#fef9c3",
-            color: "text.primary",
-            border: "2px solid #fde047",
+            bgcolor: "background.paper",
+            color: "primary.main",
+            border: "1.5px solid",
+            borderColor: "divider",
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            "&:hover": { bgcolor: "#fef08a" },
+            "&:hover": {
+              bgcolor: "action.hover",
+              borderColor: "primary.main",
+            },
           }}
         >
           <AddIcon />

@@ -12,7 +12,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
-import { GrandpaAvatarIcon } from './GrandpaAvatarIcon';
+import { AlbertAvatarIcon } from './AlbertAvatarIcon';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -173,7 +173,7 @@ function MessageBubble({
     >
       {!isUser && (
         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0, mb: 0.5 }}>
-          <GrandpaAvatarIcon size={25} />
+          <AlbertAvatarIcon size={25} />
         </Avatar>
       )}
       <Box maxWidth="80%">
@@ -258,7 +258,18 @@ function loadSession(): { messages: Message[]; pendingAction: BotAction | null }
   try {
     const raw = sessionStorage.getItem(BOT_SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages: Message[]; pendingAction: BotAction | null };
+    const session = JSON.parse(raw) as { messages: Message[]; pendingAction: BotAction | null };
+    return {
+      ...session,
+      messages: session.messages.map((message) => message.role === 'assistant'
+        ? {
+            ...message,
+            content: message.content
+              .replace(/\bThe Grandpa\b/gi, 'Albert')
+              .replace(/\bIl Nonno\b/gi, 'Albert'),
+          }
+        : message),
+    };
   } catch { return null; }
 }
 
@@ -272,7 +283,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
-  const botName = lang === 'it' ? 'Il Nonno' : 'The Grandpa';
+  const botName = 'Albert';
 
   const botWelcome = t.bot.welcome;
 
@@ -702,7 +713,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
             <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, flexShrink: 0 }}>
-              <GrandpaAvatarIcon size={25} />
+              <AlbertAvatarIcon size={25} />
             </Avatar>
           </Badge>
           <Box flex={1} minWidth={0}>
@@ -792,7 +803,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
               {loading && (
                 <Box display="flex" gap={1} alignItems="center" mb={1.5}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', flexShrink: 0 }}>
-                    <GrandpaAvatarIcon size={25} />
+                    <AlbertAvatarIcon size={25} />
                   </Avatar>
                   <Box sx={{ px: 1.75, py: 1.25, borderRadius: '4px 18px 18px 18px', bgcolor: 'action.hover' }}>
                     <CircularProgress size={14} />

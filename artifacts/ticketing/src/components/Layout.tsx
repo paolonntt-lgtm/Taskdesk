@@ -47,6 +47,7 @@ import {
   CalendarMonth,
   AdminPanelSettings,
   Search,
+  BugReport,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -58,9 +59,9 @@ import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcuts';
-import BugReportFab from './BugReportFab';
+import BugReportDialog from './BugReportDialog';
 import BotDialog from './BotDialog';
-import { GrandpaAvatarIcon } from './GrandpaAvatarIcon';
+import { AlbertAvatarIcon } from './AlbertAvatarIcon';
 import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
@@ -289,6 +290,7 @@ export default function Layout({ children }: LayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
 
   const handleToggleAvailability = async () => {
@@ -885,6 +887,19 @@ export default function Layout({ children }: LayoutProps) {
               <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
             </Box>
             <Divider />
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                setBugReportOpen(true);
+              }}
+              sx={{ fontWeight: 500 }}
+            >
+              <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}>
+                <BugReport fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={t.bugReport.tooltip} />
+            </MenuItem>
+            <Divider />
             <MenuItem onClick={toggleColorMode} sx={{ fontWeight: 500 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {mode === 'dark' ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
@@ -977,7 +992,7 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </Box>
 
-      <BugReportFab />
+      <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
 
       <Tooltip title={t.bot.fabTooltip} placement="left" disableTouchListener={isMobile}>
         <Fab
@@ -1021,7 +1036,7 @@ export default function Layout({ children }: LayoutProps) {
             color="error"
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
-            <GrandpaAvatarIcon size={28} />
+            <AlbertAvatarIcon size={28} />
           </Badge>
         </Fab>
       </Tooltip>
