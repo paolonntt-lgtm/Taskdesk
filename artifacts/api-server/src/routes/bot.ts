@@ -98,11 +98,13 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
       t.title,
       t.description,
       t.resolution_note,
+      u.name AS assignee_name,
       ts_rank(
         to_tsvector('italian', t.title || ' ' || t.description || ' ' || COALESCE(t.resolution_note, '')),
         plainto_tsquery('italian', ${ftsQuery})
       ) AS rank
     FROM tickets t
+    LEFT JOIN users u ON u.id = t.assigned_to
     WHERE
       t.organization_id = ${orgId}
       AND (${isAdmin} OR t.visibility = 'organization')
@@ -149,9 +151,11 @@ async function searchContext(query: string, orgId: number | null, isAdmin: boole
 
     resolvedTickets.push({
       type: "resolved_ticket",
+      id: Number(row.id),
       title: row.title,
       content: content.slice(0, 1200),
       rank: Number(row.rank),
+      assignee: row.assignee_name ?? undefined,
     });
   }
 
@@ -261,7 +265,7 @@ function buildSystemPrompt(
     if (resolvedTickets.length > 0) {
       historySection += "\n\n--- RESOLVED TICKETS (similar past issues from your company) ---\n";
       historySection += resolvedTickets.map((r, i) =>
-        `[R${i + 1}] "${r.title}"\n${r.content}`
+        `[R${i + 1}] ID:${r.id} "${r.title}"\nAssigned to: ${r.assignee ?? "not recorded"}\n${r.content}`
       ).join("\n\n");
     }
     if (openTickets.length > 0) {
@@ -303,16 +307,19 @@ INTAKE — Always do this first, in strict order:
 
 - If at ANY POINT in the conversation the user says they want to open a ticket right away (e.g. "open a ticket", "open it directly", "create ticket", "yes open it", "1" when options shown): output ONLY this JSON on a single line with no other text, using whatever information has been gathered so far:
 {"action":"create_ticket","title":"TITLE","description":"DESCRIPTION","category":"CATEGORY","resource":"RESOURCE","location":"LOCATION"}
-- When asking the user multiple diagnostic/follow-up questions, ALWAYS number them (1. 2. 3. …). Never list them as bullet points or prose.
+- FORMAT: Use Markdown. Whenever you present multiple cases, steps, details, or questions, use an unordered bulleted list with "- " — never a numbered list.
+- Whenever you cite a specific ticket/practice, make its title a Markdown link using its exact ID from the context, e.g. [Exact ticket title](/tickets/123). Never invent an ID or a link.
+- If the context includes an assignee, identify them as the assignee recorded on the ticket; do not claim they were the only person who worked on it. If no assignee is recorded, say so.
+- When asking multiple diagnostic/follow-up questions, use a bulleted list.
 - If RESOLVED TICKETS are found in the context: first verify that the specific component/symptom the user mentioned (e.g. "monitor") actually appears in the historical ticket. If the historical ticket concerns a DIFFERENT component, treat it as "nothing found".
-- If the ticket IS relevant: first check the conversation history. If you have ALREADY presented the historical summary in a previous assistant turn, do NOT repeat it — acknowledge the new information the user provided and ask NUMBERED diagnostic questions to dig deeper, or ask directly whether to open a ticket. If this is the FIRST time presenting it: present EACH found resolved ticket as a separate numbered case (Case 1, Case 2, …) with a brief narrative summary of what happened and how it was resolved. Historical tickets are chronicles of real incidents — do NOT format them as numbered steps to try. After listing all cases, end with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
-- If OPEN TICKETS are found on the same topic: present the existing ticket with ALL of the following details on separate lines so the operator can clearly assess it — title, opening date, current status, priority, category, location, assignee (if any), and a short summary of the problem description. Then output ONLY this JSON on a single line with no other text after it:
+- If a resolved ticket IS relevant: first check the conversation history. If you have ALREADY presented the historical summary in a previous assistant turn, do NOT repeat it — acknowledge the new information and ask bulleted diagnostic questions or ask directly whether to open a ticket. On the first presentation, show each resolved ticket as its own bullet with a brief narrative of what happened and how it was resolved; link the ticket title and include its recorded assignee when available. Do not turn historical cases into steps to try. After the bullets, end with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓"
+- If OPEN TICKETS are found on the same topic: present the existing ticket as a bulleted list of its details — link the title and include opening date, current status, priority, category, location, assignee (if any), and a short problem summary. Then output ONLY this JSON on a single line with no other text after it:
 {"action":"view_ticket","id":NUMERIC_ID,"title":"TITLE","date":"DATE"}
-- If NO tickets found but KB articles exist: present each article step as a NUMBERED line (1. … 2. …). End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
-- If NOTHING is found: say you have no historical data, ask the user for more details using NUMBERED questions (1. 2. 3. …).
-- If the user replies with "2" or says they need more help: acknowledge briefly and ask for more details using NUMBERED questions.
+- If NO tickets are found but KB articles exist: present relevant article steps as bulleted lines. End with exactly: "1 - No  2 - Already tried  3 - Resolved ✓"
+- If NOTHING is found: say you have no historical data and ask for more details using a bulleted list of questions.
+- If the user replies with "2" or says they need more help: acknowledge briefly and ask for more details using a bulleted list of questions.
 - If the user replies with "3" or says it is resolved: congratulate them briefly and close.
-- If the user provides new information after you have already presented historical context (e.g. "nobody pulled the card", "it always happens like this"): acknowledge the new info in one sentence, do NOT repeat the historical tickets, ask at most 2-3 NUMBERED specific questions to gather further details, and always end with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓". Do NOT add "Open a ticket" as a numbered question item.
+- If the user provides new information after you have already presented historical context (e.g. "nobody pulled the card", "it always happens like this"): acknowledge it in one sentence, do NOT repeat the historical tickets, ask at most 2-3 specific questions as bullets, and always end with exactly: "1 - Open a ticket  2 - Need more help  3 - Resolved ✓". Do NOT add the action choices to the question list.
 
 Rules for the JSON fields:
   - title: copy the EXACT device code or identifier from the user's message (e.g. "BTM6", "PC-MARIO"). Do NOT shorten, rephrase or generalise it. Append a 2-3 word symptom summary.
@@ -329,7 +336,7 @@ Always reply in English. Be concise. Never add steps or advice not grounded in t
   if (resolvedTickets.length > 0) {
     historySection += "\n\n--- TICKET RISOLTI (casi simili già gestiti dalla tua azienda) ---\n";
     historySection += resolvedTickets.map((r, i) =>
-      `[R${i + 1}] "${r.title}"\n${r.content}`
+      `[R${i + 1}] ID:${r.id} "${r.title}"\nAssegnatario registrato: ${r.assignee ?? "non indicato"}\n${r.content}`
     ).join("\n\n");
   }
   if (openTickets.length > 0) {
@@ -371,16 +378,19 @@ INTAKE — Segui sempre questo ordine:
 
 - Se IN QUALSIASI MOMENTO l'utente dice di voler aprire un ticket subito (es. "apri ticket", "apri direttamente", "crea ticket", "sì apri", "1" quando le opzioni sono mostrate): inserisci SUBITO SOLO questo JSON su una riga, usando le informazioni raccolte finora dalla conversazione:
 {"action":"create_ticket","title":"TITOLO","description":"DESCRIZIONE","category":"CATEGORIA","resource":"DISPOSITIVO","location":"SEDE"}
-- Quando fai più domande diagnostiche/di approfondimento all'utente, NUMERALE SEMPRE (1. 2. 3. …). Non usare mai elenchi puntati o prosa.
+- FORMATO: usa Markdown. Quando presenti più casi, passaggi, dettagli o domande, usa un elenco puntato non numerato con "- ".
+- Ogni volta che citi un ticket/una pratica specifica, rendi il titolo un link Markdown usando l'ID esatto fornito dal contesto, per esempio [Titolo esatto del ticket](/tickets/123). Non inventare ID o link.
+- Se il contesto indica un assegnatario, specifica che è l'assegnatario registrato nel ticket; non affermare che sia l'unica persona che ci ha lavorato. Se non è indicato, dillo.
+- Quando fai più domande diagnostiche/di approfondimento, usa un elenco puntato.
 - Se nel contesto ci sono TICKET RISOLTI: verifica prima che il componente/sintomo menzionato dall'utente sia presente nel ticket storico. Se riguarda un componente diverso, trattalo come "nessun dato trovato".
-- Se il ticket È pertinente: controlla prima la cronologia della conversazione. Se hai GIÀ presentato il riepilogo storico in un tuo messaggio precedente, NON ripeterlo — riconosci la nuova informazione fornita dall'utente e fai domande NUMERATE per approfondire, oppure chiedi direttamente se aprire un ticket. Se invece è la prima volta che presenti il contesto storico: presenta OGNI ticket risolto trovato come un caso numerato separato (Caso 1, Caso 2, …), ciascuno con una breve sintesi narrativa di cosa è successo e come è stato risolto. I ticket storici sono cronache di incidenti reali — NON formattare il loro contenuto come passi numerati da provare. Dopo aver elencato tutti i casi, concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
-- Se ci sono TICKET APERTI sullo stesso argomento: mostra tutte le informazioni disponibili sul ticket esistente, su righe separate, così l'operatore può valutare con certezza se è lo stesso problema — includi: titolo, data di apertura, stato, priorità, categoria, sede, assegnatario (se presente) e un breve riassunto della descrizione del problema. Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
+- Se un TICKET RISOLTO è pertinente: controlla prima la cronologia. Se hai GIÀ presentato il riepilogo in un turno precedente, NON ripeterlo — riconosci la nuova informazione e fai domande puntate oppure chiedi se aprire un ticket. Alla prima presentazione, mostra ogni ticket risolto come voce puntata, con una breve sintesi narrativa di cosa è successo e come è stato risolto; collega il titolo e indica l'assegnatario registrato, se disponibile. Non trasformare i casi storici in passi da provare. Dopo i punti, concludi con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓"
+- Se ci sono TICKET APERTI sullo stesso argomento: mostra i dettagli del ticket come elenco puntato — collega il titolo e includi data di apertura, stato, priorità, categoria, sede, assegnatario (se presente) e un breve riassunto del problema. Poi inserisci SOLO questo JSON su una riga senza altro testo dopo:
 {"action":"view_ticket","id":ID_NUMERICO,"title":"TITOLO","date":"DATA"}
-- Se NON ci sono ticket ma ci sono articoli KB: presenta ogni passo dell'articolo su una riga NUMERATA (1. … 2. …). Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
-- Se NON è stato trovato nulla: di' che non hai dati storici e chiedi all'utente di descrivere meglio il problema con domande NUMERATE (1. 2. 3. …).
-- Se l'utente risponde con "2" o chiede altro aiuto: riconosci brevemente e fai domande NUMERATE per raccogliere più dettagli.
+- Se NON ci sono ticket ma ci sono articoli KB: presenta i passaggi pertinenti come elenco puntato. Concludi con esattamente: "1 - No  2 - Già provato  3 - Risolto ✓"
+- Se NON è stato trovato nulla: di' che non hai dati storici e chiedi più dettagli con un elenco puntato di domande.
+- Se l'utente risponde con "2" o chiede altro aiuto: riconosci brevemente e fai domande con un elenco puntato.
 - Se l'utente risponde con "3" o dice che è risolto: congratulati brevemente e chiudi.
-- Se l'utente fornisce nuove informazioni dopo che hai già presentato il contesto storico (es. "non ho tirato la schedina", "succede sempre così", ecc.): riconosci la nuova info in una frase, NON ripetere i ticket storici, fai al massimo 2-3 domande NUMERATE specifiche per raccogliere altri dettagli, e concludi SEMPRE con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓". Non aggiungere "Apri ticket" come voce numerata nelle domande.
+- Se l'utente fornisce nuove informazioni dopo che hai già presentato il contesto storico (es. "non ho tirato la schedina", "succede sempre così"): riconosci la nuova informazione in una frase, NON ripetere i ticket storici, fai al massimo 2-3 domande specifiche come punti elenco e concludi SEMPRE con esattamente: "1 - Apri ticket  2 - Ho bisogno di altro  3 - Risolto ✓". Non inserire le opzioni d'azione nell'elenco di domande.
 
 Regole per i campi JSON:
   - title: copia ESATTAMENTE il codice o nome del dispositivo dal messaggio dell'utente (es. "BTM6", "PC-MARIO"). NON abbreviare, NON riformulare, NON generalizzare. Aggiungi 2-3 parole sul sintomo.
@@ -438,12 +448,12 @@ function buildReportModePrompt(
 
   const ticketList = activityToday.length === 0
     ? (lang === "it" ? "Nessun ticket registrato oggi nel sistema per questa sede." : "No tickets recorded today in the system for this location.")
-    : activityToday.map((t, i) => {
+    : activityToday.map((t) => {
         const num = t.ticketNumber ?? t.id;
         const actions = t.actions.join(", ");
         return lang === "it"
-          ? `${i + 1}. #${num} — "${t.title}" (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — azioni: ${actions}`
-          : `${i + 1}. #${num} — "${t.title}" (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — actions: ${actions}`;
+          ? `- [Ticket ${num} — "${t.title}"](/tickets/${t.id}) (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — azioni: ${actions}`
+          : `- [Ticket ${num} — "${t.title}"](/tickets/${t.id}) (${t.status}, ${t.priority}${t.category ? `, ${t.category}` : ""}) — actions: ${actions}`;
       }).join("\n");
 
   if (lang === "en") {
@@ -459,7 +469,8 @@ Your task:
 3. When the operator confirms (says "ok", "publish", "send", "fine", "pubblica", "invia", "sì", "perfetto", or similar): output ONLY this JSON on a single line with no other text:
 {"action":"submit_daily_report","content":"FULL_REPORT_TEXT"}
 
-The content field must be a complete, readable report in plain text that includes the location, the ticket list, and any additional notes the operator provided.
+Use Markdown bullets for lists, never numbered lists. Keep each ticket as a link using the exact Markdown link supplied above.
+The content field must be a complete, readable report that includes the location, linked ticket list, and any additional notes the operator provided.
 
 Always reply in English.`;
   }
@@ -476,7 +487,8 @@ Il tuo compito:
 3. Quando l'operatore conferma (dice "ok", "pubblica", "invia", "sì", "perfetto" o simili): emetti SOLO questo JSON su una riga senza altro testo:
 {"action":"submit_daily_report","content":"TESTO_COMPLETO_DEL_REPORT"}
 
-Il campo content deve contenere un report completo e leggibile in testo semplice che includa la sede, l'elenco dei ticket e le note aggiuntive fornite dall'operatore.
+Usa elenchi puntati Markdown, mai numerati. Mantieni ciascun ticket come link usando il Markdown fornito sopra.
+Il campo content deve contenere un report completo e leggibile con sede, elenco di ticket linkati e note aggiuntive fornite dall'operatore.
 
 Rispondi sempre in italiano.`;
 }
@@ -520,6 +532,7 @@ Instructions:
 3. Mention the ticket situation if there is anything urgent or overdue.
 4. End with a short offer to help: "Any questions, or shall I help you with something?"
 5. You can answer questions about any of the reports above or about the ticket situation.
+Whenever you present multiple reports, ticket details, or follow-up items as a list, use Markdown bullets and never a numbered list.
 
 Always reply in English.`;
   }
@@ -542,6 +555,7 @@ Istruzioni:
 3. Segnala la situazione ticket se ci sono urgenze o scaduti.
 4. Concludi con una breve offerta di aiuto: "Hai domande, o posso aiutarti con qualcosa?"
 5. Puoi rispondere a domande su qualunque report sopra o sulla situazione ticket.
+Quando presenti più report, dettagli ticket o attività di follow-up come elenco, usa punti elenco Markdown, mai un elenco numerato.
 
 Rispondi sempre in italiano.`;
 }
@@ -583,6 +597,7 @@ Instructions:
 1. Summarise the report in 2–4 concise sentences highlighting the main points.
 2. Call out any notable items (urgent issues, follow-ups needed, blockers).
 3. End with: "Any questions about this report?"
+If you present multiple notable items as a list, use Markdown bullets, never numbering.
 
 Always reply in English.`;
   }
@@ -600,6 +615,7 @@ Istruzioni:
 1. Riassumi il report in 2–4 frasi concise mettendo in evidenza i punti principali.
 2. Segnala eventuali elementi rilevanti (problemi urgenti, follow-up necessari, blocchi).
 3. Concludi con: "Hai domande su questo report?"
+Se presenti più elementi rilevanti in un elenco, usa punti elenco Markdown, mai la numerazione.
 
 Rispondi sempre in italiano.`;
 }

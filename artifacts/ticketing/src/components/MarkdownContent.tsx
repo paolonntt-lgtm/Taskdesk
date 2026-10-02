@@ -5,6 +5,8 @@ import { useLocation } from 'wouter';
 
 interface MarkdownContentProps {
   content: string;
+  onTicketClick?: (ticketId: number) => void;
+  forceUnorderedLists?: boolean;
 }
 
 // Matches descriptions/comments injected by the inbound email pipeline
@@ -26,8 +28,13 @@ function splitEmailContent(text: string): { header: string; body: string } | nul
 }
 
 function preprocessContent(text: string): string {
+  const protectedSegments: string[] = [];
+  let result = text.replace(/(`[^`]*`|\[[^\]]+\]\([^)]+\))/g, (segment) => {
+    const index = protectedSegments.push(segment) - 1;
+    return `\u0000${index}\u0000`;
+  });
   // Convert @[Name Surname] mentions to links — encode the href so spaces don't break markdown link syntax
-  let result = text.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[@${name}](#mention-${encodeURIComponent(name)})`);
+  result = result.replace(/@\[([^\]]+)\]/g, (_, name: string) => `[@${name}](#mention-${encodeURIComponent(name)})`);
   // Convert #123 ticket references to markdown links, but not inside existing links or code
   result = result.replace(/(?<!\[)(?<!\()#(\d+)\b/g, '[#$1](/tickets/$1)');
   // Auto-link bare URLs that are not already inside a markdown link or code span
@@ -37,10 +44,18 @@ function preprocessContent(text: string): string {
     const trimmed = url.replace(/[.,;:!?]+$/, '');
     return `[${trimmed}](${trimmed})`;
   });
-  return result;
+  return result.replace(/\u0000(\d+)\u0000/g, (_, index: string) => protectedSegments[Number(index)]);
 }
 
-function InternalLink({ href, children }: { href?: string; children?: React.ReactNode }) {
+function InternalLink({
+  href,
+  children,
+  onTicketClick,
+}: {
+  href?: string;
+  children?: React.ReactNode;
+  onTicketClick?: (ticketId: number) => void;
+}) {
   const [, setLocation] = useLocation();
   if (href?.startsWith('#mention-')) {
     return (
@@ -71,7 +86,9 @@ function InternalLink({ href, children }: { href?: string; children?: React.Reac
         href={href}
         onClick={(e: React.MouseEvent) => {
           e.preventDefault();
-          setLocation(href);
+          const ticketId = href.match(/^\/tickets\/(\d+)/)?.[1];
+          if (ticketId && onTicketClick) onTicketClick(Number(ticketId));
+          else setLocation(href);
         }}
         sx={{ color: 'primary.main', cursor: 'pointer', textDecoration: 'underline', wordBreak: 'break-word' }}
       >
@@ -86,11 +103,19 @@ function InternalLink({ href, children }: { href?: string; children?: React.Reac
   );
 }
 
-const mdComponents = {
+const getMarkdownComponents = (
+  onTicketClick?: (ticketId: number) => void,
+  forceUnorderedLists = false,
+) => ({
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <InternalLink href={href}>{children}</InternalLink>
+    <InternalLink href={href} onTicketClick={onTicketClick}>{children}</InternalLink>
   ),
-};
+  ...(forceUnorderedLists
+    ? {
+        ol: ({ children }: { children?: React.ReactNode }) => <ul>{children}</ul>,
+      }
+    : {}),
+});
 
 const baseSx = {
   fontSize: '0.9375rem',
@@ -140,8 +165,13 @@ const emailBodySx = {
   '& p:last-child': { mb: 0 },
 };
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
+export function MarkdownContent({
+  content,
+  onTicketClick,
+  forceUnorderedLists = false,
+}: MarkdownContentProps) {
   const emailParts = splitEmailContent(content);
+  const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
 
   if (emailParts) {
     return (

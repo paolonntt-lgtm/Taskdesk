@@ -11,6 +11,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
+import { MarkdownContent } from './MarkdownContent';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -140,12 +141,14 @@ function MessageBubble({
   fallbackActionText,
   onOptionClick,
   onOpenTicket,
+  onViewTicket,
   openTicketLabel,
 }: {
   msg: Message;
   fallbackActionText?: string;
   onOptionClick?: (value: string) => void;
   onOpenTicket?: () => void;
+  onViewTicket?: (ticketId: number) => void;
   openTicketLabel?: string;
 }) {
   const isUser = msg.role === 'user';
@@ -185,9 +188,13 @@ function MessageBubble({
               color: isUser ? 'primary.contrastText' : 'text.primary',
             }}
           >
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
-              {cleanText}
-            </Typography>
+            {isUser ? (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
+                {cleanText}
+              </Typography>
+            ) : (
+              <MarkdownContent content={cleanText} onTicketClick={onViewTicket} forceUnorderedLists />
+            )}
           </Box>
         ) : null}
         {(options || onOpenTicket) && (
@@ -735,6 +742,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                     fallbackActionText={botFallback}
                     onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
                     onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+                    onViewTicket={onViewTicket}
                     openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
                   />
                 );
