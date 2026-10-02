@@ -654,7 +654,6 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
       <Paper
         elevation={12}
         sx={{
-          borderRadius: 3,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
