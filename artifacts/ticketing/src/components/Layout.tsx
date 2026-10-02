@@ -41,7 +41,6 @@ import {
   Info,
   ChevronLeft,
   Circle,
-  SmartToy,
   Brightness4,
   Brightness7,
   Business,
@@ -61,6 +60,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcuts';
 import BugReportFab from './BugReportFab';
 import BotDialog from './BotDialog';
+import { GrandpaAvatarIcon } from './GrandpaAvatarIcon';
 import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
@@ -825,7 +825,7 @@ export default function Layout({ children }: LayoutProps) {
             color="error"
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
-            <SmartToy />
+            <GrandpaAvatarIcon size={28} />
           </Badge>
         </Fab>
       </Tooltip>

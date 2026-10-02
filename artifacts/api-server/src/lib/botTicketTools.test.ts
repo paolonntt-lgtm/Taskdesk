@@ -21,7 +21,7 @@ const ticketIds: number[] = [];
 const userIds: number[] = [];
 const organizationIds: number[] = [];
 
-describe("TaskBot ticket lookup tools", () => {
+describe("Nonno ticket lookup tools", () => {
   beforeAll(async () => {
     const [organization] = await db
       .insert(organizationsTable)
