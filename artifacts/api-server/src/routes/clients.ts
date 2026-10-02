@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable } from "@workspace/db";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
+import { UpdateClientTicketWorkedHoursBody } from "@workspace/api-zod";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -445,6 +446,90 @@ router.patch("/clients/:id/tickets/:ticketId/billing-status", requireAuth, requi
     return;
   }
   res.json(updated);
+});
+
+router.patch("/clients/:id/tickets/:ticketId/worked-hours", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const clientId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const ticketId = parseInt(Array.isArray(req.params.ticketId) ? req.params.ticketId[0] : req.params.ticketId, 10);
+  if (currentUser.organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+  if (isNaN(clientId) || isNaN(ticketId)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const parsed = UpdateClientTicketWorkedHoursBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", message: parsed.error.message });
+    return;
+  }
+
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: ticketsTable.id,
+        workedMinutes: ticketsTable.workedMinutes,
+        workedBillingStatus: ticketsTable.workedBillingStatus,
+      })
+      .from(ticketsTable)
+      .where(and(
+        eq(ticketsTable.id, ticketId),
+        eq(ticketsTable.clientId, clientId),
+        eq(ticketsTable.organizationId, currentUser.organizationId),
+        isNull(ticketsTable.deletedAt),
+      ))
+      .for("update");
+
+    if (!existing || existing.workedMinutes == null) return null;
+    if (existing.workedMinutes === parsed.data.workedMinutes) {
+      return {
+        ...existing,
+        workedBillingStatus: existing.workedBillingStatus ?? "unbilled",
+      };
+    }
+
+    const [updated] = await tx
+      .update(ticketsTable)
+      .set({
+        workedMinutes: parsed.data.workedMinutes,
+        workedBillingStatus: "unbilled",
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(ticketsTable.id, ticketId),
+        eq(ticketsTable.clientId, clientId),
+        eq(ticketsTable.organizationId, currentUser.organizationId),
+        isNull(ticketsTable.deletedAt),
+      ))
+      .returning({
+        id: ticketsTable.id,
+        workedMinutes: ticketsTable.workedMinutes,
+        workedBillingStatus: ticketsTable.workedBillingStatus,
+      });
+
+    if (!updated) return null;
+
+    const actionDescription = parsed.data.workedMinutes == null
+      ? `${currentUser.name} ha rimosso le ore lavorate registrate (${existing.workedMinutes} minuti); stato fatturazione impostato su "Da fatturare"`
+      : `${currentUser.name} ha corretto le ore lavorate da ${existing.workedMinutes} a ${parsed.data.workedMinutes} minuti; stato fatturazione impostato su "Da fatturare"`;
+    await tx.insert(ticketActivityLogsTable).values({
+      ticketId,
+      userId: currentUser.id,
+      actionType: "worked_hours_changed",
+      actionDescription,
+    });
+
+    return updated;
+  });
+
+  if (!result) {
+    res.status(404).json({ error: "Ticket with worked time not found" });
+    return;
+  }
+  res.json(result);
 });
 
 router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {

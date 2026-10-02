@@ -1876,6 +1876,44 @@ paths:
         "404":
           description: Ticket not found
 
+  /clients/{id}/tickets/{ticketId}/worked-hours:
+    patch:
+      operationId: updateClientTicketWorkedHours
+      tags: [clients]
+      summary: Correct or remove a client's recorded worked hours (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkedHoursUpdate"
+      responses:
+        "200":
+          description: Updated worked time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkedHoursUpdateResult"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Ticket with worked time not found
+
   /clients/{id}/layout:
     patch:
       operationId: updateClientLayout
@@ -2896,6 +2934,29 @@ components:
         clientId:
           type: integer
           nullable: true
+
+    WorkedHoursUpdate:
+      type: object
+      required: [workedMinutes]
+      properties:
+        workedMinutes:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 2147483647
+
+    WorkedHoursUpdateResult:
+      type: object
+      required: [id, workedMinutes, workedBillingStatus]
+      properties:
+        id:
+          type: integer
+        workedMinutes:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 2147483647
+        workedBillingStatus:
+          type: string
+          enum: [unbilled, billed]
 
     CommentReaction:
       type: object

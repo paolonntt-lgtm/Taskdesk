@@ -2,10 +2,16 @@ import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   MenuItem,
   Select,
   Table,
@@ -15,13 +21,15 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { AccessTime, ReceiptLong, Search } from '@mui/icons-material';
+import { AccessTime, DeleteOutline, EditOutlined, ReceiptLong, Search } from '@mui/icons-material';
 import {
   getGetClientQueryKey,
   getListClientsQueryKey,
   useUpdateClientTicketBillingStatus,
+  useUpdateClientTicketWorkedHours,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
@@ -75,11 +83,17 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
     staleTime: 5 * 60_000,
   });
   const updateBillingStatus = useUpdateClientTicketBillingStatus();
+  const updateWorkedHours = useUpdateClientTicketWorkedHours();
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all');
   const [updatingTicketId, setUpdatingTicketId] = useState<number | null>(null);
+  const [editingTicket, setEditingTicket] = useState<any | null>(null);
+  const [editHours, setEditHours] = useState('');
+  const [editMinutes, setEditMinutes] = useState('');
+  const [editError, setEditError] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   if (organizationSettings?.workedTimeEnabled === false) return null;
 
@@ -150,6 +164,60 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
     } finally {
       setUpdatingTicketId(null);
     }
+  };
+
+  const openWorkedHoursEditor = (ticket: any) => {
+    setEditingTicket(ticket);
+    setEditHours(String(Math.floor(ticket.workedMinutes / 60)));
+    setEditMinutes(String(ticket.workedMinutes % 60));
+    setEditError('');
+    setConfirmRemove(false);
+  };
+
+  const closeWorkedHoursEditor = () => {
+    if (updateWorkedHours.isPending) return;
+    setEditingTicket(null);
+    setEditError('');
+    setConfirmRemove(false);
+  };
+
+  const saveWorkedHours = async (workedMinutes: number | null) => {
+    if (!editingTicket) return;
+    setEditError('');
+    try {
+      await updateWorkedHours.mutateAsync({
+        id: clientId,
+        ticketId: editingTicket.id,
+        data: { workedMinutes },
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) }),
+        queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+      ]);
+      setEditingTicket(null);
+      setConfirmRemove(false);
+    } catch (error: any) {
+      setEditError(error?.data?.message || error?.message || tc.workedHoursUpdateError);
+    }
+  };
+
+  const handleSaveWorkedHours = async () => {
+    const hours = editHours.trim() ? Number(editHours) : 0;
+    const minutes = editMinutes.trim() ? Number(editMinutes) : 0;
+    const totalMinutes = hours * 60 + minutes;
+    if (
+      !Number.isInteger(hours) || hours < 0 ||
+      !Number.isInteger(minutes) || minutes < 0 || minutes > 59 ||
+      !Number.isSafeInteger(totalMinutes) || totalMinutes > 2_147_483_647
+    ) {
+      setEditError(tc.workedHoursInvalid);
+      return;
+    }
+    if (editingTicket?.workedMinutes === totalMinutes) {
+      setEditingTicket(null);
+      return;
+    }
+    await saveWorkedHours(totalMinutes);
   };
 
   return (
@@ -233,13 +301,14 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
                   {group.label}
                 </Typography>
                 <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                  <Table size="small" sx={{ minWidth: 650 }}>
+                  <Table size="small" sx={{ minWidth: isAdmin ? 730 : 650 }}>
                     <TableHead>
                       <TableRow>
                         <TableCell>{tc.workedHoursTicket}</TableCell>
                         <TableCell>{tc.workedHoursClosedAt}</TableCell>
                         <TableCell>{tc.workedHoursDuration}</TableCell>
                         <TableCell>{tc.workedHoursBillingStatus}</TableCell>
+                        {isAdmin && <TableCell align="right">{tc.workedHoursActions}</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -284,6 +353,22 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
                                 />
                               )}
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                <Tooltip title={tc.workedHoursEdit}>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      aria-label={tc.workedHoursEdit}
+                                      disabled={isUpdating || updateWorkedHours.isPending}
+                                      onClick={() => openWorkedHoursEditor(ticket)}
+                                    >
+                                      <EditOutlined fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </TableCell>
+                            )}
                           </TableRow>
                         );
                       })}
@@ -295,6 +380,82 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
           </Box>
         )}
       </CardContent>
+      <Dialog
+        open={Boolean(editingTicket)}
+        onClose={closeWorkedHoursEditor}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>{confirmRemove ? tc.workedHoursRemoveTitle : tc.workedHoursEditTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {confirmRemove ? tc.workedHoursRemoveConfirmation : tc.workedHoursEditBillingNote}
+          </Typography>
+          {editError && <Alert severity="error" sx={{ mb: 2 }}>{editError}</Alert>}
+          {!confirmRemove && (
+            <Box display="flex" gap={1.5}>
+              <TextField
+                autoFocus
+                fullWidth
+                type="number"
+                size="small"
+                label={tc.workedHoursHoursField}
+                value={editHours}
+                onChange={(event) => { setEditHours(event.target.value); setEditError(''); }}
+                disabled={updateWorkedHours.isPending}
+                inputProps={{ min: 0, step: 1 }}
+              />
+              <TextField
+                fullWidth
+                type="number"
+                size="small"
+                label={tc.workedHoursMinutesField}
+                value={editMinutes}
+                onChange={(event) => { setEditMinutes(event.target.value); setEditError(''); }}
+                disabled={updateWorkedHours.isPending}
+                inputProps={{ min: 0, max: 59, step: 1 }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, flexWrap: 'wrap' }}>
+          <Button
+            onClick={() => confirmRemove ? setConfirmRemove(false) : closeWorkedHoursEditor()}
+            disabled={updateWorkedHours.isPending}
+          >
+            {confirmRemove ? tc.workedHoursKeep : tc.workedHoursCancel}
+          </Button>
+          {confirmRemove ? (
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={updateWorkedHours.isPending ? <CircularProgress size={16} /> : <DeleteOutline />}
+              onClick={() => saveWorkedHours(null)}
+              disabled={updateWorkedHours.isPending}
+            >
+              {updateWorkedHours.isPending ? tc.workedHoursSaving : tc.workedHoursRemove}
+            </Button>
+          ) : (
+            <>
+              <Button
+                color="error"
+                startIcon={<DeleteOutline />}
+                onClick={() => { setConfirmRemove(true); setEditError(''); }}
+                disabled={updateWorkedHours.isPending}
+              >
+                {tc.workedHoursRemove}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSaveWorkedHours}
+                disabled={updateWorkedHours.isPending}
+              >
+                {updateWorkedHours.isPending ? tc.workedHoursSaving : tc.workedHoursSave}
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

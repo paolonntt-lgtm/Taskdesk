@@ -21,7 +21,7 @@ const ticketIds: number[] = [];
 const userIds: number[] = [];
 const organizationIds: number[] = [];
 
-describe("Nonno ticket lookup tools", () => {
+describe("Il Nonno ticket lookup tools", () => {
   beforeAll(async () => {
     const [organization] = await db
       .insert(organizationsTable)

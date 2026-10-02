@@ -2756,6 +2756,35 @@ export const UpdateClientTicketBillingStatusResponse = zod.object({
 
 
 /**
+ * @summary Correct or remove a client's recorded worked hours (admin only)
+ */
+export const UpdateClientTicketWorkedHoursParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "ticketId": zod.coerce.number().int()
+})
+
+export const updateClientTicketWorkedHoursBodyWorkedMinutesMin = 0;
+export const updateClientTicketWorkedHoursBodyWorkedMinutesMax = 2147483647;
+
+
+
+export const UpdateClientTicketWorkedHoursBody = zod.object({
+  "workedMinutes": zod.int().min(updateClientTicketWorkedHoursBodyWorkedMinutesMin).max(updateClientTicketWorkedHoursBodyWorkedMinutesMax).nullable()
+})
+
+export const updateClientTicketWorkedHoursResponseWorkedMinutesMin = 0;
+export const updateClientTicketWorkedHoursResponseWorkedMinutesMax = 2147483647;
+
+
+
+export const UpdateClientTicketWorkedHoursResponse = zod.object({
+  "id": zod.int(),
+  "workedMinutes": zod.int().min(updateClientTicketWorkedHoursResponseWorkedMinutesMin).max(updateClientTicketWorkedHoursResponseWorkedMinutesMax).nullable(),
+  "workedBillingStatus": zod.enum(['unbilled', 'billed'])
+})
+
+
+/**
  * @summary Persist the block layout for a client dashboard (admin only)
  */
 export const UpdateClientLayoutParams = zod.object({
@@ -3249,3 +3278,5 @@ export const GetCalendarResponseItem = zod.object({
   "createdBy": zod.int().nullish()
 })
 export const GetCalendarResponse = zod.array(GetCalendarResponseItem)
+
+

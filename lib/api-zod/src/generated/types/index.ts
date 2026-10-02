@@ -126,3 +126,6 @@ export * from './updateUserBodyRole';
 export * from './user';
 export * from './userRole';
 export * from './userTrialStatus';
+export * from './workedHoursUpdate';
+export * from './workedHoursUpdateResult';
+export * from './workedHoursUpdateResultWorkedBillingStatus';

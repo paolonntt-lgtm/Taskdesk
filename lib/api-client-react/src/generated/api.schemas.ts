@@ -347,6 +347,34 @@ export interface UpdateTicketBody {
   clientId?: number | null;
 }
 
+export interface WorkedHoursUpdate {
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  workedMinutes: number | null;
+}
+
+export type WorkedHoursUpdateResultWorkedBillingStatus = typeof WorkedHoursUpdateResultWorkedBillingStatus[keyof typeof WorkedHoursUpdateResultWorkedBillingStatus];
+
+
+export const WorkedHoursUpdateResultWorkedBillingStatus = {
+  unbilled: 'unbilled',
+  billed: 'billed',
+} as const;
+
+export interface WorkedHoursUpdateResult {
+  id: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     * @nullable
+     */
+  workedMinutes: number | null;
+  workedBillingStatus: WorkedHoursUpdateResultWorkedBillingStatus;
+}
+
 export interface CommentReaction {
   emoji: string;
   count: number;
@@ -1020,3 +1048,4 @@ export type GetCalendarParams = {
 year: number;
 month: number;
 };
+

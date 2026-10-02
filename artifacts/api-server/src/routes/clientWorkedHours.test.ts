@@ -144,7 +144,7 @@ describe("client worked-hours report", () => {
     await pool.end();
   });
 
-  it("filters private worked time, defaults to unbilled, and persists admin changes in backups", async () => {
+  it("filters private worked time, allows admins to correct it, and persists the result in backups", async () => {
     const deniedFilter = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
     expect(deniedFilter.status).toBe(403);
 
@@ -227,6 +227,47 @@ describe("client worked-hours report", () => {
     expect(userAfterBillingFilter.status).toBe(200);
     expect(userAfterBillingFilter.body.map((client: any) => client.id)).not.toContain(clientId);
 
+    const forbiddenWorkedTimeUpdate = await request(
+      `/api/clients/${clientId}/tickets/${publicTicketId}/worked-hours`,
+      userSessionId,
+      { method: "PATCH", body: JSON.stringify({ workedMinutes: 120 }) },
+    );
+    expect(forbiddenWorkedTimeUpdate.status).toBe(403);
+
+    const correctedWorkedTime = await request(
+      `/api/clients/${clientId}/tickets/${publicTicketId}/worked-hours`,
+      adminSessionId,
+      { method: "PATCH", body: JSON.stringify({ workedMinutes: 120 }) },
+    );
+    expect(correctedWorkedTime.status).toBe(200);
+    expect(correctedWorkedTime.body).toMatchObject({
+      id: publicTicketId,
+      workedMinutes: 120,
+      workedBillingStatus: "unbilled",
+    });
+
+    const invalidWorkedTime = await request(
+      `/api/clients/${clientId}/tickets/${publicTicketId}/worked-hours`,
+      adminSessionId,
+      { method: "PATCH", body: JSON.stringify({ workedMinutes: -1 }) },
+    );
+    expect(invalidWorkedTime.status).toBe(400);
+
+    const removedWorkedTime = await request(
+      `/api/clients/${clientId}/tickets/${publicTicketId}/worked-hours`,
+      adminSessionId,
+      { method: "PATCH", body: JSON.stringify({ workedMinutes: null }) },
+    );
+    expect(removedWorkedTime.status).toBe(200);
+    expect(removedWorkedTime.body).toMatchObject({
+      id: publicTicketId,
+      workedMinutes: null,
+      workedBillingStatus: "unbilled",
+    });
+
+    const afterWorkedTimeRemoval = await request(`/api/clients/${clientId}`, adminSessionId);
+    expect(afterWorkedTimeRemoval.body.tickets.find((ticket: any) => ticket.id === publicTicketId).workedMinutes).toBeNull();
+
     const revokePermission = await request(`/api/groups/${groupId}/permissions`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ permissions: [] }),
@@ -240,7 +281,8 @@ describe("client worked-hours report", () => {
 
     const backup = await buildBackupPayload(organizationId);
     const backupTicket = backup?.data.tickets.find((ticket: any) => ticket.id === publicTicketId);
-    expect(backupTicket?.workedBillingStatus).toBe("billed");
+    expect(backupTicket?.workedBillingStatus).toBe("unbilled");
+    expect(backupTicket?.workedMinutes).toBeNull();
   }, 30_000);
 
   it("allows a standard organization member to create a client", async () => {

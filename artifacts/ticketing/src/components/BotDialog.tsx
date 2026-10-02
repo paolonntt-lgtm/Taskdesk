@@ -272,7 +272,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
-  const botName = lang === 'it' ? 'Nonno' : 'Grandpa';
+  const botName = lang === 'it' ? 'Il Nonno' : 'The Grandpa';
 
   const botWelcome = t.bot.welcome;
 

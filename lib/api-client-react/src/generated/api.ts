@@ -94,7 +94,9 @@ import type {
   UpdateOrganizationSettingsBody,
   UpdateTicketBody,
   UpdateUserBody,
-  User
+  User,
+  WorkedHoursUpdate,
+  WorkedHoursUpdateResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -5786,6 +5788,89 @@ export const useUpdateClientTicketBillingStatus = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateClientTicketBillingStatusMutationOptions(options));
+    }
+
+export const getUpdateClientTicketWorkedHoursUrl = (id: number,
+    ticketId: number,) => {
+
+
+
+
+  return `/api/clients/${id}/tickets/${ticketId}/worked-hours`
+}
+
+/**
+ * @summary Correct or remove a client's recorded worked hours (admin only)
+ */
+export const updateClientTicketWorkedHours = async (id: number,
+    ticketId: number,
+    workedHoursUpdate: WorkedHoursUpdate, options?: Parameters<typeof customFetch>[1]): Promise<WorkedHoursUpdateResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<WorkedHoursUpdateResult>(getUpdateClientTicketWorkedHoursUrl(id,ticketId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workedHoursUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateClientTicketWorkedHoursMutationKey = () => ['updateClientTicketWorkedHours'] as const;
+
+export const getUpdateClientTicketWorkedHoursMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientTicketWorkedHours>>, TError,UpdateClientTicketWorkedHoursMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClientTicketWorkedHours>>, TError,UpdateClientTicketWorkedHoursMutationVariables, TContext> => {
+
+const mutationKey = getUpdateClientTicketWorkedHoursMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClientTicketWorkedHours>>, UpdateClientTicketWorkedHoursMutationVariables> = (props) => {
+          const {id,ticketId,data} = props ?? {};
+
+          return  updateClientTicketWorkedHours(id,ticketId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClientTicketWorkedHoursMutationResult = NonNullable<Awaited<ReturnType<typeof updateClientTicketWorkedHours>>>
+    export type UpdateClientTicketWorkedHoursMutationBody = BodyType<WorkedHoursUpdate>
+    export type UpdateClientTicketWorkedHoursMutationError = ErrorType<void>
+    export type UpdateClientTicketWorkedHoursMutationVariables = {id: number;ticketId: number;data: BodyType<WorkedHoursUpdate>}
+
+    /**
+ * @summary Correct or remove a client's recorded worked hours (admin only)
+ */
+export const useUpdateClientTicketWorkedHours = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientTicketWorkedHours>>, TError,UpdateClientTicketWorkedHoursMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClientTicketWorkedHours>>,
+        TError,
+        UpdateClientTicketWorkedHoursMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateClientTicketWorkedHoursMutationOptions(options));
     }
 
 export const getUpdateClientLayoutUrl = (id: number,) => {
