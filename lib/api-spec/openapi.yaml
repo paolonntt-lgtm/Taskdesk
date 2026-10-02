@@ -627,6 +627,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: recurring
+          in: query
+          description: Return only source tickets with a recurrence rule; generated copies are not included.
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of tickets

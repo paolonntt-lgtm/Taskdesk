@@ -570,7 +570,8 @@ export const ListTicketsQueryParams = zod.object({
   "resource": zod.coerce.string().optional(),
   "emailOrigin": zod.coerce.boolean().optional(),
   "clientId": zod.coerce.number().int().optional(),
-  "scheduled": zod.coerce.boolean().optional()
+  "scheduled": zod.coerce.boolean().optional(),
+  "recurring": zod.coerce.boolean().optional().describe('Return only source tickets with a recurrence rule; generated copies are not included.')
 })
 
 export const listTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;

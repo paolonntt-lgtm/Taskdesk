@@ -39,18 +39,18 @@ export default function TicketsScreen() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(params.status ?? "");
   const [priorityFilter, setPriorityFilter] = useState(params.priority ?? "");
-  const [scheduledFilter, setScheduledFilter] = useState(false);
+  const [recurringFilter, setRecurringFilter] = useState(false);
 
   const buildQuery = () => {
     const parts: string[] = [];
     if (statusFilter) parts.push(`status=${statusFilter}`);
     if (priorityFilter) parts.push(`priority=${priorityFilter}`);
-    if (scheduledFilter) parts.push(`scheduled=true`);
+    if (recurringFilter) parts.push(`recurring=true`);
     return parts.length > 0 ? `?${parts.join("&")}` : "";
   };
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets", statusFilter, priorityFilter, scheduledFilter],
+    queryKey: ["tickets", statusFilter, priorityFilter, recurringFilter],
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
     enabled: !!user,
   });
@@ -170,11 +170,11 @@ export default function TicketsScreen() {
         </TouchableOpacity>
         {user?.role === "admin" && (
           <TouchableOpacity
-            style={[s.filterBtn, scheduledFilter && s.filterBtnScheduled]}
-            onPress={() => { setScheduledFilter(!scheduledFilter); setStatusFilter(""); setPriorityFilter(""); }}
+            style={[s.filterBtn, recurringFilter && s.filterBtnActive]}
+            onPress={() => setRecurringFilter(!recurringFilter)}
           >
-            <Text style={[s.filterText, scheduledFilter && s.filterTextScheduled]}>
-              {t.tickets.scheduled}
+            <Text style={[s.filterText, recurringFilter && s.filterTextActive]}>
+              {t.tickets.recurring}
             </Text>
           </TouchableOpacity>
         )}
@@ -220,11 +220,9 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     filterBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     filterBtnUrgent: { backgroundColor: colors.destructive, borderColor: colors.destructive },
-    filterBtnScheduled: { backgroundColor: "#e65100", borderColor: "#e65100" },
     filterText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     filterTextActive: { color: colors.primaryForeground },
     filterTextUrgent: { color: "#fff" },
-    filterTextScheduled: { color: "#fff" },
     list: { padding: 16, paddingTop: 8 },
     card: {
       backgroundColor: colors.card, borderRadius: 12, padding: 16,

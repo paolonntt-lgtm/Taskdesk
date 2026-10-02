@@ -948,6 +948,10 @@ resource?: string;
 emailOrigin?: boolean;
 clientId?: number;
 scheduled?: boolean;
+/**
+ * Return only source tickets with a recurrence rule; generated copies are not included.
+ */
+recurring?: boolean;
 };
 
 export type ListClientsParams = {

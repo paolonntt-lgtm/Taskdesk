@@ -424,6 +424,73 @@ describe("manual ticket visibility", () => {
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
   }, 60_000);
 
+  it("filters recurring source tickets separately from future scheduled clones", async () => {
+    const recurringResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Recurring source ${runId}`,
+        description: "This source ticket has a recurrence rule.",
+        category: "Support",
+        priority: "medium",
+        recurrenceRule: { frequency: "weekly", interval: 1 },
+      }),
+    });
+    expect(recurringResponse.status).toBe(201);
+    const recurringTicketId = recurringResponse.body.id as number;
+    createdTicketIds.push(recurringTicketId);
+
+    const regularResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Regular ticket ${runId}`,
+        description: "This ticket is not recurring.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(regularResponse.status).toBe(201);
+    const regularTicketId = regularResponse.body.id as number;
+    createdTicketIds.push(regularTicketId);
+
+    const scheduledCloneResponse = await request(
+      `/api/tickets/${recurringTicketId}/clone`,
+      adminSessionId,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          scheduledAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+        }),
+      },
+    );
+    expect(scheduledCloneResponse.status).toBe(201);
+    const scheduledCloneId = scheduledCloneResponse.body.id as number;
+    createdTicketIds.push(scheduledCloneId);
+
+    const recurringList = await request("/api/tickets?recurring=true", adminSessionId);
+    expect(recurringList.status).toBe(200);
+    const recurringIds = new Set(recurringList.body.map((ticket: { id: number }) => ticket.id));
+    expect(recurringIds.has(recurringTicketId)).toBe(true);
+    expect(recurringIds.has(regularTicketId)).toBe(false);
+    expect(recurringIds.has(scheduledCloneId)).toBe(false);
+    expect(
+      recurringList.body.find((ticket: { id: number }) => ticket.id === recurringTicketId)?.recurrence,
+    ).toBe(true);
+
+    const defaultList = await request("/api/tickets", adminSessionId);
+    expect(defaultList.status).toBe(200);
+    const defaultIds = new Set(defaultList.body.map((ticket: { id: number }) => ticket.id));
+    expect(defaultIds.has(recurringTicketId)).toBe(true);
+    expect(defaultIds.has(regularTicketId)).toBe(true);
+    expect(defaultIds.has(scheduledCloneId)).toBe(false);
+
+    const scheduledList = await request("/api/tickets?scheduled=true", adminSessionId);
+    expect(scheduledList.status).toBe(200);
+    const scheduledIds = new Set(scheduledList.body.map((ticket: { id: number }) => ticket.id));
+    expect(scheduledIds.has(scheduledCloneId)).toBe(true);
+    expect(scheduledIds.has(recurringTicketId)).toBe(false);
+    expect(scheduledIds.has(regularTicketId)).toBe(false);
+  }, 60_000);
+
   it("notifies ticket openers and users tagged in comments", async () => {
     const ownerTicketResponse = await request("/api/tickets", userSessionId, {
       method: "POST",

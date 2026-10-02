@@ -49,7 +49,7 @@ const it = {
     noTickets: 'Nessun ticket trovato.',
     unassigned: 'Non assegnato',
     resolvedNote: 'Soluzione documentata',
-    scheduled: 'Programmate',
+    recurring: 'Ricorrenti',
   },
   newTicket: {
     titleField: 'Titolo *',
@@ -317,7 +317,7 @@ const en: typeof it = {
     noTickets: 'No tickets found.',
     unassigned: 'Unassigned',
     resolvedNote: 'Solution documented',
-    scheduled: 'Scheduled',
+    recurring: 'Recurring',
   },
   newTicket: {
     titleField: 'Title *',

@@ -133,6 +133,7 @@ export default function TicketList() {
   const clientIdFilter = urlParams.get('clientId') ?? 'all';
   const overdueFilter  = urlParams.get('overdue') === 'true';
   const scheduledFilter = urlParams.get('scheduled') === 'true';
+  const recurringFilter = urlParams.get('recurring') === 'true';
   const sortCol  = (urlParams.get('sortCol') as SortCol) || 'id';
   const sortDir  = (urlParams.get('sortDir') as SortDir) || 'desc';
 
@@ -167,8 +168,10 @@ export default function TicketList() {
     if (emailOrigin) p.set('emailOrigin', 'true');
     if (clientIdFilter !== 'all') p.set('clientId', clientIdFilter);
     if (overdueFilter) p.set('overdue', 'true');
+    if (scheduledFilter) p.set('scheduled', 'true');
+    if (recurringFilter) p.set('recurring', 'true');
     return p.toString();
-  }, [debouncedSearch, statusValues, priorityValues, locationValues, categoryValues, userFilter, userFilterType, dateFrom, dateTo, emailOrigin, clientIdFilter, overdueFilter]);
+  }, [debouncedSearch, statusValues, priorityValues, locationValues, categoryValues, userFilter, userFilterType, dateFrom, dateTo, emailOrigin, clientIdFilter, overdueFilter, scheduledFilter, recurringFilter]);
 
   const handleSavePreset = useCallback(() => {
     if (!user || !presetName.trim()) return;
@@ -254,7 +257,7 @@ export default function TicketList() {
   const [focusedRowIdx, setFocusedRowIdx] = useState<number | null>(null);
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
-  const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters;
+  const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters || scheduledFilter || recurringFilter;
 
   // Key of the currently active quick filter chip (used when navigating to ticket detail)
   const activeQFK: string | null =
@@ -399,6 +402,7 @@ export default function TicketList() {
     clientId: clientIdFilter !== 'all' ? parseInt(clientIdFilter, 10) : undefined,
     ...(overdueFilter ? { overdue: 'true' } : {}),
     ...(scheduledFilter ? { scheduled: 'true' } : {}),
+    ...(recurringFilter ? { recurring: true } : {}),
   } as any, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
 
   // Restore scroll position after tickets first load
@@ -584,12 +588,12 @@ export default function TicketList() {
           <Typography variant="h5" fontWeight="bold">{entityTerm.navAll}</Typography>
           {isAdmin && (
             <Chip
-              icon={<ScheduleIcon style={{ fontSize: 14 }} />}
-              label={t.ticketList.scheduledTab}
+              icon={<RepeatIcon style={{ fontSize: 14 }} />}
+              label={t.ticketList.recurringTab}
               size="small"
-              variant={scheduledFilter ? 'filled' : 'outlined'}
-              color={scheduledFilter ? 'warning' : 'default'}
-              onClick={() => setParam('scheduled', scheduledFilter ? '' : 'true', 'false')}
+              variant={recurringFilter ? 'filled' : 'outlined'}
+              color={recurringFilter ? 'primary' : 'default'}
+              onClick={() => setParam('recurring', recurringFilter ? '' : 'true', 'false')}
               sx={{ cursor: 'pointer' }}
             />
           )}

@@ -131,7 +131,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     currentUser.role === "admin",
   );
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled, recurring } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
@@ -150,6 +150,11 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     conditions.push(gt(ticketsTable.scheduledAt, sql`now()`));
   } else {
     conditions.push(or(isNull(ticketsTable.scheduledAt), lte(ticketsTable.scheduledAt, sql`now()`))!);
+  }
+  // Recurring tickets are the source tickets with a recurrence rule.
+  // Scheduled clones remain separate and keep the scheduled filter semantics.
+  if (recurring === "true") {
+    conditions.push(isNotNull(ticketsTable.recurrenceRule));
   }
 
   if (status) {
