@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Box, Fab, Tooltip, Paper, IconButton, TextField, Typography,
+  Box, Tooltip, Paper, IconButton, TextField, Typography,
   Select, MenuItem, FormControl, InputLabel, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, Autocomplete,
   List, ListItemButton, ListItemText, ToggleButtonGroup, ToggleButton,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -103,7 +102,6 @@ export default function StickyNotesLayer() {
   const positions = useRef<Map<number, { x: number; y: number }>>(new Map());
   const sizes = useRef<Map<number, { w: number; h: number }>>(new Map());
   const [, forceRender] = useState(0);
-  const newNoteId = useRef<number | null>(null);
   const textareaRefs = useRef<Map<number, HTMLTextAreaElement | null>>(new Map());
   const textWrapperRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
 
@@ -267,21 +265,6 @@ export default function StickyNotesLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, saveState, DEFAULT_W, DEFAULT_H, MIN_W, MIN_H, DOCK_ITEM_W, DOCK_ITEM_H]);
 
-  const createMutation = useMutation({
-    mutationFn: (data: any) => apiFetch("/api/sticky-notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }),
-    onSuccess: (created: NoteDisplay) => {
-      const cx = Math.max(40, Math.min(window.innerWidth - 320, (window.innerWidth - 280) / 2));
-      const cy = Math.max(40, Math.min(window.innerHeight - 250, (window.innerHeight - 220) / 2));
-      positions.current.set(created.id, { x: cx, y: cy });
-      newNoteId.current = created.id;
-      qc.invalidateQueries({ queryKey: QUERY_KEY });
-    },
-  });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiFetch(`/api/sticky-notes/${id}`, {
       method: "PATCH",
@@ -344,16 +327,6 @@ export default function StickyNotesLayer() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentionSort]);
-
-  useEffect(() => {
-    if (newNoteId.current == null) return;
-    const id = newNoteId.current;
-    const el = textareaRefs.current.get(id);
-    if (el) {
-      el.focus();
-      newNoteId.current = null;
-    }
-  }, [notes]);
 
   useEffect(() => {
     if (!mention || mention.results.length === 0) { setMentionPos(null); return; }
@@ -875,32 +848,6 @@ export default function StickyNotesLayer() {
           })}
         </Box>
       )}
-
-      {/* Sticky-note create FAB — sits above the bot FAB (bottom:88 + 56px FAB height + 8px gap = 152).
-          zIndex above theme.zIndex.modal so it stays visible when the bot chat dialog is open. */}
-      <Tooltip title={t.stickyNotes.createTooltip} placement="left">
-        <Fab
-          size="small"
-          onClick={() => createMutation.mutate({ text: "", color: "yellow", visibility: "private" })}
-          sx={{
-            position: "fixed",
-            bottom: 152,
-            right: 24,
-            zIndex: theme.zIndex.modal + 100,
-            bgcolor: "background.paper",
-            color: "primary.main",
-            border: "1.5px solid",
-            borderColor: "divider",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            "&:hover": {
-              bgcolor: "action.hover",
-              borderColor: "primary.main",
-            },
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      </Tooltip>
 
       <Dialog
         open={deleteConfirmId !== null}
