@@ -119,6 +119,10 @@ async function ensureDefaultPortalConfiguration(stripe: Awaited<ReturnType<typeo
 async function seedStripeCatalog() {
   const stripe = await getUncachableStripeClient();
   const seatAddonOnly = process.env.STRIPE_SEED_SEAT_ADDON_ONLY === '1';
+  const activateSeatAddon = process.env.STRIPE_ACTIVATE_SEAT_ADDON === '1';
+  if (activateSeatAddon && !seatAddonOnly) {
+    throw new Error('Activate the additional-collaborator product only with STRIPE_SEED_SEAT_ADDON_ONLY=1.');
+  }
   if (!seatAddonOnly) {
     await ensureDefaultPortalConfiguration(stripe);
   }
@@ -128,6 +132,7 @@ async function seedStripeCatalog() {
   ]);
   const allProducts = [...activeProductList.data, ...inactiveProductList.data];
   let seatAddonActive: boolean | null = null;
+  let seatAddonProductId: string | null = null;
 
   const catalogItems = seatAddonOnly ? catalog.filter((item) => item.key === 'seat-addon') : catalog;
   for (const item of catalogItems) {
@@ -176,6 +181,7 @@ async function seedStripeCatalog() {
     }
     if (item.key === 'seat-addon') {
       seatAddonActive = product.active;
+      seatAddonProductId = product.id;
     }
 
     const [activePriceList, inactivePriceList] = await Promise.all([
@@ -227,6 +233,20 @@ async function seedStripeCatalog() {
         throw new Error(`Stripe returned an unexpected ${desired.interval} price for "${item.key}". Review the catalog before use.`);
       }
       console.log(`Created ${item.name}: EUR ${(desired.amount / 100).toFixed(2)}/${desired.interval}`);
+    }
+  }
+
+  if (activateSeatAddon) {
+    if (seatAddonProductId === null || seatAddonActive === null) {
+      throw new Error('The additional-collaborator product was not found; nothing was activated.');
+    }
+    if (!seatAddonActive) {
+      const activatedProduct = await stripe.products.update(seatAddonProductId, { active: true });
+      if (!activatedProduct.active) {
+        throw new Error('Stripe did not activate the additional-collaborator product. Review the Live catalog.');
+      }
+      seatAddonActive = true;
+      console.log('Activated the additional-collaborator product after verifying both recurring prices.');
     }
   }
 
