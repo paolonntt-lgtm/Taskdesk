@@ -97,7 +97,7 @@ describe('Stripe billing routes', () => {
   async function post(path: string, body: unknown) {
     return fetch(`${baseUrl}/api/stripe/${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', origin: 'https://www.taskdesk.it' },
       body: JSON.stringify(body),
     });
   }
@@ -117,8 +117,20 @@ describe('Stripe billing routes', () => {
     expect(mocks.createCheckoutSession).toHaveBeenCalledTimes(1);
     expect(mocks.createCheckoutSession.mock.calls[0]).toHaveLength(4);
     expect(mocks.createCheckoutSession.mock.calls[0][1]).toBe('price_starter_month');
-    expect(mocks.createCheckoutSession.mock.calls[0][2]).toContain('/app/billing?success=1');
-    expect(mocks.createCheckoutSession.mock.calls[0][3]).toContain('/app/billing');
+    expect(mocks.createCheckoutSession.mock.calls[0][2]).toBe('https://www.taskdesk.it/app/billing?success=1');
+    expect(mocks.createCheckoutSession.mock.calls[0][3]).toBe('https://www.taskdesk.it/app/billing');
+  });
+
+  it('returns the billing portal to the same verified host', async () => {
+    mocks.createCustomerPortalSession.mockResolvedValue({ url: 'https://billing.stripe.test/session' });
+
+    const response = await post('portal', {});
+
+    expect(response.status).toBe(200);
+    expect(mocks.createCustomerPortalSession).toHaveBeenCalledWith(
+      'cus_taskdesk_test',
+      'https://www.taskdesk.it/app/billing',
+    );
   });
 
   it('rejects an add-on price as a new subscription plan', async () => {

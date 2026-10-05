@@ -5,7 +5,7 @@ import { stripeService } from '../stripeService';
 import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripeClient';
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
-import { appBaseUrl } from '../lib/appUrl';
+import { appBaseUrlForRequest } from '../lib/appUrl';
 
 const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
@@ -161,7 +161,7 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
       customerId = customer.id;
     }
 
-    const baseUrl = appBaseUrl();
+    const baseUrl = appBaseUrlForRequest(req.get('origin'), req.get('host'));
     const doCheckout = (cid: string) =>
       stripeService.createCheckoutSession(
         cid,
@@ -412,7 +412,7 @@ router.post('/stripe/portal', requireAuth, requireAdmin, async (req: any, res): 
       return;
     }
 
-    const baseUrl = appBaseUrl();
+    const baseUrl = appBaseUrlForRequest(req.get('origin'), req.get('host'));
     let session;
     try {
       session = await stripeService.createCustomerPortalSession(
