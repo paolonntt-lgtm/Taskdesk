@@ -57,6 +57,13 @@ export class StripeService {
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      billing_address_collection: 'required',
+      customer_update: {
+        address: 'auto',
+        name: 'auto',
+      },
+      automatic_tax: { enabled: true },
+      tax_id_collection: { enabled: true },
     });
   }
 

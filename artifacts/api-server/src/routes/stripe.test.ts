@@ -107,7 +107,7 @@ describe('Stripe billing routes', () => {
       active: true,
       currency: 'eur',
       recurring: { interval: 'month' },
-      product: { metadata: { taskdesk_plan: 'starter', seats: '5' } },
+      product: { active: true, metadata: { taskdesk_plan: 'starter', seats: '5' } },
     });
     mocks.createCheckoutSession.mockResolvedValue({ url: 'https://checkout.stripe.test/session' });
 
@@ -148,6 +148,21 @@ describe('Stripe billing routes', () => {
     expect(mocks.getUser).not.toHaveBeenCalled();
   });
 
+  it('rejects a price whose plan product is inactive', async () => {
+    stripe.prices.retrieve.mockResolvedValue({
+      active: true,
+      currency: 'eur',
+      recurring: { interval: 'month' },
+      product: { active: false, metadata: { taskdesk_plan: 'starter', seats: '5' } },
+    });
+
+    const response = await post('checkout', { priceId: 'price_staged_month' });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: 'INVALID_PLAN_PRICE' });
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+
   it('blocks a plan downgrade below the organization’s active user count', async () => {
     mocks.getSeatUsage.mockResolvedValue({
       subscriptionId: 'sub_taskdesk_test',
@@ -161,7 +176,7 @@ describe('Stripe billing routes', () => {
       active: true,
       currency: 'eur',
       recurring: { interval: 'month' },
-      product: { metadata: { taskdesk_plan: 'starter', seats: '5' }, name: 'Starter' },
+      product: { active: true, metadata: { taskdesk_plan: 'starter', seats: '5' }, name: 'Starter' },
     });
 
     const response = await post('upgrade', { priceId: 'price_starter_month' });

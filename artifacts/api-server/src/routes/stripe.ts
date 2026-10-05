@@ -41,6 +41,7 @@ function isSupportedPlanPrice(price: any, product: any): boolean {
     price?.active === true &&
     price.currency === 'eur' &&
     ['month', 'year'].includes(price.recurring?.interval) &&
+    product?.active === true &&
     isPlanProduct(product)
   );
 }
