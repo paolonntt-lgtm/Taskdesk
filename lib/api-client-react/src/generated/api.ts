@@ -76,6 +76,9 @@ import type {
   StickyNote,
   StickyNoteInput,
   StickyNoteStateInput,
+  StripeAddonPrice,
+  StripeAddonSeatsInput,
+  StripeAddonSeatsResponse,
   SuccessResponse,
   TicketWithDetails,
   ToggleReactionBody,
@@ -125,6 +128,163 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetStripeAddonPriceUrl = () => {
+
+
+
+
+  return `/api/stripe/addon-price`
+}
+
+/**
+ * @summary Get the additional-seat price for the current plan cadence
+ */
+export const getStripeAddonPrice = async ( options?: Parameters<typeof customFetch>[1]): Promise<StripeAddonPrice> => {
+
+  return customFetch<StripeAddonPrice>(getGetStripeAddonPriceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStripeAddonPriceQueryKey = () => {
+    return [
+    `/api/stripe/addon-price`
+    ] as const;
+    }
+
+
+export const getGetStripeAddonPriceQueryOptions = <TData = Awaited<ReturnType<typeof getStripeAddonPrice>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStripeAddonPrice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStripeAddonPriceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStripeAddonPrice>>> = ({ signal }) => getStripeAddonPrice({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStripeAddonPrice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStripeAddonPriceQueryResult = NonNullable<Awaited<ReturnType<typeof getStripeAddonPrice>>>
+export type GetStripeAddonPriceQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the additional-seat price for the current plan cadence
+ */
+
+export function useGetStripeAddonPrice<TData = Awaited<ReturnType<typeof getStripeAddonPrice>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStripeAddonPrice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStripeAddonPriceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetStripeAddonSeatsUrl = () => {
+
+
+
+
+  return `/api/stripe/add-seats`
+}
+
+/**
+ * @summary Set the number of additional seats on the active subscription
+ */
+export const setStripeAddonSeats = async (stripeAddonSeatsInput: StripeAddonSeatsInput, options?: Parameters<typeof customFetch>[1]): Promise<StripeAddonSeatsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<StripeAddonSeatsResponse>(getSetStripeAddonSeatsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stripeAddonSeatsInput)
+  }
+);}
+
+
+
+
+
+export const getSetStripeAddonSeatsMutationKey = () => ['setStripeAddonSeats'] as const;
+
+export const getSetStripeAddonSeatsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStripeAddonSeats>>, TError,SetStripeAddonSeatsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setStripeAddonSeats>>, TError,SetStripeAddonSeatsMutationVariables, TContext> => {
+
+const mutationKey = getSetStripeAddonSeatsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setStripeAddonSeats>>, SetStripeAddonSeatsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setStripeAddonSeats(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetStripeAddonSeatsMutationResult = NonNullable<Awaited<ReturnType<typeof setStripeAddonSeats>>>
+    export type SetStripeAddonSeatsMutationBody = BodyType<StripeAddonSeatsInput>
+    export type SetStripeAddonSeatsMutationError = ErrorType<void>
+    export type SetStripeAddonSeatsMutationVariables = {data: BodyType<StripeAddonSeatsInput>}
+
+    /**
+ * @summary Set the number of additional seats on the active subscription
+ */
+export const useSetStripeAddonSeats = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStripeAddonSeats>>, TError,SetStripeAddonSeatsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setStripeAddonSeats>>,
+        TError,
+        SetStripeAddonSeatsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetStripeAddonSeatsMutationOptions(options));
+    }
 
 export const getGlobalSearchUrl = (params: GlobalSearchParams,) => {
   const normalizedParams = new URLSearchParams();

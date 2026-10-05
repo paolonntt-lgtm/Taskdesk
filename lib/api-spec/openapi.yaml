@@ -47,6 +47,48 @@ tags:
     description: Global search
 
 paths:
+  /stripe/addon-price:
+    get:
+      operationId: getStripeAddonPrice
+      tags: [billing]
+      summary: Get the additional-seat price for the current plan cadence
+      responses:
+        "200":
+          description: Additional-seat price matching the active plan billing interval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeAddonPrice"
+        "400":
+          description: No active subscription or unsupported billing interval
+        "401":
+          description: Not authenticated
+        "404":
+          description: Additional-seat product or matching price is not configured
+  /stripe/add-seats:
+    post:
+      operationId: setStripeAddonSeats
+      tags: [billing]
+      summary: Set the number of additional seats on the active subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripeAddonSeatsInput"
+      responses:
+        "200":
+          description: Updated additional-seat count and availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeAddonSeatsResponse"
+        "400":
+          description: Invalid quantity, plan limit, or unsupported subscription
+        "401":
+          description: Not authenticated
+        "404":
+          description: Additional-seat product or matching price is not configured
   /search:
     get:
       operationId: globalSearch
@@ -2414,6 +2456,38 @@ paths:
 
 components:
   schemas:
+    StripeAddonPrice:
+      type: object
+      required: [priceId, unitAmount, currency, interval]
+      properties:
+        priceId:
+          type: string
+        unitAmount:
+          type: integer
+        currency:
+          type: string
+          enum: [eur]
+        interval:
+          type: string
+          enum: [month, year]
+    StripeAddonSeatsInput:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 500
+    StripeAddonSeatsResponse:
+      type: object
+      required: [addonSeats, available, limitReached]
+      properties:
+        addonSeats:
+          type: integer
+        available:
+          type: ["integer", "null"]
+        limitReached:
+          type: boolean
     SearchResults:
       type: object
       properties:

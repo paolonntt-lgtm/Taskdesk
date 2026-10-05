@@ -9,6 +9,36 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the additional-seat price for the current plan cadence
+ */
+export const GetStripeAddonPriceResponse = zod.object({
+  "priceId": zod.string(),
+  "unitAmount": zod.int(),
+  "currency": zod.enum(['eur']),
+  "interval": zod.enum(['month', 'year'])
+})
+
+
+/**
+ * @summary Set the number of additional seats on the active subscription
+ */
+export const setStripeAddonSeatsBodyQuantityMin = 0;
+export const setStripeAddonSeatsBodyQuantityMax = 500;
+
+
+
+export const SetStripeAddonSeatsBody = zod.object({
+  "quantity": zod.int().min(setStripeAddonSeatsBodyQuantityMin).max(setStripeAddonSeatsBodyQuantityMax)
+})
+
+export const SetStripeAddonSeatsResponse = zod.object({
+  "addonSeats": zod.int(),
+  "available": zod.int().nullable(),
+  "limitReached": zod.boolean()
+})
+
+
+/**
  * @summary Search tickets, clients and users
  */
 

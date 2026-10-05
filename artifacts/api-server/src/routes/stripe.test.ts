@@ -55,7 +55,7 @@ describe('Stripe billing routes', () => {
   let baseUrl: string;
   let stripe: {
     prices: { retrieve: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn> };
-    products: { list: ReturnType<typeof vi.fn> };
+    products: { list: ReturnType<typeof vi.fn>; retrieve: ReturnType<typeof vi.fn> };
     subscriptions: { update: ReturnType<typeof vi.fn>; retrieve: ReturnType<typeof vi.fn> };
     subscriptionItems: {
       del: ReturnType<typeof vi.fn>;
@@ -68,7 +68,7 @@ describe('Stripe billing routes', () => {
     vi.clearAllMocks();
     stripe = {
       prices: { retrieve: vi.fn(), list: vi.fn() },
-      products: { list: vi.fn() },
+      products: { list: vi.fn(), retrieve: vi.fn() },
       subscriptions: { update: vi.fn(), retrieve: vi.fn() },
       subscriptionItems: { del: vi.fn(), update: vi.fn(), create: vi.fn() },
     };
@@ -99,6 +99,12 @@ describe('Stripe billing routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'https://www.taskdesk.it' },
       body: JSON.stringify(body),
+    });
+  }
+
+  async function get(path: string) {
+    return fetch(`${baseUrl}/api/stripe/${path}`, {
+      headers: { origin: 'https://www.taskdesk.it' },
     });
   }
 
@@ -186,6 +192,57 @@ describe('Stripe billing routes', () => {
     expect(stripe.subscriptions.update).not.toHaveBeenCalled();
   });
 
+  it('switches existing add-ons to the annual cadence when changing the base plan', async () => {
+    mocks.getSeatUsage.mockResolvedValue({
+      subscriptionId: 'sub_taskdesk_test',
+      subscriptionItemId: 'si_base_plan',
+      currentPriceId: 'price_starter_month',
+      usedSeats: 5,
+      planSeats: 5,
+      unlimited: false,
+    });
+    stripe.prices.retrieve.mockResolvedValue({
+      active: true,
+      currency: 'eur',
+      recurring: { interval: 'year' },
+      product: { active: true, metadata: { taskdesk_plan: 'team', seats: '10' }, name: 'Team' },
+    });
+    stripe.subscriptions.retrieve.mockResolvedValue({
+      items: {
+        data: [
+          { id: 'si_base_plan', quantity: 1, price: { id: 'price_starter_month', product: 'prod_starter' } },
+          { id: 'si_seat_addon', quantity: 2, price: { id: 'price_seat_month', product: 'prod_seat_addon' } },
+        ],
+      },
+    });
+    stripe.products.retrieve.mockResolvedValue({ metadata: { addon: 'seat' } });
+    stripe.products.list.mockResolvedValue({
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
+    });
+    stripe.prices.list.mockResolvedValue({
+      data: [{
+        id: 'price_seat_year',
+        active: true,
+        unit_amount: 6000,
+        currency: 'eur',
+        recurring: { interval: 'year' },
+      }],
+    });
+    stripe.subscriptions.update.mockResolvedValue({ id: 'sub_taskdesk_test', status: 'active' });
+
+    const response = await post('upgrade', { priceId: 'price_team_year' });
+
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_taskdesk_test', {
+      items: [
+        { id: 'si_base_plan', price: 'price_team_year', quantity: 1 },
+        { id: 'si_seat_addon', price: 'price_seat_year', quantity: 2 },
+      ],
+      proration_behavior: 'create_prorations',
+      payment_behavior: 'pending_if_incomplete',
+    });
+  });
+
   it('enforces the Starter add-on cap before changing Stripe', async () => {
     mocks.getSeatUsage.mockResolvedValue({
       subscriptionId: 'sub_taskdesk_test',
@@ -201,10 +258,38 @@ describe('Stripe billing routes', () => {
     expect(stripe.products.list).not.toHaveBeenCalled();
   });
 
+  it('returns the annual additional-seat price for an annual subscription', async () => {
+    mocks.getSeatUsage.mockResolvedValue({
+      subscriptionId: 'sub_taskdesk_test',
+      currentPriceId: 'price_team_year',
+    });
+    stripe.prices.retrieve.mockResolvedValue({ recurring: { interval: 'year' } });
+    stripe.products.list.mockResolvedValue({
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
+    });
+    stripe.prices.list.mockResolvedValue({
+      data: [
+        { id: 'price_seat_month', active: true, unit_amount: 600, currency: 'eur', recurring: { interval: 'month' } },
+        { id: 'price_seat_year', active: true, unit_amount: 6000, currency: 'eur', recurring: { interval: 'year' } },
+      ],
+    });
+
+    const response = await get('addon-price');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      priceId: 'price_seat_year',
+      unitAmount: 6000,
+      currency: 'eur',
+      interval: 'year',
+    });
+  });
+
   it('adds allowed seat add-ons to the active subscription', async () => {
     mocks.getSeatUsage
       .mockResolvedValueOnce({
         subscriptionId: 'sub_taskdesk_test',
+        currentPriceId: 'price_starter_month',
         planSeats: 5,
         usedSeats: 5,
         unlimited: false,
@@ -215,15 +300,14 @@ describe('Stripe billing routes', () => {
         limitReached: false,
       });
     stripe.products.list.mockResolvedValue({
-      data: [{ id: 'prod_seat_addon', metadata: { addon: 'seat' } }],
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
     });
+    stripe.prices.retrieve.mockResolvedValue({ recurring: { interval: 'month' } });
     stripe.prices.list.mockResolvedValue({
-      data: [{
-        id: 'price_seat_addon',
-        unit_amount: 600,
-        currency: 'eur',
-        recurring: { interval: 'month' },
-      }],
+      data: [
+        { id: 'price_seat_addon_month', active: true, unit_amount: 600, currency: 'eur', recurring: { interval: 'month' } },
+        { id: 'price_seat_addon_year', active: true, unit_amount: 6000, currency: 'eur', recurring: { interval: 'year' } },
+      ],
     });
     stripe.subscriptions.retrieve.mockResolvedValue({ items: { data: [] } });
     stripe.subscriptionItems.create.mockResolvedValue({ quantity: 2 });
@@ -234,9 +318,125 @@ describe('Stripe billing routes', () => {
     expect(await response.json()).toMatchObject({ addonSeats: 2, available: 2, limitReached: false });
     expect(stripe.subscriptionItems.create).toHaveBeenCalledWith({
       subscription: 'sub_taskdesk_test',
-      price: 'price_seat_addon',
+      price: 'price_seat_addon_month',
       quantity: 2,
       proration_behavior: 'create_prorations',
     });
+  });
+
+  it('adds annual seats using the annual add-on price', async () => {
+    mocks.getSeatUsage
+      .mockResolvedValueOnce({
+        subscriptionId: 'sub_taskdesk_test',
+        currentPriceId: 'price_starter_year',
+        planSeats: 5,
+        usedSeats: 5,
+        unlimited: false,
+      })
+      .mockResolvedValueOnce({ addonSeats: 1, available: 1, limitReached: false });
+    stripe.prices.retrieve.mockResolvedValue({ recurring: { interval: 'year' } });
+    stripe.products.list.mockResolvedValue({
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
+    });
+    stripe.prices.list.mockResolvedValue({
+      data: [
+        { id: 'price_seat_addon_month', active: true, unit_amount: 600, currency: 'eur', recurring: { interval: 'month' } },
+        { id: 'price_seat_addon_year', active: true, unit_amount: 6000, currency: 'eur', recurring: { interval: 'year' } },
+      ],
+    });
+    stripe.subscriptions.retrieve.mockResolvedValue({ items: { data: [] } });
+
+    const response = await post('add-seats', { quantity: 1 });
+
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptionItems.create).toHaveBeenCalledWith({
+      subscription: 'sub_taskdesk_test',
+      price: 'price_seat_addon_year',
+      quantity: 1,
+      proration_behavior: 'create_prorations',
+    });
+  });
+
+  it('switches an existing monthly add-on item to annual billing without creating a duplicate', async () => {
+    mocks.getSeatUsage
+      .mockResolvedValueOnce({
+        subscriptionId: 'sub_taskdesk_test',
+        currentPriceId: 'price_starter_year',
+        planSeats: 5,
+        usedSeats: 5,
+        unlimited: false,
+      })
+      .mockResolvedValueOnce({ addonSeats: 3, available: 3, limitReached: false });
+    stripe.prices.retrieve.mockResolvedValue({ recurring: { interval: 'year' } });
+    stripe.products.list.mockResolvedValue({
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
+    });
+    stripe.prices.list.mockResolvedValue({
+      data: [
+        { id: 'price_seat_addon_month', active: true, unit_amount: 600, currency: 'eur', recurring: { interval: 'month' } },
+        { id: 'price_seat_addon_year', active: true, unit_amount: 6000, currency: 'eur', recurring: { interval: 'year' } },
+      ],
+    });
+    stripe.subscriptions.retrieve.mockResolvedValue({
+      items: {
+        data: [{
+          id: 'si_seat_addon_month',
+          quantity: 2,
+          price: { id: 'price_seat_addon_month', product: 'prod_seat_addon' },
+        }],
+      },
+    });
+
+    const response = await post('add-seats', { quantity: 3 });
+
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptionItems.update).toHaveBeenCalledWith('si_seat_addon_month', {
+      price: 'price_seat_addon_year',
+      quantity: 3,
+      proration_behavior: 'create_prorations',
+    });
+    expect(stripe.subscriptionItems.create).not.toHaveBeenCalled();
+  });
+
+  it('removes add-on subscription items when the desired quantity is zero', async () => {
+    mocks.getSeatUsage
+      .mockResolvedValueOnce({
+        subscriptionId: 'sub_taskdesk_test',
+        currentPriceId: 'price_starter_month',
+        planSeats: 5,
+        usedSeats: 5,
+        unlimited: false,
+      })
+      .mockResolvedValueOnce({ addonSeats: 0, available: 0, limitReached: true });
+    stripe.prices.retrieve.mockResolvedValue({ recurring: { interval: 'month' } });
+    stripe.products.list.mockResolvedValue({
+      data: [{ id: 'prod_seat_addon', active: true, metadata: { addon: 'seat' } }],
+    });
+    stripe.prices.list.mockResolvedValue({
+      data: [{
+        id: 'price_seat_addon_month',
+        active: true,
+        unit_amount: 600,
+        currency: 'eur',
+        recurring: { interval: 'month' },
+      }],
+    });
+    stripe.subscriptions.retrieve.mockResolvedValue({
+      items: {
+        data: [{
+          id: 'si_seat_addon',
+          quantity: 2,
+          price: { id: 'price_seat_addon_month', product: 'prod_seat_addon' },
+        }],
+      },
+    });
+
+    const response = await post('add-seats', { quantity: 0 });
+
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptionItems.del).toHaveBeenCalledWith('si_seat_addon', {
+      proration_behavior: 'create_prorations',
+    });
+    expect(stripe.subscriptionItems.update).not.toHaveBeenCalled();
   });
 });

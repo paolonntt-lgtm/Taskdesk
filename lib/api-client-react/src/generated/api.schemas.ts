@@ -5,6 +5,43 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+export type StripeAddonPriceCurrency = typeof StripeAddonPriceCurrency[keyof typeof StripeAddonPriceCurrency];
+
+
+export const StripeAddonPriceCurrency = {
+  eur: 'eur',
+} as const;
+
+export type StripeAddonPriceInterval = typeof StripeAddonPriceInterval[keyof typeof StripeAddonPriceInterval];
+
+
+export const StripeAddonPriceInterval = {
+  month: 'month',
+  year: 'year',
+} as const;
+
+export interface StripeAddonPrice {
+  priceId: string;
+  unitAmount: number;
+  currency: StripeAddonPriceCurrency;
+  interval: StripeAddonPriceInterval;
+}
+
+export interface StripeAddonSeatsInput {
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  quantity: number;
+}
+
+export interface StripeAddonSeatsResponse {
+  addonSeats: number;
+  /** @nullable */
+  available: number | null;
+  limitReached: boolean;
+}
+
 export type SearchResultsTicketsItem = {
   id: number;
   ticketNumber?: number | null;

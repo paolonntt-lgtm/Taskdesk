@@ -75,6 +75,7 @@ interface AddonPrice {
   priceId: string;
   unitAmount: number | null;
   currency: string;
+  interval: 'month' | 'year';
 }
 
 function isStripeUnavailableResponse(value: unknown): boolean {
@@ -226,21 +227,20 @@ export default function Billing() {
     setAddonPriceError(false);
     setAddonQuantity(seatUsage?.addonSeats ?? 0);
     setAddonDialogOpen(true);
-    if (!addonPrice) {
-      setAddonPriceLoading(true);
-      try {
-        const res = await fetch('/api/stripe/addon-price', { credentials: 'include' });
-        if (!res.ok) {
-          setAddonPriceError(true);
-          return;
-        }
-        const data = await res.json();
-        setAddonPrice(data);
-      } catch {
+    setAddonPrice(null);
+    setAddonPriceLoading(true);
+    try {
+      const res = await fetch('/api/stripe/addon-price', { credentials: 'include' });
+      if (!res.ok) {
         setAddonPriceError(true);
-      } finally {
-        setAddonPriceLoading(false);
+        return;
       }
+      const data = await res.json();
+      setAddonPrice(data);
+    } catch {
+      setAddonPriceError(true);
+    } finally {
+      setAddonPriceLoading(false);
     }
   };
 
@@ -288,6 +288,8 @@ export default function Billing() {
     const total = (addonPrice.unitAmount * addonQuantity) / 100;
     return total.toLocaleString('it-IT', { style: 'currency', currency: addonPrice.currency.toUpperCase() });
   };
+
+  const addonIntervalLabel = addonPrice?.interval === 'year' ? b.perYear : b.perMonth;
 
   const isSubscribed = subscription && (subscription.status === 'active' || subscription.status === 'trialing');
   const showAddonWidget = !!(seatUsage?.hasActiveSubscription && !seatUsage?.unlimited);
@@ -644,11 +646,11 @@ export default function Billing() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">{b.addonSeatsPricePerSeat}</Typography>
-                    <Typography variant="body2" fontWeight={600}>{formatAddonUnitPrice()}{b.perMonth}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{formatAddonUnitPrice()}{addonIntervalLabel}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">{b.addonSeatsSubtotal}</Typography>
-                    <Typography variant="body2" fontWeight={700} color="primary.main">{addonSubtotal()}{b.perMonth}</Typography>
+                    <Typography variant="body2" fontWeight={700} color="primary.main">{addonSubtotal()}{addonIntervalLabel}</Typography>
                   </Box>
                 </Box>
               )}

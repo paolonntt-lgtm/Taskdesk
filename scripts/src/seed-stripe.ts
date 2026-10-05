@@ -5,6 +5,7 @@ interface CatalogItem {
   name: string;
   description: string;
   metadata: Record<string, string>;
+  taxCode?: string;
   prices: Array<{
     interval: 'month' | 'year';
     amount: number;
@@ -46,10 +47,12 @@ const catalog: CatalogItem[] = [
   {
     key: 'seat-addon',
     name: 'Collaboratore aggiuntivo',
-    description: 'Un posto aggiuntivo TaskDesk, fatturato mensilmente.',
+    description: 'Un posto aggiuntivo TaskDesk, fatturato con la stessa cadenza del piano.',
     metadata: { addon: 'seat' },
+    taxCode: 'txcd_10103001',
     prices: [
       { interval: 'month', amount: 600, nickname: 'Collaboratore aggiuntivo mensile' },
+      { interval: 'year', amount: 6000, nickname: 'Collaboratore aggiuntivo annuale' },
     ],
   },
 ];
@@ -115,11 +118,20 @@ async function ensureDefaultPortalConfiguration(stripe: Awaited<ReturnType<typeo
 
 async function seedStripeCatalog() {
   const stripe = await getUncachableStripeClient();
-  await ensureDefaultPortalConfiguration(stripe);
-  const productList = await stripe.products.list({ active: true, limit: 100 });
+  const seatAddonOnly = process.env.STRIPE_SEED_SEAT_ADDON_ONLY === '1';
+  if (!seatAddonOnly) {
+    await ensureDefaultPortalConfiguration(stripe);
+  }
+  const [activeProductList, inactiveProductList] = await Promise.all([
+    stripe.products.list({ active: true, limit: 100 }),
+    stripe.products.list({ active: false, limit: 100 }),
+  ]);
+  const allProducts = [...activeProductList.data, ...inactiveProductList.data];
+  let seatAddonActive: boolean | null = null;
 
-  for (const item of catalog) {
-    const matches = productList.data.filter((product) =>
+  const catalogItems = seatAddonOnly ? catalog.filter((item) => item.key === 'seat-addon') : catalog;
+  for (const item of catalogItems) {
+    const matches = (item.key === 'seat-addon' ? allProducts : activeProductList.data).filter((product) =>
       item.key === 'seat-addon'
         ? product.metadata.addon === 'seat'
         : product.metadata.taskdesk_plan === item.key
@@ -142,43 +154,88 @@ async function seedStripeCatalog() {
           name: item.name,
           description: item.description,
           metadata: item.metadata,
+          ...(item.taxCode ? { tax_code: item.taxCode } : {}),
         },
         { idempotencyKey: `taskdesk-catalog-product-${item.key}-v1` }
       );
+      if (item.key === 'seat-addon') {
+        product = await stripe.products.update(product.id, { active: false });
+      }
       console.log(`Created catalog product: ${item.name}`);
     }
 
-    const priceList = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
+    if (item.taxCode) {
+      const currentTaxCode =
+        typeof product.tax_code === 'string' ? product.tax_code : product.tax_code?.id;
+      if (currentTaxCode !== item.taxCode) {
+        if (product.active) {
+          throw new Error(`The active product for "${item.key}" has a different tax code. Review Stripe manually; no changes were made.`);
+        }
+        product = await stripe.products.update(product.id, { tax_code: item.taxCode });
+      }
+    }
+    if (item.key === 'seat-addon') {
+      seatAddonActive = product.active;
+    }
+
+    const [activePriceList, inactivePriceList] = await Promise.all([
+      stripe.prices.list({ product: product.id, active: true, limit: 100 }),
+      stripe.prices.list({ product: product.id, active: false, limit: 100 }),
+    ]);
+    const priceList = [...activePriceList.data, ...inactivePriceList.data];
     for (const desired of item.prices) {
-      const sameInterval = priceList.data.filter(
+      const sameInterval = priceList.filter(
         (price) => price.recurring?.interval === desired.interval
       );
       const matchesPrice = sameInterval.filter(
-        (price) => price.currency === 'eur' && price.unit_amount === desired.amount
+        (price) =>
+          price.currency === 'eur' &&
+          price.unit_amount === desired.amount &&
+          price.tax_behavior === 'exclusive'
       );
       if (matchesPrice.length > 1 || (sameInterval.length > 0 && matchesPrice.length !== sameInterval.length)) {
-        throw new Error(`Conflicting active ${desired.interval} price on "${item.key}". Review Stripe manually; no price was changed.`);
+        throw new Error(`Conflicting ${desired.interval} price on "${item.key}". Review Stripe manually; no price was changed.`);
       }
       if (matchesPrice.length === 1) {
+        if (!matchesPrice[0].active) {
+          throw new Error(`The matching ${desired.interval} price on "${item.key}" is inactive. Review Stripe manually before use.`);
+        }
         console.log(`Verified ${item.name}: EUR ${(desired.amount / 100).toFixed(2)}/${desired.interval}`);
         continue;
       }
+      if (item.key === 'seat-addon' && product.active) {
+        throw new Error('The additional-collaborator product is already active but is missing a matching price. Publish the updated app before changing its live catalog.');
+      }
 
-      await stripe.prices.create(
+      const createdPrice = await stripe.prices.create(
         {
           product: product.id,
           unit_amount: desired.amount,
           currency: 'eur',
           recurring: { interval: desired.interval },
           nickname: desired.nickname,
+          tax_behavior: 'exclusive',
         },
         { idempotencyKey: `taskdesk-catalog-price-${item.key}-${desired.interval}-v1` }
       );
+      if (
+        !createdPrice.active ||
+        createdPrice.tax_behavior !== 'exclusive' ||
+        createdPrice.unit_amount !== desired.amount ||
+        createdPrice.recurring?.interval !== desired.interval
+      ) {
+        throw new Error(`Stripe returned an unexpected ${desired.interval} price for "${item.key}". Review the catalog before use.`);
+      }
       console.log(`Created ${item.name}: EUR ${(desired.amount / 100).toFixed(2)}/${desired.interval}`);
     }
   }
 
-  console.log('TaskDesk Stripe catalog verified. No Enterprise price or trial was created.');
+  const seatAddonStatus = seatAddonActive === false
+    ? 'inactive until the updated app is published'
+    : seatAddonActive
+      ? 'active'
+      : 'not part of this run';
+  console.log(`TaskDesk Stripe catalog verified. Additional-collaborator product: ${seatAddonStatus}.`);
 }
 
 seedStripeCatalog().catch((error: unknown) => {

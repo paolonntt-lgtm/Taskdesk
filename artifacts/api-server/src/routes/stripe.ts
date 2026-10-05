@@ -1,5 +1,10 @@
 import { Router, type IRouter } from 'express';
 import { z } from 'zod';
+import {
+  GetStripeAddonPriceResponse,
+  SetStripeAddonSeatsBody,
+  SetStripeAddonSeatsResponse,
+} from '@workspace/api-zod';
 import { stripeStorage } from '../stripeStorage';
 import { stripeService } from '../stripeService';
 import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripeClient';
@@ -43,6 +48,41 @@ function isSupportedPlanPrice(price: any, product: any): boolean {
     ['month', 'year'].includes(price.recurring?.interval) &&
     product?.active === true &&
     isPlanProduct(product)
+  );
+}
+
+type StripeBillingInterval = 'month' | 'year';
+
+const ADDON_AMOUNT_BY_INTERVAL: Record<StripeBillingInterval, number> = {
+  month: 600,
+  year: 6000,
+};
+
+function isStripeBillingInterval(interval: unknown): interval is StripeBillingInterval {
+  return interval === 'month' || interval === 'year';
+}
+
+function stripeProductId(product: any): string | null {
+  if (typeof product === 'string') return product;
+  return typeof product?.id === 'string' ? product.id : null;
+}
+
+async function findActiveSeatAddonProduct(stripe: any): Promise<any | undefined> {
+  const products = await stripe.products.list({ active: true, limit: 100 });
+  return products.data.find((product: any) => product.metadata?.addon === 'seat');
+}
+
+async function findActiveSeatAddonPrice(
+  stripe: any,
+  productId: string,
+  interval: StripeBillingInterval,
+): Promise<any | undefined> {
+  const prices = await stripe.prices.list({ product: productId, active: true, limit: 100 });
+  return prices.data.find((price: any) =>
+    price.active === true &&
+    price.recurring?.interval === interval &&
+    price.currency === 'eur' &&
+    price.unit_amount === ADDON_AMOUNT_BY_INTERVAL[interval]
   );
 }
 
@@ -276,8 +316,49 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
       return;
     }
 
+    const currentSubscription = await stripe.subscriptions.retrieve(usage.subscriptionId, {
+      expand: ['items.data.price'],
+    });
+    const addonItems: any[] = [];
+    for (const item of currentSubscription.items.data) {
+      if (item.id === usage.subscriptionItemId) continue;
+      const productId = stripeProductId(item.price.product);
+      if (!productId) continue;
+      const itemProduct = await stripe.products.retrieve(productId);
+      if (itemProduct.metadata?.addon === 'seat') addonItems.push(item);
+    }
+
+    const subscriptionItems: any[] = [{ id: usage.subscriptionItemId, price: priceId }];
+    if (addonItems.length > 0) {
+      const addonProductId = stripeProductId(addonItems[0].price.product);
+      if (!addonProductId || !isStripeBillingInterval(newPrice.recurring?.interval)) {
+        res.status(400).json({ error: 'ADDON_BILLING_INTERVAL_UNSUPPORTED' });
+        return;
+      }
+      const addonPrice = await findActiveSeatAddonPrice(stripe, addonProductId, newPrice.recurring.interval);
+      if (!addonPrice) {
+        res.status(404).json({
+          error: 'ADDON_NOT_CONFIGURED',
+          message: 'Non è configurato il prezzo collaboratore per la cadenza del piano selezionato.',
+        });
+        return;
+      }
+
+      subscriptionItems[0].quantity = currentSubscription.items.data.find(
+        (item: any) => item.id === usage.subscriptionItemId,
+      )?.quantity ?? 1;
+      subscriptionItems.push({
+        id: addonItems[0].id,
+        price: addonPrice.id,
+        quantity: addonItems.reduce((total, item) => total + (item.quantity ?? 0), 0),
+      });
+      for (const duplicateItem of addonItems.slice(1)) {
+        subscriptionItems.push({ id: duplicateItem.id, deleted: true });
+      }
+    }
+
     const updated = await stripe.subscriptions.update(usage.subscriptionId, {
-      items: [{ id: usage.subscriptionItemId, price: priceId }],
+      items: subscriptionItems,
       proration_behavior: 'create_prorations',
       payment_behavior: 'pending_if_incomplete',
     });
@@ -298,24 +379,41 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
  * The admin must create a product in Stripe with metadata.addon = "seat".
  * Returns 404 if not configured.
  */
-router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): Promise<void> => {
+router.get('/stripe/addon-price', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
+    const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
+    if (!usage.subscriptionId || !usage.currentPriceId) {
+      res.status(400).json({
+        error: 'NO_ACTIVE_SUBSCRIPTION',
+        message: 'È necessario un abbonamento attivo per aggiungere collaboratori.',
+      });
+      return;
+    }
+
     const stripe = await getUncachableStripeClient();
-    const products = await stripe.products.list({ active: true });
-    const addonProduct = products.data.find((p) => p.metadata?.addon === 'seat');
+    const basePrice = await stripe.prices.retrieve(usage.currentPriceId);
+    const interval = basePrice.recurring?.interval;
+    if (!isStripeBillingInterval(interval)) {
+      res.status(400).json({ error: 'ADDON_BILLING_INTERVAL_UNSUPPORTED' });
+      return;
+    }
+
+    const addonProduct = await findActiveSeatAddonProduct(stripe);
     if (!addonProduct) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED' });
       return;
     }
-    const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
-    const price = prices.data.find((p) =>
-      p.recurring?.interval === 'month' && p.currency === 'eur' && p.unit_amount === 600
-    );
+    const price = await findActiveSeatAddonPrice(stripe, addonProduct.id, interval);
     if (!price) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED' });
       return;
     }
-    res.json({ priceId: price.id, unitAmount: price.unit_amount, currency: price.currency });
+    res.json(GetStripeAddonPriceResponse.parse({
+      priceId: price.id,
+      unitAmount: price.unit_amount,
+      currency: price.currency,
+      interval,
+    }));
   } catch (err: any) {
     sendStripeError(res, err);
   }
@@ -328,7 +426,7 @@ router.get('/stripe/addon-price', requireAuth, requireAdmin, async (_req, res): 
  */
 router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {
-    const parsed = z.object({ quantity: z.number().int().min(0).max(500) }).safeParse(req.body);
+    const parsed = SetStripeAddonSeatsBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'INVALID_QUANTITY', message: 'quantity must be an integer between 0 and 500' });
       return;
@@ -356,17 +454,22 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
 
     const stripe = await getUncachableStripeClient();
 
-    // Find the addon price
-    const products = await stripe.products.list({ active: true });
-    const addonProduct = products.data.find((p) => p.metadata?.addon === 'seat');
+    const addonProduct = await findActiveSeatAddonProduct(stripe);
     if (!addonProduct) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED', message: 'Prodotto addon non configurato su Stripe.' });
       return;
     }
-    const prices = await stripe.prices.list({ product: addonProduct.id, active: true });
-    const addonPrice = prices.data.find((p) =>
-      p.recurring?.interval === 'month' && p.currency === 'eur' && p.unit_amount === 600
-    );
+
+    const basePrice = usage.currentPriceId
+      ? await stripe.prices.retrieve(usage.currentPriceId)
+      : null;
+    const interval = basePrice?.recurring?.interval;
+    if (!isStripeBillingInterval(interval)) {
+      res.status(400).json({ error: 'ADDON_BILLING_INTERVAL_UNSUPPORTED' });
+      return;
+    }
+
+    const addonPrice = await findActiveSeatAddonPrice(stripe, addonProduct.id, interval);
     if (!addonPrice) {
       res.status(404).json({ error: 'ADDON_NOT_CONFIGURED', message: 'Prezzo addon non trovato.' });
       return;
@@ -376,19 +479,29 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
     const sub = await stripe.subscriptions.retrieve(usage.subscriptionId, {
       expand: ['items.data.price'],
     });
-    const existingAddonItem = sub.items.data.find((item) => item.price.id === addonPrice.id);
+    const existingAddonItems: any[] = [];
+    for (const item of sub.items.data) {
+      const productId = stripeProductId(item.price.product);
+      if (productId === addonProduct.id) existingAddonItems.push(item);
+    }
 
     if (quantity === 0) {
-      if (existingAddonItem) {
-        await stripe.subscriptionItems.del(existingAddonItem.id, {
+      for (const item of existingAddonItems) {
+        await stripe.subscriptionItems.del(item.id, {
           proration_behavior: 'create_prorations',
         });
       }
-    } else if (existingAddonItem) {
-      await stripe.subscriptionItems.update(existingAddonItem.id, {
+    } else if (existingAddonItems.length > 0) {
+      await stripe.subscriptionItems.update(existingAddonItems[0].id, {
+        price: addonPrice.id,
         quantity,
         proration_behavior: 'create_prorations',
       });
+      for (const duplicateItem of existingAddonItems.slice(1)) {
+        await stripe.subscriptionItems.del(duplicateItem.id, {
+          proration_behavior: 'create_prorations',
+        });
+      }
     } else {
       await stripe.subscriptionItems.create({
         subscription: usage.subscriptionId,
@@ -399,7 +512,11 @@ router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res
     }
 
     const updated = await getSeatUsage(req.currentUser.organizationId ?? null);
-    res.json({ addonSeats: updated.addonSeats, available: updated.available, limitReached: updated.limitReached });
+    res.json(SetStripeAddonSeatsResponse.parse({
+      addonSeats: updated.addonSeats,
+      available: updated.available,
+      limitReached: updated.limitReached,
+    }));
   } catch (err: any) {
     sendStripeError(res, err);
   }
