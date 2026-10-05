@@ -47,6 +47,8 @@ interface Price {
   active: boolean;
 }
 
+type BillingInterval = 'month' | 'year';
+
 interface Product {
   id: string;
   name: string;
@@ -87,6 +89,7 @@ export default function Billing() {
   const b = t.billing;
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval | null>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [seatUsage, setSeatUsage] = useState<SeatUsage | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -294,6 +297,52 @@ export default function Billing() {
   const isSubscribed = subscription && (subscription.status === 'active' || subscription.status === 'trialing');
   const showAddonWidget = !!(seatUsage?.hasActiveSubscription && !seatUsage?.unlimited);
 
+  const availableBillingIntervals = new Set<BillingInterval>(
+    products.flatMap((product) => product.prices
+      .filter((price) => price.active)
+      .map((price) => price.recurring?.interval)
+      .filter((interval): interval is BillingInterval => interval === 'month' || interval === 'year'))
+  );
+  const currentSubscriptionPrice = products
+    .flatMap((product) => product.prices)
+    .find((price) => price.id === seatUsage?.currentPriceId);
+  const currentSubscriptionInterval = currentSubscriptionPrice?.recurring?.interval;
+  const defaultBillingInterval: BillingInterval =
+    currentSubscriptionInterval === 'year' && availableBillingIntervals.has('year')
+      ? 'year'
+      : currentSubscriptionInterval === 'month' && availableBillingIntervals.has('month')
+        ? 'month'
+        : availableBillingIntervals.has('month') ? 'month' : 'year';
+  const billingInterval = selectedBillingInterval && availableBillingIntervals.has(selectedBillingInterval)
+    ? selectedBillingInterval
+    : defaultBillingInterval;
+  const showBillingIntervalSelector =
+    availableBillingIntervals.has('month') && availableBillingIntervals.has('year');
+  const currentProductId = products.find((product) =>
+    product.prices.some((price) => price.id === seatUsage?.currentPriceId)
+  )?.id ?? null;
+  const plansForInterval = products
+    .flatMap((product) => {
+      const price = product.prices.find((candidate) =>
+        candidate.active && candidate.recurring?.interval === billingInterval
+      );
+      return price ? [{ product, price }] : [];
+    })
+    .sort((a, b) => a.price.unit_amount - b.price.unit_amount);
+  const getAnnualSavings = (product: Product) => {
+    const monthlyPrice = product.prices.find((price) =>
+      price.active && price.recurring?.interval === 'month'
+    );
+    const annualPrice = product.prices.find((price) =>
+      price.active && price.recurring?.interval === 'year'
+    );
+    if (!monthlyPrice || !annualPrice || monthlyPrice.currency !== annualPrice.currency) return null;
+    const amount = monthlyPrice.unit_amount * 12 - annualPrice.unit_amount;
+    return amount > 0 ? { amount, currency: annualPrice.currency } : null;
+  };
+  const formatCurrencyAmount = (amount: number, currency: string) =>
+    (amount / 100).toLocaleString('it-IT', { style: 'currency', currency: currency.toUpperCase() });
+
   const effectivePlanSeats = seatUsage
     ? (seatUsage.planSeats ?? 0) + (seatUsage.addonSeats ?? 0)
     : 0;
@@ -447,6 +496,30 @@ export default function Billing() {
         <Typography variant="h6" fontWeight={800}>
           {isSubscribed ? b.upgradeNowCta : b.choosePlan}
         </Typography>
+        {showBillingIntervalSelector && (
+          <Box
+            role="group"
+            aria-label={b.billingInterval}
+            sx={{ display: 'inline-flex', gap: 0.5, p: 0.5, bgcolor: 'action.hover', borderRadius: '12px' }}
+          >
+            <Button
+              size="small"
+              variant={billingInterval === 'month' ? 'contained' : 'outlined'}
+              aria-pressed={billingInterval === 'month'}
+              onClick={() => setSelectedBillingInterval('month')}
+            >
+              {b.billingMonthly}
+            </Button>
+            <Button
+              size="small"
+              variant={billingInterval === 'year' ? 'contained' : 'outlined'}
+              aria-pressed={billingInterval === 'year'}
+              onClick={() => setSelectedBillingInterval('year')}
+            >
+              {b.billingAnnual}
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {loadingProducts ? (
@@ -460,27 +533,38 @@ export default function Billing() {
             <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>{b.noPlansHint}</Alert>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
-            {[...products]
-              .sort((a, b) => {
-                const aMin = Math.min(...a.prices.map((p) => p.unit_amount ?? Infinity));
-                const bMin = Math.min(...b.prices.map((p) => p.unit_amount ?? Infinity));
-                return aMin - bMin;
-              })
-              .flatMap((product) =>
-              product.prices.map((price) => {
+          {plansForInterval.length === 0 ? (
+            <Alert severity="warning">{b.noPlansAvailable}</Alert>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'repeat(3, minmax(0, 1fr))',
+                },
+                justifyItems: 'center',
+                gap: 2.5,
+              }}
+            >
+              {plansForInterval.map(({ product, price }) => {
                 const isCurrent = seatUsage?.currentPriceId === price.id;
-                const isUpgrade = isSubscribed && seatUsage && !isCurrent &&
+                const isCadenceChange = !!(
+                  isSubscribed && !isCurrent && currentProductId === product.id
+                );
+                const isUpgrade = !!(isSubscribed && seatUsage && !isCurrent &&
                   (product.unlimited || (product.seats !== null && (seatUsage.unlimited
                     ? false
-                    : seatUsage.planSeats !== null && product.seats > seatUsage.planSeats)));
-                const isDowngrade = isSubscribed && !isCurrent && !isUpgrade && seatUsage?.hasActiveSubscription;
+                    : seatUsage.planSeats !== null && product.seats > seatUsage.planSeats))));
+                const annualSavings = getAnnualSavings(product);
 
                 return (
                   <Card
                     key={price.id}
                     sx={{
-                      minWidth: 280, flex: '1 1 280px', maxWidth: 380,
+                      width: '100%', minWidth: 0, maxWidth: 380,
+                      justifySelf: 'center',
                       position: 'relative',
                       border: isCurrent ? '2px solid' : '1px solid',
                       borderColor: isCurrent ? 'primary.main' : 'divider',
@@ -512,6 +596,17 @@ export default function Billing() {
                       <Typography variant="h4" fontWeight={800} sx={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} gutterBottom>
                         {formatPrice(price)}
                       </Typography>
+                      {annualSavings && (
+                        <Typography
+                          variant="caption"
+                          color="success.dark"
+                          fontWeight={600}
+                          display="block"
+                          sx={{ mt: -0.75, mb: 1.25 }}
+                        >
+                          {b.annualSavings(formatCurrencyAmount(annualSavings.amount, annualSavings.currency))}
+                        </Typography>
+                      )}
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{product.description}</Typography>
                       <Divider sx={{ my: 2 }} />
                       <List dense disablePadding>
@@ -532,7 +627,7 @@ export default function Billing() {
                           startIcon={<TrendingUp />}
                           onClick={() => setUpgradeTarget({ product, price })}
                         >
-                          {isUpgrade ? b.upgrade : b.downgrade}
+                          {isCadenceChange ? b.changeBillingInterval : isUpgrade ? b.upgrade : b.downgrade}
                         </Button>
                       ) : (
                         <Button
@@ -547,9 +642,9 @@ export default function Billing() {
                     </CardActions>
                   </Card>
                 );
-              })
-            )}
-          </Box>
+              })}
+            </Box>
+          )}
         </>
       )}
 
