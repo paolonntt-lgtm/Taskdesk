@@ -513,6 +513,9 @@ export default function Landing() {
             <a href="#faq" className="hover:text-gray-900 transition-colors font-medium">{t.nav.faq}</a>
           </nav>
           <div className="flex items-center gap-3">
+            <Link href="/albert" className="md:hidden text-xs font-semibold text-gray-700 hover:text-blue-600 transition-colors">
+              {lang === "it" ? "Albert" : "Meet Albert"}
+            </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors px-2 py-1.5 rounded-md hover:bg-gray-100">

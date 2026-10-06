@@ -21,6 +21,7 @@ export default function Albert() {
     question: "Chi ha seguito la pratica IVA di Officina Verde? Cosa è successo dopo il commento di Marta?",
     response: <>Nel ticket <strong>#284 — Verifica IVA Officina Verde</strong>, Marta ha chiesto i registri del secondo trimestre il 12 giugno. Paolo ha caricato la documentazione il 13 giugno e ha segnato la pratica come risolta.</>,
     ticketTag: "Ticket #284 · commenti aggiornati",
+    exampleLabel: "Esempio illustrativo",
     proof: ["Ticket e commenti aggiornati", "Report sempre rivedibili", "Archivio completo"],
     clarityKicker: "Una conversazione, lavoro vero",
     clarityTitle: <>Chiedi in modo naturale.<br /><em>Capisci al volo.</em></>,
@@ -35,7 +36,7 @@ export default function Albert() {
       ["02", "Tiene il filo delle note", "Appunti e correzioni dei collaboratori restano nel report aggiornato, anche quando la bozza cambia."],
       ["03", "Pubblicazione solo dopo il tuo sì", "Mostra il testo completo per la revisione. Albert pubblica solo dopo una conferma esplicita; puoi creare più report nella stessa giornata."],
     ],
-    reportDate: "Report giornaliero · sede Milano",
+    reportDate: "Esempio · report giornaliero · sede Milano",
     reportStatus: "BOZZA DA RIVEDERE",
     reportBullet1: "Ticket #284 — Verifica IVA Officina Verde",
     reportBullet2: "Registri caricati da Paolo; pratica segnata come risolta.",
@@ -47,7 +48,7 @@ export default function Albert() {
     archiveKicker: "La memoria del team",
     archiveTitle: <>Ritrova anche ciò<br />che è successo <em>tempo fa.</em></>,
     archiveText: "Quando serve ricostruire una decisione o un passaggio di consegne, Albert cerca nell’intero archivio dei report giornalieri dell’organizzazione, senza fermarsi agli ultimi giorni. Autore, sede e data aiutano a ritrovare il contesto.",
-    searchExample: "“fornitore”, autore: Marta",
+    searchExample: "Esempio: “fornitore”, autore: Marta",
     reportOne: "Report di fine giornata",
     reportTwo: "Consegna — pratiche aperte",
     reportThree: "Riepilogo attività clienti",
@@ -82,6 +83,7 @@ export default function Albert() {
     question: "Who handled the VAT filing for Officina Verde? What happened after Marta’s comment?",
     response: <>In ticket <strong>#284 — Officina Verde VAT check</strong>, Marta asked for the second-quarter ledgers on 12 June. Paolo uploaded the documents on 13 June and marked the request resolved.</>,
     ticketTag: "Ticket #284 · current comments",
+    exampleLabel: "Illustrative example",
     proof: ["Current tickets and comments", "Reports reviewed before publishing", "Complete report archive"],
     clarityKicker: "A conversation that gets work done",
     clarityTitle: <>Ask naturally.<br /><em>Get your bearings.</em></>,
@@ -96,7 +98,7 @@ export default function Albert() {
       ["02", "Keeps every note in view", "Collaborators’ notes and corrections stay in the revised report, even as the draft changes."],
       ["03", "Publishes only when you say so", "Shows the complete text for review. Albert publishes only after explicit confirmation; you can create multiple reports in one day."],
     ],
-    reportDate: "Daily report · Milan office",
+    reportDate: "Example · daily report · Milan office",
     reportStatus: "DRAFT FOR REVIEW",
     reportBullet1: "Ticket #284 — Officina Verde VAT check",
     reportBullet2: "Ledgers uploaded by Paolo; request marked resolved.",
@@ -108,7 +110,7 @@ export default function Albert() {
     archiveKicker: "The team’s memory",
     archiveTitle: <>Find what happened,<br />even <em>further back.</em></>,
     archiveText: "When you need to retrace a decision or handoff, Albert searches your organisation’s complete daily-report archive—not just the last few days. Author, location and date help bring the context back.",
-    searchExample: "“supplier”, author: Marta",
+    searchExample: "Example: “supplier”, author: Marta",
     reportOne: "End-of-day report",
     reportTwo: "Handoff — open requests",
     reportThree: "Client activity summary",
@@ -185,11 +187,11 @@ export default function Albert() {
               <p className="albert-note">{copy.note}</p>
             </div>
             <div className="albert-console" aria-label={it ? "Esempio di conversazione con Albert" : "Example conversation with Albert"}>
-              <div className="albert-console-top"><span>TaskDesk / Albert</span><span className="albert-live">{it ? "Pronto ad aiutare" : "Ready to help"}</span></div>
+              <div className="albert-console-top"><span>TaskDesk / Albert</span><span className="albert-example-label">{copy.exampleLabel}</span><span className="albert-live">{it ? "Pronto ad aiutare" : "Ready to help"}</span></div>
               <div className="albert-chat">
-                <div className="albert-chat-meta"><span className="albert-orb">A</span><span>Albert · {it ? "assistente TaskDesk" : "TaskDesk assistant"}</span></div>
+                 <div className="albert-chat-meta"><img className="albert-orb" src="/app/albert-einstein-silhouette.png" alt="" aria-hidden="true" /><span>Albert · {it ? "assistente TaskDesk" : "TaskDesk assistant"}</span></div>
                 <div className="albert-question">{copy.question}</div>
-                <div className="albert-answer"><span className="albert-orb">A</span><div className="albert-answer-text">{copy.response}<br /><span className="albert-ticket-ref">{copy.ticketTag}</span></div></div>
+                 <div className="albert-answer"><img className="albert-orb" src="/app/albert-einstein-silhouette.png" alt="" aria-hidden="true" /><div className="albert-answer-text">{copy.response}<br /><span className="albert-ticket-ref">{copy.ticketTag}</span></div></div>
                 <div className="albert-prompt"><span>{it ? "Chiedi ad Albert…" : "Ask Albert…"}</span><b>↗</b></div>
               </div>
             </div>
