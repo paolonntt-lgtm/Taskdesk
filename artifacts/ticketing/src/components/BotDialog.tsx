@@ -45,6 +45,7 @@ type BotAction = CreateTicketAction | ViewTicketAction | SubmitDailyReportAction
 interface TeamReportItem {
   id: number;
   date: string;
+  createdAt: string;
   authorId: number;
   authorName: string;
   isOwn: boolean;
@@ -422,12 +423,13 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const sendSingleReportBriefing = async (reportId: number, authorName: string) => {
     if (loading) return;
     setShowTeamReports(false);
+    const briefingTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const userMsg: Message = {
       role: 'user',
       content: lang === 'it' ? `📖 Leggi il report di ${authorName}` : `📖 Read ${authorName}'s report`,
     };
     await streamBotResponse(
-      { message: '__briefing_single__', history: [], lang, briefingMode: true, briefingReportId: reportId },
+      { message: '__briefing_single__', history: [], lang, briefingMode: true, briefingReportId: reportId, briefingTimeZone },
       userMsg,
       () => {
         // Mark the selected report read locally for instant UI feedback.
@@ -912,6 +914,10 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                         : dateObj.toDateString() === yestStr
                           ? (lang === 'it' ? 'Ieri' : 'Yesterday')
                           : dateObj.toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const createdAt = new Date(report.createdAt);
+                      const timeLabel = Number.isNaN(createdAt.getTime())
+                        ? ''
+                        : createdAt.toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
                       return (
                         <Box
                           key={report.id}
@@ -937,7 +943,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                               {authorLabel}
                             </Typography>
                             <Typography variant="caption" color="text.disabled" display="block" sx={{ fontSize: '0.67rem' }}>
-                              {dateLabel}{report.location ? ` · ${report.location}` : ''}
+                              {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}{report.location ? ` · ${report.location}` : ''}
                             </Typography>
                           </Box>
                           {!report.isRead
