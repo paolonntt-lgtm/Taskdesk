@@ -59,11 +59,9 @@ interface ParsedOption {
 interface BotDialogProps {
   open: boolean;
   unreadCount?: number;
-  dailyReportUnread?: number;
   onClose: () => void;
   onExpand?: () => void;
   onBotMessage?: () => void;
-  onDailyReportsRead?: () => void;
   onCreateTicket: (title: string, description: string, category?: string, resource?: string, location?: string) => void;
   onViewTicket?: (id: number) => void;
 }
@@ -279,7 +277,7 @@ function saveSession(messages: Message[], pendingAction: BotAction | null) {
   } catch { /* ignore */ }
 }
 
-export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0, onClose, onExpand, onBotMessage, onDailyReportsRead, onCreateTicket, onViewTicket }: BotDialogProps) {
+export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, onBotMessage, onCreateTicket, onViewTicket }: BotDialogProps) {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const theme = useTheme();
@@ -307,7 +305,6 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   // Daily report state
   const [todayReportSubmitted, setTodayReportSubmitted] = useState<boolean | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const briefingFiredRef = useRef(false); // prevent double-firing within a single open
   // Report wizard active flag — persisted across turns; server fetches activity on every turn
   const [reportWizardActive, setReportWizardActive] = useState(false);
   const reportWizardActiveRef = useRef(false); // mirror for async closures
@@ -432,9 +429,8 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
       { message: '__briefing_single__', history: [], lang, briefingMode: true, briefingReportId: reportId },
       userMsg,
       () => {
-        // Mark read locally for instant UI feedback + refresh badge from server
+        // Mark the selected report read locally for instant UI feedback.
         setTeamReports((prev) => prev ? prev.map((r) => r.id === reportId ? { ...r, isRead: true } : r) : prev);
-        onDailyReportsRead?.();
       },
     );
   };
@@ -493,19 +489,9 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
   // Reset transient state each time the dialog closes.
   useEffect(() => {
     if (!open) {
-      briefingFiredRef.current = false;
       setPickingLocation(false);
     }
   }, [open]);
-
-  // When bot opens with unread colleague reports: show the report picker panel
-  // instead of auto-briefing. Guard resets on close so it fires once per open.
-  useEffect(() => {
-    if (open && dailyReportUnread > 0 && !briefingFiredRef.current) {
-      briefingFiredRef.current = true;
-      void fetchAndShowTeamReports();
-    }
-  }, [open, dailyReportUnread]);
 
   // Re-fetch today's report status + org locations every time the dialog opens.
   useEffect(() => {
@@ -580,6 +566,7 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, location: reportWizardLocationRef.current ?? undefined }),
       });
+      const result = await res.json().catch(() => ({}));
       if (res.ok) {
         trackEvent('daily_report_submitted', {
           has_location: Boolean(reportWizardLocationRef.current),
@@ -587,9 +574,20 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
         setTodayReportSubmitted(true);
         setPendingAction(null);
         exitReportWizard(); // wizard complete — exit report mode
-        const confMsg = lang === 'it'
-          ? '✅ Report pubblicato! I tuoi colleghi riceveranno una notifica.'
-          : '✅ Report published! Your colleagues will receive a notification.';
+        const notificationCount = typeof result.notificationCount === 'number'
+          ? result.notificationCount
+          : 0;
+        const confMsg = result.notificationError
+          ? (lang === 'it'
+            ? '✅ Report pubblicato, ma non è stato possibile creare la notifica in-app. I colleghi possono comunque consultarlo da “Report del team”.'
+            : '✅ Report published, but the in-app notification could not be created. Colleagues can still find it under “Team reports”.')
+          : notificationCount > 0
+            ? (lang === 'it'
+              ? `✅ Report pubblicato. Notifica in-app creata per ${notificationCount} ${notificationCount === 1 ? 'collega' : 'colleghi'}.`
+              : `✅ Report published. In-app notification created for ${notificationCount} ${notificationCount === 1 ? 'colleague' : 'colleagues'}.`)
+            : (lang === 'it'
+              ? '✅ Report pubblicato. Nessun altro collaboratore attivo ha le notifiche in-app abilitate; il report resta disponibile in “Report del team”.'
+              : '✅ Report published. No other active collaborator has in-app notifications enabled; the report remains available under “Team reports”.');
         setMessages((prev) => [...prev, { role: 'assistant', content: confMsg }]);
       } else {
         const err = lang === 'it' ? 'Errore nel salvataggio del report.' : 'Error saving the report.';
@@ -1053,18 +1051,6 @@ export default function BotDialog({ open, unreadCount = 0, dailyReportUnread = 0
                   }}
                 >
                   👥 {lang === 'it' ? 'Report del team' : 'Team reports'}
-                  {dailyReportUnread > 0 && (
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 0.5, px: 0.75, py: 0.1, borderRadius: 10,
-                        bgcolor: 'primary.main', color: 'white',
-                        fontSize: '0.65rem', fontWeight: 700, lineHeight: 1.4,
-                      }}
-                    >
-                      {dailyReportUnread}
-                    </Box>
-                  )}
                   {teamReportsLoading && (
                     <CircularProgress size={10} sx={{ ml: 'auto' }} />
                   )}

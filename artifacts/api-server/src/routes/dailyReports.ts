@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
 import { db, ticketsTable, ticketActivityLogsTable, usersTable, dailyReportsTable, dailyReportReadsTable } from "@workspace/db";
 import { eq, and, sql, desc, gte, lt, inArray, ne } from "drizzle-orm";
-import { createNotificationsForOrg } from "../lib/notifications";
+import { createInAppNotificationsForOrg } from "../lib/notifications";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -131,16 +132,25 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
       })
       .returning();
 
-    // Notify all other org members
-    void createNotificationsForOrg(
-      currentUser.organizationId,
-      currentUser.id,
-      `${currentUser.name} ha pubblicato il report di oggi`,
-      "daily_report_submitted",
-      null,
-    );
+    let notificationCount = 0;
+    let notificationError = false;
+    try {
+      notificationCount = await createInAppNotificationsForOrg(
+        currentUser.organizationId,
+        currentUser.id,
+        `${currentUser.name} ha pubblicato il report di oggi`,
+        "daily_report_submitted",
+        null,
+      );
+    } catch (notificationErr) {
+      notificationError = true;
+      logger.error(
+        { err: notificationErr, reportId: report.id },
+        "Daily report saved but in-app notifications could not be created",
+      );
+    }
 
-    res.json({ ok: true, report });
+    res.json({ ok: true, report, notificationCount, notificationError });
   } catch (err: any) {
     if (err.code === "23505") {
       // Duplicate (shouldn't happen with onConflictDoUpdate, but safety net)

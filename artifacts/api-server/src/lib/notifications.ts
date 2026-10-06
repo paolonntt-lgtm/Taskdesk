@@ -272,6 +272,45 @@ export async function createNotificationsForOrg(
   void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
 }
 
+/**
+ * Create only in-app notifications for every active member of an organization,
+ * excluding the author and honoring each recipient's in-app preference.
+ */
+export async function createInAppNotificationsForOrg(
+  organizationId: number,
+  excludeUserId: number,
+  text: string,
+  type: NotificationType,
+  ticketId: number | null = null,
+): Promise<number> {
+  const candidates = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(and(
+      eq(usersTable.organizationId, organizationId),
+      ne(usersTable.id, excludeUserId),
+      eq(usersTable.isActive, true),
+    ));
+  if (candidates.length === 0) return 0;
+
+  const prefs = await getChannelPrefs(candidates.map((user) => user.id), type);
+  const inAppTargets = candidates
+    .filter((user) => prefs.get(user.id)?.inApp !== false)
+    .map((user) => user.id);
+  if (inAppTargets.length === 0) return 0;
+
+  await db.insert(notificationsTable).values(
+    inAppTargets.map((userId) => ({
+      userId,
+      ticketId: ticketId ?? undefined,
+      type,
+      notificationText: text,
+      isRead: false,
+    }))
+  );
+  return inAppTargets.length;
+}
+
 export async function createNotificationForUser(
   userId: number,
   ticketId: number | null,

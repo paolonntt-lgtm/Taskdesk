@@ -138,7 +138,6 @@ export default function Layout({ children }: LayoutProps) {
     try { return sessionStorage.getItem('td_bot_open') === '1'; } catch { return false; }
   });
   const [botUnreadCount, setBotUnreadCount] = useState(0);
-  const [dailyReportUnread, setDailyReportUnread] = useState(0);
   const [botFabPosition, setBotFabPosition] = useState<BotFabPosition | null>(() => readBotFabPosition());
   const [isDraggingBotFab, setIsDraggingBotFab] = useState(false);
   const botFabRef = React.useRef<HTMLButtonElement | null>(null);
@@ -271,20 +270,6 @@ export default function Layout({ children }: LayoutProps) {
     window.addEventListener('resize', constrainSavedPosition);
     return () => window.removeEventListener('resize', constrainSavedPosition);
   }, [isMobile]);
-
-  // Poll for unread daily reports from colleagues — updates the FAB badge
-  useEffect(() => {
-    if (!user) return;
-    const fetchUnread = () => {
-      fetch('/api/daily-reports/unread', { credentials: 'include' })
-        .then((r) => r.ok ? r.json() : { reports: [] })
-        .then((d) => setDailyReportUnread((d.reports ?? []).length))
-        .catch(() => { /* ignore */ });
-    };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 60_000);
-    return () => clearInterval(interval);
-  }, [user]);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -436,6 +421,7 @@ export default function Layout({ children }: LayoutProps) {
     ticket_commented: <Comment fontSize="small" sx={{ color: 'success.main' }} />,
     ticket_assigned: <AssignmentInd fontSize="small" sx={{ color: 'secondary.main' }} />,
     ticket_priority_changed: <PriorityHigh fontSize="small" sx={{ color: 'warning.main' }} />,
+    daily_report_submitted: <Info fontSize="small" sx={{ color: 'primary.main' }} />,
     system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
   };
 
@@ -1032,7 +1018,7 @@ export default function Layout({ children }: LayoutProps) {
           }}
         >
           <Badge
-            badgeContent={botUnreadCount + dailyReportUnread}
+            badgeContent={botUnreadCount}
             color="error"
             sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', minWidth: 16, height: 16 } }}
           >
@@ -1054,17 +1040,9 @@ export default function Layout({ children }: LayoutProps) {
       <BotDialog
         open={botOpen}
         unreadCount={botUnreadCount}
-        dailyReportUnread={dailyReportUnread}
         onClose={() => { trackEvent('bot_closed'); setBotOpenPersist(false); setBotUnreadCount(0); }}
         onExpand={() => setBotUnreadCount(0)}
         onBotMessage={() => setBotUnreadCount((c) => c + 1)}
-        onDailyReportsRead={() => {
-              // Re-fetch the actual count so the badge is always accurate
-              fetch('/api/daily-reports/unread', { credentials: 'include' })
-                .then((r) => r.ok ? r.json() : { reports: [] })
-                .then((d) => setDailyReportUnread((d.reports ?? []).length))
-                .catch(() => {});
-            }}
         onCreateTicket={(title, description, category, resource, location) => {
           setBotOpenPersist(false);
           setBotUnreadCount(0);
