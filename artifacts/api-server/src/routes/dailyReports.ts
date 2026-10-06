@@ -214,8 +214,7 @@ router.post("/daily-reports/:id/read", requireAuth, async (req, res): Promise<vo
 });
 
 // GET /daily-reports/recent
-// Returns the last 7 days of colleague reports for the org, with an isRead flag
-// for the current user. Used by the bot dialog to show the report picker.
+// Returns recent organization reports, including the current user's, for the bot dialog.
 router.get("/daily-reports/recent", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -228,16 +227,19 @@ router.get("/daily-reports/recent", requireAuth, async (req, res): Promise<void>
       dr.location,
       u.id AS "authorId",
       u.name AS "authorName",
-      EXISTS (
-        SELECT 1 FROM daily_report_reads drr
-        WHERE drr.daily_report_id = dr.id AND drr.user_id = ${currentUser.id}
+      (dr.author_user_id = ${currentUser.id}) AS "isOwn",
+      (
+        dr.author_user_id = ${currentUser.id}
+        OR EXISTS (
+          SELECT 1 FROM daily_report_reads drr
+          WHERE drr.daily_report_id = dr.id AND drr.user_id = ${currentUser.id}
+        )
       ) AS "isRead"
     FROM daily_reports dr
     JOIN users u ON u.id = dr.author_user_id
     WHERE dr.organization_id = ${currentUser.organizationId}
-      AND dr.author_user_id <> ${currentUser.id}
       AND dr.created_at >= ${sevenDaysAgo}
-    ORDER BY dr.date DESC, dr.created_at DESC
+    ORDER BY (dr.author_user_id = ${currentUser.id}) DESC, dr.date DESC, dr.created_at DESC
     LIMIT 30
   `);
 

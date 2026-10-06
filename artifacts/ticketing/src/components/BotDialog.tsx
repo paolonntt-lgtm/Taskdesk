@@ -47,6 +47,7 @@ interface TeamReportItem {
   date: string;
   authorId: number;
   authorName: string;
+  isOwn: boolean;
   location?: string | null;
   isRead: boolean;
 }
@@ -401,7 +402,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     }
   };
 
-  // ── Fetch team reports list (recent 7 days, with isRead per user) ────────
+  // ── Fetch recent organization reports (including the current user's) ─────
   const fetchAndShowTeamReports = async () => {
     setTeamReportsLoading(true);
     try {
@@ -417,7 +418,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
     }
   };
 
-  // ── Single-report briefing: user chose one colleague's report to read ─────
+  // ── Single-report briefing: user chose a recent report to read ─────────────
   const sendSingleReportBriefing = async (reportId: number, authorName: string) => {
     if (loading) return;
     setShowTeamReports(false);
@@ -880,7 +881,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 }}>
                   <Typography variant="caption" fontWeight={700} color="text.secondary"
                     sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.67rem' }}>
-                    {lang === 'it' ? 'Report dei colleghi' : 'Team reports'}
+                    {lang === 'it' ? 'Report recenti' : 'Recent reports'}
                   </Typography>
                   <IconButton size="small" onClick={() => setShowTeamReports(false)} sx={{ p: 0.25 }}>
                     <Close sx={{ fontSize: 14 }} />
@@ -895,7 +896,12 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 ) : (
                   <Box sx={{ maxHeight: 168, overflowY: 'auto' }}>
                     {teamReports.map((report) => {
-                      const initials = report.authorName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?';
+                      const authorLabel = report.isOwn
+                        ? (lang === 'it' ? 'Il tuo report' : 'Your report')
+                        : report.authorName;
+                      const initials = report.isOwn
+                        ? (lang === 'it' ? 'TU' : 'YO')
+                        : report.authorName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?';
                       const palette = ['#7C3AED','#0891B2','#059669','#D97706','#DC2626','#9333EA','#0284C7'];
                       const bgColor = palette[Math.abs(report.authorId ?? 0) % palette.length];
                       const dateObj = new Date(report.date);
@@ -928,7 +934,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                           </Avatar>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography variant="caption" fontWeight={700} display="block" noWrap sx={{ fontSize: '0.78rem' }}>
-                              {report.authorName}
+                              {authorLabel}
                             </Typography>
                             <Typography variant="caption" color="text.disabled" display="block" sx={{ fontSize: '0.67rem' }}>
                               {dateLabel}{report.location ? ` · ${report.location}` : ''}
@@ -1034,11 +1040,8 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                   size="small"
                   disabled={loading || teamReportsLoading}
                   onClick={async () => {
-                    if (teamReports === null) {
-                      await fetchAndShowTeamReports();
-                    } else {
-                      setShowTeamReports((prev) => !prev);
-                    }
+                    if (showTeamReports) setShowTeamReports(false);
+                    else await fetchAndShowTeamReports();
                   }}
                   sx={{
                     borderRadius: 2,
@@ -1050,7 +1053,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
                   }}
                 >
-                  👥 {lang === 'it' ? 'Report del team' : 'Team reports'}
+                  👥 {lang === 'it' ? 'Report recenti' : 'Recent reports'}
                   {teamReportsLoading && (
                     <CircularProgress size={10} sx={{ ml: 'auto' }} />
                   )}
