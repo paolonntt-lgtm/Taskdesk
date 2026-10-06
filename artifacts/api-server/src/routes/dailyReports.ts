@@ -3,45 +3,45 @@ import { requireAuth } from "../middlewares/auth";
 import { db, ticketsTable, ticketActivityLogsTable, usersTable, dailyReportsTable, dailyReportReadsTable } from "@workspace/db";
 import { eq, and, sql, desc, gte, lt, inArray, ne } from "drizzle-orm";
 import { createInAppNotificationsForOrg } from "../lib/notifications";
+import { extractReportTicketIds, getDailyReportActivityWindow, getRecentReportedTicketTimestamps, isActivityNewSinceLastReport } from "../lib/dailyReportActivity";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-// ── helpers: all date boundaries use UTC so activity filtering and the
-//   report's uniqueness key (DATE column) always agree on which day it is. ──
+// Report uniqueness is keyed by UTC date; activity selection uses a rolling 12-hour window.
 function todayDateStr(): string {
   return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD" in UTC
 }
 
-function utcDayBoundaries(): { todayStart: Date; tomorrowStart: Date } {
-  const now = new Date();
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
-  return { todayStart, tomorrowStart };
-}
-
-// GET /daily-reports/my-activity-today
-// Returns tickets the current user acted on today (via ticket_activity_logs).
+// Legacy path retained; the endpoint now returns unreported activity from the rolling 12-hour window.
+// Admin-only tickets and internal notes are excluded because reports are shared with the organization.
 router.get("/daily-reports/my-activity-today", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const { since, until } = getDailyReportActivityWindow();
+  const lastReportedAtByTicket = await getRecentReportedTicketTimestamps(currentUser.id, orgId, since, until);
 
-  const { todayStart, tomorrowStart } = utcDayBoundaries();
-
-  // Distinct ticket IDs the user touched today
   const activityRows = await db
-    .select({ ticketId: ticketActivityLogsTable.ticketId, actionType: ticketActivityLogsTable.actionType })
+    .select({
+      ticketId: ticketActivityLogsTable.ticketId,
+      actionType: ticketActivityLogsTable.actionType,
+      createdAt: ticketActivityLogsTable.createdAt,
+    })
     .from(ticketActivityLogsTable)
+    .innerJoin(ticketsTable, eq(ticketActivityLogsTable.ticketId, ticketsTable.id))
     .where(and(
       eq(ticketActivityLogsTable.userId, currentUser.id),
-      gte(ticketActivityLogsTable.createdAt, todayStart),
-      lt(ticketActivityLogsTable.createdAt, tomorrowStart),
+      gte(ticketActivityLogsTable.createdAt, since),
+      lt(ticketActivityLogsTable.createdAt, until),
+      eq(ticketsTable.organizationId, orgId),
+      eq(ticketsTable.visibility, "organization"),
     ))
     .orderBy(ticketActivityLogsTable.createdAt);
 
-  // Deduplicate, keeping the most interesting actionType per ticket
   const ticketActionMap = new Map<number, Set<string>>();
   for (const row of activityRows) {
+    if (row.actionType === "note_added") continue;
+    if (!isActivityNewSinceLastReport(row.ticketId, row.createdAt, lastReportedAtByTicket)) continue;
     if (!ticketActionMap.has(row.ticketId)) ticketActionMap.set(row.ticketId, new Set());
     ticketActionMap.get(row.ticketId)!.add(row.actionType);
   }
@@ -65,7 +65,7 @@ router.get("/daily-reports/my-activity-today", requireAuth, async (req, res): Pr
     .where(and(
       inArray(ticketsTable.id, ticketIds),
       eq(ticketsTable.organizationId, orgId),
-      currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+      eq(ticketsTable.visibility, "organization"),
     ));
 
   const result = tickets.map((t) => ({
@@ -114,6 +114,8 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const sanitizedLocation = typeof location === "string" && location.trim().length > 0
     ? location.trim().slice(0, 100)
     : null;
+  const reportTicketIds = extractReportTicketIds(content.trim(), ticketsSnapshot);
+  const ticketsSnapshotToStore = reportTicketIds.length > 0 ? reportTicketIds : null;
 
   try {
     const [report] = await db
@@ -124,11 +126,16 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
         date: today,
         content: content.trim(),
         location: sanitizedLocation,
-        ticketsSnapshot: ticketsSnapshot ?? null,
+        ticketsSnapshot: ticketsSnapshotToStore,
       })
       .onConflictDoUpdate({
         target: [dailyReportsTable.organizationId, dailyReportsTable.authorUserId, dailyReportsTable.date],
-        set: { content: content.trim(), location: sanitizedLocation, ticketsSnapshot: ticketsSnapshot ?? null },
+        set: {
+          content: content.trim(),
+          location: sanitizedLocation,
+          ticketsSnapshot: ticketsSnapshotToStore,
+          createdAt: new Date(),
+        },
       })
       .returning();
 
