@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { ticketsTable } from "./tickets";
+import { dailyReportsTable } from "./daily_reports";
 
 export const NOTIFICATION_TYPES = [
   "ticket_created",
@@ -20,6 +21,7 @@ export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id),
   ticketId: integer("ticket_id").references(() => ticketsTable.id, { onDelete: "cascade" }),
+  dailyReportId: integer("daily_report_id").references(() => dailyReportsTable.id, { onDelete: "cascade" }),
   type: text("type").notNull().default("system"),
   notificationText: text("notification_text").notNull(),
   isRead: boolean("is_read").notNull().default(false),

@@ -21,4 +21,5 @@
 - [Stripe payment descriptor](stripe-payment-descriptor.md) — Use TASKDESK.IT for future billing statements; Dashboard changes do not rewrite past charges.
 - [Daily report archive scope](daily-report-history.md) — Operators can publish multiple reports per day; Albert searches their organization's entire archive.
 - [Daily report collaborator notes](daily-report-notes.md) — Preserve collaborator notes throughout report preparation and show the complete draft for review before publishing.
+- [Daily report notification context](daily-report-notifications.md) — Multisite report notifications need the site label and a direct link to the exact report.
 - [Development schema drift](development-schema-drift.md) — Drizzle push reveals unrelated clients/organizations differences; review diffs and never force through data-loss prompts.

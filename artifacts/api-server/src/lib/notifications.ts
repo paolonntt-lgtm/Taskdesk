@@ -282,6 +282,7 @@ export async function createInAppNotificationsForOrg(
   text: string,
   type: NotificationType,
   ticketId: number | null = null,
+  dailyReportId: number | null = null,
 ): Promise<number> {
   const candidates = await db
     .select({ id: usersTable.id })
@@ -303,6 +304,7 @@ export async function createInAppNotificationsForOrg(
     inAppTargets.map((userId) => ({
       userId,
       ticketId: ticketId ?? undefined,
+      dailyReportId: dailyReportId ?? undefined,
       type,
       notificationText: text,
       isRead: false,

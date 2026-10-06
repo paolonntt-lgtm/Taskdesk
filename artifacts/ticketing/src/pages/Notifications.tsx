@@ -44,6 +44,7 @@ interface NotificationItem {
   id: number;
   ticketId?: number | null;
   ticketNumber?: number | null;
+  dailyReportId?: number | null;
   notificationText: string;
   isRead: boolean;
   createdAt: string;
@@ -147,9 +148,10 @@ export default function NotificationsPage() {
     });
   };
 
-  const handleOpenTicket = (notification: NotificationItem) => {
+  const handleOpenNotification = (notification: NotificationItem) => {
     if (!notification.isRead) handleMarkRead(notification);
-    if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+    if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
+    else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
 
   const emptyCopy = filter === 'unread'
@@ -324,13 +326,13 @@ export default function NotificationsPage() {
                   <Card
                     key={notification.id}
                     data-testid={`card-notification-${notification.id}`}
-                    onClick={() => handleOpenTicket(notification)}
+                    onClick={() => handleOpenNotification(notification)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        handleOpenTicket(notification);
+                        handleOpenNotification(notification);
                       }
                     }}
                     sx={{
@@ -390,7 +392,20 @@ export default function NotificationsPage() {
                             {notification.notificationText}
                           </Typography>
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25, flexWrap: 'wrap', rowGap: 0.8 }}>
-                            {notification.ticketId ? (
+                            {notification.dailyReportId ? (
+                              <Button
+                                size="small"
+                                endIcon={<ArrowForward sx={{ fontSize: '16px !important' }} />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenNotification(notification);
+                                }}
+                                data-testid={`button-open-report-${notification.id}`}
+                                sx={{ px: 0.7, minWidth: 0, fontSize: '0.76rem' }}
+                              >
+                                {lang === 'it' ? 'Apri report' : 'Open report'}
+                              </Button>
+                            ) : notification.ticketId ? (
                               <>
                                 <Chip
                                   icon={<ConfirmationNumberOutlined sx={{ fontSize: '15px !important' }} />}
@@ -405,7 +420,7 @@ export default function NotificationsPage() {
                                   endIcon={<ArrowForward sx={{ fontSize: '16px !important' }} />}
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    handleOpenTicket(notification);
+                                    handleOpenNotification(notification);
                                   }}
                                   data-testid={`button-open-ticket-${notification.id}`}
                                   sx={{ px: 0.7, minWidth: 0, fontSize: '0.76rem' }}

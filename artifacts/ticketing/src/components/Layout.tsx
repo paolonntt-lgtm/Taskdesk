@@ -409,7 +409,8 @@ export default function Layout({ children }: LayoutProps) {
       });
     }
     handleMenuClose();
-    if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+    if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
+    else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
 
@@ -820,6 +821,11 @@ export default function Layout({ children }: LayoutProps) {
                         <Typography variant="body2" sx={{ lineHeight: 1.45, fontWeight: notification.isRead ? 500 : 700, overflowWrap: 'anywhere' }}>
                           {notification.notificationText}
                         </Typography>
+                        {notification.dailyReportId && (
+                          <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700, mt: 0.65, display: 'block' }}>
+                            {lang === 'it' ? 'Apri report' : 'Open report'} →
+                          </Typography>
+                        )}
                         {notification.createdAt && (
                           <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem', mt: 0.65, display: 'block' }}>
                             {new Date(notification.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', { dateStyle: 'short', timeStyle: 'short' })}

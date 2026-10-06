@@ -28,6 +28,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import CalendarPage from "./pages/Calendar";
 import NotificationsPage from "./pages/Notifications";
+import DailyReportDetailPage from "./pages/DailyReportDetail";
 import TicketTrash from "./pages/TicketTrash";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import type { User } from "@workspace/api-client-react";
@@ -98,6 +99,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/tickets/:id" component={TicketDetail} />
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />
+          <Route path="/daily-reports/:id" component={DailyReportDetailPage} />
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/notifications" component={NotificationsPage} />
           <Route path="/users/:id" component={UserProfile} />

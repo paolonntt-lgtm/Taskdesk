@@ -289,6 +289,53 @@ export async function runAppMigrations(): Promise<void> {
       );
     `);
 
+    await client.query(`
+      ALTER TABLE notifications
+        ADD COLUMN IF NOT EXISTS daily_report_id INTEGER
+        REFERENCES daily_reports(id) ON DELETE CASCADE;
+    `);
+
+    // Attach older report notifications to their report when their author and
+    // publication time identify a single close match. Leave ambiguous/unmatched
+    // rows untouched rather than linking them to the wrong report.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_migrations
+          WHERE key = 'daily_report_notification_links'
+        ) THEN
+          WITH ranked_matches AS (
+            SELECT
+              n.id AS notification_id,
+              dr.id AS report_id,
+              ROW_NUMBER() OVER (
+                PARTITION BY n.id
+                ORDER BY ABS(EXTRACT(EPOCH FROM (n.created_at - dr.created_at))), dr.id DESC
+              ) AS match_rank,
+              COUNT(*) OVER (PARTITION BY n.id) AS match_count
+            FROM notifications n
+            JOIN users recipient ON recipient.id = n.user_id
+            JOIN daily_reports dr ON dr.organization_id = recipient.organization_id
+            JOIN users author ON author.id = dr.author_user_id
+            WHERE n.type = 'daily_report_submitted'
+              AND n.daily_report_id IS NULL
+              AND n.notification_text = author.name || ' ha pubblicato il report di oggi'
+              AND n.created_at >= dr.created_at - INTERVAL '10 seconds'
+              AND n.created_at < dr.created_at + INTERVAL '5 minutes'
+          )
+          UPDATE notifications n
+          SET daily_report_id = ranked_matches.report_id
+          FROM ranked_matches
+          WHERE n.id = ranked_matches.notification_id
+            AND ranked_matches.match_rank = 1
+            AND ranked_matches.match_count = 1;
+
+          INSERT INTO app_migrations (key) VALUES ('daily_report_notification_links');
+        END IF;
+      END $$;
+    `);
+
     // Ticket visibility: existing tickets remain visible to the organization.
     await client.query(`
       ALTER TABLE tickets

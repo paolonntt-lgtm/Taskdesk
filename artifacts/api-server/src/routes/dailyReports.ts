@@ -2,6 +2,12 @@ import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth";
 import { db, ticketsTable, ticketActivityLogsTable, usersTable, dailyReportsTable, dailyReportReadsTable } from "@workspace/db";
 import { eq, and, sql, desc, gte, lt, inArray, ne } from "drizzle-orm";
+import {
+  GetDailyReportParams,
+  GetDailyReportResponse,
+  MarkDailyReportReadParams,
+  MarkDailyReportReadResponse,
+} from "@workspace/api-zod";
 import { createInAppNotificationsForOrg } from "../lib/notifications";
 import { extractReportTicketIds, getDailyReportActivityWindow, getRecentReportedTicketTimestamps, isActivityNewSinceLastReport } from "../lib/dailyReportActivity";
 import { logger } from "../lib/logger";
@@ -135,9 +141,10 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
     notificationCount = await createInAppNotificationsForOrg(
       currentUser.organizationId,
       currentUser.id,
-      `${currentUser.name} ha pubblicato il report di oggi`,
+      `${currentUser.name} ha pubblicato il report di oggi${sanitizedLocation ? ` — Sede: ${sanitizedLocation}` : ""}`,
       "daily_report_submitted",
       null,
+      report.id,
     );
   } catch (notificationErr) {
     notificationError = true;
@@ -184,15 +191,33 @@ router.get("/daily-reports/unread", requireAuth, async (req, res): Promise<void>
 // Mark a specific report as read by the current user.
 router.post("/daily-reports/:id/read", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
-  const reportId = parseInt(String(req.params.id));
-  if (isNaN(reportId)) { res.status(400).json({ error: "invalid id" }); return; }
+  const params = MarkDailyReportReadParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const reportId = params.data.id;
+  const [report] = await db
+    .select({ id: dailyReportsTable.id })
+    .from(dailyReportsTable)
+    .where(and(
+      eq(dailyReportsTable.id, reportId),
+      eq(dailyReportsTable.organizationId, currentUser.organizationId),
+    ))
+    .limit(1);
+
+  if (!report) {
+    res.status(404).json({ error: "Daily report not found" });
+    return;
+  }
 
   await db
     .insert(dailyReportReadsTable)
     .values({ userId: currentUser.id, dailyReportId: reportId })
     .onConflictDoNothing();
 
-  res.json({ ok: true });
+  res.json(MarkDailyReportReadResponse.parse({ success: true }));
 });
 
 // GET /daily-reports/recent
@@ -259,6 +284,47 @@ router.get("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   `);
 
   res.json({ reports: rows.rows });
+});
+
+// GET /daily-reports/:id
+// Returns a report only to members of the organization that owns it.
+router.get("/daily-reports/:id", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const params = GetDailyReportParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const result = await db.execute(sql`
+    SELECT
+      dr.id,
+      dr.date::text AS date,
+      dr.content,
+      dr.location,
+      dr.created_at AS "createdAt",
+      u.id AS "authorId",
+      u.name AS "authorName"
+    FROM daily_reports dr
+    JOIN users u ON u.id = dr.author_user_id
+    WHERE dr.id = ${params.data.id}
+      AND dr.organization_id = ${currentUser.organizationId}
+    LIMIT 1
+  `);
+  const report = result.rows[0];
+
+  if (!report) {
+    res.status(404).json({ error: "Daily report not found" });
+    return;
+  }
+
+  const validatedReport = GetDailyReportResponse.parse(report as Record<string, unknown>);
+  res.json({
+    ...validatedReport,
+    // The OpenAPI "date" format is coerced to a Date by generated Zod code;
+    // keep this field date-only in the JSON response contract.
+    date: String((report as Record<string, unknown>)["date"]).slice(0, 10),
+  });
 });
 
 export default router;

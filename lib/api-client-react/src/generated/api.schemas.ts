@@ -510,11 +510,24 @@ export interface ActivityLogWithUser {
   user: User;
 }
 
+export interface DailyReportDetail {
+  id: number;
+  date: string;
+  content: string;
+  /** @nullable */
+  location: string | null;
+  createdAt: string;
+  authorId: number;
+  authorName: string;
+}
+
 export interface Notification {
   id: number;
   userId: number;
   ticketId?: number | null;
   ticketNumber?: number | null;
+  /** @nullable */
+  dailyReportId: number | null;
   notificationText: string;
   isRead: boolean;
   createdAt: string;

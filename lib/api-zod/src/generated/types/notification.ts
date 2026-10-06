@@ -11,6 +11,8 @@ export interface Notification {
   userId: number;
   ticketId?: number | null;
   ticketNumber?: number | null;
+  /** @nullable */
+  dailyReportId: number | null;
   notificationText: string;
   isRead: boolean;
   createdAt: Date;

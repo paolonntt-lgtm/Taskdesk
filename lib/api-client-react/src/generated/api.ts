@@ -45,6 +45,7 @@ import type {
   CreateNoteBody,
   CreateTicketBody,
   CreateUserBody,
+  DailyReportDetail,
   DashboardStats,
   ErrorResponse,
   GetCalendarParams,
@@ -3926,6 +3927,157 @@ export function useListTicketActivity<TData = Awaited<ReturnType<typeof listTick
 
 
 
+
+export const getGetDailyReportUrl = (id: number,) => {
+
+
+
+
+  return `/api/daily-reports/${id}`
+}
+
+/**
+ * @summary Get a daily report in the current organization
+ */
+export const getDailyReport = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<DailyReportDetail> => {
+
+  return customFetch<DailyReportDetail>(getGetDailyReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDailyReportQueryKey = (id: number,) => {
+    return [
+    `/api/daily-reports/${id}`
+    ] as const;
+    }
+
+
+export const getGetDailyReportQueryOptions = <TData = Awaited<ReturnType<typeof getDailyReport>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDailyReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyReport>>> = ({ signal }) => getDailyReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDailyReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDailyReportQueryResult = NonNullable<Awaited<ReturnType<typeof getDailyReport>>>
+export type GetDailyReportQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a daily report in the current organization
+ */
+
+export function useGetDailyReport<TData = Awaited<ReturnType<typeof getDailyReport>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDailyReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkDailyReportReadUrl = (id: number,) => {
+
+
+
+
+  return `/api/daily-reports/${id}/read`
+}
+
+/**
+ * @summary Mark a daily report as read
+ */
+export const markDailyReportRead = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getMarkDailyReportReadUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkDailyReportReadMutationKey = () => ['markDailyReportRead'] as const;
+
+export const getMarkDailyReportReadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markDailyReportRead>>, TError,MarkDailyReportReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markDailyReportRead>>, TError,MarkDailyReportReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkDailyReportReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markDailyReportRead>>, MarkDailyReportReadMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markDailyReportRead(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkDailyReportReadMutationResult = NonNullable<Awaited<ReturnType<typeof markDailyReportRead>>>
+
+    export type MarkDailyReportReadMutationError = ErrorType<void>
+    export type MarkDailyReportReadMutationVariables = {id: number}
+
+    /**
+ * @summary Mark a daily report as read
+ */
+export const useMarkDailyReportRead = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markDailyReportRead>>, TError,MarkDailyReportReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markDailyReportRead>>,
+        TError,
+        MarkDailyReportReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkDailyReportReadMutationOptions(options));
+    }
 
 export const getListNotificationsUrl = () => {
 

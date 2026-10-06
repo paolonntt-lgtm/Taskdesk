@@ -2017,6 +2017,37 @@ export const ListTicketActivityResponse = zod.array(ListTicketActivityResponseIt
 
 
 /**
+ * @summary Get a daily report in the current organization
+ */
+export const GetDailyReportParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetDailyReportResponse = zod.object({
+  "id": zod.int(),
+  "date": zod.coerce.date(),
+  "content": zod.string(),
+  "location": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "authorId": zod.int(),
+  "authorName": zod.string()
+})
+
+
+/**
+ * @summary Mark a daily report as read
+ */
+export const MarkDailyReportReadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkDailyReportReadResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
  * @summary List notifications for current user
  */
 export const ListNotificationsResponseItem = zod.object({
@@ -2024,6 +2055,7 @@ export const ListNotificationsResponseItem = zod.object({
   "userId": zod.int(),
   "ticketId": zod.int().nullish(),
   "ticketNumber": zod.int().nullish(),
+  "dailyReportId": zod.int().nullable(),
   "notificationText": zod.string(),
   "isRead": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -2043,6 +2075,7 @@ export const MarkNotificationReadResponse = zod.object({
   "userId": zod.int(),
   "ticketId": zod.int().nullish(),
   "ticketNumber": zod.int().nullish(),
+  "dailyReportId": zod.int().nullable(),
   "notificationText": zod.string(),
   "isRead": zod.boolean(),
   "createdAt": zod.coerce.date()

@@ -50,6 +50,7 @@ export * from './createTicketBodyPriority';
 export * from './createTicketBodyVisibility';
 export * from './createUserBody';
 export * from './createUserBodyRole';
+export * from './dailyReportDetail';
 export * from './dashboardStats';
 export * from './errorResponse';
 export * from './getCalendarParams';

@@ -14,6 +14,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
       id: notificationsTable.id,
       userId: notificationsTable.userId,
       ticketId: notificationsTable.ticketId,
+      dailyReportId: notificationsTable.dailyReportId,
       ticketNumber: ticketsTable.ticketNumber,
       type: notificationsTable.type,
       notificationText: notificationsTable.notificationText,

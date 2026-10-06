@@ -25,6 +25,8 @@ tags:
     description: User management
   - name: notifications
     description: Notifications
+  - name: dailyReports
+    description: Daily team reports
   - name: stats
     description: Statistics and reports
   - name: bot
@@ -1353,6 +1355,52 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ActivityLogWithUser"
+
+  /daily-reports/{id}:
+    get:
+      operationId: getDailyReport
+      tags: [dailyReports]
+      summary: Get a daily report in the current organization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Daily report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReportDetail"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /daily-reports/{id}/read:
+    post:
+      operationId: markDailyReportRead
+      tags: [dailyReports]
+      summary: Mark a daily report as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
 
   /notifications:
     get:
@@ -3282,6 +3330,34 @@ components:
         - createdAt
         - user
 
+    DailyReportDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        content:
+          type: string
+        location:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        authorId:
+          type: integer
+        authorName:
+          type: string
+      required:
+        - id
+        - date
+        - content
+        - location
+        - createdAt
+        - authorId
+        - authorName
+
     Notification:
       type: object
       properties:
@@ -3295,6 +3371,8 @@ components:
         ticketNumber:
           type: integer
           nullable: true
+        dailyReportId:
+          type: ["integer", "null"]
         notificationText:
           type: string
         isRead:
@@ -3306,6 +3384,7 @@ components:
         - id
         - userId
         - notificationText
+        - dailyReportId
         - isRead
         - createdAt
 
