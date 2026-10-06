@@ -506,6 +506,7 @@ export default function Landing() {
             <img src="/taskdesk-logo.webp" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
           <nav aria-label={t.landmarks.mainNavigation} className="hidden md:flex gap-8 text-sm text-gray-500">
+            <Link href="/albert" className="hover:text-gray-900 transition-colors font-medium">{lang === "it" ? "Albert" : "Meet Albert"}</Link>
             <a href="#how" className="hover:text-gray-900 transition-colors font-medium">{lang === "it" ? "Come funziona" : "How it works"}</a>
             <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing" className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>

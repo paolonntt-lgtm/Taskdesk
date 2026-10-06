@@ -11,6 +11,7 @@ import DPA from "@/pages/DPA";
 import CookiePolicy from "@/pages/CookiePolicy";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
 import { LanguageProvider } from "@/i18n";
+import Albert from "@/pages/Albert";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ function ItPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/albert" component={Albert} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
@@ -61,6 +63,7 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/albert" component={Albert} />
       <Route path="/privacy-policy">
         <EnLegalRedirect suffix="/privacy-policy" />
       </Route>

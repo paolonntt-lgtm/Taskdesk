@@ -291,6 +291,8 @@ async function writeRoute(routePath, isLandingPage = false) {
 
 await writeRoute('/it/', true);
 await writeRoute('/en/', true);
+await writeRoute('/it/albert');
+await writeRoute('/en/albert');
 
 const legalPages = [
   { slug: 'privacy-policy' },

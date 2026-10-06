@@ -39,6 +39,18 @@ export const SITEMAP_ROUTE_META: Record<string, SitemapRouteMeta> = {
       { lang: "en", href: `${SITEMAP_BASE_URL}/en/` },
     ],
   },
+  "/albert": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/albert`,
+      en: `${SITEMAP_BASE_URL}/en/albert`,
+    },
+    hreflang: [
+      { lang: "it", href: `${SITEMAP_BASE_URL}/it/albert` },
+      { lang: "en", href: `${SITEMAP_BASE_URL}/en/albert` },
+    ],
+  },
   // Legal/compliance pages are noindex — exclude from sitemap to avoid
   // contradictory crawl signals. Content is Italian-only so EN alternates
   // would be false language targeting.
