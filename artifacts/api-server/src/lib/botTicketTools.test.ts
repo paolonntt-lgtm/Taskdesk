@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
+  dailyReportsTable,
   organizationsTable,
   ticketCommentsTable,
   ticketsTable,
@@ -18,6 +19,9 @@ let adminId: number;
 let userId: number;
 let authorId: number;
 const ticketIds: number[] = [];
+const reportIds: number[] = [];
+const sameOrgReportIds: number[] = [];
+let foreignReportId: number;
 const userIds: number[] = [];
 const organizationIds: number[] = [];
 
@@ -67,6 +71,58 @@ describe("Albert ticket lookup tools", () => {
     adminId = users.find((user) => user.role === "admin")!.id;
     userId = users.find((user) => user.role === "user")!.id;
     authorId = users.find((user) => user.id !== userId && user.id !== adminId)!.id;
+
+    const [otherAuthor] = await db
+      .insert(usersTable)
+      .values({
+        name: "Other Org Report Author",
+        email: `other-org-report-author-${runId}@example.test`,
+        passwordHash: "not-used-in-test",
+        role: "user",
+        organizationId: otherOrganizationId,
+      })
+      .returning({ id: usersTable.id });
+    userIds.push(otherAuthor.id);
+
+    const oldDate = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+    const oldDateString = oldDate.toISOString().slice(0, 10);
+    const sameOrgReports = await db
+      .insert(dailyReportsTable)
+      .values([
+        {
+          organizationId,
+          authorUserId: authorId,
+          date: oldDateString,
+          createdAt: oldDate,
+          content: `Historical report ${marker}: repaired the label printer.`,
+          location: "Rome",
+        },
+        {
+          organizationId,
+          authorUserId: authorId,
+          date: oldDateString,
+          createdAt: new Date(oldDate.getTime() + 60_000),
+          content: `Second report on the same day ${marker}: tested the replacement printer.`,
+          location: "Rome",
+        },
+      ])
+      .returning({ id: dailyReportsTable.id });
+    sameOrgReportIds.push(...sameOrgReports.map((report) => report.id));
+    reportIds.push(...sameOrgReportIds);
+
+    const [foreignReport] = await db
+      .insert(dailyReportsTable)
+      .values({
+        organizationId: otherOrganizationId,
+        authorUserId: otherAuthor.id,
+        date: oldDateString,
+        createdAt: oldDate,
+        content: `Foreign organization report ${marker}.`,
+        location: "Rome",
+      })
+      .returning({ id: dailyReportsTable.id });
+    foreignReportId = foreignReport.id;
+    reportIds.push(foreignReportId);
 
     const tickets = await db
       .insert(ticketsTable)
@@ -122,6 +178,9 @@ describe("Albert ticket lookup tools", () => {
   });
 
   afterAll(async () => {
+    if (reportIds.length > 0) {
+      await db.delete(dailyReportsTable).where(inArray(dailyReportsTable.id, reportIds));
+    }
     if (ticketIds.length > 0) {
       await db.delete(ticketCommentsTable).where(inArray(ticketCommentsTable.ticketId, ticketIds));
       await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
@@ -213,5 +272,26 @@ describe("Albert ticket lookup tools", () => {
       true,
     ) as { count: number };
     expect(adminCommentCount.count).toBe(2);
+  }, 60_000);
+
+  it("searches reports from any date, including multiple reports on one day, within the organization", async () => {
+    const result = await executeBotTicketTool(
+      "search_daily_reports",
+      { query: marker },
+      organizationId,
+      false,
+    ) as {
+      totalMatches: number;
+      returned: number;
+      reports: { reportId: number; date: string; content: string }[];
+    };
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.returned).toBe(2);
+    expect(result.reports).toHaveLength(2);
+    expect(result.reports.map((report) => report.reportId).sort()).toEqual(sameOrgReportIds.slice().sort());
+    expect(result.reports.map((report) => report.reportId)).not.toContain(foreignReportId);
+    expect(result.reports.every((report) => report.date === result.reports[0].date)).toBe(true);
+    expect(result.reports.every((report) => report.content.includes(marker))).toBe(true);
   }, 60_000);
 });

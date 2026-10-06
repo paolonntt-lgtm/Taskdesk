@@ -269,8 +269,7 @@ export async function runAppMigrations(): Promise<void> {
         date DATE NOT NULL,
         content TEXT NOT NULL,
         tickets_snapshot JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        CONSTRAINT daily_reports_author_date_uniq UNIQUE (organization_id, author_user_id, date)
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS daily_reports_org_date_idx ON daily_reports (organization_id, date);
     `);

@@ -959,7 +959,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
             )}
 
             {/* ── Daily report quick-action button ── */}
-            {todayReportSubmitted === false && (
+            {todayReportSubmitted !== null && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
                 {pickingLocation ? (
                   /* Post-click sede picker: shown instead of the button after the user clicks it */
@@ -1024,7 +1024,9 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                       '&:hover': { borderColor: 'primary.main', color: 'primary.main', bgcolor: 'primary.50' },
                     }}
                   >
-                    📋 {lang === 'it' ? 'Fai il report di oggi' : 'Submit today\'s report'}
+                    📋 {lang === 'it'
+                      ? todayReportSubmitted ? 'Fai un altro report oggi' : 'Fai il report di oggi'
+                      : todayReportSubmitted ? 'Submit another report today' : 'Submit today\'s report'}
                   </Button>
                 )}
               </Box>
@@ -1032,7 +1034,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
             {todayReportSubmitted === true && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
                 <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  ✅ {lang === 'it' ? 'Report già inviato oggi' : 'Report already submitted today'}
+                  ✅ {lang === 'it' ? 'Puoi pubblicare più report nella stessa giornata' : 'You can submit multiple reports on the same day'}
                 </Typography>
               </Box>
             )}

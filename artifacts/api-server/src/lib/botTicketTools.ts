@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm";
 import {
   db,
+  dailyReportsTable,
   ticketCommentsTable,
   ticketsTable,
   usersTable,
@@ -276,6 +277,25 @@ export const botTicketTools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_daily_reports",
+      description: "Search all daily reports in the current organization, with no age cutoff. Use this for historical work, decisions, handoffs, or what a colleague reported. Search report text and optionally filter by author, location, or creation time.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Distinctive words or a short phrase in the report. Optional when filtering by author, location, or dates." },
+          author: { type: "string", description: "Part or all of the report author's name." },
+          location: { type: "string", description: "Part or all of the report location." },
+          createdAfter: { type: "string", description: "Inclusive ISO-8601 creation timestamp." },
+          createdBefore: { type: "string", description: "Inclusive ISO-8601 creation timestamp." },
+          limit: { type: "integer", description: "Maximum results (1–10)." },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ] satisfies OpenAI.Chat.Completions.ChatCompletionTool[];
 
 export async function executeBotTicketTool(
@@ -484,7 +504,69 @@ export async function executeBotTicketTool(
       return { count: Number(countRow?.total ?? 0) };
     }
 
+    case "search_daily_reports": {
+      const conditions: SQL[] = [eq(dailyReportsTable.organizationId, organizationId)];
+      const patterns = searchPatterns(readString(args, "query", 180));
+      if (patterns.length > 0) {
+        const matches = patterns.flatMap((pattern) => [
+          ilike(dailyReportsTable.content, pattern),
+          ilike(dailyReportsTable.location, pattern),
+          ilike(usersTable.name, pattern),
+        ]);
+        conditions.push(or(...matches)!);
+      }
+
+      const author = readString(args, "author", 120);
+      const location = readString(args, "location", 120);
+      const createdAfter = readDate(args, "createdAfter");
+      const createdBefore = readDate(args, "createdBefore");
+      if (author) conditions.push(ilike(usersTable.name, `%${escapeLike(author)}%`));
+      if (location) conditions.push(ilike(dailyReportsTable.location, `%${escapeLike(location)}%`));
+      if (createdAfter) conditions.push(gte(dailyReportsTable.createdAt, createdAfter));
+      if (createdBefore) conditions.push(lte(dailyReportsTable.createdAt, createdBefore));
+
+      const scoreTerms = patterns.map((pattern) => sql`
+        CASE WHEN ${dailyReportsTable.content} ILIKE ${pattern} THEN 1 ELSE 0 END
+      `);
+      const relevance = scoreTerms.length > 0
+        ? sql<number>`(${sql.join(scoreTerms, sql` + `)})`
+        : sql<number>`0`;
+      const limit = Math.min(readLimit(args), 10);
+      const where = and(...conditions);
+      const [countRow] = await db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(dailyReportsTable)
+        .innerJoin(usersTable, eq(dailyReportsTable.authorUserId, usersTable.id))
+        .where(where);
+      const rows = await db
+        .select({
+          reportId: dailyReportsTable.id,
+          date: dailyReportsTable.date,
+          createdAt: dailyReportsTable.createdAt,
+          author: usersTable.name,
+          location: dailyReportsTable.location,
+          content: dailyReportsTable.content,
+          relevance,
+        })
+        .from(dailyReportsTable)
+        .innerJoin(usersTable, eq(dailyReportsTable.authorUserId, usersTable.id))
+        .where(where)
+        .orderBy(desc(relevance), desc(dailyReportsTable.createdAt))
+        .limit(limit);
+
+      return {
+        totalMatches: Number(countRow?.total ?? 0),
+        returned: rows.length,
+        truncated: Number(countRow?.total ?? 0) > rows.length,
+        reports: rows.map((report) => ({
+          ...report,
+          content: report.content.slice(0, 2200),
+          contentTruncated: report.content.length > 2200,
+        })),
+      };
+    }
+
     default:
-      return { error: "Unknown read-only ticket tool." };
+      return { error: "Unknown read-only bot tool." };
   }
 }

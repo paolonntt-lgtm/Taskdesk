@@ -96,7 +96,7 @@ router.get("/daily-reports/today-mine", requireAuth, async (req, res): Promise<v
 });
 
 // POST /daily-reports
-// Save the current user's daily report (one per day, idempotent).
+// Save a new daily report from the current user.
 router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const { content, ticketsSnapshot, location } = req.body as {
@@ -117,55 +117,37 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
   const reportTicketIds = extractReportTicketIds(content.trim(), ticketsSnapshot);
   const ticketsSnapshotToStore = reportTicketIds.length > 0 ? reportTicketIds : null;
 
+  const [report] = await db
+    .insert(dailyReportsTable)
+    .values({
+      organizationId: currentUser.organizationId,
+      authorUserId: currentUser.id,
+      date: today,
+      content: content.trim(),
+      location: sanitizedLocation,
+      ticketsSnapshot: ticketsSnapshotToStore,
+    })
+    .returning();
+
+  let notificationCount = 0;
+  let notificationError = false;
   try {
-    const [report] = await db
-      .insert(dailyReportsTable)
-      .values({
-        organizationId: currentUser.organizationId,
-        authorUserId: currentUser.id,
-        date: today,
-        content: content.trim(),
-        location: sanitizedLocation,
-        ticketsSnapshot: ticketsSnapshotToStore,
-      })
-      .onConflictDoUpdate({
-        target: [dailyReportsTable.organizationId, dailyReportsTable.authorUserId, dailyReportsTable.date],
-        set: {
-          content: content.trim(),
-          location: sanitizedLocation,
-          ticketsSnapshot: ticketsSnapshotToStore,
-          createdAt: new Date(),
-        },
-      })
-      .returning();
-
-    let notificationCount = 0;
-    let notificationError = false;
-    try {
-      notificationCount = await createInAppNotificationsForOrg(
-        currentUser.organizationId,
-        currentUser.id,
-        `${currentUser.name} ha pubblicato il report di oggi`,
-        "daily_report_submitted",
-        null,
-      );
-    } catch (notificationErr) {
-      notificationError = true;
-      logger.error(
-        { err: notificationErr, reportId: report.id },
-        "Daily report saved but in-app notifications could not be created",
-      );
-    }
-
-    res.json({ ok: true, report, notificationCount, notificationError });
-  } catch (err: any) {
-    if (err.code === "23505") {
-      // Duplicate (shouldn't happen with onConflictDoUpdate, but safety net)
-      res.status(409).json({ error: "Report already submitted today" });
-      return;
-    }
-    throw err;
+    notificationCount = await createInAppNotificationsForOrg(
+      currentUser.organizationId,
+      currentUser.id,
+      `${currentUser.name} ha pubblicato il report di oggi`,
+      "daily_report_submitted",
+      null,
+    );
+  } catch (notificationErr) {
+    notificationError = true;
+    logger.error(
+      { err: notificationErr, reportId: report.id },
+      "Daily report saved but in-app notifications could not be created",
+    );
   }
+
+  res.json({ ok: true, report, notificationCount, notificationError });
 });
 
 // GET /daily-reports/unread

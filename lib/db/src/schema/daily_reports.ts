@@ -13,7 +13,6 @@ export const dailyReportsTable = pgTable("daily_reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("daily_reports_org_date_idx").on(t.organizationId, t.date),
-  unique("daily_reports_author_date_uniq").on(t.organizationId, t.authorUserId, t.date),
 ]);
 
 export const dailyReportReadsTable = pgTable("daily_report_reads", {

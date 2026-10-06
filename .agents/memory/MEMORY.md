@@ -18,3 +18,5 @@
 - [Collaborator add-on pricing](collaborator-add-on-pricing.md) — Charge €6/month or €60/year per extra collaborator, matching the base plan’s billing interval.
 - [Stripe cancellation timing](stripe-cancellation-timing.md) — Customer-portal cancellations take effect at the end of the paid period; preserve `at_period_end`.
 - [Stripe payment descriptor](stripe-payment-descriptor.md) — Use TASKDESK.IT for future billing statements; Dashboard changes do not rewrite past charges.
+- [Daily report archive scope](daily-report-history.md) — Operators can publish multiple reports per day; Albert searches their organization's entire archive.
+- [Development schema drift](development-schema-drift.md) — Drizzle push reveals unrelated clients/organizations differences; review diffs and never force through data-loss prompts.
