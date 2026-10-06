@@ -212,7 +212,12 @@ function MessageBubble({
                 {cleanText}
               </Typography>
             ) : (
-              <MarkdownContent content={cleanText} onTicketClick={onViewTicket} forceUnorderedLists />
+              <MarkdownContent
+                content={cleanText}
+                onTicketClick={onViewTicket}
+                forceUnorderedLists
+                compactHeadings
+              />
             )}
           </Box>
         ) : null}
@@ -1074,14 +1079,6 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 )}
               </Box>
             )}
-            {showReportShortcuts && todayReportSubmitted === true && (
-              <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
-                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  ✅ {lang === 'it' ? 'Puoi pubblicare più report nella stessa giornata' : 'You can submit multiple reports on the same day'}
-                </Typography>
-              </Box>
-            )}
-
             {/* ── Report del team button (always visible when not in report wizard) ── */}
             {showReportShortcuts && (
               <Box sx={{ px: 2, pt: 0.75, pb: 0 }}>
@@ -1143,6 +1140,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     content={pendingAction.content}
                     onTicketClick={onViewTicket}
                     forceUnorderedLists
+                    compactHeadings
                   />
                 </Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>

@@ -7,6 +7,7 @@ interface MarkdownContentProps {
   content: string;
   onTicketClick?: (ticketId: number) => void;
   forceUnorderedLists?: boolean;
+  compactHeadings?: boolean;
 }
 
 // Matches descriptions/comments injected by the inbound email pipeline
@@ -165,10 +166,22 @@ const emailBodySx = {
   '& p:last-child': { mb: 0 },
 };
 
+const compactHeadingSx = {
+  '& h1, & h2, & h3': {
+    lineHeight: 1.25,
+    mt: 0,
+    mb: 0.75,
+  },
+  '& h1': { fontSize: { xs: '1.15rem', sm: '1.35rem' } },
+  '& h2': { fontSize: { xs: '1.05rem', sm: '1.2rem' } },
+  '& h3': { fontSize: { xs: '1rem', sm: '1.1rem' } },
+};
+
 export function MarkdownContent({
   content,
   onTicketClick,
   forceUnorderedLists = false,
+  compactHeadings = false,
 }: MarkdownContentProps) {
   const emailParts = splitEmailContent(content);
   const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
@@ -202,7 +215,7 @@ export function MarkdownContent({
         </Box>
 
         {/* Email body */}
-        <Box sx={emailBodySx}>
+        <Box sx={compactHeadings ? { ...emailBodySx, ...compactHeadingSx } : emailBodySx}>
           <ReactMarkdown components={mdComponents as any}>
             {preprocessContent(emailParts.body)}
           </ReactMarkdown>
@@ -213,7 +226,7 @@ export function MarkdownContent({
 
   // Regular (non-email) content
   return (
-    <Box sx={baseSx}>
+    <Box sx={compactHeadings ? { ...baseSx, ...compactHeadingSx } : baseSx}>
       <ReactMarkdown components={mdComponents as any}>
         {preprocessContent(content)}
       </ReactMarkdown>
