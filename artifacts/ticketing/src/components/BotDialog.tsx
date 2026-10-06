@@ -54,6 +54,7 @@ interface TeamReportItem {
 }
 
 interface ParsedOption {
+  id: string;
   label: string;
   value: string;
 }
@@ -127,10 +128,21 @@ function parseOptions(text: string): ParsedOption[] | null {
   const match = text.match(OPTIONS_RE);
   if (!match) return null;
   return [
-    { label: match[1].trim(), value: '1' },
-    { label: match[2].trim(), value: '2' },
-    { label: match[3].trim(), value: '3' },
+    { id: '1', label: match[1].trim(), value: '1' },
+    { id: '2', label: match[2].trim(), value: '2' },
+    { id: '3', label: match[3].trim(), value: '3' },
   ];
+}
+
+function hasReportSummaryContext(text: string): boolean {
+  return /\b(?:reports?|resocont\w*|riepilog\w*|riassunt\w*|summaries|summary|recaps?|overviews?)\b/i.test(text);
+}
+
+function isExplicitReportShortcutRequest(text: string): boolean {
+  const requestsReportAction = /\b(?:reports?)\b/i.test(text)
+    && /\b(?:fai|fare|fammi|crea|creare|prepara|preparare|compila|compilare|scrivi|scrivere|invia|inviare|pubblica|pubblicare|leggi|leggere|mostra|mostrare|vedi|vedere|consulta|consultare|cerca|cercare|apri|aprire|submit|create|prepare|write|send|publish|read|show|view|search|find|open)\b/i.test(text);
+  const directlyNamesReportList = /\b(?:report recenti|report del team|team reports?|recent reports?)\b/i.test(text);
+  return requestsReportAction || directlyNamesReportList;
 }
 
 function stripOptions(text: string): string {
@@ -142,6 +154,7 @@ function MessageBubble({
   botName,
   fallbackActionText,
   onOptionClick,
+  quickReplies,
   onOpenTicket,
   onViewTicket,
   openTicketLabel,
@@ -150,6 +163,7 @@ function MessageBubble({
   botName: string;
   fallbackActionText?: string;
   onOptionClick?: (value: string) => void;
+  quickReplies?: ParsedOption[];
   onOpenTicket?: () => void;
   onViewTicket?: (ticketId: number) => void;
   openTicketLabel?: string;
@@ -160,7 +174,8 @@ function MessageBubble({
   const rawDisplay = action ? stripActionJson(msg.content) : (isUser ? msg.content : assistantText);
   const displayText = rawDisplay || (action ? (fallbackActionText ?? '') : '');
 
-  const options = !isUser && onOptionClick ? parseOptions(displayText) : null;
+  const options = !isUser && onOptionClick && !quickReplies ? parseOptions(displayText) : null;
+  const visibleOptions = quickReplies ?? options;
   const cleanText = options ? stripOptions(displayText) : displayText;
 
   return (
@@ -201,11 +216,12 @@ function MessageBubble({
             )}
           </Box>
         ) : null}
-        {(options || onOpenTicket) && (
+        {(visibleOptions || onOpenTicket) && (
           <Box display="flex" gap={1} flexWrap="wrap" mt={1} ml={0.5} alignItems="center">
-            {options && onOptionClick && options.map((opt) => (
+            {visibleOptions && onOptionClick && visibleOptions.map((opt) => (
               <Button
-                key={opt.value}
+                key={opt.id}
+                data-testid={`button-bot-option-${opt.id}`}
                 variant="outlined"
                 size="small"
                 onClick={() => onOptionClick(opt.value)}
@@ -322,6 +338,11 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const [teamReports, setTeamReports] = useState<TeamReportItem[] | null>(null);
   const [showTeamReports, setShowTeamReports] = useState(false);
   const [teamReportsLoading, setTeamReportsLoading] = useState(false);
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user')?.content ?? '';
+  const isInitialBotState = messages.length === 0
+    || (messages.length === 1 && messages[0].role === 'assistant');
+  const showReportShortcuts = !reportWizardActive
+    && (pickingLocation || isInitialBotState || isExplicitReportShortcutRequest(latestUserMessage));
 
   // Persist to sessionStorage whenever messages or pendingAction change
   useEffect(() => {
@@ -544,6 +565,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
 
   const sendWithText = async (text: string) => {
     if (!text || loading) return;
+    setShowTeamReports(false);
     const history = messages.map((m) => ({
       role: m.role,
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
@@ -796,6 +818,18 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
               {messages.map((msg, i) => {
                 const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !loading && pendingAction?.action !== 'create_ticket';
                 const isWelcome = i === 0;
+                const isReportQuickReplyTurn = isLastAssistant
+                  && reportWizardActive
+                  && pendingAction === null
+                  && parseActionFromText(msg.content) === null;
+                const reportQuickReplies: ParsedOption[] | undefined = isReportQuickReplyTurn
+                  ? [
+                      { id: 'report-yes', label: lang === 'it' ? 'Sì' : 'Yes', value: lang === 'it' ? 'Sì' : 'Yes' },
+                      { id: 'report-no', label: 'No', value: 'No' },
+                    ]
+                  : undefined;
+                const isReportSummaryTurn = isLastAssistant
+                  && (hasReportSummaryContext(latestUserMessage) || hasReportSummaryContext(msg.content));
                 return (
                   <MessageBubble
                     key={i}
@@ -803,7 +837,8 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     botName={botName}
                     fallbackActionText={botFallback}
                     onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
-                    onOpenTicket={isLastAssistant && !isWelcome && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+                    quickReplies={reportQuickReplies}
+                    onOpenTicket={isLastAssistant && !isWelcome && !reportWizardActive && !isReportSummaryTurn && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
                     onViewTicket={onViewTicket}
                     openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
                   />
@@ -967,7 +1002,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
             )}
 
             {/* ── Daily report quick-action button ── */}
-            {todayReportSubmitted !== null && (
+            {showReportShortcuts && todayReportSubmitted !== null && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
                 {pickingLocation ? (
                   /* Post-click sede picker: shown instead of the button after the user clicks it */
@@ -1039,7 +1074,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 )}
               </Box>
             )}
-            {todayReportSubmitted === true && (
+            {showReportShortcuts && todayReportSubmitted === true && (
               <Box sx={{ px: 2, pt: 1.25, pb: 0 }}>
                 <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   ✅ {lang === 'it' ? 'Puoi pubblicare più report nella stessa giornata' : 'You can submit multiple reports on the same day'}
@@ -1048,7 +1083,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
             )}
 
             {/* ── Report del team button (always visible when not in report wizard) ── */}
-            {!reportWizardActive && (
+            {showReportShortcuts && (
               <Box sx={{ px: 2, pt: 0.75, pb: 0 }}>
                 <Button
                   fullWidth
@@ -1117,6 +1152,21 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
                   <Button
+                    data-testid="button-edit-daily-report"
+                    variant="outlined"
+                    size="small"
+                    disabled={reportSubmitting}
+                    color="inherit"
+                    onClick={() => {
+                      setPendingAction(null);
+                      setTimeout(() => inputRef.current?.focus(), 50);
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {lang === 'it' ? 'Modifica report' : 'Edit report'}
+                  </Button>
+                  <Button
+                    data-testid="button-submit-daily-report"
                     variant="contained"
                     size="small"
                     color="success"
@@ -1126,19 +1176,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                   >
                     {reportSubmitting
                       ? (lang === 'it' ? 'Invio...' : 'Sending...')
-                      : (lang === 'it' ? 'Pubblica report' : 'Publish report')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    color="inherit"
-                    onClick={() => {
-                      setPendingAction(null);
-                      setTimeout(() => inputRef.current?.focus(), 50);
-                    }}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {lang === 'it' ? 'Aggiungi o modifica note' : 'Add or edit notes'}
+                      : (lang === 'it' ? 'Invia report' : 'Send report')}
                   </Button>
                 </Box>
               </Box>
