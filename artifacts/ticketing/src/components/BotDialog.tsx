@@ -310,6 +310,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   // Report wizard active flag — persisted across turns; server fetches activity on every turn
   const [reportWizardActive, setReportWizardActive] = useState(false);
   const reportWizardActiveRef = useRef(false); // mirror for async closures
+  const reportOperatorInputsRef = useRef<string[]>([]);
   // Location picker for report wizard: populated from org settings on open
   const [orgLocations, setOrgLocations] = useState<string[]>([]);
   const [reportWizardLocation, setReportWizardLocation] = useState<string | null>(null);
@@ -444,6 +445,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const sendReportMode = async (location: string | null) => {
     if (loading) return;
     setPickingLocation(false); // always collapse picker when wizard actually starts
+    reportOperatorInputsRef.current = [];
     setReportWizardActive(true);
     reportWizardActiveRef.current = true;
     setReportWizardLocation(location);
@@ -465,6 +467,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
   const exitReportWizard = () => {
     setReportWizardActive(false);
     reportWizardActiveRef.current = false;
+    reportOperatorInputsRef.current = [];
     setReportWizardLocation(null);
     reportWizardLocationRef.current = null;
     setPickingLocation(false);
@@ -546,11 +549,16 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
       content: m.role === 'assistant' ? stripActionJson(m.content) : m.content,
     }));
     setInput('');
-    // If an EOD report wizard is active, carry forward reportMode + location on every turn
-    // so the server re-fetches activity filtered by the chosen sede.
+    // Keep collaborator inputs separately from bounded chat history so notes survive
+    // report edits and remain available to the report prompt.
     const loc = reportWizardLocationRef.current;
-    const extraBody = reportWizardActiveRef.current
-      ? { reportMode: true, ...(loc ? { reportLocation: loc } : {}) }
+    const reportModeActive = reportWizardActiveRef.current;
+    const reportInputs = reportModeActive
+      ? [...reportOperatorInputsRef.current, text].slice(-20)
+      : undefined;
+    if (reportInputs) reportOperatorInputsRef.current = reportInputs;
+    const extraBody = reportModeActive
+      ? { reportMode: true, reportInputs, ...(loc ? { reportLocation: loc } : {}) }
       : {};
     await streamBotResponse(
       { message: text, history, lang, ...extraBody },
@@ -1081,10 +1089,31 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                 <Typography variant="body2" fontWeight={600} mb={0.5} color="success.dark">
                   {lang === 'it' ? 'Pronto per la pubblicazione' : 'Ready to publish'}
                 </Typography>
+                <Typography variant="caption" fontWeight={600} display="block" mb={0.5}>
+                  {lang === 'it' ? 'Anteprima del report' : 'Report preview'}
+                </Typography>
+                <Box
+                  sx={{
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                    mb: 1.25,
+                    p: 1.25,
+                    borderRadius: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <MarkdownContent
+                    content={pendingAction.content}
+                    onTicketClick={onViewTicket}
+                    forceUnorderedLists
+                  />
+                </Box>
                 <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
                   {lang === 'it'
-                    ? 'Vuoi pubblicare questo report? I colleghi riceveranno una notifica.'
-                    : 'Publish this report? Your colleagues will receive a notification.'}
+                    ? 'Controlla che ci siano tutti gli appunti. Per aggiungerli o correggerli, scrivili in chat e aggiornerò l’anteprima.'
+                    : 'Check that all your notes are included. To add or change one, send it in chat and I’ll update the preview.'}
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
                   <Button
@@ -1103,10 +1132,13 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     variant="outlined"
                     size="small"
                     color="inherit"
-                    onClick={() => { setPendingAction(null); /* Keep wizard active — user may want to continue refining */ }}
+                    onClick={() => {
+                      setPendingAction(null);
+                      setTimeout(() => inputRef.current?.focus(), 50);
+                    }}
                     sx={{ borderRadius: 2 }}
                   >
-                    {lang === 'it' ? 'Modifica' : 'Edit'}
+                    {lang === 'it' ? 'Aggiungi o modifica note' : 'Add or edit notes'}
                   </Button>
                 </Box>
               </Box>
