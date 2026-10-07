@@ -2596,7 +2596,7 @@ function Dashboard() {
       </Box>
 
       {/* Dashboard actions remain connected to the existing widget layout engine */}
-      <Box display="flex" alignItems="center" justifyContent="flex-end" mb={{ xs: 1.5, sm: 2 }} flexWrap="wrap" gap={1}>
+      <Box display={{ xs: 'none', sm: 'flex' }} alignItems="center" justifyContent="flex-end" mb={{ xs: 1.5, sm: 2 }} flexWrap="wrap" gap={1}>
         {editMode && (
           <>
             <Tooltip title={t.dashboard.resetLayout}>

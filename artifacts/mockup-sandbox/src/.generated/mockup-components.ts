@@ -27,13 +27,13 @@ export const modules: ModuleMap = {
   "./components/mockups/new-ticket-variants/TwoColumn.tsx": () => import("../components/mockups/new-ticket-variants/TwoColumn.tsx"),
   "./components/mockups/new-ticket-variants/VisualChips.tsx": () => import("../components/mockups/new-ticket-variants/VisualChips.tsx"),
   "./components/mockups/new-ticket-variants/WizardSteps.tsx": () => import("../components/mockups/new-ticket-variants/WizardSteps.tsx"),
-  "./components/mockups/ticket-variants/CurrentStyle.tsx": () => import("../components/mockups/ticket-variants/CurrentStyle.tsx"),
-  "./components/mockups/ticket-variants/PriorityBar.tsx": () => import("../components/mockups/ticket-variants/PriorityBar.tsx"),
-  "./components/mockups/ticket-variants/RichCards.tsx": () => import("../components/mockups/ticket-variants/RichCards.tsx"),
   "./components/mockups/ticket-detail-variants/CompactHeader.tsx": () => import("../components/mockups/ticket-detail-variants/CompactHeader.tsx"),
   "./components/mockups/ticket-detail-variants/DashboardCard.tsx": () => import("../components/mockups/ticket-detail-variants/DashboardCard.tsx"),
   "./components/mockups/ticket-detail-variants/HybridAE.tsx": () => import("../components/mockups/ticket-detail-variants/HybridAE.tsx"),
   "./components/mockups/ticket-detail-variants/MinimalClean.tsx": () => import("../components/mockups/ticket-detail-variants/MinimalClean.tsx"),
   "./components/mockups/ticket-detail-variants/SidebarLayout.tsx": () => import("../components/mockups/ticket-detail-variants/SidebarLayout.tsx"),
-  "./components/mockups/ticket-detail-variants/TimelineView.tsx": () => import("../components/mockups/ticket-detail-variants/TimelineView.tsx")
+  "./components/mockups/ticket-detail-variants/TimelineView.tsx": () => import("../components/mockups/ticket-detail-variants/TimelineView.tsx"),
+  "./components/mockups/ticket-variants/CurrentStyle.tsx": () => import("../components/mockups/ticket-variants/CurrentStyle.tsx"),
+  "./components/mockups/ticket-variants/PriorityBar.tsx": () => import("../components/mockups/ticket-variants/PriorityBar.tsx"),
+  "./components/mockups/ticket-variants/RichCards.tsx": () => import("../components/mockups/ticket-variants/RichCards.tsx")
 };
