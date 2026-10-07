@@ -14,6 +14,7 @@ import { Link, useSearch, useLocation } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
 import ConsoleHistoryTab from './ConsoleHistoryTab';
+import AnnouncementsSettings from '../components/AnnouncementsSettings';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -1144,6 +1145,7 @@ export default function Settings() {
   const orgNav = [
     { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
     { id: 'messages', label: t.settings.navMessages, icon: <StarOutlined fontSize="small" /> },
+    { id: 'announcements', label: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <NotificationsActive fontSize="small" /> },
     { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
     { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
@@ -1334,6 +1336,9 @@ export default function Settings() {
 
           {/* ── NOTIFICATIONS ── */}
           {activeSection === 'notifications' && <NotificationPreferences />}
+
+          {/* ── ORGANIZATION ANNOUNCEMENTS (admin) ── */}
+          {isAdmin && activeSection === 'announcements' && <AnnouncementsSettings />}
 
           {/* ── GENERAL (admin) ── */}
           {isAdmin && activeSection === 'general' && (

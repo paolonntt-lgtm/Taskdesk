@@ -2092,6 +2092,128 @@ export const MarkAllNotificationsReadResponse = zod.object({
 
 
 /**
+ * @summary List announcements for the current organization (admin only)
+ */
+export const ListAnnouncementsResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().nullable(),
+  "targetGroupId": zod.int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
+
+
+/**
+ * @summary Create an announcement (admin only)
+ */
+export const createAnnouncementBodyTitleMax = 180;
+
+export const createAnnouncementBodyBodyMax = 5000;
+
+export const createAnnouncementBodyTargetLocationMax = 150;
+
+
+
+
+export const CreateAnnouncementBody = zod.object({
+  "title": zod.string().min(1).max(createAnnouncementBodyTitleMax),
+  "body": zod.string().min(1).max(createAnnouncementBodyBodyMax),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().max(createAnnouncementBodyTargetLocationMax).nullish(),
+  "targetGroupId": zod.int().min(1).nullish(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})
+
+export const CreateAnnouncementResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().nullable(),
+  "targetGroupId": zod.int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List active announcements addressed to the current user
+ */
+export const ListActiveAnnouncementsResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().nullable(),
+  "targetGroupId": zod.int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListActiveAnnouncementsResponse = zod.array(ListActiveAnnouncementsResponseItem)
+
+
+/**
+ * @summary Update an organization announcement (admin only)
+ */
+export const UpdateAnnouncementParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateAnnouncementBodyTitleMax = 180;
+
+export const updateAnnouncementBodyBodyMax = 5000;
+
+export const updateAnnouncementBodyTargetLocationMax = 150;
+
+
+
+
+export const UpdateAnnouncementBody = zod.object({
+  "title": zod.string().min(1).max(updateAnnouncementBodyTitleMax),
+  "body": zod.string().min(1).max(updateAnnouncementBodyBodyMax),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().max(updateAnnouncementBodyTargetLocationMax).nullish(),
+  "targetGroupId": zod.int().min(1).nullish(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})
+
+export const UpdateAnnouncementResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "targetType": zod.enum(['all', 'location', 'group']),
+  "targetLocation": zod.string().nullable(),
+  "targetGroupId": zod.int().nullable(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an organization announcement (admin only)
+ */
+export const DeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteAnnouncementResponse = zod.void()
+
+
+/**
  * @summary Get dashboard summary statistics
  */
 export const GetDashboardStatsResponse = zod.object({

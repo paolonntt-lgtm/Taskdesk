@@ -73,6 +73,7 @@ import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
 import { trackEvent } from '../lib/analytics';
+import AnnouncementsPopup from './AnnouncementsPopup';
 
 const drawerWidth = 264;
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
@@ -1272,6 +1273,12 @@ export default function Layout({ children }: LayoutProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <AnnouncementsPopup
+        userId={user ? String(user.id) : undefined}
+        enabled={canShowAlbertAnnouncement && !botOpen && !albertAnnouncementOpen}
+        lang={lang}
+      />
 
       <Tooltip title={t.bot.fabTooltip} placement="left" disableTouchListener={isMobile}>
         <Fab

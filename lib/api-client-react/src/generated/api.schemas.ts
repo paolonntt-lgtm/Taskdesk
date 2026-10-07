@@ -603,6 +603,65 @@ export interface KnowledgeArticleInput {
   category?: string | null;
 }
 
+export type AnnouncementTargetType = typeof AnnouncementTargetType[keyof typeof AnnouncementTargetType];
+
+
+export const AnnouncementTargetType = {
+  all: 'all',
+  location: 'location',
+  group: 'group',
+} as const;
+
+export interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  targetType: AnnouncementTargetType;
+  /** @nullable */
+  targetLocation: string | null;
+  /** @nullable */
+  targetGroupId: number | null;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AnnouncementInputTargetType = typeof AnnouncementInputTargetType[keyof typeof AnnouncementInputTargetType];
+
+
+export const AnnouncementInputTargetType = {
+  all: 'all',
+  location: 'location',
+  group: 'group',
+} as const;
+
+export interface AnnouncementInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  body: string;
+  targetType: AnnouncementInputTargetType;
+  /**
+     * @maxLength 150
+     * @nullable
+     */
+  targetLocation?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  targetGroupId?: number | null;
+  startsAt: string;
+  endsAt: string;
+}
+
 export type ClientLayoutItem = {
   id: string;
   visible: boolean;

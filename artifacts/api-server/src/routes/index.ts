@@ -40,6 +40,7 @@ import appointmentsRouter from "./appointments";
 import calendarRouter from "./calendar";
 import searchRouter from "./search";
 import dailyReportsRouter from "./dailyReports";
+import announcementsRouter from "./announcements";
 
 const router: IRouter = Router();
 
@@ -84,5 +85,6 @@ router.use(appointmentsRouter);
 router.use(calendarRouter);
 router.use(searchRouter);
 router.use(dailyReportsRouter);
+router.use(announcementsRouter);
 
 export default router;
