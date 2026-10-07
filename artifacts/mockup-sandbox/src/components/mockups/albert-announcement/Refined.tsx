@@ -2,6 +2,7 @@ import "./_group.css";
 import {
   AutoAwesomeRounded,
   ArrowForwardRounded,
+  VisibilityOffOutlined,
 } from "@mui/icons-material";
 import {
   Box,
@@ -184,7 +185,10 @@ export function Refined() {
                   lineHeight: 1.7,
                 }}
               >
-                Ora puoi chiedergli dei ticket e dei commenti, oppure farti aiutare a preparare e ritrovare i report giornalieri.
+                <>
+                  <strong>Scienziato curioso (camice facoltativo).</strong>{" "}
+                  Albert indaga su ticket e commenti e ti aiuta a preparare o ritrovare i report giornalieri.
+                </>
               </Typography>
             </DialogContent>
           </Box>
@@ -192,39 +196,67 @@ export function Refined() {
           <DialogActions
             sx={{
               px: 3,
-              py: 2.25,
-              gap: 1,
+              pt: 2,
+              pb: 1.25,
+              gap: 0.5,
+              alignItems: "stretch",
+              flexDirection: "column",
               borderTop: "1px solid rgba(148,163,184,.16)",
               bgcolor: "#fff",
               "& .MuiButton-root": { minHeight: 44 },
             }}
           >
+            <Box
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
+            >
+              <Button
+                onClick={() => {}}
+                sx={{
+                  color: "#64748b",
+                  px: 1.5,
+                  "&:hover": { bgcolor: "rgba(100,116,139,.08)" },
+                }}
+              >
+                Ho capito
+              </Button>
+              <Button
+                variant="contained"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
+                onClick={() => {}}
+                sx={{
+                  minWidth: 165,
+                  borderRadius: 2.5,
+                  background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                  boxShadow: "0 8px 18px rgba(79,70,229,.2)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #1d4ed8, #6d28d9)",
+                    boxShadow: "0 10px 20px rgba(79,70,229,.27)",
+                  },
+                }}
+              >
+                Chiedi ad Albert
+              </Button>
+            </Box>
             <Button
               onClick={() => {}}
+              startIcon={<VisibilityOffOutlined sx={{ fontSize: 16 }} />}
+              size="small"
               sx={{
-                color: "#64748b",
+                alignSelf: "flex-start",
+                minHeight: 32,
                 px: 1.5,
-                "&:hover": { bgcolor: "rgba(100,116,139,.08)" },
+                color: "#64748b",
+                fontSize: 12,
+                fontWeight: 600,
               }}
             >
-              Ho capito
-            </Button>
-            <Button
-              variant="contained"
-              endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
-              onClick={() => {}}
-              sx={{
-                minWidth: 165,
-                borderRadius: 2.5,
-                background: "linear-gradient(135deg, #2563eb, #7c3aed)",
-                boxShadow: "0 8px 18px rgba(79,70,229,.2)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #1d4ed8, #6d28d9)",
-                  boxShadow: "0 10px 20px rgba(79,70,229,.27)",
-                },
-              }}
-            >
-              Chiedi ad Albert
+              Non mostrarlo più
             </Button>
           </DialogActions>
         </Dialog>

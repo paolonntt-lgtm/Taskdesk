@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AppBar,
   Box,
@@ -29,6 +29,8 @@ import {
   DialogTitle,
 } from '@mui/material';
 import {
+  ArrowForwardRounded,
+  AutoAwesomeRounded,
   Menu as MenuIcon,
   Dashboard,
   ConfirmationNumber,
@@ -52,6 +54,7 @@ import {
   AdminPanelSettings,
   Search,
   BugReport,
+  VisibilityOffOutlined,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -282,32 +285,64 @@ export default function Layout({ children }: LayoutProps) {
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [albertAnnouncementOpen, setAlbertAnnouncementOpen] = useState(false);
+  const dismissedAlbertAnnouncementUsersRef = useRef(new Set<string>());
   const canShowAlbertAnnouncement = !!user &&
     !((user as any).registeredViaInvite && !(user as any).tourDone);
 
   useEffect(() => {
     if (!canShowAlbertAnnouncement || !user || botOpen) return;
-    const storageKey = `td_albert_reports_announcement_v1:${user.id}`;
+    const userId = String(user.id);
+    if (dismissedAlbertAnnouncementUsersRef.current.has(userId)) return;
+
+    const storageKey = `td_albert_reports_announcement_v1:${userId}`;
+    let hasSeenAnnouncement = false;
     try {
-      if (localStorage.getItem(storageKey) !== 'seen') setAlbertAnnouncementOpen(true);
+      hasSeenAnnouncement = localStorage.getItem(storageKey) === 'seen';
     } catch {
-      setAlbertAnnouncementOpen(true);
+      // Try session storage below when persistent browser storage is unavailable.
     }
+    if (!hasSeenAnnouncement) {
+      try {
+        hasSeenAnnouncement = sessionStorage.getItem(storageKey) === 'seen';
+      } catch {
+        // The in-memory dismissal guard still prevents repeats in this session.
+      }
+    }
+    if (!hasSeenAnnouncement) setAlbertAnnouncementOpen(true);
   }, [user?.id, canShowAlbertAnnouncement, botOpen]);
 
   const dismissAlbertAnnouncement = () => {
     if (user) {
+      const userId = String(user.id);
+      dismissedAlbertAnnouncementUsersRef.current.add(userId);
       try {
-        localStorage.setItem(`td_albert_reports_announcement_v1:${user.id}`, 'seen');
+        sessionStorage.setItem(`td_albert_reports_announcement_v1:${userId}`, 'seen');
       } catch {
-        // Keep dismissal for this session even if browser storage is unavailable.
+        // The in-memory dismissal guard still keeps it closed for this session.
       }
     }
     setAlbertAnnouncementOpen(false);
   };
 
-  const askAlbertFromAnnouncement = () => {
+  const neverShowAlbertAnnouncementAgain = () => {
+    if (user) {
+      const storageKey = `td_albert_reports_announcement_v1:${user.id}`;
+      try {
+        localStorage.setItem(storageKey, 'seen');
+      } catch {
+        // Fall back to this browser tab when persistent storage is blocked.
+      }
+      try {
+        sessionStorage.setItem(storageKey, 'seen');
+      } catch {
+        // The in-memory dismissal guard still keeps it closed for this session.
+      }
+    }
     dismissAlbertAnnouncement();
+  };
+
+  const askAlbertFromAnnouncement = () => {
+    neverShowAlbertAnnouncementAgain();
     setBotUnreadCount(0);
     setBotOpenPersist(true);
   };
@@ -1027,28 +1062,213 @@ export default function Layout({ children }: LayoutProps) {
         maxWidth="xs"
         aria-labelledby="albert-announcement-title"
         aria-describedby="albert-announcement-description"
+        PaperProps={{
+          sx: {
+            overflow: 'hidden',
+            borderRadius: 4,
+            border: (theme) =>
+              `1px solid ${theme.palette.mode === 'light' ? 'rgba(148,163,184,.2)' : 'rgba(148,163,184,.18)'}`,
+            boxShadow: (theme) =>
+              theme.palette.mode === 'light'
+                ? '0 28px 90px rgba(30,41,59,.25)'
+                : '0 28px 90px rgba(0,0,0,.52)',
+          },
+        }}
       >
-        <DialogTitle id="albert-announcement-title" sx={{ pb: 1 }}>
-          {lang === 'it' ? 'Albert è più conversazionale' : 'Albert is more conversational'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography
-            id="albert-announcement-description"
-            variant="body2"
-            color="text.secondary"
-            data-testid="text-albert-announcement"
+        <Box
+          sx={{
+            position: 'relative',
+            overflow: 'hidden',
+            px: { xs: 2.75, sm: 3.5 },
+            pt: 3.25,
+            pb: 3,
+            background: (theme) =>
+              theme.palette.mode === 'light'
+                ? 'radial-gradient(circle at 100% 0%, rgba(124,58,237,.12), transparent 38%), linear-gradient(135deg, #eff6ff 0%, #f7f3ff 100%)'
+                : 'radial-gradient(circle at 100% 0%, rgba(124,58,237,.22), transparent 38%), linear-gradient(135deg, #17243c 0%, #241e38 100%)',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              width: 190,
+              height: 190,
+              borderRadius: '50%',
+              right: -108,
+              bottom: -132,
+              border: '1px solid rgba(124,58,237,.12)',
+              pointerEvents: 'none',
+            },
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              position: 'relative',
+              zIndex: 1,
+            }}
           >
-            {lang === 'it'
-              ? 'Ora puoi chiedergli dei ticket e dei commenti, oppure farti aiutare a preparare e ritrovare i report giornalieri.'
-              : 'Ask him about tickets and comments, or get help preparing and finding daily reports.'}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={dismissAlbertAnnouncement} data-testid="button-dismiss-albert-announcement">
-            {lang === 'it' ? 'Ho capito' : 'Got it'}
-          </Button>
-          <Button variant="contained" onClick={askAlbertFromAnnouncement} data-testid="button-ask-albert">
-            {lang === 'it' ? 'Chiedi ad Albert' : 'Ask Albert'}
+            <Box
+              sx={{
+                width: 58,
+                height: 58,
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: '19px',
+                position: 'relative',
+                background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                boxShadow: '0 9px 20px rgba(79,70,229,.22)',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  display: 'grid',
+                  placeItems: 'center',
+                  overflow: 'hidden',
+                  borderRadius: '50%',
+                  border: '2px solid rgba(255,255,255,.9)',
+                  bgcolor: '#fff',
+                }}
+              >
+                <AlbertAvatarIcon size={42} />
+              </Box>
+              <Box
+                aria-hidden="true"
+                sx={{
+                  position: 'absolute',
+                  right: -5,
+                  bottom: -4,
+                  width: 23,
+                  height: 23,
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: '50%',
+                  bgcolor: '#fff',
+                  color: '#6d28d9',
+                  boxShadow: '0 2px 7px rgba(30,41,59,.18)',
+                }}
+              >
+                <AutoAwesomeRounded sx={{ fontSize: 15 }} />
+              </Box>
+            </Box>
+            <Chip
+              label={lang === 'it' ? 'NOVITÀ' : 'WHAT’S NEW'}
+              size="small"
+              sx={{
+                height: 28,
+                px: 0.5,
+                color: (theme) => theme.palette.mode === 'light' ? '#4f46e5' : '#c4b5fd',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'light' ? 'rgba(255,255,255,.76)' : 'rgba(255,255,255,.08)',
+                border: '1px solid rgba(99,102,241,.2)',
+                fontWeight: 800,
+                letterSpacing: '.05em',
+                fontSize: 10,
+              }}
+            />
+          </Box>
+          <DialogTitle
+            id="albert-announcement-title"
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              px: 0,
+              pt: 2.5,
+              pb: 0.9,
+              color: 'text.primary',
+              fontSize: { xs: 24, sm: 26 },
+              fontWeight: 800,
+              lineHeight: 1.2,
+              letterSpacing: '-.035em',
+            }}
+          >
+            {lang === 'it' ? 'Albert è più conversazionale' : 'Albert is more conversational'}
+          </DialogTitle>
+          <DialogContent sx={{ position: 'relative', zIndex: 1, px: 0, pb: 0 }}>
+            <Typography
+              id="albert-announcement-description"
+              variant="body2"
+              color="text.secondary"
+              data-testid="text-albert-announcement"
+              sx={{ maxWidth: 390, fontSize: 14.5, lineHeight: 1.7 }}
+            >
+              {lang === 'it' ? (
+                <>
+                  <strong>Scienziato curioso (camice facoltativo).</strong>{' '}
+                  Albert indaga su ticket e commenti e ti aiuta a preparare o ritrovare i report giornalieri.
+                </>
+              ) : (
+                <>
+                  <strong>Curious scientist (lab coat optional).</strong>{' '}
+                  Albert investigates tickets and comments and helps prepare or find daily reports.
+                </>
+              )}
+            </Typography>
+          </DialogContent>
+        </Box>
+        <DialogActions
+          sx={{
+            px: { xs: 2.5, sm: 3 },
+            pt: 2,
+            pb: 1.25,
+            gap: 0.5,
+            alignItems: 'stretch',
+            flexDirection: 'column',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            '& .MuiButton-root': { minHeight: 44 },
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+            }}
+          >
+            <Button
+              onClick={dismissAlbertAnnouncement}
+              data-testid="button-dismiss-albert-announcement"
+              sx={{ color: 'text.secondary', px: 1.5 }}
+            >
+              {lang === 'it' ? 'Ho capito' : 'Got it'}
+            </Button>
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
+              onClick={askAlbertFromAnnouncement}
+              data-testid="button-ask-albert"
+              sx={{
+                minWidth: { xs: 152, sm: 165 },
+                borderRadius: 2.5,
+                boxShadow: '0 8px 18px rgba(79,70,229,.2)',
+                '&:hover': { boxShadow: '0 10px 20px rgba(79,70,229,.27)' },
+              }}
+            >
+              {lang === 'it' ? 'Chiedi ad Albert' : 'Ask Albert'}
+            </Button>
+          </Box>
+          <Button
+            onClick={neverShowAlbertAnnouncementAgain}
+            data-testid="button-never-show-albert-announcement"
+            startIcon={<VisibilityOffOutlined sx={{ fontSize: 16 }} />}
+            size="small"
+            sx={{
+              alignSelf: 'flex-start',
+              minHeight: 32,
+              px: 1.5,
+              color: 'text.secondary',
+              fontSize: 12,
+              fontWeight: 600,
+              '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+            }}
+          >
+            {lang === 'it' ? 'Non mostrarlo più' : "Don't show this again"}
           </Button>
         </DialogActions>
       </Dialog>
