@@ -9,7 +9,6 @@ import TermsOfService from "./pages/TermsOfService";
 import DPA from "./pages/DPA";
 import CookiePolicy from "./pages/CookiePolicy";
 import NotFound from "./pages/not-found";
-import Albert from "./pages/Albert";
 
 function makeStaticHook(url: string) {
   return (): [string, (path: string) => void] => [url, () => {}];
@@ -19,7 +18,6 @@ function ItPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/albert" component={Albert} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
@@ -32,7 +30,6 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/albert" component={Albert} />
     </Switch>
   );
 }
