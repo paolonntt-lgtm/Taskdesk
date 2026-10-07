@@ -15,6 +15,7 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import AnnouncementsSettings from "./components/AnnouncementsSettings";
 import InviteRegister from "./pages/InviteRegister";
 import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
@@ -116,6 +117,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
             </>
           )}
           <Route path="/billing">{() => <AdminRoute component={Billing} />}</Route>
+          <Route path="/announcements">{() => <AdminRoute component={AnnouncementsSettings} />}</Route>
           <Route path="/settings" component={Settings} />
           <Route path="/superadmin">{() => <SuperAdminRoute component={SuperAdmin} />}</Route>
         </Switch>

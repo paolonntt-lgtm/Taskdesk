@@ -51,6 +51,7 @@ import {
   Brightness7,
   Business,
   CalendarMonth,
+  Campaign,
   AdminPanelSettings,
   Search,
   BugReport,
@@ -505,6 +506,7 @@ export default function Layout({ children }: LayoutProps) {
       : []),
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: t.nav.settings,   icon: <Settings />,            path: '/settings',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
@@ -552,6 +554,7 @@ export default function Layout({ children }: LayoutProps) {
             <ListItem disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
+                data-testid={item.path === '/announcements' ? 'nav-announcements' : undefined}
                 onClick={() => { setLocation(item.path); if (isMobile) setMobileOpen(false); }}
                 selected={isActive(item.path)}
                 sx={{
