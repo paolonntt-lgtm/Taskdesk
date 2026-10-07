@@ -25,3 +25,4 @@ export * from "./ticket_subscriptions";
 export * from "./bug_reports";
 export * from "./appointments";
 export * from "./daily_reports";
+export * from "./announcements";

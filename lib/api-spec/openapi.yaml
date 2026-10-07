@@ -25,6 +25,8 @@ tags:
     description: User management
   - name: notifications
     description: Notifications
+  - name: announcements
+    description: Time-limited announcements for organization collaborators
   - name: dailyReports
     description: Daily team reports
   - name: stats
@@ -1448,6 +1450,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      summary: List announcements for the current organization (admin only)
+      responses:
+        "200":
+          description: Organization announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      operationId: createAnnouncement
+      tags: [announcements]
+      summary: Create an announcement (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Announcement created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          description: Invalid announcement
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /announcements/active:
+    get:
+      operationId: listActiveAnnouncements
+      tags: [announcements]
+      summary: List active announcements addressed to the current user
+      responses:
+        "200":
+          description: Active announcements for the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+        "401":
+          description: Unauthorized
+
+  /announcements/{id}:
+    put:
+      operationId: updateAnnouncement
+      tags: [announcements]
+      summary: Update an organization announcement (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "200":
+          description: Announcement updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          description: Invalid announcement
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Announcement not found
+    delete:
+      operationId: deleteAnnouncement
+      tags: [announcements]
+      summary: Delete an organization announcement (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Announcement deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Announcement not found
 
   /stats/dashboard:
     get:
@@ -3539,6 +3652,79 @@ components:
       required:
         - title
         - content
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        targetType:
+          type: string
+          enum: [all, location, group]
+        targetLocation:
+          type: ["string", "null"]
+        targetGroupId:
+          type: ["integer", "null"]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - body
+        - targetType
+        - targetLocation
+        - targetGroupId
+        - startsAt
+        - endsAt
+        - createdAt
+        - updatedAt
+
+    AnnouncementInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        body:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        targetType:
+          type: string
+          enum: [all, location, group]
+        targetLocation:
+          type: ["string", "null"]
+          maxLength: 150
+        targetGroupId:
+          type: ["integer", "null"]
+          minimum: 1
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+      required:
+        - title
+        - body
+        - targetType
+        - startsAt
+        - endsAt
 
     Client:
       type: object
