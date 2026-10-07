@@ -13,6 +13,7 @@
 - [Statistics vs. daily reports](statistics-vs-daily-reports.md) — Reserve “Report” for daily-report workflows; use “Statistiche”/“Statistics” for analytics navigation.
 - [Shared motivational messages](shared-motivational-messages.md) — Admin-managed organization messages rotate by day and appear to every dashboard user.
 - [TaskDesk assistant name](taskdesk-assistant-name.md) — Use “Albert” in both languages, with occasional Einstein-inspired curiosity and no invented quotes.
+- [Albert release announcements](albert-announcement-audience.md) — Announce Albert feature updates to existing signed-in customers with a concise in-app notice.
 - [Dashboard location fallback](dashboard-location-fallback.md) — Profile location wins; browser geolocation is an explicit fallback and coordinates are never persisted.
 - [Monthly recurrence scheduling](recurrence-scheduling.md) — A selected day beyond a month’s length uses that month’s last available day.
 - [Per-ticket worked-time opt-in](worked-time-scope.md) — The ticket-level flag enables worked-time tracking independently of the organization-wide setting.

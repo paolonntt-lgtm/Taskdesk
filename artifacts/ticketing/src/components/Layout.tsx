@@ -23,6 +23,10 @@ import {
   Button,
   Chip,
   Tooltip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -277,6 +281,36 @@ export default function Layout({ children }: LayoutProps) {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
+  const [albertAnnouncementOpen, setAlbertAnnouncementOpen] = useState(false);
+  const canShowAlbertAnnouncement = !!user &&
+    !((user as any).registeredViaInvite && !(user as any).tourDone);
+
+  useEffect(() => {
+    if (!canShowAlbertAnnouncement || !user || botOpen) return;
+    const storageKey = `td_albert_reports_announcement_v1:${user.id}`;
+    try {
+      if (localStorage.getItem(storageKey) !== 'seen') setAlbertAnnouncementOpen(true);
+    } catch {
+      setAlbertAnnouncementOpen(true);
+    }
+  }, [user?.id, canShowAlbertAnnouncement, botOpen]);
+
+  const dismissAlbertAnnouncement = () => {
+    if (user) {
+      try {
+        localStorage.setItem(`td_albert_reports_announcement_v1:${user.id}`, 'seen');
+      } catch {
+        // Keep dismissal for this session even if browser storage is unavailable.
+      }
+    }
+    setAlbertAnnouncementOpen(false);
+  };
+
+  const askAlbertFromAnnouncement = () => {
+    dismissAlbertAnnouncement();
+    setBotUnreadCount(0);
+    setBotOpenPersist(true);
+  };
 
   const handleToggleAvailability = async () => {
     if (!user || availabilityUpdating) return;
@@ -985,6 +1019,39 @@ export default function Layout({ children }: LayoutProps) {
       </Box>
 
       <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
+
+      <Dialog
+        open={albertAnnouncementOpen}
+        onClose={dismissAlbertAnnouncement}
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="albert-announcement-title"
+        aria-describedby="albert-announcement-description"
+      >
+        <DialogTitle id="albert-announcement-title" sx={{ pb: 1 }}>
+          {lang === 'it' ? 'Albert è più conversazionale' : 'Albert is more conversational'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography
+            id="albert-announcement-description"
+            variant="body2"
+            color="text.secondary"
+            data-testid="text-albert-announcement"
+          >
+            {lang === 'it'
+              ? 'Ora puoi chiedergli dei ticket e dei commenti, oppure farti aiutare a preparare e ritrovare i report giornalieri.'
+              : 'Ask him about tickets and comments, or get help preparing and finding daily reports.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={dismissAlbertAnnouncement} data-testid="button-dismiss-albert-announcement">
+            {lang === 'it' ? 'Ho capito' : 'Got it'}
+          </Button>
+          <Button variant="contained" onClick={askAlbertFromAnnouncement} data-testid="button-ask-albert">
+            {lang === 'it' ? 'Chiedi ad Albert' : 'Ask Albert'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Tooltip title={t.bot.fabTooltip} placement="left" disableTouchListener={isMobile}>
         <Fab
