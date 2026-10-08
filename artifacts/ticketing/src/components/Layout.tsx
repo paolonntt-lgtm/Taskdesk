@@ -411,6 +411,11 @@ export default function Layout({ children }: LayoutProps) {
     dismissWhatsAppAnnouncement();
   };
 
+  const contactTeamViaWhatsAppAnnouncement = () => {
+    trackEvent('whatsapp_contact_clicked', { location: 'announcement' });
+    neverShowWhatsAppAnnouncementAgain();
+  };
+
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
       const next = !prev;
@@ -807,6 +812,7 @@ export default function Layout({ children }: LayoutProps) {
             href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEvent('whatsapp_contact_clicked', { location: 'topbar' })}
             size="small"
             aria-label={lang === 'it' ? 'Scrivimi su WhatsApp' : 'Message me on WhatsApp'}
             title={lang === 'it' ? 'Scrivimi su WhatsApp' : 'Message me on WhatsApp'}
@@ -1317,7 +1323,7 @@ export default function Layout({ children }: LayoutProps) {
         lang={lang}
         href={whatsappHref}
         onClose={dismissWhatsAppAnnouncement}
-        onContact={neverShowWhatsAppAnnouncementAgain}
+        onContact={contactTeamViaWhatsAppAnnouncement}
         onNeverShowAgain={neverShowWhatsAppAnnouncementAgain}
       />
 
