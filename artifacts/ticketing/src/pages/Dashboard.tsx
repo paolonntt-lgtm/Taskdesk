@@ -933,6 +933,7 @@ interface WorkloadRow { id: number; name: string; email: string; open: number; t
 function WorkloadWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
+  const { statuses } = useTicketStatuses();
   const [settings] = useWidgetSettings<WorkloadSettings>('workload', WORKLOAD_SETTINGS_DEFAULTS);
   const { data = [], isLoading } = useQuery<WorkloadRow[]>({
     queryKey: ['assignee-workload'],
@@ -942,6 +943,10 @@ function WorkloadWidget() {
     refetchIntervalInBackground: false,
   });
   const maxItems = parseInt(settings.maxItems) || 0;
+  const openStatusKeys = statuses.length > 0
+    ? statuses.filter((status) => !status.isClosed).map((status) => status.key)
+    : ['open'];
+  const openStatusesParam = encodeURIComponent(openStatusKeys.join(','));
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -975,7 +980,7 @@ function WorkloadWidget() {
               </Box>
               {(maxItems > 0 ? data.slice(0, maxItems) : data).map((row, idx) => (
                 <Box key={row.id}
-                  component={Link} href={`/tickets?assignedTo=${row.id}`}
+                  component={Link} href={`/tickets?status=${openStatusesParam}&userFilter=${row.id}&userFilterType=assignedTo`}
                   display="grid" gridTemplateColumns="1fr auto auto"
                   sx={{
                     textDecoration: 'none', color: 'inherit',

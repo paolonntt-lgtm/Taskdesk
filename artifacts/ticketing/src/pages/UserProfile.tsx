@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Box, Card, Avatar, Typography, Chip, CircularProgress,
-  Button, Divider, Stack, useMediaQuery, useTheme,
+  Button, Divider, MenuItem, Stack, TextField, useMediaQuery, useTheme,
 } from '@mui/material';
 import { ArrowBack, Email, Place, Group, WorkOutline, ConfirmationNumber, AssignmentInd } from '@mui/icons-material';
 import { useParams, useLocation, Link } from 'wouter';
@@ -87,10 +87,13 @@ export default function UserProfile() {
   const { user: currentUser } = useAuth();
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
   const theme = useTheme();
+  const [ticketScope, setTicketScope] = React.useState<'all' | 'created' | 'assigned'>('all');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'open' | 'closed'>('all');
 
   const { data: user, isLoading } = useGetUser(userId);
-  const { data: createdTickets } = useListTickets({ createdBy: userId });
-  const { data: assignedTickets } = useListTickets({ assignedTo: userId });
+  const { data: createdTickets, isLoading: isLoadingCreated } = useListTickets({ createdBy: userId });
+  const { data: assignedTickets, isLoading: isLoadingAssigned } = useListTickets({ assignedTo: userId });
+  const { isClosedKey } = useTicketStatuses();
 
   if (isLoading) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
@@ -105,8 +108,22 @@ export default function UserProfile() {
     );
   }
 
-  const created = createdTickets ?? [];
-  const assigned = (assignedTickets ?? []).filter((a: any) => !created.find((c: any) => c.id === a.id));
+  const matchesStatus = (ticket: any) => (
+    statusFilter === 'all' ||
+    (statusFilter === 'closed' ? isClosedKey(ticket.status) : !isClosedKey(ticket.status))
+  );
+  const created = ticketScope === 'assigned'
+    ? []
+    : (createdTickets ?? []).filter(matchesStatus);
+  const assignedCandidates = ticketScope === 'created'
+    ? []
+    : (assignedTickets ?? []).filter(matchesStatus);
+  const createdIds = new Set(created.map((ticket: any) => ticket.id));
+  const assigned = ticketScope === 'all'
+    ? assignedCandidates.filter((ticket: any) => !createdIds.has(ticket.id))
+    : assignedCandidates;
+  const hasAnyTickets = (createdTickets?.length ?? 0) + (assignedTickets?.length ?? 0) > 0;
+  const isLoadingTickets = isLoadingCreated || isLoadingAssigned;
 
   return (
     <Box maxWidth={700} mx="auto">
@@ -193,6 +210,35 @@ export default function UserProfile() {
         </Box>
       </Card>
 
+      <Card sx={{ mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} p={2}>
+          <TextField
+            select
+            size="small"
+            fullWidth
+            label={t.userProfile.scopeFilter}
+            value={ticketScope}
+            onChange={(event) => setTicketScope(event.target.value as typeof ticketScope)}
+          >
+            <MenuItem value="all">{t.userProfile.scopeAll}</MenuItem>
+            <MenuItem value="created">{t.userProfile.openTickets}</MenuItem>
+            <MenuItem value="assigned">{t.userProfile.assignedTickets}</MenuItem>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            fullWidth
+            label={t.userProfile.statusFilter}
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+          >
+            <MenuItem value="all">{t.userProfile.statusAll}</MenuItem>
+            <MenuItem value="open">{t.userProfile.statusOpen}</MenuItem>
+            <MenuItem value="closed">{t.userProfile.statusClosed}</MenuItem>
+          </TextField>
+        </Stack>
+      </Card>
+
       {/* Ticket creati */}
       <TicketSection
         title={t.userProfile.openTickets}
@@ -213,10 +259,14 @@ export default function UserProfile() {
         onNavigate={(id) => setLocation(`/tickets/${id}`)}
       />
 
-      {created.length === 0 && assigned.length === 0 && (
+      {isLoadingTickets ? (
+        <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box>
+      ) : created.length === 0 && assigned.length === 0 && (
         <Card>
           <Box p={4} textAlign="center">
-            <Typography variant="body2" color="text.secondary">{t.userProfile.noTickets}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {hasAnyTickets ? t.userProfile.noFilteredTickets : t.userProfile.noTickets}
+            </Typography>
           </Box>
         </Card>
       )}

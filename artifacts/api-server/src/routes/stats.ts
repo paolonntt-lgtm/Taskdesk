@@ -382,11 +382,25 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
+  const configuredStatuses = await db.select({
+    key: ticketStatusesTable.key,
+    isClosed: ticketStatusesTable.isClosed,
+  })
+    .from(ticketStatusesTable)
+    .where(eq(ticketStatusesTable.organizationId, orgId));
+  const closedStatusKeys = [...new Set([
+    ...configuredStatuses.filter((status) => status.isClosed).map((status) => status.key),
+    ...["resolved", "closed"].filter((key) => !configuredStatuses.some((status) => status.key === key)),
+  ])];
+  const isOpenStatus = closedStatusKeys.length > 0
+    ? notInArray(ticketsTable.status, closedStatusKeys)
+    : sql`true`;
+
   const rows = await db.select({
     id: usersTable.id,
     name: usersTable.name,
     email: usersTable.email,
-    open: sql<number>`count(${ticketsTable.id}) filter (where ${ticketsTable.status} not in ('resolved','closed'))`,
+    open: sql<number>`count(${ticketsTable.id}) filter (where ${isOpenStatus})`,
     total: sql<number>`count(${ticketsTable.id})`,
   })
     .from(usersTable)
@@ -401,7 +415,7 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
     )
     .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name, usersTable.email)
-    .orderBy(sql`count(${ticketsTable.id}) filter (where ${ticketsTable.status} not in ('resolved','closed')) desc`);
+    .orderBy(sql`count(${ticketsTable.id}) filter (where ${isOpenStatus}) desc`);
 
   res.json(rows.map((r) => ({ id: r.id, name: r.name, email: r.email, open: Number(r.open), total: Number(r.total) })));
 });
