@@ -46,7 +46,6 @@ import {
   PriorityHigh,
   Info,
   ChevronLeft,
-  Circle,
   Brightness4,
   Brightness7,
   Business,
@@ -76,10 +75,24 @@ import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
 import { trackEvent } from '../lib/analytics';
 import AnnouncementsPopup from './AnnouncementsPopup';
+import WhatsAppAnnouncementDialog from './WhatsAppAnnouncementDialog';
 
 const drawerWidth = 264;
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
 const taskdeskWhatsAppNumber = '393203177882';
+
+function hasSeenAnnouncement(key: string): boolean {
+  try {
+    if (localStorage.getItem(key) === 'seen') return true;
+  } catch {
+    // Try session storage when persistent storage is unavailable.
+  }
+  try {
+    return sessionStorage.getItem(key) === 'seen';
+  } catch {
+    return false;
+  }
+}
 
 interface BotFabPosition {
   left: number;
@@ -133,7 +146,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout } = useAuth();
   const { mode, toggleColorMode } = useColorMode();
   const { t, lang, setLang } = useLanguage();
   const entityTerm = useEntityTerm();
@@ -287,9 +300,10 @@ export default function Layout({ children }: LayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
-  const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [albertAnnouncementOpen, setAlbertAnnouncementOpen] = useState(false);
+  const [whatsappAnnouncementOpen, setWhatsAppAnnouncementOpen] = useState(false);
   const dismissedAlbertAnnouncementUsersRef = useRef(new Set<string>());
+  const dismissedWhatsAppAnnouncementUsersRef = useRef(new Set<string>());
   const canShowAlbertAnnouncement = !!user &&
     !((user as any).registeredViaInvite && !(user as any).tourDone);
 
@@ -314,6 +328,28 @@ export default function Layout({ children }: LayoutProps) {
     }
     if (!hasSeenAnnouncement) setAlbertAnnouncementOpen(true);
   }, [user?.id, canShowAlbertAnnouncement, botOpen]);
+
+  useEffect(() => {
+    setWhatsAppAnnouncementOpen(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!canShowAlbertAnnouncement || !user || botOpen || albertAnnouncementOpen) return;
+    const userId = String(user.id);
+    if (dismissedWhatsAppAnnouncementUsersRef.current.has(userId)) return;
+
+    const whatsappStorageKey = `td_whatsapp_contact_announcement_v1:${userId}`;
+    if (hasSeenAnnouncement(whatsappStorageKey)) {
+      dismissedWhatsAppAnnouncementUsersRef.current.add(userId);
+      return;
+    }
+
+    const albertStorageKey = `td_albert_reports_announcement_v1:${userId}`;
+    const hasSeenAlbertAnnouncement =
+      dismissedAlbertAnnouncementUsersRef.current.has(userId) ||
+      hasSeenAnnouncement(albertStorageKey);
+    if (hasSeenAlbertAnnouncement) setWhatsAppAnnouncementOpen(true);
+  }, [user?.id, canShowAlbertAnnouncement, botOpen, albertAnnouncementOpen]);
 
   const dismissAlbertAnnouncement = () => {
     if (user) {
@@ -351,29 +387,28 @@ export default function Layout({ children }: LayoutProps) {
     setBotOpenPersist(true);
   };
 
-  const handleToggleAvailability = async () => {
-    if (!user || availabilityUpdating) return;
-    const newVal = !user.isAvailable;
-    // Optimistic update: flip immediately so the UI responds at once
-    updateUser({ ...user, isAvailable: newVal });
-    setAvailabilityUpdating(true);
-    try {
-      const res = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable: newVal }),
-      });
-      if (!res.ok) {
-        // Rollback on failure
-        updateUser({ ...user, isAvailable: !newVal });
+  const dismissWhatsAppAnnouncement = () => {
+    if (user) {
+      const userId = String(user.id);
+      dismissedWhatsAppAnnouncementUsersRef.current.add(userId);
+      try {
+        sessionStorage.setItem(`td_whatsapp_contact_announcement_v1:${userId}`, 'seen');
+      } catch {
+        // The in-memory dismissal guard still prevents repeats in this session.
       }
-    } catch {
-      // Rollback on network error
-      updateUser({ ...user, isAvailable: !newVal });
-    } finally {
-      setAvailabilityUpdating(false);
     }
+    setWhatsAppAnnouncementOpen(false);
+  };
+
+  const neverShowWhatsAppAnnouncementAgain = () => {
+    if (user) {
+      try {
+        localStorage.setItem(`td_whatsapp_contact_announcement_v1:${user.id}`, 'seen');
+      } catch {
+        // Fall back to the session dismissal.
+      }
+    }
+    dismissWhatsAppAnnouncement();
   };
 
   const toggleSidebar = () => {
@@ -753,28 +788,6 @@ export default function Layout({ children }: LayoutProps) {
           >
             {lang === 'it' ? 'EN' : 'IT'}
           </Button>
-
-          {/* Availability toggle */}
-          <Tooltip title={user?.isAvailable ? t.availability.toggleTooltipAvailable : t.availability.toggleTooltipUnavailable}>
-            <Chip
-              size="small"
-              icon={<Circle sx={{ fontSize: '10px !important', color: user?.isAvailable ? 'success.main' : 'text.disabled' }} />}
-              label={user?.isAvailable ? t.availability.available : t.availability.unavailable}
-              onClick={handleToggleAvailability}
-              disabled={availabilityUpdating}
-              variant="outlined"
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                height: 26,
-                borderColor: user?.isAvailable ? 'success.main' : 'divider',
-                color: user?.isAvailable ? 'success.main' : 'text.secondary',
-                cursor: 'pointer',
-                display: { xs: 'none', sm: 'inline-flex' },
-                '&:hover': { opacity: 0.8 },
-              }}
-            />
-          </Tooltip>
 
           {/* Notifications */}
           <IconButton
@@ -1299,9 +1312,18 @@ export default function Layout({ children }: LayoutProps) {
         </DialogActions>
       </Dialog>
 
+      <WhatsAppAnnouncementDialog
+        open={whatsappAnnouncementOpen}
+        lang={lang}
+        href={whatsappHref}
+        onClose={dismissWhatsAppAnnouncement}
+        onContact={neverShowWhatsAppAnnouncementAgain}
+        onNeverShowAgain={neverShowWhatsAppAnnouncementAgain}
+      />
+
       <AnnouncementsPopup
         userId={user ? String(user.id) : undefined}
-        enabled={canShowAlbertAnnouncement && !botOpen && !albertAnnouncementOpen}
+        enabled={canShowAlbertAnnouncement && !botOpen && !albertAnnouncementOpen && !whatsappAnnouncementOpen}
         lang={lang}
       />
 
