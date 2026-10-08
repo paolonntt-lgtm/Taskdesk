@@ -55,6 +55,8 @@ import {
   AdminPanelSettings,
   Search,
   BugReport,
+  HelpOutline,
+  WhatsApp,
   VisibilityOffOutlined,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
@@ -78,6 +80,7 @@ import AnnouncementsPopup from './AnnouncementsPopup';
 
 const drawerWidth = 264;
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
+const taskdeskWhatsAppNumber = '393203177882';
 
 interface BotFabPosition {
   left: number;
@@ -285,6 +288,7 @@ export default function Layout({ children }: LayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [helpAndContactOpen, setHelpAndContactOpen] = useState(false);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [albertAnnouncementOpen, setAlbertAnnouncementOpen] = useState(false);
   const dismissedAlbertAnnouncementUsersRef = useRef(new Set<string>());
@@ -484,6 +488,10 @@ export default function Layout({ children }: LayoutProps) {
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
+  const whatsappMessage = lang === 'it'
+    ? 'Ciao, uso TaskDesk e vorrei chiederti una cosa.'
+    : 'Hi, I use TaskDesk and would like to ask you something.';
+  const whatsappHref = `https://wa.me/${taskdeskWhatsAppNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   const recentNotifications = (notifications as any[]).slice(0, 6);
@@ -617,6 +625,33 @@ export default function Layout({ children }: LayoutProps) {
       </List>
 
       {(user as any)?.clientsEnabled !== false && <NotesConsole />}
+
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Divider sx={{ mb: 1 }} />
+        <ListItemButton
+          data-testid="nav-help-and-contact"
+          aria-haspopup="dialog"
+          aria-expanded={helpAndContactOpen}
+          onClick={() => {
+            setHelpAndContactOpen(true);
+            if (isMobile) setMobileOpen(false);
+          }}
+          sx={{
+            borderRadius: '8px',
+            py: 1,
+            color: theme.palette.mode === 'dark' ? '#e4edf5' : '#26384d',
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 38, color: theme.palette.mode === 'dark' ? '#b9c9d8' : '#506275' }}>
+            <HelpOutline />
+          </ListItemIcon>
+          <ListItemText
+            primary={lang === 'it' ? 'Aiuto e contatti' : 'Help & contact'}
+            primaryTypographyProps={{ fontWeight: 600, fontSize: '0.94rem' }}
+          />
+        </ListItemButton>
+      </Box>
 
       {/* User card at bottom */}
       <Box sx={{ p: 2 }}>
@@ -1058,6 +1093,77 @@ export default function Layout({ children }: LayoutProps) {
       </Box>
 
       <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
+
+      <Dialog
+        data-testid="dialog-help-and-contact"
+        open={helpAndContactOpen}
+        onClose={() => setHelpAndContactOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="help-and-contact-title"
+        aria-describedby="help-and-contact-description"
+      >
+        <DialogTitle id="help-and-contact-title">
+          {lang === 'it' ? 'Aiuto e contatti' : 'Help & contact'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0 }}>
+          <Typography id="help-and-contact-description" variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {lang === 'it' ? 'Scegli il canale più adatto.' : 'Choose the best way to get help.'}
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<AutoAwesomeRounded />}
+              onClick={() => {
+                setHelpAndContactOpen(false);
+                setBotUnreadCount(0);
+                setBotOpenPersist(true);
+              }}
+              sx={{ justifyContent: 'flex-start', py: 1.2, textTransform: 'none', fontWeight: 700 }}
+            >
+              {lang === 'it' ? 'Chiedi ad Albert' : 'Ask Albert'}
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<BugReport />}
+              onClick={() => {
+                setHelpAndContactOpen(false);
+                setBugReportOpen(true);
+              }}
+              sx={{ justifyContent: 'flex-start', py: 1.2, textTransform: 'none', fontWeight: 700 }}
+            >
+              {t.bugReport.tooltip}
+            </Button>
+            <Button
+              component="a"
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              fullWidth
+              variant="contained"
+              startIcon={<WhatsApp />}
+              onClick={() => setHelpAndContactOpen(false)}
+              sx={{
+                justifyContent: 'flex-start',
+                py: 1.2,
+                textTransform: 'none',
+                fontWeight: 700,
+                bgcolor: '#0f766e',
+                '&:hover': { bgcolor: '#115e59' },
+              }}
+            >
+              {lang === 'it' ? 'Scrivimi su WhatsApp' : 'Message me on WhatsApp'}
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setHelpAndContactOpen(false)}>
+            {lang === 'it' ? 'Chiudi' : 'Close'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={albertAnnouncementOpen}
