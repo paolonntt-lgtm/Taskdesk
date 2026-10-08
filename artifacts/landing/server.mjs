@@ -1,5 +1,5 @@
 import express from "express";
-import { resolve, dirname } from "path";
+import { resolve, dirname, sep as pathSeparator } from "path";
 import { fileURLToPath } from "url";
 import { existsSync } from "fs";
 import { enforceStagingAccess } from "../web-security.mjs";
@@ -9,6 +9,17 @@ const port = Number(process.env.PORT ?? 18150);
 const distPublic = resolve(__dirname, "dist/public");
 
 const app = express();
+const NO_STORE_HTML_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
+function setNoStoreHeaders(res) {
+  for (const [name, value] of Object.entries(NO_STORE_HTML_HEADERS)) {
+    res.setHeader(name, value);
+  }
+}
 
 app.use((req, res, next) => {
   if (enforceStagingAccess(req, res, { healthPaths: ["/healthz"] })) return;
@@ -61,24 +72,32 @@ app.use((req, res, next) => {
 });
 
 // Serve static assets (JS, CSS, images, etc.)
-app.use(express.static(distPublic, { index: false }));
+app.use(express.static(distPublic, {
+  index: false,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith(".html") || filePath.endsWith(`${pathSeparator}sw.js`)) {
+      setNoStoreHeaders(res);
+    }
+  },
+}));
 
 // For every other request: serve prerendered index.html if available, else real 404
 app.use((req, res) => {
   const normalizedPath = req.path.endsWith("/") ? req.path : `${req.path}/`;
   const prerendered = resolve(distPublic, normalizedPath.slice(1), "index.html");
   if (existsSync(prerendered)) {
-    return res.sendFile(prerendered);
+    return res.sendFile(prerendered, { headers: NO_STORE_HTML_HEADERS });
   }
   const direct = resolve(distPublic, req.path.slice(1));
   if (existsSync(direct) && !direct.endsWith("/")) {
-    return res.sendFile(direct);
+    const isHtml = direct.endsWith(".html");
+    return res.sendFile(direct, isHtml ? { headers: NO_STORE_HTML_HEADERS } : undefined);
   }
   // Unknown route — serve the prerendered 404 page with a real 404 status so
   // crawlers do not index soft-404s as duplicate copies of the home page.
   const notFoundPage = resolve(distPublic, "404", "index.html");
   if (existsSync(notFoundPage)) {
-    return res.status(404).sendFile(notFoundPage);
+    return res.status(404).sendFile(notFoundPage, { headers: NO_STORE_HTML_HEADERS });
   }
   res.status(404).send("Not Found");
 });

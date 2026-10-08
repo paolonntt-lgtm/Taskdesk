@@ -1,4 +1,4 @@
-const CACHE = "taskdesk-v2";
+const CACHE = "taskdesk-v3";
 const PRECACHE = ["/", "/favicon.png", "/taskdesk-logo.png", "/site.webmanifest"];
 
 self.addEventListener("install", (e) => {
