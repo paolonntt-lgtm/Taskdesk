@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
 const SITE_BASE = "https://taskdesk.it";
+const WHATSAPP_NUMBER = "393203177882";
 
 const APP_URL = "/app/";
 
@@ -334,6 +336,12 @@ export default function Landing() {
     window.location.href = APP_URL;
   };
 
+  const whatsappMessage = lang === "it"
+    ? "Ciao, vorrei saperne di più su TaskDesk."
+    : "Hi, I'd like to know more about TaskDesk.";
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
+  const whatsappLabel = lang === "it" ? "Scrivimi su WhatsApp" : "Message me on WhatsApp";
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -523,6 +531,17 @@ export default function Landing() {
                  <DropdownMenuItem onClick={() => handleLanguageChange('en')} className={lang === 'en' ? 'bg-muted font-medium' : ''}>English</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={whatsappLabel}
+              title={whatsappLabel}
+              className="inline-flex md:hidden lg:inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-teal-800 transition-colors hover:border-teal-200 hover:bg-teal-50"
+            >
+              <FaWhatsapp aria-hidden="true" className="h-5 w-5 shrink-0" />
+              <span className="hidden lg:inline text-sm font-semibold">WhatsApp</span>
+            </a>
             <a href={APP_URL} onClick={() => trackCta("navbar")} className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 bg-white">
               {t.nav.login}
             </a>
@@ -948,9 +967,20 @@ export default function Landing() {
                   {t.finalCta.headline}
                 </h2>
                 <p className="text-white/75 mb-10 text-lg max-w-lg mx-auto">{t.finalCta.sub}</p>
-                <button onClick={() => handleCta("final")} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center gap-2">
-                  {t.pricing.cta} →
-                </button>
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <button onClick={() => handleCta("final")} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center justify-center gap-2">
+                    {t.pricing.cta} →
+                  </button>
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-4 rounded-xl border border-white/40 bg-white/10 text-white font-bold hover:bg-white/20 transition-all inline-flex items-center justify-center gap-2"
+                  >
+                    <FaWhatsapp aria-hidden="true" className="h-5 w-5" />
+                    {whatsappLabel}
+                  </a>
+                </div>
                 <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-white/60">
                   <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof1}</span>
                   <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof2}</span>
@@ -987,6 +1017,17 @@ export default function Landing() {
         </div>
       </footer>
       <InstallPrompt />
+      <a
+        href={whatsappUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={whatsappLabel}
+        title={whatsappLabel}
+        className="fixed bottom-5 right-4 sm:right-6 z-50 inline-flex min-h-12 items-center gap-2 rounded-full bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-900/20 transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+      >
+        <FaWhatsapp aria-hidden="true" className="h-5 w-5 shrink-0" />
+        <span>{whatsappLabel}</span>
+      </a>
     </div>
   );
 }
