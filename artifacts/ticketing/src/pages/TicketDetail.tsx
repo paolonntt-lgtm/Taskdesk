@@ -156,6 +156,7 @@ export default function TicketDetail() {
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(true);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
@@ -385,26 +386,43 @@ export default function TicketDetail() {
   };
 
   const handleAssigneeChange = async (newAssignee: string) => {
-    await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-    setAssignAnchor(null);
+    setTicketUpdateError(null);
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setAssignAnchor(null);
+    } catch (err: any) {
+      setTicketUpdateError(err?.response?.data?.message || err?.response?.data?.error || err?.data?.message || err?.data?.error || err?.message || t.ticketDetail.ticketUpdateError);
+    }
   };
 
   const handleDueAtChange = async (val: string) => {
-    await updateTicket.mutateAsync({
-      id: ticketId,
-      data: { dueAt: val ? new Date(val) as any : null } as any,
-    });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    setTicketUpdateError(null);
+    try {
+      await updateTicket.mutateAsync({
+        id: ticketId,
+        data: { dueAt: val ? new Date(val) as any : null } as any,
+      });
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setDueEditVal(val);
+      setDueAnchor(null);
+    } catch (err: any) {
+      setTicketUpdateError(err?.response?.data?.message || err?.response?.data?.error || err?.data?.message || err?.data?.error || err?.message || t.ticketDetail.ticketUpdateError);
+    }
   };
 
   const handleGroupChange = async (val: string) => {
-    await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
-    queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-    queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-    setAssignAnchor(null);
+    setTicketUpdateError(null);
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, data: { assignedToGroup: val || null } as any });
+      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setAssignAnchor(null);
+    } catch (err: any) {
+      setTicketUpdateError(err?.response?.data?.message || err?.response?.data?.error || err?.data?.message || err?.data?.error || err?.message || t.ticketDetail.ticketUpdateError);
+    }
   };
 
   const handleMarkSolution = async (commentId: number, currentValue: boolean) => {
@@ -736,10 +754,18 @@ export default function TicketDetail() {
   const isAdmin = currentUser?.role === 'admin';
   const isAuthor = (ticket as any).createdBy === currentUser?.id;
   const canEdit = isAdmin || isAuthor;
+  const canChangeDueAt = isAdmin || isAssignee;
   const canChangeStatus = isAdmin || canChangeStatusByGroup || isAssignee;
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
+  const canChangeAssignment = isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
+  const openDueAtEditor = (anchor: HTMLElement) => {
+    const dueAt = (ticket as any).dueAt;
+    setDueEditVal(dueAt ? toLocalDatetimeInput(dueAt) : '');
+    setTicketUpdateError(null);
+    setDueAnchor(anchor);
+  };
 
   const closerActivity = [...(activities ?? [])].reverse().find(
     (a: any) => a.actionType === 'status_changed' &&
@@ -930,8 +956,8 @@ export default function TicketDetail() {
               {/* Chi ha aperto → assegnatario */}
               {(creator?.name || assignee || assignedGroup) && (
                 <Box
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(canEdit ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
-                  onClick={canEdit ? (e) => setAssignAnchor(e.currentTarget) : undefined}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...(canChangeAssignment ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}
+                  onClick={canChangeAssignment ? (e) => setAssignAnchor(e.currentTarget) : undefined}
                 >
                   {creator?.name && (
                     <>
@@ -952,14 +978,26 @@ export default function TicketDetail() {
               )}
 
               {/* Scadenza + chip */}
-              {((ticket as any).dueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt || (workedTimeEnabled && (ticket as any).workedMinutes != null)) && (
+              {((ticket as any).dueAt || canChangeDueAt || ticket.inboundChannelId || (ticket as any).recurrenceRule || (ticket as any).scheduledAt || (workedTimeEnabled && (ticket as any).workedMinutes != null)) && (
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                  {(ticket as any).dueAt && (
+                  {((ticket as any).dueAt || canChangeDueAt) && (
+                    (ticket as any).dueAt ? (
                     <Box component="span"
-                      onClick={(isAdmin || isAssignee) ? (e) => setDueAnchor(e.currentTarget) : undefined}
-                      sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...((isAdmin || isAssignee) ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
+                      onClick={canChangeDueAt ? (e) => openDueAtEditor(e.currentTarget) : undefined}
+                      sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 600, color: new Date((ticket as any).dueAt) < new Date() && ticket.status !== 'resolved' && !isClosedKey(ticket.status) ? '#d32f2f' : '#e65100', ...(canChangeDueAt ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : {}) }}>
                       ⚠ {lang === 'it' ? 'Scade' : 'Due'} {new Date((ticket as any).dueAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </Box>
+                    ) : (
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<CalendarTodayIcon sx={{ fontSize: '14px !important' }} />}
+                        onClick={(e) => openDueAtEditor(e.currentTarget)}
+                        sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: { xs: 12, sm: 14 }, textTransform: 'none', color: 'text.secondary' }}
+                      >
+                        {t.ticketDetail.dueAtAdd}
+                      </Button>
+                    )
                   )}
                   {ticket.inboundChannelId && (
                     <Tooltip title={t.ticketDetail.inboundChannelLabel} placement="top" arrow>
@@ -1463,11 +1501,11 @@ export default function TicketDetail() {
       <Popover open={Boolean(dueAnchor)} anchorEl={dueAnchor} onClose={() => setDueAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5 } } }}>
         <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.dueAtLabel}</Box>
         <Box display="flex" alignItems="center" gap={0.5}>
-          <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} onBlur={() => handleDueAtChange(dueEditVal)} inputProps={{ style: { fontSize: 12 } }} sx={{ minWidth: 190 }} disabled={updateTicket.isPending} />
+          <TextField type="datetime-local" size="small" value={dueEditVal} onChange={(e) => setDueEditVal(e.target.value)} inputProps={{ 'aria-label': t.ticketDetail.dueAtLabel, style: { fontSize: 12 } }} sx={{ minWidth: 190 }} disabled={updateTicket.isPending} />
           {dueEditVal && (
             <Tooltip title={t.ticketDetail.dueAtClear}>
               <span>
-                <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { setDueEditVal(''); handleDueAtChange(''); setDueAnchor(null); }}>
+                <IconButton size="small" disabled={updateTicket.isPending} onClick={() => { void handleDueAtChange(''); }}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </span>
@@ -1475,8 +1513,8 @@ export default function TicketDetail() {
           )}
         </Box>
         <Box display="flex" justifyContent="flex-end" mt={1}>
-          <Button size="small" variant="contained" disabled={updateTicket.isPending} onClick={() => { handleDueAtChange(dueEditVal); setDueAnchor(null); }}>
-            {lang === 'it' ? 'Salva' : 'Save'}
+          <Button size="small" variant="contained" disabled={updateTicket.isPending} onClick={() => { void handleDueAtChange(dueEditVal); }}>
+            {t.ticketDetail.dueAtSave}
           </Button>
         </Box>
       </Popover>
@@ -1675,6 +1713,11 @@ export default function TicketDetail() {
       {/* Status change error */}
       <Snackbar open={statusError != null} autoHideDuration={5000} onClose={() => setStatusError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="error" onClose={() => setStatusError(null)} sx={{ width: '100%' }}>{statusError}</Alert>
+      </Snackbar>
+
+      {/* Ticket update error */}
+      <Snackbar open={ticketUpdateError != null} autoHideDuration={5000} onClose={() => setTicketUpdateError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setTicketUpdateError(null)} sx={{ width: '100%' }}>{ticketUpdateError}</Alert>
       </Snackbar>
 
       {/* Reaction error */}
