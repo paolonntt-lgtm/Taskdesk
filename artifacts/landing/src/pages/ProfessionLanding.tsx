@@ -38,6 +38,25 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
   const signupUrl = `${APP_URL}?trial_profession=${encodeURIComponent(profession)}&trial_language=${encodeURIComponent(lang)}`;
   const currentMetadata = metadata[lang];
   const currentRoutes = routes[lang];
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${currentMetadata.canonical}#webpage`,
+    url: currentMetadata.canonical,
+    name: currentMetadata.title,
+    description: currentMetadata.description,
+    inLanguage: lang,
+    about: {
+      "@type": "Thing",
+      name: copy.name,
+    },
+    mentions: {
+      "@type": "SoftwareApplication",
+      "@id": "https://taskdesk.it/#software",
+      name: "TaskDesk",
+      url: "https://taskdesk.it",
+    },
+  };
   const relatedProfessions = (Object.keys(PROFESSIONS) as ProfessionId[]).filter((id) => id !== profession);
   const otherLabel = (id: ProfessionId) => PROFESSIONS[id][lang].navLabel;
   const changeLanguage = () => {
@@ -71,6 +90,12 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
         <meta name="twitter:title" content={currentMetadata.title} />
         <meta name="twitter:description" content={currentMetadata.description} />
         <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+          }}
+        />
       </Helmet>
 
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">

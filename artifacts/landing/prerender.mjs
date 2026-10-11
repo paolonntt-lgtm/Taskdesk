@@ -221,7 +221,8 @@ function generateLandingJsonLd(lang) {
 }
 
 function replaceJsonLd(html, newJsonLd) {
-  // Remove all existing application/ld+json script blocks from <head>
+  // Remove existing application/ld+json blocks before injecting the route's
+  // server-rendered structured data exactly once.
   let h = html.replace(
     /<script type="application\/ld\+json">[\s\S]*?<\/script>/g,
     ''
@@ -231,6 +232,11 @@ function replaceJsonLd(html, newJsonLd) {
     h = h.replace('</head>', `  ${newJsonLd.trim()}\n  </head>`);
   }
   return h;
+}
+
+function getRenderedJsonLd(html) {
+  return [...html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[0]);
 }
 
 // Build SSR bundle
@@ -251,7 +257,7 @@ const BASE = 'https://taskdesk.it';
 
 console.log('Prerendering routes...');
 
-async function writeRoute(routePath, isLandingPage = false) {
+async function writeRoute(routePath, isLandingPage = false, isProfessionPage = false) {
   const cleanPath = routePath.replace(/^\//, '').replace(/\/$/, '');
   const dir = cleanPath ? resolve(distDir, cleanPath) : distDir;
   mkdirSync(dir, { recursive: true });
@@ -262,10 +268,11 @@ async function writeRoute(routePath, isLandingPage = false) {
   let html = stripDynamicHeadTags(template, isLandingPage);
 
   const lang = routePath.startsWith('/en') ? 'en' : 'it';
+  let bodyHtml = '';
 
   try {
     const ssrUrl = routePath.endsWith('/') ? routePath : `${routePath}/`;
-    const { html: bodyHtml } = render(ssrUrl);
+    bodyHtml = render(ssrUrl).html;
 
     // React 19 + react-helmet-async: the library's helmetContext is never
     // populated because React 19 natively hoists <title>/<meta>/<link> tags
@@ -283,8 +290,24 @@ async function writeRoute(routePath, isLandingPage = false) {
     html = injectHeadTags(html, lang, '');
   }
 
-  // JSON-LD: landing pages (/it/, /en/) get a full @graph; all other pages get none.
-  const newJsonLd = isLandingPage ? generateLandingJsonLd(lang) : null;
+  // The professional page's JSON-LD is authored by the React page component.
+  // Preserve its SSR output and validate it before writing the static page.
+  let newJsonLd = isLandingPage ? generateLandingJsonLd(lang) : null;
+  if (isProfessionPage) {
+    const renderedJsonLd = getRenderedJsonLd(bodyHtml);
+    if (renderedJsonLd.length !== 1) {
+      throw new Error(
+        `Expected exactly one server-rendered JSON-LD block for ${routePath}, found ${renderedJsonLd.length}.`
+      );
+    }
+    const jsonText = renderedJsonLd[0].replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '');
+    try {
+      JSON.parse(jsonText);
+    } catch (error) {
+      throw new Error(`Invalid server-rendered JSON-LD for ${routePath}: ${error.message}`);
+    }
+    newJsonLd = renderedJsonLd[0];
+  }
   html = replaceJsonLd(html, newJsonLd);
 
   writeFileSync(resolve(dir, 'index.html'), html, 'utf-8');
@@ -295,8 +318,8 @@ await writeRoute('/it/', true);
 await writeRoute('/en/', true);
 
 for (const profession of professionIds) {
-  await writeRoute(`/it/${professionSlugs.it[profession]}`);
-  await writeRoute(`/en/${professionSlugs.en[profession]}`);
+  await writeRoute(`/it/${professionSlugs.it[profession]}`, false, true);
+  await writeRoute(`/en/${professionSlugs.en[profession]}`, false, true);
 }
 
 const legalPages = [
