@@ -24,8 +24,6 @@ import {
   FileText,
   Mail,
   MessageCircle,
-  Search,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
@@ -832,90 +830,19 @@ export default function Landing() {
         <section id="team-memory" aria-label={t.landmarks.teamMemory} className="border-y border-gray-100 bg-slate-50 px-6 py-24 md:px-8">
           <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
             <ScrollReveal>
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-7">
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                      <Search aria-hidden="true" className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{t.teamMemory.searchTitle}</div>
-                      <div className="text-xs text-gray-400">{lang === "it" ? "Archivio condiviso TaskDesk" : "Shared TaskDesk archive"}</div>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                    {lang === "it" ? "STORICO" : "HISTORY"}
-                  </span>
+              <div data-testid="team-memory-albert-card" className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-200/70">
+                <div className="mx-auto mb-5 h-24 w-24 overflow-hidden rounded-full border border-slate-200 bg-black shadow-md">
+                  <img
+                    src={`${import.meta.env.BASE_URL}albert-einstein-silhouette.png`}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    className="h-full w-full rounded-full object-cover"
+                  />
                 </div>
-
-                <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/50 px-4 py-3.5 text-sm text-slate-700 shadow-sm">
-                  <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-600" />
-                  <span className="flex-1 font-medium">{t.teamMemory.searchDescription}</span>
-                  <span className="hidden rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 sm:inline">⌘ K</span>
-                </div>
-
-                <div className="my-4 flex flex-wrap gap-2">
-                  {(lang === "it" ? ["Attività", "Commenti", "Soluzioni"] : ["Tasks", "Comments", "Solutions"]).map((filter, index) => (
-                    <span
-                      key={filter}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                        index === 0 ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-500"
-                      }`}
-                    >
-                      {filter}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mb-3 flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wide text-slate-400">{t.teamMemory.resultsTitle}</span>
-                  <span className="font-medium text-slate-400">{lang === "it" ? "2 risultati" : "2 results"}</span>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-slate-800">{t.teamMemory.historyResult}</span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
-                        <CheckCircle2 aria-hidden="true" className="h-3 w-3" />
-                        {lang === "it" ? "Risolta" : "Resolved"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-400">{t.teamMemory.historyMeta}</div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-slate-800">{t.teamMemory.secondResult}</span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
-                        <CheckCircle2 aria-hidden="true" className="h-3 w-3" />
-                        {lang === "it" ? "Risolta" : "Resolved"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-400">{t.teamMemory.secondMeta}</div>
-                  </div>
-
-                  <div data-testid="team-memory-albert-answer" className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-                        <Sparkles aria-hidden="true" className="h-4 w-4" />
-                      </span>
-                      {t.teamMemory.solutionTitle}
-                    </div>
-                    <p className="text-sm leading-relaxed text-slate-600">{t.teamMemory.solutionDescription}</p>
-                    <div className="mt-3 border-t border-blue-100 pt-3">
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.teamMemory.solutionSourcesLabel}</div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-700">{t.teamMemory.solutionSourcePrimary}</span>
-                        <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-700">{t.teamMemory.solutionSourceRelated}</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 border-t border-blue-100 pt-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">MR</span>
-                      <span className="text-xs font-semibold text-slate-600">{t.teamMemory.solutionAuthor}</span>
-                    </div>
-                  </div>
-                </div>
+                <div className="text-xl font-black text-slate-900">{t.teamMemory.assistantName}</div>
+                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-blue-600">{t.teamMemory.assistantRole}</div>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-600">{t.teamMemory.assistantDescription}</p>
               </div>
             </ScrollReveal>
             <ScrollReveal delay={0.1}>

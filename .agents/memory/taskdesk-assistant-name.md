@@ -12,3 +12,9 @@ Use “Albert” in both Italian and English. The name is a playful nod to Alber
 **Why:** The user explicitly rejected a generic-looking first silhouette and asked for an alternative while keeping the no-color silhouette constraint.
 
 **How to apply:** Keep user-visible labels, welcome copy, avatars, and all assistant system prompts consistent with Albert's identity. Keep Einstein references occasional and factual. For avatar assets, use a high-contrast monochrome Einstein silhouette with recognizable unruly hair and moustache, and check it at the small circular sizes used in the interface.
+
+For the team-memory message, position Albert as the assistant that helps the team find useful past tickets.
+
+**Why:** The user described Albert’s role in this section as finding old tickets that can help with current work.
+
+**How to apply:** Keep this positioning focused on retrieving relevant prior tickets and their useful context, rather than presenting Albert as a generic chatbot.

@@ -27,16 +27,9 @@ const routes = [
       "TaskDesk si adatta al tuo lavoro.",
     ],
     memoryContent: [
-      "Cerca nello storico",
-      "Accesso al portale cliente",
-      "Risultati attività",
-      "Istruzioni per l’accesso all’area clienti",
-      "Albert ha trovato una soluzione",
-      "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
-      "Fonti consultate",
-      "Pratica #128",
-      "Pratica #096",
-      "Marta Rossi",
+      "Albert",
+      "Assistente AI TaskDesk",
+      "Ti aiuta a ritrovare ticket passati utili per affrontare richieste simili.",
     ],
     mockupContent: [
       "#5 — Documenti mancanti per dichiarazione dei redditi",
@@ -65,16 +58,9 @@ const routes = [
       "TaskDesk adapts to the way you work.",
     ],
     memoryContent: [
-      "Search history",
-      "Customer portal access",
-      "Task results",
-      "Customer portal access instructions",
-      "Albert found a solution",
-      "Access restored. Login checked and instructions sent to the customer.",
-      "Sources used",
-      "Request #128",
-      "Request #096",
-      "Marta Rossi",
+      "Albert",
+      "TaskDesk AI assistant",
+      "Albert helps you find useful past tickets and bring the team’s previous solutions back into view.",
     ],
     mockupContent: [
       "#5 — Missing documents for tax return filing",
@@ -117,9 +103,13 @@ for (const route of routes) {
     assert.ok(bodyText.includes(memoryCopy), `${route.path} must render team-memory content "${memoryCopy}"`);
   }
   assert.equal(
-    document.querySelectorAll('[data-testid="team-memory-albert-answer"]').length,
+    document.querySelectorAll('[data-testid="team-memory-albert-card"]').length,
     1,
-    `${route.path} must render one Albert answer with its source references`,
+    `${route.path} must render the Albert assistant card in the team-memory section`,
+  );
+  assert.ok(
+    document.querySelector('[data-testid="team-memory-albert-card"] img')?.getAttribute("src")?.endsWith("albert-einstein-silhouette.png"),
+    `${route.path} must show Albert's monochrome Einstein icon`,
   );
   for (const mockupCopy of route.mockupContent) {
     assert.ok(bodyText.includes(mockupCopy), `${route.path} must render the activity mockup detail "${mockupCopy}"`);

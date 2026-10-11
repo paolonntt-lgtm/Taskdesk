@@ -58,19 +58,9 @@ interface Translations {
   teamMemory: {
     title: string;
     subtitle: string;
-    searchTitle: string;
-    searchDescription: string;
-    historyResult: string;
-    historyMeta: string;
-    resultsTitle: string;
-    secondResult: string;
-    secondMeta: string;
-    solutionTitle: string;
-    solutionDescription: string;
-    solutionAuthor: string;
-    solutionSourcesLabel: string;
-    solutionSourcePrimary: string;
-    solutionSourceRelated: string;
+    assistantName: string;
+    assistantRole: string;
+    assistantDescription: string;
   };
   workStatistic: {
     statement: string;
@@ -265,19 +255,9 @@ const translations: Record<Language, Translations> = {
     teamMemory: {
       title: "Un problema risolto oggi non deve tornare un problema domani.",
       subtitle: "Cerca nello storico, collega le attività simili e metti in evidenza la soluzione efficace: il team potrà ritrovarla e riutilizzarla.",
-      searchTitle: "Cerca nello storico",
-      searchDescription: "“accesso portale cliente”",
-      historyResult: "Accesso al portale cliente",
-      historyMeta: "Pratica #128 · Risolta il 12 settembre",
-      resultsTitle: "Risultati attività",
-      secondResult: "Istruzioni per l’accesso all’area clienti",
-      secondMeta: "Pratica #096 · Commento del 3 luglio",
-      solutionTitle: "Albert ha trovato una soluzione",
-      solutionDescription: "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
-      solutionAuthor: "Marta Rossi",
-      solutionSourcesLabel: "Fonti consultate",
-      solutionSourcePrimary: "Pratica #128",
-      solutionSourceRelated: "Pratica #096",
+      assistantName: "Albert",
+      assistantRole: "Assistente AI TaskDesk",
+      assistantDescription: "Ti aiuta a ritrovare ticket passati utili per affrontare richieste simili.",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -499,19 +479,9 @@ const translations: Record<Language, Translations> = {
     teamMemory: {
       title: "A problem solved today should not become tomorrow’s problem.",
       subtitle: "Search the history, connect similar tasks, and highlight the solution that worked so the whole team can find and reuse it.",
-      searchTitle: "Search history",
-      searchDescription: "“customer portal access”",
-      historyResult: "Customer portal access",
-      historyMeta: "Request #128 · Resolved Sep 12",
-      resultsTitle: "Task results",
-      secondResult: "Customer portal access instructions",
-      secondMeta: "Request #096 · Comment from Jul 3",
-      solutionTitle: "Albert found a solution",
-      solutionDescription: "Access restored. Login checked and instructions sent to the customer.",
-      solutionAuthor: "Marta Rossi",
-      solutionSourcesLabel: "Sources used",
-      solutionSourcePrimary: "Request #128",
-      solutionSourceRelated: "Request #096",
+      assistantName: "Albert",
+      assistantRole: "TaskDesk AI assistant",
+      assistantDescription: "Albert helps you find useful past tickets and bring the team’s previous solutions back into view.",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",
