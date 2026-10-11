@@ -17,7 +17,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CheckCircle2, ChevronDown, Search } from "lucide-react";
+import {
+  ArrowDown,
+  CheckCircle2,
+  ChevronDown,
+  FileText,
+  Mail,
+  MessageCircle,
+  Search,
+  type LucideIcon,
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
@@ -342,6 +351,142 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
   );
 }
 
+function HeroSourceCard({
+  icon: Icon,
+  source,
+  title,
+  note,
+  iconClass,
+  className,
+}: {
+  icon: LucideIcon;
+  source: string;
+  title: string;
+  note: string;
+  iconClass: string;
+  className: string;
+}) {
+  return (
+    <div
+      data-testid={`hero-source-${source.toLowerCase()}`}
+      className={`absolute z-10 w-[178px] rounded-2xl border border-white bg-white/95 p-3.5 shadow-[0_12px_34px_#24324a14] ${className}`}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`grid h-7 w-7 place-items-center rounded-lg ${iconClass}`}>
+          <Icon aria-hidden="true" size={14} />
+        </span>
+        <span className="text-[11px] font-bold text-gray-600">{source}</span>
+      </div>
+      <p className="text-xs font-semibold leading-snug text-gray-800">{title}</p>
+      <p className="mt-1 text-[10px] leading-snug text-gray-400">{note}</p>
+    </div>
+  );
+}
+
+function UnifiedRequestVisual({ lang }: { lang: "it" | "en" }) {
+  const copy = lang === "it"
+    ? {
+        accessibleLabel: "Messaggi WhatsApp, email e appunti riuniti in una pratica TaskDesk",
+        whatsappTitle: "«Mi ricordi a che punto siamo?»",
+        whatsappNote: "Messaggio di ieri · 10:12",
+        emailTitle: "Documenti per la dichiarazione",
+        emailNote: "Da Carla M. · ieri",
+        noteTitle: "Manca la CU dell’anno scorso",
+        noteNote: "Nota presa al telefono",
+        organized: "Tutto al suo posto",
+        practice: "Pratica #5",
+        practiceTitle: "Documenti per la dichiarazione",
+        assigned: "In carico",
+        sources: "fonti riunite",
+      }
+    : {
+        accessibleLabel: "WhatsApp messages, emails, and notes brought together in one TaskDesk request",
+        whatsappTitle: "“Can you remind me where we are?”",
+        whatsappNote: "Message from yesterday · 10:12",
+        emailTitle: "Documents for the tax return",
+        emailNote: "From Carla M. · yesterday",
+        noteTitle: "Last year’s income certificate is missing",
+        noteNote: "Note from a phone call",
+        organized: "Everything in one place",
+        practice: "Request #5",
+        practiceTitle: "Documents for the tax return",
+        assigned: "Assigned",
+        sources: "sources brought together",
+      };
+
+  return (
+    <div
+      data-testid="hero-unified-request-visual"
+      role="img"
+      aria-label={copy.accessibleLabel}
+      className="ld-float relative h-[460px] w-full max-w-[490px]"
+    >
+      <div className="absolute inset-[5%] rounded-full border border-blue-100/80" aria-hidden="true" />
+      <div className="absolute inset-[15%] rounded-full border border-violet-100/70" aria-hidden="true" />
+      <div className="absolute left-[25%] top-[15%] h-[280px] w-[280px] rounded-full bg-blue-100/70 blur-3xl" aria-hidden="true" />
+
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 490 460" fill="none" aria-hidden="true">
+        <path d="M102 116 C112 205 171 253 226 303" stroke="#93B4FA" strokeWidth="2" strokeDasharray="5 7" />
+        <path d="M388 66 C378 178 322 247 272 303" stroke="#A99AF2" strokeWidth="2" strokeDasharray="5 7" />
+        <path d="M90 256 C143 267 185 281 225 310" stroke="#86C9AE" strokeWidth="2" strokeDasharray="5 7" />
+        <circle cx="226" cy="303" r="5" fill="#2563EB" />
+        <circle cx="272" cy="303" r="5" fill="#7C3AED" />
+      </svg>
+
+      <HeroSourceCard
+        icon={MessageCircle}
+        source="WhatsApp"
+        title={copy.whatsappTitle}
+        note={copy.whatsappNote}
+        iconClass="bg-green-50 text-green-600"
+        className="left-0 top-[58px] rotate-[-4deg]"
+      />
+      <HeroSourceCard
+        icon={Mail}
+        source="Email"
+        title={copy.emailTitle}
+        note={copy.emailNote}
+        iconClass="bg-blue-50 text-blue-600"
+        className="right-0 top-[20px] rotate-[3deg]"
+      />
+      <HeroSourceCard
+        icon={FileText}
+        source={lang === "it" ? "Appunto" : "Note"}
+        title={copy.noteTitle}
+        note={copy.noteNote}
+        iconClass="bg-amber-50 text-amber-600"
+        className="left-[9px] top-[218px] rotate-[3deg]"
+      />
+
+      <div className="absolute bottom-[18px] left-1/2 z-20 w-[min(340px,88%)] -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-[0_22px_60px_#2855a71f]">
+        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-blue-500">{copy.organized}</div>
+            <div className="text-sm font-bold text-gray-900">{copy.practice}</div>
+            <div className="mt-1 text-xs text-gray-500">{copy.practiceTitle}</div>
+          </div>
+          <span className="rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-bold text-green-700">{copy.assigned}</span>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3">
+          <div className="flex -space-x-2" aria-hidden="true">
+            <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-violet-500 text-[9px] font-bold text-white">CM</span>
+            <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-blue-600 text-[9px] font-bold text-white">LB</span>
+          </div>
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-gray-500">
+            <span className="text-blue-500">3</span> {copy.sources}
+          </span>
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-600 text-white">
+            <CheckCircle2 aria-hidden="true" size={14} strokeWidth={2.5} />
+          </span>
+        </div>
+      </div>
+      <div className="absolute bottom-[142px] left-1/2 z-10 grid h-8 w-8 -translate-x-1/2 place-items-center rounded-full border border-blue-100 bg-white text-blue-500 shadow-sm" aria-hidden="true">
+        <ArrowDown size={15} />
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
   const [professionDialogOpen, setProfessionDialogOpen] = useState(false);
@@ -640,15 +785,15 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Right: animated chat mockup — desktop */}
+              {/* Right: unified message/email/note visual — desktop */}
               <div className="hidden lg:flex justify-end">
-                <TicketChatMockup lang={lang} />
+                <UnifiedRequestVisual lang={lang} />
               </div>
             </div>
 
-            {/* Chat mockup — mobile/tablet (below copy) */}
+            {/* Unified request visual — mobile/tablet (below copy) */}
             <div className="lg:hidden flex justify-center mt-12">
-              <TicketChatMockup lang={lang} />
+              <UnifiedRequestVisual lang={lang} />
             </div>
           </div>
         </section>

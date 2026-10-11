@@ -115,8 +115,13 @@ for (const route of routes) {
   }
   assert.equal(
     document.querySelectorAll('[data-testid="ticket-chat-mockup"]').length,
-    3,
-    `${route.path} must reuse the hero activity mockup in the solution section`,
+    1,
+    `${route.path} must keep the activity chat mockup in the solution section`,
+  );
+  assert.equal(
+    document.querySelectorAll('[data-testid="hero-unified-request-visual"]').length,
+    2,
+    `${route.path} must render the unified source visual for desktop and mobile in the hero`,
   );
   for (const removedExample of route.removedExamples) {
     assert.ok(!bodyText.includes(removedExample), `${route.path} must not render removed example "${removedExample}"`);
