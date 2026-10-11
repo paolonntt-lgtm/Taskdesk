@@ -30,12 +30,13 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   closeButtonLabel?: string
   overlayClassName?: string
+  onCloseButtonClick?: () => void
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, closeButtonLabel = "Close", overlayClassName, ...props }, ref) => (
+>(({ className, children, closeButtonLabel = "Close", overlayClassName, onCloseButtonClick, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -49,6 +50,7 @@ const DialogContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close
         aria-label={closeButtonLabel}
+        onClick={onCloseButtonClick}
         className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 shadow-sm ring-offset-background transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:pointer-events-none"
       >
         <X className="h-4 w-4" />

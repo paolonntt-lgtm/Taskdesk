@@ -1,8 +1,13 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/i18n";
-import { getProfessionalCampaign } from "@/lib/analytics";
+import {
+  getProfessionalCampaign,
+  trackProfessionDialogClosed,
+  trackProfessionDialogOpened,
+  trackProfessionDialogProfessionSelected,
+} from "@/lib/analytics";
 import { PROFESSION_SLUGS } from "@/profession-routes";
 import {
   Dialog,
@@ -20,12 +25,18 @@ interface ProfessionEntryDialogProps {
 export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDialogProps) {
   const { lang, t } = useLanguage();
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const wasOpen = useRef(false);
   const campaign = getProfessionalCampaign(
     typeof window === "undefined" ? "" : window.location.search,
   );
   const campaignQuery = campaign === "unattributed"
     ? ""
     : `?utm_campaign=${encodeURIComponent(campaign)}`;
+
+  useEffect(() => {
+    if (open && !wasOpen.current) trackProfessionDialogOpened(lang);
+    wasOpen.current = open;
+  }, [lang, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,6 +52,9 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
           event.preventDefault();
           document.getElementById("main-content")?.focus();
         }}
+        onCloseButtonClick={() => trackProfessionDialogClosed(lang, "x")}
+        onPointerDownOutside={() => trackProfessionDialogClosed(lang, "backdrop")}
+        onEscapeKeyDown={() => trackProfessionDialogClosed(lang, "escape")}
       >
         <DialogHeader className="mb-3 pr-10 text-left">
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
@@ -63,6 +77,7 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
             <Link
               key={profile.profession}
               href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}${campaignQuery}`}
+              onClick={() => trackProfessionDialogProfessionSelected(profile.profession, lang)}
               className="group flex min-h-36 flex-col rounded-2xl border border-slate-200 bg-white p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:min-h-48 sm:p-5"
               data-testid={`link-entry-profession-${profile.profession}`}
             >

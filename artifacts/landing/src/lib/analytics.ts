@@ -20,6 +20,15 @@ export type CtaLocation =
 
 export type ScrollDepthPct = 25 | 50 | 75 | 100;
 
+const ALLOWED_PROFESSIONS = new Set<ProfessionId>([
+  "commercialisti",
+  "avvocati",
+  "consulenti-del-lavoro",
+]);
+const ALLOWED_PROFESSION_LANGUAGES = new Set<ProfessionLanguage>(["it", "en"]);
+
+export type ProfessionDialogCloseMethod = "x" | "backdrop" | "escape";
+
 export function trackEvent(name: string, data?: AnalyticsData): void {
   if (typeof window === "undefined") return;
 
@@ -32,6 +41,35 @@ export function trackEvent(name: string, data?: AnalyticsData): void {
   if (import.meta.env.DEV) {
     console.log(`[analytics] ${name}`, data);
   }
+}
+
+function isProfessionId(value: unknown): value is ProfessionId {
+  return typeof value === "string" && ALLOWED_PROFESSIONS.has(value as ProfessionId);
+}
+
+function isProfessionLanguage(value: unknown): value is ProfessionLanguage {
+  return typeof value === "string" && ALLOWED_PROFESSION_LANGUAGES.has(value as ProfessionLanguage);
+}
+
+export function trackProfessionDialogOpened(language: unknown): void {
+  if (!isProfessionLanguage(language)) return;
+  trackEvent("profession_dialog_opened", { language });
+}
+
+export function trackProfessionDialogProfessionSelected(
+  profession: unknown,
+  language: unknown,
+): void {
+  if (!isProfessionId(profession) || !isProfessionLanguage(language)) return;
+  trackEvent("profession_dialog_profession_selected", { profession, language });
+}
+
+export function trackProfessionDialogClosed(
+  language: unknown,
+  method: ProfessionDialogCloseMethod,
+): void {
+  if (!isProfessionLanguage(language)) return;
+  trackEvent("profession_dialog_closed", { language, method });
 }
 
 export function trackCta(location: CtaLocation, planName?: string): void {
