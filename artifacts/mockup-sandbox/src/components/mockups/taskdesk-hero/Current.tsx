@@ -137,7 +137,6 @@ export function Current() {
           <div className="mt-12 flex justify-center lg:hidden"><TicketChatMockup /></div>
         </div>
       </section>
-      <div className="px-8 py-10"><div className="mx-auto max-w-6xl rounded-2xl border border-blue-100 bg-blue-50/70 p-6 text-center"><span className="text-sm font-semibold text-blue-700">Una soluzione, tutto in un posto</span></div></div>
     </main>
   );
 }
