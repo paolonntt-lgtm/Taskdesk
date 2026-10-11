@@ -78,10 +78,6 @@ interface Translations {
     solutionTitle: string;
     solutionDescription: string;
   };
-  useCases: {
-    examples: Array<{ label: string; title: string; record: string; status: string; assignee: string }>;
-    linksTitle: string;
-  };
   workStatistic: {
     statement: string;
     survey: string;
@@ -306,14 +302,6 @@ const translations: Record<Language, Translations> = {
       linkedDescription: "Riunisci richieste simili e il loro contesto.",
       solutionTitle: "Soluzioni in evidenza",
       solutionDescription: "La risposta giusta si ritrova anche la prossima volta.",
-    },
-    useCases: {
-      examples: [
-        { label: "Helpdesk", title: "Ticket", record: "Accesso non riuscito", status: "In attesa", assignee: "Marta" },
-        { label: "Studio professionale", title: "Pratica cliente", record: "Documenti per la dichiarazione", status: "Documenti ricevuti", assignee: "Luca" },
-        { label: "Piccolo team", title: "Attività", record: "Preparare la demo", status: "Completata", assignee: "Sara" },
-      ],
-      linksTitle: "Scopri TaskDesk per la tua professione",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -566,14 +554,6 @@ const translations: Record<Language, Translations> = {
       linkedDescription: "Keep similar requests and their context together.",
       solutionTitle: "Highlighted solutions",
       solutionDescription: "Find the right answer again next time.",
-    },
-    useCases: {
-      examples: [
-        { label: "Helpdesk", title: "Ticket", record: "Unable to sign in", status: "Waiting", assignee: "Marta" },
-        { label: "Professional firm", title: "Client matter", record: "Tax return documents", status: "Documents received", assignee: "Luca" },
-        { label: "Small team", title: "Task", record: "Prepare the demo", status: "Completed", assignee: "Sara" },
-      ],
-      linksTitle: "Explore TaskDesk for your profession",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",

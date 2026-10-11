@@ -22,6 +22,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
 import { ProfessionEntryDialog } from "@/components/ProfessionEntryDialog";
+import { ProfessionMark } from "@/components/ProfessionMark";
 
 const SITE_BASE = "https://taskdesk.it";
 const WHATSAPP_NUMBER = "393203177882";
@@ -807,47 +808,24 @@ export default function Landing() {
         <section id="who-uses" aria-label={t.landmarks.whoUses} className="px-6 py-24 md:px-8">
           <div className="mx-auto max-w-6xl">
             <ScrollReveal>
-              <div className="mb-14 text-center">
+              <div className="mb-10 text-center">
                 <h2 className="mb-4 text-3xl font-black leading-tight tracking-tight md:text-4xl">{t.whoUses.title}</h2>
                 <p className="mx-auto max-w-2xl text-lg text-gray-500">{t.whoUses.subtitle}</p>
               </div>
             </ScrollReveal>
 
-            <div className="grid gap-5 md:grid-cols-3">
-              {t.useCases.examples.map((example, index) => (
-                <ScrollReveal key={example.label} delay={index * 0.08}>
-                  <div className="ld-card-hover h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <div className="mb-5 flex items-center justify-between">
-                      <span className="text-sm font-bold text-blue-700">{example.label}</span>
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{example.status}</span>
-                    </div>
-                    <div className="rounded-xl border border-gray-100 bg-slate-50 p-4">
-                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{example.title}</div>
-                      <div className="text-base font-bold text-gray-900">{example.record}</div>
-                      <div className="mt-4 flex items-center gap-2 border-t border-gray-200 pt-3 text-sm text-gray-600">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">{example.assignee.slice(0, 1)}</span>
-                        {example.assignee}
-                      </div>
-                    </div>
-                  </div>
-                </ScrollReveal>
+            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-3">
+              {t.whoUses.profiles.map((profile) => (
+                <Link
+                  key={profile.profession}
+                  href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
+                  data-testid={`link-profession-card-${profile.profession}`}
+                  className="group flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white p-5 text-center text-sm font-bold leading-tight text-gray-700 transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                >
+                  <ProfessionMark profile={profile} />
+                  <span className="group-hover:text-blue-700">{profile.title}</span>
+                </Link>
               ))}
-            </div>
-
-            <div className="mt-12">
-              <p className="mb-4 text-center text-sm font-bold text-gray-500">{t.useCases.linksTitle}</p>
-              <div className="flex flex-wrap justify-center gap-3">
-                {t.whoUses.profiles.map((profile) => (
-                  <Link
-                    key={profile.profession}
-                    href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
-                    data-testid={`link-profession-card-${profile.profession}`}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                  >
-                    {profile.title}
-                  </Link>
-                ))}
-              </div>
             </div>
           </div>
         </section>

@@ -22,6 +22,7 @@ const routes = [
       "Il team ricorda anche quando la chat è finita.",
       "TaskDesk si adatta al tuo lavoro.",
     ],
+    removedExamples: ["Accesso non riuscito", "Preparare la demo"],
   },
   {
     path: "/en/",
@@ -38,6 +39,7 @@ const routes = [
       "The team remembers, even after the chat ends.",
       "TaskDesk adapts to the way you work.",
     ],
+    removedExamples: ["Unable to sign in", "Prepare the demo"],
   },
 ];
 
@@ -66,10 +68,37 @@ for (const route of routes) {
   for (const sectionCopy of route.sections) {
     assert.ok(bodyText.includes(sectionCopy), `${route.path} must render "${sectionCopy}"`);
   }
+  for (const removedExample of route.removedExamples) {
+    assert.ok(!bodyText.includes(removedExample), `${route.path} must not render removed example "${removedExample}"`);
+  }
   assert.deepEqual(
     [...document.querySelectorAll('[data-testid^="landing-plan-card-"]')].map((card) => card.getAttribute("data-testid")),
     ["landing-plan-card-starter", "landing-plan-card-team", "landing-plan-card-business"],
     `${route.path} must show exactly the three fixed-price plans`,
+  );
+  const professionCards = [...document.querySelectorAll('[data-testid^="link-profession-card-"]')];
+  assert.equal(professionCards.length, 6, `${route.path} must render all six profession tiles`);
+  assert.ok(
+    professionCards[0]?.parentElement?.className.includes("sm:grid-cols-3"),
+    `${route.path} must arrange the six profession tiles in three columns on wider screens`,
+  );
+  for (const card of professionCards) {
+    assert.ok(card.querySelector('[data-testid="profession-mark"]'), `${route.path} profession tiles must include a mark`);
+  }
+  assert.equal(
+    document.querySelector('[data-testid="link-profession-card-commercialisti"] img')?.getAttribute("src"),
+    "/images/accountants-logo.webp",
+    `${route.path} must use the supplied accountants mark`,
+  );
+  assert.equal(
+    document.querySelector('[data-testid="link-profession-card-avvocati"] img')?.getAttribute("src"),
+    "/images/lawyer-scales.webp",
+    `${route.path} must use the supplied lawyers mark`,
+  );
+  assert.equal(
+    document.querySelector('[data-testid="link-profession-card-consulenti-del-lavoro"] img')?.getAttribute("src"),
+    "/images/labour-consultant-logo.webp",
+    `${route.path} must use the supplied labour consultant mark`,
   );
   assert.ok(jsonLdElement, `${route.path} must include structured data`);
 

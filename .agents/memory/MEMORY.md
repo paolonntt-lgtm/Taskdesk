@@ -29,4 +29,4 @@
 - [Logo commercialisti](accountants-logo.md) — Usa il logo rosso fornito dall'utente per tutte le rappresentazioni dei commercialisti.
 - [Logo consulenti del lavoro](labor-consultant-logo.md) — Usa il logo giallo e nero fornito dall'utente per tutte le rappresentazioni dei consulenti del lavoro.
 - [Profession labels](profession-labels.md) — Keep singular labels in both locales for notary, commerce, and agency profiles; IT helpdesk is no longer a profile.
-- [Profession mark presentation](profession-mark-presentation.md) — Keep all profession marks in identical white, fixed-size tiles while preserving each logo's proportions.
+- [Profession mark presentation](profession-mark-presentation.md) — Use larger white profession tiles in two rows on the main landing; preserve logo proportions.
