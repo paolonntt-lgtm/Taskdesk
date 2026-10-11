@@ -323,9 +323,9 @@ export default function Landing() {
   };
 
   const tickerItems = [
-    t.hero.trialBadge, t.ticker.rating,
+    t.hero.trialBadge,
     t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
-    t.hero.trialBadge, t.ticker.rating,
+    t.hero.trialBadge,
     t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
   ];
 
@@ -378,7 +378,7 @@ export default function Landing() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    const sectionIds = ["who-uses", "pain", "testimonials", "how", "features", "pricing", "final-cta"];
+    const sectionIds = ["who-uses", "pain", "how", "features", "pricing", "final-cta"];
     const viewed = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -688,40 +688,6 @@ export default function Landing() {
                     </div>
                     <h3 className="font-bold text-base mb-2 text-gray-900">{card.title}</h3>
                     <p className="text-gray-400 text-sm leading-relaxed">{card.desc}</p>
-                  </div>
-                </ScrollReveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Testimonial bar ── */}
-        <section id="testimonials" aria-label={t.landmarks.testimonials} className="py-20 px-6 md:px-8 border-y border-gray-100 bg-white">
-          <div className="max-w-5xl mx-auto">
-            <ScrollReveal>
-              <div className="flex justify-center mb-10">
-                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-50 border border-yellow-100 text-yellow-700 text-sm font-bold">
-                  {t.testimonials.ratingLabel}
-                </span>
-              </div>
-            </ScrollReveal>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {t.testimonials.items.map((item, i) => (
-                <ScrollReveal key={i} delay={i * 0.1}>
-                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-7 h-full flex flex-col gap-5">
-                    <p className="text-gray-700 text-sm leading-relaxed flex-1">
-                      &ldquo;{item.text}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${item.color}`}>
-                        {item.initials}
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.role}</div>
-                      </div>
-                    </div>
                   </div>
                 </ScrollReveal>
               ))}

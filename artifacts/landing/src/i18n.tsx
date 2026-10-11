@@ -10,7 +10,6 @@ interface Translations {
     hero: string;
     whoUses: string;
     problem: string;
-    testimonials: string;
     howItWorks: string;
     features: string;
     pricing: string;
@@ -58,10 +57,6 @@ interface Translations {
     title: string;
     subtitle: string;
     cards: Array<{ icon: string; title: string; desc: string }>;
-  };
-  testimonials: {
-    ratingLabel: string;
-    items: Array<{ name: string; role: string; text: string; initials: string; color: string }>;
   };
   problem: {
     title: string;
@@ -163,7 +158,6 @@ interface Translations {
     twitterDescription: string;
   };
   ticker: {
-    rating: string;
     setup: string;
     trial: string;
     gdpr: string;
@@ -177,7 +171,6 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Chi usa TaskDesk",
       problem: "Il problema",
-      testimonials: "Testimonianze",
       howItWorks: "Come funziona",
       features: "Funzionalità",
       pricing: "Prezzi",
@@ -277,32 +270,6 @@ const translations: Record<Language, Translations> = {
           icon: "🤷",
           title: "Nessuna visibilità su chi sta facendo cosa",
           desc: "Non sai se un collega ha già preso in carico una pratica, né se il cliente è stato aggiornato sull'avanzamento.",
-        },
-      ],
-    },
-    testimonials: {
-      ratingLabel: "⭐ 4.9/5 — Valutazione media",
-      items: [
-        {
-          name: "Giulia Ferretti",
-          role: "Commercialista, Studio Ferretti & Associati",
-          text: "Finalmente riusciamo a gestire le richieste dei clienti senza perderci nulla. Il team sa sempre cosa fare e il cliente vede i progressi.",
-          initials: "GF",
-          color: "bg-violet-500",
-        },
-        {
-          name: "Marco Trentini",
-          role: "Account Manager, Agenzia Pixel",
-          text: "Prima vivevo su WhatsApp con i clienti. Ora ogni brief e ogni revisione è un ticket con stato, assegnatario e scadenza. Niente va più perso.",
-          initials: "MT",
-          color: "bg-blue-500",
-        },
-        {
-          name: "Laura Bianchi",
-          role: "Consulente del Lavoro, Studio Bianchi",
-          text: "Setup in 10 minuti. I miei collaboratori ci hanno preso subito senza formazione. Consigliatissimo per studi come il mio.",
-          initials: "LB",
-          color: "bg-emerald-500",
         },
       ],
     },
@@ -460,7 +427,6 @@ const translations: Record<Language, Translations> = {
       twitterDescription: "Pratiche clienti senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA.",
     },
     ticker: {
-      rating: "⭐ 4.9/5 soddisfazione media",
       setup: "🚀 Setup in 5 minuti",
       trial: "🎁 7 giorni gratis",
       gdpr: "🔒 GDPR Compliant",
@@ -472,7 +438,6 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Who uses TaskDesk",
       problem: "The problem",
-      testimonials: "Testimonials",
       howItWorks: "How it works",
       features: "Features",
       pricing: "Pricing",
@@ -572,32 +537,6 @@ const translations: Record<Language, Translations> = {
           icon: "🤷",
           title: "No visibility into who's doing what",
           desc: "You don't know whether a colleague has already picked something up, or whether the client has been updated.",
-        },
-      ],
-    },
-    testimonials: {
-      ratingLabel: "⭐ 4.9/5 — Average rating",
-      items: [
-        {
-          name: "Giulia Ferretti",
-          role: "CPA, Studio Ferretti & Associati",
-          text: "We can finally manage client requests without losing anything. The team always knows what to do, and clients can see their progress.",
-          initials: "GF",
-          color: "bg-violet-500",
-        },
-        {
-          name: "Marco Trentini",
-          role: "Account Manager, Pixel Agency",
-          text: "I used to live on WhatsApp with clients. Now every brief and revision is a ticket with a status, assignee and deadline. Nothing gets lost.",
-          initials: "MT",
-          color: "bg-blue-500",
-        },
-        {
-          name: "Laura Bianchi",
-          role: "HR Consultant, Studio Bianchi",
-          text: "Set up in 10 minutes. My team picked it up straight away with zero training. Highly recommended for firms like mine.",
-          initials: "LB",
-          color: "bg-emerald-500",
         },
       ],
     },
@@ -755,7 +694,6 @@ const translations: Record<Language, Translations> = {
       twitterDescription: "Client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT.",
     },
     ticker: {
-      rating: "⭐ 4.9/5 average satisfaction",
       setup: "🚀 5-min setup",
       trial: "🎁 7 days free",
       gdpr: "🔒 GDPR Compliant",
