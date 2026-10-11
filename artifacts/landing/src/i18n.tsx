@@ -220,7 +220,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           profession: "consulenti-del-lavoro",
-          icon: "💼",
+          logo: "/images/labour-consultant-logo.webp",
           title: "Consulenti del lavoro",
           desc: "Coordina le richieste delle aziende e i documenti del personale.",
           detail: "Assegna attività e aggiornamenti allo studio senza perdere il contesto tra i referenti.",
@@ -491,7 +491,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           profession: "consulenti-del-lavoro",
-          icon: "💼",
+          logo: "/images/labour-consultant-logo.webp",
           title: "Labour consultants",
           desc: "Coordinate employer requests and employee documentation.",
           detail: "Assign practice tasks and updates without losing context between contacts.",
