@@ -64,9 +64,11 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
         <meta property="og:locale" content={lang === "it" ? "it_IT" : "en_US"} />
         <meta property="og:title" content={currentMetadata.title} />
         <meta property="og:description" content={currentMetadata.description} />
+        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={currentMetadata.title} />
         <meta name="twitter:description" content={currentMetadata.description} />
+        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
       </Helmet>
 
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
