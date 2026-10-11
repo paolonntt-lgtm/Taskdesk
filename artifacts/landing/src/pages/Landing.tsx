@@ -316,7 +316,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
 
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
-  const [professionDialogOpen, setProfessionDialogOpen] = useState(true);
+  const [professionDialogOpen, setProfessionDialogOpen] = useState(false);
   const handleLanguageChange = (next: "it" | "en") => {
     if (next !== lang) trackLanguageChange(next);
     setLang(next);
@@ -523,6 +523,9 @@ export default function Landing() {
             <img src="/taskdesk-logo.webp" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
           <nav aria-label={t.landmarks.mainNavigation} className="hidden md:flex gap-8 text-sm text-gray-500">
+            <a href="#who-uses" className="hidden lg:inline hover:text-gray-900 transition-colors font-medium">
+              {lang === "it" ? "Categorie" : "Categories"}
+            </a>
             <a href="#how" className="hover:text-gray-900 transition-colors font-medium">{lang === "it" ? "Come funziona" : "How it works"}</a>
             <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing" className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>
@@ -646,7 +649,7 @@ export default function Landing() {
                 <ScrollReveal
                   key={profile.profession}
                   delay={i * 0.1}
-                  className={`md:col-span-2 ${i === 3 ? "md:col-start-2" : i === 4 ? "md:col-start-4" : ""}`}
+                  className="md:col-span-2"
                 >
                   <Link
                     href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}

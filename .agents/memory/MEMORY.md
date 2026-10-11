@@ -27,5 +27,5 @@
 - [Logo avvocati](attorney-logo.md) — Usa il logo della bilancia fornito dall'utente in tutte le rappresentazioni degli avvocati.
 - [Logo commercialisti](accountants-logo.md) — Usa il logo rosso fornito dall'utente per tutte le rappresentazioni dei commercialisti.
 - [Logo consulenti del lavoro](labor-consultant-logo.md) — Usa il logo giallo e nero fornito dall'utente per tutte le rappresentazioni dei consulenti del lavoro.
-- [Profession labels](profession-labels.md) — Keep singular role labels in both locales, including IT helpdesk and agency profiles.
+- [Profession labels](profession-labels.md) — Keep singular labels in both locales for notary, commerce, and agency profiles; IT helpdesk is no longer a profile.
 - [Profession mark presentation](profession-mark-presentation.md) — Keep all profession marks in identical white, fixed-size tiles while preserving each logo's proportions.

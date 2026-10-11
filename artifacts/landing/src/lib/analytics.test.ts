@@ -57,7 +57,7 @@ describe("profession dialog analytics", () => {
     expect(track).not.toHaveBeenCalled();
   });
 
-  it.each(["helpdesk-it", "agenzie"] as const)("tracks the new %s profile", (profession) => {
+  it.each(["notai", "commercio"] as const)("tracks the new %s profile", (profession) => {
     trackProfessionDialogProfessionSelected(profession, "it");
     expect(track).toHaveBeenCalledWith("profession_dialog_profession_selected", {
       profession,

@@ -17,8 +17,9 @@ type ProfessionalTrialAttribution = {
     | "commercialisti"
     | "avvocati"
     | "consulenti-del-lavoro"
-    | "helpdesk-it"
-    | "agenzie";
+    | "agenzie"
+    | "notai"
+    | "commercio";
   language: "it" | "en";
 };
 type PendingOAuthState = {
@@ -45,8 +46,9 @@ function parseProfessionalTrialAttribution(query: import("express").Request["que
     "commercialisti",
     "avvocati",
     "consulenti-del-lavoro",
-    "helpdesk-it",
     "agenzie",
+    "notai",
+    "commercio",
   ];
   if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
   if (language !== "it" && language !== "en") return null;

@@ -5,7 +5,7 @@ describe("professional trial attribution", () => {
   it("accepts only allowlisted profession and language values", () => {
     expect(parseProfessionalTrialAttribution("?trial_profession=avvocati&trial_language=en&email=person%40example.com"))
       .toEqual({ profession: "avvocati", language: "en" });
-    for (const profession of ["helpdesk-it", "agenzie"] as const) {
+    for (const profession of ["notai", "commercio", "agenzie"] as const) {
       expect(parseProfessionalTrialAttribution(`?trial_profession=${profession}&trial_language=it`))
         .toEqual({ profession, language: "it" });
     }

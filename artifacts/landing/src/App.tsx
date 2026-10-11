@@ -76,8 +76,11 @@ function ItPageRoutes() {
       <Route path="/consulente-del-lavoro">
         <ProfessionalPage profession="consulenti-del-lavoro" />
       </Route>
-      <Route path="/helpdesk-it">
-        <ProfessionalPage profession="helpdesk-it" />
+      <Route path="/notaio">
+        <ProfessionalPage profession="notai" />
+      </Route>
+      <Route path="/commercio">
+        <ProfessionalPage profession="commercio" />
       </Route>
       <Route path="/agenzia">
         <ProfessionalPage profession="agenzie" />
@@ -100,8 +103,11 @@ function EnPageRoutes() {
       <Route path="/employment-consultant">
         <ProfessionalPage profession="consulenti-del-lavoro" />
       </Route>
-      <Route path="/it-helpdesk">
-        <ProfessionalPage profession="helpdesk-it" />
+      <Route path="/notary">
+        <ProfessionalPage profession="notai" />
+      </Route>
+      <Route path="/commerce">
+        <ProfessionalPage profession="commercio" />
       </Route>
       <Route path="/agency">
         <ProfessionalPage profession="agenzie" />

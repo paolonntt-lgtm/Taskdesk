@@ -253,7 +253,7 @@ describe("Google OAuth callback", () => {
     });
   });
 
-  it.each(["helpdesk-it", "agenzie"])("starts a seven-day trial for %s and returns only allowlisted attribution", async (profession) => {
+  it.each(["notai", "commercio", "agenzie"])("starts a seven-day trial for %s and returns only allowlisted attribution", async (profession) => {
     const { usersTable, organizationsTable } = await import("@workspace/db");
     const org = { id: 22, name: "OAuth New User" };
     const newUser = { ...oauthUser, id: 42, email: "new-google@example.test", trialEndsAt: null };

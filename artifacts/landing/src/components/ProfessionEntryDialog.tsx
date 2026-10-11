@@ -74,12 +74,12 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-6">
-          {t.whoUses.profiles.map((profile, index) => (
+          {t.whoUses.profiles.map((profile) => (
             <Link
               key={profile.profession}
               href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}${campaignQuery}`}
               onClick={() => trackProfessionDialogProfessionSelected(profile.profession, lang)}
-              className={`group flex min-h-36 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:col-span-2 sm:min-h-48 sm:p-5 ${index === 3 ? "sm:col-start-2" : index === 4 ? "sm:col-start-4" : ""}`}
+              className="group flex min-h-36 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:col-span-2 sm:min-h-48 sm:p-5"
               data-testid={`link-entry-profession-${profile.profession}`}
             >
               <ProfessionMark

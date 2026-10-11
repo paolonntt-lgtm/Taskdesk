@@ -5,7 +5,8 @@ export const PROFESSION_IDS: ProfessionId[] = [
   "commercialisti",
   "avvocati",
   "consulenti-del-lavoro",
-  "helpdesk-it",
+  "notai",
+  "commercio",
   "agenzie",
 ];
 
@@ -14,14 +15,16 @@ export const PROFESSION_SLUGS: Record<ProfessionLanguage, Record<ProfessionId, s
     commercialisti: "commercialista",
     avvocati: "avvocato",
     "consulenti-del-lavoro": "consulente-del-lavoro",
-    "helpdesk-it": "helpdesk-it",
+    notai: "notaio",
+    commercio: "commercio",
     agenzie: "agenzia",
   },
   en: {
     commercialisti: "accountant",
     avvocati: "lawyer",
     "consulenti-del-lavoro": "employment-consultant",
-    "helpdesk-it": "it-helpdesk",
+    notai: "notary",
+    commercio: "commerce",
     agenzie: "agency",
   },
 };
@@ -68,14 +71,24 @@ const SEO_COPY: Record<
         "Coordinate employer requests, employee documents and practice tasks with clear ownership and updates connected to every request.",
     },
   },
-  "helpdesk-it": {
+  notai: {
     it: {
-      title: "TaskDesk per helpdesk IT | Gestione richieste di assistenza",
-      description: "Raccogli, assegna e segui le richieste di assistenza IT in un flusso condiviso, con responsabili e aggiornamenti sempre visibili.",
+      title: "TaskDesk per notai | Gestione delle pratiche notarili",
+      description: "Coordina richieste, documenti e attività dello studio notarile con responsabili e aggiornamenti sempre visibili.",
     },
     en: {
-      title: "TaskDesk for IT Helpdesks | Support Requests",
-      description: "Collect, assign and track IT support requests in one shared workflow, with clear ownership and visible updates.",
+      title: "TaskDesk for Notaries | Notary Practice Workflow",
+      description: "Coordinate requests, documents and work across your notary practice with clear ownership and visible updates.",
+    },
+  },
+  commercio: {
+    it: {
+      title: "TaskDesk per il commercio | Richieste e attività clienti",
+      description: "Coordina richieste dei clienti, ordini e attività del team commerciale in un flusso condiviso.",
+    },
+    en: {
+      title: "TaskDesk for Commerce | Customer Requests and Tasks",
+      description: "Coordinate customer requests, orders and team tasks in one shared commerce workflow.",
     },
   },
   agenzie: {

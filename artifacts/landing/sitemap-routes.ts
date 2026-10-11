@@ -76,15 +76,24 @@ const professionSitemapEntries: Record<string, SitemapRouteMeta> = {
     },
   },
   "/employment-consultant": { exclude: true },
-  "/helpdesk-it": {
+  "/notaio": {
     changefreq: "monthly",
     priority: 0.8,
     urls: {
-      it: `${SITEMAP_BASE_URL}/it/helpdesk-it`,
-      en: `${SITEMAP_BASE_URL}/en/it-helpdesk`,
+      it: `${SITEMAP_BASE_URL}/it/notaio`,
+      en: `${SITEMAP_BASE_URL}/en/notary`,
     },
   },
-  "/it-helpdesk": { exclude: true },
+  "/notary": { exclude: true },
+  "/commercio": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/commercio`,
+      en: `${SITEMAP_BASE_URL}/en/commerce`,
+    },
+  },
+  "/commerce": { exclude: true },
   "/agenzia": {
     changefreq: "monthly",
     priority: 0.8,
