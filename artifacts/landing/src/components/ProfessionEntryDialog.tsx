@@ -82,7 +82,11 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
               data-testid={`link-entry-profession-${profile.profession}`}
             >
               <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl" aria-hidden="true">
-                {profile.icon}
+                {profile.logo ? (
+                  <img src={profile.logo} alt="" className="h-8 w-8 object-contain" />
+                ) : (
+                  profile.icon
+                )}
               </span>
               <span className="flex items-start justify-between gap-2 text-base font-extrabold text-slate-900">
                 {profile.title}

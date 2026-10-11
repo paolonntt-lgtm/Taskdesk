@@ -39,7 +39,8 @@ interface Translations {
     subtitle: string;
     profiles: Array<{
       profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
-      icon: string;
+      icon?: string;
+      logo?: string;
       title: string;
       desc: string;
       detail: string;
@@ -212,7 +213,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           profession: "avvocati",
-          icon: "🎯",
+          logo: "/images/lawyer-scales.webp",
           title: "Avvocati",
           desc: "Tieni richieste, documenti e comunicazioni collegate a ogni pratica.",
           detail: "Il team vede chi segue il caso, cosa è in attesa e qual è il prossimo passaggio.",
@@ -483,7 +484,7 @@ const translations: Record<Language, Translations> = {
         },
         {
           profession: "avvocati",
-          icon: "🎯",
+          logo: "/images/lawyer-scales.webp",
           title: "Lawyers",
           desc: "Keep requests, documents and conversations connected to each matter.",
           detail: "Your team can see who owns the case, what is waiting and what happens next.",
