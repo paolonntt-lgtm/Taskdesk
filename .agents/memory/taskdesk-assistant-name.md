@@ -18,3 +18,9 @@ For the team-memory message, position Albert as the assistant that helps the tea
 **Why:** The user described Albert’s role in this section as finding old tickets that can help with current work.
 
 **How to apply:** Keep this positioning focused on retrieving relevant prior tickets and their useful context, rather than presenting Albert as a generic chatbot.
+
+Do not use the generic “Assistente AI TaskDesk” label in the team-memory landing card; prefer a concise, benefit-led slogan.
+
+**Why:** The user rejected that label and asked for a stronger, more specific slogan.
+
+**How to apply:** Describe the value of finding useful past tickets instead of using generic AI terminology in this placement.

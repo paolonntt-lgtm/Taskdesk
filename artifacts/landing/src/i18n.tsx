@@ -59,7 +59,7 @@ interface Translations {
     title: string;
     subtitle: string;
     assistantName: string;
-    assistantRole: string;
+    assistantSlogan: string;
     assistantDescription: string;
   };
   workStatistic: {
@@ -256,8 +256,8 @@ const translations: Record<Language, Translations> = {
       title: "Un problema risolto oggi non deve tornare un problema domani.",
       subtitle: "Cerca nello storico, collega le attività simili e metti in evidenza la soluzione efficace: il team potrà ritrovarla e riutilizzarla.",
       assistantName: "Albert",
-      assistantRole: "Assistente AI TaskDesk",
-      assistantDescription: "Ti aiuta a ritrovare ticket passati utili per affrontare richieste simili.",
+      assistantSlogan: "Le risposte di ieri, utili oggi.",
+      assistantDescription: "Ritrova i ticket utili e riparti dalle soluzioni già trovate dal team.",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -480,8 +480,8 @@ const translations: Record<Language, Translations> = {
       title: "A problem solved today should not become tomorrow’s problem.",
       subtitle: "Search the history, connect similar tasks, and highlight the solution that worked so the whole team can find and reuse it.",
       assistantName: "Albert",
-      assistantRole: "TaskDesk AI assistant",
-      assistantDescription: "Albert helps you find useful past tickets and bring the team’s previous solutions back into view.",
+      assistantSlogan: "Yesterday’s answers, useful today.",
+      assistantDescription: "Find useful past tickets and build on solutions your team has already found.",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",

@@ -28,8 +28,8 @@ const routes = [
     ],
     memoryContent: [
       "Albert",
-      "Assistente AI TaskDesk",
-      "Ti aiuta a ritrovare ticket passati utili per affrontare richieste simili.",
+      "Le risposte di ieri, utili oggi.",
+      "Ritrova i ticket utili e riparti dalle soluzioni già trovate dal team.",
     ],
     mockupContent: [
       "#5 — Documenti mancanti per dichiarazione dei redditi",
@@ -59,8 +59,8 @@ const routes = [
     ],
     memoryContent: [
       "Albert",
-      "TaskDesk AI assistant",
-      "Albert helps you find useful past tickets and bring the team’s previous solutions back into view.",
+      "Yesterday’s answers, useful today.",
+      "Find useful past tickets and build on solutions your team has already found.",
     ],
     mockupContent: [
       "#5 — Missing documents for tax return filing",
