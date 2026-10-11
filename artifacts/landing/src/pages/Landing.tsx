@@ -25,6 +25,7 @@ import {
   Mail,
   MessageCircle,
   Search,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
@@ -894,15 +895,24 @@ export default function Landing() {
                     <div className="text-xs text-slate-400">{t.teamMemory.secondMeta}</div>
                   </div>
 
-                  <div className="rounded-2xl border border-green-200 bg-green-50/80 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
-                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                  <div data-testid="team-memory-albert-answer" className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
+                        <Sparkles aria-hidden="true" className="h-4 w-4" />
+                      </span>
                       {t.teamMemory.solutionTitle}
                     </div>
-                    <p className="text-sm leading-relaxed text-green-900/80">{t.teamMemory.solutionDescription}</p>
-                    <div className="mt-3 flex items-center gap-2 border-t border-green-200/80 pt-3">
+                    <p className="text-sm leading-relaxed text-slate-600">{t.teamMemory.solutionDescription}</p>
+                    <div className="mt-3 border-t border-blue-100 pt-3">
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.teamMemory.solutionSourcesLabel}</div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-700">{t.teamMemory.solutionSourcePrimary}</span>
+                        <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-700">{t.teamMemory.solutionSourceRelated}</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 border-t border-blue-100 pt-3">
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700">MR</span>
-                      <span className="text-xs font-semibold text-green-900">{t.teamMemory.solutionAuthor}</span>
+                      <span className="text-xs font-semibold text-slate-600">{t.teamMemory.solutionAuthor}</span>
                     </div>
                   </div>
                 </div>

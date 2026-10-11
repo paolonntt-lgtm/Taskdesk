@@ -68,6 +68,9 @@ interface Translations {
     solutionTitle: string;
     solutionDescription: string;
     solutionAuthor: string;
+    solutionSourcesLabel: string;
+    solutionSourcePrimary: string;
+    solutionSourceRelated: string;
   };
   workStatistic: {
     statement: string;
@@ -269,9 +272,12 @@ const translations: Record<Language, Translations> = {
       resultsTitle: "Risultati attività",
       secondResult: "Istruzioni per l’accesso all’area clienti",
       secondMeta: "Pratica #096 · Commento del 3 luglio",
-      solutionTitle: "Soluzioni in evidenza",
+      solutionTitle: "Albert ha trovato una soluzione",
       solutionDescription: "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
       solutionAuthor: "Marta Rossi",
+      solutionSourcesLabel: "Fonti consultate",
+      solutionSourcePrimary: "Pratica #128",
+      solutionSourceRelated: "Pratica #096",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -500,9 +506,12 @@ const translations: Record<Language, Translations> = {
       resultsTitle: "Task results",
       secondResult: "Customer portal access instructions",
       secondMeta: "Request #096 · Comment from Jul 3",
-      solutionTitle: "Solution highlighted",
+      solutionTitle: "Albert found a solution",
       solutionDescription: "Access restored. Login checked and instructions sent to the customer.",
       solutionAuthor: "Marta Rossi",
+      solutionSourcesLabel: "Sources used",
+      solutionSourcePrimary: "Request #128",
+      solutionSourceRelated: "Request #096",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",

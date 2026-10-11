@@ -31,8 +31,11 @@ const routes = [
       "Accesso al portale cliente",
       "Risultati attività",
       "Istruzioni per l’accesso all’area clienti",
-      "Soluzioni in evidenza",
+      "Albert ha trovato una soluzione",
       "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
+      "Fonti consultate",
+      "Pratica #128",
+      "Pratica #096",
       "Marta Rossi",
     ],
     mockupContent: [
@@ -66,8 +69,11 @@ const routes = [
       "Customer portal access",
       "Task results",
       "Customer portal access instructions",
-      "Solution highlighted",
+      "Albert found a solution",
       "Access restored. Login checked and instructions sent to the customer.",
+      "Sources used",
+      "Request #128",
+      "Request #096",
       "Marta Rossi",
     ],
     mockupContent: [
@@ -110,6 +116,11 @@ for (const route of routes) {
   for (const memoryCopy of route.memoryContent) {
     assert.ok(bodyText.includes(memoryCopy), `${route.path} must render team-memory content "${memoryCopy}"`);
   }
+  assert.equal(
+    document.querySelectorAll('[data-testid="team-memory-albert-answer"]').length,
+    1,
+    `${route.path} must render one Albert answer with its source references`,
+  );
   for (const mockupCopy of route.mockupContent) {
     assert.ok(bodyText.includes(mockupCopy), `${route.path} must render the activity mockup detail "${mockupCopy}"`);
   }
