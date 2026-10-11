@@ -12,7 +12,6 @@ interface Translations {
     problem: string;
     features: string;
     pricing: string;
-    finalCta: string;
   };
   nav: {
     features: string;
@@ -121,13 +120,6 @@ interface Translations {
     included: string[];
     cta: string;
   };
-  finalCta: {
-    headline: string;
-    sub: string;
-    proof1: string;
-    proof2: string;
-    proof3: string;
-  };
   footer: {
     text: string;
     terms: string;
@@ -167,7 +159,6 @@ const translations: Record<Language, Translations> = {
       problem: "Il problema",
       features: "Funzionalità",
       pricing: "Prezzi",
-      finalCta: "Inizia ora",
     },
     nav: {
       features: "Funzionalità",
@@ -359,13 +350,6 @@ const translations: Record<Language, Translations> = {
       ],
       cta: "Inizia gratis — 7 giorni"
     },
-    finalCta: {
-      headline: "Metti ordine nelle pratiche dei tuoi clienti.",
-      sub: "Inizia subito — i primi 7 giorni sono gratis, senza carta di credito.",
-      proof1: "Nessuna carta di credito",
-      proof2: "Setup in 5 minuti",
-      proof3: "GDPR compliant",
-    },
     footer: {
       text: "© 2025 TaskDesk. Il sistema di gestione pratiche per studi e agenzie italiane.",
       terms: "Termini di Servizio",
@@ -403,7 +387,6 @@ const translations: Record<Language, Translations> = {
       problem: "The problem",
       features: "Features",
       pricing: "Pricing",
-      finalCta: "Get started",
     },
     nav: {
       features: "Features",
@@ -594,13 +577,6 @@ const translations: Record<Language, Translations> = {
         "Email support",
       ],
       cta: "Start free — 7 days"
-    },
-    finalCta: {
-      headline: "Bring order to your clients' requests.",
-      sub: "Start now — the first 7 days are free, no credit card required.",
-      proof1: "No credit card",
-      proof2: "5-min setup",
-      proof3: "GDPR compliant",
     },
     footer: {
       text: "© 2025 TaskDesk. The request management system for Italian firms and agencies.",

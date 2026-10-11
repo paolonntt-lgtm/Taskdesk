@@ -406,7 +406,7 @@ export default function Landing() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    const sectionIds = ["who-uses", "pain", "features", "pricing", "final-cta"];
+    const sectionIds = ["who-uses", "pain", "features", "pricing"];
     const viewed = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -858,57 +858,7 @@ export default function Landing() {
               ))}
             </div>
 
-            <ScrollReveal delay={0.2}>
-              <div className="mt-12 bg-white border border-gray-100 rounded-2xl p-8 md:p-10 shadow-sm">
-                <div className="text-center mb-7">
-                  <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-2">{t.pricing.includedTitle}</h3>
-                  <p className="text-gray-500">{t.pricing.includedSubtitle}</p>
-                </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 max-w-4xl mx-auto">
-                  {t.pricing.included.map((feat, i) => (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <span className="font-bold mt-0.5 shrink-0 text-blue-600">✓</span>
-                      <span className="text-sm text-gray-700 leading-snug">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </ScrollReveal>
           </div>
-        </section>
-
-        {/* ── CTA finale ── */}
-        <section id="final-cta" aria-label={t.landmarks.finalCta} className="py-28 px-6 md:px-8">
-          <ScrollReveal>
-            <div className="max-w-4xl mx-auto rounded-3xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #1d4ed8, #7c3aed, #1d4ed8)" }}>
-              <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
-              <div className="relative p-12 md:p-16 text-center text-white">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight">
-                  {t.finalCta.headline}
-                </h2>
-                <p className="text-white/75 mb-10 text-lg max-w-lg mx-auto">{t.finalCta.sub}</p>
-                <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <button onClick={() => handleCta("final")} className="px-10 py-5 rounded-xl bg-white text-blue-700 font-black text-lg hover:bg-blue-50 transition-all shadow-2xl inline-flex items-center justify-center gap-2">
-                    {t.pricing.cta} →
-                  </button>
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-6 py-4 rounded-xl border border-white/40 bg-white/10 text-white font-bold hover:bg-white/20 transition-all inline-flex items-center justify-center gap-2"
-                  >
-                    <FaWhatsapp aria-hidden="true" className="h-5 w-5" />
-                    {whatsappLabel}
-                  </a>
-                </div>
-                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-sm text-white/60">
-                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof1}</span>
-                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof2}</span>
-                  <span><span className="text-white/80 font-bold">✓</span> {t.finalCta.proof3}</span>
-                </div>
-              </div>
-            </div>
-          </ScrollReveal>
         </section>
 
       </main>

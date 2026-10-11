@@ -14,8 +14,7 @@ export type CtaLocation =
   | "navbar"
   | "hero"
   | "features"
-  | "pricing"
-  | "final";
+  | "pricing";
 
 export type ScrollDepthPct = 25 | 50 | 75 | 100;
 
