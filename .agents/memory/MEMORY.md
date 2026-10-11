@@ -26,3 +26,4 @@
 - [Development schema drift](development-schema-drift.md) — Drizzle push reveals unrelated clients/organizations differences; review diffs and never force through data-loss prompts.
 - [Logo avvocati](attorney-logo.md) — Usa il logo della bilancia fornito dall'utente in tutte le rappresentazioni degli avvocati.
 - [Logo commercialisti](accountants-logo.md) — Usa il logo rosso fornito dall'utente per tutte le rappresentazioni dei commercialisti.
+- [Logo consulenti del lavoro](labor-consultant-logo.md) — Usa il logo giallo e nero fornito dall'utente per tutte le rappresentazioni dei consulenti del lavoro.

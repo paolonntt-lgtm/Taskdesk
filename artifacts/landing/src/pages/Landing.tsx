@@ -649,7 +649,11 @@ export default function Landing() {
                   >
                     <div className="mb-4 flex h-10 items-center">
                       {profile.logo ? (
-                        <img src={profile.logo} alt="" className="h-10 w-10 object-contain" />
+                        <img
+                          src={profile.logo}
+                          alt=""
+                          className={`object-contain ${profile.profession === "commercialisti" ? "h-10 w-[5.5rem]" : "h-10 w-10"}`}
+                        />
                       ) : (
                         <span className="text-4xl leading-none">{profile.icon}</span>
                       )}

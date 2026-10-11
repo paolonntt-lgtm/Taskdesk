@@ -206,7 +206,7 @@ const translations: Record<Language, Translations> = {
       profiles: [
         {
           profession: "commercialisti",
-          icon: "🏛️",
+          logo: "/images/accountants-logo.webp",
           title: "Commercialisti",
           desc: "Raccogli documenti e richieste dei clienti in uno spazio condiviso.",
           detail: "Assegna le verifiche, rendi visibili le scadenze e ritrova gli aggiornamenti della pratica.",
@@ -477,7 +477,7 @@ const translations: Record<Language, Translations> = {
       profiles: [
         {
           profession: "commercialisti",
-          icon: "🏛️",
+          logo: "/images/accountants-logo.webp",
           title: "Accountants",
           desc: "Collect client documents and requests in one shared workspace.",
           detail: "Assign reviews, make deadlines visible and keep every practice update together.",

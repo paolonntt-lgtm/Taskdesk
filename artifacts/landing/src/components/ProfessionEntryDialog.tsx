@@ -81,9 +81,16 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
               className="group flex min-h-36 flex-col rounded-2xl border border-slate-200 bg-white p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:min-h-48 sm:p-5"
               data-testid={`link-entry-profession-${profile.profession}`}
             >
-              <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-2xl" aria-hidden="true">
+              <span
+                className={`mb-4 flex h-11 ${profile.profession === "commercialisti" ? "w-16" : "w-11"} items-center justify-center rounded-xl bg-blue-50 text-2xl`}
+                aria-hidden="true"
+              >
                 {profile.logo ? (
-                  <img src={profile.logo} alt="" className="h-8 w-8 object-contain" />
+                  <img
+                    src={profile.logo}
+                    alt=""
+                    className={`object-contain ${profile.profession === "commercialisti" ? "h-8 w-[3.75rem]" : "h-8 w-8"}`}
+                  />
                 ) : (
                   profile.icon
                 )}
