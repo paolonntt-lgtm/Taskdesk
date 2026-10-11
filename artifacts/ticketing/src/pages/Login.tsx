@@ -81,6 +81,9 @@ export default function Login() {
   const [forgotSent, setForgotSent] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const professionalAttribution = parseProfessionalTrialAttribution(window.location.search);
+  const googleRegistrationUrl = professionalAttribution
+    ? `/api/auth/google?trial_profession=${encodeURIComponent(professionalAttribution.profession)}&trial_language=${encodeURIComponent(professionalAttribution.language)}`
+    : '/api/auth/google';
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -304,7 +307,7 @@ export default function Login() {
               <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.login.or}</span>
               <div style={s.dividerLine} />
             </div>
-            <button type="button" onClick={() => { trackEvent('oauth_started', { mode: 'register', provider: 'google' }); window.location.href = '/api/auth/google'; }} style={s.btnSecondary}>
+            <button type="button" onClick={() => { trackEvent('oauth_started', { mode: 'register', provider: 'google' }); window.location.href = googleRegistrationUrl; }} style={s.btnSecondary}>
               <GoogleLogo />
               {t.login.registerWithGoogle}
             </button>

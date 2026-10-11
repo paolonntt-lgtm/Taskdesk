@@ -6,22 +6,40 @@ import { createSession, SESSION_COOKIE_MAX_AGE } from "../lib/session";
 import { appBaseUrl } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
+import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 
 const router = Router();
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const OAUTH_NONCE_COOKIE = "oauth_nonce";
-const pendingOAuthStates = new Map<string, number>();
+type ProfessionalTrialAttribution = {
+  profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
+  language: "it" | "en";
+};
+type PendingOAuthState = {
+  createdAt: number;
+  professionalAttribution: ProfessionalTrialAttribution | null;
+};
+const pendingOAuthStates = new Map<string, PendingOAuthState>();
 
 const isProduction = process.env.NODE_ENV === "production";
 
 function pruneExpiredStates(): void {
   const now = Date.now();
-  for (const [state, createdAt] of pendingOAuthStates) {
-    if (now - createdAt > OAUTH_STATE_TTL_MS) {
+  for (const [state, pending] of pendingOAuthStates) {
+    if (now - pending.createdAt > OAUTH_STATE_TTL_MS) {
       pendingOAuthStates.delete(state);
     }
   }
+}
+
+function parseProfessionalTrialAttribution(query: import("express").Request["query"]): ProfessionalTrialAttribution | null {
+  const profession = query.trial_profession;
+  const language = query.trial_language;
+  const allowedProfessions = ["commercialisti", "avvocati", "consulenti-del-lavoro"];
+  if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
+  if (language !== "it" && language !== "en") return null;
+  return { profession: profession as ProfessionalTrialAttribution["profession"], language };
 }
 
 function nonceCookieValue(state: string): string {
@@ -39,8 +57,17 @@ function sessionCookieValue(sessionId: string): string {
   return isProduction ? `${base}; Secure` : base;
 }
 
-function sendOAuthSuccessPage(res: import("express").Response): void {
-  const appPath = "/app/";
+function sendOAuthSuccessPage(
+  res: import("express").Response,
+  professionalAttribution: ProfessionalTrialAttribution | null = null,
+): void {
+  const query = new URLSearchParams();
+  if (professionalAttribution) {
+    query.set("oauth_trial_signup", "1");
+    query.set("trial_profession", professionalAttribution.profession);
+    query.set("trial_language", professionalAttribution.language);
+  }
+  const appPath = query.size > 0 ? `/app/?${query.toString()}` : "/app/";
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.status(200).send(
     `<!DOCTYPE html><html><head><meta charset="utf-8">` +
@@ -68,7 +95,10 @@ router.get("/auth/google", (req, res) => {
 
   pruneExpiredStates();
   const state = randomBytes(24).toString("hex");
-  pendingOAuthStates.set(state, Date.now());
+  pendingOAuthStates.set(state, {
+    createdAt: Date.now(),
+    professionalAttribution: parseProfessionalTrialAttribution(req.query),
+  });
 
   const params = new URLSearchParams({
     client_id: googleClientId(),
@@ -112,7 +142,8 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
   // session forcing). The nonce cookie is set on a 200 response (not a 302)
   // to work around the Replit proxy stripping Set-Cookie on redirects.
   const nonceCookie = req.cookies?.[OAUTH_NONCE_COOKIE];
-  if (!state || !pendingOAuthStates.has(state) || nonceCookie !== state) {
+  const pendingState = state ? pendingOAuthStates.get(state) : undefined;
+  if (!state || !pendingState || nonceCookie !== state) {
     logger.warn(
       { state, hasState: !!state, hasNonce: !!nonceCookie, nonceMatch: nonceCookie === state },
       "OAuth callback state/nonce validation failed"
@@ -122,10 +153,9 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     return;
   }
 
-  const stateCreatedAt = pendingOAuthStates.get(state)!;
   pendingOAuthStates.delete(state);
 
-  if (Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
+  if (Date.now() - pendingState.createdAt > OAUTH_STATE_TTL_MS) {
     logger.warn({ state }, "OAuth state expired");
     res.setHeader("Set-Cookie", clearNonceCookie());
     res.redirect("/app/?oauth_error=invalid_state");
@@ -173,10 +203,12 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     const name = googleUser.name || email.split("@")[0];
 
     let [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    let newlyCreated = false;
 
     if (!user) {
       const [org] = await db.insert(organizationsTable).values({ name, onboardingDone: false }).returning();
 
+      const trialEndsAt = new Date(Date.now() + FREE_TRIAL_DURATION_MS);
       [user] = await db.insert(usersTable).values({
         name,
         email,
@@ -186,7 +218,9 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         isActive: true,
         avatarUrl: googleUser.picture ?? null,
         lastLoginAt: sql`now()`,
+        trialEndsAt,
       }).returning();
+      newlyCreated = true;
 
       const superadmins = await db
         .select({ email: usersTable.email })
@@ -221,7 +255,10 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     res.setHeader("Set-Cookie", [clearNonceCookie(), sessionCookieValue(sessionId)]);
     // The Replit deployment proxy strips Set-Cookie from 302 responses.
     // Deliver the session cookie on a 200 page, then navigate to the app.
-    sendOAuthSuccessPage(res);
+    sendOAuthSuccessPage(
+      res,
+      newlyCreated ? pendingState.professionalAttribution : null,
+    );
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");
     res.setHeader("Set-Cookie", clearNonceCookie());

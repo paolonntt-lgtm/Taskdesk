@@ -4,6 +4,8 @@ export interface TrialStatus {
   daysLeft: number;
 }
 
+export const FREE_TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function getTrialStatus(
   trialEndsAt: Date | string | null | undefined,
   stripeSubscriptionId: string | null | undefined

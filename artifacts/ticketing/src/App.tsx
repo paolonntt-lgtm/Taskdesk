@@ -34,6 +34,7 @@ import TicketTrash from "./pages/TicketTrash";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
+import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
@@ -175,6 +176,30 @@ function AppShell() {
       .then((data) => { setUser(data ?? null); setIsLoading(false); })
       .catch(() => { setUser(null); setIsLoading(false); });
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("oauth_trial_signup") !== "1") return;
+
+    const attribution = parseProfessionalTrialAttribution(window.location.search);
+    params.delete("oauth_trial_signup");
+    params.delete("trial_profession");
+    params.delete("trial_language");
+    const remainingSearch = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${remainingSearch ? `?${remainingSearch}` : ""}${window.location.hash}`,
+    );
+
+    if (user && attribution && hasConfirmedTrialRegistration(201, user)) {
+      trackEvent("professional_trial_started", {
+        profession: attribution.profession,
+        language: attribution.language,
+      });
+    }
+  }, [isLoading, user]);
 
   const login = async (data: { email: string; password: string }) => {
     setError(null);

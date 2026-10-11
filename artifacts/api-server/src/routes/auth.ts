@@ -9,7 +9,7 @@ import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 import { logger } from "../lib/logger";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
-import { getTrialStatus } from "../lib/trialStatus";
+import { FREE_TRIAL_DURATION_MS, getTrialStatus } from "../lib/trialStatus";
 
 const router: IRouter = Router();
 
@@ -168,7 +168,7 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   ]).onConflictDoNothing();
 
   const passwordHash = await hashPassword(password);
-  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const trialEndsAt = new Date(Date.now() + FREE_TRIAL_DURATION_MS);
   const [user] = await db.insert(usersTable).values({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),

@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 
 const mocks = vi.hoisted(() => ({
   db: {
@@ -172,8 +173,9 @@ describe("Google OAuth callback", () => {
     vi.unstubAllEnvs();
   });
 
-  async function startOAuth(): Promise<{ state: string; nonceCookie: string }> {
-    const response = await fetch(`${baseUrl}/api/auth/google`);
+  async function startOAuth(query: Record<string, string> = {}): Promise<{ state: string; nonceCookie: string }> {
+    const queryString = new URLSearchParams(query).toString();
+    const response = await fetch(`${baseUrl}/api/auth/google${queryString ? `?${queryString}` : ""}`);
     expect(response.status).toBe(200);
     const setCookie = response.headers.get("set-cookie");
     expect(setCookie).toContain("oauth_nonce=");
@@ -214,14 +216,19 @@ describe("Google OAuth callback", () => {
   }
 
   it("delivers the secure session cookie on HTTP 200 and authenticates through /api/auth/me", async () => {
-    const { state, nonceCookie } = await startOAuth();
+    const { state, nonceCookie } = await startOAuth({
+      trial_profession: "commercialisti",
+      trial_language: "it",
+    });
     mockGoogleSuccess();
 
     const response = await callback(state, nonceCookie);
+    const html = await response.text();
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("content-type")).toContain("text/html");
-    expect(await response.text()).toContain('window.location.replace("/app/")');
+    expect(html).toContain('window.location.replace("/app/")');
+    expect(html).not.toContain("oauth_trial_signup");
 
     const setCookies = response.headers.getSetCookie();
     expect(setCookies).toHaveLength(2);
@@ -244,6 +251,60 @@ describe("Google OAuth callback", () => {
       organizationName: authMeUser.organizationName,
       groupPermissions: [],
     });
+  });
+
+  it("starts a seven-day trial for a new Google user and returns only allowlisted professional attribution", async () => {
+    const { usersTable, organizationsTable } = await import("@workspace/db");
+    const org = { id: 22, name: "OAuth New User" };
+    const newUser = { ...oauthUser, id: 42, email: "new-google@example.test", trialEndsAt: null };
+    let userLookupCount = 0;
+    mocks.db.select.mockImplementation(() => {
+      let table: unknown;
+      const query: Record<string, ReturnType<typeof vi.fn>> = {};
+      query.from = vi.fn((value: unknown) => { table = value; return query; });
+      query.where = vi.fn(async () => {
+        if (table === usersTable) {
+          userLookupCount += 1;
+          return userLookupCount === 1 ? [] : [];
+        }
+        return [];
+      });
+      return query;
+    });
+    const insertedValues: Array<{ table: unknown; values: Record<string, unknown> }> = [];
+    mocks.db.insert.mockImplementation((table: unknown) => {
+      const query: Record<string, ReturnType<typeof vi.fn>> = {};
+      let values: Record<string, unknown> = {};
+      query.values = vi.fn((input: Record<string, unknown>) => {
+        values = input;
+        return query;
+      });
+      query.returning = vi.fn(async () => {
+        insertedValues.push({ table, values });
+        return table === organizationsTable ? [org] : [{ ...newUser, ...values }];
+      });
+      return query;
+    });
+    const { state, nonceCookie } = await startOAuth({
+      trial_profession: "avvocati",
+      trial_language: "en",
+      email: "must-not-be-carried@example.test",
+      custom: "free text must not be carried",
+    });
+    mockGoogleSuccess();
+
+    const response = await callback(state, nonceCookie);
+    const html = await response.text();
+    const insertedUser = insertedValues.find((entry) => entry.table === usersTable);
+
+    expect(response.status).toBe(200);
+    expect(insertedUser?.values.trialEndsAt).toBeInstanceOf(Date);
+    const actualTrialDuration = (insertedUser?.values.trialEndsAt as Date).getTime() - Date.now();
+    expect(actualTrialDuration).toBeGreaterThan(FREE_TRIAL_DURATION_MS - 1_000);
+    expect(actualTrialDuration).toBeLessThanOrEqual(FREE_TRIAL_DURATION_MS);
+    expect(html).toContain("/app/?oauth_trial_signup=1&trial_profession=avvocati&trial_language=en");
+    expect(html).not.toContain("must-not-be-carried");
+    expect(html).not.toContain("custom");
   });
 
   it("rejects a callback with a nonce that does not match the pending state", async () => {
