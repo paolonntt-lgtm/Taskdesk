@@ -1,3 +1,5 @@
+import type { ProfessionId, ProfessionLanguage } from "../profession-content";
+
 declare global {
   interface Window {
     umami?: {
@@ -36,6 +38,22 @@ export function trackCta(location: CtaLocation, planName?: string): void {
   const params: AnalyticsData = { location };
   if (planName) params.plan = planName;
   trackEvent("cta_click", params);
+}
+
+export type ProfessionalTrialCtaLocation =
+  | "navbar"
+  | "hero"
+  | "message"
+  | "pricing"
+  | "final"
+  | "footer";
+
+export function trackProfessionalTrialCta(
+  profession: ProfessionId,
+  language: ProfessionLanguage,
+  location: ProfessionalTrialCtaLocation,
+): void {
+  trackEvent("professional_trial_cta_click", { profession, language, location });
 }
 
 export function trackScrollDepth(pct: ScrollDepthPct): void {
