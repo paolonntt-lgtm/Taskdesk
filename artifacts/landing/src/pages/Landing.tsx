@@ -842,7 +842,6 @@ export default function Landing() {
                 </div>
                 <div className="text-xl font-black text-slate-900">{t.teamMemory.assistantName}</div>
                 <div className="mt-1 text-xs font-bold uppercase tracking-wide text-blue-600">{t.teamMemory.assistantSlogan}</div>
-                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-600">{t.teamMemory.assistantDescription}</p>
               </div>
             </ScrollReveal>
             <ScrollReveal delay={0.1}>

@@ -60,7 +60,6 @@ interface Translations {
     subtitle: string;
     assistantName: string;
     assistantSlogan: string;
-    assistantDescription: string;
   };
   workStatistic: {
     statement: string;
@@ -257,7 +256,6 @@ const translations: Record<Language, Translations> = {
       subtitle: "Cerca nello storico, collega le attività simili e metti in evidenza la soluzione efficace: il team potrà ritrovarla e riutilizzarla.",
       assistantName: "Albert",
       assistantSlogan: "Le risposte di ieri, utili oggi.",
-      assistantDescription: "Ritrova i ticket utili e riparti dalle soluzioni già trovate dal team.",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -481,7 +479,6 @@ const translations: Record<Language, Translations> = {
       subtitle: "Search the history, connect similar tasks, and highlight the solution that worked so the whole team can find and reuse it.",
       assistantName: "Albert",
       assistantSlogan: "Yesterday’s answers, useful today.",
-      assistantDescription: "Find useful past tickets and build on solutions your team has already found.",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",

@@ -29,14 +29,17 @@ const routes = [
     memoryContent: [
       "Albert",
       "Le risposte di ieri, utili oggi.",
-      "Ritrova i ticket utili e riparti dalle soluzioni già trovate dal team.",
     ],
     mockupContent: [
       "#5 — Documenti mancanti per dichiarazione dei redditi",
       "Risolta",
       "Fiscale",
     ],
-    removedExamples: ["Accesso non riuscito", "Preparare la demo"],
+    removedExamples: [
+      "Accesso non riuscito",
+      "Preparare la demo",
+      "Ritrova i ticket utili e riparti dalle soluzioni già trovate dal team.",
+    ],
   },
   {
     path: "/en/",
@@ -60,14 +63,17 @@ const routes = [
     memoryContent: [
       "Albert",
       "Yesterday’s answers, useful today.",
-      "Find useful past tickets and build on solutions your team has already found.",
     ],
     mockupContent: [
       "#5 — Missing documents for tax return filing",
       "Resolved",
       "Tax",
     ],
-    removedExamples: ["Unable to sign in", "Prepare the demo"],
+    removedExamples: [
+      "Unable to sign in",
+      "Prepare the demo",
+      "Find useful past tickets and build on solutions your team has already found.",
+    ],
   },
 ];
 
