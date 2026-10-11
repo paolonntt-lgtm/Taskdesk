@@ -127,6 +127,7 @@ export default function TicketList() {
   }, [searchStr, configuredCategories.join(',')]);
   const dateFrom = urlParams.get('dateFrom') ?? '';
   const dateTo   = urlParams.get('dateTo') ?? '';
+  const nonClosedFilter = urlParams.get('nonClosed') === 'true';
   const userFilter     = urlParams.get('userFilter') ?? 'all';
   const userFilterType = (urlParams.get('userFilterType') as 'assignedTo' | 'createdBy') || 'assignedTo';
   const emailOrigin    = urlParams.get('emailOrigin') === 'true';
@@ -165,13 +166,14 @@ export default function TicketList() {
     if (userFilter !== 'all') { p.set('userFilter', userFilter); p.set('userFilterType', userFilterType); }
     if (dateFrom) p.set('dateFrom', dateFrom);
     if (dateTo) p.set('dateTo', dateTo);
+    if (nonClosedFilter) p.set('nonClosed', 'true');
     if (emailOrigin) p.set('emailOrigin', 'true');
     if (clientIdFilter !== 'all') p.set('clientId', clientIdFilter);
     if (overdueFilter) p.set('overdue', 'true');
     if (scheduledFilter) p.set('scheduled', 'true');
     if (recurringFilter) p.set('recurring', 'true');
     return p.toString();
-  }, [debouncedSearch, statusValues, priorityValues, locationValues, categoryValues, userFilter, userFilterType, dateFrom, dateTo, emailOrigin, clientIdFilter, overdueFilter, scheduledFilter, recurringFilter]);
+  }, [debouncedSearch, statusValues, priorityValues, locationValues, categoryValues, userFilter, userFilterType, dateFrom, dateTo, nonClosedFilter, emailOrigin, clientIdFilter, overdueFilter, scheduledFilter, recurringFilter]);
 
   const handleSavePreset = useCallback(() => {
     if (!user || !presetName.trim()) return;
@@ -257,7 +259,7 @@ export default function TicketList() {
   const [focusedRowIdx, setFocusedRowIdx] = useState<number | null>(null);
 
   const hasExtraFilters = locationValues.length > 0 || categoryValues.length > 0 || !!dateFrom || !!dateTo || userFilter !== 'all' || emailOrigin || clientIdFilter !== 'all' || overdueFilter;
-  const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters || scheduledFilter || recurringFilter;
+  const hasActiveFilters = !!debouncedSearch || statusValues.length > 0 || priorityValues.length > 0 || hasExtraFilters || nonClosedFilter || scheduledFilter || recurringFilter;
 
   // Key of the currently active quick filter chip (used when navigating to ticket detail)
   const activeQFK: string | null =
@@ -284,6 +286,7 @@ export default function TicketList() {
 
   const setMultiParam = useCallback((key: string, values: string[], allOptions?: string[]) => {
     const next = new URLSearchParams(searchStr);
+    if (key === 'status') next.delete('nonClosed');
     // Treat "all options selected" the same as "nothing selected" — no filter applied
     const isAll = allOptions && allOptions.length > 0 && allOptions.every((v) => values.includes(v));
     if (values.length === 0 || isAll) {
@@ -403,6 +406,7 @@ export default function TicketList() {
     ...(overdueFilter ? { overdue: 'true' } : {}),
     ...(scheduledFilter ? { scheduled: 'true' } : {}),
     ...(recurringFilter ? { recurring: true } : {}),
+    ...(nonClosedFilter ? { nonClosed: 'true' } : {}),
   } as any, { query: { refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
 
   // Restore scroll position after tickets first load

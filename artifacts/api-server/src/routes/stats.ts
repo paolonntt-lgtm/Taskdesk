@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/aut
 import { getTrialStatus } from "../lib/trialStatus";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
+import { getClosedTicketStatusKeys } from "../lib/closedTicketStatuses";
 
 async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
   if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
@@ -69,6 +70,16 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
   );
+  const configuredStatuses = await db.select({
+    key: ticketStatusesTable.key,
+    isClosed: ticketStatusesTable.isClosed,
+  })
+    .from(ticketStatusesTable)
+    .where(eq(ticketStatusesTable.organizationId, orgId));
+  const closedStatusKeys = getClosedTicketStatusKeys(configuredStatuses);
+  const isOpenStatus = closedStatusKeys.length > 0
+    ? notInArray(ticketsTable.status, closedStatusKeys)
+    : sql`true`;
   const trialStatus = getTrialStatus(currentUser.trialEndsAt, currentUser.stripeSubscriptionId);
 
   const [counts] = await db.select({
@@ -77,7 +88,7 @@ router.get("/stats/dashboard", requireAuth, async (req, res): Promise<void> => {
     waiting: sql<number>`count(*) filter (where status = 'waiting')`,
     resolved: sql<number>`count(*) filter (where status = 'resolved')`,
     closed: sql<number>`count(*) filter (where status = 'closed')`,
-    urgent: sql<number>`count(*) filter (where priority = 'urgent' and status not in ('resolved','closed'))`,
+    urgent: sql<number>`count(*) filter (where ${ticketsTable.priority} = 'urgent' and ${isOpenStatus})`,
     overdue: sql<number>`count(*) filter (where due_at is not null and due_at < now() and status not in ('resolved','closed'))`,
     last7: sql<number>`count(*) filter (where created_at >= now() - interval '7 days')`,
     last30: sql<number>`count(*) filter (where created_at >= now() - interval '30 days')`,
@@ -414,10 +425,7 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
   })
     .from(ticketStatusesTable)
     .where(eq(ticketStatusesTable.organizationId, orgId));
-  const closedStatusKeys = [...new Set([
-    ...configuredStatuses.filter((status) => status.isClosed).map((status) => status.key),
-    ...["resolved", "closed"].filter((key) => !configuredStatuses.some((status) => status.key === key)),
-  ])];
+  const closedStatusKeys = getClosedTicketStatusKeys(configuredStatuses);
   const isOpenStatus = closedStatusKeys.length > 0
     ? notInArray(ticketsTable.status, closedStatusKeys)
     : sql`true`;

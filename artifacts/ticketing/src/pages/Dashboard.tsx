@@ -1504,7 +1504,7 @@ function StatUrgentWidget() {
       color={theme.palette.error.main}
       bgColor={theme.palette.mode === 'dark' ? 'rgba(211,47,47,0.15)' : '#ffebee'}
       icon={<UrgentIcon fontSize="small" />}
-      href="/tickets?priority=urgent&status=open"
+      href="/tickets?priority=urgent&nonClosed=true"
     />
   );
 }

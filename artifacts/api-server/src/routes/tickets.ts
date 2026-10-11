@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt, asc } from "drizzle-orm";
+import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt, asc, notInArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
@@ -10,6 +10,7 @@ import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPe
 import { isValidWorkedMinutes, redactWorkedHours } from "../lib/workedTime";
 import { permanentlyDeleteTicket } from "../lib/ticketTrash";
 import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
+import { getClosedTicketStatusKeys } from "../lib/closedTicketStatuses";
 
 const router: IRouter = Router();
 
@@ -131,7 +132,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     currentUser.role === "admin",
   );
 
-  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled, recurring } = req.query as Record<string, string>;
+  const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled, recurring, nonClosed } = req.query as Record<string, string>;
 
   const conditions: any[] = [];
 
@@ -155,6 +156,19 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   // Scheduled clones remain separate and keep the scheduled filter semantics.
   if (recurring === "true") {
     conditions.push(isNotNull(ticketsTable.recurrenceRule));
+  }
+
+  if (nonClosed === "true") {
+    const configuredStatuses = await db.select({
+      key: ticketStatusesTable.key,
+      isClosed: ticketStatusesTable.isClosed,
+    })
+      .from(ticketStatusesTable)
+      .where(eq(ticketStatusesTable.organizationId, orgId));
+    const closedStatusKeys = getClosedTicketStatusKeys(configuredStatuses);
+    conditions.push(closedStatusKeys.length > 0
+      ? notInArray(ticketsTable.status, closedStatusKeys)
+      : sql`true`);
   }
 
   if (status) {
