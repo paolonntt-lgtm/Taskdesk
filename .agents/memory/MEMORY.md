@@ -24,3 +24,4 @@
 - [Daily report collaborator notes](daily-report-notes.md) — Preserve collaborator notes throughout report preparation and show the complete draft for review before publishing.
 - [Daily report notification context](daily-report-notifications.md) — Multisite report notifications need the site label and a direct link to the exact report.
 - [Development schema drift](development-schema-drift.md) — Drizzle push reveals unrelated clients/organizations differences; review diffs and never force through data-loss prompts.
+- [Logo avvocati](attorney-logo.md) — Usa il logo della bilancia fornito dall'utente in tutte le rappresentazioni degli avvocati.
