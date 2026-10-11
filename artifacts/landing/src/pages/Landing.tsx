@@ -5,7 +5,6 @@ import { useLanguage } from "@/i18n";
 import {
   trackBillingCycle,
   trackCta,
-  trackFaqToggle,
   trackLanguageChange,
   trackScrollDepth,
   trackSectionView,
@@ -18,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -378,7 +376,7 @@ export default function Landing() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    const sectionIds = ["who-uses", "pain", "how", "features", "pricing", "final-cta"];
+    const sectionIds = ["who-uses", "pain", "features", "pricing", "final-cta"];
     const viewed = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -454,18 +452,6 @@ export default function Landing() {
           "description": offerDescription,
         },
       },
-      {
-        "@type": "FAQPage",
-        "@id": `${SITE_BASE}/${lang}/#faq`,
-        "mainEntity": t.faq.items.map((item) => ({
-          "@type": "Question",
-          "name": item.q,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": item.a,
-          },
-        })),
-      },
     ],
   });
 
@@ -526,10 +512,8 @@ export default function Landing() {
             <a href="#who-uses" className="hidden lg:inline hover:text-gray-900 transition-colors font-medium">
               {lang === "it" ? "Categorie" : "Categories"}
             </a>
-            <a href="#how" className="hover:text-gray-900 transition-colors font-medium">{lang === "it" ? "Come funziona" : "How it works"}</a>
             <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing" className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>
-            <a href="#faq" className="hover:text-gray-900 transition-colors font-medium">{t.nav.faq}</a>
           </nav>
           <div className="flex items-center gap-3">
             <DropdownMenu>
@@ -601,7 +585,7 @@ export default function Landing() {
                   >
                     {t.hero.cta} →
                   </button>
-                  <a href="#how" className="px-8 py-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all text-center">
+                  <a href="#who-uses" className="px-8 py-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all text-center">
                     {t.hero.secondaryCta}
                   </a>
                 </div>
@@ -692,62 +676,6 @@ export default function Landing() {
                 </ScrollReveal>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* ── How it works ── */}
-        <section id="how" aria-label={t.landmarks.howItWorks} className="py-28 px-6 md:px-8">
-          <div className="max-w-5xl mx-auto">
-            <ScrollReveal>
-              <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight">
-                  {lang === "it" ? (
-                    <><span className="ld-gradient-text">3 passi.</span> Fine.</>
-                  ) : (
-                    <><span className="ld-gradient-text">3 steps.</span> Done.</>
-                  )}
-                </h2>
-                <p className="text-gray-400 text-lg max-w-md mx-auto">
-                  {lang === "it"
-                    ? "Dal caos delle richieste alla pratica risolta — tutto tracciato."
-                    : "From chaotic requests to resolved tasks — everything tracked."}
-                </p>
-              </div>
-            </ScrollReveal>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-              <div className="absolute top-10 left-[calc(16.6%+1rem)] right-[calc(16.6%+1rem)] h-0.5 bg-gradient-to-r from-blue-200 via-violet-200 to-green-200 hidden md:block pointer-events-none" />
-
-              {t.howItWorks.steps.map((s, i) => (
-                <ScrollReveal key={i} delay={i * 0.1}>
-                  <div className="relative flex flex-col items-center text-center">
-                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl mb-5 shadow-md z-10 relative ${
-                      i === 0 ? "bg-blue-50 border-2 border-blue-200" :
-                      i === 1 ? "bg-violet-50 border-2 border-violet-200" :
-                                "bg-green-50 border-2 border-green-200"
-                    }`}>
-                      {s.icon}
-                      <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-black text-white flex items-center justify-center ${
-                        i === 0 ? "bg-blue-600" : i === 1 ? "bg-violet-600" : "bg-green-600"
-                      }`}>{s.n}</span>
-                    </div>
-                    <h3 className="font-black text-xl mb-3 text-gray-900">{s.title}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed max-w-xs">{s.desc}</p>
-                  </div>
-                </ScrollReveal>
-              ))}
-            </div>
-
-            <ScrollReveal delay={0.2}>
-              <div className="text-center mt-14">
-                <button
-                  onClick={() => handleCta("how_it_works")}
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
-                >
-                  {t.howItWorks.cta} →
-                </button>
-              </div>
-            </ScrollReveal>
           </div>
         </section>
 
@@ -914,32 +842,6 @@ export default function Landing() {
                 </ul>
               </div>
             </ScrollReveal>
-          </div>
-        </section>
-
-        {/* ── FAQ ── */}
-        <section id="faq" aria-label={t.landmarks.faq} className="py-28 px-6 md:px-8 bg-gray-50 border-t border-gray-100">
-          <div className="max-w-3xl mx-auto">
-            <ScrollReveal>
-              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-center mb-16">{t.faq.title}</h2>
-            </ScrollReveal>
-             <Accordion
-               type="single"
-               collapsible
-               className="w-full"
-               onValueChange={(value) => trackFaqToggle(Boolean(value))}
-             >
-              {t.faq.items.map((item, i) => (
-                <AccordionItem key={i} value={`item-${i}`} className="border-b border-gray-100 py-1">
-                  <AccordionTrigger className="text-base font-semibold hover:no-underline hover:text-blue-600 transition-colors text-left py-5">
-                    {item.q}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-400 text-base leading-relaxed pb-6">
-                    {item.a}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
           </div>
         </section>
 

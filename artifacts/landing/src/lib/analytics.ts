@@ -13,7 +13,6 @@ export type AnalyticsData = Record<string, string | number | boolean>;
 export type CtaLocation =
   | "navbar"
   | "hero"
-  | "how_it_works"
   | "features"
   | "pricing"
   | "final";
@@ -144,6 +143,3 @@ export function trackLanguageChange(language: "it" | "en"): void {
   trackEvent("landing_language_changed", { language });
 }
 
-export function trackFaqToggle(opened: boolean): void {
-  trackEvent("faq_toggled", { opened });
-}

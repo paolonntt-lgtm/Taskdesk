@@ -10,16 +10,13 @@ interface Translations {
     hero: string;
     whoUses: string;
     problem: string;
-    howItWorks: string;
     features: string;
     pricing: string;
-    faq: string;
     finalCta: string;
   };
   nav: {
     features: string;
     pricing: string;
-    faq: string;
     login: string;
   };
   hero: {
@@ -83,10 +80,6 @@ interface Translations {
       fast: { title: string; desc: string };
     };
   };
-  howItWorks: {
-    cta: string;
-    steps: Array<{ n: string; icon: string; title: string; desc: string }>;
-  };
   pricing: {
     title: string;
     price: string;
@@ -122,10 +115,6 @@ interface Translations {
     includedSubtitle: string;
     included: string[];
     cta: string;
-  };
-  faq: {
-    title: string;
-    items: Array<{ q: string; a: string }>;
   };
   finalCta: {
     headline: string;
@@ -171,16 +160,13 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Chi usa TaskDesk",
       problem: "Il problema",
-      howItWorks: "Come funziona",
       features: "Funzionalità",
       pricing: "Prezzi",
-      faq: "Domande frequenti",
       finalCta: "Inizia ora",
     },
     nav: {
       features: "Funzionalità",
       pricing: "Prezzi",
-      faq: "FAQ",
       login: "Accedi",
     },
     hero: {
@@ -189,7 +175,7 @@ const translations: Record<Language, Translations> = {
       titleLine2: "finalmente in ordine.",
       subtitle: "Smetti di rincorrere email e WhatsApp. TaskDesk raccoglie ogni pratica, richiesta e scadenza in un unico posto — con commenti, assegnazioni e soluzioni tracciate.",
       cta: "Inizia gratis — 7 giorni",
-      secondaryCta: "Scopri come funziona",
+      secondaryCta: "Scopri le categorie",
       trialBadge: "7 giorni gratis",
       trialNote: "Nessuna carta di credito richiesta",
       microProof: "7 giorni gratis · Nessuna carta · Cancella quando vuoi",
@@ -327,29 +313,6 @@ const translations: Record<Language, Translations> = {
         }
       }
     },
-    howItWorks: {
-      cta: "Inizia gratis — 7 giorni",
-      steps: [
-        {
-          n: "1",
-          icon: "✏️",
-          title: "Apri una pratica",
-          desc: "Il cliente manda una richiesta o tu la apri per lui. Titolo, categoria, scadenza: in 10 secondi è tracciata e visibile al team.",
-        },
-        {
-          n: "2",
-          icon: "💬",
-          title: "Il team lavora in thread",
-          desc: "Commenti, @menzioni e allegati in un unico thread — come una chat, ma organizzata e sempre ricercabile.",
-        },
-        {
-          n: "3",
-          icon: "✅",
-          title: "Pratica risolta e archiviata",
-          desc: "Chi risolve marca la soluzione. La pratica si chiude. Tutti — incluso il cliente — sanno che è fatta.",
-        },
-      ],
-    },
     pricing: {
       title: "Un piano per ogni studio. Trasparente, senza sorprese.",
       price: "€35",
@@ -385,16 +348,6 @@ const translations: Record<Language, Translations> = {
         "Supporto via email",
       ],
       cta: "Inizia gratis — 7 giorni"
-    },
-    faq: {
-      title: "Domande Frequenti",
-      items: [
-        { q: "È adatto al mio studio commerciale o alla mia agenzia?", a: "Sì, TaskDesk è pensato esattamente per questo. Studi commerciali, studi di consulenza del lavoro, agenzie e liberi professionisti lo usano per raccogliere le richieste dei clienti in un unico posto, assegnarle ai collaboratori e tracciarle fino alla chiusura — senza email disperse o WhatsApp irrintracciabili." },
-        { q: "C'è un periodo di prova gratuita?", a: "Sì! I primi 7 giorni sono completamente gratuiti, senza bisogno di inserire la carta di credito. Al termine puoi scegliere il piano più adatto al tuo studio, da €35/mese + IVA (o €350/anno + IVA). Enterprise su preventivo." },
-        { q: "C'è un costo di setup?", a: "Assolutamente no. Il software è pronto all'uso fin dal primo accesso. Sei operativo in pochi minuti, senza formazione." },
-        { q: "Posso cancellare in qualsiasi momento?", a: "Sì, non ci sono vincoli contrattuali o penali di cancellazione. Puoi disdire in qualsiasi momento dalla tua area account." },
-        { q: "I miei clienti possono accedere e inviare richieste?", a: "Oggi i clienti vengono aggiunti come utenti dedicati. Ogni cliente vede solo le proprie pratiche. Una funzionalità di portale clienti semplificato è nella roadmap." },
-      ]
     },
     finalCta: {
       headline: "Metti ordine nelle pratiche dei tuoi clienti.",
@@ -438,16 +391,13 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Who uses TaskDesk",
       problem: "The problem",
-      howItWorks: "How it works",
       features: "Features",
       pricing: "Pricing",
-      faq: "Frequently asked questions",
       finalCta: "Get started",
     },
     nav: {
       features: "Features",
       pricing: "Pricing",
-      faq: "FAQ",
       login: "Login",
     },
     hero: {
@@ -456,7 +406,7 @@ const translations: Record<Language, Translations> = {
       titleLine2: "finally under control.",
       subtitle: "Stop chasing emails and WhatsApp messages. TaskDesk collects every client request, task and deadline in one place — with comments, assignments and tracked solutions.",
       cta: "Start free — 7 days",
-      secondaryCta: "See how it works",
+      secondaryCta: "Browse categories",
       trialBadge: "7 days free",
       trialNote: "No credit card required",
       microProof: "7 days free · No credit card · Cancel anytime",
@@ -594,29 +544,6 @@ const translations: Record<Language, Translations> = {
         }
       }
     },
-    howItWorks: {
-      cta: "Start free — 7 days",
-      steps: [
-        {
-          n: "1",
-          icon: "✏️",
-          title: "Open a request",
-          desc: "The client sends a request or you open one for them. Title, category, deadline: tracked in 10 seconds and visible to the team.",
-        },
-        {
-          n: "2",
-          icon: "💬",
-          title: "Team works in a thread",
-          desc: "Comments, @mentions and attachments in a single thread — like a chat, but organised and always searchable.",
-        },
-        {
-          n: "3",
-          icon: "✅",
-          title: "Request resolved and archived",
-          desc: "Whoever resolves it marks the solution. The request closes. Everyone — including the client — knows it's done.",
-        },
-      ],
-    },
     pricing: {
       title: "A plan for every firm. Transparent, no surprises.",
       price: "€35",
@@ -652,16 +579,6 @@ const translations: Record<Language, Translations> = {
         "Email support",
       ],
       cta: "Start free — 7 days"
-    },
-    faq: {
-      title: "Frequently Asked Questions",
-      items: [
-        { q: "Is it right for my accounting firm or agency?", a: "Yes, TaskDesk is designed exactly for this. Accounting firms, labour consultancies, agencies and sole practitioners use it to collect client requests in one place, assign them to team members and track them through to completion — without scattered emails or untraceable WhatsApp messages." },
-        { q: "Is there a free trial?", a: "Yes! The first 7 days are completely free, with no credit card required. Afterwards you can choose the plan that best suits your firm, from €35/month + VAT (or €350/year + VAT). Enterprise is priced on request." },
-        { q: "Is there a setup cost?", a: "Absolutely not. The software is ready to use from your first login. You are up and running in minutes, with no training needed." },
-        { q: "Can I cancel at any time?", a: "Yes, there are no contractual commitments or cancellation fees. You can cancel at any time from your account area." },
-        { q: "Can my clients access the system and submit requests?", a: "Today clients are added as dedicated users. Each client sees only their own requests. A simplified client portal feature is on the roadmap." },
-      ]
     },
     finalCta: {
       headline: "Bring order to your clients' requests.",
