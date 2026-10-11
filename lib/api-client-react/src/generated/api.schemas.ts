@@ -314,6 +314,21 @@ export type TicketWithDetails = Ticket & ({
   inboundChannelName?: string | null;
 });
 
+/**
+ * @nullable
+ */
+export type RecentTicketWithActivityLatestActivity = {
+  actionType: string;
+  /** @nullable */
+  actorName: string | null;
+  createdAt: string;
+} | null;
+
+export type RecentTicketWithActivity = TicketWithDetails & {
+  /** @nullable */
+  latestActivity: RecentTicketWithActivityLatestActivity;
+};
+
 export type CreateTicketBodyPriority = typeof CreateTicketBodyPriority[keyof typeof CreateTicketBodyPriority];
 
 

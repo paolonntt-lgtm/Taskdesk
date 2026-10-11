@@ -80,6 +80,8 @@ export * from './loginRequest';
 export * from './loginResponse';
 export * from './noteWithAuthor';
 export * from './notification';
+export * from './recentTicketWithActivity';
+export * from './recentTicketWithActivityLatestActivity';
 export * from './recurrenceRule';
 export * from './recurrenceRuleFrequency';
 export * from './requestUploadUrlBody';

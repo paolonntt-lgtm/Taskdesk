@@ -2297,10 +2297,10 @@ export const GetTicketTrendResponse = zod.array(GetTicketTrendResponseItem)
 /**
  * @summary Get recently created or updated tickets
  */
-export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
+export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfMonthMax = 31;
 
-export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
-export const getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMin = 0;
+export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMax = 6;
 
 
 
@@ -2329,8 +2329,8 @@ export const GetRecentTicketsResponseItem = zod.object({
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
-  "dayOfMonth": zod.int().min(1).max(getRecentTicketsResponseOneRecurrenceRuleOneDayOfMonthMax).nullish(),
-  "dayOfWeek": zod.int().min(getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMin).max(getRecentTicketsResponseOneRecurrenceRuleOneDayOfWeekMax).nullish(),
+  "dayOfMonth": zod.int().min(1).max(getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfMonthMax).nullish(),
+  "dayOfWeek": zod.int().min(getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMin).max(getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMax).nullish(),
   "endDate": zod.coerce.date().nullish()
 }),zod.null()]).optional(),
   "recurrenceNextAt": zod.coerce.date().nullish(),
@@ -2394,6 +2394,12 @@ export const GetRecentTicketsResponseItem = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish()
+})).and(zod.object({
+  "latestActivity": zod.object({
+  "actionType": zod.string(),
+  "actorName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).nullable()
 }))
 export const GetRecentTicketsResponse = zod.array(GetRecentTicketsResponseItem)
 

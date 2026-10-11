@@ -310,7 +310,36 @@ type TicketRow = {
   category?: string | null; dueAt?: string | null; ticketNumber?: number | null;
   inboundChannelId?: number | null;
   checklistCount?: number | null; checklistTotal?: number | null; checklistChecked?: number | null;
+  latestActivity?: { actionType: string; actorName: string | null; createdAt: string } | null;
 };
+
+function getRecentActivityLabel(actionType: string, t: any): string {
+  const labels: Record<string, string> = {
+    created: t.dashboard.activityCreated,
+    assigned: t.dashboard.activityAssigned,
+    unassigned: t.dashboard.activityUnassigned,
+    status_changed: t.dashboard.activityStatusChanged,
+    priority_changed: t.dashboard.activityPriorityChanged,
+    category_changed: t.dashboard.activityCategoryChanged,
+    location_changed: t.dashboard.activityLocationChanged,
+    comment_added: t.dashboard.activityCommentAdded,
+    comment_edited: t.dashboard.activityCommentEdited,
+    comment_deleted: t.dashboard.activityCommentDeleted,
+    email_reply_sent: t.dashboard.activityEmailReplySent,
+    note_added: t.dashboard.activityNoteAdded,
+    checklist_item_updated: t.dashboard.activityChecklistUpdated,
+    checklist_applied_from_template: t.dashboard.activityChecklistUpdated,
+    solution_marked: t.dashboard.activitySolutionMarked,
+    visibility_changed: t.dashboard.activityVisibilityChanged,
+    recurrence_created: t.dashboard.activityRecurrenceUpdated,
+    recurrence_set: t.dashboard.activityRecurrenceUpdated,
+    recurrence_removed: t.dashboard.activityRecurrenceUpdated,
+    cloned_from: t.dashboard.activityCloned,
+    ticket_restored: t.dashboard.activityRestored,
+    worked_hours_changed: t.dashboard.activityWorkedHoursChanged,
+  };
+  return labels[actionType] ?? t.dashboard.activityUpdated;
+}
 
 function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
   const due = new Date(dueAt);
@@ -325,7 +354,7 @@ function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | '
   return { label: `${diffDays} ${t.dashboard.dueInDays}`, color: 'warning' };
 }
 
-function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: { ticket: TicketRow; showDueBadge?: boolean; colorByStatus?: boolean }) {
+function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false, showActivitySummary = false }: { ticket: TicketRow; showDueBadge?: boolean; colorByStatus?: boolean; showActivitySummary?: boolean }) {
   const { t, lang } = useLanguage();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -432,7 +461,23 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: 
           )}
           {ticket.title}
         </Typography>
-        {ticket.category && (
+        {showActivitySummary ? (
+          <Typography variant="caption" color="text.secondary" noWrap display="block">
+            {ticket.latestActivity ? (
+              <>
+                {getRecentActivityLabel(ticket.latestActivity.actionType, t)}
+                {' · '}
+                {ticket.latestActivity.actorName
+                  ? t.dashboard.activityBy(ticket.latestActivity.actorName)
+                  : t.dashboard.activityUnknownAuthor}
+                {' · '}
+                {new Date(ticket.latestActivity.createdAt).toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-GB', {
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </>
+            ) : t.dashboard.activityUpdated}
+          </Typography>
+        ) : ticket.category && (
           <Typography variant="caption" color="text.secondary" noWrap display="block">
             {ticket.category}
           </Typography>
@@ -476,10 +521,10 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false }: 
 // ── FEED CARD ─────────────────────────────────────────────────────────────
 
 function FeedCard({
-  title, icon, tickets, emptyMsg, viewAllHref, showDueBadge = false, accentColor, colorByStatus = false,
+  title, icon, tickets, emptyMsg, viewAllHref, showDueBadge = false, accentColor, colorByStatus = false, showActivitySummary = false,
 }: {
   title: string; icon: React.ReactNode; tickets: TicketRow[];
-  emptyMsg: string; viewAllHref?: string; showDueBadge?: boolean; accentColor?: string; colorByStatus?: boolean;
+  emptyMsg: string; viewAllHref?: string; showDueBadge?: boolean; accentColor?: string; colorByStatus?: boolean; showActivitySummary?: boolean;
 }) {
   const { t } = useLanguage();
   const customName = React.useContext(WidgetCustomNameContext);
@@ -527,7 +572,7 @@ function FeedCard({
           ) : (
             tickets.map((ticket, idx) => (
               <React.Fragment key={ticket.id}>
-                <TicketRowItem ticket={ticket} showDueBadge={showDueBadge} colorByStatus={colorByStatus} />
+                <TicketRowItem ticket={ticket} showDueBadge={showDueBadge} colorByStatus={colorByStatus} showActivitySummary={showActivitySummary} />
                 {idx < tickets.length - 1 && <Divider sx={{ mx: 2 }} />}
               </React.Fragment>
             ))
@@ -842,6 +887,7 @@ function FeedRecentWidget() {
       emptyMsg=""
       viewAllHref="/tickets"
       colorByStatus={settings.colorByStatus}
+      showActivitySummary
     />
   );
 }

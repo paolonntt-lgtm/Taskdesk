@@ -69,6 +69,7 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  RecentTicketWithActivity,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
   SaveAttachmentBody,
@@ -5245,9 +5246,9 @@ export const getGetRecentTicketsUrl = () => {
 /**
  * @summary Get recently created or updated tickets
  */
-export const getRecentTickets = async ( options?: Parameters<typeof customFetch>[1]): Promise<TicketWithDetails[]> => {
+export const getRecentTickets = async ( options?: Parameters<typeof customFetch>[1]): Promise<RecentTicketWithActivity[]> => {
 
-  return customFetch<TicketWithDetails[]>(getGetRecentTicketsUrl(),
+  return customFetch<RecentTicketWithActivity[]>(getGetRecentTicketsUrl(),
   {
     ...options,
     method: 'GET'

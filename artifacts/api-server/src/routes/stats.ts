@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and, gte, isNotNull, isNull, inArray, lt, notInArray, asc } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable } from "@workspace/db";
+import { eq, sql, and, gte, isNotNull, isNull, inArray, lt, notInArray, asc, desc } from "drizzle-orm";
+import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
 import { getTrialStatus } from "../lib/trialStatus";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
@@ -296,7 +296,23 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     .where(orgFilter)
     .orderBy(sql`updated_at DESC`).limit(10);
 
-  const userIds = [...new Set([...tickets.map((t) => t.createdBy), ...tickets.map((t) => t.assignedTo).filter(Boolean)])];
+  const ticketIds = tickets.map((ticket) => ticket.id);
+  const latestActivityLogs = ticketIds.length > 0
+    ? await db.selectDistinctOn([ticketActivityLogsTable.ticketId], {
+        ticketId: ticketActivityLogsTable.ticketId,
+        actionType: ticketActivityLogsTable.actionType,
+        userId: ticketActivityLogsTable.userId,
+        createdAt: ticketActivityLogsTable.createdAt,
+      }).from(ticketActivityLogsTable)
+        .where(inArray(ticketActivityLogsTable.ticketId, ticketIds))
+        .orderBy(ticketActivityLogsTable.ticketId, desc(ticketActivityLogsTable.createdAt), desc(ticketActivityLogsTable.id))
+    : [];
+  const latestActivityByTicket = new Map(latestActivityLogs.map((activity) => [activity.ticketId, activity]));
+  const userIds = [...new Set([
+    ...tickets.map((t) => t.createdBy),
+    ...tickets.map((t) => t.assignedTo).filter(Boolean),
+    ...latestActivityLogs.map((activity) => activity.userId),
+  ])];
   const users = (userIds as number[]).length > 0
     ? await db.select({
         id: usersTable.id,
@@ -323,6 +339,16 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
+    latestActivity: (() => {
+      const activity = latestActivityByTicket.get(t.id);
+      const isCurrent = activity
+        && new Date(activity.createdAt).getTime() >= new Date(t.updatedAt).getTime() - 5_000;
+      return isCurrent ? {
+        actionType: activity.actionType,
+        actorName: userMap.get(activity.userId)?.name ?? null,
+        createdAt: activity.createdAt,
+      } : null;
+    })(),
     commentCount: 0,
     noteCount: 0,
   }, canViewWorkedHours)));

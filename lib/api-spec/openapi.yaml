@@ -1678,7 +1678,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/TicketWithDetails"
+                  $ref: "#/components/schemas/RecentTicketWithActivity"
 
   /stats/my-tickets:
     get:
@@ -3091,6 +3091,24 @@ components:
             - creator
             - commentCount
             - noteCount
+
+    RecentTicketWithActivity:
+      allOf:
+        - $ref: "#/components/schemas/TicketWithDetails"
+        - type: object
+          properties:
+            latestActivity:
+              type: ["object", "null"]
+              properties:
+                actionType:
+                  type: string
+                actorName:
+                  type: ["string", "null"]
+                createdAt:
+                  type: string
+                  format: date-time
+              required: [actionType, actorName, createdAt]
+          required: [latestActivity]
 
     CreateTicketBody:
       type: object
