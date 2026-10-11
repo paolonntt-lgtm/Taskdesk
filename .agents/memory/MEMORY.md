@@ -18,6 +18,7 @@
 - [Monthly recurrence scheduling](recurrence-scheduling.md) — A selected day beyond a month’s length uses that month’s last available day.
 - [Per-ticket worked-time opt-in](worked-time-scope.md) — The ticket-level flag enables worked-time tracking independently of the organization-wide setting.
 - [Collaborator add-on pricing](collaborator-add-on-pricing.md) — Charge €6/month or €60/year per extra collaborator, matching the base plan’s billing interval.
+- [Main landing pricing](main-landing-pricing.md) — Show three fixed-price homepage tiers, keep prerendered schema aligned, and preserve Enterprise on profession pages.
 - [Stripe cancellation timing](stripe-cancellation-timing.md) — Customer-portal cancellations take effect at the end of the paid period; preserve `at_period_end`.
 - [Stripe payment descriptor](stripe-payment-descriptor.md) — Use TASKDESK.IT for future billing statements; Dashboard changes do not rewrite past charges.
 - [Daily report archive scope](daily-report-history.md) — Operators can publish multiple reports per day; Albert searches their organization's entire archive.

@@ -22,7 +22,6 @@ import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
 import { ProfessionEntryDialog } from "@/components/ProfessionEntryDialog";
-import { ProfessionMark } from "@/components/ProfessionMark";
 
 const SITE_BASE = "https://taskdesk.it";
 const WHATSAPP_NUMBER = "393203177882";
@@ -372,10 +371,10 @@ function ProductActivityDemo() {
           <ul className="space-y-2.5">
             {demo.checklist.map((item, index) => (
               <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                <span className={`flex h-4 w-4 items-center justify-center rounded border ${index < 2 ? "border-green-500 bg-green-500 text-white" : "border-gray-300 bg-white"}`}>
-                  {index < 2 && <Check aria-hidden="true" className="h-3 w-3" />}
+                <span className="flex h-4 w-4 items-center justify-center rounded border border-green-500 bg-green-500 text-white">
+                  <Check aria-hidden="true" className="h-3 w-3" />
                 </span>
-                <span className={index < 2 ? "text-gray-400 line-through" : ""}>{item}</span>
+                <span className="text-gray-400 line-through">{item}</span>
               </li>
             ))}
           </ul>
@@ -485,7 +484,10 @@ export default function Landing() {
   const offerLowPrice = paidPlanPrices.length > 0 ? String(Math.min(...paidPlanPrices)) : "35";
   const offerHighPrice = paidPlanPrices.length > 0 ? String(Math.max(...paidPlanPrices)) : "100";
 
-  const paidPlans = t.pricing.plans.filter((p) => p.seats !== null);
+  const paidPlans = t.pricing.plans.filter((p) => {
+    const monthlyAmount = Number.parseInt(p.price.replace(/[^\d]/g, ""), 10);
+    return Number.isFinite(monthlyAmount) && monthlyAmount > 0;
+  });
   const offerDescription =
     paidPlans
       .map((p) => `${p.name} ${p.price}${p.noUnit ? "" : t.pricing.perMonth} (${p.seats} ${t.pricing.seatsSuffix})`)
@@ -842,7 +844,6 @@ export default function Landing() {
                     data-testid={`link-profession-card-${profile.profession}`}
                     className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                   >
-                    <ProfessionMark profile={profile} className="scale-75" />
                     {profile.title}
                   </Link>
                 ))}
@@ -902,9 +903,12 @@ export default function Landing() {
             <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {paidPlans.map((plan, idx) => (
                 <ScrollReveal key={plan.name} delay={idx * 0.06}>
-                  <div className={`relative h-full bg-white rounded-2xl p-7 flex flex-col ld-card-hover ${
+                  <div
+                    data-testid={`landing-plan-card-${plan.name.toLowerCase()}`}
+                    className={`relative h-full bg-white rounded-2xl p-7 flex flex-col ld-card-hover ${
                     plan.highlight ? "border-2 border-blue-600 shadow-xl shadow-blue-100" : "border border-gray-100 shadow-sm"
-                  }`}>
+                  }`}
+                  >
                     {plan.highlight && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold tracking-wide uppercase shadow-md">
                         {t.pricing.mostPopular}

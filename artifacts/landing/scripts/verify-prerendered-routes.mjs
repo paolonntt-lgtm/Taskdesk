@@ -14,8 +14,14 @@ const routes = [
     title: "Gestione Pratiche per Studi e Agenzie",
     description: "Raccogli le richieste dei clienti",
     hero: ["Le richieste dei tuoi clienti,", "finalmente in ordine."],
-    navigation: "Funzionalità",
+    navigation: "Il prodotto",
     cta: "Inizia gratis — 7 giorni",
+    sections: [
+      "Un messaggio dimenticato. Una richiesta senza responsabile.",
+      "Ogni richiesta diventa un’attività chiara.",
+      "Il team ricorda anche quando la chat è finita.",
+      "TaskDesk si adatta al tuo lavoro.",
+    ],
   },
   {
     path: "/en/",
@@ -24,8 +30,14 @@ const routes = [
     title: "Practice Management for Firms & Agencies",
     description: "Collect every client request in one place",
     hero: ["Your clients' requests,", "finally under control."],
-    navigation: "Features",
+    navigation: "Product",
     cta: "Start free — 7 days",
+    sections: [
+      "A forgotten message. An unassigned request.",
+      "Every request becomes a clear task.",
+      "The team remembers, even after the chat ends.",
+      "TaskDesk adapts to the way you work.",
+    ],
   },
 ];
 
@@ -51,11 +63,25 @@ for (const route of routes) {
   assert.ok(heading.includes(route.hero[1]), `${route.path} must render the complete localized hero headline`);
   assert.ok(bodyText.includes(route.navigation), `${route.path} must render localized navigation`);
   assert.ok(bodyText.includes(route.cta), `${route.path} must render its localized primary call to action`);
+  for (const sectionCopy of route.sections) {
+    assert.ok(bodyText.includes(sectionCopy), `${route.path} must render "${sectionCopy}"`);
+  }
+  assert.deepEqual(
+    [...document.querySelectorAll('[data-testid^="landing-plan-card-"]')].map((card) => card.getAttribute("data-testid")),
+    ["landing-plan-card-starter", "landing-plan-card-team", "landing-plan-card-business"],
+    `${route.path} must show exactly the three fixed-price plans`,
+  );
   assert.ok(jsonLdElement, `${route.path} must include structured data`);
 
   const jsonLd = JSON.parse(jsonLdElement.textContent ?? "");
   const website = jsonLd["@graph"]?.find((item) => item["@type"] === "WebSite");
   assert.equal(website?.inLanguage, route.lang, `${route.path} structured data must preserve the locale`);
+  const software = jsonLd["@graph"]?.find((item) => item["@type"] === "SoftwareApplication");
+  assert.equal(software?.offers?.offerCount, "3", `${route.path} structured data must match the three visible plans`);
+  assert.ok(
+    !jsonLd["@graph"]?.some((item) => item["@type"] === "FAQPage"),
+    `${route.path} must not publish removed FAQ content`,
+  );
 
   console.log(`✓ ${route.path} prerendered content and locale metadata`);
 }
