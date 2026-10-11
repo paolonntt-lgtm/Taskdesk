@@ -45,6 +45,12 @@ interface Translations {
       detail: string;
     }>;
   };
+  professionDialog: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    close: string;
+  };
   pain: {
     title: string;
     subtitle: string;
@@ -219,6 +225,12 @@ const translations: Record<Language, Translations> = {
           detail: "Assegna attività e aggiornamenti allo studio senza perdere il contesto tra i referenti.",
         },
       ],
+    },
+    professionDialog: {
+      eyebrow: "Una soluzione per il tuo studio",
+      title: "Qual è la tua professione?",
+      description: "Scegli il tuo ambito per vedere come TaskDesk si adatta al tuo lavoro. Puoi chiudere questa finestra e continuare sulla pagina generale.",
+      close: "Chiudi la scelta della professione",
     },
     pain: {
       title: "Quante richieste stai perdendo oggi?",
@@ -484,6 +496,12 @@ const translations: Record<Language, Translations> = {
           detail: "Assign practice tasks and updates without losing context between contacts.",
         },
       ],
+    },
+    professionDialog: {
+      eyebrow: "A solution for your practice",
+      title: "What is your profession?",
+      description: "Choose your field to see how TaskDesk fits your work. You can close this window and continue to the general page.",
+      close: "Close profession selection",
     },
     pain: {
       title: "How many client requests are slipping through today?",

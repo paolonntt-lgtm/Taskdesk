@@ -40,7 +40,13 @@ function LangRedirect({ suffix }: { suffix: string }) {
   const [, navigate] = useLocation();
   useEffect(() => {
     const lang = getPreferredLang();
-    navigate(`/${lang}${suffix}`, { replace: true });
+    const campaign = suffix === "/" && typeof window !== "undefined"
+      ? getProfessionalCampaign(window.location.search)
+      : "unattributed";
+    const campaignQuery = campaign === "unattributed"
+      ? ""
+      : `?utm_campaign=${encodeURIComponent(campaign)}`;
+    navigate(`/${lang}${suffix}${campaignQuery}`, { replace: true });
   }, [suffix, navigate]);
   return null;
 }

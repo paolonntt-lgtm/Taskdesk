@@ -23,6 +23,7 @@ import { ChevronDown } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
+import { ProfessionEntryDialog } from "@/components/ProfessionEntryDialog";
 
 const SITE_BASE = "https://taskdesk.it";
 const WHATSAPP_NUMBER = "393203177882";
@@ -313,6 +314,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
 
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
+  const [professionDialogOpen, setProfessionDialogOpen] = useState(true);
   const handleLanguageChange = (next: "it" | "en") => {
     if (next !== lang) trackLanguageChange(next);
     setLang(next);
@@ -498,6 +500,10 @@ export default function Landing() {
         <script type="application/ld+json">{jsonLd}</script>
       </Helmet>
       <style>{ANIMATIONS}</style>
+      <ProfessionEntryDialog
+        open={professionDialogOpen}
+        onOpenChange={setProfessionDialogOpen}
+      />
 
       {/* Ticker */}
       <div className="bg-gradient-to-r from-blue-600 via-violet-600 to-blue-700 py-2.5 overflow-hidden">
@@ -553,7 +559,7 @@ export default function Landing() {
         </div>
       </header>
 
-      <main id="main-content">
+      <main id="main-content" tabIndex={-1}>
 
         {/* ── Hero ── */}
         <section aria-label={t.landmarks.hero} className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #eff6ff 100%)" }}>
