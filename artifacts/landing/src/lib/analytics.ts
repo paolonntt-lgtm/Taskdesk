@@ -28,6 +28,11 @@ const ALLOWED_PROFESSIONS = new Set<ProfessionId>([
 const ALLOWED_PROFESSION_LANGUAGES = new Set<ProfessionLanguage>(["it", "en"]);
 
 export type ProfessionDialogCloseMethod = "x" | "backdrop" | "escape";
+const ALLOWED_PROFESSION_DIALOG_CLOSE_METHODS: ReadonlySet<string> = new Set([
+  "x",
+  "backdrop",
+  "escape",
+]);
 
 export function trackEvent(name: string, data?: AnalyticsData): void {
   if (typeof window === "undefined") return;
@@ -68,7 +73,10 @@ export function trackProfessionDialogClosed(
   language: unknown,
   method: ProfessionDialogCloseMethod,
 ): void {
-  if (!isProfessionLanguage(language)) return;
+  if (
+    !isProfessionLanguage(language) ||
+    !ALLOWED_PROFESSION_DIALOG_CLOSE_METHODS.has(method)
+  ) return;
   trackEvent("profession_dialog_closed", { language, method });
 }
 
