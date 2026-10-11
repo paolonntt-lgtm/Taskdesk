@@ -1,104 +1,135 @@
-import { ArrowRight, Check, Mail, MessageCircle, Search, UserRound, X } from "lucide-react";
-import { TicketChatMockup } from "./Current";
+import { ArrowDown, Check, FileText, Mail, MessageCircle } from "lucide-react";
 import "./_group.css";
 
-const scenarios = [
-  { icon: MessageCircle, text: "Un messaggio WhatsApp dimenticato", number: "01" },
-  { icon: UserRound, text: "Una richiesta senza responsabile", number: "02" },
-  { icon: Search, text: "Una soluzione che nessuno riesce più a trovare", number: "03" },
-];
+function SourceCard({
+  icon: Icon,
+  label,
+  title,
+  note,
+  iconClass,
+  className,
+}: {
+  icon: typeof Mail;
+  label: string;
+  title: string;
+  note: string;
+  iconClass: string;
+  className: string;
+}) {
+  return (
+    <div className={`absolute z-10 w-[178px] rounded-2xl border border-white bg-white/95 p-3.5 shadow-[0_12px_34px_#24324a14] ${className}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`grid h-7 w-7 place-items-center rounded-lg ${iconClass}`}><Icon size={14} /></span>
+        <span className="text-[11px] font-bold text-gray-600">{label}</span>
+      </div>
+      <p className="text-xs font-semibold leading-snug text-gray-800">{title}</p>
+      <p className="mt-1 text-[10px] leading-snug text-gray-400">{note}</p>
+    </div>
+  );
+}
+
+function UnifiedRequestVisual() {
+  return (
+    <div className="relative h-[460px] w-full max-w-[490px]" aria-label="Messaggi, email e appunti riuniti in una pratica TaskDesk">
+      <div className="absolute inset-[5%] rounded-full border border-blue-100/80" />
+      <div className="absolute inset-[15%] rounded-full border border-violet-100/70" />
+      <div className="absolute left-[25%] top-[15%] h-[280px] w-[280px] rounded-full bg-blue-100/70 blur-3xl" />
+
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 490 460" fill="none" aria-hidden="true">
+        <path d="M102 116 C112 205 171 253 226 303" stroke="#93B4FA" strokeWidth="2" strokeDasharray="5 7" />
+        <path d="M388 66 C378 178 322 247 272 303" stroke="#A99AF2" strokeWidth="2" strokeDasharray="5 7" />
+        <path d="M90 256 C143 267 185 281 225 310" stroke="#86C9AE" strokeWidth="2" strokeDasharray="5 7" />
+        <circle cx="226" cy="303" r="5" fill="#2563EB" />
+        <circle cx="272" cy="303" r="5" fill="#7C3AED" />
+      </svg>
+
+      <SourceCard
+        icon={MessageCircle}
+        label="WhatsApp"
+        title="«Mi ricordi a che punto siamo?»"
+        note="Messaggio di ieri · 10:12"
+        iconClass="bg-green-50 text-green-600"
+        className="left-0 top-[58px] rotate-[-4deg]"
+      />
+      <SourceCard
+        icon={Mail}
+        label="Email"
+        title="Documenti per la dichiarazione"
+        note="Da Carla M. · ieri"
+        iconClass="bg-blue-50 text-blue-600"
+        className="right-0 top-[20px] rotate-[3deg]"
+      />
+      <SourceCard
+        icon={FileText}
+        label="Appunto"
+        title="Manca la CU dell’anno scorso"
+        note="Nota presa al telefono"
+        iconClass="bg-amber-50 text-amber-600"
+        className="left-[9px] top-[218px] rotate-[3deg]"
+      />
+
+      <div className="absolute bottom-[18px] left-1/2 z-20 w-[min(340px,88%)] -translate-x-1/2 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-[0_22px_60px_#2855a71f]">
+        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-blue-500">Tutto al suo posto</div>
+            <div className="text-sm font-bold text-gray-900">Pratica #5</div>
+            <div className="mt-1 text-xs text-gray-500">Documenti per la dichiarazione</div>
+          </div>
+          <span className="rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-bold text-green-700">In carico</span>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3">
+          <div className="flex -space-x-2">
+            <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-violet-500 text-[9px] font-bold text-white">CM</span>
+            <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-blue-600 text-[9px] font-bold text-white">LB</span>
+          </div>
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-gray-500">
+            <span className="text-blue-500">3</span> fonti riunite
+          </span>
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-600 text-white"><Check size={14} strokeWidth={2.5} /></span>
+        </div>
+      </div>
+      <div className="absolute bottom-[142px] left-1/2 z-10 grid h-8 w-8 -translate-x-1/2 place-items-center rounded-full border border-blue-100 bg-white text-blue-500 shadow-sm">
+        <ArrowDown size={15} />
+      </div>
+    </div>
+  );
+}
 
 export function FreshHero() {
   return (
-    <main className="taskdesk-hero-root min-h-[100dvh] overflow-hidden bg-[#f5f2e9] text-[#183b37]">
-      <section className="relative isolate min-h-[760px] overflow-hidden">
-        <div className="absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_76%_45%,#e8e5d5_0%,#f5f2e9_48%,#f5f2e9_100%)]" />
-        <div className="pointer-events-none absolute -right-28 top-16 -z-10 h-[650px] w-[650px] rounded-full border border-[#d6d4c8] opacity-70" />
-        <div className="pointer-events-none absolute -right-12 top-32 -z-10 h-[520px] w-[520px] rounded-full border border-[#d6d4c8] opacity-55" />
-        <div className="pointer-events-none absolute bottom-[-210px] left-[-150px] -z-10 h-[430px] w-[430px] rounded-full bg-[#e8dfc7]/55 blur-3xl" />
-
-        <div className="mx-auto max-w-[1360px] px-6 pb-10 pt-6 sm:px-10 lg:px-16 lg:pb-10 lg:pt-7">
-          <nav className="mb-9 flex items-center justify-between sm:mb-12" aria-label="Navigazione">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#183b37] text-[#f5f2e9]">
-                <span className="text-lg font-black tracking-[-.1em]">td</span>
-              </span>
-              <span className="text-[19px] font-extrabold tracking-[-.05em]">taskdesk</span>
-            </div>
-            <span className="hidden items-center gap-2 rounded-full border border-[#d9d7cc] bg-[#f8f6f0]/80 px-4 py-2 text-xs font-semibold tracking-wide text-[#65736c] sm:inline-flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#b16d48]" />
-              IL LAVORO, FINALMENTE IN ORDINE
-            </span>
-          </nav>
-
-          <div className="grid items-center gap-9 lg:grid-cols-[1.04fr_.96fr] lg:gap-6">
-            <div className="relative z-10 max-w-[650px]">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d8d4c7] bg-[#f8f6ef] px-3.5 py-2 text-xs font-bold text-[#49625a] shadow-[0_3px_12px_#314c3b0b]">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-[#dce8d9] text-[#365847]"><Check size={12} strokeWidth={3} /></span>
-                7 giorni di prova, senza pensieri
+    <main className="taskdesk-hero-root min-h-screen overflow-hidden bg-white text-gray-900">
+      <section className="relative overflow-hidden bg-[linear-gradient(135deg,#eff6ff_0%,#f5f3ff_50%,#eff6ff_100%)]">
+        <div className="pointer-events-none absolute -right-[60px] -top-[60px] h-[450px] w-[450px] rounded-full border border-blue-100 opacity-50" />
+        <div className="pointer-events-none absolute -bottom-[40px] -left-[40px] h-[300px] w-[300px] rounded-full border border-violet-100 opacity-40" />
+        <div className="relative mx-auto max-w-6xl px-8 py-20 lg:py-24">
+          <div className="grid items-center gap-14 lg:grid-cols-2">
+            <div>
+              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+                <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" /></span>
+                7 giorni gratis — Nessuna carta di credito richiesta
               </div>
-
-              <h1 className="mb-5 max-w-[680px] text-[clamp(2.3rem,4.2vw,3.6rem)] font-black leading-[1.01] tracking-[-.065em] text-[#183b37]">
-                Ti è mai capitato di sapere che qualcuno ne aveva parlato,
-                <span className="relative mt-1 block font-['Fraunces',Georgia,serif] font-medium italic tracking-[-.055em] text-[#b16d48]">
-                  ma non ricordare dove?
-                  <svg className="absolute -bottom-3 left-0 h-3 w-[78%]" viewBox="0 0 460 14" fill="none" aria-hidden="true">
-                    <path d="M3 10C100 2 267 1 456 8" stroke="#d9a47d" strokeWidth="5" strokeLinecap="round" />
-                  </svg>
-                </span>
+              <h1 className="mb-5 text-4xl font-black leading-[1.05] tracking-tighter md:text-5xl">
+                Ti è mai capitato di sapere che qualcuno ne aveva parlato,<br />
+                <span className="taskdesk-hero-gradient-text">ma non ricordare dove?</span>
               </h1>
-
-              <p className="mb-4 max-w-[470px] text-[15px] leading-6 text-[#65736c]">
-                Chat, email, memoria. Le richieste importanti si perdono nel rumore — finché non c’è un posto solo per ritrovarle.
-              </p>
-
-              <ul aria-label="Situazioni quotidiane" className="mb-5 max-w-[520px]">
-                {scenarios.map(({ icon: Icon, text, number }) => (
-                  <li key={number} className="group flex items-center gap-4 border-t border-[#d9d7cc] py-2.5 first:border-t-0">
-                    <span className="w-7 font-mono text-[10px] tracking-wider text-[#ad795d]">{number}</span>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e9e5d9] text-[#66776b] transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-                      <Icon size={16} strokeWidth={1.8} />
-                    </span>
-                    <span className="text-[14px] font-semibold tracking-[-.015em] text-[#344f47]">{text}</span>
-                    <X size={14} className="ml-auto text-[#c1bdb0]" aria-hidden="true" />
-                  </li>
-                ))}
+              <p className="mb-5 max-w-md text-base leading-relaxed text-gray-500">Capita quando il lavoro resta sparso tra chat, email e memoria delle persone.</p>
+              <ul aria-label="Situazioni quotidiane" className="mb-7 grid gap-2">
+                <li className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/65 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm"><span className="text-lg">💬</span>Un messaggio WhatsApp dimenticato</li>
+                <li className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/65 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm"><span className="text-lg">🙋</span>Una richiesta senza responsabile</li>
+                <li className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/65 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm"><span className="text-lg">🔎</span>Una soluzione che nessuno riesce più a trovare</li>
               </ul>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button className="group flex items-center justify-center gap-4 rounded-xl bg-[#b16d48] px-6 py-3.5 text-[15px] font-bold text-[#fffaf0] shadow-[0_10px_24px_#a9684440] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#9e5e3d] hover:shadow-[0_14px_28px_#a968444a]">
-                  Inizia gratis — 7 giorni
-                  <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
-                </button>
-                <span className="text-xs font-medium text-[#77827a]">Attivi in pochi minuti</span>
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+                <button className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-200">Inizia gratis — 7 giorni →</button>
+                <a href="#who-uses" className="rounded-xl border-2 border-gray-200 px-8 py-4 text-center font-semibold text-gray-600">Scopri le categorie</a>
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-semibold text-[#68756d]">
-                <span className="inline-flex items-center gap-1.5"><Check size={13} className="text-[#6e8a68]" />Nessuna carta di credito</span>
-                <span className="inline-flex items-center gap-1.5"><Check size={13} className="text-[#6e8a68]" />Cancella quando vuoi</span>
+              <div className="flex flex-col gap-2">
+                <div className="text-sm font-medium text-gray-400"><span className="text-green-500">✓</span> 7 giorni gratis <span className="mx-2 text-gray-200">·</span><span className="text-green-500">✓</span> Nessuna carta <span className="mx-2 text-gray-200">·</span><span className="text-green-500">✓</span> Cancella quando vuoi</div>
+                <p className="text-xs italic text-gray-400">Usato da studi commerciali, agenzie e consulenti in tutta Italia</p>
               </div>
-              <p className="mt-4 text-[11px] font-medium tracking-[.015em] text-[#889087]">
-                Usato da studi commerciali, agenzie e consulenti in tutta Italia
-              </p>
             </div>
-
-            <div className="relative flex min-h-[500px] items-center justify-center lg:min-h-[570px]">
-              <div className="absolute right-[4%] top-[9%] h-[440px] w-[440px] rounded-full bg-[#e2e6d7] opacity-75" />
-              <div className="absolute right-[13%] top-[17%] h-[350px] w-[350px] rounded-full border border-[#c5cabb]" />
-              <div className="absolute left-[6%] top-[17%] z-10 flex items-center gap-2 rounded-full border border-[#dedace] bg-[#f8f6ef] px-3 py-2 text-[10px] font-semibold text-[#66756c] shadow-sm">
-                <Mail size={13} className="text-[#b16d48]" /> email
-                <span className="mx-1 text-[#c7c2b6]">+</span>
-                <MessageCircle size={13} className="text-[#82937b]" /> chat
-              </div>
-              <div className="relative z-10 w-full max-w-[380px] translate-x-1 lg:translate-x-4">
-                <TicketChatMockup lang="it" />
-              </div>
-              <div className="absolute bottom-[8%] right-[4%] z-20 flex items-center gap-2 rounded-xl border border-[#d8d8ca] bg-[#f8f6ef] px-3.5 py-3 shadow-[0_8px_30px_#30483b15]">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-[#dce8d9] text-[#45644d]"><Check size={14} strokeWidth={2.5} /></span>
-                <span><span className="block text-[10px] font-bold text-[#28453d]">Soluzione trovata</span><span className="block text-[9px] text-[#879087]">e salvata per il team</span></span>
-              </div>
-              <span className="absolute bottom-[2%] left-[10%] font-mono text-[9px] uppercase tracking-[.18em] text-[#9a9c8e]">Ogni richiesta, al suo posto</span>
-            </div>
+            <div className="hidden justify-end lg:flex"><UnifiedRequestVisual /></div>
           </div>
+          <div className="mt-12 flex justify-center lg:hidden"><UnifiedRequestVisual /></div>
         </div>
       </section>
     </main>
