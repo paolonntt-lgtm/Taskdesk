@@ -28,3 +28,4 @@
 - [Logo commercialisti](accountants-logo.md) — Usa il logo rosso fornito dall'utente per tutte le rappresentazioni dei commercialisti.
 - [Logo consulenti del lavoro](labor-consultant-logo.md) — Usa il logo giallo e nero fornito dall'utente per tutte le rappresentazioni dei consulenti del lavoro.
 - [Profession labels](profession-labels.md) — Use singular job titles in the Italian and English profession chooser and cards.
+- [Profession mark presentation](profession-mark-presentation.md) — Keep all profession marks in identical white, fixed-size tiles while preserving each logo's proportions.

@@ -14,7 +14,7 @@ export function ProfessionMark({ profile, className = "" }: ProfessionMarkProps)
 
   return (
     <span
-      className={`flex h-10 w-20 shrink-0 items-center justify-center ${className}`}
+      className={`flex h-10 w-20 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white ${className}`}
       aria-hidden="true"
     >
       {profile.logo ? (

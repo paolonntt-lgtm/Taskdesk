@@ -79,18 +79,18 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
               key={profile.profession}
               href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}${campaignQuery}`}
               onClick={() => trackProfessionDialogProfessionSelected(profile.profession, lang)}
-              className="group flex min-h-36 flex-col rounded-2xl border border-slate-200 bg-white p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:min-h-48 sm:p-5"
+              className="group flex min-h-36 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:min-h-48 sm:p-5"
               data-testid={`link-entry-profession-${profile.profession}`}
             >
               <ProfessionMark
                 profile={profile}
-                className="mb-4 h-11 rounded-xl bg-blue-50"
+                className="mb-4"
               />
-              <span className="flex items-start justify-between gap-2 text-base font-extrabold text-slate-900">
+              <span className="relative block w-full px-5 text-center text-base font-extrabold text-slate-900">
                 {profile.title}
-                <ArrowUpRight aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                <ArrowUpRight aria-hidden="true" className="absolute right-0 top-0 h-4 w-4 text-blue-600 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </span>
-              <span className="mt-2 text-sm leading-5 text-slate-600">
+              <span className="mt-2 w-full text-center text-sm leading-5 text-slate-600">
                 {profile.desc}
               </span>
             </Link>

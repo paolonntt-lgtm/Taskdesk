@@ -645,13 +645,13 @@ export default function Landing() {
                 <ScrollReveal key={i} delay={i * 0.1}>
                   <Link
                     href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
-                    className="ld-card-hover block bg-white rounded-2xl border border-gray-100 p-8 h-full shadow-sm transition-all hover:border-blue-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    className="ld-card-hover flex h-full flex-col items-center rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm transition-all hover:border-blue-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                     data-testid={`link-profession-card-${profile.profession}`}
                   >
                     <ProfessionMark profile={profile} className="mb-4" />
-                    <h3 className="font-black text-xl mb-2 text-gray-900">{profile.title}</h3>
-                    <p className="text-gray-700 font-medium mb-3 text-sm leading-relaxed">{profile.desc}</p>
-                    <p className="text-gray-400 text-sm leading-relaxed">{profile.detail}</p>
+                    <h3 className="mb-2 w-full text-center text-xl font-black text-gray-900">{profile.title}</h3>
+                    <p className="mb-3 w-full text-center text-sm font-medium leading-relaxed text-gray-700">{profile.desc}</p>
+                    <p className="w-full text-center text-sm leading-relaxed text-gray-400">{profile.detail}</p>
                   </Link>
                 </ScrollReveal>
               ))}

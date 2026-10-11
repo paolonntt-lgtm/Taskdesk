@@ -91,6 +91,29 @@ describe("ProfessionEntryDialog", () => {
     expect(accountantsMark?.className).toBe("h-10 w-20 object-contain");
     expect(lawyersMark?.className).toBe("h-10 w-10 object-contain");
     expect(consultantsMark?.className).toBe("h-10 w-10 object-contain");
+
+    const markBackgrounds = [
+      accountantsMark,
+      lawyersMark,
+      consultantsMark,
+    ].map((image) => image?.parentElement?.className);
+    expect(markBackgrounds.every((className) => className?.includes("bg-white"))).toBe(true);
+    expect(new Set(markBackgrounds.map((className) => className?.replace(" mb-4", ""))).size).toBe(1);
+  });
+
+  it("centers each profession mark, title, and description", async () => {
+    await renderOpenDialog();
+
+    const cards = document.querySelectorAll<HTMLElement>(
+      '[data-testid^="link-entry-profession-"]',
+    );
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect(card.classList.contains("items-center")).toBe(true);
+      expect(card.classList.contains("text-center")).toBe(true);
+      expect(card.querySelector(".relative.block")?.classList.contains("text-center")).toBe(true);
+      expect(card.querySelector(".mt-2.w-full")?.classList.contains("text-center")).toBe(true);
+    }
   });
 
   it.each([
