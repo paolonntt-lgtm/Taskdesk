@@ -19,8 +19,17 @@ const routes = [
     sections: [
       "Un messaggio dimenticato. Una richiesta senza responsabile.",
       "Conversazioni semplici. Lavoro organizzato.",
-      "Il team ricorda anche quando la chat è finita.",
+      "Un problema risolto oggi non deve tornare un problema domani.",
       "TaskDesk si adatta al tuo lavoro.",
+    ],
+    memoryContent: [
+      "Cerca nello storico",
+      "Accesso al portale cliente",
+      "Attività collegate",
+      "Recupero password area clienti",
+      "Soluzioni in evidenza",
+      "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
+      "Marta Rossi",
     ],
     mockupContent: [
       "Task #128",
@@ -44,8 +53,17 @@ const routes = [
     sections: [
       "A forgotten message. An unassigned request.",
       "Simple conversations. Organized work.",
-      "The team remembers, even after the chat ends.",
+      "A problem solved today should not become tomorrow’s problem.",
       "TaskDesk adapts to the way you work.",
+    ],
+    memoryContent: [
+      "Search history",
+      "Customer portal access",
+      "Related tasks",
+      "Reset customer portal password",
+      "Solution highlighted",
+      "Access restored. Login checked and instructions sent to the customer.",
+      "Marta Rossi",
     ],
     mockupContent: [
       "Task #128",
@@ -83,6 +101,9 @@ for (const route of routes) {
   assert.ok(bodyText.includes(route.cta), `${route.path} must render its localized primary call to action`);
   for (const sectionCopy of route.sections) {
     assert.ok(bodyText.includes(sectionCopy), `${route.path} must render "${sectionCopy}"`);
+  }
+  for (const memoryCopy of route.memoryContent) {
+    assert.ok(bodyText.includes(memoryCopy), `${route.path} must render team-memory content "${memoryCopy}"`);
   }
   for (const mockupCopy of route.mockupContent) {
     assert.ok(bodyText.includes(mockupCopy), `${route.path} must render the activity mockup detail "${mockupCopy}"`);

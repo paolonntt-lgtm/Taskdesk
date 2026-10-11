@@ -73,10 +73,15 @@ interface Translations {
     subtitle: string;
     searchTitle: string;
     searchDescription: string;
+    historyResult: string;
+    historyMeta: string;
     linkedTitle: string;
     linkedDescription: string;
+    relatedResult: string;
+    relatedMeta: string;
     solutionTitle: string;
     solutionDescription: string;
+    solutionAuthor: string;
   };
   workStatistic: {
     statement: string;
@@ -294,14 +299,19 @@ const translations: Record<Language, Translations> = {
       solutionLabel: "Soluzione contrassegnata",
     },
     teamMemory: {
-      title: "Il team ricorda anche quando la chat è finita.",
-      subtitle: "Lo storico resta ricercabile: ritrova il contesto, collega attività simili e metti in evidenza ciò che ha risolto il problema.",
+      title: "Un problema risolto oggi non deve tornare un problema domani.",
+      subtitle: "Cerca nello storico, collega le attività simili e metti in evidenza la soluzione efficace: il team potrà ritrovarla e riutilizzarla.",
       searchTitle: "Cerca nello storico",
       searchDescription: "“accesso portale cliente”",
+      historyResult: "Accesso al portale cliente",
+      historyMeta: "Pratica #128 · Risolta il 12 settembre",
       linkedTitle: "Attività collegate",
-      linkedDescription: "Riunisci richieste simili e il loro contesto.",
+      linkedDescription: "Richiesta simile per recuperare l’accesso.",
+      relatedResult: "Recupero password area clienti",
+      relatedMeta: "Pratica #096 · Risolta il 3 luglio",
       solutionTitle: "Soluzioni in evidenza",
-      solutionDescription: "La risposta giusta si ritrova anche la prossima volta.",
+      solutionDescription: "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
+      solutionAuthor: "Marta Rossi",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -546,14 +556,19 @@ const translations: Record<Language, Translations> = {
       solutionLabel: "Marked as solution",
     },
     teamMemory: {
-      title: "The team remembers, even after the chat ends.",
-      subtitle: "Search the history, recover context, connect similar tasks and highlight what solved the problem.",
+      title: "A problem solved today should not become tomorrow’s problem.",
+      subtitle: "Search the history, connect similar tasks, and highlight the solution that worked so the whole team can find and reuse it.",
       searchTitle: "Search history",
       searchDescription: "“customer portal access”",
+      historyResult: "Customer portal access",
+      historyMeta: "Request #128 · Resolved Sep 12",
       linkedTitle: "Related tasks",
-      linkedDescription: "Keep similar requests and their context together.",
-      solutionTitle: "Highlighted solutions",
-      solutionDescription: "Find the right answer again next time.",
+      linkedDescription: "A similar request about restoring access.",
+      relatedResult: "Reset customer portal password",
+      relatedMeta: "Request #096 · Resolved Jul 3",
+      solutionTitle: "Solution highlighted",
+      solutionDescription: "Access restored. Login checked and instructions sent to the customer.",
+      solutionAuthor: "Marta Rossi",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",
