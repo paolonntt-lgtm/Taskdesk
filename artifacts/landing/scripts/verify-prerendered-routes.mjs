@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
 
 const publicDir = resolve(import.meta.dirname, "../dist/public");
+const { PROFESSION_IDS, PROFESSION_SLUGS, getProfessionPageProps, PROFESSIONS } =
+  await import("../dist/server/entry-server.js");
 const routes = [
   {
     path: "/it/",
@@ -56,4 +58,94 @@ for (const route of routes) {
   assert.equal(website?.inLanguage, route.lang, `${route.path} structured data must preserve the locale`);
 
   console.log(`✓ ${route.path} prerendered content and locale metadata`);
+}
+
+for (const profession of PROFESSION_IDS) {
+  const pageProps = getProfessionPageProps(profession);
+
+  for (const lang of ["it", "en"]) {
+    const slug = PROFESSION_SLUGS[lang][profession];
+    const routePath = `/${lang}/${slug}`;
+    const filePath = resolve(publicDir, lang, slug, "index.html");
+    const html = readFileSync(filePath, "utf8");
+    const document = new JSDOM(html).window.document;
+    const bodyText = document.body.textContent ?? "";
+    const pageCopy = PROFESSIONS[profession][lang];
+    const otherLanguage = lang === "it" ? "en" : "it";
+    const metadata = pageProps.metadata[lang];
+    const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href");
+    const description = document.querySelector('meta[name="description"]')?.getAttribute("content");
+    const ogLocale = document.querySelector('meta[property="og:locale"]')?.getAttribute("content");
+    const jsonLdElement = document.querySelector('script[type="application/ld+json"]');
+
+    assert.equal(document.documentElement.lang, lang, `${routePath} must set the HTML language`);
+    assert.equal(document.title, metadata.title, `${routePath} must have its localized title`);
+    assert.equal(description, metadata.description, `${routePath} must have its localized description`);
+    assert.equal(canonical, metadata.canonical, `${routePath} must have its matching canonical URL`);
+    assert.equal(ogLocale, lang === "it" ? "it_IT" : "en_US", `${routePath} must have its localized Open Graph locale`);
+    assert.equal(
+      document.querySelector('meta[property="og:url"]')?.getAttribute("content"),
+      metadata.canonical,
+      `${routePath} Open Graph URL must match its canonical URL`,
+    );
+    assert.equal(
+      document.querySelector('meta[property="og:title"]')?.getAttribute("content"),
+      metadata.title,
+      `${routePath} must have its localized Open Graph title`,
+    );
+    assert.equal(
+      document.querySelector('meta[property="og:description"]')?.getAttribute("content"),
+      metadata.description,
+      `${routePath} must have its localized Open Graph description`,
+    );
+    assert.equal(
+      document.querySelector('meta[name="twitter:title"]')?.getAttribute("content"),
+      metadata.title,
+      `${routePath} must have its localized Twitter title`,
+    );
+    assert.equal(
+      document.querySelector('meta[name="twitter:description"]')?.getAttribute("content"),
+      metadata.description,
+      `${routePath} must have its localized Twitter description`,
+    );
+
+    const alternateLinks = [...document.querySelectorAll('link[rel="alternate"][hreflang]')];
+    const alternates = Object.fromEntries(
+      alternateLinks.map((link) => [link.getAttribute("hreflang"), link.getAttribute("href")]),
+    );
+    assert.equal(alternateLinks.length, 3, `${routePath} must have exactly three hreflang links`);
+    assert.deepEqual(
+      alternates,
+      {
+        it: metadata.alternates.it,
+        en: metadata.alternates.en,
+        "x-default": metadata.alternates.xDefault,
+      },
+      `${routePath} must link to the matching Italian, English, and default routes`,
+    );
+
+    assert.equal(
+      document.querySelector("h1")?.textContent?.trim(),
+      pageCopy.headline,
+      `${routePath} must render its localized profession headline`,
+    );
+    assert.ok(bodyText.includes(pageCopy.intro), `${routePath} must render its localized introduction`);
+    assert.ok(bodyText.includes(pageCopy.workflowHeading), `${routePath} must render localized workflow content`);
+    assert.ok(bodyText.includes(pageCopy.primaryCta), `${routePath} must render its localized call to action`);
+    assert.ok(
+      !bodyText.includes(PROFESSIONS[profession][otherLanguage].headline),
+      `${routePath} must not render the other language's profession headline`,
+    );
+
+    assert.ok(jsonLdElement, `${routePath} must include structured data`);
+    const jsonLd = JSON.parse(jsonLdElement.textContent ?? "");
+    assert.equal(jsonLd["@type"], "WebPage", `${routePath} structured data must describe a web page`);
+    assert.equal(jsonLd["@id"], `${metadata.canonical}#webpage`, `${routePath} structured data must use its canonical URL`);
+    assert.equal(jsonLd.url, metadata.canonical, `${routePath} structured data URL must match its canonical URL`);
+    assert.equal(jsonLd.name, metadata.title, `${routePath} structured data must use its localized title`);
+    assert.equal(jsonLd.description, metadata.description, `${routePath} structured data must use its localized description`);
+    assert.equal(jsonLd.inLanguage, lang, `${routePath} structured data must preserve the route language`);
+
+    console.log(`✓ ${routePath} profession content and locale metadata`);
+  }
 }

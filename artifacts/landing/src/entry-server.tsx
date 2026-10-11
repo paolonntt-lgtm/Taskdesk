@@ -13,6 +13,8 @@ import ProfessionLanding from "./pages/ProfessionLanding";
 import { PROFESSION_IDS, PROFESSION_SLUGS, getProfessionPageProps } from "./profession-routes";
 
 export { PROFESSION_IDS, PROFESSION_SLUGS } from "./profession-routes";
+export { getProfessionPageProps } from "./profession-routes";
+export { PROFESSIONS } from "./profession-content";
 
 function makeStaticHook(url: string) {
   return (): [string, (path: string) => void] => [url, () => {}];
