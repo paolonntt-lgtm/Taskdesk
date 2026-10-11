@@ -73,7 +73,8 @@ export function ProfessionLanding({
     } catch {
       // Ignore storage errors; route navigation still changes the page language.
     }
-    navigate(`${routes[nextLang].professions[profession]}${campaignQuery}`);
+    const currentSearch = typeof window === "undefined" ? "" : window.location.search;
+    navigate(`${routes[nextLang].professions[profession]}${currentSearch}`);
   };
 
   return (
