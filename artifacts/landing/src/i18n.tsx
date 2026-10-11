@@ -24,6 +24,7 @@ interface Translations {
     titleLine1: string;
     titleLine2: string;
     subtitle: string;
+    situations: Array<{ icon: string; title: string }>;
     cta: string;
     secondaryCta: string;
     trialBadge: string;
@@ -50,23 +51,9 @@ interface Translations {
     description: string;
     close: string;
   };
-  pain: {
-    title: string;
-    subtitle: string;
-    cards: Array<{ icon: string; title: string; desc: string }>;
-  };
   solution: {
     title: string;
     subtitle: string;
-    ticketTitle: string;
-    status: string;
-    assignedLabel: string;
-    assignee: string;
-    checklistTitle: string;
-    checklist: string[];
-    commentAuthor: string;
-    comment: string;
-    solutionLabel: string;
   };
   teamMemory: {
     title: string;
@@ -195,10 +182,15 @@ const translations: Record<Language, Translations> = {
       login: "Accedi",
     },
     hero: {
-      title: "Le richieste dei tuoi clienti, finalmente in ordine.",
-      titleLine1: "Le richieste dei tuoi clienti,",
-      titleLine2: "finalmente in ordine.",
-      subtitle: "Smetti di rincorrere email e WhatsApp. TaskDesk raccoglie ogni pratica, richiesta e scadenza in un unico posto — con commenti, assegnazioni e soluzioni tracciate.",
+      title: "Ti è mai capitato di sapere che qualcuno ne aveva parlato, ma non ricordare dove?",
+      titleLine1: "Ti è mai capitato di sapere che qualcuno ne aveva parlato,",
+      titleLine2: "ma non ricordare dove?",
+      subtitle: "Capita quando il lavoro resta sparso tra chat, email e memoria delle persone.",
+      situations: [
+        { icon: "💬", title: "Un messaggio WhatsApp dimenticato" },
+        { icon: "🙋", title: "Una richiesta senza responsabile" },
+        { icon: "🔎", title: "Una soluzione che nessuno riesce più a trovare" },
+      ],
       cta: "Inizia gratis — 7 giorni",
       secondaryCta: "Scopri le categorie",
       trialBadge: "7 giorni gratis",
@@ -263,39 +255,9 @@ const translations: Record<Language, Translations> = {
       description: "Scegli il tuo ambito per vedere come TaskDesk si adatta al tuo lavoro. Puoi chiudere questa finestra e continuare sulla pagina generale.",
       close: "Chiudi la scelta della professione",
     },
-    pain: {
-      title: "Un messaggio dimenticato. Una richiesta senza responsabile. Una soluzione introvabile.",
-      subtitle: "Capita quando il lavoro resta sparso tra chat, email e memoria delle persone.",
-      cards: [
-        {
-          icon: "💬",
-          title: "Il messaggio WhatsApp che nessuno ha più visto",
-          desc: "La richiesta era in una chat. La conversazione è andata avanti e quel messaggio è rimasto indietro.",
-        },
-        {
-          icon: "🙋",
-          title: "La richiesta senza un responsabile",
-          desc: "Tutti pensano che se ne stia occupando qualcun altro. Intanto il cliente aspetta.",
-        },
-        {
-          icon: "🔎",
-          title: "La soluzione che non si riesce più a trovare",
-          desc: "Qualcuno aveva già risolto un caso simile, ma la risposta è sepolta in una vecchia conversazione.",
-        },
-      ],
-    },
     solution: {
       title: "Conversazioni semplici. Lavoro organizzato.",
       subtitle: "Commenti, responsabile, checklist e soluzione restano insieme, nello stesso posto.",
-      ticketTitle: "Accesso al portale cliente",
-      status: "Risolta",
-      assignedLabel: "Assegnata a",
-      assignee: "Marta Rossi",
-      checklistTitle: "Checklist",
-      checklist: ["Verificare l’account", "Reimpostare l’accesso", "Avvisare il cliente"],
-      commentAuthor: "Marta Rossi",
-      comment: "Accesso ripristinato. Ho verificato il login e inviato le istruzioni al cliente.",
-      solutionLabel: "Soluzione contrassegnata",
     },
     teamMemory: {
       title: "Un problema risolto oggi non deve tornare un problema domani.",
@@ -451,10 +413,15 @@ const translations: Record<Language, Translations> = {
       login: "Login",
     },
     hero: {
-      title: "Your clients' requests, finally under control.",
-      titleLine1: "Your clients' requests,",
-      titleLine2: "finally under control.",
-      subtitle: "Stop chasing emails and WhatsApp messages. TaskDesk collects every client request, task and deadline in one place — with comments, assignments and tracked solutions.",
+      title: "Have you ever known someone had mentioned something, but couldn’t remember where?",
+      titleLine1: "Have you ever known someone had mentioned something,",
+      titleLine2: "but couldn’t remember where?",
+      subtitle: "It happens when work is scattered across chats, email and people’s memory.",
+      situations: [
+        { icon: "💬", title: "A forgotten WhatsApp message" },
+        { icon: "🙋", title: "A request with no owner" },
+        { icon: "🔎", title: "A solution no one can find anymore" },
+      ],
       cta: "Start free — 7 days",
       secondaryCta: "Browse categories",
       trialBadge: "7 days free",
@@ -519,39 +486,9 @@ const translations: Record<Language, Translations> = {
       description: "Choose your field to see how TaskDesk fits your work. You can close this window and continue to the general page.",
       close: "Close profession selection",
     },
-    pain: {
-      title: "A forgotten message. An unassigned request. A solution no one can find.",
-      subtitle: "It happens when work is scattered across chats, email and people’s memory.",
-      cards: [
-        {
-          icon: "💬",
-          title: "The WhatsApp message no one saw",
-          desc: "The request was in a chat. The conversation moved on, and that message got left behind.",
-        },
-        {
-          icon: "🙋",
-          title: "The request with no owner",
-          desc: "Everyone assumes someone else is handling it. Meanwhile, the customer is waiting.",
-        },
-        {
-          icon: "🔎",
-          title: "The solution no one can find",
-          desc: "Someone solved a similar case before, but the answer is buried in an old conversation.",
-        },
-      ],
-    },
     solution: {
       title: "Simple conversations. Organized work.",
       subtitle: "Comments, owner, checklist and resolution stay together in one place.",
-      ticketTitle: "Customer portal access",
-      status: "Resolved",
-      assignedLabel: "Assigned to",
-      assignee: "Marta Rossi",
-      checklistTitle: "Checklist",
-      checklist: ["Check the account", "Reset access", "Notify the customer"],
-      commentAuthor: "Marta Rossi",
-      comment: "Access restored. I checked the login and sent the instructions to the customer.",
-      solutionLabel: "Marked as solution",
     },
     teamMemory: {
       title: "A problem solved today should not become tomorrow’s problem.",

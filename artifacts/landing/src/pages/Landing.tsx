@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, CheckCircle2, ChevronDown, Search } from "lucide-react";
+import { CheckCircle2, ChevronDown, Search } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
@@ -242,7 +242,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
     : "#5 — Missing documents for tax return filing";
 
   return (
-    <div className="ld-float bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
+    <div data-testid="ticket-chat-mockup" className="ld-float bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
         <div className="text-xs text-gray-400 font-semibold mb-1 uppercase tracking-wide">
           {lang === "it" ? "Pratica" : "Request"}
@@ -336,61 +336,6 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
           <span className="text-gray-300 text-base font-bold">B</span>
           <span className="text-gray-300 text-base italic">I</span>
           <span className="text-gray-300 text-xs font-mono">&lt;&gt;</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductActivityDemo() {
-  const { t } = useLanguage();
-  const demo = t.solution;
-
-  return (
-    <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl shadow-blue-100/70">
-      <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Task #128</div>
-        <div className="text-lg font-bold text-gray-900">{demo.ticketTitle}</div>
-        <span className="mt-3 inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-          {demo.status}
-        </span>
-      </div>
-      <div className="space-y-5 bg-slate-50 px-5 py-5 sm:px-6">
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-          <span className="text-sm text-gray-500">{demo.assignedLabel}</span>
-          <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">MR</span>
-            {demo.assignee}
-          </span>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
-            <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-blue-600" />
-            {demo.checklistTitle}
-          </div>
-          <ul className="space-y-2.5">
-            {demo.checklist.map((item, index) => (
-              <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                <span className="flex h-4 w-4 items-center justify-center rounded border border-green-500 bg-green-500 text-white">
-                  <Check aria-hidden="true" className="h-3 w-3" />
-                </span>
-                <span className="text-gray-400 line-through">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex gap-3">
-          <Avatar initials="MR" color="bg-violet-500" />
-          <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="mb-1 text-xs font-bold text-gray-900">{demo.commentAuthor}</div>
-            <p className="text-sm leading-relaxed text-gray-700">{demo.comment}</p>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-              <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" />
-              {demo.solutionLabel}
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -634,7 +579,7 @@ export default function Landing() {
       <main id="main-content" tabIndex={-1}>
 
         {/* ── Hero ── */}
-        <section aria-label={t.landmarks.hero} className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #eff6ff 100%)" }}>
+        <section id="pain" aria-label={t.landmarks.hero} className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #eff6ff 100%)" }}>
           <div className="absolute top-[-60px] right-[-60px] w-[450px] h-[450px] rounded-full border border-blue-100 opacity-50 pointer-events-none" />
           <div className="absolute bottom-[-40px] left-[-40px] w-[300px] h-[300px] rounded-full border border-violet-100 opacity-40 pointer-events-none" />
 
@@ -651,15 +596,24 @@ export default function Landing() {
                   {t.hero.trialBadge} — {t.hero.trialNote}
                 </div>
 
-                <h1 className="ld-fade-up-1 text-5xl md:text-6xl font-black tracking-tighter leading-[1.05] mb-6">
+                <h1 className="ld-fade-up-1 text-4xl md:text-5xl font-black tracking-tighter leading-[1.05] mb-5">
                   {t.hero.titleLine1}
                   <br />
                   <span className="ld-gradient-text">{t.hero.titleLine2}</span>
                 </h1>
 
-                <p className="ld-fade-up-2 text-lg text-gray-500 leading-relaxed mb-10 max-w-md">
+                <p className="ld-fade-up-2 text-base text-gray-500 leading-relaxed mb-5 max-w-md">
                   {t.hero.subtitle}
                 </p>
+
+                <ul className="ld-fade-up-3 mb-7 grid gap-2" aria-label={lang === "it" ? "Situazioni quotidiane" : "Everyday situations"}>
+                  {t.hero.situations.map((situation) => (
+                    <li key={situation.title} className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/65 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm">
+                      <span aria-hidden="true" className="text-lg">{situation.icon}</span>
+                      <span>{situation.title}</span>
+                    </li>
+                  ))}
+                </ul>
 
                 <div className="ld-fade-up-3 flex flex-col sm:flex-row gap-4 mb-6">
                   <button
@@ -699,35 +653,9 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Il problema ── */}
-        <section id="pain" aria-label={t.landmarks.problem} className="py-24 px-6 md:px-8" style={{ background: "linear-gradient(135deg, #fef9f0 0%, #fdf4ff 100%)" }}>
-          <div className="max-w-5xl mx-auto">
-            <ScrollReveal>
-              <div className="text-center mb-14">
-                <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4 leading-tight text-gray-900">
-                  {t.pain.title}
-                </h2>
-                <p className="text-gray-500 text-lg max-w-xl mx-auto">{t.pain.subtitle}</p>
-              </div>
-            </ScrollReveal>
-
-            <WorkStatistic />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {t.pain.cards.map((card, i) => (
-                <ScrollReveal key={i} delay={i * 0.1}>
-                  <div className="bg-white rounded-2xl border border-orange-100 p-7 h-full shadow-sm">
-                    <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-2xl mb-5">
-                      {card.icon}
-                    </div>
-                    <h3 className="font-bold text-base mb-2 text-gray-900">{card.title}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">{card.desc}</p>
-                  </div>
-                </ScrollReveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        <div className="px-6 pt-10 md:px-8">
+          <WorkStatistic />
+        </div>
 
         {/* ── La soluzione ── */}
         <section id="solution" aria-label={t.landmarks.features} className="py-24 px-6 md:px-8">
@@ -749,7 +677,7 @@ export default function Landing() {
               </div>
             </ScrollReveal>
             <ScrollReveal delay={0.1} className="flex justify-center">
-              <ProductActivityDemo />
+              <TicketChatMockup lang={lang} />
             </ScrollReveal>
           </div>
         </section>

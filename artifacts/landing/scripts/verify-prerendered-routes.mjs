@@ -13,11 +13,15 @@ const routes = [
     locale: "it_IT",
     title: "Gestione Pratiche per Studi e Agenzie",
     description: "Raccogli le richieste dei clienti",
-    hero: ["Le richieste dei tuoi clienti,", "finalmente in ordine."],
+    hero: ["Ti è mai capitato di sapere che qualcuno ne aveva parlato,", "ma non ricordare dove?"],
+    heroSituations: [
+      "Un messaggio WhatsApp dimenticato",
+      "Una richiesta senza responsabile",
+      "Una soluzione che nessuno riesce più a trovare",
+    ],
     navigation: "Il prodotto",
     cta: "Inizia gratis — 7 giorni",
     sections: [
-      "Un messaggio dimenticato. Una richiesta senza responsabile.",
       "Conversazioni semplici. Lavoro organizzato.",
       "Un problema risolto oggi non deve tornare un problema domani.",
       "TaskDesk si adatta al tuo lavoro.",
@@ -32,12 +36,9 @@ const routes = [
       "Marta Rossi",
     ],
     mockupContent: [
-      "Task #128",
+      "#5 — Documenti mancanti per dichiarazione dei redditi",
       "Risolta",
-      "Marta Rossi",
-      "Checklist",
-      "Soluzione contrassegnata",
-      "Accesso ripristinato. Ho verificato il login e inviato le istruzioni al cliente.",
+      "Fiscale",
     ],
     removedExamples: ["Accesso non riuscito", "Preparare la demo"],
   },
@@ -47,11 +48,15 @@ const routes = [
     locale: "en_US",
     title: "Practice Management for Firms & Agencies",
     description: "Collect every client request in one place",
-    hero: ["Your clients' requests,", "finally under control."],
+    hero: ["Have you ever known someone had mentioned something,", "but couldn’t remember where?"],
+    heroSituations: [
+      "A forgotten WhatsApp message",
+      "A request with no owner",
+      "A solution no one can find anymore",
+    ],
     navigation: "Product",
     cta: "Start free — 7 days",
     sections: [
-      "A forgotten message. An unassigned request.",
       "Simple conversations. Organized work.",
       "A problem solved today should not become tomorrow’s problem.",
       "TaskDesk adapts to the way you work.",
@@ -66,12 +71,9 @@ const routes = [
       "Marta Rossi",
     ],
     mockupContent: [
-      "Task #128",
+      "#5 — Missing documents for tax return filing",
       "Resolved",
-      "Marta Rossi",
-      "Checklist",
-      "Marked as solution",
-      "Access restored. I checked the login and sent the instructions to the customer.",
+      "Tax",
     ],
     removedExamples: ["Unable to sign in", "Prepare the demo"],
   },
@@ -97,6 +99,9 @@ for (const route of routes) {
   assert.equal(ogLocale, route.locale, `${route.path} must have its localized Open Graph locale`);
   assert.ok(heading.includes(route.hero[0]), `${route.path} must render its localized hero headline`);
   assert.ok(heading.includes(route.hero[1]), `${route.path} must render the complete localized hero headline`);
+  for (const situation of route.heroSituations) {
+    assert.ok(heading.includes(situation) || bodyText.includes(situation), `${route.path} must render hero situation "${situation}"`);
+  }
   assert.ok(bodyText.includes(route.navigation), `${route.path} must render localized navigation`);
   assert.ok(bodyText.includes(route.cta), `${route.path} must render its localized primary call to action`);
   for (const sectionCopy of route.sections) {
@@ -108,6 +113,11 @@ for (const route of routes) {
   for (const mockupCopy of route.mockupContent) {
     assert.ok(bodyText.includes(mockupCopy), `${route.path} must render the activity mockup detail "${mockupCopy}"`);
   }
+  assert.equal(
+    document.querySelectorAll('[data-testid="ticket-chat-mockup"]').length,
+    3,
+    `${route.path} must reuse the hero activity mockup in the solution section`,
+  );
   for (const removedExample of route.removedExamples) {
     assert.ok(!bodyText.includes(removedExample), `${route.path} must not render removed example "${removedExample}"`);
   }
