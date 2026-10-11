@@ -4,7 +4,7 @@ import { Link, useLocation } from "wouter";
 import { ArrowRight, ArrowUpRight, Check, Clock3, ClipboardList, MessagesSquare } from "lucide-react";
 import { useLanguage } from "@/i18n";
 import { PROFESSIONS, type ProfessionId, type ProfessionLanguage } from "../profession-content";
-import { trackProfessionalTrialCta } from "../lib/analytics";
+import { trackProfessionalTrialCta, type ProfessionalCampaign } from "../lib/analytics";
 
 export interface ProfessionSeoMetadata {
   title: string;
@@ -26,16 +26,23 @@ export interface ProfessionLandingProps {
   profession: ProfessionId;
   metadata: Record<ProfessionLanguage, ProfessionSeoMetadata>;
   routes: Record<ProfessionLanguage, ProfessionRouteSet>;
+  campaign?: ProfessionalCampaign;
 }
 
 const APP_URL = "/app/";
 
-export function ProfessionLanding({ profession, metadata, routes }: ProfessionLandingProps) {
+export function ProfessionLanding({
+  profession,
+  metadata,
+  routes,
+  campaign = "unattributed",
+}: ProfessionLandingProps) {
   const { lang, t } = useLanguage();
   const [, navigate] = useLocation();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const copy = PROFESSIONS[profession][lang];
   const signupUrl = `${APP_URL}?trial_profession=${encodeURIComponent(profession)}&trial_language=${encodeURIComponent(lang)}`;
+  const campaignQuery = campaign === "unattributed" ? "" : `?utm_campaign=${campaign}`;
   const currentMetadata = metadata[lang];
   const currentRoutes = routes[lang];
   const structuredData = {
@@ -66,7 +73,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
     } catch {
       // Ignore storage errors; route navigation still changes the page language.
     }
-    navigate(routes[nextLang].professions[profession]);
+    navigate(`${routes[nextLang].professions[profession]}${campaignQuery}`);
   };
 
   return (
@@ -118,7 +125,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
             >
               {lang === "it" ? "EN" : "IT"}
             </button>
-            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "navbar")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" data-testid="link-profession-hero-cta">
+            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "navbar", campaign)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" data-testid="link-profession-hero-cta">
               <span className="hidden sm:inline">{copy.primaryCta}</span><span className="sm:hidden">{lang === "it" ? "Inizia" : "Get started"}</span>
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </a>
@@ -140,7 +147,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-gray-600 md:text-lg md:leading-8">{copy.intro}</p>
               <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "hero")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" data-testid="link-profession-primary-cta">
+                <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "hero", campaign)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" data-testid="link-profession-primary-cta">
                   {copy.primaryCta}<ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </a>
                 <span className="max-w-xs text-sm leading-5 text-gray-500">{copy.reassurance}</span>
@@ -256,7 +263,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
               <h2 id="message-title" className="text-3xl font-black leading-tight tracking-[-0.035em] md:text-4xl">{copy.messageHeading}</h2>
               <p className="mt-4 max-w-xl text-sm leading-7 text-blue-100/75 md:text-base">{copy.messageBody}</p>
             </div>
-            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "message")} className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#13233f] transition-colors hover:bg-blue-50 md:self-center" data-testid="link-profession-message-cta">
+            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "message", campaign)} className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#13233f] transition-colors hover:bg-blue-50 md:self-center" data-testid="link-profession-message-cta">
               {copy.primaryCta}<ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             </a>
           </div>
@@ -291,7 +298,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
                   {!plan.noUnit && <p className="mt-1 text-[11px] text-gray-400">{t.pricing.vatNote}</p>}
                   {!plan.hideSeats && <p className="mt-3 text-xs font-semibold text-gray-500">{plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}</p>}
                   {plan.maxAddon > 0 && <p className="mt-2 text-xs font-medium text-blue-700">+ {t.pricing.addonLabel} (max {plan.maxAddon})</p>}
-                  <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "pricing")} className={`mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${plan.highlight ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-900 text-white hover:bg-gray-800"}`} data-testid={`link-plan-cta-${index}`}>
+                  <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "pricing", campaign)} className={`mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${plan.highlight ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-900 text-white hover:bg-gray-800"}`} data-testid={`link-plan-cta-${index}`}>
                     {plan.cta}<ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
                 </article>
@@ -314,7 +321,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
             <h2 id="related-title" className="text-xl font-black tracking-tight text-gray-900">{copy.relatedHeading}</h2>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               {relatedProfessions.map((id) => (
-                <Link key={id} href={currentRoutes.professions[id]} className="inline-flex items-center justify-between gap-5 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-200 hover:text-blue-700" data-testid={`link-profession-${id}`}>
+                <Link key={id} href={`${currentRoutes.professions[id]}${campaignQuery}`} className="inline-flex items-center justify-between gap-5 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-200 hover:text-blue-700" data-testid={`link-profession-${id}`}>
                   {otherLabel(id)}<ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0" />
                 </Link>
               ))}
@@ -331,7 +338,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
               <h2 id="final-cta-title" className="text-2xl font-black tracking-tight md:text-3xl">{copy.finalHeading}</h2>
               <p className="mt-3 text-sm leading-6 text-blue-100 md:text-base">{copy.finalBody}</p>
             </div>
-            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "final")} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50" data-testid="link-profession-final-cta">
+            <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "final", campaign)} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50" data-testid="link-profession-final-cta">
               {copy.primaryCta}<ArrowRight aria-hidden="true" className="h-4 w-4" />
             </a>
           </div>
@@ -342,7 +349,7 @@ export function ProfessionLanding({ profession, metadata, routes }: ProfessionLa
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <Link href={currentRoutes.home} className="text-sm font-bold tracking-tight text-gray-700">TaskDesk</Link>
           <p className="text-center text-xs text-gray-400">{copy.boundaryNote}</p>
-          <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "footer")} className="text-sm font-semibold text-blue-700 hover:text-blue-900">{copy.primaryCta}</a>
+          <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "footer", campaign)} className="text-sm font-semibold text-blue-700 hover:text-blue-900">{copy.primaryCta}</a>
         </div>
       </footer>
     </div>

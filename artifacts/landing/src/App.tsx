@@ -13,10 +13,17 @@ import CookieConsentBanner from "@/components/CookieConsentBanner";
 import { LanguageProvider } from "@/i18n";
 import ProfessionLanding from "@/pages/ProfessionLanding";
 import { getProfessionPageProps } from "@/profession-routes";
+import { getProfessionalCampaign } from "@/lib/analytics";
 
 const queryClient = new QueryClient();
 
 const LANG_STORAGE_KEY = "td_landing_lang";
+
+function ProfessionalPage({ profession }: { profession: Parameters<typeof getProfessionPageProps>[0] }) {
+  const search = typeof window === "undefined" ? "" : window.location.search;
+  const campaign = getProfessionalCampaign(search);
+  return <ProfessionLanding {...getProfessionPageProps(profession)} campaign={campaign} />;
+}
 
 function getPreferredLang(): "en" | "it" {
   try {
@@ -55,13 +62,13 @@ function ItPageRoutes() {
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
       <Route path="/commercialista">
-        <ProfessionLanding {...getProfessionPageProps("commercialisti")} />
+        <ProfessionalPage profession="commercialisti" />
       </Route>
       <Route path="/avvocato">
-        <ProfessionLanding {...getProfessionPageProps("avvocati")} />
+        <ProfessionalPage profession="avvocati" />
       </Route>
       <Route path="/consulente-del-lavoro">
-        <ProfessionLanding {...getProfessionPageProps("consulenti-del-lavoro")} />
+        <ProfessionalPage profession="consulenti-del-lavoro" />
       </Route>
       <Route component={NotFound} />
     </Switch>
@@ -73,13 +80,13 @@ function EnPageRoutes() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/accountant">
-        <ProfessionLanding {...getProfessionPageProps("commercialisti")} />
+        <ProfessionalPage profession="commercialisti" />
       </Route>
       <Route path="/lawyer">
-        <ProfessionLanding {...getProfessionPageProps("avvocati")} />
+        <ProfessionalPage profession="avvocati" />
       </Route>
       <Route path="/employment-consultant">
-        <ProfessionLanding {...getProfessionPageProps("consulenti-del-lavoro")} />
+        <ProfessionalPage profession="consulenti-del-lavoro" />
       </Route>
       <Route path="/privacy-policy">
         <EnLegalRedirect suffix="/privacy-policy" />

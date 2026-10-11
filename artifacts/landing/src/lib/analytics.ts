@@ -48,12 +48,35 @@ export type ProfessionalTrialCtaLocation =
   | "final"
   | "footer";
 
+export const PROFESSIONAL_CAMPAIGNS = [
+  "professionals-google-search",
+  "professionals-meta-ads",
+  "professionals-linkedin-ads",
+  "professionals-newsletter",
+  "professionals-partner",
+] as const;
+
+export type ProfessionalCampaign = (typeof PROFESSIONAL_CAMPAIGNS)[number] | "unattributed";
+
+const PROFESSIONAL_CAMPAIGN_SET: ReadonlySet<string> = new Set(PROFESSIONAL_CAMPAIGNS);
+
+export function getProfessionalCampaign(search: string): ProfessionalCampaign {
+  const rawCampaign = new URLSearchParams(search).get("utm_campaign");
+  if (!rawCampaign) return "unattributed";
+
+  const normalizedCampaign = rawCampaign.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return PROFESSIONAL_CAMPAIGN_SET.has(normalizedCampaign)
+    ? (normalizedCampaign as ProfessionalCampaign)
+    : "unattributed";
+}
+
 export function trackProfessionalTrialCta(
   profession: ProfessionId,
   language: ProfessionLanguage,
   location: ProfessionalTrialCtaLocation,
+  campaign: ProfessionalCampaign = "unattributed",
 ): void {
-  trackEvent("professional_trial_cta_click", { profession, language, location });
+  trackEvent("professional_trial_cta_click", { profession, language, location, campaign });
 }
 
 export function trackScrollDepth(pct: ScrollDepthPct): void {
