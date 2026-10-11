@@ -75,10 +75,9 @@ interface Translations {
     searchDescription: string;
     historyResult: string;
     historyMeta: string;
-    linkedTitle: string;
-    linkedDescription: string;
-    relatedResult: string;
-    relatedMeta: string;
+    resultsTitle: string;
+    secondResult: string;
+    secondMeta: string;
     solutionTitle: string;
     solutionDescription: string;
     solutionAuthor: string;
@@ -305,10 +304,9 @@ const translations: Record<Language, Translations> = {
       searchDescription: "“accesso portale cliente”",
       historyResult: "Accesso al portale cliente",
       historyMeta: "Pratica #128 · Risolta il 12 settembre",
-      linkedTitle: "Attività collegate",
-      linkedDescription: "Richiesta simile per recuperare l’accesso.",
-      relatedResult: "Recupero password area clienti",
-      relatedMeta: "Pratica #096 · Risolta il 3 luglio",
+      resultsTitle: "Risultati attività",
+      secondResult: "Istruzioni per l’accesso all’area clienti",
+      secondMeta: "Pratica #096 · Commento del 3 luglio",
       solutionTitle: "Soluzioni in evidenza",
       solutionDescription: "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
       solutionAuthor: "Marta Rossi",
@@ -562,10 +560,9 @@ const translations: Record<Language, Translations> = {
       searchDescription: "“customer portal access”",
       historyResult: "Customer portal access",
       historyMeta: "Request #128 · Resolved Sep 12",
-      linkedTitle: "Related tasks",
-      linkedDescription: "A similar request about restoring access.",
-      relatedResult: "Reset customer portal password",
-      relatedMeta: "Request #096 · Resolved Jul 3",
+      resultsTitle: "Task results",
+      secondResult: "Customer portal access instructions",
+      secondMeta: "Request #096 · Comment from Jul 3",
       solutionTitle: "Solution highlighted",
       solutionDescription: "Access restored. Login checked and instructions sent to the customer.",
       solutionAuthor: "Marta Rossi",

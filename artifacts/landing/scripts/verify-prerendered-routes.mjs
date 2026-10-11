@@ -25,8 +25,8 @@ const routes = [
     memoryContent: [
       "Cerca nello storico",
       "Accesso al portale cliente",
-      "Attività collegate",
-      "Recupero password area clienti",
+      "Risultati attività",
+      "Istruzioni per l’accesso all’area clienti",
       "Soluzioni in evidenza",
       "Accesso ripristinato. Login verificato e istruzioni inviate al cliente.",
       "Marta Rossi",
@@ -59,8 +59,8 @@ const routes = [
     memoryContent: [
       "Search history",
       "Customer portal access",
-      "Related tasks",
-      "Reset customer portal password",
+      "Task results",
+      "Customer portal access instructions",
       "Solution highlighted",
       "Access restored. Login checked and instructions sent to the customer.",
       "Marta Rossi",

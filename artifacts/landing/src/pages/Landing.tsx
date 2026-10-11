@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, CheckCircle2, ChevronDown, Link2, Search } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, Search } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
@@ -794,7 +794,7 @@ export default function Landing() {
                 </div>
 
                 <div className="mb-3 flex items-center justify-between text-xs">
-                  <span className="font-bold uppercase tracking-wide text-slate-400">{t.teamMemory.linkedTitle}</span>
+                  <span className="font-bold uppercase tracking-wide text-slate-400">{t.teamMemory.resultsTitle}</span>
                   <span className="font-medium text-slate-400">{lang === "it" ? "2 risultati" : "2 results"}</span>
                 </div>
 
@@ -810,15 +810,15 @@ export default function Landing() {
                     <div className="text-xs text-slate-400">{t.teamMemory.historyMeta}</div>
                   </div>
 
-                  <div className="relative ml-5 border-l-2 border-dashed border-blue-200 py-1 pl-5">
-                    <div className="absolute -left-[13px] top-4 flex h-6 w-6 items-center justify-center rounded-full border border-blue-100 bg-white text-blue-600">
-                      <Link2 aria-hidden="true" className="h-3.5 w-3.5" />
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-slate-800">{t.teamMemory.secondResult}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
+                        <CheckCircle2 aria-hidden="true" className="h-3 w-3" />
+                        {lang === "it" ? "Risolta" : "Resolved"}
+                      </span>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="mb-1 text-xs font-semibold text-blue-700">{t.teamMemory.linkedDescription}</div>
-                      <div className="text-sm font-bold text-slate-800">{t.teamMemory.relatedResult}</div>
-                      <div className="mt-1 text-xs text-slate-400">{t.teamMemory.relatedMeta}</div>
-                    </div>
+                    <div className="text-xs text-slate-400">{t.teamMemory.secondMeta}</div>
                   </div>
 
                   <div className="rounded-2xl border border-green-200 bg-green-50/80 p-4">
@@ -841,10 +841,6 @@ export default function Landing() {
               </span>
               <h2 className="mb-5 text-3xl font-black leading-tight tracking-tight text-gray-900 md:text-4xl">{t.teamMemory.title}</h2>
               <p className="max-w-xl text-lg leading-relaxed text-gray-500">{t.teamMemory.subtitle}</p>
-              <div className="mt-7 flex items-start gap-3 text-sm font-semibold text-gray-700">
-                <Link2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
-                {lang === "it" ? "Le attività simili restano collegate, non nascoste in chat diverse." : "Related tasks stay connected instead of disappearing into separate chats."}
-              </div>
             </ScrollReveal>
           </div>
         </section>
