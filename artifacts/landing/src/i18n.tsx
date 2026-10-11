@@ -55,6 +55,11 @@ interface Translations {
     subtitle: string;
     cards: Array<{ icon: string; title: string; desc: string }>;
   };
+  workStatistic: {
+    statement: string;
+    survey: string;
+    source: string;
+  };
   problem: {
     title: string;
     description: string;
@@ -258,6 +263,11 @@ const translations: Record<Language, Translations> = {
           desc: "Non sai se un collega ha già preso in carico una pratica, né se il cliente è stato aggiornato sull'avanzamento.",
         },
       ],
+    },
+    workStatistic: {
+      statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
+      survey: "Il report analizza dati di sondaggio su 31.000 lavoratori in 31 Paesi.",
+      source: "Microsoft Work Trend Index 2025",
     },
     problem: {
       title: "I software enterprise sono gonfiati, costosi e lenti.",
@@ -489,6 +499,11 @@ const translations: Record<Language, Translations> = {
           desc: "You don't know whether a colleague has already picked something up, or whether the client has been updated.",
         },
       ],
+    },
+    workStatistic: {
+      statement: "of employees surveyed say their work feels chaotic and fragmented.",
+      survey: "The report analyzes survey data from 31,000 workers across 31 countries.",
+      source: "Microsoft Work Trend Index 2025",
     },
     problem: {
       title: "Enterprise software is bloated, expensive, and slow.",
