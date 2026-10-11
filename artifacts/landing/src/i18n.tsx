@@ -11,6 +11,7 @@ interface Translations {
     whoUses: string;
     problem: string;
     features: string;
+    teamMemory: string;
     pricing: string;
   };
   nav: {
@@ -53,6 +54,33 @@ interface Translations {
     title: string;
     subtitle: string;
     cards: Array<{ icon: string; title: string; desc: string }>;
+  };
+  solution: {
+    title: string;
+    subtitle: string;
+    ticketTitle: string;
+    status: string;
+    assignedLabel: string;
+    assignee: string;
+    checklistTitle: string;
+    checklist: string[];
+    commentAuthor: string;
+    comment: string;
+    solutionLabel: string;
+  };
+  teamMemory: {
+    title: string;
+    subtitle: string;
+    searchTitle: string;
+    searchDescription: string;
+    linkedTitle: string;
+    linkedDescription: string;
+    solutionTitle: string;
+    solutionDescription: string;
+  };
+  useCases: {
+    examples: Array<{ label: string; title: string; record: string; status: string; assignee: string }>;
+    linksTitle: string;
   };
   workStatistic: {
     statement: string;
@@ -157,11 +185,12 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Chi usa TaskDesk",
       problem: "Il problema",
-      features: "Funzionalità",
+      features: "La soluzione",
+      teamMemory: "Memoria del team",
       pricing: "Prezzi",
     },
     nav: {
-      features: "Funzionalità",
+      features: "Il prodotto",
       pricing: "Prezzi",
       login: "Accedi",
     },
@@ -178,8 +207,8 @@ const translations: Record<Language, Translations> = {
       reassurance: "Usato da studi commerciali, agenzie e consulenti in tutta Italia",
     },
     whoUses: {
-      title: "Fatto per chi lavora con i clienti ogni giorno",
-      subtitle: "Scegli il tuo ambito per vedere esempi concreti di come organizzare le richieste dello studio.",
+      title: "TaskDesk si adatta al tuo lavoro.",
+      subtitle: "Cambiano i termini e l’organizzazione, non il modo di lavorare: non serve imparare un software diverso.",
       profiles: [
         {
           profession: "commercialisti",
@@ -235,25 +264,56 @@ const translations: Record<Language, Translations> = {
       close: "Chiudi la scelta della professione",
     },
     pain: {
-      title: "Quante richieste stai perdendo oggi?",
-      subtitle: "Senza un sistema dedicato, le richieste dei clienti finiscono ovunque — e alcune non tornano mai.",
+      title: "Un messaggio dimenticato. Una richiesta senza responsabile. Una soluzione introvabile.",
+      subtitle: "Capita quando il lavoro resta sparso tra chat, email e memoria delle persone.",
       cards: [
         {
-          icon: "📧",
-          title: "Email disperse su più caselle",
-          desc: "Le richieste arrivano via email, WhatsApp, telefono e a voce. Non c'è un posto unico dove trovarle tutte.",
+          icon: "💬",
+          title: "Il messaggio WhatsApp che nessuno ha più visto",
+          desc: "La richiesta era in una chat. La conversazione è andata avanti e quel messaggio è rimasto indietro.",
         },
         {
-          icon: "⏰",
-          title: "Scadenze che si perdono",
-          desc: "Senza un sistema, le pratiche urgenti si seppelliscono tra i messaggi. Il cliente aspetta. Lo studio perde credibilità.",
+          icon: "🙋",
+          title: "La richiesta senza un responsabile",
+          desc: "Tutti pensano che se ne stia occupando qualcun altro. Intanto il cliente aspetta.",
         },
         {
-          icon: "🤷",
-          title: "Nessuna visibilità su chi sta facendo cosa",
-          desc: "Non sai se un collega ha già preso in carico una pratica, né se il cliente è stato aggiornato sull'avanzamento.",
+          icon: "🔎",
+          title: "La soluzione che non si riesce più a trovare",
+          desc: "Qualcuno aveva già risolto un caso simile, ma la risposta è sepolta in una vecchia conversazione.",
         },
       ],
+    },
+    solution: {
+      title: "Ogni richiesta diventa un’attività chiara.",
+      subtitle: "Commenti, responsabile, checklist e soluzione restano insieme, nello stesso posto.",
+      ticketTitle: "Accesso al portale cliente",
+      status: "In lavorazione",
+      assignedLabel: "Assegnata a",
+      assignee: "Marta Rossi",
+      checklistTitle: "Checklist",
+      checklist: ["Verificare l’account", "Reimpostare l’accesso", "Avvisare il cliente"],
+      commentAuthor: "Marta Rossi",
+      comment: "Accesso ripristinato. Ho verificato il login e inviato le istruzioni al cliente.",
+      solutionLabel: "Soluzione contrassegnata",
+    },
+    teamMemory: {
+      title: "Il team ricorda anche quando la chat è finita.",
+      subtitle: "Lo storico resta ricercabile: ritrova il contesto, collega attività simili e metti in evidenza ciò che ha risolto il problema.",
+      searchTitle: "Cerca nello storico",
+      searchDescription: "“accesso portale cliente”",
+      linkedTitle: "Attività collegate",
+      linkedDescription: "Riunisci richieste simili e il loro contesto.",
+      solutionTitle: "Soluzioni in evidenza",
+      solutionDescription: "La risposta giusta si ritrova anche la prossima volta.",
+    },
+    useCases: {
+      examples: [
+        { label: "Helpdesk", title: "Ticket", record: "Accesso non riuscito", status: "In attesa", assignee: "Marta" },
+        { label: "Studio professionale", title: "Pratica cliente", record: "Documenti per la dichiarazione", status: "Documenti ricevuti", assignee: "Luca" },
+        { label: "Piccolo team", title: "Attività", record: "Preparare la demo", status: "Completata", assignee: "Sara" },
+      ],
+      linksTitle: "Scopri TaskDesk per la tua professione",
     },
     workStatistic: {
       statement: "dei dipendenti intervistati afferma che il proprio lavoro è caotico e frammentato.",
@@ -315,7 +375,7 @@ const translations: Record<Language, Translations> = {
       }
     },
     pricing: {
-      title: "Un piano per ogni studio. Trasparente, senza sorprese.",
+      title: "Tre piani. Prezzi chiari, senza sorprese.",
       price: "€35",
       unit: "/mese",
       subtitle: "Prezzo fisso per studio, non per utente. Cambi piano quando vuoi.",
@@ -385,11 +445,12 @@ const translations: Record<Language, Translations> = {
       hero: "Hero",
       whoUses: "Who uses TaskDesk",
       problem: "The problem",
-      features: "Features",
+      features: "The solution",
+      teamMemory: "Team memory",
       pricing: "Pricing",
     },
     nav: {
-      features: "Features",
+      features: "Product",
       pricing: "Pricing",
       login: "Login",
     },
@@ -406,8 +467,8 @@ const translations: Record<Language, Translations> = {
       reassurance: "Used by accounting firms, agencies and consultants across Italy",
     },
     whoUses: {
-      title: "Built for those who work with clients every day",
-      subtitle: "Choose your profession to see practical examples of how TaskDesk can organise your practice's requests.",
+      title: "TaskDesk adapts to the way you work.",
+      subtitle: "The terminology and organisation change, not the way you work. There’s no different software to learn.",
       profiles: [
         {
           profession: "commercialisti",
@@ -463,25 +524,56 @@ const translations: Record<Language, Translations> = {
       close: "Close profession selection",
     },
     pain: {
-      title: "How many client requests are slipping through today?",
-      subtitle: "Without a dedicated system, client requests end up everywhere — and some never come back.",
+      title: "A forgotten message. An unassigned request. A solution no one can find.",
+      subtitle: "It happens when work is scattered across chats, email and people’s memory.",
       cards: [
         {
-          icon: "📧",
-          title: "Requests scattered across channels",
-          desc: "Requests arrive via email, WhatsApp, phone and in person. There's no single place to find them all.",
+          icon: "💬",
+          title: "The WhatsApp message no one saw",
+          desc: "The request was in a chat. The conversation moved on, and that message got left behind.",
         },
         {
-          icon: "⏰",
-          title: "Deadlines that get lost",
-          desc: "Without a system, urgent tasks get buried in messages. The client waits. Your firm loses credibility.",
+          icon: "🙋",
+          title: "The request with no owner",
+          desc: "Everyone assumes someone else is handling it. Meanwhile, the customer is waiting.",
         },
         {
-          icon: "🤷",
-          title: "No visibility into who's doing what",
-          desc: "You don't know whether a colleague has already picked something up, or whether the client has been updated.",
+          icon: "🔎",
+          title: "The solution no one can find",
+          desc: "Someone solved a similar case before, but the answer is buried in an old conversation.",
         },
       ],
+    },
+    solution: {
+      title: "Every request becomes a clear task.",
+      subtitle: "Comments, owner, checklist and resolution stay together in one place.",
+      ticketTitle: "Customer portal access",
+      status: "In progress",
+      assignedLabel: "Assigned to",
+      assignee: "Marta Rossi",
+      checklistTitle: "Checklist",
+      checklist: ["Check the account", "Reset access", "Notify the customer"],
+      commentAuthor: "Marta Rossi",
+      comment: "Access restored. I checked the login and sent the instructions to the customer.",
+      solutionLabel: "Marked as solution",
+    },
+    teamMemory: {
+      title: "The team remembers, even after the chat ends.",
+      subtitle: "Search the history, recover context, connect similar tasks and highlight what solved the problem.",
+      searchTitle: "Search history",
+      searchDescription: "“customer portal access”",
+      linkedTitle: "Related tasks",
+      linkedDescription: "Keep similar requests and their context together.",
+      solutionTitle: "Highlighted solutions",
+      solutionDescription: "Find the right answer again next time.",
+    },
+    useCases: {
+      examples: [
+        { label: "Helpdesk", title: "Ticket", record: "Unable to sign in", status: "Waiting", assignee: "Marta" },
+        { label: "Professional firm", title: "Client matter", record: "Tax return documents", status: "Documents received", assignee: "Luca" },
+        { label: "Small team", title: "Task", record: "Prepare the demo", status: "Completed", assignee: "Sara" },
+      ],
+      linksTitle: "Explore TaskDesk for your profession",
     },
     workStatistic: {
       statement: "of employees surveyed say their work feels chaotic and fragmented.",
@@ -543,7 +635,7 @@ const translations: Record<Language, Translations> = {
       }
     },
     pricing: {
-      title: "A plan for every firm. Transparent, no surprises.",
+      title: "Three plans. Clear prices, no surprises.",
       price: "€35",
       unit: "/month",
       subtitle: "Flat price per firm, not per user. Switch plans anytime.",

@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, Link2, Search } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PROFESSION_SLUGS } from "@/profession-routes";
@@ -342,6 +342,61 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
   );
 }
 
+function ProductActivityDemo() {
+  const { t } = useLanguage();
+  const demo = t.solution;
+
+  return (
+    <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl shadow-blue-100/70">
+      <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Task #128</div>
+        <div className="text-lg font-bold text-gray-900">{demo.ticketTitle}</div>
+        <span className="mt-3 inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+          {demo.status}
+        </span>
+      </div>
+      <div className="space-y-5 bg-slate-50 px-5 py-5 sm:px-6">
+        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <span className="text-sm text-gray-500">{demo.assignedLabel}</span>
+          <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">MR</span>
+            {demo.assignee}
+          </span>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
+            <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-blue-600" />
+            {demo.checklistTitle}
+          </div>
+          <ul className="space-y-2.5">
+            {demo.checklist.map((item, index) => (
+              <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
+                <span className={`flex h-4 w-4 items-center justify-center rounded border ${index < 2 ? "border-green-500 bg-green-500 text-white" : "border-gray-300 bg-white"}`}>
+                  {index < 2 && <Check aria-hidden="true" className="h-3 w-3" />}
+                </span>
+                <span className={index < 2 ? "text-gray-400 line-through" : ""}>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex gap-3">
+          <Avatar initials="MR" color="bg-violet-500" />
+          <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-1 text-xs font-bold text-gray-900">{demo.commentAuthor}</div>
+            <p className="text-sm leading-relaxed text-gray-700">{demo.comment}</p>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
+              <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" />
+              {demo.solutionLabel}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { lang, setLang, t } = useLanguage();
   const [professionDialogOpen, setProfessionDialogOpen] = useState(false);
@@ -355,13 +410,6 @@ export default function Landing() {
     t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
     t.hero.trialBadge,
     t.ticker.setup, `💶 ${lang === "it" ? "Da" : "From"} ${t.pricing.price}${t.pricing.unit}`, t.ticker.gdpr,
-  ];
-
-  const featureCards = [
-    { icon: "✏️", color: "bg-blue-50 text-blue-600 border-blue-100",      title: t.features.items.creation.title,  desc: t.features.items.creation.desc },
-    { icon: "💬", color: "bg-violet-50 text-violet-600 border-violet-100", title: t.features.items.history.title,   desc: t.features.items.history.desc },
-    { icon: "✅", color: "bg-green-50 text-green-600 border-green-100",    title: t.features.items.solution.title,  desc: t.features.items.solution.desc },
-    { icon: "📊", color: "bg-orange-50 text-orange-600 border-orange-100", title: t.features.items.stats.title,     desc: t.features.items.stats.desc },
   ];
 
   const handleCta = (location: CtaLocation, planName?: string) => {
@@ -406,7 +454,7 @@ export default function Landing() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    const sectionIds = ["who-uses", "pain", "features", "pricing"];
+    const sectionIds = ["pain", "solution", "team-memory", "who-uses", "pricing"];
     const viewed = new Set<string>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -441,8 +489,7 @@ export default function Landing() {
   const offerDescription =
     paidPlans
       .map((p) => `${p.name} ${p.price}${p.noUnit ? "" : t.pricing.perMonth} (${p.seats} ${t.pricing.seatsSuffix})`)
-      .join(", ") +
-    (lang === "it" ? ", Enterprise su preventivo." : ", Enterprise on request.");
+      .join(", ");
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
@@ -478,7 +525,7 @@ export default function Landing() {
           "lowPrice": offerLowPrice,
           "highPrice": offerHighPrice,
           "priceCurrency": "EUR",
-          "offerCount": String(t.pricing.plans.length),
+          "offerCount": String(paidPlans.length),
           "description": offerDescription,
         },
       },
@@ -539,10 +586,13 @@ export default function Landing() {
             <img src="/taskdesk-logo.webp" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
           <nav aria-label={t.landmarks.mainNavigation} className="hidden md:flex gap-8 text-sm text-gray-500">
+            <a href="#pain" className="hover:text-gray-900 transition-colors font-medium">
+              {lang === "it" ? "Il problema" : "The problem"}
+            </a>
             <a href="#who-uses" className="hidden lg:inline hover:text-gray-900 transition-colors font-medium">
               {lang === "it" ? "Categorie" : "Categories"}
             </a>
-            <a href="#features" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
+            <a href="#solution" className="hover:text-gray-900 transition-colors font-medium">{t.nav.features}</a>
             <a href="#pricing" className="hover:text-gray-900 transition-colors font-medium">{t.nav.pricing}</a>
           </nav>
           <div className="flex items-center gap-3">
@@ -646,41 +696,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Chi usa TaskDesk ── */}
-        <section id="who-uses" aria-label={t.landmarks.whoUses} className="py-24 px-6 md:px-8 border-b border-gray-100">
-          <div className="max-w-6xl mx-auto">
-            <ScrollReveal>
-              <div className="text-center mb-14">
-                <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4 leading-tight">
-                  {t.whoUses.title}
-                </h2>
-                <p className="text-gray-400 text-lg max-w-xl mx-auto">{t.whoUses.subtitle}</p>
-              </div>
-            </ScrollReveal>
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-6">
-              {t.whoUses.profiles.map((profile, i) => (
-                <ScrollReveal
-                  key={profile.profession}
-                  delay={i * 0.1}
-                  className="md:col-span-2"
-                >
-                  <Link
-                    href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
-                    className="ld-card-hover flex h-full flex-col items-center rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm transition-all hover:border-blue-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    data-testid={`link-profession-card-${profile.profession}`}
-                  >
-                    <ProfessionMark profile={profile} className="mb-4" />
-                    <h3 className="mb-2 w-full text-center text-xl font-black text-gray-900">{profile.title}</h3>
-                    <p className="mb-3 w-full text-center text-sm font-medium leading-relaxed text-gray-700">{profile.desc}</p>
-                    <p className="w-full text-center text-sm leading-relaxed text-gray-400">{profile.detail}</p>
-                  </Link>
-                </ScrollReveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ── Il problema ── */}
         <section id="pain" aria-label={t.landmarks.problem} className="py-24 px-6 md:px-8" style={{ background: "linear-gradient(135deg, #fef9f0 0%, #fdf4ff 100%)" }}>
           <div className="max-w-5xl mx-auto">
@@ -711,45 +726,128 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Features ── */}
-        <section id="features" aria-label={t.landmarks.features} className="py-28 px-6 md:px-8 bg-gray-50 border-y border-gray-100">
-          <div className="max-w-6xl mx-auto">
+        {/* ── La soluzione ── */}
+        <section id="solution" aria-label={t.landmarks.features} className="py-24 px-6 md:px-8">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
             <ScrollReveal>
-              <div className="text-center mb-20">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight">
-                  {t.features.title.split(".")[0]}.
-                  <br />
-                  <span className="ld-gradient-text">{t.features.title.split(".")[1]?.trim()}</span>
+              <div>
+                <span className="mb-4 inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-700">
+                  {lang === "it" ? "La soluzione" : "The solution"}
+                </span>
+                <h2 className="mb-5 text-3xl font-black leading-tight tracking-tight text-gray-900 md:text-4xl">
+                  {t.solution.title}
                 </h2>
-                <p className="text-gray-400 text-lg max-w-lg mx-auto">{t.features.subtitle}</p>
+                <p className="max-w-lg text-lg leading-relaxed text-gray-500">{t.solution.subtitle}</p>
+                <div className="mt-8 flex flex-wrap gap-2 text-sm font-semibold text-gray-600">
+                  {[lang === "it" ? "Commenti" : "Comments", lang === "it" ? "Assegnazione" : "Assignments", "Checklist", lang === "it" ? "Soluzione" : "Resolution"].map((label) => (
+                    <span key={label} className="rounded-full border border-gray-200 bg-white px-3 py-1.5">{label}</span>
+                  ))}
+                </div>
+              </div>
+            </ScrollReveal>
+            <ScrollReveal delay={0.1} className="flex justify-center">
+              <ProductActivityDemo />
+            </ScrollReveal>
+          </div>
+        </section>
+
+        {/* ── Memoria del team ── */}
+        <section id="team-memory" aria-label={t.landmarks.teamMemory} className="border-y border-gray-100 bg-slate-50 px-6 py-24 md:px-8">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+            <ScrollReveal>
+              <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-lg sm:p-8">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Search aria-hidden="true" className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-gray-900">{t.teamMemory.searchTitle}</div>
+                    <div className="text-xs text-gray-400">{lang === "it" ? "Attività, commenti e soluzioni" : "Tasks, comments and solutions"}</div>
+                  </div>
+                </div>
+                <div className="mb-5 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm text-gray-700">
+                  <Search aria-hidden="true" className="h-4 w-4 text-blue-500" />
+                  {t.teamMemory.searchDescription}
+                </div>
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-gray-900">{t.teamMemory.linkedTitle}</span>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{lang === "it" ? "3 attività" : "3 tasks"}</span>
+                    </div>
+                    <p className="text-sm text-gray-500">{t.teamMemory.linkedDescription}</p>
+                  </div>
+                  <div className="rounded-xl border border-green-200 bg-green-50/70 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-green-800">
+                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                      {t.teamMemory.solutionTitle}
+                    </div>
+                    <p className="text-sm leading-relaxed text-green-800/80">{t.teamMemory.solutionDescription}</p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+            <ScrollReveal delay={0.1}>
+              <span className="mb-4 inline-flex rounded-full bg-violet-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-violet-700">
+                {lang === "it" ? "Memoria del team" : "Team memory"}
+              </span>
+              <h2 className="mb-5 text-3xl font-black leading-tight tracking-tight text-gray-900 md:text-4xl">{t.teamMemory.title}</h2>
+              <p className="max-w-xl text-lg leading-relaxed text-gray-500">{t.teamMemory.subtitle}</p>
+              <div className="mt-7 flex items-start gap-3 text-sm font-semibold text-gray-700">
+                <Link2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                {lang === "it" ? "Le attività simili restano collegate, non nascoste in chat diverse." : "Related tasks stay connected instead of disappearing into separate chats."}
+              </div>
+            </ScrollReveal>
+          </div>
+        </section>
+
+        {/* ── Si adatta al lavoro ── */}
+        <section id="who-uses" aria-label={t.landmarks.whoUses} className="px-6 py-24 md:px-8">
+          <div className="mx-auto max-w-6xl">
+            <ScrollReveal>
+              <div className="mb-14 text-center">
+                <h2 className="mb-4 text-3xl font-black leading-tight tracking-tight md:text-4xl">{t.whoUses.title}</h2>
+                <p className="mx-auto max-w-2xl text-lg text-gray-500">{t.whoUses.subtitle}</p>
               </div>
             </ScrollReveal>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {featureCards.map((f, i) => (
-                <ScrollReveal key={i} delay={i * 0.08}>
-                  <div className="ld-card-hover bg-white rounded-2xl border border-gray-100 p-8 h-full cursor-default shadow-sm">
-                    <div className={`w-12 h-12 rounded-xl border flex items-center justify-center text-2xl mb-6 ${f.color}`}>
-                      {f.icon}
+            <div className="grid gap-5 md:grid-cols-3">
+              {t.useCases.examples.map((example, index) => (
+                <ScrollReveal key={example.label} delay={index * 0.08}>
+                  <div className="ld-card-hover h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div className="mb-5 flex items-center justify-between">
+                      <span className="text-sm font-bold text-blue-700">{example.label}</span>
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{example.status}</span>
                     </div>
-                    <h3 className="font-bold text-lg mb-3 text-gray-900">{f.title}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+                    <div className="rounded-xl border border-gray-100 bg-slate-50 p-4">
+                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{example.title}</div>
+                      <div className="text-base font-bold text-gray-900">{example.record}</div>
+                      <div className="mt-4 flex items-center gap-2 border-t border-gray-200 pt-3 text-sm text-gray-600">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">{example.assignee.slice(0, 1)}</span>
+                        {example.assignee}
+                      </div>
+                    </div>
                   </div>
                 </ScrollReveal>
               ))}
             </div>
 
-            <ScrollReveal delay={0.2}>
-              <div className="text-center mt-14">
-                <button
-                  onClick={() => handleCta("features")}
-                  className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-all shadow-lg shadow-blue-200"
-                >
-                  {t.features.cta} →
-                </button>
-                <p className="text-sm text-gray-400 mt-3">{t.hero.microProof}</p>
+            <div className="mt-12">
+              <p className="mb-4 text-center text-sm font-bold text-gray-500">{t.useCases.linksTitle}</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {t.whoUses.profiles.map((profile) => (
+                  <Link
+                    key={profile.profession}
+                    href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
+                    data-testid={`link-profession-card-${profile.profession}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                  >
+                    <ProfessionMark profile={profile} className="scale-75" />
+                    {profile.title}
+                  </Link>
+                ))}
               </div>
-            </ScrollReveal>
+            </div>
           </div>
         </section>
 
@@ -801,8 +899,8 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {t.pricing.plans.map((plan, idx) => (
+            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {paidPlans.map((plan, idx) => (
                 <ScrollReveal key={plan.name} delay={idx * 0.06}>
                   <div className={`relative h-full bg-white rounded-2xl p-7 flex flex-col ld-card-hover ${
                     plan.highlight ? "border-2 border-blue-600 shadow-xl shadow-blue-100" : "border border-gray-100 shadow-sm"
