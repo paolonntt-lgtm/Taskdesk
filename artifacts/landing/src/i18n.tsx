@@ -41,6 +41,7 @@ interface Translations {
       profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
       icon?: string;
       logo?: string;
+      logoPresentation?: "horizontal" | "square";
       title: string;
       desc: string;
       detail: string;
@@ -207,6 +208,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "commercialisti",
           logo: "/images/accountants-logo.webp",
+          logoPresentation: "horizontal",
           title: "Commercialista",
           desc: "Raccogli documenti e richieste dei clienti in uno spazio condiviso.",
           detail: "Assegna le verifiche, rendi visibili le scadenze e ritrova gli aggiornamenti della pratica.",
@@ -214,6 +216,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "avvocati",
           logo: "/images/lawyer-scales.webp",
+          logoPresentation: "square",
           title: "Avvocato",
           desc: "Tieni richieste, documenti e comunicazioni collegate a ogni pratica.",
           detail: "Il team vede chi segue il caso, cosa è in attesa e qual è il prossimo passaggio.",
@@ -221,6 +224,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "consulenti-del-lavoro",
           logo: "/images/labour-consultant-logo.webp",
+          logoPresentation: "square",
           title: "Consulente del lavoro",
           desc: "Coordina le richieste delle aziende e i documenti del personale.",
           detail: "Assegna attività e aggiornamenti allo studio senza perdere il contesto tra i referenti.",
@@ -478,6 +482,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "commercialisti",
           logo: "/images/accountants-logo.webp",
+          logoPresentation: "horizontal",
           title: "Accountant",
           desc: "Collect client documents and requests in one shared workspace.",
           detail: "Assign reviews, make deadlines visible and keep every practice update together.",
@@ -485,6 +490,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "avvocati",
           logo: "/images/lawyer-scales.webp",
+          logoPresentation: "square",
           title: "Lawyer",
           desc: "Keep requests, documents and conversations connected to each matter.",
           detail: "Your team can see who owns the case, what is waiting and what happens next.",
@@ -492,6 +498,7 @@ const translations: Record<Language, Translations> = {
         {
           profession: "consulenti-del-lavoro",
           logo: "/images/labour-consultant-logo.webp",
+          logoPresentation: "square",
           title: "Labour consultant",
           desc: "Coordinate employer requests and employee documentation.",
           detail: "Assign practice tasks and updates without losing context between contacts.",

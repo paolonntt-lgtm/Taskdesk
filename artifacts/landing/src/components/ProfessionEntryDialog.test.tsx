@@ -75,6 +75,24 @@ describe("ProfessionEntryDialog", () => {
     expect(window.location.pathname).toBe("/it/avvocato");
   });
 
+  it("uses the same mark dimensions and profile-specific presentation", async () => {
+    await renderOpenDialog();
+
+    const accountantsMark = document.querySelector<HTMLImageElement>(
+      '[data-testid="link-entry-profession-commercialisti"] img',
+    );
+    const lawyersMark = document.querySelector<HTMLImageElement>(
+      '[data-testid="link-entry-profession-avvocati"] img',
+    );
+    const consultantsMark = document.querySelector<HTMLImageElement>(
+      '[data-testid="link-entry-profession-consulenti-del-lavoro"] img',
+    );
+
+    expect(accountantsMark?.className).toBe("h-10 w-20 object-contain");
+    expect(lawyersMark?.className).toBe("h-10 w-10 object-contain");
+    expect(consultantsMark?.className).toBe("h-10 w-10 object-contain");
+  });
+
   it.each([
     ["close button", (container: HTMLElement) => {
       const button = document.querySelector<HTMLButtonElement>(

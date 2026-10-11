@@ -9,6 +9,7 @@ import {
   trackProfessionDialogProfessionSelected,
 } from "@/lib/analytics";
 import { PROFESSION_SLUGS } from "@/profession-routes";
+import { ProfessionMark } from "@/components/ProfessionMark";
 import {
   Dialog,
   DialogContent,
@@ -81,20 +82,10 @@ export function ProfessionEntryDialog({ open, onOpenChange }: ProfessionEntryDia
               className="group flex min-h-36 flex-col rounded-2xl border border-slate-200 bg-white p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-lg hover:shadow-blue-950/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:min-h-48 sm:p-5"
               data-testid={`link-entry-profession-${profile.profession}`}
             >
-              <span
-                className={`mb-4 flex h-11 ${profile.profession === "commercialisti" ? "w-16" : "w-11"} items-center justify-center rounded-xl bg-blue-50 text-2xl`}
-                aria-hidden="true"
-              >
-                {profile.logo ? (
-                  <img
-                    src={profile.logo}
-                    alt=""
-                    className={`object-contain ${profile.profession === "commercialisti" ? "h-8 w-[3.75rem]" : "h-8 w-8"}`}
-                  />
-                ) : (
-                  profile.icon
-                )}
-              </span>
+              <ProfessionMark
+                profile={profile}
+                className="mb-4 h-11 rounded-xl bg-blue-50"
+              />
               <span className="flex items-start justify-between gap-2 text-base font-extrabold text-slate-900">
                 {profile.title}
                 <ArrowUpRight aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
