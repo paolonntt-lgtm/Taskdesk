@@ -117,6 +117,36 @@ function ScrollReveal({ children, delay = 0, className = "" }: { children: React
   );
 }
 
+export function WorkStatistic() {
+  const { t } = useLanguage();
+
+  return (
+    <ScrollReveal className="mb-10">
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 rounded-3xl border border-blue-100 bg-white px-6 py-7 text-center shadow-sm sm:px-9 md:flex-row md:gap-8 md:px-10 md:py-8 md:text-left">
+        <div className="shrink-0 text-5xl font-black leading-none tracking-tight text-blue-600 sm:text-6xl">
+          48%
+        </div>
+        <div className="min-w-0">
+          <p className="text-base font-semibold leading-relaxed text-gray-900 sm:text-lg">
+            {t.workStatistic.statement}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-500">
+            {t.workStatistic.survey}{" "}
+            <a
+              href="https://www.microsoft.com/en-us/worklab/work-trend-index/2025-the-year-the-frontier-firm-is-born"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              {t.workStatistic.source}
+            </a>
+          </p>
+        </div>
+      </div>
+    </ScrollReveal>
+  );
+}
+
 function Avatar({ initials, color }: { initials: string; color: string }) {
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${color}`}>
@@ -663,29 +693,7 @@ export default function Landing() {
               </div>
             </ScrollReveal>
 
-            <ScrollReveal className="mb-10">
-              <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 rounded-3xl border border-blue-100 bg-white px-6 py-7 text-center shadow-sm sm:px-9 md:flex-row md:gap-8 md:px-10 md:py-8 md:text-left">
-                <div className="shrink-0 text-5xl font-black leading-none tracking-tight text-blue-600 sm:text-6xl">
-                  48%
-                </div>
-                <div className="min-w-0">
-                  <p className="text-base font-semibold leading-relaxed text-gray-900 sm:text-lg">
-                    {t.workStatistic.statement}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                    {t.workStatistic.survey}{" "}
-                    <a
-                      href="https://www.microsoft.com/en-us/worklab/work-trend-index/2025-the-year-the-frontier-firm-is-born"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    >
-                      {t.workStatistic.source}
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </ScrollReveal>
+            <WorkStatistic />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {t.pain.cards.map((card, i) => (
