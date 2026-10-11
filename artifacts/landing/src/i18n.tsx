@@ -281,7 +281,7 @@ const translations: Record<Language, Translations> = {
       ],
     },
     solution: {
-      title: "Ogni richiesta diventa un’attività chiara.",
+      title: "Conversazioni semplici. Lavoro organizzato.",
       subtitle: "Commenti, responsabile, checklist e soluzione restano insieme, nello stesso posto.",
       ticketTitle: "Accesso al portale cliente",
       status: "Risolta",
@@ -533,7 +533,7 @@ const translations: Record<Language, Translations> = {
       ],
     },
     solution: {
-      title: "Every request becomes a clear task.",
+      title: "Simple conversations. Organized work.",
       subtitle: "Comments, owner, checklist and resolution stay together in one place.",
       ticketTitle: "Customer portal access",
       status: "Resolved",

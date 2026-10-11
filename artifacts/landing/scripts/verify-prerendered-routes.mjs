@@ -18,9 +18,17 @@ const routes = [
     cta: "Inizia gratis — 7 giorni",
     sections: [
       "Un messaggio dimenticato. Una richiesta senza responsabile.",
-      "Ogni richiesta diventa un’attività chiara.",
+      "Conversazioni semplici. Lavoro organizzato.",
       "Il team ricorda anche quando la chat è finita.",
       "TaskDesk si adatta al tuo lavoro.",
+    ],
+    mockupContent: [
+      "Task #128",
+      "Risolta",
+      "Marta Rossi",
+      "Checklist",
+      "Soluzione contrassegnata",
+      "Accesso ripristinato. Ho verificato il login e inviato le istruzioni al cliente.",
     ],
     removedExamples: ["Accesso non riuscito", "Preparare la demo"],
   },
@@ -35,9 +43,17 @@ const routes = [
     cta: "Start free — 7 days",
     sections: [
       "A forgotten message. An unassigned request.",
-      "Every request becomes a clear task.",
+      "Simple conversations. Organized work.",
       "The team remembers, even after the chat ends.",
       "TaskDesk adapts to the way you work.",
+    ],
+    mockupContent: [
+      "Task #128",
+      "Resolved",
+      "Marta Rossi",
+      "Checklist",
+      "Marked as solution",
+      "Access restored. I checked the login and sent the instructions to the customer.",
     ],
     removedExamples: ["Unable to sign in", "Prepare the demo"],
   },
@@ -67,6 +83,9 @@ for (const route of routes) {
   assert.ok(bodyText.includes(route.cta), `${route.path} must render its localized primary call to action`);
   for (const sectionCopy of route.sections) {
     assert.ok(bodyText.includes(sectionCopy), `${route.path} must render "${sectionCopy}"`);
+  }
+  for (const mockupCopy of route.mockupContent) {
+    assert.ok(bodyText.includes(mockupCopy), `${route.path} must render the activity mockup detail "${mockupCopy}"`);
   }
   for (const removedExample of route.removedExamples) {
     assert.ok(!bodyText.includes(removedExample), `${route.path} must not render removed example "${removedExample}"`);
