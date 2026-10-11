@@ -57,6 +57,14 @@ describe("profession dialog analytics", () => {
     expect(track).not.toHaveBeenCalled();
   });
 
+  it.each(["helpdesk-it", "agenzie"] as const)("tracks the new %s profile", (profession) => {
+    trackProfessionDialogProfessionSelected(profession, "it");
+    expect(track).toHaveBeenCalledWith("profession_dialog_profession_selected", {
+      profession,
+      language: "it",
+    });
+  });
+
   it("keeps tracking calls safe when Umami is missing or throws", () => {
     delete window.umami;
     expect(() => trackProfessionDialogOpened("it")).not.toThrow();

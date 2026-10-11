@@ -13,7 +13,12 @@ const router = Router();
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const OAUTH_NONCE_COOKIE = "oauth_nonce";
 type ProfessionalTrialAttribution = {
-  profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
+  profession:
+    | "commercialisti"
+    | "avvocati"
+    | "consulenti-del-lavoro"
+    | "helpdesk-it"
+    | "agenzie";
   language: "it" | "en";
 };
 type PendingOAuthState = {
@@ -36,7 +41,13 @@ function pruneExpiredStates(): void {
 function parseProfessionalTrialAttribution(query: import("express").Request["query"]): ProfessionalTrialAttribution | null {
   const profession = query.trial_profession;
   const language = query.trial_language;
-  const allowedProfessions = ["commercialisti", "avvocati", "consulenti-del-lavoro"];
+  const allowedProfessions = [
+    "commercialisti",
+    "avvocati",
+    "consulenti-del-lavoro",
+    "helpdesk-it",
+    "agenzie",
+  ];
   if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
   if (language !== "it" && language !== "en") return null;
   return { profession: profession as ProfessionalTrialAttribution["profession"], language };

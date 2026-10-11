@@ -76,6 +76,12 @@ function ItPageRoutes() {
       <Route path="/consulente-del-lavoro">
         <ProfessionalPage profession="consulenti-del-lavoro" />
       </Route>
+      <Route path="/helpdesk-it">
+        <ProfessionalPage profession="helpdesk-it" />
+      </Route>
+      <Route path="/agenzia">
+        <ProfessionalPage profession="agenzie" />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -93,6 +99,12 @@ function EnPageRoutes() {
       </Route>
       <Route path="/employment-consultant">
         <ProfessionalPage profession="consulenti-del-lavoro" />
+      </Route>
+      <Route path="/it-helpdesk">
+        <ProfessionalPage profession="helpdesk-it" />
+      </Route>
+      <Route path="/agency">
+        <ProfessionalPage profession="agenzie" />
       </Route>
       <Route path="/privacy-policy">
         <EnLegalRedirect suffix="/privacy-policy" />

@@ -102,11 +102,12 @@ function useInView(threshold = 0.15) {
   return { ref, visible };
 }
 
-function ScrollReveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function ScrollReveal({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
   const { ref, visible } = useInView();
   return (
     <div
       ref={ref}
+      className={className}
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(28px)",
@@ -640,9 +641,13 @@ export default function Landing() {
               </div>
             </ScrollReveal>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-6">
               {t.whoUses.profiles.map((profile, i) => (
-                <ScrollReveal key={i} delay={i * 0.1}>
+                <ScrollReveal
+                  key={profile.profession}
+                  delay={i * 0.1}
+                  className={`md:col-span-2 ${i === 3 ? "md:col-start-2" : i === 4 ? "md:col-start-4" : ""}`}
+                >
                   <Link
                     href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
                     className="ld-card-hover flex h-full flex-col items-center rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm transition-all hover:border-blue-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"

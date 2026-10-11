@@ -253,7 +253,7 @@ describe("Google OAuth callback", () => {
     });
   });
 
-  it("starts a seven-day trial for a new Google user and returns only allowlisted professional attribution", async () => {
+  it.each(["helpdesk-it", "agenzie"])("starts a seven-day trial for %s and returns only allowlisted attribution", async (profession) => {
     const { usersTable, organizationsTable } = await import("@workspace/db");
     const org = { id: 22, name: "OAuth New User" };
     const newUser = { ...oauthUser, id: 42, email: "new-google@example.test", trialEndsAt: null };
@@ -286,7 +286,7 @@ describe("Google OAuth callback", () => {
       return query;
     });
     const { state, nonceCookie } = await startOAuth({
-      trial_profession: "avvocati",
+      trial_profession: profession,
       trial_language: "en",
       email: "must-not-be-carried@example.test",
       custom: "free text must not be carried",
@@ -302,7 +302,7 @@ describe("Google OAuth callback", () => {
     const actualTrialDuration = (insertedUser?.values.trialEndsAt as Date).getTime() - Date.now();
     expect(actualTrialDuration).toBeGreaterThan(FREE_TRIAL_DURATION_MS - 1_000);
     expect(actualTrialDuration).toBeLessThanOrEqual(FREE_TRIAL_DURATION_MS);
-    expect(html).toContain("/app/?oauth_trial_signup=1&trial_profession=avvocati&trial_language=en");
+    expect(html).toContain(`/app/?oauth_trial_signup=1&trial_profession=${profession}&trial_language=en`);
     expect(html).not.toContain("must-not-be-carried");
     expect(html).not.toContain("custom");
   });

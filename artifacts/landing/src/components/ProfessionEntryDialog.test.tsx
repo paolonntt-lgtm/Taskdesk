@@ -75,6 +75,24 @@ describe("ProfessionEntryDialog", () => {
     expect(window.location.pathname).toBe("/it/avvocato");
   });
 
+  it.each([
+    ["helpdesk-it", "/it/helpdesk-it"],
+    ["agenzie", "/it/agenzia"],
+  ])("opens the dedicated route for %s", async (profession, expectedPath) => {
+    await renderOpenDialog();
+
+    const link = document.querySelector<HTMLAnchorElement>(
+      `[data-testid="link-entry-profession-${profession}"]`,
+    );
+    expect(link).not.toBeNull();
+
+    await act(async () => {
+      link!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    });
+
+    expect(window.location.pathname).toBe(expectedPath);
+  });
+
   it("uses the same mark dimensions and profile-specific presentation", async () => {
     await renderOpenDialog();
 
@@ -107,7 +125,7 @@ describe("ProfessionEntryDialog", () => {
     const cards = document.querySelectorAll<HTMLElement>(
       '[data-testid^="link-entry-profession-"]',
     );
-    expect(cards).toHaveLength(3);
+    expect(cards).toHaveLength(5);
     for (const card of cards) {
       expect(card.classList.contains("items-center")).toBe(true);
       expect(card.classList.contains("text-center")).toBe(true);

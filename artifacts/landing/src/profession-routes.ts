@@ -5,6 +5,8 @@ export const PROFESSION_IDS: ProfessionId[] = [
   "commercialisti",
   "avvocati",
   "consulenti-del-lavoro",
+  "helpdesk-it",
+  "agenzie",
 ];
 
 export const PROFESSION_SLUGS: Record<ProfessionLanguage, Record<ProfessionId, string>> = {
@@ -12,11 +14,15 @@ export const PROFESSION_SLUGS: Record<ProfessionLanguage, Record<ProfessionId, s
     commercialisti: "commercialista",
     avvocati: "avvocato",
     "consulenti-del-lavoro": "consulente-del-lavoro",
+    "helpdesk-it": "helpdesk-it",
+    agenzie: "agenzia",
   },
   en: {
     commercialisti: "accountant",
     avvocati: "lawyer",
     "consulenti-del-lavoro": "employment-consultant",
+    "helpdesk-it": "it-helpdesk",
+    agenzie: "agency",
   },
 };
 
@@ -60,6 +66,26 @@ const SEO_COPY: Record<
       title: "TaskDesk for Labour Consultants",
       description:
         "Coordinate employer requests, employee documents and practice tasks with clear ownership and updates connected to every request.",
+    },
+  },
+  "helpdesk-it": {
+    it: {
+      title: "TaskDesk per helpdesk IT | Gestione richieste di assistenza",
+      description: "Raccogli, assegna e segui le richieste di assistenza IT in un flusso condiviso, con responsabili e aggiornamenti sempre visibili.",
+    },
+    en: {
+      title: "TaskDesk for IT Helpdesks | Support Requests",
+      description: "Collect, assign and track IT support requests in one shared workflow, with clear ownership and visible updates.",
+    },
+  },
+  agenzie: {
+    it: {
+      title: "TaskDesk per agenzie | Richieste e progetti cliente",
+      description: "Coordina richieste, revisioni e consegne dei clienti in un unico flusso condiviso per il team dell'agenzia.",
+    },
+    en: {
+      title: "TaskDesk for Agencies | Client Requests and Projects",
+      description: "Coordinate client requests, reviews and deliverables in one shared workflow for your agency team.",
     },
   },
 };

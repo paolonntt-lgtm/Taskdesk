@@ -76,6 +76,24 @@ const professionSitemapEntries: Record<string, SitemapRouteMeta> = {
     },
   },
   "/employment-consultant": { exclude: true },
+  "/helpdesk-it": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/helpdesk-it`,
+      en: `${SITEMAP_BASE_URL}/en/it-helpdesk`,
+    },
+  },
+  "/it-helpdesk": { exclude: true },
+  "/agenzia": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/agenzia`,
+      en: `${SITEMAP_BASE_URL}/en/agency`,
+    },
+  },
+  "/agency": { exclude: true },
 };
 
 Object.assign(SITEMAP_ROUTE_META, professionSitemapEntries);

@@ -24,6 +24,8 @@ const ALLOWED_PROFESSIONS = new Set<ProfessionId>([
   "commercialisti",
   "avvocati",
   "consulenti-del-lavoro",
+  "helpdesk-it",
+  "agenzie",
 ]);
 const ALLOWED_PROFESSION_LANGUAGES = new Set<ProfessionLanguage>(["it", "en"]);
 

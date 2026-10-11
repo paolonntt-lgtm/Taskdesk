@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode } from "react";
 import { useLocation } from "wouter";
+import type { ProfessionId } from "./profession-content";
 
 type Language = "it" | "en";
 
@@ -38,7 +39,7 @@ interface Translations {
     title: string;
     subtitle: string;
     profiles: Array<{
-      profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
+      profession: ProfessionId;
       icon?: string;
       logo?: string;
       logoPresentation?: "horizontal" | "square";
@@ -228,6 +229,20 @@ const translations: Record<Language, Translations> = {
           title: "Consulente del lavoro",
           desc: "Coordina le richieste delle aziende e i documenti del personale.",
           detail: "Assegna attività e aggiornamenti allo studio senza perdere il contesto tra i referenti.",
+        },
+        {
+          profession: "helpdesk-it",
+          icon: "🛠️",
+          title: "Helpdesk IT",
+          desc: "Raccogli segnalazioni e richieste tecniche in una coda condivisa.",
+          detail: "Assegna i ticket, coordina gli interventi e tieni aggiornati gli utenti.",
+        },
+        {
+          profession: "agenzie",
+          icon: "📣",
+          title: "Agenzia",
+          desc: "Coordina richieste, revisioni e consegne dei clienti in un unico flusso.",
+          detail: "Collega feedback, responsabili e prossimi passaggi a ogni progetto.",
         },
       ],
     },
@@ -431,7 +446,7 @@ const translations: Record<Language, Translations> = {
     seo: {
       title: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
       description: "Raccogli le richieste dei clienti, assegnale al team e traccia ogni pratica. Per studi commerciali e agenzie. Da €35/mese + IVA, 7 giorni gratis.",
-      keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, software consulenza, gestione richieste clienti, sistema ticket studio commercialista",
+      keywords: "software studi commerciali, gestione pratiche clienti, ticketing per agenzie, helpdesk IT, gestione richieste di assistenza, software consulenza, sistema ticket studio commercialista",
       ogTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
       ogDescription: "Gestisci pratiche e richieste senza email disperse. Commenti, scadenze, soluzioni tracciate. Prezzi di lancio da €35/mese + IVA tutto incluso.",
       twitterTitle: "TaskDesk — Gestione Pratiche per Studi e Agenzie",
@@ -502,6 +517,20 @@ const translations: Record<Language, Translations> = {
           title: "Labour consultant",
           desc: "Coordinate employer requests and employee documentation.",
           detail: "Assign practice tasks and updates without losing context between contacts.",
+        },
+        {
+          profession: "helpdesk-it",
+          icon: "🛠️",
+          title: "IT Helpdesk",
+          desc: "Collect technical reports and support requests in one shared queue.",
+          detail: "Assign tickets, coordinate interventions and keep users updated.",
+        },
+        {
+          profession: "agenzie",
+          icon: "📣",
+          title: "Agency",
+          desc: "Coordinate client requests, reviews and deliverables in one workflow.",
+          detail: "Connect feedback, owners and next steps to every project.",
         },
       ],
     },
@@ -705,7 +734,7 @@ const translations: Record<Language, Translations> = {
     seo: {
       title: "TaskDesk — Practice Management for Firms & Agencies",
       description: "Collect every client request in one place, assign it to your team, and track it to completion. Built for accounting firms and agencies. 7-day free trial.",
-      keywords: "software for accounting firms, client request management, ticketing for agencies, consulting software, client task tracking, accountant ticket system",
+      keywords: "software for accounting firms, client request management, ticketing for agencies, IT helpdesk software, support request management, consulting software, accountant ticket system",
       ogTitle: "TaskDesk — Practice Management for Firms & Agencies",
       ogDescription: "Manage client requests without scattered emails. Comments, deadlines, tracked solutions. From €35/month + VAT, all included.",
       twitterTitle: "TaskDesk — Practice Management for Firms & Agencies",
