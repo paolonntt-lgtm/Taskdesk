@@ -7,11 +7,15 @@
  */
 
 /**
+ * The most recent activity only when its log was created no earlier than five seconds before the ticket's last update; otherwise null.
  * @nullable
  */
 export type RecentTicketWithActivityLatestActivity = {
   actionType: string;
-  /** @nullable */
+  /**
+     * The activity author's display name, or null when that user is unavailable in the organization.
+     * @nullable
+     */
   actorName: string | null;
   createdAt: Date;
 } | null;

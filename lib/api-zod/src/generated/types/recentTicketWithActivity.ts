@@ -9,6 +9,9 @@ import type { RecentTicketWithActivityLatestActivity } from './recentTicketWithA
 import type { TicketWithDetails } from './ticketWithDetails';
 
 export type RecentTicketWithActivity = TicketWithDetails & {
-  /** @nullable */
+  /**
+     * The most recent activity only when its log was created no earlier than five seconds before the ticket's last update; otherwise null.
+     * @nullable
+     */
   latestActivity: RecentTicketWithActivityLatestActivity;
 };

@@ -424,6 +424,72 @@ describe("manual ticket visibility", () => {
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
   }, 60_000);
 
+  it("returns only current recent activity with a safe missing-author fallback", async () => {
+    async function createTicket(title: string): Promise<number> {
+      const response = await request("/api/tickets", adminSessionId, {
+        method: "POST",
+        body: JSON.stringify({
+          title: `${title} ${runId}`,
+          description: "Recent activity contract test.",
+          category: "Support",
+          priority: "medium",
+        }),
+      });
+      expect(response.status).toBe(201);
+      const ticketId = response.body.id as number;
+      createdTicketIds.push(ticketId);
+      await db.delete(ticketActivityLogsTable).where(eq(ticketActivityLogsTable.ticketId, ticketId));
+      return ticketId;
+    }
+
+    const noLogTicketId = await createTicket("Recent activity without log");
+    const staleLogTicketId = await createTicket("Recent activity with stale log");
+    const unavailableAuthorTicketId = await createTicket("Recent activity with unavailable author");
+    const staleUpdatedAt = new Date(Date.now() - 10_000);
+    const staleCreatedAt = new Date(Date.now() - 60_000);
+    const currentAt = new Date();
+
+    await db.update(ticketsTable)
+      .set({ updatedAt: staleUpdatedAt })
+      .where(eq(ticketsTable.id, staleLogTicketId));
+    await db.insert(ticketActivityLogsTable).values({
+      ticketId: staleLogTicketId,
+      userId: adminId,
+      actionType: "status_changed",
+      actionDescription: "Old status update",
+      createdAt: staleCreatedAt,
+    });
+
+    await db.update(ticketsTable)
+      .set({ updatedAt: currentAt })
+      .where(eq(ticketsTable.id, unavailableAuthorTicketId));
+    await db.insert(ticketActivityLogsTable).values({
+      ticketId: unavailableAuthorTicketId,
+      userId: otherAdminId,
+      actionType: "status_changed",
+      actionDescription: "Current status update with an author outside this organization",
+      createdAt: currentAt,
+    });
+
+    const response = await request("/api/stats/recent-tickets", userSessionId);
+    expect(response.status).toBe(200);
+    const recentById = new Map(response.body.map((ticket: any) => [ticket.id, ticket]));
+    expect(recentById.get(noLogTicketId)).toEqual(
+      expect.objectContaining({ latestActivity: null }),
+    );
+    expect(recentById.get(staleLogTicketId)).toEqual(
+      expect.objectContaining({ latestActivity: null }),
+    );
+    expect(recentById.get(unavailableAuthorTicketId)).toEqual(
+      expect.objectContaining({
+        latestActivity: expect.objectContaining({
+          actionType: "status_changed",
+          actorName: null,
+        }),
+      }),
+    );
+  }, 60_000);
+
   it("filters recurring source tickets separately from future scheduled clones", async () => {
     const recurringResponse = await request("/api/tickets", adminSessionId, {
       method: "POST",

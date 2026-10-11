@@ -2397,9 +2397,9 @@ export const GetRecentTicketsResponseItem = zod.object({
 })).and(zod.object({
   "latestActivity": zod.object({
   "actionType": zod.string(),
-  "actorName": zod.string().nullable(),
+  "actorName": zod.string().nullable().describe('The activity author\'s display name, or null when that user is unavailable in the organization.'),
   "createdAt": zod.coerce.date()
-}).nullable()
+}).nullable().describe('The most recent activity only when its log was created no earlier than five seconds before the ticket\'s last update; otherwise null.')
 }))
 export const GetRecentTicketsResponse = zod.array(GetRecentTicketsResponseItem)
 

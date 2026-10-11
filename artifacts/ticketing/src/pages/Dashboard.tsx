@@ -53,6 +53,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
@@ -313,34 +314,6 @@ type TicketRow = {
   latestActivity?: { actionType: string; actorName: string | null; createdAt: string } | null;
 };
 
-function getRecentActivityLabel(actionType: string, t: any): string {
-  const labels: Record<string, string> = {
-    created: t.dashboard.activityCreated,
-    assigned: t.dashboard.activityAssigned,
-    unassigned: t.dashboard.activityUnassigned,
-    status_changed: t.dashboard.activityStatusChanged,
-    priority_changed: t.dashboard.activityPriorityChanged,
-    category_changed: t.dashboard.activityCategoryChanged,
-    location_changed: t.dashboard.activityLocationChanged,
-    comment_added: t.dashboard.activityCommentAdded,
-    comment_edited: t.dashboard.activityCommentEdited,
-    comment_deleted: t.dashboard.activityCommentDeleted,
-    email_reply_sent: t.dashboard.activityEmailReplySent,
-    note_added: t.dashboard.activityNoteAdded,
-    checklist_item_updated: t.dashboard.activityChecklistUpdated,
-    checklist_applied_from_template: t.dashboard.activityChecklistUpdated,
-    solution_marked: t.dashboard.activitySolutionMarked,
-    visibility_changed: t.dashboard.activityVisibilityChanged,
-    recurrence_created: t.dashboard.activityRecurrenceUpdated,
-    recurrence_set: t.dashboard.activityRecurrenceUpdated,
-    recurrence_removed: t.dashboard.activityRecurrenceUpdated,
-    cloned_from: t.dashboard.activityCloned,
-    ticket_restored: t.dashboard.activityRestored,
-    worked_hours_changed: t.dashboard.activityWorkedHoursChanged,
-  };
-  return labels[actionType] ?? t.dashboard.activityUpdated;
-}
-
 function getDueBadge(dueAt: string, t: any): { label: string; color: 'error' | 'warning' } {
   const due = new Date(dueAt);
   const now = new Date();
@@ -465,11 +438,11 @@ function TicketRowItem({ ticket, showDueBadge = false, colorByStatus = false, sh
           <Typography variant="caption" color="text.secondary" noWrap display="block">
             {ticket.latestActivity ? (
               <>
-                {getRecentActivityLabel(ticket.latestActivity.actionType, t)}
-                {' · '}
-                {ticket.latestActivity.actorName
-                  ? t.dashboard.activityBy(ticket.latestActivity.actorName)
-                  : t.dashboard.activityUnknownAuthor}
+                {formatRecentActivitySummary(
+                  ticket.latestActivity.actionType,
+                  ticket.latestActivity.actorName,
+                  t,
+                )}
                 {' · '}
                 {new Date(ticket.latestActivity.createdAt).toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-GB', {
                   hour: '2-digit', minute: '2-digit',
