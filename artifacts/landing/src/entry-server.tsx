@@ -9,6 +9,10 @@ import TermsOfService from "./pages/TermsOfService";
 import DPA from "./pages/DPA";
 import CookiePolicy from "./pages/CookiePolicy";
 import NotFound from "./pages/not-found";
+import ProfessionLanding from "./pages/ProfessionLanding";
+import { PROFESSION_IDS, PROFESSION_SLUGS, getProfessionPageProps } from "./profession-routes";
+
+export { PROFESSION_IDS, PROFESSION_SLUGS } from "./profession-routes";
 
 function makeStaticHook(url: string) {
   return (): [string, (path: string) => void] => [url, () => {}];
@@ -22,6 +26,11 @@ function ItPageRoutes() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+      {PROFESSION_IDS.map((profession) => (
+        <Route key={profession} path={`/${PROFESSION_SLUGS.it[profession]}`}>
+          <ProfessionLanding {...getProfessionPageProps(profession)} />
+        </Route>
+      ))}
     </Switch>
   );
 }
@@ -30,6 +39,11 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      {PROFESSION_IDS.map((profession) => (
+        <Route key={profession} path={`/${PROFESSION_SLUGS.en[profession]}`}>
+          <ProfessionLanding {...getProfessionPageProps(profession)} />
+        </Route>
+      ))}
     </Switch>
   );
 }

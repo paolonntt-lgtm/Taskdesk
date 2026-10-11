@@ -244,6 +244,8 @@ console.log('SSR bundle ready.');
 // Import server render function (fresh import after build)
 const ssrModule = await import(`./dist/server/entry-server.js?v=${Date.now()}`);
 const render = ssrModule.render;
+const professionIds = ssrModule.PROFESSION_IDS;
+const professionSlugs = ssrModule.PROFESSION_SLUGS;
 
 const BASE = 'https://taskdesk.it';
 
@@ -291,6 +293,11 @@ async function writeRoute(routePath, isLandingPage = false) {
 
 await writeRoute('/it/', true);
 await writeRoute('/en/', true);
+
+for (const profession of professionIds) {
+  await writeRoute(`/it/${professionSlugs.it[profession]}`);
+  await writeRoute(`/en/${professionSlugs.en[profession]}`);
+}
 
 const legalPages = [
   { slug: 'privacy-policy' },

@@ -22,6 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ChevronDown } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { PROFESSION_SLUGS } from "@/profession-routes";
 
 const SITE_BASE = "https://taskdesk.it";
 const WHATSAPP_NUMBER = "393203177882";
@@ -635,12 +636,16 @@ export default function Landing() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {t.whoUses.profiles.map((profile, i) => (
                 <ScrollReveal key={i} delay={i * 0.1}>
-                  <div className="ld-card-hover bg-white rounded-2xl border border-gray-100 p-8 h-full shadow-sm cursor-default">
+                  <Link
+                    href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
+                    className="ld-card-hover block bg-white rounded-2xl border border-gray-100 p-8 h-full shadow-sm transition-all hover:border-blue-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    data-testid={`link-profession-card-${profile.profession}`}
+                  >
                     <div className="text-4xl mb-4">{profile.icon}</div>
                     <h3 className="font-black text-xl mb-2 text-gray-900">{profile.title}</h3>
                     <p className="text-gray-700 font-medium mb-3 text-sm leading-relaxed">{profile.desc}</p>
                     <p className="text-gray-400 text-sm leading-relaxed">{profile.detail}</p>
-                  </div>
+                  </Link>
                 </ScrollReveal>
               ))}
             </div>

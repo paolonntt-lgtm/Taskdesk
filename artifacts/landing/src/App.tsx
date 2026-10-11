@@ -11,6 +11,8 @@ import DPA from "@/pages/DPA";
 import CookiePolicy from "@/pages/CookiePolicy";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
 import { LanguageProvider } from "@/i18n";
+import ProfessionLanding from "@/pages/ProfessionLanding";
+import { getProfessionPageProps } from "@/profession-routes";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,15 @@ function ItPageRoutes() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/dpa" component={DPA} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+      <Route path="/commercialista">
+        <ProfessionLanding {...getProfessionPageProps("commercialisti")} />
+      </Route>
+      <Route path="/avvocato">
+        <ProfessionLanding {...getProfessionPageProps("avvocati")} />
+      </Route>
+      <Route path="/consulente-del-lavoro">
+        <ProfessionLanding {...getProfessionPageProps("consulenti-del-lavoro")} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -61,6 +72,15 @@ function EnPageRoutes() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/accountant">
+        <ProfessionLanding {...getProfessionPageProps("commercialisti")} />
+      </Route>
+      <Route path="/lawyer">
+        <ProfessionLanding {...getProfessionPageProps("avvocati")} />
+      </Route>
+      <Route path="/employment-consultant">
+        <ProfessionLanding {...getProfessionPageProps("consulenti-del-lavoro")} />
+      </Route>
       <Route path="/privacy-policy">
         <EnLegalRedirect suffix="/privacy-policy" />
       </Route>

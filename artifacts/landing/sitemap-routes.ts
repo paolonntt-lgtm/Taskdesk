@@ -47,3 +47,35 @@ export const SITEMAP_ROUTE_META: Record<string, SitemapRouteMeta> = {
   "/cookie-policy": { exclude: true },
   "/dpa": { exclude: true },
 };
+
+const professionSitemapEntries: Record<string, SitemapRouteMeta> = {
+  "/commercialista": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/commercialista`,
+      en: `${SITEMAP_BASE_URL}/en/accountant`,
+    },
+  },
+  "/accountant": { exclude: true },
+  "/avvocato": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/avvocato`,
+      en: `${SITEMAP_BASE_URL}/en/lawyer`,
+    },
+  },
+  "/lawyer": { exclude: true },
+  "/consulente-del-lavoro": {
+    changefreq: "monthly",
+    priority: 0.8,
+    urls: {
+      it: `${SITEMAP_BASE_URL}/it/consulente-del-lavoro`,
+      en: `${SITEMAP_BASE_URL}/en/employment-consultant`,
+    },
+  },
+  "/employment-consultant": { exclude: true },
+};
+
+Object.assign(SITEMAP_ROUTE_META, professionSitemapEntries);

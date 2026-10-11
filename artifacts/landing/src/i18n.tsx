@@ -37,7 +37,13 @@ interface Translations {
   whoUses: {
     title: string;
     subtitle: string;
-    profiles: Array<{ icon: string; title: string; desc: string; detail: string }>;
+    profiles: Array<{
+      profession: "commercialisti" | "avvocati" | "consulenti-del-lavoro";
+      icon: string;
+      title: string;
+      desc: string;
+      detail: string;
+    }>;
   };
   pain: {
     title: string;
@@ -189,25 +195,28 @@ const translations: Record<Language, Translations> = {
     },
     whoUses: {
       title: "Fatto per chi lavora con i clienti ogni giorno",
-      subtitle: "Studi, agenzie e consulenti usano TaskDesk per mettere ordine nelle richieste senza complicazioni.",
+      subtitle: "Scegli il tuo ambito per vedere esempi concreti di come organizzare le richieste dello studio.",
       profiles: [
         {
+          profession: "commercialisti",
           icon: "🏛️",
-          title: "Studio Commerciale",
-          desc: "Gestisci le pratiche fiscali e contabili dei clienti senza email disperse.",
-          detail: "Dichiarazioni, F24, visure, revisioni — ogni richiesta ha uno stato, un assegnatario e una scadenza.",
+          title: "Commercialisti",
+          desc: "Raccogli documenti e richieste dei clienti in uno spazio condiviso.",
+          detail: "Assegna le verifiche, rendi visibili le scadenze e ritrova gli aggiornamenti della pratica.",
         },
         {
+          profession: "avvocati",
           icon: "🎯",
-          title: "Agenzia",
-          desc: "Tieni traccia di brief, revisioni e consegne senza perdere nulla.",
-          detail: "Il cliente manda la richiesta, il team la prende in carico, tutti vedono lo stato in tempo reale.",
+          title: "Avvocati",
+          desc: "Tieni richieste, documenti e comunicazioni collegate a ogni pratica.",
+          detail: "Il team vede chi segue il caso, cosa è in attesa e qual è il prossimo passaggio.",
         },
         {
+          profession: "consulenti-del-lavoro",
           icon: "💼",
-          title: "Studio di Consulenza",
-          desc: "Organizza le richieste dei clienti e assegnale ai tuoi consulenti.",
-          detail: "Ogni consulente vede solo le pratiche assegnate. Niente confusione, niente sovrapposizioni.",
+          title: "Consulenti del lavoro",
+          desc: "Coordina le richieste delle aziende e i documenti del personale.",
+          detail: "Assegna attività e aggiornamenti allo studio senza perdere il contesto tra i referenti.",
         },
       ],
     },
@@ -451,25 +460,28 @@ const translations: Record<Language, Translations> = {
     },
     whoUses: {
       title: "Built for those who work with clients every day",
-      subtitle: "Firms, agencies and consultants use TaskDesk to bring order to client requests — without the complexity.",
+      subtitle: "Choose your profession to see practical examples of how TaskDesk can organise your practice's requests.",
       profiles: [
         {
+          profession: "commercialisti",
           icon: "🏛️",
-          title: "Accounting Firm",
-          desc: "Manage client filings and accounting requests without scattered emails.",
-          detail: "Tax returns, payments, reviews — every request has a status, an assignee and a deadline.",
+          title: "Accountants",
+          desc: "Collect client documents and requests in one shared workspace.",
+          detail: "Assign reviews, make deadlines visible and keep every practice update together.",
         },
         {
+          profession: "avvocati",
           icon: "🎯",
-          title: "Agency",
-          desc: "Track briefs, revisions and deliverables without losing anything.",
-          detail: "The client sends a request, the team picks it up, everyone sees the status in real time.",
+          title: "Lawyers",
+          desc: "Keep requests, documents and conversations connected to each matter.",
+          detail: "Your team can see who owns the case, what is waiting and what happens next.",
         },
         {
+          profession: "consulenti-del-lavoro",
           icon: "💼",
-          title: "Consulting Firm",
-          desc: "Organise client requests and assign them to your consultants.",
-          detail: "Each consultant sees only their assigned work. No confusion, no overlap.",
+          title: "Labour consultants",
+          desc: "Coordinate employer requests and employee documentation.",
+          detail: "Assign practice tasks and updates without losing context between contacts.",
         },
       ],
     },
