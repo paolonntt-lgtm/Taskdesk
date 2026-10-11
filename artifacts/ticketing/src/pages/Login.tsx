@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Lang } from '../i18n/translations';
 import { trackEvent } from '../lib/analytics';
+import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from '../lib/professionalTrialAttribution';
 
 function GoogleLogo() {
   return (
@@ -79,6 +80,7 @@ export default function Login() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const professionalAttribution = parseProfessionalTrialAttribution(window.location.search);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -139,6 +141,12 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
       trackEvent('registration_succeeded', { method: 'password' });
+      if (professionalAttribution && hasConfirmedTrialRegistration(res.status, data?.user)) {
+        trackEvent('professional_trial_started', {
+          profession: professionalAttribution.profession,
+          language: professionalAttribution.language,
+        });
+      }
       await login({ email, password });
     } catch { setLocalError(t.login.networkError); }
     finally { setIsSubmitting(false); }
