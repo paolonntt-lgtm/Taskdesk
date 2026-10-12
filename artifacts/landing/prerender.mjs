@@ -15,12 +15,12 @@ function readTemplate() {
  * via the collected Helmet context from SSR. Static tags (charset, viewport,
  * theme-color, GA script, favicon, preconnects, fonts, og:type, og:site_name,
  * og:image:width/height, twitter:card) are left in place because they do not
- * vary per-route. The landing page image and its alt text are stripped when
- * prerendering /it/ and /en/ because both vary by locale. og:locale:alternate
+ * vary per-route. Social image alt text is stripped when the rendered page
+ * supplies its own (home, profession and legal pages). og:locale:alternate
  * is stripped here because it differs between /it/ and /en/ and is injected
  * per-locale by the Landing component's <Helmet> block.
  */
-function stripDynamicHeadTags(html, isLandingPage = false) {
+function stripDynamicHeadTags(html, hasSocialImageAlt = false) {
   let h = html;
   h = h.replace(/\s*<title>[^<]*<\/title>/g, '');
   h = h.replace(/\s*<meta name="description"[^>]*\/?>/gi, '');
@@ -37,7 +37,7 @@ function stripDynamicHeadTags(html, isLandingPage = false) {
   h = h.replace(/\s*<meta property="og:description"[^>]*\/?>/gi, '');
   // og:image (not og:image:width / og:image:height / og:image:alt)
   h = h.replace(/\s*<meta property="og:image"(?!:)[^>]*\/?>/gi, '');
-  if (isLandingPage) {
+  if (hasSocialImageAlt) {
     h = h.replace(/\s*<meta property="og:image:alt"[^>]*\/?>/gi, '');
   }
   // og:locale and og:locale:alternate (both vary per locale)
@@ -47,7 +47,7 @@ function stripDynamicHeadTags(html, isLandingPage = false) {
   h = h.replace(/\s*<meta name="twitter:title"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:description"[^>]*\/?>/gi, '');
   h = h.replace(/\s*<meta name="twitter:image"(?!:)[^>]*\/?>/gi, '');
-  if (isLandingPage) {
+  if (hasSocialImageAlt) {
     h = h.replace(/\s*<meta name="twitter:image:alt"[^>]*\/?>/gi, '');
   }
   return h;
@@ -234,7 +234,8 @@ async function writeRoute(routePath, isLandingPage = false, isProfessionPage = f
   // Start from the template with all dynamic head tags stripped.
   // The route component's <Helmet> output will be the single source of truth.
   const template = readTemplate();
-  let html = stripDynamicHeadTags(template, isLandingPage);
+  const isLegalPage = /^\/it\/(privacy-policy|terms|dpa|cookie-policy)\/?$/.test(routePath);
+  let html = stripDynamicHeadTags(template, isLandingPage || isProfessionPage || isLegalPage);
 
   const lang = languageOverride ?? (routePath.startsWith('/en') ? 'en' : 'it');
   let bodyHtml = '';

@@ -45,6 +45,10 @@ export function ProfessionLanding({
   const campaignQuery = campaign === "unattributed" ? "" : `?utm_campaign=${campaign}`;
   const currentMetadata = metadata[lang];
   const currentRoutes = routes[lang];
+  const socialImage = `https://taskdesk.it/${lang === "it" ? "opengraph-it.jpg" : "opengraph.jpg"}`;
+  const socialImageAlt = lang === "it"
+    ? "TaskDesk — gestione pratiche e richieste clienti"
+    : "TaskDesk — Ticket management software";
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -93,11 +97,13 @@ export function ProfessionLanding({
         <meta property="og:locale" content={lang === "it" ? "it_IT" : "en_US"} />
         <meta property="og:title" content={currentMetadata.title} />
         <meta property="og:description" content={currentMetadata.description} />
-        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta property="og:image" content={socialImage} />
+        <meta property="og:image:alt" content={socialImageAlt} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={currentMetadata.title} />
         <meta name="twitter:description" content={currentMetadata.description} />
-        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta name="twitter:image" content={socialImage} />
+        <meta name="twitter:image:alt" content={socialImageAlt} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

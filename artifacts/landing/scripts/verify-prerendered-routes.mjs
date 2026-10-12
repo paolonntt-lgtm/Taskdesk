@@ -4,6 +4,30 @@ import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
 
 const publicDir = resolve(import.meta.dirname, "../dist/public");
+function verifySocialPreview(document, lang, routePath) {
+  const image = `https://taskdesk.it/${lang === "it" ? "opengraph-it.jpg" : "opengraph.jpg"}`;
+  const alt = lang === "it"
+    ? "TaskDesk — gestione pratiche e richieste clienti"
+    : "TaskDesk — Ticket management software";
+  for (const [selector, expected] of [
+    ['meta[property="og:image"]', image],
+    ['meta[name="twitter:image"]', image],
+    ['meta[property="og:image:alt"]', alt],
+    ['meta[name="twitter:image:alt"]', alt],
+  ]) {
+    const tags = document.head.querySelectorAll(selector);
+    assert.equal(tags.length, 1, `${routePath} must have exactly one ${selector} in its initial head`);
+    assert.equal(tags[0].content, expected, `${routePath} must localize ${selector}`);
+    assert.equal(document.body.querySelectorAll(selector).length, 0, `${routePath} must not duplicate ${selector} in its body`);
+  }
+}
+
+for (const slug of ["privacy-policy", "terms", "dpa", "cookie-policy"]) {
+  const routePath = `/it/${slug}`;
+  const document = new JSDOM(readFileSync(resolve(publicDir, "it", slug, "index.html"), "utf8")).window.document;
+  verifySocialPreview(document, "it", routePath);
+  console.log(`✓ ${routePath} Italian social preview`);
+}
 const errorDocument = new JSDOM(readFileSync(resolve(publicDir, "404/index.html"), "utf8")).window.document;
 assert.equal(errorDocument.documentElement.lang, "en", "The shared English 404 must declare English");
 assert.ok(errorDocument.body.textContent.includes("404 Page Not Found"));
@@ -96,6 +120,7 @@ for (const route of routes) {
   const filePath = resolve(publicDir, route.lang, "index.html");
   const html = readFileSync(filePath, "utf8");
   const document = new JSDOM(html).window.document;
+  verifySocialPreview(document, route.lang, route.path);
   verifyPricingContrast(document, '[data-testid^="landing-plan-card-"]', route.path);
   const billingButtons = [...document.querySelectorAll("button[aria-pressed]")];
   assert.deepEqual(billingButtons.map((button) => button.getAttribute("aria-pressed")), ["true", "false"]);
@@ -205,6 +230,7 @@ for (const profession of PROFESSION_IDS) {
     const filePath = resolve(publicDir, lang, slug, "index.html");
     const html = readFileSync(filePath, "utf8");
     const document = new JSDOM(html).window.document;
+    verifySocialPreview(document, lang, routePath);
     const bodyText = document.body.textContent ?? "";
     const pageCopy = PROFESSIONS[profession][lang];
     const otherLanguage = lang === "it" ? "en" : "it";

@@ -35,11 +35,13 @@ export default function PrivacyPolicy() {
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:title" content={meta.title} />
         <meta property="og:description" content={meta.description} />
-        <meta property="og:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta property="og:image" content="https://taskdesk.it/opengraph-it.jpg" />
+        <meta property="og:image:alt" content="TaskDesk — gestione pratiche e richieste clienti" />
         <meta property="og:locale" content="it_IT" />
         <meta name="twitter:title" content={meta.title} />
         <meta name="twitter:description" content={meta.description} />
-        <meta name="twitter:image" content="https://taskdesk.it/opengraph.jpg" />
+        <meta name="twitter:image" content="https://taskdesk.it/opengraph-it.jpg" />
+        <meta name="twitter:image:alt" content="TaskDesk — gestione pratiche e richieste clienti" />
       </Helmet>
       {/* Header */}
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
