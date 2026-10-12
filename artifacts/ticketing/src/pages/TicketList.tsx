@@ -221,10 +221,29 @@ export default function TicketList() {
     id: 48, title: 240, category: 110, status: 90,
     priority: 80, dueAt: 90, assignee: 120, location: 90, createdAt: 90,
   };
+  const MIN_COL_WIDTHS: Record<string, number> = {
+    id: 40, title: 160, category: 80, status: 70,
+    priority: 60, dueAt: 70, assignee: 90, location: 70, createdAt: 75,
+  };
+  const MAX_COL_WIDTHS: Record<string, number> = {
+    id: 96, title: 420, category: 280, status: 220,
+    priority: 180, dueAt: 180, assignee: 260, location: 220, createdAt: 180,
+  };
+  const normalizeColWidths = (value: unknown) => {
+    const saved = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    return Object.fromEntries(
+      Object.entries(DEFAULT_COL_WIDTHS).map(([key, defaultWidth]) => {
+        const width = Number(saved[key]);
+        const min = MIN_COL_WIDTHS[key] ?? 40;
+        const max = MAX_COL_WIDTHS[key] ?? 500;
+        return [key, Number.isFinite(width) ? Math.min(max, Math.max(min, width)) : defaultWidth];
+      }),
+    ) as Record<string, number>;
+  };
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('ticketlist-col-widths');
-      return saved ? { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) } : DEFAULT_COL_WIDTHS;
+      return saved ? normalizeColWidths(JSON.parse(saved)) : DEFAULT_COL_WIDTHS;
     } catch { return DEFAULT_COL_WIDTHS; }
   });
   const cw = (k: string) => colWidths[k] ?? DEFAULT_COL_WIDTHS[k] ?? 100;
@@ -235,7 +254,10 @@ export default function TicketList() {
     resizingRef.current = { col, startX: e.clientX, startWidth: colWidths[col] ?? DEFAULT_COL_WIDTHS[col] ?? 100 };
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.max(40, resizingRef.current.startWidth + ev.clientX - resizingRef.current.startX);
+        const activeCol = resizingRef.current.col;
+        const min = MIN_COL_WIDTHS[activeCol] ?? 40;
+        const max = MAX_COL_WIDTHS[activeCol] ?? 500;
+        const w = Math.min(max, Math.max(min, resizingRef.current.startWidth + ev.clientX - resizingRef.current.startX));
       setColWidths(prev => {
         const next = { ...prev, [resizingRef.current!.col]: w };
         localStorage.setItem('ticketlist-col-widths', JSON.stringify(next));
