@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "security:check": "SECURITY_STRICT_HISTORY=1 node scripts/security-check.mjs",
+    "test:dependency-security": "node --test scripts/dependency-security.test.mjs",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
@@ -17,16 +18,5 @@
   "dependencies": {
     "stripe": "^22.1.0",
     "stripe-replit-sync": "^1.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "browserslist": "4.28.8",
-      "qs": "6.16.0",
-      "fast-uri": "3.1.7",
-      "decode-uri-component": "0.5.0",
-      "ip-address": "10.7.0",
-      "postcss": "8.5.26",
-      "@xmldom/xmldom": "0.9.12"
-    }
   }
 }

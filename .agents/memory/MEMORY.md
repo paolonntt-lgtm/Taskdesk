@@ -31,3 +31,4 @@
 - [Profession labels](profession-labels.md) — Keep singular labels in both locales for notary, commerce, and agency profiles; IT helpdesk is no longer a profile.
 - [Profession mark presentation](profession-mark-presentation.md) — Use larger white profession tiles in two rows on the main landing; preserve logo proportions.
 - [TaskDesk landing hero scope](landing-hero-visual-scope.md) — Keep hero refinements limited to the right-side visual unless the user asks for broader changes.
+- [Dependency remediation policy](dependency-remediation-policy.md) — Preserve audit visibility for locally patched, unmaintained dependencies; verify consumer behavior, not just version numbers.
