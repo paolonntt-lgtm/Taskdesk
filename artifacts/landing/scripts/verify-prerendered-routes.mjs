@@ -4,6 +4,21 @@ import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
 
 const publicDir = resolve(import.meta.dirname, "../dist/public");
+const errorDocument = new JSDOM(readFileSync(resolve(publicDir, "404/index.html"), "utf8")).window.document;
+assert.equal(errorDocument.documentElement.lang, "en", "The shared English 404 must declare English");
+assert.ok(errorDocument.body.textContent.includes("404 Page Not Found"));
+assert.equal(errorDocument.querySelector('meta[name="robots"]')?.content, "noindex, nofollow");
+
+function verifyPricingContrast(document, selector, routePath) {
+  const cards = [...document.querySelectorAll(selector)];
+  assert.ok(cards.length > 0, `${routePath} must render pricing cards`);
+  for (const card of cards) {
+    assert.equal(card.querySelectorAll(".text-gray-400").length, 0, `${routePath} pricing must not use low-contrast gray-400`);
+    const price = card.querySelector(".text-5xl, .text-4xl");
+    const hasBillingUnit = Boolean(price?.nextElementSibling);
+    assert.equal(card.querySelectorAll(".text-gray-600").length, hasBillingUnit ? 3 : 1, `${routePath} plan name and any billing unit and VAT note must use darker gray`);
+  }
+}
 const { PROFESSION_IDS, PROFESSION_SLUGS, getProfessionPageProps, PROFESSIONS } =
   await import("../dist/server/entry-server.js");
 const routes = [
@@ -81,6 +96,10 @@ for (const route of routes) {
   const filePath = resolve(publicDir, route.lang, "index.html");
   const html = readFileSync(filePath, "utf8");
   const document = new JSDOM(html).window.document;
+  verifyPricingContrast(document, '[data-testid^="landing-plan-card-"]', route.path);
+  const billingButtons = [...document.querySelectorAll("button[aria-pressed]")];
+  assert.deepEqual(billingButtons.map((button) => button.getAttribute("aria-pressed")), ["true", "false"]);
+  assert.ok(!html.includes("ld-ticker"), `${route.path} must not auto-scroll the promotional text`);
   const bodyText = document.body.textContent ?? "";
   const heading = document.querySelector("h1")?.textContent ?? "";
   const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute("href");
@@ -263,6 +282,7 @@ for (const profession of PROFESSION_IDS) {
     assert.equal(jsonLd.description, metadata.description, `${routePath} structured data must use its localized description`);
     assert.equal(jsonLd.inLanguage, lang, `${routePath} structured data must preserve the route language`);
 
+    verifyPricingContrast(document, '[data-testid^="pricing-plan-"]', routePath);
     console.log(`✓ ${routePath} profession content and locale metadata`);
   }
 }

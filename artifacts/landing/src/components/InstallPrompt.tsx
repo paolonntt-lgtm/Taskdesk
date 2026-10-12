@@ -157,7 +157,7 @@ export function InstallPrompt() {
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "#9ca3af",
+            color: "#4b5563",
             padding: 4,
             flexShrink: 0,
           }}

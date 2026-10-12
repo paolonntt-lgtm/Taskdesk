@@ -288,15 +288,15 @@ export function ProfessionLanding({
                 <article key={plan.name} className={`relative flex flex-col rounded-2xl bg-white p-6 ${plan.highlight ? "border-2 border-blue-600 shadow-xl shadow-blue-100" : "border border-gray-200 shadow-sm"}`} data-testid={`pricing-plan-${index}`}>
                   {plan.highlight && <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">{t.pricing.mostPopular}</span>}
                   <div className="mb-5">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">{plan.name}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-600">{plan.name}</p>
                     <p className="mt-2 min-h-10 text-sm leading-5 text-gray-500">{plan.desc}</p>
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black tracking-tight text-gray-950">{billingCycle === "annual" ? plan.annualPrice : plan.price}</span>
-                    {!plan.noUnit && <span className="text-xs font-medium text-gray-400">{billingCycle === "annual" ? t.pricing.perYear : t.pricing.perMonth}</span>}
+                    {!plan.noUnit && <span className="text-xs font-medium text-gray-600">{billingCycle === "annual" ? t.pricing.perYear : t.pricing.perMonth}</span>}
                   </div>
                   {billingCycle === "annual" && !plan.noUnit && plan.annualMonthly && <p className="mt-1 text-xs font-semibold text-emerald-700">{plan.annualMonthly}</p>}
-                  {!plan.noUnit && <p className="mt-1 text-[11px] text-gray-400">{t.pricing.vatNote}</p>}
+                  {!plan.noUnit && <p className="mt-1 text-[11px] text-gray-600">{t.pricing.vatNote}</p>}
                   {!plan.hideSeats && <p className="mt-3 text-xs font-semibold text-gray-500">{plan.seats === null ? t.pricing.seatsUnlimited : `${plan.seats} ${t.pricing.seatsSuffix}`}</p>}
                   {plan.maxAddon > 0 && <p className="mt-2 text-xs font-medium text-blue-700">+ {t.pricing.addonLabel} (max {plan.maxAddon})</p>}
                   <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "pricing", campaign)} className={`mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${plan.highlight ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-900 text-white hover:bg-gray-800"}`} data-testid={`link-plan-cta-${index}`}>

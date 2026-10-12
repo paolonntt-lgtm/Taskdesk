@@ -226,7 +226,7 @@ const BASE = 'https://taskdesk.it';
 
 console.log('Prerendering routes...');
 
-async function writeRoute(routePath, isLandingPage = false, isProfessionPage = false) {
+async function writeRoute(routePath, isLandingPage = false, isProfessionPage = false, languageOverride) {
   const cleanPath = routePath.replace(/^\//, '').replace(/\/$/, '');
   const dir = cleanPath ? resolve(distDir, cleanPath) : distDir;
   mkdirSync(dir, { recursive: true });
@@ -236,7 +236,7 @@ async function writeRoute(routePath, isLandingPage = false, isProfessionPage = f
   const template = readTemplate();
   let html = stripDynamicHeadTags(template, isLandingPage);
 
-  const lang = routePath.startsWith('/en') ? 'en' : 'it';
+  const lang = languageOverride ?? (routePath.startsWith('/en') ? 'en' : 'it');
   let bodyHtml = '';
 
   try {
@@ -304,7 +304,7 @@ for (const page of legalPages) {
   await writeRoute(`/it/${page.slug}`, false);
 }
 
-// 404 not-found page — served with HTTP 404 for any unknown route
-await writeRoute('/404', false);
+// Shared English error document, served with HTTP 404 for any unknown route.
+await writeRoute('/404', false, false, 'en');
 
 console.log('Prerender complete.');
