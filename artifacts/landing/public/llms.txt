@@ -13,6 +13,18 @@
 
 - https://taskdesk.it/it/ — Italian marketing landing page (features, pricing, FAQ)
 - https://taskdesk.it/en/ — English marketing landing page (features, pricing, FAQ)
+- https://taskdesk.it/it/commercialista — TaskDesk per commercialisti (Italian)
+- https://taskdesk.it/it/avvocato — TaskDesk per avvocati (Italian)
+- https://taskdesk.it/it/consulente-del-lavoro — TaskDesk per consulenti del lavoro (Italian)
+- https://taskdesk.it/it/notaio — TaskDesk per notai (Italian)
+- https://taskdesk.it/it/commercio — TaskDesk per il commercio (Italian)
+- https://taskdesk.it/it/agenzia — TaskDesk per agenzie (Italian)
+- https://taskdesk.it/en/accountant — TaskDesk for accountants (English)
+- https://taskdesk.it/en/lawyer — TaskDesk for lawyers (English)
+- https://taskdesk.it/en/employment-consultant — TaskDesk for employment consultants (English)
+- https://taskdesk.it/en/notary — TaskDesk for notaries (English)
+- https://taskdesk.it/en/commerce — TaskDesk for commerce (English)
+- https://taskdesk.it/en/agency — TaskDesk for agencies (English)
 
 ## Legal & policy pages (noindex, Italian only, for compliance reference only)
 
