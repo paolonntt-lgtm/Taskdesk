@@ -6,6 +6,7 @@ import {
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import InviteWelcome from '../components/InviteWelcome';
+import { trackEvent } from '../lib/analytics';
 
 interface InviteInfo {
   valid: boolean;
@@ -53,6 +54,7 @@ export default function InviteRegister({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || tr.registrationError); return; }
+      trackEvent('invitation_registration_succeeded');
       setShowWelcome(true);
     } catch {
       setError(tr.networkRetry);
