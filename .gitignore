@@ -51,3 +51,4 @@ Thumbs.db
 # Firebase — service account keys and Android config contain credentials; do NOT commit
 *firebase-adminsdk*.json
 google-services.json
+/generated-artifacts/
