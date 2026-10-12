@@ -8,6 +8,7 @@ import {
   Computer, Gavel, Campaign, Category, Add, Close, CheckCircle,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { trackEvent } from '../lib/analytics';
 
 interface BusinessTypeOption {
   value: string;
@@ -74,7 +75,11 @@ export default function Onboarding({ onComplete }: Props) {
     t.onboarding.stepFirstTicket,
   ];
 
-  const callOnboardingComplete = async () => {
+  React.useEffect(() => {
+    trackEvent('onboarding_started');
+  }, []);
+
+  const callOnboardingComplete = async (firstTicketCreated = false) => {
     setCompleting(true);
     setGlobalError(null);
     try {
@@ -90,6 +95,10 @@ export default function Onboarding({ onComplete }: Props) {
         return;
       }
       applyDashboardPreset(selected!);
+      trackEvent('onboarding_completed', {
+        business_type: selected!,
+        first_ticket_created: firstTicketCreated,
+      });
       onComplete(selected!);
     } catch {
       setGlobalError(t.onboarding.errorNetwork);
@@ -122,7 +131,11 @@ export default function Onboarding({ onComplete }: Props) {
   };
 
   const handleSendInvites = async () => {
-    if (emails.length === 0) { setCurrentStep(3); return; }
+    if (emails.length === 0) {
+      trackEvent('onboarding_invites_skipped', { method: 'continue_without_invites' });
+      setCurrentStep(3);
+      return;
+    }
     setInviting(true);
     setInviteError(null);
     let ok = 0;
@@ -148,6 +161,10 @@ export default function Onboarding({ onComplete }: Props) {
     }
 
     setInviting(false);
+    trackEvent('onboarding_invites_sent', {
+      invited_count: ok,
+      failed_count: fail,
+    });
     if (seatLimitHit && ok === 0 && fail === emails.length) {
       setInviteError(t.onboarding.inviteSeatLimit);
       return;
@@ -156,7 +173,10 @@ export default function Onboarding({ onComplete }: Props) {
     setTimeout(() => { setCurrentStep(3); }, 1400);
   };
 
-  const handleSkipInvite = () => { setCurrentStep(3); };
+  const handleSkipInvite = () => {
+    trackEvent('onboarding_invites_skipped', { method: 'skip_button' });
+    setCurrentStep(3);
+  };
 
   const handleCreateTicket = async () => {
     if (!ticketTitle.trim()) return;
@@ -180,7 +200,8 @@ export default function Onboarding({ onComplete }: Props) {
         return;
       }
       setTicketSuccess(true);
-      setTimeout(() => callOnboardingComplete(), 1200);
+      trackEvent('onboarding_first_ticket_created');
+      setTimeout(() => callOnboardingComplete(true), 1200);
     } catch {
       setTicketError(t.onboarding.ticketErrorGeneric);
     } finally {
@@ -188,7 +209,10 @@ export default function Onboarding({ onComplete }: Props) {
     }
   };
 
-  const handleSkipTicket = () => { callOnboardingComplete(); };
+  const handleSkipTicket = () => {
+    trackEvent('onboarding_first_ticket_skipped');
+    callOnboardingComplete();
+  };
 
   return (
     <Box
@@ -230,7 +254,11 @@ export default function Onboarding({ onComplete }: Props) {
           <StepBusinessType
             selected={selected}
             setSelected={setSelected}
-            onNext={() => setCurrentStep(2)}
+            onNext={() => {
+              if (!selected) return;
+              trackEvent('onboarding_business_type_selected', { business_type: selected });
+              setCurrentStep(2);
+            }}
             t={t}
           />
         )}
