@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent,
+  TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, MenuItem,
   DialogActions, Alert, InputAdornment, Tooltip, Snackbar, Chip,
   LinearProgress, Divider, Checkbox, FormControlLabel,
 } from '@mui/material';
@@ -41,19 +41,97 @@ interface ParsedRow {
   error?: string;
 }
 
-async function parseXlsx(file: File): Promise<ParsedRow[]> {
+type ImportFieldKey = 'name' | 'vatNumber' | 'taxCode' | 'address' | 'pec' | 'contactPerson' | 'email' | 'phone' | 'notes';
+type HeaderlessMapping = Record<ImportFieldKey, number | null>;
+type ImportCell = CellValue | null;
+type ParsedXlsx = { rows: ParsedRow[]; headerlessRows?: ImportCell[][] };
+
+const HEADERLESS_FIELDS = [
+  { key: 'name', labelKey: 'name', required: true },
+  { key: 'vatNumber', labelKey: 'vatNumber', required: true },
+  { key: 'taxCode', labelKey: 'taxCode' },
+  { key: 'address', labelKey: 'address' },
+  { key: 'pec', labelKey: 'pec' },
+  { key: 'contactPerson', labelKey: 'contactPerson' },
+  { key: 'email', labelKey: 'email' },
+  { key: 'phone', labelKey: 'phone' },
+  { key: 'notes', labelKey: 'notes' },
+] as const;
+
+const KNOWN_XLSX_HEADERS = new Set([
+  'Denominazione', 'Nome', 'name',
+  'P.IVA/TAX ID', 'PartitaIVA', 'Partita IVA', 'vatNumber', 'PIVA',
+  'Codice Fiscale', 'CodiceFiscale', 'taxCode', 'CF',
+  'Indirizzo', 'address', 'Comune', 'CAP', 'Provincia',
+  'Indirizzo PEC', 'PEC', 'pec', 'Referente', 'contactPerson',
+  'Indirizzo e-mail', 'Email', 'email', 'Telefono', 'phone', 'Note', 'notes',
+]);
+
+function createDefaultHeaderlessMapping(): HeaderlessMapping {
+  return {
+    name: 0,
+    vatNumber: 1,
+    taxCode: null,
+    address: null,
+    pec: null,
+    contactPerson: null,
+    email: null,
+    phone: null,
+    notes: null,
+  };
+}
+
+function mapHeaderlessRows(rows: ImportCell[][], mapping: HeaderlessMapping): ParsedRow[] {
+  return rows
+    .filter((row) => row.some((value) => String(value ?? '').trim() !== ''))
+    .map((row, i) => {
+      const value = (key: ImportFieldKey) => {
+        const column = mapping[key];
+        return column === null ? '' : String(row[column] ?? '').trim();
+      };
+      return {
+        rowIndex: i + 1,
+        name: value('name'),
+        vatNumber: value('vatNumber'),
+        taxCode: value('taxCode'),
+        address: value('address'),
+        pec: value('pec'),
+        contactPerson: value('contactPerson'),
+        email: value('email'),
+        phone: value('phone'),
+        notes: value('notes'),
+      };
+    });
+}
+
+function excelColumnName(index: number): string {
+  let value = index + 1;
+  let label = '';
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    label = String.fromCharCode(65 + remainder) + label;
+    value = Math.floor((value - 1) / 26);
+  }
+  return label;
+}
+
+async function parseXlsx(file: File): Promise<ParsedXlsx> {
   try {
     const rawRows = await readSheet(file);
-    if (rawRows.length < 2) return [];
-    const headers = rawRows[0].map((h: CellValue) => String(h ?? '').trim());
-    const getCol = (row: CellValue[], ...names: string[]): string => {
+    if (rawRows.length === 0) return { rows: [] };
+    const headers = rawRows[0].map((h: ImportCell) => String(h ?? '').trim());
+    if (!headers.some((header) => KNOWN_XLSX_HEADERS.has(header))) {
+      return { rows: [], headerlessRows: rawRows };
+    }
+    if (rawRows.length < 2) return { rows: [] };
+    const getCol = (row: ImportCell[], ...names: string[]): string => {
       for (const name of names) {
         const idx = headers.indexOf(name);
         if (idx !== -1 && row[idx] != null) return String(row[idx]).trim();
       }
       return '';
     };
-    return rawRows.slice(1).map((row: CellValue[], i: number) => {
+    const rows = rawRows.slice(1).map((row: ImportCell[], i: number) => {
       const street   = getCol(row, 'Indirizzo', 'address');
       const city     = getCol(row, 'Comune');
       const cap      = getCol(row, 'CAP');
@@ -73,6 +151,7 @@ async function parseXlsx(file: File): Promise<ParsedRow[]> {
         notes:         getCol(row, 'Note', 'notes'),
       };
     });
+    return { rows };
   } catch {
     throw new Error('parse_error');
   }
@@ -184,6 +263,11 @@ export default function Clients() {
   // Import state
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ParsedRow[] | null>(null);
+  const [headerlessImport, setHeaderlessImport] = useState<{
+    rows: ImportCell[][];
+    columnCount: number;
+    mapping: HeaderlessMapping;
+  } | null>(null);
   const [importFileName, setImportFileName] = useState('');
   const [importParseError, setImportParseError] = useState('');
   const [importing, setImporting] = useState(false);
@@ -268,13 +352,26 @@ export default function Clients() {
     if (!file) return;
     setImportParseError('');
     setImportRows(null);
+    setHeaderlessImport(null);
     setImportFileName(file.name);
 
     try {
       let raw: ParsedRow[];
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        raw = await parseXlsx(file);
-      } else if (file.name.endsWith('.xml')) {
+      if (file.name.toLowerCase().endsWith('.xlsx')) {
+        const parsed = await parseXlsx(file);
+        if (parsed.headerlessRows) {
+          const columnCount = Math.max(0, ...parsed.headerlessRows.map((row) => row.length));
+          const headerless = {
+            rows: parsed.headerlessRows,
+            columnCount,
+            mapping: createDefaultHeaderlessMapping(),
+          };
+          setHeaderlessImport(headerless);
+          raw = mapHeaderlessRows(headerless.rows, headerless.mapping);
+        } else {
+          raw = parsed.rows;
+        }
+      } else if (file.name.toLowerCase().endsWith('.xml')) {
         raw = await parseXml(file);
       } else {
         setImportParseError(tc.importErrorParse);
@@ -288,6 +385,17 @@ export default function Clients() {
       setImportParseError(tc.importErrorParse);
     }
     e.target.value = '';
+  };
+
+  const handleHeaderlessMappingChange = (field: ImportFieldKey, value: string) => {
+    if (!headerlessImport) return;
+    const mapping = { ...headerlessImport.mapping, [field]: value === '' ? null : Number(value) };
+    const next = { ...headerlessImport, mapping };
+    setHeaderlessImport(next);
+    const existingVats = new Set(
+      allClients.map((c) => ((c as any).vatNumber ?? '').toString().trim().toLowerCase()).filter(Boolean)
+    );
+    setImportRows(validateRows(mapHeaderlessRows(next.rows, mapping), existingVats));
   };
 
   const handleImportConfirm = async () => {
@@ -321,6 +429,7 @@ export default function Clients() {
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
       setImportOpen(false);
       setImportRows(null);
+      setHeaderlessImport(null);
       setImportFileName('');
       setSnackbar({ open: true, msg: tc.importSuccessMsg(result.imported, result.skipped + errorCount + duplicateCount), severity: 'success' });
     } catch {
@@ -540,7 +649,7 @@ export default function Clients() {
       </Dialog>
 
       {/* Import Dialog */}
-      <Dialog open={importOpen} onClose={() => { setImportOpen(false); setImportRows(null); setImportFileName(''); setImportParseError(''); }} maxWidth="md" fullWidth>
+      <Dialog open={importOpen} onClose={() => { setImportOpen(false); setImportRows(null); setHeaderlessImport(null); setImportFileName(''); setImportParseError(''); }} maxWidth="md" fullWidth>
         <DialogTitle>{tc.importDialogTitle}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
@@ -553,7 +662,7 @@ export default function Clients() {
 
           <input
             type="file"
-            accept=".xlsx,.xls,.xml"
+            accept=".xlsx,.xml"
             ref={fileInputRef}
             style={{ display: 'none' }}
             onChange={handleFileChange}
@@ -573,6 +682,41 @@ export default function Clients() {
           )}
 
           {importParseError && <Alert severity="error" sx={{ mb: 2 }}>{importParseError}</Alert>}
+
+          {headerlessImport && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" mb={1}>{tc.importNoHeaders}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5 }}>
+                {HEADERLESS_FIELDS.map((field) => (
+                  <TextField
+                    key={field.key}
+                    select
+                    size="small"
+                    label={`${tc[field.labelKey]}${'required' in field && field.required ? ' *' : ''}`}
+                    value={headerlessImport.mapping[field.key] ?? ''}
+                    onChange={(event) => handleHeaderlessMappingChange(field.key, event.target.value)}
+                  >
+                    <MenuItem value="">{tc.importSkipColumn}</MenuItem>
+                    {Array.from({ length: headerlessImport.columnCount }, (_, columnIndex) => {
+                      const usedByAnotherField = HEADERLESS_FIELDS.some(
+                        (otherField) => otherField.key !== field.key
+                          && headerlessImport.mapping[otherField.key] === columnIndex
+                      );
+                      return (
+                        <MenuItem
+                          key={columnIndex}
+                          value={columnIndex}
+                          disabled={usedByAnotherField}
+                        >
+                          {tc.importColumn} {excelColumnName(columnIndex)}
+                        </MenuItem>
+                      );
+                    })}
+                  </TextField>
+                ))}
+              </Box>
+            </Alert>
+          )}
 
           {importRows && importRows.length > 0 && (
             <>
@@ -599,6 +743,7 @@ export default function Clients() {
                       <TableCell sx={{ fontWeight: 600 }}>{tc.contactPerson}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.email}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.phone}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{tc.notes}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{tc.importColError}</TableCell>
                     </TableRow>
                   </TableHead>
@@ -623,6 +768,7 @@ export default function Clients() {
                         <TableCell>{row.contactPerson || '—'}</TableCell>
                         <TableCell>{row.email || '—'}</TableCell>
                         <TableCell>{row.phone || '—'}</TableCell>
+                        <TableCell>{row.notes || '—'}</TableCell>
                         <TableCell>
                           {row.error === 'missingName' && tc.importRowErrorMissingName}
                           {row.error === 'missingVat' && tc.importRowErrorMissingVat}
@@ -639,7 +785,7 @@ export default function Clients() {
           {importing && <LinearProgress sx={{ mt: 2 }} />}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => { setImportOpen(false); setImportRows(null); setImportFileName(''); setImportParseError(''); }}>
+          <Button onClick={() => { setImportOpen(false); setImportRows(null); setHeaderlessImport(null); setImportFileName(''); setImportParseError(''); }}>
             {tc.cancel}
           </Button>
           <Button

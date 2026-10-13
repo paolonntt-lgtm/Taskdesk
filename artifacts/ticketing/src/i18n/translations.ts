@@ -1343,6 +1343,9 @@ const it = {
     importImporting: 'Importazione...',
     importSuccessMsg: (imported: number, skipped: number) =>
       `Importati ${imported} clienti${skipped > 0 ? `, ${skipped} saltati per errore` : ''}.`,
+    importNoHeaders: 'Intestazioni non rilevate: scegli quale colonna contiene ciascun dato. La prima riga sarà inclusa; controlla l’anteprima prima di importare.',
+    importColumn: 'Colonna',
+    importSkipColumn: 'Non importare',
     importErrorParse: 'Impossibile leggere il file. Verificare il formato.',
     importErrorServer: 'Errore durante l\'importazione. Riprova.',
     importColRow: 'Riga',
@@ -3043,6 +3046,9 @@ const en: typeof it = {
     importImporting: 'Importing...',
     importSuccessMsg: (imported: number, skipped: number) =>
       `Imported ${imported} client${imported === 1 ? '' : 's'}${skipped > 0 ? `, ${skipped} skipped due to errors` : ''}.`,
+    importNoHeaders: 'No headers detected: choose which column contains each field. The first row will be included; review the preview before importing.',
+    importColumn: 'Column',
+    importSkipColumn: 'Do not import',
     importErrorParse: 'Unable to read the file. Please check the format.',
     importErrorServer: 'Import error. Please try again.',
     importColRow: 'Row',
