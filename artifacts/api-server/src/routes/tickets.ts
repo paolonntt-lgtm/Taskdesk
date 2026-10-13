@@ -1184,7 +1184,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
     createdBy: currentUser.id,
     assignedTo: existing.assignedTo,
     assignedToGroup: existing.assignedToGroup,
-    clientId: existing.clientId,
+    clientId: clientsEnabled ? existing.clientId : null,
     scheduledAt: scheduledDate,
     createdAt: scheduledDate ?? new Date(),
   }).returning();

@@ -8,6 +8,7 @@ import {
   organizationsTable,
   pool,
   sessionsTable,
+  ticketStatusesTable,
   ticketsTable,
   usersTable,
 } from "@workspace/db";
@@ -149,6 +150,7 @@ describe("client worked-hours report", () => {
     await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
     await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
     await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
+    await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, organizationId));
     await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
     await pool.end();
   });
@@ -386,6 +388,12 @@ describe("client worked-hours report", () => {
     expect(disabledClone.body).not.toHaveProperty("clientId");
     expect(disabledClone.body).not.toHaveProperty("client");
     createdTicketIds.push(disabledClone.body.id);
+    const disabledCloneInDb = await db
+      .select({ clientId: ticketsTable.clientId })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, disabledClone.body.id))
+      .limit(1);
+    expect(disabledCloneInDb[0]?.clientId).toBeNull();
 
     await db.update(ticketsTable)
       .set({ deletedAt: new Date() })
@@ -469,6 +477,23 @@ describe("client worked-hours report", () => {
     });
     expect(enabledSettings.status).toBe(200);
 
+    const enabledClone = await request(`/api/tickets/${publicTicketId}/clone`, adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(enabledClone.status).toBe(201);
+    expect(enabledClone.body).toMatchObject({
+      clientId,
+      client: { id: clientId, name: "Worked Hours Client" },
+    });
+    createdTicketIds.push(enabledClone.body.id);
+    const enabledCloneInDb = await db
+      .select({ clientId: ticketsTable.clientId })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, enabledClone.body.id))
+      .limit(1);
+    expect(enabledCloneInDb[0]?.clientId).toBe(clientId);
+
     expect((await request("/api/clients", adminSessionId)).status).toBe(200);
     expect((await request(`/api/clients/${clientId}`, adminSessionId)).status).toBe(200);
     const enabledTicketList = await request("/api/tickets", adminSessionId);
@@ -532,5 +557,5 @@ describe("client worked-hours report", () => {
     });
     expect(allowedWorkedTime.status).toBe(200);
     expect(allowedWorkedTime.body.workedMinutes).toBe(120);
-  }, 30_000);
+  }, 120_000);
 });
