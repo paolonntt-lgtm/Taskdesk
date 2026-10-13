@@ -772,17 +772,23 @@ export default function Settings() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isAdmin = user?.role === 'admin';
+  const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
 
   // URL-based section routing
   const rawSearch = useSearch();
   const [, navigate] = useLocation();
   const urlSection = new URLSearchParams(rawSearch).get('section') ?? 'profile';
-  const activeSection = !isAdmin && !['profile', 'notifications'].includes(urlSection) ? 'profile' : urlSection;
+  const activeSection = !isAdmin && !['profile', 'notifications'].includes(urlSection)
+    ? 'profile'
+    : urlSection === 'email' ? 'tickets'
+      : urlSection === 'console' && !orgClientsEnabled ? 'general' : urlSection;
   const setSection = (s: string) => navigate(`/settings?section=${s}`);
 
   useEffect(() => {
     if (isAdmin && urlSection === 'announcements') navigate('/announcements');
-  }, [isAdmin, urlSection, navigate]);
+    else if (isAdmin && urlSection === 'email') navigate('/settings?section=tickets');
+    else if (isAdmin && urlSection === 'console' && !orgClientsEnabled) navigate('/settings?section=general');
+  }, [isAdmin, urlSection, orgClientsEnabled, navigate]);
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -808,7 +814,6 @@ export default function Settings() {
 
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
-  const [orgClientsEnabled, setOrgClientsEnabled] = useState<boolean>((user as any)?.clientsEnabled !== false);
   const [orgWorkedTimeEnabled, setOrgWorkedTimeEnabled] = useState<boolean>((user as any)?.workedTimeEnabled !== false);
   const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
@@ -1150,10 +1155,11 @@ export default function Settings() {
     { id: 'messages', label: t.settings.navMessages, icon: <StarOutlined fontSize="small" /> },
     { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
-    { id: 'email', label: t.settings.navEmail, icon: <MailOutline fontSize="small" /> },
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
-    { id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> },
+    ...(orgClientsEnabled
+      ? [{ id: 'console', label: (t.settings as any).navConsole, icon: <History fontSize="small" /> }]
+      : []),
     { id: 'backup', label: (t.settings as any).navBackup, icon: <CloudDownload fontSize="small" /> },
   ];
 
@@ -1562,19 +1568,16 @@ export default function Settings() {
               </Section>
               <Box mt={4} />
               <InboundAddressesSection />
+              <Box mt={4} />
+              <ClosureEmailSection />
             </>
-          )}
-
-          {/* ── EMAIL & CHANNELS (admin) ── */}
-          {isAdmin && activeSection === 'email' && (
-            <EmailChannelsTab />
           )}
 
           {/* ── KNOWLEDGE BASE (admin) ── */}
           {isAdmin && activeSection === 'knowledge' && <KnowledgeBaseTab />}
 
           {/* ── CONSOLE LOG (admin) ── */}
-          {isAdmin && activeSection === 'console' && <ConsoleHistoryTab />}
+          {isAdmin && orgClientsEnabled && activeSection === 'console' && <ConsoleHistoryTab />}
 
           {/* ── BACKUP (admin) ── */}
           {isAdmin && activeSection === 'backup' && <BackupSection />}
@@ -2409,8 +2412,6 @@ function EmailChannelsTab() {
         </DialogActions>
       </Dialog>
     </Section>
-    <Box mt={4} />
-    <ClosureEmailSection />
     </>
   );
 }
