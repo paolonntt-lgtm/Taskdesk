@@ -5,13 +5,14 @@ import {
   LinearProgress,
   DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from '@mui/material';
-import { Delete, Add, NoteAdd, Edit } from '@mui/icons-material';
+import { Delete, Add, NoteAdd, Edit, ArrowForward } from '@mui/icons-material';
 import {
   useListClientNotes,
   useCreateClientNote,
   useUpdateClientNote,
   useDeleteClientNote,
   getListClientNotesQueryKey,
+  getListAllClientNotesQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -50,6 +51,12 @@ function monthKeyFromDate(iso: string): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
+}
+
+function nextMonthKey(yyyyMM: string): string {
+  const [year, month] = yyyyMM.split('-').map(Number);
+  const next = new Date(year, month, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function formatMonthShort(yyyyMM: string, locale: string): string {
@@ -151,6 +158,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const [editBody, setEditBody] = useState('');
   const [editMonth, setEditMonth] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [movingNoteId, setMovingNoteId] = useState<number | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -269,6 +277,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
         data: updateData as any,
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      qc.invalidateQueries({ queryKey: getListAllClientNotesQueryKey() });
       setEditingNoteId(null);
       setEditBody('');
       setEditMonth('');
@@ -277,6 +286,26 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
       showToast('error', tc.errorEdit);
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const handleMoveToNextMonth = async (note: any) => {
+    const currentMonth = note.monthOverride ?? monthKeyFromDate(note.createdAt);
+    const nextMonth = nextMonthKey(currentMonth);
+    setMovingNoteId(note.id);
+    try {
+      await updateNote.mutateAsync({
+        id: clientId,
+        noteId: note.id,
+        data: { monthOverride: nextMonth } as any,
+      });
+      qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
+      qc.invalidateQueries({ queryKey: getListAllClientNotesQueryKey() });
+      showToast('success', tc.moveNoteSuccess);
+    } catch {
+      showToast('error', tc.errorEdit);
+    } finally {
+      setMovingNoteId(null);
     }
   };
 
@@ -440,6 +469,21 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                             sx={{ color: 'primary.main' }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canEdit(note) && (
+                        <Tooltip title={tc.moveNoteNextMonth}>
+                          <IconButton
+                            size="small"
+                            aria-label={tc.moveNoteNextMonth}
+                            onClick={() => handleMoveToNextMonth(note)}
+                            disabled={editingNoteId === note.id || movingNoteId === note.id}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            {movingNoteId === note.id
+                              ? <CircularProgress size={14} />
+                              : <ArrowForward sx={{ fontSize: 16 }} />}
                           </IconButton>
                         </Tooltip>
                       )}
