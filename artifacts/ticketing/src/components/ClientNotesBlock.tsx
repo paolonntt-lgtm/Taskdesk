@@ -378,6 +378,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                   label={m.label}
                   size="small"
                   onClick={() => setSelectedMonth(m.key)}
+                  data-testid={`client-note-month-${m.key}`}
                   variant={isSelected ? 'filled' : 'outlined'}
                   color={isSelected ? 'primary' : 'default'}
                   sx={{
@@ -419,6 +420,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
             return (
               <Box
                 key={note.id}
+                data-testid={`client-note-${note.id}`}
                 sx={{
                   border: '1px solid',
                   borderColor: 'divider',
@@ -466,6 +468,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                             size="small"
                             onClick={() => openEditNote(note)}
                             disabled={editingNoteId === note.id}
+                            data-testid={`client-note-edit-${note.id}`}
                             sx={{ color: 'primary.main' }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
@@ -512,6 +515,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                         label={tc.editNoteMonth}
                         value={editMonth}
                         onChange={(e) => setEditMonth(e.target.value)}
+                        inputProps={{ 'data-testid': `client-note-edit-month-${note.id}` }}
                         size="small"
                         InputLabelProps={{ shrink: true }}
                         sx={{ mb: 1 }}
@@ -534,6 +538,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                           variant="contained"
                           size="small"
                           onClick={() => handleEditSave(note)}
+                          data-testid={`client-note-save-${note.id}`}
                           disabled={editSaving || !editBody.trim() || !editMonth}
                         >
                           {editSaving ? tc.editNoteSaving : tc.editNoteSave}
