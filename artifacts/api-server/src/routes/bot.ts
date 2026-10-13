@@ -20,6 +20,7 @@ import {
   formatDailyReportOperatorInputs,
   sanitizeDailyReportOperatorInputs,
 } from "../lib/dailyReportOperatorInputs";
+import { parseBotSupportResponse } from "../lib/botSupportResponse";
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_TURNS = 10;
@@ -260,6 +261,7 @@ For questions about tickets or comments:
 - The quick context below is only a limited hint, not a complete search. Never conclude that no records exist based only on it.
 - Answer from returned records, not guesses. If a search is empty or truncated, say so clearly and ask a focused follow-up when needed.
 - Offer opening a ticket only if, after using the relevant tools, you genuinely cannot help or resolve the request. State that limitation explicitly (for example, "I couldn't help with that" or "I couldn't resolve this"). A valid search result with no matches is still an answer and is not by itself a reason to suggest a ticket.
+- For every final support answer, return JSON matching the required response schema. Put the user-facing answer in "content"; set "unableToHelp" to true only when you genuinely could not help or resolve the request. Set it to false for useful answers, clarifying questions, and valid searches with no matches.
 - Link each cited ticket with its exact internal ID in this format: [Ticket #NUMBER — title](/tickets/INTERNAL_ID). The public ticket number and internal ID are different; use the internal ID in the URL. Never invent either value.
 - When discussing a comment, identify its author and date when available and link to its parent ticket. Quote only the relevant portion.
 - Describe a person as the assignee only when the ticket records them as assigned; do not imply they were the only contributor.
@@ -321,6 +323,7 @@ Per le domande su ticket e commenti:
 - Il contesto rapido qui sotto è solo un indizio parziale, non una ricerca completa. Non concludere che non esistano record basandoti solo su questo.
 - Rispondi usando i dati restituiti, non supposizioni. Se i risultati sono vuoti o troncati, dichiaralo chiaramente e chiedi un chiarimento mirato quando serve.
 - Proponi di aprire un ticket solo se, dopo aver usato gli strumenti pertinenti, non sei davvero riuscito ad aiutare o a risolvere la richiesta. Dichiara esplicitamente il limite (per esempio: «non sono riuscito ad aiutarti» o «non sono riuscito a risolvere il problema»). Un risultato valido senza corrispondenze è comunque una risposta e, da solo, non giustifica la proposta di un ticket.
+- Per ogni risposta finale di supporto, restituisci JSON conforme allo schema richiesto. Inserisci la risposta visibile all'utente in "content"; imposta "unableToHelp" a true solo se non sei davvero riuscito ad aiutare o risolvere la richiesta. Impostalo a false per risposte utili, domande di chiarimento e ricerche valide senza risultati.
 - Collega ogni ticket citato usando l'ID interno esatto: [Ticket #NUMERO — titolo](/tickets/ID_INTERNO). Il numero pubblico e l'ID interno sono diversi: nell'URL va l'ID interno. Non inventare valori o link.
 - Quando parli di un commento, indica autore e data se disponibili e collega il ticket a cui appartiene. Riporta solo la parte pertinente.
 - Definisci una persona come assegnataria solo se il ticket la indica come tale; non dire che è stata l'unica a lavorarci.
@@ -876,11 +879,47 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
     { role: "user", content: message },
   ];
   const useTicketTools = !briefingMode && !reportMode;
+  const supportResponseFormat: OpenAI.Chat.ChatCompletionCreateParams["response_format"] = {
+    type: "json_schema",
+    json_schema: {
+      name: "bot_support_response",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          content: { type: "string" },
+          unableToHelp: { type: "boolean" },
+        },
+        required: ["content", "unableToHelp"],
+        additionalProperties: false,
+      },
+    },
+  };
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
+
+  const writeSupportResponse = (rawResponse: string) => {
+    const structuredResponse = parseBotSupportResponse(rawResponse);
+    if (!structuredResponse) {
+      req.log.warn(
+        { responseLength: rawResponse.length },
+        "Bot returned an invalid structured support response",
+      );
+      const content = resolvedLang === "en"
+        ? "I couldn't process that response. Please try again."
+        : "Non sono riuscito a elaborare la risposta. Riprova.";
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      return;
+    }
+
+    res.write(`data: ${JSON.stringify({
+      content: structuredResponse.content,
+      outcome: { unableToHelp: structuredResponse.unableToHelp },
+    })}\n\n`);
+  };
 
   let streamedDone = false;
   try {
@@ -897,6 +936,7 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
           messages: toolMessages,
           tools: botTicketTools,
           tool_choice: "auto",
+          response_format: supportResponseFormat,
           max_completion_tokens: maxTokens,
         });
         const assistantMessage = completion.choices[0]?.message;
@@ -905,7 +945,7 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
 
         if (calls.length === 0) {
           if (assistantMessage.content) {
-            res.write(`data: ${JSON.stringify({ content: assistantMessage.content })}\n\n`);
+            writeSupportResponse(assistantMessage.content);
           }
           finalAnswerReceived = true;
           break;
@@ -949,12 +989,15 @@ router.post("/bot/chat", requireAuth, botChatRateLimiter, async (req, res): Prom
           model: "gpt-5.4-mini",
           messages: toolMessages,
           stream: true,
+          response_format: supportResponseFormat,
           max_completion_tokens: maxTokens,
         });
+        let finalContent = "";
         for await (const chunk of finalStream) {
           const delta = chunk.choices[0]?.delta?.content;
-          if (delta) res.write(`data: ${JSON.stringify({ content: delta })}\n\n`);
+          if (delta) finalContent += delta;
         }
+        writeSupportResponse(finalContent);
       }
     } else {
       const stream = await openai.chat.completions.create({

@@ -13,11 +13,12 @@ import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
 import { AlbertAvatarIcon } from './AlbertAvatarIcon';
-import { isUnableToHelp, shouldShowYesNoReplies } from './botFollowUp';
+import { shouldShowYesNoReplies } from './botFollowUp';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  outcome?: { unableToHelp: boolean };
 }
 
 interface CreateTicketAction {
@@ -401,9 +402,20 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
           if (data === '[DONE]') { streamComplete = true; break; }
           try {
             const parsed = JSON.parse(data);
-            if (parsed.content) {
+            if (typeof parsed.content === 'string') {
               fullContent += parsed.content;
-              setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: fullContent }; return c; });
+              setMessages((prev) => {
+                const c = [...prev];
+                c[c.length - 1] = {
+                  ...c[c.length - 1],
+                  role: 'assistant',
+                  content: fullContent,
+                  ...(parsed.outcome && typeof parsed.outcome.unableToHelp === 'boolean'
+                    ? { outcome: { unableToHelp: parsed.outcome.unableToHelp } }
+                    : {}),
+                };
+                return c;
+              });
             }
             if (parsed.error) {
               setMessages((prev) => { const c = [...prev]; c[c.length - 1] = { role: 'assistant', content: parsed.error }; return c; });
@@ -855,7 +867,7 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     fallbackActionText={botFallback}
                     onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
                     quickReplies={quickReplies}
-                    onOpenTicket={isLastAssistant && !isWelcome && !reportWizardActive && !isReportSummaryTurn && isUnableToHelp(msg.content) && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+                    onOpenTicket={isLastAssistant && !isWelcome && !reportWizardActive && !isReportSummaryTurn && msg.outcome?.unableToHelp === true && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
                     onViewTicket={onViewTicket}
                     openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
                   />

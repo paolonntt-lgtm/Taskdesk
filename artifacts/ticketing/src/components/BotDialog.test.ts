@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const chatRequests = vi.hoisted(() => ({
   bodies: [] as Array<Record<string, unknown>>,
+  responseEvent: 'data: {"content":"Ricevuto."}\n\ndata: [DONE]\n\n',
 }));
 
 vi.mock('../hooks/useEntityTerm', () => ({
@@ -35,11 +36,15 @@ import BotDialog from './BotDialog';
 
 const sessionKey = 'td_bot_session';
 
-function sessionWithLatestReply(reply: string) {
+function sessionWithLatestReply(reply: string, unableToHelp?: boolean) {
   sessionStorage.setItem(sessionKey, JSON.stringify({
     messages: [
       { role: 'user', content: 'Ho bisogno di aiuto.' },
-      { role: 'assistant', content: reply },
+      {
+        role: 'assistant',
+        content: reply,
+        ...(unableToHelp === undefined ? {} : { outcome: { unableToHelp } }),
+      },
     ],
     pendingAction: null,
   }));
@@ -72,6 +77,7 @@ describe('BotDialog follow-up actions', () => {
 
   beforeEach(async () => {
     chatRequests.bodies = [];
+    chatRequests.responseEvent = 'data: {"content":"Ricevuto."}\n\ndata: [DONE]\n\n';
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     originalScrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = vi.fn();
@@ -95,7 +101,7 @@ describe('BotDialog follow-up actions', () => {
                 read = true;
                 return {
                   done: false,
-                  value: new TextEncoder().encode('data: {"content":"Ricevuto."}\n\ndata: [DONE]\n\n'),
+                  value: new TextEncoder().encode(chatRequests.responseEvent),
                 };
               },
             }),
@@ -149,12 +155,24 @@ describe('BotDialog follow-up actions', () => {
     expect(host.querySelector('[data-testid^="button-bot-option-follow-up-"]')).toBeNull();
   });
 
-  it('offers opening a ticket only when Albert explicitly says he could not help', async () => {
-    sessionWithLatestReply('Non sono riuscito ad aiutarti con questo problema.');
+  it('uses the structured streamed outcome even when the answer has no refusal phrase', async () => {
+    sessionWithLatestReply('Hai già riavviato il dispositivo?');
+    chatRequests.responseEvent = 'data: {"content":"I checked the available options and cannot proceed further.","outcome":{"unableToHelp":true}}\n\ndata: [DONE]\n\n';
     await renderDialog();
+    await click('button-bot-option-follow-up-yes');
 
     expect(host.textContent).toContain('Apri ticket');
     expect(host.querySelector('[data-testid="button-bot-option-follow-up-yes"]')).toBeNull();
     expect(host.querySelector('[data-testid="button-bot-option-follow-up-no"]')).toBeNull();
+  });
+
+  it.each([
+    ['Non sono riuscito ad aiutarti con questo problema.', false],
+    ['Nessun ticket aperto contiene Sky.', false],
+  ])('does not infer ticket eligibility from the reply text: %s', async (reply, unableToHelp) => {
+    sessionWithLatestReply(reply, unableToHelp);
+    await renderDialog();
+
+    expect(host.textContent).not.toContain('Apri ticket');
   });
 });
