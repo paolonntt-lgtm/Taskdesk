@@ -149,6 +149,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
 
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState('');
+  const [editMonth, setEditMonth] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -241,29 +242,36 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
   const openEditNote = (note: any) => {
     setEditingNoteId(note.id);
     setEditBody(noteToEditableText(note));
+    setEditMonth(note.monthOverride ?? monthKeyFromDate(note.createdAt));
   };
 
   const handleEditCancel = () => {
     setEditingNoteId(null);
     setEditBody('');
+    setEditMonth('');
   };
 
   const handleEditSave = async (note: any) => {
     if (!editBody.trim()) { showToast('error', tc.errorRequired); return; }
-    const checklist = bodyToChecklist(editBody);
+    if (!editMonth) { showToast('error', tc.editMonthRequired); return; }
+    const contentChanged = editBody.trim() !== noteToEditableText(note).trim();
+    const updateData: Record<string, unknown> = { monthOverride: editMonth };
+    if (contentChanged) {
+      const checklist = bodyToChecklist(editBody);
+      updateData.body = '';
+      updateData.checklist = checklist.length > 0 ? checklist : null;
+    }
     setEditSaving(true);
     try {
       await updateNote.mutateAsync({
         id: clientId,
         noteId: note.id,
-        data: {
-          body: '',
-          checklist: checklist.length > 0 ? checklist : null,
-        } as any,
+        data: updateData as any,
       });
       qc.invalidateQueries({ queryKey: getListClientNotesQueryKey(clientId) });
       setEditingNoteId(null);
       setEditBody('');
+      setEditMonth('');
       showToast('success', tc.editNoteSave);
     } catch {
       showToast('error', tc.errorEdit);
@@ -456,6 +464,16 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                     <Box>
                       <TextField
                         fullWidth
+                        type="month"
+                        label={tc.editNoteMonth}
+                        value={editMonth}
+                        onChange={(e) => setEditMonth(e.target.value)}
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ mb: 1 }}
+                      />
+                      <TextField
+                        fullWidth
                         multiline
                         minRows={3}
                         value={editBody}
@@ -472,7 +490,7 @@ export default function ClientNotesBlock({ clientId, isAdmin, currentUserId, can
                           variant="contained"
                           size="small"
                           onClick={() => handleEditSave(note)}
-                          disabled={editSaving || !editBody.trim()}
+                          disabled={editSaving || !editBody.trim() || !editMonth}
                         >
                           {editSaving ? tc.editNoteSaving : tc.editNoteSave}
                         </Button>

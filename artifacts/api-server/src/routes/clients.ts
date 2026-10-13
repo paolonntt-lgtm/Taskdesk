@@ -751,7 +751,7 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
 
   const updateData: Record<string, any> = {};
   // Admins or users with edit_client_notes permission can edit any note; others can only edit their own
-  if (parsed.data.body !== undefined) {
+  if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined) {
     const isAdmin = currentUser.role === 'admin';
     if (!isAdmin) {
       const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false);
@@ -774,7 +774,10 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
         }
       }
     }
-    updateData.body = parsed.data.body;
+    if (parsed.data.body !== undefined) updateData.body = parsed.data.body;
+    if (parsed.data.monthOverride !== undefined) {
+      updateData.monthOverride = parsed.data.monthOverride;
+    }
   }
   if (parsed.data.checklist !== undefined) {
     if (currentUser.role !== 'admin') {
