@@ -16,6 +16,7 @@ import {
   getTicketAttachmentMimeType,
   isAllowedTicketAttachmentMimeType,
   MAX_TICKET_ATTACHMENT_SIZE,
+  processPendingTicketAttachments,
   savePendingTicketAttachments,
 } from "@/utils/pendingTicketAttachments";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -249,7 +250,7 @@ export default function NewTicketScreen() {
       });
       createdTicketId = ticket.id;
       setUploading(attachments.length > 0);
-      let remainingAttachments = attachments.map((attachment) => ({
+      const remainingAttachments = attachments.map((attachment) => ({
         name: attachment.name,
         uri: attachment.uri,
         size: attachment.size ?? null,
@@ -258,33 +259,40 @@ export default function NewTicketScreen() {
       if (remainingAttachments.length > 0) {
         await savePendingTicketAttachments(ticket.id, remainingAttachments);
       }
-      for (let index = 0; index < attachments.length; index++) {
-        const attachment = attachments[index];
-        const mimeType = getTicketAttachmentMimeType(attachment.name, attachment.mimeType);
-        const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
-          name: attachment.name,
-          size: attachment.size ?? 0,
-          contentType: mimeType,
-        });
-        const payload = Platform.OS === "web" && attachment.file
-          ? attachment.file
-          : await (await fetch(attachment.uri)).blob();
-        const uploadResponse = await fetch(upload.uploadURL, {
-          method: "PUT",
-          headers: { "Content-Type": mimeType },
-          body: payload,
-        });
-        if (!uploadResponse.ok) throw new Error(t.newTicket.uploadFileError);
-        await apiPost(`/tickets/${ticket.id}/attachments`, {
-          objectPath: upload.objectPath,
-          fileName: attachment.name,
-          fileSize: attachment.size ?? 0,
-          mimeType,
-          commentId: null,
-        });
-        remainingAttachments = remainingAttachments.slice(1);
-        await savePendingTicketAttachments(ticket.id, remainingAttachments);
-      }
+      await processPendingTicketAttachments({
+        attachments: remainingAttachments,
+        registeredAttachments: [],
+        persistRemaining: (remaining) => savePendingTicketAttachments(ticket.id, remaining),
+        upload: async (attachment) => {
+          const mimeType = getTicketAttachmentMimeType(attachment.name, attachment.mimeType);
+          const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
+            name: attachment.name,
+            size: attachment.size ?? 0,
+            contentType: mimeType,
+          });
+          const originalAttachment = attachments.find((item) =>
+            item.name === attachment.name &&
+            (item.size ?? null) === attachment.size &&
+            item.uri === attachment.uri
+          );
+          const payload = Platform.OS === "web" && originalAttachment?.file
+            ? originalAttachment.file
+            : await (await fetch(attachment.uri)).blob();
+          const uploadResponse = await fetch(upload.uploadURL, {
+            method: "PUT",
+            headers: { "Content-Type": mimeType },
+            body: payload,
+          });
+          if (!uploadResponse.ok) throw new Error(t.newTicket.uploadFileError);
+          await apiPost(`/tickets/${ticket.id}/attachments`, {
+            objectPath: upload.objectPath,
+            fileName: attachment.name,
+            fileSize: attachment.size ?? 0,
+            mimeType,
+            commentId: null,
+          });
+        },
+      });
       if (checklistMode === "template" && checklistTemplateId != null) {
         const response = await apiFetch(`/tickets/${ticket.id}/checklists/from-template/${checklistTemplateId}`, { method: "POST" });
         if (!response.ok) throw new Error(t.newTicket.checklistError);

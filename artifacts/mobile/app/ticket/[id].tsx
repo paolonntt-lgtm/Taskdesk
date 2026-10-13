@@ -14,10 +14,10 @@ import { apiGet, apiPatch, apiPost, apiDelete, PRIORITY_COLORS } from "@/utils/a
 import * as DocumentPicker from "expo-document-picker";
 import {
   getPendingTicketAttachments,
-  isSamePendingAttachment,
   getTicketAttachmentMimeType,
   isAllowedTicketAttachmentMimeType,
   MAX_TICKET_ATTACHMENT_SIZE,
+  processPendingTicketAttachments,
   replacePendingTicketAttachment,
   savePendingTicketAttachments,
   type PendingTicketAttachment,
@@ -411,54 +411,37 @@ export default function TicketDetailScreen() {
   const handleRetryAttachments = async () => {
     if (!id || pendingAttachments.length === 0 || retryingAttachments || replacingAttachmentIndex !== null) return;
     setRetryingAttachments(true);
-    let remaining = [...pendingAttachments];
     try {
       const savedAttachments = await apiGet<TicketAttachment[]>(`/tickets/${id}/attachments`);
-      for (const pending of [...remaining]) {
-        const alreadySaved = savedAttachments.some((saved) =>
-          isSamePendingAttachment(
-            { name: saved.fileName, size: saved.fileSize },
-            pending,
-          )
-        );
-        if (alreadySaved) {
-          remaining = remaining.filter((item) => item !== pending);
-          setPendingAttachments(remaining);
-          await savePendingTicketAttachments(id, remaining);
-          continue;
-        }
-
-        const mimeType = pending.mimeType || "application/octet-stream";
-        const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
-          name: pending.name,
-          size: pending.size ?? 0,
-          contentType: mimeType,
-        });
-        const localFileResponse = await fetch(pending.uri);
-        if (!localFileResponse.ok) throw new Error(t.ticketDetail.pendingAttachmentFileUnavailable);
-        const uploadResponse = await fetch(upload.uploadURL, {
-          method: "PUT",
-          headers: { "Content-Type": mimeType },
-          body: await localFileResponse.blob(),
-        });
-        if (!uploadResponse.ok) throw new Error(t.newTicket.uploadFileError);
-        await apiPost(`/tickets/${id}/attachments`, {
-          objectPath: upload.objectPath,
-          fileName: pending.name,
-          fileSize: pending.size ?? 0,
-          mimeType,
-          commentId: null,
-        });
-
-        savedAttachments.push({
-          fileName: pending.name,
-          fileSize: pending.size ?? 0,
-          mimeType,
-        });
-        remaining = remaining.filter((item) => item !== pending);
-        setPendingAttachments(remaining);
-        await savePendingTicketAttachments(id, remaining);
-      }
+      await processPendingTicketAttachments({
+        attachments: pendingAttachments,
+        registeredAttachments: savedAttachments,
+        persistRemaining: (remaining) => savePendingTicketAttachments(id, remaining),
+        onRemainingChange: setPendingAttachments,
+        upload: async (pending) => {
+          const mimeType = pending.mimeType || "application/octet-stream";
+          const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
+            name: pending.name,
+            size: pending.size ?? 0,
+            contentType: mimeType,
+          });
+          const localFileResponse = await fetch(pending.uri);
+          if (!localFileResponse.ok) throw new Error(t.ticketDetail.pendingAttachmentFileUnavailable);
+          const uploadResponse = await fetch(upload.uploadURL, {
+            method: "PUT",
+            headers: { "Content-Type": mimeType },
+            body: await localFileResponse.blob(),
+          });
+          if (!uploadResponse.ok) throw new Error(t.newTicket.uploadFileError);
+          await apiPost(`/tickets/${id}/attachments`, {
+            objectPath: upload.objectPath,
+            fileName: pending.name,
+            fileSize: pending.size ?? 0,
+            mimeType,
+            commentId: null,
+          });
+        },
+      });
       qc.invalidateQueries({ queryKey: ["ticket-attachments", id] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {

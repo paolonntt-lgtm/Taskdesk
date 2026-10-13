@@ -7,6 +7,19 @@ export interface PendingTicketAttachment {
   mimeType: string;
 }
 
+export interface RegisteredTicketAttachment {
+  fileName: string;
+  fileSize: number;
+}
+
+interface ProcessPendingTicketAttachmentsOptions {
+  attachments: PendingTicketAttachment[];
+  registeredAttachments: RegisteredTicketAttachment[];
+  upload: (attachment: PendingTicketAttachment) => Promise<void>;
+  persistRemaining: (attachments: PendingTicketAttachment[]) => Promise<void>;
+  onRemainingChange?: (attachments: PendingTicketAttachment[]) => void;
+}
+
 export const MAX_TICKET_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
 const FILE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -105,4 +118,42 @@ export function isSamePendingAttachment(
 ): boolean {
   return first.name === second.name &&
     (first.size == null || second.size == null || first.size === second.size);
+}
+
+export async function processPendingTicketAttachments({
+  attachments,
+  registeredAttachments,
+  upload,
+  persistRemaining,
+  onRemainingChange,
+}: ProcessPendingTicketAttachmentsOptions): Promise<PendingTicketAttachment[]> {
+  let remaining = [...attachments];
+  const unclaimedRegistered = [...registeredAttachments];
+
+  for (const attachment of attachments) {
+    const registeredIndex = unclaimedRegistered.findIndex((registered) =>
+      isSamePendingAttachment(
+        { name: registered.fileName, size: registered.fileSize },
+        attachment,
+      )
+    );
+
+    if (registeredIndex >= 0) {
+      // A server record may exist even when its response was lost. Consume only
+      // one matching record so same-named, same-sized files are not dropped.
+      unclaimedRegistered.splice(registeredIndex, 1);
+    } else {
+      await upload(attachment);
+    }
+
+    const pendingIndex = remaining.indexOf(attachment);
+    if (pendingIndex < 0) {
+      throw new Error("Pending attachment no longer exists");
+    }
+    remaining = remaining.filter((_, index) => index !== pendingIndex);
+    await persistRemaining(remaining);
+    onRemainingChange?.([...remaining]);
+  }
+
+  return remaining;
 }
