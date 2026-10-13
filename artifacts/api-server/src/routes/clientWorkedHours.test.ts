@@ -31,6 +31,7 @@ let userSessionId: string;
 let publicTicketId: number;
 let privateTicketId: number;
 const createdClientIds: number[] = [];
+const createdTicketIds: number[] = [];
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -132,6 +133,9 @@ describe("client worked-hours report", () => {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
     await db.delete(ticketsTable).where(inArray(ticketsTable.id, [publicTicketId, privateTicketId]));
+    if (createdTicketIds.length > 0) {
+      await db.delete(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
+    }
     await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
     await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
     if (createdClientIds.length > 0) {
@@ -330,6 +334,44 @@ describe("client worked-hours report", () => {
     });
     expect(updateClient.status).toBe(403);
 
+    const blockedTicketCreate = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Client link should be blocked",
+        description: "Clients are disabled",
+        category: "Support",
+        priority: "medium",
+        clientId,
+      }),
+    });
+    expect(blockedTicketCreate.status).toBe(403);
+
+    const unlinkedTicketCreate = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Ticket without client",
+        description: "Ticket creation remains available",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(unlinkedTicketCreate.status).toBe(201);
+    expect(unlinkedTicketCreate.body.clientId).toBeNull();
+    const unlinkedTicketId = unlinkedTicketCreate.body.id as number;
+    createdTicketIds.push(unlinkedTicketId);
+
+    const blockedTicketLink = await request(`/api/tickets/${unlinkedTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId }),
+    });
+    expect(blockedTicketLink.status).toBe(403);
+
+    const blockedTicketUnlink = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: null }),
+    });
+    expect(blockedTicketUnlink.status).toBe(403);
+
     const blockedWorkedTime = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ workedMinutes: 120 }),
@@ -354,11 +396,39 @@ describe("client worked-hours report", () => {
 
     expect((await request("/api/clients", adminSessionId)).status).toBe(200);
     expect((await request(`/api/clients/${clientId}`, adminSessionId)).status).toBe(200);
+    const enabledTicketCreate = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Ticket linked to client",
+        description: "Client management is enabled",
+        category: "Support",
+        priority: "medium",
+        clientId,
+      }),
+    });
+    expect(enabledTicketCreate.status).toBe(201);
+    expect(enabledTicketCreate.body.clientId).toBe(clientId);
+    createdTicketIds.push(enabledTicketCreate.body.id);
+
+    const enabledTicketLink = await request(`/api/tickets/${unlinkedTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId }),
+    });
+    expect(enabledTicketLink.status).toBe(200);
+    expect(enabledTicketLink.body.clientId).toBe(clientId);
+
+    const enabledTicketUnlink = await request(`/api/tickets/${enabledTicketCreate.body.id}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: null }),
+    });
+    expect(enabledTicketUnlink.status).toBe(200);
+    expect(enabledTicketUnlink.body.clientId).toBeNull();
+
     const allowedWorkedTime = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ workedMinutes: 120 }),
     });
     expect(allowedWorkedTime.status).toBe(200);
     expect(allowedWorkedTime.body.workedMinutes).toBe(120);
-  });
+  }, 30_000);
 });

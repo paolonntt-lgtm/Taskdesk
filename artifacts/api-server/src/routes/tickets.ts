@@ -398,6 +398,18 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     recurrenceRule,
   } = parsed.data;
 
+  if ("clientId" in parsed.data) {
+    const [organization] = await db
+      .select({ clientsEnabled: organizationsTable.clientsEnabled })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, currentUser.organizationId))
+      .limit(1);
+    if (!organization?.clientsEnabled) {
+      res.status(403).json({ error: "Client management is disabled for this organization" });
+      return;
+    }
+  }
+
   if (visibility === "admins" && currentUser.role !== "admin") {
     res.status(403).json({ error: "Only admins can create private tickets" });
     return;
@@ -739,6 +751,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: parsed.error.message });
     return;
+  }
+  if ("clientId" in parsed.data) {
+    const [organization] = await db
+      .select({ clientsEnabled: organizationsTable.clientsEnabled })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, orgId))
+      .limit(1);
+    if (!organization?.clientsEnabled) {
+      res.status(403).json({ error: "Client management is disabled for this organization" });
+      return;
+    }
   }
   if (rawStatus !== undefined) {
     (parsed.data as any).status = rawStatus;
