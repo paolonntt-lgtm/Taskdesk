@@ -157,8 +157,14 @@ router.post("/notifications/test-push", requireAuth, requireAdmin, async (req, r
       }]),
       signal: AbortSignal.timeout(8000),
     });
-    if (!result.ok) {
-      res.status(502).json({ error: "Push delivery failed" });
+    const responseBody = await result.json().catch(() => null) as {
+      data?: { status?: string; details?: { error?: string } } | Array<{ status?: string; details?: { error?: string } }>;
+      errors?: Array<{ code?: string }>;
+    } | null;
+    const ticket = Array.isArray(responseBody?.data) ? responseBody.data[0] : responseBody?.data;
+    if (!result.ok || ticket?.status !== "ok") {
+      const reason = ticket?.details?.error ?? responseBody?.errors?.[0]?.code ?? "unknown";
+      res.status(502).json({ error: `Push service rejected the notification (${reason})` });
       return;
     }
     res.json({ success: true });

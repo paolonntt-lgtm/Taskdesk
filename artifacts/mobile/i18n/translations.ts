@@ -340,8 +340,9 @@ const it = {
     itemsCount: 'elementi',
     testPushBtn: 'Test notifiche push',
     testPushSending: 'Invio in corso...',
-    testPushSuccess: 'Notifica inviata con successo!',
-    testPushNoToken: 'Nessun token push registrato per questo account. Apri l\'app mobile per registrarti.',
+    testPushSuccess: 'Richiesta push accettata. Controlla le notifiche e i permessi del dispositivo.',
+    testPushNoToken: 'Token push non registrato. Verifica i permessi di notifica e riapri l’app installata.',
+    testPushExpoGoAndroid: 'Le notifiche push remote non funzionano in Expo Go su Android. Prova con una build installata dell’app.',
     testPushError: 'Invio fallito.',
   },
   status: {
@@ -699,8 +700,9 @@ const en: typeof it = {
     itemsCount: 'items',
     testPushBtn: 'Test push notifications',
     testPushSending: 'Sending...',
-    testPushSuccess: 'Notification sent successfully!',
-    testPushNoToken: 'No push token registered for this account. Open the mobile app to register.',
+    testPushSuccess: 'Push request accepted. Check device notifications and permissions.',
+    testPushNoToken: 'No push token registered. Check notification permissions and reopen the installed app.',
+    testPushExpoGoAndroid: 'Remote push notifications do not work in Expo Go on Android. Try an installed app build.',
     testPushError: 'Delivery failed.',
   },
   status: {

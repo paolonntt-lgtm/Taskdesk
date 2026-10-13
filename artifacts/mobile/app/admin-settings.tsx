@@ -10,6 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPut, apiPost, apiPatch } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import * as Haptics from "expo-haptics";
+import Constants from "expo-constants";
 
 type SectionKey = "groups" | "locations" | "categories";
 type OrganizationSettings = {
@@ -198,6 +199,10 @@ export default function AdminSettingsScreen() {
 
   const handleTestPush = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === "android" && Constants.appOwnership === "expo") {
+      Alert.alert(t.adminSettings.error, t.adminSettings.testPushExpoGoAndroid);
+      return;
+    }
     setTestPushLoading(true);
     try {
       await apiPost("/notifications/test-push", {});
@@ -208,7 +213,7 @@ export default function AdminSettingsScreen() {
       if (msg.includes("No push token")) {
         Alert.alert(t.adminSettings.error, t.adminSettings.testPushNoToken);
       } else {
-        Alert.alert(t.adminSettings.error, t.adminSettings.testPushError);
+        Alert.alert(t.adminSettings.error, msg ? `${t.adminSettings.testPushError}\n\n${msg}` : t.adminSettings.testPushError);
       }
     } finally {
       setTestPushLoading(false);

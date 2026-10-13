@@ -104,9 +104,8 @@ export function usePushNotifications(isLoggedIn: boolean) {
       return;
     }
     // Remote push notifications are not supported in Expo Go on Android.
-    // Avoid importing expo-notifications there: its native module throws during
-    // evaluation and prevents the whole app (including the web preview) loading.
-    if (Platform.OS === "web" || Constants.appOwnership === "expo") return;
+    // Keep iOS Expo Go enabled, and avoid loading the native module in web.
+    if (Platform.OS === "web" || (Platform.OS === "android" && Constants.appOwnership === "expo")) return;
 
     let active = true;
     const initialize = async () => {
