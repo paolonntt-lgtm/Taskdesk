@@ -140,6 +140,29 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <View style={s.card}>
+        <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
+        {[
+          { label: lang === "it" ? "Calendario" : "Calendar", icon: "calendar" as const, path: "/calendar" },
+          ...((user as any)?.clientsEnabled !== false ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
+          { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
+          ...(user?.role === "admin" ? [{ label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" }] : []),
+        ].map((item, index, items) => (
+          <TouchableOpacity
+            key={item.path}
+            style={[s.infoRow, index > 0 && s.infoRowBorder]}
+            onPress={() => router.push(item.path as any)}
+            activeOpacity={0.7}
+          >
+            <View style={s.infoLeft}>
+              <Feather name={item.icon} size={16} color={colors.primary} />
+              <Text style={[s.infoLabel, { color: colors.primary }]}>{item.label}</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {user?.role === "admin" && (
         <View style={s.card}>
           <Text style={s.cardTitle}>{t.profile.administration}</Text>
