@@ -6,6 +6,7 @@ import { getTrialStatus } from "../lib/trialStatus";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
 import { getClosedTicketStatusKeys } from "../lib/closedTicketStatuses";
+import { isClientFeatureEnabled, redactClientData } from "../lib/clientFeature";
 
 async function addChecklistProgress<T extends { id: number }>(tickets: T[]): Promise<(T & { checklistCount: number; checklistTotal: number; checklistChecked: number })[]> {
   if (tickets.length === 0) return tickets.map((t) => ({ ...t, checklistCount: 0, checklistTotal: 0, checklistChecked: 0 }));
@@ -297,6 +298,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
   const orgFilter = and(
     isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
@@ -346,7 +348,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(withChecklist.map((t) => redactWorkedHours({
+  res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
@@ -362,13 +364,14 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     })(),
     commentCount: 0,
     noteCount: 0,
-  }, canViewWorkedHours)));
+  }, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const orgAndUser = and(
     isNull(ticketsTable.deletedAt),
@@ -405,13 +408,13 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(withChecklist.map((t) => redactWorkedHours({
+  res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  }, canViewWorkedHours)));
+  }, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<void> => {
@@ -458,6 +461,7 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const conditions: any[] = [
     isNull(ticketsTable.deletedAt),
@@ -494,19 +498,20 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(withChecklist.map((t) => redactWorkedHours({
+  res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  }, canViewWorkedHours)));
+  }, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const filter = and(
     eq(ticketsTable.organizationId, orgId),
@@ -526,13 +531,13 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(tickets.map((t) => redactWorkedHours({
+  res.json(tickets.map((t) => redactClientData(redactWorkedHours({
     ...t,
     creator: null,
     assignee: null,
     commentCount: 0,
     noteCount: 0,
-  }, canViewWorkedHours)));
+  }, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> => {
@@ -696,6 +701,7 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const conditions: any[] = [
     isNull(ticketsTable.deletedAt),
@@ -732,13 +738,13 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(withChecklist.map((t) => redactWorkedHours({
+  res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
     creator: userMap.get(t.createdBy)!,
     assignee: t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
     commentCount: 0,
     noteCount: 0,
-  }, canViewWorkedHours)));
+  }, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> => {

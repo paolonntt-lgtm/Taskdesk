@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { ilike, or, eq, and } from "drizzle-orm";
 import { db, ticketsTable, clientsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { isClientFeatureEnabled } from "../lib/clientFeature";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -22,6 +23,7 @@ router.get("/search", requireAuth, async (req, res) => {
   const user = (req as any).currentUser;
   const orgId = user.organizationId;
   const pattern = `%${q}%`;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const [tickets, clients, users] = await Promise.all([
     db
@@ -42,7 +44,7 @@ router.get("/search", requireAuth, async (req, res) => {
       )
       .limit(limit),
 
-    (user as any).clientsEnabled !== false
+    clientsEnabled
       ? db
           .select({
             id: clientsTable.id,

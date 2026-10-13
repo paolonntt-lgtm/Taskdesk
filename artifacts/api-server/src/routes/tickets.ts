@@ -11,6 +11,7 @@ import { isValidWorkedMinutes, redactWorkedHours } from "../lib/workedTime";
 import { permanentlyDeleteTicket } from "../lib/ticketTrash";
 import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
 import { getClosedTicketStatusKeys } from "../lib/closedTicketStatuses";
+import { isClientFeatureEnabled, redactClientData } from "../lib/clientFeature";
 
 const router: IRouter = Router();
 
@@ -124,6 +125,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const canViewWorkedHours = await hasGroupPermission(
     currentUser.id,
@@ -220,7 +222,13 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   if (dateFrom) conditions.push(gte(ticketsTable.createdAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(ticketsTable.createdAt, new Date(dateTo)));
   if (emailOrigin === 'true') conditions.push(isNotNull(ticketsTable.inboundChannelId));
-  if (clientId) conditions.push(eq(ticketsTable.clientId, parseInt(clientId, 10)));
+  if (clientId) {
+    if (!clientsEnabled) {
+      res.status(403).json({ error: "Client management is disabled for this organization" });
+      return;
+    }
+    conditions.push(eq(ticketsTable.clientId, parseInt(clientId, 10)));
+  }
   const { overdue } = req.query as Record<string, string>;
   if (overdue === 'true') {
     conditions.push(isNotNull(ticketsTable.dueAt));
@@ -313,7 +321,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const channelMap = new Map(channels.map((c) => [c.id, c.label]));
 
   const clientIds = [...new Set(tickets.map((t) => t.clientId).filter(Boolean))] as number[];
-  const clientRows = clientIds.length > 0
+  const clientRows = clientsEnabled && clientIds.length > 0
     ? await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
         .from(clientsTable)
         .where(inArray(clientsTable.id, clientIds))
@@ -338,15 +346,15 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   const checklistMap = new Map(checklistStats.map((s) => [s.ticketId, { checklistCount: Number(s.checklistCount), total: Number(s.total), checked: Number(s.checked) }]));
 
   const result = tickets.map((t) => ({
-    ...buildTicketWithDetails(
+    ...redactClientData(buildTicketWithDetails(
       t,
       userMap.get(t.createdBy)!,
       t.assignedTo ? userMap.get(t.assignedTo) ?? null : null,
       commentMap.get(t.id) ?? 0,
       noteMap.get(t.id) ?? 0,
       t.inboundChannelId ? (channelMap.get(t.inboundChannelId) ?? null) : null,
-      t.clientId ? (clientMap.get(t.clientId) ?? null) : null
-    ),
+      clientsEnabled && t.clientId ? (clientMap.get(t.clientId) ?? null) : null
+    ), clientsEnabled),
     hasSolution: solutionSet.has(t.id),
     checklistCount: checklistMap.get(t.id)?.checklistCount ?? 0,
     checklistTotal: checklistMap.get(t.id)?.total ?? 0,
@@ -355,13 +363,14 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   }));
 
   res.setHeader("Cache-Control", "no-store");
-  res.json(result.map((ticket) => redactWorkedHours(ticket, canViewWorkedHours)));
+  res.json(result.map((ticket) => redactClientData(redactWorkedHours(ticket, canViewWorkedHours), clientsEnabled)));
 });
 
 router.get("/tickets/trash", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const tickets = await db
     .select(TICKET_LIST_COLS)
@@ -370,7 +379,7 @@ router.get("/tickets/trash", requireAuth, requireAdmin, async (req, res): Promis
     .orderBy(sql`${ticketsTable.deletedAt} DESC`);
 
   res.setHeader("Cache-Control", "no-store");
-  res.json(tickets);
+  res.json(tickets.map((ticket) => redactClientData(ticket, clientsEnabled)));
 });
 
 router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
@@ -382,6 +391,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
 
   const currentUser = (req as any).currentUser;
   if (currentUser.organizationId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(currentUser.organizationId);
 
   const {
     title,
@@ -601,7 +611,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   }
 
   let ticketClient = null;
-  if (ticket.clientId) {
+  if (clientsEnabled && ticket.clientId) {
     const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, ticket.clientId));
@@ -614,10 +624,10 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.status(201).json(redactWorkedHours(
+  res.status(201).json(redactClientData(redactWorkedHours(
     buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0, null, ticketClient),
     canViewWorkedHours,
-  ));
+  ), clientsEnabled));
 });
 
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -627,6 +637,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const orgId = currentUser.organizationId;
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -673,7 +684,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   let ticketClient = null;
-  if (ticket.clientId) {
+  if (clientsEnabled && ticket.clientId) {
     const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, ticket.clientId));
@@ -686,10 +697,10 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
   );
-  res.json(redactWorkedHours(
+  res.json(redactClientData(redactWorkedHours(
     buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient),
     canViewWorkedHours,
-  ));
+  ), clientsEnabled));
 });
 
 // Admin-only visibility switch for tickets created through private email channels.
@@ -697,6 +708,7 @@ router.patch("/tickets/:id/visibility", requireAuth, requireAdmin, async (req, r
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
   const visibility = req.body?.visibility;
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
@@ -710,7 +722,7 @@ router.patch("/tickets/:id/visibility", requireAuth, requireAdmin, async (req, r
   );
   if (!existing) { res.status(404).json({ error: "Ticket not found" }); return; }
   if (existing.visibility === visibility) {
-    res.json(existing);
+    res.json(redactClientData(existing, clientsEnabled));
     return;
   }
 
@@ -728,7 +740,7 @@ router.patch("/tickets/:id/visibility", requireAuth, requireAdmin, async (req, r
       : `${currentUser.name} ha reso il ticket visibile solo agli admin`,
   });
 
-  res.json(updated);
+  res.json(redactClientData(updated, clientsEnabled));
 });
 
 router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
@@ -739,6 +751,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const isAdmin = currentUser.role === "admin";
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -1109,7 +1122,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   let updatedClient = null;
-  if (updated.clientId) {
+  if (clientsEnabled && updated.clientId) {
     const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable)
       .where(eq(clientsTable.id, updated.clientId));
@@ -1119,10 +1132,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(redactWorkedHours(
+  res.json(redactClientData(redactWorkedHours(
     buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, updatedClient),
     canViewWorkedHours,
-  ));
+  ), clientsEnabled));
 });
 
 router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -1130,6 +1143,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
 
@@ -1220,13 +1234,13 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
     assigneeUser = a ?? null;
   }
   let ticketClient = null;
-  if (newTicket.clientId) {
+  if (clientsEnabled && newTicket.clientId) {
     const [c] = await db.select({ id: clientsTable.id, name: clientsTable.name, alias: clientsTable.alias })
       .from(clientsTable).where(eq(clientsTable.id, newTicket.clientId));
     ticketClient = c ?? null;
   }
 
-  res.status(201).json(buildTicketWithDetails(newTicket, creator, assigneeUser, 0, 0, null, ticketClient));
+  res.status(201).json(redactClientData(buildTicketWithDetails(newTicket, creator, assigneeUser, 0, 0, null, ticketClient), clientsEnabled));
 });
 
 router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -1234,6 +1248,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -1377,7 +1392,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null));
+  res.json(redactClientData(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null), clientsEnabled));
 });
 
 router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -1385,6 +1400,7 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ticket ID" });
@@ -1426,12 +1442,13 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
   const [{ count: nc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketInternalNotesTable).where(eq(ticketInternalNotesTable.ticketId, id));
 
-  res.json(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null));
+  res.json(redactClientData(buildTicketWithDetails(updated, creator, assignee, Number(cc), Number(nc), null, null), clientsEnabled));
 });
 
 router.post("/tickets/:id/restore", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const clientsEnabled = await isClientFeatureEnabled(orgId);
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
 
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
@@ -1454,7 +1471,7 @@ router.post("/tickets/:id/restore", requireAuth, requireAdmin, async (req, res):
     actionDescription: `${currentUser.name} ha ripristinato il ticket dal cestino`,
   });
 
-  res.json(restored);
+  res.json(redactClientData(restored, clientsEnabled));
 });
 
 router.delete("/tickets/:id/permanent", requireAuth, requireAdmin, async (req, res): Promise<void> => {

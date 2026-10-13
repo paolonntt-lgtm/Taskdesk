@@ -78,7 +78,12 @@ describe("client worked-hours report", () => {
     await db.insert(groupMembersTable).values({ groupId, userId });
 
     const [client] = await db.insert(clientsTable)
-      .values({ organizationId, name: "Worked Hours Client", slug: `worked-hours-${runId}` })
+      .values({
+        organizationId,
+        name: "Worked Hours Client",
+        email: `worked-hours-client-${runId}@example.test`,
+        slug: `worked-hours-${runId}`,
+      })
       .returning({ id: clientsTable.id });
     clientId = client.id;
 
@@ -304,7 +309,7 @@ describe("client worked-hours report", () => {
     createdClientIds.push(response.body.id);
   });
 
-  it("blocks client access and worked-time updates while disabled, then allows them when re-enabled", async () => {
+  it("hides client references from ticket, search, and summary APIs while disabled, then restores them when re-enabled", async () => {
     const disabledSettings = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({
@@ -322,6 +327,76 @@ describe("client worked-hours report", () => {
     expect(clientDetail.status).toBe(403);
     const clientNotes = await request("/api/client-notes", adminSessionId);
     expect(clientNotes.status).toBe(403);
+
+    const disabledTicketList = await request("/api/tickets", adminSessionId);
+    const disabledListedTicket = disabledTicketList.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(disabledListedTicket).toBeDefined();
+    expect(disabledListedTicket).not.toHaveProperty("clientId");
+    expect(disabledListedTicket).not.toHaveProperty("client");
+
+    const disabledTicketDetail = await request(`/api/tickets/${publicTicketId}`, adminSessionId);
+    expect(disabledTicketDetail.status).toBe(200);
+    expect(disabledTicketDetail.body).not.toHaveProperty("clientId");
+    expect(disabledTicketDetail.body).not.toHaveProperty("client");
+
+    const disabledSearch = await request(
+      `/api/search?q=${encodeURIComponent("Worked Hours Client")}`,
+      adminSessionId,
+    );
+    expect(disabledSearch.status).toBe(200);
+    expect(disabledSearch.body.clients).toEqual([]);
+    const disabledClientFilter = await request(`/api/tickets?clientId=${clientId}`, adminSessionId);
+    expect(disabledClientFilter.status).toBe(403);
+
+    await db.update(ticketsTable)
+      .set({ status: "open", dueAt: new Date(Date.now() - 60_000), assignedTo: adminId })
+      .where(inArray(ticketsTable.id, [publicTicketId]));
+    await db.update(ticketsTable)
+      .set({ status: "open", dueAt: new Date(Date.now() + 60 * 60_000), assignedTo: adminId })
+      .where(inArray(ticketsTable.id, [privateTicketId]));
+
+    const ticketSummaryRoutes = [
+      "/api/stats/recent-tickets",
+      "/api/stats/my-tickets",
+      "/api/stats/overdue-tickets",
+      "/api/stats/assigned-to-me",
+      "/api/stats/due-soon",
+    ];
+    for (const route of ticketSummaryRoutes) {
+      const response = await request(route, adminSessionId);
+      expect(response.status, route).toBe(200);
+      const ticket = response.body.find((item: any) => item.id === publicTicketId);
+      expect(ticket, route).toBeDefined();
+      expect(ticket, route).not.toHaveProperty("clientId");
+    }
+
+    const disabledTicketUpdate = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Updated while clients are disabled" }),
+    });
+    expect(disabledTicketUpdate.status).toBe(200);
+    expect(disabledTicketUpdate.body).not.toHaveProperty("clientId");
+    expect(disabledTicketUpdate.body).not.toHaveProperty("client");
+
+    const disabledClone = await request(`/api/tickets/${publicTicketId}/clone`, adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(disabledClone.status).toBe(201);
+    expect(disabledClone.body).not.toHaveProperty("clientId");
+    expect(disabledClone.body).not.toHaveProperty("client");
+    createdTicketIds.push(disabledClone.body.id);
+
+    await db.update(ticketsTable)
+      .set({ deletedAt: new Date() })
+      .where(eq(ticketsTable.id, publicTicketId));
+    const disabledTrash = await request("/api/tickets/trash", adminSessionId);
+    const disabledTrashedTicket = disabledTrash.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(disabledTrashedTicket).toBeDefined();
+    expect(disabledTrashedTicket).not.toHaveProperty("clientId");
+    await db.update(ticketsTable)
+      .set({ deletedAt: null })
+      .where(eq(ticketsTable.id, publicTicketId));
 
     const createClient = await request("/api/clients", adminSessionId, {
       method: "POST",
@@ -356,7 +431,7 @@ describe("client worked-hours report", () => {
       }),
     });
     expect(unlinkedTicketCreate.status).toBe(201);
-    expect(unlinkedTicketCreate.body.clientId).toBeNull();
+    expect(unlinkedTicketCreate.body).not.toHaveProperty("clientId");
     const unlinkedTicketId = unlinkedTicketCreate.body.id as number;
     createdTicketIds.push(unlinkedTicketId);
 
@@ -396,6 +471,33 @@ describe("client worked-hours report", () => {
 
     expect((await request("/api/clients", adminSessionId)).status).toBe(200);
     expect((await request(`/api/clients/${clientId}`, adminSessionId)).status).toBe(200);
+    const enabledTicketList = await request("/api/tickets", adminSessionId);
+    const enabledListedTicket = enabledTicketList.body.find((ticket: any) => ticket.id === publicTicketId);
+    expect(enabledListedTicket).toMatchObject({
+      clientId,
+      client: { id: clientId, name: "Worked Hours Client" },
+    });
+    const enabledTicketDetail = await request(`/api/tickets/${publicTicketId}`, adminSessionId);
+    expect(enabledTicketDetail.body).toMatchObject({
+      clientId,
+      client: { id: clientId, name: "Worked Hours Client" },
+    });
+    const enabledSearch = await request(
+      `/api/search?q=${encodeURIComponent("Worked Hours Client")}`,
+      adminSessionId,
+    );
+    expect(enabledSearch.body.clients).toContainEqual(expect.objectContaining({
+      id: clientId,
+      name: "Worked Hours Client",
+      email: `worked-hours-client-${runId}@example.test`,
+    }));
+    for (const route of ticketSummaryRoutes) {
+      const response = await request(route, adminSessionId);
+      expect(response.status, route).toBe(200);
+      const ticket = response.body.find((item: any) => item.id === publicTicketId);
+      expect(ticket, route).toBeDefined();
+      expect(ticket, route).toHaveProperty("clientId", clientId);
+    }
     const enabledTicketCreate = await request("/api/tickets", adminSessionId, {
       method: "POST",
       body: JSON.stringify({
