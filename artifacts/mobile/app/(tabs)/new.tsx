@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiPost, apiGet, apiFetch, PRIORITIES } from "@/utils/api";
+import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import { useAuth } from "@/contexts/AuthContext";
 import * as DocumentPicker from "expo-document-picker";
 import { savePendingTicketAttachments } from "@/utils/pendingTicketAttachments";
@@ -80,6 +81,7 @@ export default function NewTicketScreen() {
   const colors = useColors();
   const qc = useQueryClient();
   const { t, lang } = useLanguage();
+  const { getLabelForKey } = useTicketStatuses();
   const { user } = useAuth();
   const s = styles(colors);
 
@@ -514,14 +516,26 @@ export default function NewTicketScreen() {
                   setSuggestedTitle(null);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`${ticket.ticketNumber ? `#${ticket.ticketNumber} ` : ""}${ticket.title}`}
+                accessibilityLabel={`${ticket.ticketNumber != null ? `#${ticket.ticketNumber} ` : ""}${ticket.title}. ${t.newTicket.ticketStatusLabel}: ${t.status[ticket.status] ?? getLabelForKey(ticket.status)}`}
                 testID={`recent-title-ticket-${ticket.id}`}
               >
-                {ticket.ticketNumber != null && (
-                  <Text style={s.recentTitleNumber}>#{ticket.ticketNumber}</Text>
-                )}
-                <Text style={s.recentTitleText} numberOfLines={2}>{ticket.title}</Text>
-                <Feather name="arrow-up-left" size={15} color={colors.mutedForeground} />
+                <View style={s.recentTitleMetaRow}>
+                  <View
+                    style={s.recentTitleStatusBadge}
+                    testID={`recent-title-ticket-status-${ticket.id}`}
+                  >
+                    <Text style={s.recentTitleStatusText} numberOfLines={1}>
+                      {t.newTicket.ticketStatusLabel}: {t.status[ticket.status] ?? getLabelForKey(ticket.status)}
+                    </Text>
+                  </View>
+                  {ticket.ticketNumber != null && (
+                    <Text style={s.recentTitleNumber}>#{ticket.ticketNumber}</Text>
+                  )}
+                </View>
+                <View style={s.recentTitleTextRow}>
+                  <Text style={s.recentTitleText} numberOfLines={2}>{ticket.title}</Text>
+                  <Feather name="arrow-up-left" size={15} color={colors.mutedForeground} />
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -1081,11 +1095,25 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     recentTitleLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
     recentTitleOption: {
-      flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44,
-      paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
+      minHeight: 56, paddingHorizontal: 12, paddingVertical: 9,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    recentTitleMetaRow: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      gap: 8, marginBottom: 5,
+    },
+    recentTitleStatusBadge: {
+      maxWidth: "80%", paddingHorizontal: 7, paddingVertical: 3,
+      borderRadius: 6, backgroundColor: colors.muted,
+    },
+    recentTitleStatusText: {
+      fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium",
     },
     recentTitleNumber: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
-    recentTitleText: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_500Medium" },
+    recentTitleTextRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    recentTitleText: {
+      flex: 1, flexShrink: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_500Medium",
+    },
     suggestionChip: {
       maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
       borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card,
