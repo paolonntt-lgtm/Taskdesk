@@ -98,13 +98,20 @@ function serveStaticFile(urlPath, res) {
     return;
   }
 
-  const filePath = path.resolve(STATIC_ROOT, relativePath);
+  let filePath = path.resolve(STATIC_ROOT, relativePath);
   const staticRootPrefix = `${STATIC_ROOT}${path.sep}`;
 
   if (filePath !== STATIC_ROOT && !filePath.startsWith(staticRootPrefix)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
+  }
+
+  if (
+    (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) &&
+    !path.extname(relativePath)
+  ) {
+    filePath = path.join(STATIC_ROOT, "index.html");
   }
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
@@ -136,10 +143,9 @@ const server = http.createServer((req, res) => {
     if (platform === "ios" || platform === "android") {
       return serveManifest(platform, res);
     }
-
-    if (pathname === "/") {
-      return serveLandingPage(req, res, landingPageTemplate, appName);
-    }
+  }
+  if (pathname === "/install") {
+    return serveLandingPage(req, res, landingPageTemplate, appName);
   }
 
   serveStaticFile(pathname, res);
