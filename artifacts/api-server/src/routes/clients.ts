@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type RequestHandler } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable } from "@workspace/db";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
@@ -8,6 +8,37 @@ import { UpdateClientTicketWorkedHoursBody } from "@workspace/api-zod";
 import { z } from "zod";
 
 const router: IRouter = Router();
+
+const requireClientsEnabled: RequestHandler = async (req, res, next): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const organizationId = currentUser?.organizationId;
+  if (organizationId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
+  const [organization] = await db
+    .select({ clientsEnabled: organizationsTable.clientsEnabled })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, organizationId))
+    .limit(1);
+
+  if (!organization?.clientsEnabled) {
+    res.status(403).json({ error: "Client management is disabled for this organization" });
+    return;
+  }
+
+  next();
+};
+
+const requireClientFeature: RequestHandler = (req, res, next) =>
+  requireAuth(req, res, (error?: unknown) => {
+    if (error) {
+      next(error);
+      return;
+    }
+    void Promise.resolve(requireClientsEnabled(req, res, next)).catch(next);
+  });
 
 function slugify(name: string): string {
   return name
@@ -89,7 +120,7 @@ const ClientNoteBody = z.object({
     .nullable(),
 });
 
-router.get("/client-notes", requireAuth, async (req, res): Promise<void> => {
+router.get("/client-notes", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
@@ -142,7 +173,7 @@ router.get("/client-notes", requireAuth, async (req, res): Promise<void> => {
   res.json(notes);
 });
 
-router.get("/clients", requireAuth, async (req, res): Promise<void> => {
+router.get("/clients", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
 
@@ -221,7 +252,7 @@ router.get("/clients", requireAuth, async (req, res): Promise<void> => {
 
 // Any authenticated organization member can create a client from the client page.
 // Bulk import and destructive/structural operations remain admin-only.
-router.post("/clients", requireAuth, async (req, res): Promise<void> => {
+router.post("/clients", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const parsed = ClientBody.safeParse(req.body);
   if (!parsed.success) {
@@ -257,7 +288,7 @@ router.post("/clients", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(client);
 });
 
-router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.post("/clients/import", requireClientFeature, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
 
   const bodySchema = z.object({ rows: z.array(z.unknown()) });
@@ -335,7 +366,7 @@ router.post("/clients/import", requireAuth, requireAdmin, async (req, res): Prom
   res.json({ imported, skipped, duplicates, errors });
 });
 
-router.get("/clients/resolve/:slug", requireAuth, async (req, res): Promise<void> => {
+router.get("/clients/resolve/:slug", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
 
@@ -354,7 +385,7 @@ router.get("/clients/resolve/:slug", requireAuth, async (req, res): Promise<void
   res.json(client);
 });
 
-router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
+router.get("/clients/:id", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -412,7 +443,7 @@ router.get("/clients/:id", requireAuth, async (req, res): Promise<void> => {
 
 const WorkedBillingStatus = z.enum(["unbilled", "billed"]);
 
-router.patch("/clients/:id/tickets/:ticketId/billing-status", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/clients/:id/tickets/:ticketId/billing-status", requireClientFeature, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const clientId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const ticketId = parseInt(Array.isArray(req.params.ticketId) ? req.params.ticketId[0] : req.params.ticketId, 10);
@@ -448,7 +479,7 @@ router.patch("/clients/:id/tickets/:ticketId/billing-status", requireAuth, requi
   res.json(updated);
 });
 
-router.patch("/clients/:id/tickets/:ticketId/worked-hours", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.patch("/clients/:id/tickets/:ticketId/worked-hours", requireClientFeature, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const clientId = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const ticketId = parseInt(Array.isArray(req.params.ticketId) ? req.params.ticketId[0] : req.params.ticketId, 10);
@@ -532,7 +563,7 @@ router.patch("/clients/:id/tickets/:ticketId/worked-hours", requireAuth, require
   res.json(result);
 });
 
-router.patch("/clients/:id", requireAuth, async (req, res): Promise<void> => {
+router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -587,7 +618,7 @@ const LayoutBody = z.object({
 
 const BUILTIN_IDS = new Set(["company-info", "fixed-notes", "fixed-notes-2", "client-notes", "linked-tickets"]);
 
-router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void> => {
+router.patch("/clients/:id/layout", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const isAdmin = currentUser.role === "admin";
   const orgId: number | null = currentUser.organizationId ?? null;
@@ -625,7 +656,7 @@ router.patch("/clients/:id/layout", requireAuth, async (req, res): Promise<void>
   res.json(client);
 });
 
-router.get("/clients/:id/notes", requireAuth, async (req, res): Promise<void> => {
+router.get("/clients/:id/notes", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -664,7 +695,7 @@ router.get("/clients/:id/notes", requireAuth, async (req, res): Promise<void> =>
   res.json(notes);
 });
 
-router.post("/clients/:id/notes", requireAuth, async (req, res): Promise<void> => {
+router.post("/clients/:id/notes", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -704,7 +735,7 @@ router.post("/clients/:id/notes", requireAuth, async (req, res): Promise<void> =
   res.status(201).json({ ...note, authorName: author?.name ?? null });
 });
 
-router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promise<void> => {
+router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;
@@ -846,7 +877,7 @@ router.patch("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promis
   res.json({ ...note, authorName: author?.name ?? null });
 });
 
-router.delete("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promise<void> => {
+router.delete("/clients/:id/notes/:noteId", requireClientFeature, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const rawNote = Array.isArray(req.params.noteId) ? req.params.noteId[0] : req.params.noteId;
@@ -891,7 +922,7 @@ router.delete("/clients/:id/notes/:noteId", requireAuth, async (req, res): Promi
   res.status(204).send();
 });
 
-router.delete("/clients/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.delete("/clients/:id", requireClientFeature, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);

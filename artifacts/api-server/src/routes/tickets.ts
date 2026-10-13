@@ -743,6 +743,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (rawStatus !== undefined) {
     (parsed.data as any).status = rawStatus;
   }
+  if (parsed.data.workedMinutes !== undefined) {
+    const [organization] = await db
+      .select({ workedTimeEnabled: organizationsTable.workedTimeEnabled })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, orgId))
+      .limit(1);
+    if (!organization?.workedTimeEnabled) {
+      res.status(403).json({ error: "Worked-time tracking is disabled for this organization" });
+      return;
+    }
+  }
   if (!isValidWorkedMinutes(parsed.data.workedMinutes)) {
     res.status(400).json({ error: "Invalid request", message: "workedMinutes must be a non-negative integer" });
     return;

@@ -299,4 +299,66 @@ describe("client worked-hours report", () => {
     expect(response.body.organizationId).toBe(organizationId);
     createdClientIds.push(response.body.id);
   });
+
+  it("blocks client access and worked-time updates while disabled, then allows them when re-enabled", async () => {
+    const disabledSettings = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: `Feature controls ${runId}`,
+        clientsEnabled: false,
+        workedTimeEnabled: false,
+      }),
+    });
+    expect(disabledSettings.status).toBe(200);
+    expect(disabledSettings.body).toMatchObject({ clientsEnabled: false, workedTimeEnabled: false });
+
+    const clientList = await request("/api/clients", adminSessionId);
+    expect(clientList.status).toBe(403);
+    const clientDetail = await request(`/api/clients/${clientId}`, adminSessionId);
+    expect(clientDetail.status).toBe(403);
+    const clientNotes = await request("/api/client-notes", adminSessionId);
+    expect(clientNotes.status).toBe(403);
+
+    const createClient = await request("/api/clients", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({ name: "Should not be created" }),
+    });
+    expect(createClient.status).toBe(403);
+    const updateClient = await request(`/api/clients/${clientId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: "Should not be updated" }),
+    });
+    expect(updateClient.status).toBe(403);
+
+    const blockedWorkedTime = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ workedMinutes: 120 }),
+    });
+    expect(blockedWorkedTime.status).toBe(403);
+    const unchangedTicket = await db
+      .select({ workedMinutes: ticketsTable.workedMinutes })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, publicTicketId))
+      .limit(1);
+    expect(unchangedTicket[0]?.workedMinutes).toBeNull();
+
+    const enabledSettings = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: `Feature controls ${runId}`,
+        clientsEnabled: true,
+        workedTimeEnabled: true,
+      }),
+    });
+    expect(enabledSettings.status).toBe(200);
+
+    expect((await request("/api/clients", adminSessionId)).status).toBe(200);
+    expect((await request(`/api/clients/${clientId}`, adminSessionId)).status).toBe(200);
+    const allowedWorkedTime = await request(`/api/tickets/${publicTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ workedMinutes: 120 }),
+    });
+    expect(allowedWorkedTime.status).toBe(200);
+    expect(allowedWorkedTime.body.workedMinutes).toBe(120);
+  });
 });

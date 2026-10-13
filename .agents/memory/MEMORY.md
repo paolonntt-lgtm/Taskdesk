@@ -33,3 +33,4 @@
 - [TaskDesk landing hero scope](landing-hero-visual-scope.md) — Keep hero refinements limited to the right-side visual unless the user asks for broader changes.
 - [Dependency remediation policy](dependency-remediation-policy.md) — Preserve audit visibility for locally patched, unmaintained dependencies; verify consumer behavior, not just version numbers.
 - [Expo web export base path](expo-web-export-base-path.md) — Static web exports need the artifact prefix, and Expo dev previews must be opened at that prefix too.
+- [Express middleware typing](express-middleware-typing.md) — Typed single middleware handlers preserve route parameter inference; passing middleware arrays may leave route handlers implicit-any.
