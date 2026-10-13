@@ -10,6 +10,11 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/utils/api";
+import {
+  localDateTimeInputValue,
+  mergeAnnouncementPickerValue,
+  runWithValidMobileAnnouncementSchedule,
+} from "@/utils/announcementSchedule";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 type Audience = "all" | "location" | "group";
@@ -22,22 +27,9 @@ type Form = { title: string; body: string; targetType: Audience; targetLocation:
 type ScheduleField = "startsAt" | "endsAt";
 type ActivePicker = { field: ScheduleField; mode: "date" | "time" } | null;
 
-function dateInput(value: string | Date) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
-function mergePickerValue(value: string, selected: Date, mode: "date" | "time") {
-  const current = new Date(value);
-  if (Number.isNaN(current.getTime())) return dateInput(selected);
-  if (mode === "date") current.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
-  else current.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
-  return dateInput(current);
-}
 function emptyForm(): Form {
   const now = new Date();
-  return { title: "", body: "", targetType: "all", targetLocation: "", targetGroupId: "", startsAt: dateInput(now), endsAt: dateInput(new Date(now.getTime() + 7 * 86_400_000)) };
+  return { title: "", body: "", targetType: "all", targetLocation: "", targetGroupId: "", startsAt: localDateTimeInputValue(now), endsAt: localDateTimeInputValue(new Date(now.getTime() + 7 * 86_400_000)) };
 }
 
 export default function AnnouncementsScreen() {
@@ -66,7 +58,7 @@ export default function AnnouncementsScreen() {
   const openCreate = () => { setEditing(null); setForm(emptyForm()); setActivePicker(null); setError(""); setModalOpen(true); };
   const openEdit = (item: Announcement) => {
     setEditing(item);
-    setForm({ title: item.title, body: item.body, targetType: item.targetType, targetLocation: item.targetLocation ?? "", targetGroupId: item.targetGroupId == null ? "" : String(item.targetGroupId), startsAt: dateInput(item.startsAt), endsAt: dateInput(item.endsAt) });
+    setForm({ title: item.title, body: item.body, targetType: item.targetType, targetLocation: item.targetLocation ?? "", targetGroupId: item.targetGroupId == null ? "" : String(item.targetGroupId), startsAt: localDateTimeInputValue(item.startsAt), endsAt: localDateTimeInputValue(item.endsAt) });
     setActivePicker(null); setError(""); setModalOpen(true);
   };
   const handlePickerChange = (event: DateTimePickerEvent, selected?: Date) => {
@@ -76,27 +68,27 @@ export default function AnnouncementsScreen() {
     }
     if (selected && activePicker) {
       const { field: key, mode } = activePicker;
-      setForm((current) => ({ ...current, [key]: mergePickerValue(current[key], selected, mode) }));
+      setForm((current) => ({ ...current, [key]: mergeAnnouncementPickerValue(current[key], selected, mode) }));
     }
     if (Platform.OS !== "ios") setActivePicker(null);
   };
   const save = async () => {
-    const start = new Date(form.startsAt);
-    const end = new Date(form.endsAt);
     if (!form.title.trim() || !form.body.trim()) return setError(it ? "Inserisci titolo e testo dell’avviso." : "Enter an announcement title and message.");
-    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) return setError(it ? "La data di fine deve essere successiva a quella di inizio." : "The end date must be after the start date.");
     if (form.targetType === "location" && !form.targetLocation) return setError(it ? "Seleziona una sede." : "Select a location.");
     if (form.targetType === "group" && !form.targetGroupId) return setError(it ? "Seleziona un gruppo." : "Select a group.");
-    const payload = {
-      title: form.title.trim(), body: form.body.trim(), targetType: form.targetType,
-      targetLocation: form.targetType === "location" ? form.targetLocation : null,
-      targetGroupId: form.targetType === "group" ? Number(form.targetGroupId) : null,
-      startsAt: start.toISOString(), endsAt: end.toISOString(),
-    };
     setSaving(true); setError("");
     try {
-      if (editing) await apiPut(`/announcements/${editing.id}`, payload);
-      else await apiPost("/announcements", payload);
+      const saved = await runWithValidMobileAnnouncementSchedule(form.startsAt, form.endsAt, async (schedule) => {
+        const payload = {
+          title: form.title.trim(), body: form.body.trim(), targetType: form.targetType,
+          targetLocation: form.targetType === "location" ? form.targetLocation : null,
+          targetGroupId: form.targetType === "group" ? Number(form.targetGroupId) : null,
+          ...schedule,
+        };
+        if (editing) await apiPut(`/announcements/${editing.id}`, payload);
+        else await apiPost("/announcements", payload);
+      });
+      if (!saved) return setError(it ? "La data di fine deve essere successiva a quella di inizio." : "The end date must be after the start date.");
       setModalOpen(false); setActivePicker(null); await reload();
       Alert.alert(it ? "Salvato" : "Saved", it ? "Avviso salvato." : "Announcement saved.");
     } catch (e: any) { setError(e.message ?? (it ? "Impossibile salvare l’avviso." : "Could not save announcement.")); }

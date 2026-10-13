@@ -34,6 +34,11 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import {
+  announcementDateTimeInputProps,
+  localDateTimeValue,
+  runWithValidAnnouncementSchedule,
+} from '../lib/announcementSchedule';
 
 type TargetType = 'all' | 'location' | 'group';
 
@@ -45,13 +50,6 @@ interface AnnouncementForm {
   targetGroupId: string;
   startsAt: string;
   endsAt: string;
-}
-
-function localDateTimeValue(value: Date | string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
 }
 
 function defaultForm(): AnnouncementForm {
@@ -147,14 +145,8 @@ export default function AnnouncementsSettings() {
   const saveAnnouncement = async () => {
     const title = form.title.trim();
     const body = form.body.trim();
-    const startsAt = new Date(form.startsAt);
-    const endsAt = new Date(form.endsAt);
     if (!title || !body) {
       setFormError(isItalian ? 'Inserisci titolo e testo dell’avviso.' : 'Enter an announcement title and message.');
-      return;
-    }
-    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
-      setFormError(isItalian ? 'La data di fine deve essere successiva alla data di inizio.' : 'The end date must be after the start date.');
       return;
     }
     if (form.targetType === 'location' && !form.targetLocation) {
@@ -166,23 +158,27 @@ export default function AnnouncementsSettings() {
       return;
     }
 
-    const data: AnnouncementInput = {
-      title,
-      body,
-      targetType: form.targetType,
-      targetLocation: form.targetType === 'location' ? form.targetLocation : null,
-      targetGroupId: form.targetType === 'group' ? Number(form.targetGroupId) : null,
-      startsAt: startsAt.toISOString(),
-      endsAt: endsAt.toISOString(),
-    };
-
     setFormError('');
     setPageMessage(null);
     try {
-      if (editingAnnouncement) {
-        await updateAnnouncement.mutateAsync({ id: editingAnnouncement.id, data });
-      } else {
-        await createAnnouncement.mutateAsync({ data });
+      const saved = await runWithValidAnnouncementSchedule(form.startsAt, form.endsAt, async (schedule) => {
+        const data: AnnouncementInput = {
+          title,
+          body,
+          targetType: form.targetType,
+          targetLocation: form.targetType === 'location' ? form.targetLocation : null,
+          targetGroupId: form.targetType === 'group' ? Number(form.targetGroupId) : null,
+          ...schedule,
+        };
+        if (editingAnnouncement) {
+          await updateAnnouncement.mutateAsync({ id: editingAnnouncement.id, data });
+        } else {
+          await createAnnouncement.mutateAsync({ data });
+        }
+      });
+      if (!saved) {
+        setFormError(isItalian ? 'La data di fine deve essere successiva alla data di inizio.' : 'The end date must be after the start date.');
+        return;
       }
       await refreshAnnouncements();
       setDialogOpen(false);
@@ -405,23 +401,19 @@ export default function AnnouncementsSettings() {
             <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }} gap={2}>
               <TextField
                 required
-                type="datetime-local"
+                {...announcementDateTimeInputProps('startsAt', form.startsAt, form.endsAt)}
                 label={isItalian ? 'Inizio pubblicazione' : 'Starts at'}
-                value={form.startsAt}
                 onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
                 disabled={saving}
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ 'data-testid': 'input-announcement-starts-at', max: form.endsAt, step: 60 }}
               />
               <TextField
                 required
-                type="datetime-local"
+                {...announcementDateTimeInputProps('endsAt', form.startsAt, form.endsAt)}
                 label={isItalian ? 'Fine pubblicazione' : 'Ends at'}
-                value={form.endsAt}
                 onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
                 disabled={saving}
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ 'data-testid': 'input-announcement-ends-at', min: form.startsAt, step: 60 }}
               />
             </Box>
             <Typography variant="caption" color="text.secondary">
