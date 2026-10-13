@@ -3,6 +3,8 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/albert-announcement/Current.tsx": () => import("../components/mockups/albert-announcement/Current.tsx"),
   "./components/mockups/albert-announcement/Refined.tsx": () => import("../components/mockups/albert-announcement/Refined.tsx"),
+  "./components/mockups/billing-plans/Current.tsx": () => import("../components/mockups/billing-plans/Current.tsx"),
+  "./components/mockups/billing-plans/CycleSelector.tsx": () => import("../components/mockups/billing-plans/CycleSelector.tsx"),
   "./components/mockups/calendar-variants/MonthlyCalendar.tsx": () => import("../components/mockups/calendar-variants/MonthlyCalendar.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Slate.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Slate.tsx"),
@@ -10,8 +12,6 @@ export const modules: ModuleMap = {
   "./components/mockups/client-detail-variants/HeroKPI_Violet.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Violet.tsx"),
   "./components/mockups/client-detail-variants/SidebarSummary.tsx": () => import("../components/mockups/client-detail-variants/SidebarSummary.tsx"),
   "./components/mockups/client-detail-variants/TabNav.tsx": () => import("../components/mockups/client-detail-variants/TabNav.tsx"),
-  "./components/mockups/billing-plans/Current.tsx": () => import("../components/mockups/billing-plans/Current.tsx"),
-  "./components/mockups/billing-plans/CycleSelector.tsx": () => import("../components/mockups/billing-plans/CycleSelector.tsx"),
   "./components/mockups/dashboard-variants/CalmOperational.tsx": () => import("../components/mockups/dashboard-variants/CalmOperational.tsx"),
   "./components/mockups/dashboard-variants/CalmOperationalAlt.tsx": () => import("../components/mockups/dashboard-variants/CalmOperationalAlt.tsx"),
   "./components/mockups/dashboard-variants/ControlRoom.tsx": () => import("../components/mockups/dashboard-variants/ControlRoom.tsx"),

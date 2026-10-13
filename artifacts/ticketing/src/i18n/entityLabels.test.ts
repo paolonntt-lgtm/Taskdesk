@@ -20,12 +20,12 @@ describe('Italian dashboard labels for assigned practices', () => {
 
 describe('Albert knowledge base settings labels', () => {
   it('clearly identifies Albert as the user of the knowledge base in both languages', () => {
-    expect(translations.it.settings.kbTitle).toBe('Knowledge Base di Albert');
-    expect(translations.it.settings.navKnowledge).toBe('Knowledge Base di Albert');
+    expect(translations.it.settings.kbTitle).toBe('Albert');
+    expect(translations.it.settings.navKnowledge).toBe('Albert');
     expect(translations.it.settings.kbNote).toContain('Albert');
     expect(translations.it.settings.kbNoArticles).toContain('Albert');
-    expect(translations.en.settings.kbTitle).toBe('Albert Knowledge Base');
-    expect(translations.en.settings.navKnowledge).toBe('Albert Knowledge Base');
+    expect(translations.en.settings.kbTitle).toBe('Albert');
+    expect(translations.en.settings.navKnowledge).toBe('Albert');
     expect(translations.en.settings.kbNote).toContain('Albert');
     expect(translations.en.settings.kbNoArticles).toContain('Albert');
   });
