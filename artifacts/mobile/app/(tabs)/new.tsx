@@ -12,7 +12,12 @@ import { apiPost, apiGet, apiFetch, PRIORITIES } from "@/utils/api";
 import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import { useAuth } from "@/contexts/AuthContext";
 import * as DocumentPicker from "expo-document-picker";
-import { savePendingTicketAttachments } from "@/utils/pendingTicketAttachments";
+import {
+  getTicketAttachmentMimeType,
+  isAllowedTicketAttachmentMimeType,
+  MAX_TICKET_ATTACHMENT_SIZE,
+  savePendingTicketAttachments,
+} from "@/utils/pendingTicketAttachments";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -26,32 +31,6 @@ type UploadUrlResponse = { uploadURL: string; objectPath: string };
 const PRIORITY_ICONS: Record<string, string> = {
   low: "arrow-down", medium: "minus", high: "arrow-up", urgent: "alert-triangle",
 };
-
-const FILE_MIME_BY_EXTENSION: Record<string, string> = {
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp",
-  pdf: "application/pdf", doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xls: "application/vnd.ms-excel",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ppt: "application/vnd.ms-powerpoint",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  odt: "application/vnd.oasis.opendocument.text",
-  ods: "application/vnd.oasis.opendocument.spreadsheet",
-  odp: "application/vnd.oasis.opendocument.presentation",
-  txt: "text/plain", csv: "text/csv", zip: "application/zip", gz: "application/gzip",
-  tar: "application/x-tar", "7z": "application/x-7z-compressed", rar: "application/x-rar-compressed",
-};
-const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
-  "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf",
-  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet",
-  "application/vnd.oasis.opendocument.presentation", "text/plain", "text/csv",
-  "application/zip", "application/x-zip-compressed", "application/gzip", "application/x-tar",
-  "application/x-7z-compressed", "application/x-rar-compressed", "application/octet-stream",
-]);
-const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
 function localDateTimeInput(date: Date | null): string {
   if (!date) return "";
@@ -70,11 +49,6 @@ function parseLocalDateTime(value: string): Date | null {
   const [hours, minutes] = timePart.split(":").map(Number);
   const date = new Date(year, month - 1, day, hours, minutes);
   return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function attachmentMimeType(asset: DocumentPicker.DocumentPickerAsset): string {
-  const extension = asset.name.split(".").pop()?.toLowerCase() ?? "";
-  return asset.mimeType || FILE_MIME_BY_EXTENSION[extension] || "application/octet-stream";
 }
 
 export default function NewTicketScreen() {
@@ -279,14 +253,14 @@ export default function NewTicketScreen() {
         name: attachment.name,
         uri: attachment.uri,
         size: attachment.size ?? null,
-        mimeType: attachmentMimeType(attachment),
+        mimeType: getTicketAttachmentMimeType(attachment.name, attachment.mimeType),
       }));
       if (remainingAttachments.length > 0) {
         await savePendingTicketAttachments(ticket.id, remainingAttachments);
       }
       for (let index = 0; index < attachments.length; index++) {
         const attachment = attachments[index];
-        const mimeType = attachmentMimeType(attachment);
+        const mimeType = getTicketAttachmentMimeType(attachment.name, attachment.mimeType);
         const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
           name: attachment.name,
           size: attachment.size ?? 0,
@@ -356,11 +330,11 @@ export default function NewTicketScreen() {
       });
       if (result.canceled) return;
       const valid = result.assets.filter((asset) => {
-        if (asset.size != null && asset.size > MAX_ATTACHMENT_SIZE) {
+        if (asset.size != null && asset.size > MAX_TICKET_ATTACHMENT_SIZE) {
           Alert.alert(t.newTicket.attachmentTooLarge, asset.name);
           return false;
         }
-        if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(attachmentMimeType(asset))) {
+        if (!isAllowedTicketAttachmentMimeType(getTicketAttachmentMimeType(asset.name, asset.mimeType))) {
           Alert.alert(t.newTicket.attachmentTypeNotAllowed, asset.name);
           return false;
         }

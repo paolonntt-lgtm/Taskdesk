@@ -11,9 +11,14 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPatch, apiPost, apiDelete, PRIORITY_COLORS } from "@/utils/api";
+import * as DocumentPicker from "expo-document-picker";
 import {
   getPendingTicketAttachments,
   isSamePendingAttachment,
+  getTicketAttachmentMimeType,
+  isAllowedTicketAttachmentMimeType,
+  MAX_TICKET_ATTACHMENT_SIZE,
+  replacePendingTicketAttachment,
   savePendingTicketAttachments,
   type PendingTicketAttachment,
 } from "@/utils/pendingTicketAttachments";
@@ -82,6 +87,7 @@ export default function TicketDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingTicketAttachment[]>([]);
   const [retryingAttachments, setRetryingAttachments] = useState(false);
+  const [replacingAttachmentIndex, setReplacingAttachmentIndex] = useState<number | null>(null);
 
   const [resolutionModal, setResolutionModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
@@ -403,7 +409,7 @@ export default function TicketDetailScreen() {
   };
 
   const handleRetryAttachments = async () => {
-    if (!id || pendingAttachments.length === 0 || retryingAttachments) return;
+    if (!id || pendingAttachments.length === 0 || retryingAttachments || replacingAttachmentIndex !== null) return;
     setRetryingAttachments(true);
     let remaining = [...pendingAttachments];
     try {
@@ -463,6 +469,45 @@ export default function TicketDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setRetryingAttachments(false);
+    }
+  };
+
+  const handleReplacePendingAttachment = async (index: number) => {
+    if (!id || retryingAttachments || replacingAttachmentIndex !== null) return;
+    setReplacingAttachmentIndex(index);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset) return;
+      if (asset.size != null && asset.size > MAX_TICKET_ATTACHMENT_SIZE) {
+        Alert.alert(t.newTicket.attachmentTooLarge, asset.name);
+        return;
+      }
+
+      const mimeType = getTicketAttachmentMimeType(asset.name, asset.mimeType);
+      if (!isAllowedTicketAttachmentMimeType(mimeType)) {
+        Alert.alert(t.newTicket.attachmentTypeNotAllowed, asset.name);
+        return;
+      }
+
+      const updated = await replacePendingTicketAttachment(id, index, {
+        name: asset.name,
+        uri: asset.uri,
+        size: asset.size ?? null,
+        mimeType,
+      });
+      setPendingAttachments(updated);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      Alert.alert(t.ticketDetail.error, t.newTicket.attachmentPickError);
+    } finally {
+      setReplacingAttachmentIndex(null);
     }
   };
 
@@ -554,6 +599,20 @@ export default function TicketDetailScreen() {
               <View key={`${attachment.name}-${attachment.size ?? index}`} style={s.pendingAttachmentRow}>
                 <Feather name="file" size={15} color={colors.mutedForeground} />
                 <Text style={s.pendingAttachmentName} numberOfLines={1}>{attachment.name}</Text>
+                <TouchableOpacity
+                  style={s.pendingAttachmentReplaceButton}
+                  onPress={() => handleReplacePendingAttachment(index)}
+                  disabled={retryingAttachments || replacingAttachmentIndex !== null}
+                  accessibilityRole="button"
+                  testID={`replace-pending-attachment-${index}`}
+                >
+                  {replacingAttachmentIndex === index ? (
+                    <ActivityIndicator color={colors.primary} size="small" />
+                  ) : (
+                    <Feather name="refresh-cw" size={13} color={colors.primary} />
+                  )}
+                  <Text style={s.pendingAttachmentReplaceText}>{t.ticketDetail.replacePendingAttachment}</Text>
+                </TouchableOpacity>
               </View>
             ))}
             <TouchableOpacity
@@ -1157,6 +1216,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     pendingAttachmentsHint: { fontSize: 12, lineHeight: 17, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     pendingAttachmentRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     pendingAttachmentName: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular" },
+    pendingAttachmentReplaceButton: {
+      flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6,
+      paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    },
+    pendingAttachmentReplaceText: { fontSize: 12, color: colors.primary, fontFamily: "Inter_500Medium" },
     retryAttachmentsButton: {
       minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center",
       gap: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.primary,
