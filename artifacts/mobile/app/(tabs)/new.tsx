@@ -17,6 +17,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 type UserOption = { id: number; name: string; isActive?: boolean };
 type ClientOption = { id: number; name: string; alias?: string | null };
+type RecentTitleTicket = { id: number; ticketNumber?: number; title: string; status: string };
 type ChecklistTemplate = { id: number; title: string; category: string | null; items: { id: number; text: string; position: number }[] };
 type UploadUrlResponse = { uploadURL: string; objectPath: string };
 
@@ -82,6 +83,7 @@ export default function NewTicketScreen() {
   const s = styles(colors);
 
   const [title, setTitle] = useState("");
+  const [recentTitleTickets, setRecentTitleTickets] = useState<RecentTitleTicket[]>([]);
   const [description, setDescription] = useState("");
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
   const [suggestingTitle, setSuggestingTitle] = useState(false);
@@ -125,6 +127,36 @@ export default function NewTicketScreen() {
 
   const isAdmin = user?.role === "admin";
   const clientsEnabled = user?.clientsEnabled === true;
+
+  useEffect(() => {
+    const query = title.trim();
+    if (query.length < 3) {
+      setRecentTitleTickets([]);
+      return;
+    }
+
+    let cancelled = false;
+    setRecentTitleTickets([]);
+    const timeout = setTimeout(() => {
+      apiGet<RecentTitleTicket[]>(`/tickets?search=${encodeURIComponent(query)}&limit=6`)
+        .then((tickets) => {
+          if (cancelled) return;
+          setRecentTitleTickets(
+            (tickets ?? [])
+              .filter((ticket) => ticket.title.toLowerCase() !== query.toLowerCase())
+              .slice(0, 5),
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setRecentTitleTickets([]);
+        });
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [title]);
 
   useEffect(() => {
     const requests: Promise<unknown>[] = [
@@ -445,11 +477,42 @@ export default function NewTicketScreen() {
         <TextInput
           style={s.input}
           value={title}
-          onChangeText={setTitle}
+          onChangeText={(value) => {
+            setTitle(value);
+            setSuggestedTitle(null);
+          }}
           placeholder={t.newTicket.titlePlaceholder}
           placeholderTextColor={colors.mutedForeground}
           maxLength={120}
         />
+        {recentTitleTickets.length > 0 && (
+          <View style={s.recentTitleSuggestions}>
+            <View style={s.recentTitleHeader}>
+              <Feather name="clock" size={14} color={colors.mutedForeground} />
+              <Text style={s.recentTitleLabel}>{t.newTicket.titleHistoryLabel}</Text>
+            </View>
+            {recentTitleTickets.map((ticket) => (
+              <TouchableOpacity
+                key={ticket.id}
+                style={s.recentTitleOption}
+                onPress={() => {
+                  setTitle(ticket.title);
+                  setRecentTitleTickets([]);
+                  setSuggestedTitle(null);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${ticket.ticketNumber ? `#${ticket.ticketNumber} ` : ""}${ticket.title}`}
+                testID={`recent-title-ticket-${ticket.id}`}
+              >
+                {ticket.ticketNumber != null && (
+                  <Text style={s.recentTitleNumber}>#{ticket.ticketNumber}</Text>
+                )}
+                <Text style={s.recentTitleText} numberOfLines={2}>{ticket.title}</Text>
+                <Feather name="arrow-up-left" size={15} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {!title.trim() && (suggestingTitle || suggestedTitle) && (
           <View style={s.suggestionRow}>
             <Feather name="zap" size={14} color={colors.primary} />
@@ -995,6 +1058,21 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     textarea: { minHeight: 100, paddingTop: 12 },
     suggestionRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: 8 },
     suggestionText: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    recentTitleSuggestions: {
+      marginTop: 8, overflow: "hidden", borderWidth: 1, borderColor: colors.border,
+      borderRadius: 10, backgroundColor: colors.card,
+    },
+    recentTitleHeader: {
+      flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12,
+      paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    recentTitleLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
+    recentTitleOption: {
+      flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44,
+      paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    recentTitleNumber: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    recentTitleText: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_500Medium" },
     suggestionChip: {
       maxWidth: "100%", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
       borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card,
