@@ -1,21 +1,13 @@
 import { useEffect, useRef } from "react";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { apiFetch } from "@/utils/api";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type NotificationsModule = typeof import("expo-notifications");
+type NotificationSubscription = { remove: () => void };
 
-async function setupAndroidNotificationChannel(): Promise<void> {
+async function setupAndroidNotificationChannel(Notifications: NotificationsModule): Promise<void> {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync("taskdesk-default", {
     name: "TaskDesk",
@@ -45,10 +37,10 @@ function resolveProjectId(): string | null {
   return fromConfig as string;
 }
 
-async function registerForPushNotifications(): Promise<string | null> {
+async function registerForPushNotifications(Notifications: NotificationsModule): Promise<string | null> {
   if (Platform.OS === "web") return null;
 
-  await setupAndroidNotificationChannel();
+  await setupAndroidNotificationChannel(Notifications);
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -103,33 +95,56 @@ async function removeTokenFromServer(): Promise<void> {
 }
 
 export function usePushNotifications(isLoggedIn: boolean) {
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListener = useRef<NotificationSubscription | null>(null);
+  const responseListener = useRef<NotificationSubscription | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
-      removeTokenFromServer();
+      void removeTokenFromServer();
       return;
     }
+    // Remote push notifications are not supported in Expo Go on Android.
+    // Avoid importing expo-notifications there: its native module throws during
+    // evaluation and prevents the whole app (including the web preview) loading.
+    if (Platform.OS === "web" || Constants.appOwnership === "expo") return;
 
-    registerForPushNotifications().then((token) => {
-      if (token) saveTokenToServer(token);
-    });
+    let active = true;
+    const initialize = async () => {
+      try {
+        const Notifications = await import("expo-notifications");
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          }),
+        });
 
-    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-      // Notification received while app is in foreground — handled by notification handler above
-    });
+        const token = await registerForPushNotifications(Notifications);
+        if (token && active) void saveTokenToServer(token);
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { ticketId?: number };
-      if (data?.ticketId) {
-        router.push(`/ticket/${data.ticketId}`);
+        if (!active) return;
+        notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+          // Foreground notifications are also available in the in-app inbox.
+        });
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response.notification.request.content.data as { ticketId?: number };
+          if (data?.ticketId) router.push(`/ticket/${data.ticketId}`);
+        });
+      } catch (error) {
+        console.warn("[PushNotifications] Push setup is unavailable in this runtime.", error);
       }
-    });
+    };
+    void initialize();
 
     return () => {
+      active = false;
       notificationListener.current?.remove();
       responseListener.current?.remove();
+      notificationListener.current = null;
+      responseListener.current = null;
     };
   }, [isLoggedIn]);
 }

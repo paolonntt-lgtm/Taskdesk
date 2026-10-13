@@ -20,8 +20,6 @@
     "android": {
       "package": "com.taskdesk.mobile",
       "versionCode": 1,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
