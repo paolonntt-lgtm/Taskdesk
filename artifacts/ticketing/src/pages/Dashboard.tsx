@@ -812,7 +812,7 @@ function FeedMyWidget() {
   const tickets = applyFeedSettings(data as TicketRow[], settings, true);
   return (
     <FeedCard
-      title={t.dashboard.myTickets(entityTerm.plural)}
+      title={t.dashboard.myTickets(entityTerm.plural, entityTerm.grammaticalGender)}
       icon={<Avatar sx={{ width: 22, height: 22, bgcolor: 'primary.main', fontSize: '0.6rem' }}>IO</Avatar>}
       tickets={tickets}
       emptyMsg={t.dashboard.noAssignedTickets(entityTerm.singular)}
@@ -2026,7 +2026,7 @@ function WidgetSettingsDialog({
             size="small"
             fullWidth
             label={td.wsCustomName ?? 'Widget name'}
-            placeholder={meta ? (() => { const v = (t.dashboard as Record<string, unknown>)[meta.labelKey]; return typeof v === 'function' ? (v as (p: string) => string)(entityTerm.plural) : ((v as string) || meta.id); })() : ''}
+            placeholder={meta ? (() => { const v = (t.dashboard as Record<string, unknown>)[meta.labelKey]; return typeof v === 'function' ? (v as (p: string, gender: 'masculine' | 'feminine') => string)(entityTerm.plural, entityTerm.grammaticalGender) : ((v as string) || meta.id); })() : ''}
             value={draftName}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraftName(e.target.value)}
             InputProps={{ endAdornment: draftName ? (
@@ -2128,7 +2128,7 @@ function AddWidgetDialog({
   const entityTerm = useEntityTerm();
   const resolveLabel = (key: string): string => {
     const val = t.dashboard[key];
-    return typeof val === 'function' ? val(entityTerm.plural) : (val || key);
+    return typeof val === 'function' ? val(entityTerm.plural, entityTerm.grammaticalGender) : (val || key);
   };
   const getBaseId = (id: string) => id.split('__')[0];
   return (
@@ -2208,7 +2208,7 @@ function Dashboard() {
   const entityTerm = useEntityTerm();
   const resolveWidgetLabel = (key: string): string => {
     const val = (t.dashboard as Record<string, unknown>)[key];
-    return typeof val === 'function' ? (val as (p: string) => string)(entityTerm.plural) : ((val as string) || key);
+    return typeof val === 'function' ? (val as (p: string, gender: 'masculine' | 'feminine') => string)(entityTerm.plural, entityTerm.grammaticalGender) : ((val as string) || key);
   };
   const { user } = useAuth();
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;

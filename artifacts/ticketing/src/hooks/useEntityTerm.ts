@@ -6,6 +6,7 @@ export interface EntityTerm {
   plural: string;
   singularLower: string;
   pluralLower: string;
+  grammaticalGender: 'masculine' | 'feminine';
   navAll: string;
   navNew: string;
   articleIndef: string;
@@ -23,6 +24,10 @@ export function useEntityTerm(): EntityTerm {
     const plural = overridePlural || overrideSingular;
     const singularLower = singular.toLowerCase();
     const pluralLower = plural.toLowerCase();
+    const grammaticalGender: EntityTerm['grammaticalGender'] =
+      /e$/i.test(plural) || (!overridePlural && /a$/i.test(singular))
+        ? 'feminine'
+        : 'masculine';
     const startsWithVowel = /^[aeiouàèéìòùAEIOUÀÈÉÌÒÙ]/.test(singular);
     const endsWithA = singular.toLowerCase().endsWith('a');
     const articleIndef =
@@ -37,7 +42,7 @@ export function useEntityTerm(): EntityTerm {
       lang === 'en'
         ? `New ${singular}`
         : `Nuovo ${singular}`;
-    return { singular, plural, singularLower, pluralLower, navAll, navNew, articleIndef };
+    return { singular, plural, singularLower, pluralLower, grammaticalGender, navAll, navNew, articleIndef };
   }
 
   const map = t.entityTerms as Record<string, EntityTerm>;

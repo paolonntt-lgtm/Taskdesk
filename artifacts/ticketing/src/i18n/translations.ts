@@ -147,7 +147,8 @@ const it = {
     resolved: 'Risolti',
     urgent: 'Urgenti',
     overdue: 'Scaduti',
-    myTickets: (p: string) => `I Miei ${p}`,
+    myTickets: (p: string, gender: 'masculine' | 'feminine' = 'masculine') =>
+      `${gender === 'feminine' ? 'Le mie' : 'I miei'} ${p.toLocaleLowerCase('it-IT')}`,
     recentActivity: 'Attività Recente',
     activityCreated: 'Pratica creata',
     activityAssigned: 'Assegnazione modificata',
@@ -219,7 +220,8 @@ const it = {
     widgetStatResolved: 'Risolti',
     widgetStatUrgent: 'Urgenti',
     widgetStatOverdue: 'Scaduti',
-    widgetFeedMy: (p: string) => `I Miei ${p}`,
+    widgetFeedMy: (p: string, gender: 'masculine' | 'feminine' = 'masculine') =>
+      `${gender === 'feminine' ? 'Le mie' : 'I miei'} ${p.toLocaleLowerCase('it-IT')}`,
     widgetFeedDue: 'In Scadenza',
     widgetFeedRecent: 'Attività Recente',
     widgetFeedAssigned: 'Assegnati a Me',
@@ -1598,21 +1600,25 @@ const it = {
   entityTerms: {
     it_support: {
       singular: 'Ticket', plural: 'Ticket', singularLower: 'ticket', pluralLower: 'ticket',
+      grammaticalGender: 'masculine',
       navAll: 'Tutti i Ticket', navNew: 'Nuovo Ticket', articleIndef: 'un',
     },
     professional_studio: {
       singular: 'Pratica', plural: 'Pratiche', singularLower: 'pratica', pluralLower: 'pratiche',
+      grammaticalGender: 'feminine',
       navAll: 'Tutte le Pratiche', navNew: 'Nuova Pratica', articleIndef: 'una',
     },
     agency: {
       singular: 'Progetto', plural: 'Progetti', singularLower: 'progetto', pluralLower: 'progetti',
+      grammaticalGender: 'masculine',
       navAll: 'Tutti i Progetti', navNew: 'Nuovo Progetto', articleIndef: 'un',
     },
     other: {
       singular: 'Richiesta', plural: 'Richieste', singularLower: 'richiesta', pluralLower: 'richieste',
+      grammaticalGender: 'feminine',
       navAll: 'Tutte le Richieste', navNew: 'Nuova Richiesta', articleIndef: 'una',
     },
-  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; navAll: string; navNew: string; articleIndef: string }>,
+  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; grammaticalGender: 'masculine' | 'feminine'; navAll: string; navNew: string; articleIndef: string }>,
   superadmin: {
     tabSubscribers: 'Iscritti',
     tabBugReports: 'Segnalazioni',
@@ -1852,7 +1858,7 @@ const en: typeof it = {
     resolved: 'Resolved',
     urgent: 'Urgent',
     overdue: 'Overdue',
-    myTickets: (p: string) => `My ${p}`,
+    myTickets: (p: string, _gender?: 'masculine' | 'feminine') => `My ${p}`,
     recentActivity: 'Recent Activity',
     activityCreated: 'Ticket created',
     activityAssigned: 'Assignment changed',
@@ -1924,7 +1930,7 @@ const en: typeof it = {
     widgetStatResolved: 'Resolved',
     widgetStatUrgent: 'Urgent',
     widgetStatOverdue: 'Overdue',
-    widgetFeedMy: (p: string) => `My ${p}`,
+    widgetFeedMy: (p: string, _gender?: 'masculine' | 'feminine') => `My ${p}`,
     widgetFeedDue: 'Due Soon',
     widgetFeedRecent: 'Recent Activity',
     widgetFeedAssigned: 'Assigned to Me',
@@ -3303,21 +3309,25 @@ const en: typeof it = {
   entityTerms: {
     it_support: {
       singular: 'Ticket', plural: 'Tickets', singularLower: 'ticket', pluralLower: 'tickets',
+      grammaticalGender: 'masculine',
       navAll: 'All Tickets', navNew: 'New Ticket', articleIndef: 'a',
     },
     professional_studio: {
       singular: 'Case', plural: 'Cases', singularLower: 'case', pluralLower: 'cases',
+      grammaticalGender: 'feminine',
       navAll: 'All Cases', navNew: 'New Case', articleIndef: 'a',
     },
     agency: {
       singular: 'Project', plural: 'Projects', singularLower: 'project', pluralLower: 'projects',
+      grammaticalGender: 'masculine',
       navAll: 'All Projects', navNew: 'New Project', articleIndef: 'a',
     },
     other: {
       singular: 'Request', plural: 'Requests', singularLower: 'request', pluralLower: 'requests',
+      grammaticalGender: 'feminine',
       navAll: 'All Requests', navNew: 'New Request', articleIndef: 'a',
     },
-  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; navAll: string; navNew: string; articleIndef: string }>,
+  } as Record<string, { singular: string; plural: string; singularLower: string; pluralLower: string; grammaticalGender: 'masculine' | 'feminine'; navAll: string; navNew: string; articleIndef: string }>,
   superadmin: {
     tabSubscribers: 'Subscribers',
     tabBugReports: 'Bug Reports',

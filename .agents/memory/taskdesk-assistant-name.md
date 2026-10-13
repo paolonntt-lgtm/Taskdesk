@@ -25,8 +25,8 @@ Do not use the generic “Assistente AI TaskDesk” label in the team-memory lan
 
 **How to apply:** Describe the value of finding useful past tickets instead of using generic AI terminology in this placement.
 
-When Albert offers an optional follow-up check (for example, “Se vuoi, posso fare un controllo più mirato”), show “Sì” and “No” quick replies instead of the generic open-ticket shortcut. Keep the ticket shortcut for ticket-creation offers.
+Whenever Albert asks a question or offers an optional follow-up check (for example, “Se vuoi, posso fare un controllo più mirato”), show “Sì” and “No” quick replies. Offer opening a ticket only when Albert explicitly says it could not help or resolve the issue.
 
-**Why:** The user wants a direct way to accept or decline Albert’s follow-up offer, rather than being prompted to open a ticket.
+**Why:** The user wants a direct way to answer Albert's questions and does not want routine or successful searches to prompt ticket creation.
 
-**How to apply:** Quick replies should answer in the current conversation; do not create or open a ticket merely because Albert offered to investigate further.
+**How to apply:** Quick replies should answer in the current conversation. A no-match search result is not itself a failure; only show the ticket action after an explicit inability to help.
