@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiPost, apiGet, apiFetch, PRIORITIES } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import * as DocumentPicker from "expo-document-picker";
+import { savePendingTicketAttachments } from "@/utils/pendingTicketAttachments";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -272,7 +273,17 @@ export default function NewTicketScreen() {
       });
       createdTicketId = ticket.id;
       setUploading(attachments.length > 0);
-      for (const attachment of attachments) {
+      let remainingAttachments = attachments.map((attachment) => ({
+        name: attachment.name,
+        uri: attachment.uri,
+        size: attachment.size ?? null,
+        mimeType: attachmentMimeType(attachment),
+      }));
+      if (remainingAttachments.length > 0) {
+        await savePendingTicketAttachments(ticket.id, remainingAttachments);
+      }
+      for (let index = 0; index < attachments.length; index++) {
+        const attachment = attachments[index];
         const mimeType = attachmentMimeType(attachment);
         const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
           name: attachment.name,
@@ -295,6 +306,8 @@ export default function NewTicketScreen() {
           mimeType,
           commentId: null,
         });
+        remainingAttachments = remainingAttachments.slice(1);
+        await savePendingTicketAttachments(ticket.id, remainingAttachments);
       }
       if (checklistMode === "template" && checklistTemplateId != null) {
         const response = await apiFetch(`/tickets/${ticket.id}/checklists/from-template/${checklistTemplateId}`, { method: "POST" });

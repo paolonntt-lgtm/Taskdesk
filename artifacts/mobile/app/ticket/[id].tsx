@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, TextInput, ActivityIndicator,
@@ -11,6 +11,12 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPatch, apiPost, apiDelete, PRIORITY_COLORS } from "@/utils/api";
+import {
+  getPendingTicketAttachments,
+  isSamePendingAttachment,
+  savePendingTicketAttachments,
+  type PendingTicketAttachment,
+} from "@/utils/pendingTicketAttachments";
 import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -35,6 +41,13 @@ interface Comment {
   id: number; commentText: string; isInternal: boolean;
   author: { name: string }; createdAt: string;
 }
+interface TicketAttachment {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
+
+type UploadUrlResponse = { uploadURL: string; objectPath: string };
 
 function formatWorkedDuration(total: number, lang: string): string {
   const hours = Math.floor(total / 60);
@@ -67,6 +80,8 @@ export default function TicketDetailScreen() {
 
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingTicketAttachment[]>([]);
+  const [retryingAttachments, setRetryingAttachments] = useState(false);
 
   const [resolutionModal, setResolutionModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
@@ -105,6 +120,23 @@ export default function TicketDetailScreen() {
     queryFn: () => apiGet<Ticket>(`/tickets/${id}`),
     enabled: !!id,
   });
+
+  useEffect(() => {
+    let isCurrent = true;
+    setPendingAttachments([]);
+    getPendingTicketAttachments(id)
+      .then((attachments) => {
+        if (isCurrent) setPendingAttachments(attachments);
+      })
+      .catch(() => {
+        if (isCurrent) {
+          Alert.alert(t.ticketDetail.error, t.ticketDetail.pendingAttachmentsLoadError);
+        }
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, t.ticketDetail.error, t.ticketDetail.pendingAttachmentsLoadError]);
 
   const { data: comments = [], refetch: refetchComments } = useQuery({
     queryKey: ["ticket-comments", id],
@@ -370,6 +402,70 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const handleRetryAttachments = async () => {
+    if (!id || pendingAttachments.length === 0 || retryingAttachments) return;
+    setRetryingAttachments(true);
+    let remaining = [...pendingAttachments];
+    try {
+      const savedAttachments = await apiGet<TicketAttachment[]>(`/tickets/${id}/attachments`);
+      for (const pending of [...remaining]) {
+        const alreadySaved = savedAttachments.some((saved) =>
+          isSamePendingAttachment(
+            { name: saved.fileName, size: saved.fileSize },
+            pending,
+          )
+        );
+        if (alreadySaved) {
+          remaining = remaining.filter((item) => item !== pending);
+          setPendingAttachments(remaining);
+          await savePendingTicketAttachments(id, remaining);
+          continue;
+        }
+
+        const mimeType = pending.mimeType || "application/octet-stream";
+        const upload = await apiPost<UploadUrlResponse>("/storage/uploads/request-url", {
+          name: pending.name,
+          size: pending.size ?? 0,
+          contentType: mimeType,
+        });
+        const localFileResponse = await fetch(pending.uri);
+        if (!localFileResponse.ok) throw new Error(t.ticketDetail.pendingAttachmentFileUnavailable);
+        const uploadResponse = await fetch(upload.uploadURL, {
+          method: "PUT",
+          headers: { "Content-Type": mimeType },
+          body: await localFileResponse.blob(),
+        });
+        if (!uploadResponse.ok) throw new Error(t.newTicket.uploadFileError);
+        await apiPost(`/tickets/${id}/attachments`, {
+          objectPath: upload.objectPath,
+          fileName: pending.name,
+          fileSize: pending.size ?? 0,
+          mimeType,
+          commentId: null,
+        });
+
+        savedAttachments.push({
+          fileName: pending.name,
+          fileSize: pending.size ?? 0,
+          mimeType,
+        });
+        remaining = remaining.filter((item) => item !== pending);
+        setPendingAttachments(remaining);
+        await savePendingTicketAttachments(id, remaining);
+      }
+      qc.invalidateQueries({ queryKey: ["ticket-attachments", id] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: any) {
+      Alert.alert(
+        t.ticketDetail.error,
+        error?.message || t.ticketDetail.pendingAttachmentsRetryError,
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setRetryingAttachments(false);
+    }
+  };
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString(lang === "en" ? "en-GB" : "it-IT", {
       day: "2-digit", month: "short", year: "numeric",
@@ -446,6 +542,39 @@ export default function TicketDetailScreen() {
             <Text style={s.desc}>{ticket.description}</Text>
           </View>
         </View>
+
+        {pendingAttachments.length > 0 && (
+          <View style={s.pendingAttachmentsCard}>
+            <View style={s.pendingAttachmentsHeader}>
+              <Feather name="alert-circle" size={17} color={colors.destructive} />
+              <Text style={s.pendingAttachmentsTitle}>{t.ticketDetail.pendingAttachmentsTitle}</Text>
+            </View>
+            <Text style={s.pendingAttachmentsHint}>{t.ticketDetail.pendingAttachmentsHint}</Text>
+            {pendingAttachments.map((attachment, index) => (
+              <View key={`${attachment.name}-${attachment.size ?? index}`} style={s.pendingAttachmentRow}>
+                <Feather name="file" size={15} color={colors.mutedForeground} />
+                <Text style={s.pendingAttachmentName} numberOfLines={1}>{attachment.name}</Text>
+              </View>
+            ))}
+            <TouchableOpacity
+              style={[s.retryAttachmentsButton, retryingAttachments && s.sendBtnDisabled]}
+              onPress={handleRetryAttachments}
+              disabled={retryingAttachments}
+              testID="retry-ticket-attachments"
+            >
+              {retryingAttachments ? (
+                <ActivityIndicator color={colors.primaryForeground} size="small" />
+              ) : (
+                <Feather name="refresh-cw" size={16} color={colors.primaryForeground} />
+              )}
+              <Text style={s.retryAttachmentsButtonText}>
+                {retryingAttachments
+                  ? t.ticketDetail.retryingAttachments
+                  : t.ticketDetail.retryAttachments}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {ticket.resolutionNote ? (
           <View style={s.resolutionCard}>
@@ -1019,6 +1148,20 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
     descBox: { backgroundColor: colors.card, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.border },
     desc: { fontSize: 13, color: colors.foreground, lineHeight: 19, fontFamily: "Inter_400Regular" },
+    pendingAttachmentsCard: {
+      gap: 8, padding: 12, borderRadius: 12, borderWidth: 1,
+      borderColor: colors.destructive + "55", backgroundColor: colors.card,
+    },
+    pendingAttachmentsHeader: { flexDirection: "row", alignItems: "center", gap: 7 },
+    pendingAttachmentsTitle: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    pendingAttachmentsHint: { fontSize: 12, lineHeight: 17, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    pendingAttachmentRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    pendingAttachmentName: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular" },
+    retryAttachmentsButton: {
+      minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.primary,
+    },
+    retryAttachmentsButtonText: { fontSize: 14, color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" },
     resolutionCard: {
       backgroundColor: colors.success + "18",
       borderRadius: 12, padding: 14,
