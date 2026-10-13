@@ -3,8 +3,8 @@ name: Dashboard navigation preferences
 description: Confirmed navigation patterns preferred for the TaskDesk dashboard.
 ---
 
-The preferred TaskDesk dashboard navigation uses clear sidebar categories, especially “Operazioni” and “Controllo”, while keeping ticket search prominent in the top-right area.
+The preferred TaskDesk navigation uses clear sidebar categories, especially “Operazioni” and “Controllo”, keeps ticket search prominent at top right, and places Settings in the top-right profile menu rather than the sidebar.
 
-**Why:** The user explicitly liked both the categorized sidebar and the top-right “Cerca ticket” control in the selected dashboard preview.
+**Why:** The user prefers the sidebar for main work areas and wants Settings available from the profile menu.
 
-**How to apply:** Preserve these patterns when refining dashboard layouts or carrying a chosen mockup into the main app, unless the user asks for a different navigation model.
+**How to apply:** Preserve these patterns when refining navigation, unless the user asks for a different model.

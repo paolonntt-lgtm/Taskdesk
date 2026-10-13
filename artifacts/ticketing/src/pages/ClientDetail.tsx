@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Card, CardContent, Grid, Chip, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress,
+  TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Paper, CircularProgress,
   Avatar, IconButton, Tooltip, Switch, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   List, ListItemButton, ListItemIcon, ListItemText,
@@ -47,6 +47,9 @@ const PRIORITY_COLORS: Record<string, 'default' | 'warning' | 'error' | 'info'> 
   high: 'warning',
   urgent: 'error',
 };
+
+type ClientTicketSortColumn = 'number' | 'title' | 'status' | 'priority' | 'assignee';
+type SortDirection = 'asc' | 'desc';
 
 const AVATAR_COLORS = [
   '#1565c0', '#6a1b9a', '#2e7d32', '#c62828', '#00838f',
@@ -319,6 +322,10 @@ export default function ClientDetail() {
   const [layout, setLayout] = useState<BlockConfig[]>(() => loadClientLayoutCache(clientId));
   const [editMode, setEditMode] = useState(false);
   const [draftLayout, setDraftLayout] = useState<BlockConfig[]>([]);
+  const [ticketSort, setTicketSort] = useState<{ column: ClientTicketSortColumn | null; direction: SortDirection }>({
+    column: null,
+    direction: 'asc',
+  });
 
   const [orgLayout, setOrgLayout] = useState<BlockConfig[]>([]);
   const [orgBuiltinNames, setOrgBuiltinNames] = useState<Record<string, string>>({});
@@ -674,6 +681,43 @@ export default function ClientDetail() {
 
   const client = data as any;
   const tickets: any[] = client.tickets ?? [];
+  const sortedTickets = ticketSort.column
+    ? [...tickets].sort((a, b) => {
+        const { column, direction } = ticketSort;
+        const directionFactor = direction === 'asc' ? 1 : -1;
+        if (column === 'number') {
+          return ((a.ticketNumber ?? a.id) - (b.ticketNumber ?? b.id)) * directionFactor;
+        }
+
+        const getValue = (ticket: any): string => {
+          if (column === 'title') return ticket.title ?? '';
+          if (column === 'status') return (t.status as any)[ticket.status] ?? ticket.status;
+          if (column === 'priority') return (t.priority as any)[ticket.priority] ?? ticket.priority;
+          return ticket.assignedToName ?? t.ticketDetail.unassigned;
+        };
+        return getValue(a).localeCompare(getValue(b), undefined, { numeric: true, sensitivity: 'base' }) * directionFactor;
+      })
+    : tickets;
+  const handleTicketSort = (column: ClientTicketSortColumn) => {
+    setTicketSort((current) => ({
+      column,
+      direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+  const ticketSortHeader = (column: ClientTicketSortColumn, label: string) => (
+    <TableCell
+      sortDirection={ticketSort.column === column ? ticketSort.direction : false}
+      sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
+    >
+      <TableSortLabel
+        active={ticketSort.column === column}
+        direction={ticketSort.column === column ? ticketSort.direction : 'asc'}
+        onClick={() => handleTicketSort(column)}
+      >
+        {label}
+      </TableSortLabel>
+    </TableCell>
+  );
   const initials = getInitials(client.name ?? '?');
 
   const openTickets = tickets.filter((t: any) => ['open', 'waiting', 'in_progress'].includes(t.status)).length;
@@ -822,15 +866,15 @@ export default function ClientDetail() {
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colTitle}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colStatus}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colPriority}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{t.ticketList.colAssignee}</TableCell>
+                      {ticketSortHeader('number', '#')}
+                      {ticketSortHeader('title', t.ticketList.colTitle)}
+                      {ticketSortHeader('status', t.ticketList.colStatus)}
+                      {ticketSortHeader('priority', t.ticketList.colPriority)}
+                      {ticketSortHeader('assignee', t.ticketList.colAssignee)}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {tickets.map((ticket) => (
+                    {sortedTickets.map((ticket) => (
                       <TableRow
                         key={ticket.id}
                         hover

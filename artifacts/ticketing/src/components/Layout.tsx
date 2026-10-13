@@ -553,7 +553,6 @@ export default function Layout({ children }: LayoutProps) {
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
-    { text: t.nav.settings,   icon: <Settings />,            path: '/settings',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
@@ -993,6 +992,19 @@ export default function Layout({ children }: LayoutProps) {
               <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
             </Box>
             <Divider />
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                setLocation('/settings');
+              }}
+              selected={isActive('/settings')}
+              sx={{ fontWeight: 500 }}
+            >
+              <ListItemIcon sx={{ minWidth: 38, color: isActive('/settings') ? 'primary.main' : 'text.secondary' }}>
+                <Settings fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={t.nav.settings} />
+            </MenuItem>
             <MenuItem
               onClick={() => {
                 handleMenuClose();

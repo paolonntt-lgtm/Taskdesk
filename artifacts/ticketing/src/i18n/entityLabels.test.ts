@@ -17,3 +17,14 @@ describe('Italian dashboard labels for assigned practices', () => {
     expect(translations.en.dashboard.widgetFeedMy('Cases', 'feminine')).toBe('My Cases');
   });
 });
+
+describe('Albert knowledge base settings labels', () => {
+  it('clearly identifies Albert as the user of the knowledge base in both languages', () => {
+    expect(translations.it.settings.kbTitle).toBe('Knowledge Base di Albert');
+    expect(translations.it.settings.kbNote).toContain('Albert');
+    expect(translations.it.settings.kbNoArticles).toContain('Albert');
+    expect(translations.en.settings.kbTitle).toBe('Albert Knowledge Base');
+    expect(translations.en.settings.kbNote).toContain('Albert');
+    expect(translations.en.settings.kbNoArticles).toContain('Albert');
+  });
+});
