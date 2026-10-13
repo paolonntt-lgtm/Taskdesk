@@ -6,6 +6,13 @@ interface User {
   name: string;
   email: string;
   role: string;
+  organizationId?: number | null;
+  isSuperAdmin?: boolean;
+  trialEndsAt?: string | null;
+  stripeSubscriptionId?: string | null;
+  trialStatus?: { isInTrial: boolean; isExpired: boolean; daysLeft: number } | null;
+  clientsEnabled?: boolean;
+  workedTimeEnabled?: boolean;
   mainLocation?: string | null;
   isActive: boolean;
   createdAt: string;

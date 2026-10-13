@@ -75,6 +75,18 @@ function RootLayoutNav() {
           headerBackTitle: "Indietro",
         }}
       />
+      <Stack.Screen
+        name="billing"
+        options={{ title: "Fatturazione", headerBackTitle: "Indietro" }}
+      />
+      <Stack.Screen
+        name="announcements"
+        options={{ title: "Avvisi", headerBackTitle: "Indietro" }}
+      />
+      <Stack.Screen
+        name="superadmin"
+        options={{ title: "Console piattaforma", headerBackTitle: "Indietro" }}
+      />
     </Stack>
   );
 }

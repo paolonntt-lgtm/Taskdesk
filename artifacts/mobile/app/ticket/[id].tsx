@@ -57,6 +57,13 @@ export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
   const s = styles(colors);
+  const organizationSettingsQuery = useQuery({
+    queryKey: ["mobile-organization-settings", user?.organizationId],
+    queryFn: () => apiGet<{ workedTimeEnabled?: boolean }>("/settings/organization"),
+    enabled: user?.organizationId != null,
+  });
+  const workedTimeEnabled = organizationSettingsQuery.isSuccess &&
+    organizationSettingsQuery.data?.workedTimeEnabled !== false;
 
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -262,7 +269,7 @@ export default function TicketDetailScreen() {
       await apiPatch(`/tickets/${id}`, {
         status: closedStatusKey,
         resolutionNote: note || null,
-        workedMinutes: totalWorkedMinutes,
+        ...(workedTimeEnabled ? { workedMinutes: totalWorkedMinutes } : {}),
       });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
@@ -404,7 +411,7 @@ export default function TicketDetailScreen() {
     },
     { label: t.ticketDetail.date, value: formatDate(ticket.createdAt) },
     ...(ticket.resource ? [{ label: t.ticketDetail.resource, value: ticket.resource }] : []),
-    ...(ticket.workedMinutes != null ? [{ label: t.ticketDetail.workedTime, value: formatWorkedDuration(ticket.workedMinutes, lang) }] : []),
+    ...(workedTimeEnabled && ticket.workedMinutes != null ? [{ label: t.ticketDetail.workedTime, value: formatWorkedDuration(ticket.workedMinutes, lang) }] : []),
   ];
 
   return (
@@ -938,7 +945,7 @@ export default function TicketDetailScreen() {
                 textAlignVertical="top"
                 autoFocus
               />
-              <Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
+              {workedTimeEnabled && <><Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
               <View style={s.durationRow}>
                 <TextInput
                   style={[s.durationInput, workedTimeError && s.durationInputError]}
@@ -957,7 +964,7 @@ export default function TicketDetailScreen() {
                   keyboardType="number-pad"
                 />
               </View>
-              {workedTimeError && <Text style={s.durationError}>{t.ticketDetail.workedTimeError}</Text>}
+              {workedTimeError && <Text style={s.durationError}>{t.ticketDetail.workedTimeError}</Text>}</>}
             </View>
 
             <View style={s.modalFooter}>

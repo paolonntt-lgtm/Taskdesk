@@ -10,7 +10,17 @@ import { apiDelete, apiGet } from "@/utils/api";
 export default function ClientDetailScreen() {
   const c = useColors(); const { lang } = useLanguage(); const it = lang === "it"; const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth(); const qc = useQueryClient();
-  const { data, isLoading, error } = useQuery({ queryKey: ["mobile-client", id], queryFn: () => apiGet<any>(`/clients/${id}`), enabled: !!id });
+  const organizationSettings = useQuery({
+    queryKey: ["mobile-organization-settings", user?.organizationId],
+    queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
+    enabled: user?.organizationId != null,
+  });
+  const clientsEnabled = organizationSettings.isSuccess && organizationSettings.data?.clientsEnabled === true;
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["mobile-client", id],
+    queryFn: () => apiGet<any>(`/clients/${id}`),
+    enabled: !!id && clientsEnabled,
+  });
   const client = data?.client ?? data;
   const remove = () => Alert.alert(it ? "Elimina cliente" : "Delete client", it ? "L'eliminazione non può essere annullata." : "This cannot be undone.", [
     { text: it ? "Annulla" : "Cancel", style: "cancel" },
@@ -20,6 +30,8 @@ export default function ClientDetailScreen() {
     } },
   ]);
   const s = styles(c);
+  if (organizationSettings.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={c.primary} /></View>;
+  if (!clientsEnabled) return <View style={[s.root, s.center]}><Text style={s.muted}>{it ? "La gestione clienti non è attiva per questa organizzazione." : "Client management is not enabled for this organization."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
     {isLoading && <ActivityIndicator color={c.primary} />}
     {error || !client ? (!isLoading && <Text style={s.muted}>{it ? "Cliente non disponibile." : "Client unavailable."}</Text>) : <>
@@ -33,7 +45,7 @@ export default function ClientDetailScreen() {
   </ScrollView>;
 }
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 },
+  root: { flex: 1, backgroundColor: c.background }, center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 12, paddingBottom: 100 },
   title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold" }, muted: { color: c.mutedForeground },
   card: { borderRadius: 14, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, padding: 16, gap: 14 },
   field: { gap: 4 }, label: { color: c.mutedForeground, fontSize: 12 }, value: { color: c.foreground, fontSize: 15 },

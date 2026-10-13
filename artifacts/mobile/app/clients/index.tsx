@@ -14,7 +14,17 @@ export default function ClientsScreen() {
   const { user } = useAuth(); const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState<Client | null>(null);
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [saving, setSaving] = useState(false);
-  const { data = [], isLoading, error } = useQuery({ queryKey: ["mobile-clients"], queryFn: () => apiGet<Client[]>("/clients") });
+  const organizationSettings = useQuery({
+    queryKey: ["mobile-organization-settings", user?.organizationId],
+    queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
+    enabled: user?.organizationId != null,
+  });
+  const clientsEnabled = organizationSettings.isSuccess && organizationSettings.data?.clientsEnabled === true;
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ["mobile-clients", user?.organizationId],
+    queryFn: () => apiGet<Client[]>("/clients"),
+    enabled: clientsEnabled,
+  });
   const clients = useMemo(() => data.filter(x => `${x.name} ${x.alias ?? ""} ${x.email ?? ""}`.toLowerCase().includes(search.toLowerCase())), [data, search]);
   const openForm = (client?: Client) => { setEditing(client ?? null); setName(client?.name ?? ""); setEmail(client?.email ?? ""); setPhone(client?.phone ?? ""); setFormOpen(true); };
   const save = async () => {
@@ -24,13 +34,15 @@ export default function ClientsScreen() {
       const body = { name: name.trim(), email: email.trim() || null, phone: phone.trim() || null };
       if (editing) await apiPatch(`/clients/${editing.id}`, body);
       else await apiPost("/clients", body);
-      await qc.invalidateQueries({ queryKey: ["mobile-clients"] });
+      await qc.invalidateQueries({ queryKey: ["mobile-clients", user?.organizationId] });
       await qc.invalidateQueries({ queryKey: ["mobile-client", editing?.id] });
       setFormOpen(false);
     } catch { Alert.alert(it ? "Errore" : "Error", it ? "Impossibile salvare il cliente." : "Could not save client."); }
     finally { setSaving(false); }
   };
   const s = styles(c);
+  if (organizationSettings.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={c.primary} /></View>;
+  if (!clientsEnabled) return <View style={[s.root, s.center]}><Text style={s.muted}>{it ? "La gestione clienti non è attiva per questa organizzazione." : "Client management is not enabled for this organization."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
     <View style={s.heading}><Text style={s.title}>{it ? "Clienti" : "Clients"}</Text><Pressable style={s.add} onPress={() => openForm()}><Feather name="plus" size={18} color={c.primaryForeground} /><Text style={s.addText}>{it ? "Nuovo" : "Add"}</Text></Pressable></View>
     <View style={s.search}><Feather name="search" size={17} color={c.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder={it ? "Cerca cliente" : "Search clients"} placeholderTextColor={c.mutedForeground} style={s.searchInput} /></View>
@@ -54,7 +66,7 @@ export default function ClientsScreen() {
   </ScrollView>;
 }
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 },
+  root: { flex: 1, backgroundColor: c.background }, center: { alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 12, paddingBottom: 100 },
   heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold" },
   add: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 10, backgroundColor: c.primary, paddingHorizontal: 12, paddingVertical: 9 }, addText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },
   search: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },

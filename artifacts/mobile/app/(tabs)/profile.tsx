@@ -11,6 +11,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Lang } from "@/i18n/translations";
 import * as Haptics from "expo-haptics";
 import { apiPost } from "@/utils/api";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/utils/api";
+
+type MobileOrganizationSettings = { clientsEnabled?: boolean; workedTimeEnabled?: boolean };
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -18,6 +22,11 @@ export default function ProfileScreen() {
   const { t, lang, setLang } = useLanguage();
   const s = styles(colors);
   const [generatingInvite, setGeneratingInvite] = useState(false);
+  const organizationSettings = useQuery({
+    queryKey: ["mobile-profile-organization-settings", user?.organizationId],
+    queryFn: () => apiGet<MobileOrganizationSettings>("/settings/organization"),
+    enabled: user?.organizationId != null,
+  });
 
   const handleGenerateInvite = async () => {
     setGeneratingInvite(true);
@@ -52,13 +61,16 @@ export default function ProfileScreen() {
   };
 
   const initials = user?.name?.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() ?? "?";
+  const isOrganizationAdmin = user?.role === "admin" && user.organizationId != null;
 
   const infoItems = [
     { icon: "mail" as const, label: t.profile.email, value: user?.email ?? "" },
     {
       icon: "shield" as const,
       label: t.profile.role,
-      value: user?.role === "admin" ? t.profile.admin : t.profile.user,
+      value: user?.isSuperAdmin
+        ? (lang === "it" ? "Superamministratore" : "Superadmin")
+        : user?.role === "admin" ? t.profile.admin : t.profile.user,
     },
   ];
 
@@ -78,9 +90,9 @@ export default function ProfileScreen() {
           <Text style={s.initials}>{initials}</Text>
         </View>
         <Text style={s.name}>{user?.name}</Text>
-        <View style={[s.roleBadge, user?.role === "admin" && s.roleBadgeAdmin]}>
-          <Text style={[s.roleText, user?.role === "admin" && s.roleTextAdmin]}>
-            {user?.role === "admin" ? t.profile.admin : t.profile.user}
+        <View style={[s.roleBadge, (user?.role === "admin" || user?.isSuperAdmin) && s.roleBadgeAdmin]}>
+          <Text style={[s.roleText, (user?.role === "admin" || user?.isSuperAdmin) && s.roleTextAdmin]}>
+            {user?.isSuperAdmin ? (lang === "it" ? "Superamministratore" : "Superadmin") : user?.role === "admin" ? t.profile.admin : t.profile.user}
           </Text>
         </View>
       </View>
@@ -144,9 +156,13 @@ export default function ProfileScreen() {
         <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         {[
           { label: lang === "it" ? "Calendario" : "Calendar", icon: "calendar" as const, path: "/calendar" },
-          ...((user as any)?.clientsEnabled !== false ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
+          ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled !== false && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
           { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
-          ...(user?.role === "admin" ? [{ label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" }] : []),
+          ...(isOrganizationAdmin ? [
+            { label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" },
+            { label: lang === "it" ? "Fatturazione" : "Billing", icon: "credit-card" as const, path: "/billing" },
+            { label: lang === "it" ? "Avvisi" : "Announcements", icon: "bell" as const, path: "/announcements" },
+          ] : []),
         ].map((item, index, items) => (
           <TouchableOpacity
             key={item.path}
@@ -163,7 +179,7 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      {user?.role === "admin" && (
+      {isOrganizationAdmin && (
         <View style={s.card}>
           <Text style={s.cardTitle}>{t.profile.administration}</Text>
           <TouchableOpacity
@@ -207,6 +223,19 @@ export default function ProfileScreen() {
               }
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {user?.isSuperAdmin && (
+        <View style={s.card}>
+          <Text style={s.cardTitle}>{lang === "it" ? "Superamministrazione" : "Superadmin"}</Text>
+          <TouchableOpacity style={s.infoRow} onPress={() => router.push("/superadmin" as any)} activeOpacity={0.7}>
+            <View style={s.infoLeft}>
+              <Feather name="shield" size={16} color={colors.primary} />
+              <Text style={[s.infoLabel, { color: colors.primary }]}>{lang === "it" ? "Console piattaforma" : "Platform console"}</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
         </View>
       )}
 

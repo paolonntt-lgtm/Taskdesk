@@ -2,15 +2,24 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, Modal, TextInput,
-  Platform, KeyboardAvoidingView,
+  Platform, KeyboardAvoidingView, Switch,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPut, apiPost } from "@/utils/api";
+import { apiGet, apiPut, apiPost, apiPatch } from "@/utils/api";
+import { useAuth } from "@/contexts/AuthContext";
 import * as Haptics from "expo-haptics";
 
 type SectionKey = "groups" | "locations" | "categories";
+type OrganizationSettings = {
+  name: string;
+  businessType: string | null;
+  clientsEnabled: boolean;
+  workedTimeEnabled: boolean;
+  entitySingular: string | null;
+  entityPlural: string | null;
+};
 
 const API_PATH: Record<SectionKey, string> = {
   groups: "/settings/groups",
@@ -37,6 +46,7 @@ const EMPTY_MODAL: ModalState = {
 export default function AdminSettingsScreen() {
   const colors = useColors();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const s = styles(colors);
 
   const [groups, setGroups] = useState<string[]>([]);
@@ -47,6 +57,9 @@ export default function AdminSettingsScreen() {
   const [modal, setModal] = useState<ModalState>(EMPTY_MODAL);
   const [nameError, setNameError] = useState("");
   const [testPushLoading, setTestPushLoading] = useState(false);
+  const [organization, setOrganization] = useState<OrganizationSettings | null>(null);
+  const [organizationSaving, setOrganizationSaving] = useState(false);
+  const [organizationError, setOrganizationError] = useState("");
 
   const dataMap: Record<SectionKey, string[]> = {
     groups,
@@ -63,15 +76,17 @@ export default function AdminSettingsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [g, l, c] = await Promise.all([
+      const [g, l, c, org] = await Promise.all([
         apiGet<{ value: string[] }>(API_PATH.groups),
         apiGet<{ value: string[] }>(API_PATH.locations),
         apiGet<{ value: string[] }>(API_PATH.categories),
+        apiGet<OrganizationSettings>("/settings/organization"),
       ]);
       setGroups(g.value ?? []);
       setLocations(l.value ?? []);
       const cats = c.value ?? [];
       setCategories([...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
+      setOrganization(org);
     } catch {
       Alert.alert(t.adminSettings.error, t.adminSettings.errorSave);
     } finally {
@@ -79,7 +94,27 @@ export default function AdminSettingsScreen() {
     }
   }, [t]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (user?.role === "admin" && user.organizationId != null) void load(); }, [load, user?.role, user?.organizationId]);
+
+  const saveOrganization = async () => {
+    if (!organization) return;
+    if (organization.name.trim().length < 2) {
+      setOrganizationError(t.adminSettings.organizationNameError);
+      return;
+    }
+    setOrganizationSaving(true);
+    setOrganizationError("");
+    try {
+      const updated = await apiPatch<OrganizationSettings>("/settings/organization", organization);
+      setOrganization(updated);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t.adminSettings.saved, t.adminSettings.organizationSaved);
+    } catch (err: any) {
+      setOrganizationError(err.message || t.adminSettings.errorSave);
+    } finally {
+      setOrganizationSaving(false);
+    }
+  };
 
   const openAdd = (section: SectionKey) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -186,6 +221,10 @@ export default function AdminSettingsScreen() {
     { key: "categories", label: t.adminSettings.categories, icon: "tag", color: "#7c3aed" },
   ];
 
+  if (user?.role !== "admin" || user.organizationId == null) {
+    return <View style={s.center}><Text style={s.emptyText}>{user?.role === "admin" ? t.adminSettings.organizationRequired : t.adminSettings.adminOnly}</Text></View>;
+  }
+
   if (loading) {
     return (
       <View style={s.center}>
@@ -200,6 +239,103 @@ export default function AdminSettingsScreen() {
         contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 32 }]}
         showsVerticalScrollIndicator={false}
       >
+        {organization && (
+          <View style={s.section}>
+            <View style={s.sectionTitleRow}>
+              <View style={[s.sectionIcon, { backgroundColor: colors.primary + "18" }]}>
+                <Feather name="home" size={16} color={colors.primary} />
+              </View>
+              <Text style={s.sectionTitle}>{t.adminSettings.organization}</Text>
+            </View>
+            <View style={s.card}>
+              <View style={s.orgField}>
+                <Text style={s.orgLabel}>{t.adminSettings.organizationName}</Text>
+                <TextInput
+                  style={s.orgInput}
+                  value={organization.name}
+                  onChangeText={(name) => setOrganization((current) => current ? { ...current, name } : current)}
+                  placeholder={t.adminSettings.organizationName}
+                  placeholderTextColor={colors.mutedForeground}
+                  editable={!organizationSaving}
+                />
+              </View>
+              {organization.clientsEnabled && (
+                <>
+                  <View style={s.orgField}>
+                    <Text style={s.orgLabel}>{t.adminSettings.entitySingular}</Text>
+                    <TextInput
+                      style={s.orgInput}
+                      value={organization.entitySingular ?? ""}
+                      onChangeText={(entitySingular) => setOrganization((current) => current ? { ...current, entitySingular } : current)}
+                      placeholder={t.adminSettings.entitySingularPlaceholder}
+                      placeholderTextColor={colors.mutedForeground}
+                      editable={!organizationSaving}
+                    />
+                  </View>
+                  <View style={s.orgField}>
+                    <Text style={s.orgLabel}>{t.adminSettings.entityPlural}</Text>
+                    <TextInput
+                      style={s.orgInput}
+                      value={organization.entityPlural ?? ""}
+                      onChangeText={(entityPlural) => setOrganization((current) => current ? { ...current, entityPlural } : current)}
+                      placeholder={t.adminSettings.entityPluralPlaceholder}
+                      placeholderTextColor={colors.mutedForeground}
+                      editable={!organizationSaving}
+                    />
+                  </View>
+                </>
+              )}
+              <Text style={s.orgLabel}>{t.adminSettings.businessType}</Text>
+              <View style={s.businessTypes}>
+                {[
+                  ["it_support", t.adminSettings.businessIT],
+                  ["professional_studio", t.adminSettings.businessStudio],
+                  ["agency", t.adminSettings.businessAgency],
+                  ["other", t.adminSettings.businessOther],
+                ].map(([value, label]) => (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => setOrganization((current) => current ? { ...current, businessType: value } : current)}
+                    style={[s.businessType, organization.businessType === value && s.businessTypeActive]}
+                    disabled={organizationSaving}
+                  >
+                    <Text style={[s.businessTypeText, organization.businessType === value && s.businessTypeTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={s.orgSwitchRow}>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.clientsEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.clientsEnabledHelp}</Text>
+                </View>
+                <Switch
+                  value={organization.clientsEnabled}
+                  onValueChange={(clientsEnabled) => setOrganization((current) => current ? { ...current, clientsEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              <View style={s.orgSwitchRow}>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.workedTimeEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.workedTimeEnabledHelp}</Text>
+                </View>
+                <Switch
+                  value={organization.workedTimeEnabled}
+                  onValueChange={(workedTimeEnabled) => setOrganization((current) => current ? { ...current, workedTimeEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              {organizationError ? <Text style={s.orgError}>{organizationError}</Text> : null}
+              <TouchableOpacity style={s.orgSaveBtn} onPress={() => void saveOrganization()} disabled={organizationSaving} activeOpacity={0.8}>
+                {organizationSaving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={15} color="#fff" />}
+                <Text style={s.addBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         <View style={s.testPushSection}>
           <View style={s.sectionTitleRow}>
             <View style={[s.sectionIcon, { backgroundColor: "#f59e0b18" }]}>
@@ -355,6 +491,19 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     content: { padding: 16, gap: 24 },
+    orgField: { gap: 6 },
+    orgLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_500Medium" },
+    orgDescription: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
+    orgInput: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10, color: colors.foreground, fontSize: 14, fontFamily: "Inter_400Regular" },
+    businessTypes: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+    businessType: { borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: colors.card },
+    businessTypeActive: { borderColor: colors.primary, backgroundColor: colors.primary + "18" },
+    businessTypeText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
+    businessTypeTextActive: { color: colors.primary },
+    orgSwitchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
+    orgSwitchText: { flex: 1, gap: 3 },
+    orgError: { color: colors.destructive, fontSize: 12, fontFamily: "Inter_400Regular" },
+    orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 9, paddingVertical: 11 },
 
     testPushSection: { gap: 10 },
     testPushBtn: {
