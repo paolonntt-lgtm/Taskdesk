@@ -109,6 +109,10 @@ export default function CookiePolicy() {
           </table>
 
           <p style={{ marginTop: 16 }}>
+            La scelta espressa nel banner viene salvata nel localStorage del browser con la chiave <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>td_cookie_consent_v1</code>, così da ricordare se hai accettato o rifiutato i cookie analitici.
+          </p>
+
+          <p style={{ marginTop: 16 }}>
             Il cookie <code style={{ backgroundColor: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>session_id</code> è impostato con i flag <strong>HttpOnly</strong> (non accessibile da JavaScript) e <strong>SameSite=Lax</strong> (protezione da attacchi CSRF), e viene trasmesso esclusivamente su connessioni HTTPS sicure.
           </p>
         </Section>
@@ -163,7 +167,11 @@ export default function CookiePolicy() {
             Per qualsiasi domanda relativa all'utilizzo dei cookie da parte di TaskDesk:
           </p>
           <ul>
+            <li><strong>Gestore:</strong> IANNETTI PAOLO (Paolo Iannetti), impresa individuale</li>
+            <li><strong>Sede:</strong> Via Danubio 21, 65015 Montesilvano (PE), Italia</li>
+            <li><strong>Partita IVA:</strong> 02420280683</li>
             <li><strong>Email:</strong> privacy@taskdesk.it</li>
+            <li><strong>PEC:</strong> paolo.iannetti@arubapec.it</li>
             <li><strong>Privacy Policy:</strong> <a href="/privacy-policy" style={{ color: "#2563eb" }}>www.taskdesk.it/privacy-policy</a></li>
           </ul>
         </Section>

@@ -171,7 +171,7 @@ export default function DPA() {
             <li><strong>Cifratura in transito:</strong> tutte le comunicazioni avvengono tramite TLS/HTTPS;</li>
             <li><strong>Cifratura at-rest:</strong> i database sono conservati su storage cifrato;</li>
             <li><strong>Isolamento dei dati:</strong> architettura multi-tenant che garantisce l'isolamento completo tra le organizzazioni dei diversi Clienti;</li>
-            <li><strong>Cifratura delle password:</strong> le password degli utenti sono conservate esclusivamente come hash irreversibili (SHA-256 con salt);</li>
+            <li><strong>Protezione delle password:</strong> le password degli utenti sono conservate esclusivamente come hash bcrypt con 12 round di calcolo, non in chiaro;</li>
             <li><strong>Controllo degli accessi:</strong> accesso ai sistemi di produzione limitato al personale autorizzato, con autenticazione a più fattori;</li>
             <li><strong>Backup:</strong> backup automatici regolari dei dati con possibilità di ripristino;</li>
             <li><strong>Monitoraggio:</strong> log di accesso e attività conservati per finalità di sicurezza e audit.</li>
@@ -245,7 +245,12 @@ export default function DPA() {
             Per qualsiasi questione relativa al presente DPA o al trattamento dei dati:
           </p>
           <ul>
+            <li><strong>Responsabile del trattamento:</strong> IANNETTI PAOLO (Paolo Iannetti), impresa individuale</li>
+            <li><strong>Sede:</strong> Via Danubio 21, 65015 Montesilvano (PE), Italia</li>
+            <li><strong>Partita IVA:</strong> 02420280683</li>
+            <li><strong>Codice fiscale:</strong> NNTPLA84T16G482R</li>
             <li><strong>Email:</strong> privacy@taskdesk.it</li>
+            <li><strong>PEC:</strong> paolo.iannetti@arubapec.it</li>
             <li><strong>Sito:</strong> <a href="https://www.taskdesk.it" style={{ color: "#2563eb" }}>www.taskdesk.it</a></li>
           </ul>
         </Section>

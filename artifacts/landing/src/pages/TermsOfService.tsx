@@ -224,7 +224,13 @@ export default function TermsOfService() {
         <Section title="14. Contatti">
           <p>Per qualsiasi domanda relativa ai presenti Termini:</p>
           <ul>
+            <li><strong>Fornitore:</strong> IANNETTI PAOLO (Paolo Iannetti), impresa individuale</li>
+            <li><strong>Sede:</strong> Via Danubio 21, 65015 Montesilvano (PE), Italia</li>
+            <li><strong>Partita IVA:</strong> 02420280683</li>
+            <li><strong>Codice fiscale:</strong> NNTPLA84T16G482R</li>
+            <li><strong>REA:</strong> PE - 432412</li>
             <li><strong>Email:</strong> support@taskdesk.it</li>
+            <li><strong>PEC:</strong> paolo.iannetti@arubapec.it</li>
             <li><strong>Sito web:</strong> <a href="https://www.taskdesk.it" style={{ color: "#2563eb" }}>www.taskdesk.it</a></li>
           </ul>
         </Section>

@@ -67,8 +67,13 @@ export default function PrivacyPolicy() {
             Il Titolare del trattamento dei dati personali raccolti tramite la piattaforma TaskDesk è:
           </p>
           <ul>
-            <li><strong>Denominazione:</strong> TaskDesk</li>
+            <li><strong>Denominazione iscritta al Registro Imprese:</strong> IANNETTI PAOLO (Paolo Iannetti), impresa individuale</li>
+            <li><strong>Sede:</strong> Via Danubio 21, 65015 Montesilvano (PE), Italia</li>
+            <li><strong>Partita IVA:</strong> 02420280683</li>
+            <li><strong>Codice fiscale:</strong> NNTPLA84T16G482R</li>
+            <li><strong>REA:</strong> PE - 432412</li>
             <li><strong>Indirizzo email:</strong> privacy@taskdesk.it</li>
+            <li><strong>PEC:</strong> paolo.iannetti@arubapec.it</li>
             <li><strong>Sito web:</strong> www.taskdesk.it</li>
           </ul>
           <p>
@@ -89,6 +94,7 @@ export default function PrivacyPolicy() {
             <li><strong>Dati di navigazione:</strong> indirizzo IP, tipo di browser, pagine visitate, data e ora di accesso.</li>
             <li><strong>Dati di sessione:</strong> cookie di sessione necessari al funzionamento del servizio.</li>
             <li><strong>Log di attività:</strong> azioni eseguite sulla piattaforma (apertura ticket, cambio stato, assegnazioni) a fini di audit e cronologia.</li>
+            <li><strong>Dati tecnici di notifica:</strong> token push associato al dispositivo per recapitare notifiche nell'app mobile.</li>
           </ul>
           <h3 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>Dati di fatturazione</h3>
           <ul>
@@ -128,7 +134,7 @@ export default function PrivacyPolicy() {
             I dati personali sono trattati con strumenti elettronici nel rispetto delle misure di sicurezza previste dal GDPR. In particolare:
           </p>
           <ul>
-            <li>Le password vengono conservate esclusivamente in forma cifrata (hash SHA-256 con salt) e non sono recuperabili in chiaro.</li>
+            <li>Le password sono conservate come hash bcrypt con 12 round di calcolo; non sono conservate in chiaro né recuperabili dal sistema.</li>
             <li>Le comunicazioni tra browser e server avvengono sempre tramite protocollo <strong>HTTPS/TLS</strong>.</li>
             <li>I database sono ospitati su infrastrutture cloud con accesso ristretto e audit log attivi.</li>
             <li>I dati di log di attività vengono conservati per un massimo di <strong>24 mesi</strong>.</li>
@@ -143,6 +149,7 @@ export default function PrivacyPolicy() {
             <li><strong>Fornitori di servizi tecnici:</strong> fornitori di infrastruttura cloud, hosting e database (es. Replit, Neon/PostgreSQL) che agiscono in qualità di Responsabili del trattamento ex art. 28 GDPR.</li>
             <li><strong>Stripe Inc.:</strong> per la gestione sicura dei pagamenti. Stripe opera in qualità di titolare autonomo per i dati di pagamento.</li>
             <li><strong>Resend Inc.:</strong> per l'invio di email transazionali (inviti, notifiche).</li>
+            <li><strong>Expo:</strong> per l'instradamento delle notifiche push; riceve il token del dispositivo e i dati necessari al recapito della notifica.</li>
             <li><strong>Autorità competenti:</strong> qualora richiesto da obblighi di legge, regolamenti o provvedimenti dell'autorità giudiziaria.</li>
           </ul>
           <p>
