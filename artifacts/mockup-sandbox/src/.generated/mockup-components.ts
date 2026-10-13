@@ -3,9 +3,9 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/albert-announcement/Current.tsx": () => import("../components/mockups/albert-announcement/Current.tsx"),
   "./components/mockups/albert-announcement/Refined.tsx": () => import("../components/mockups/albert-announcement/Refined.tsx"),
-  "./components/mockups/calendar-variants/MonthlyCalendar.tsx": () => import("../components/mockups/calendar-variants/MonthlyCalendar.tsx"),
   "./components/mockups/billing-plans/Current.tsx": () => import("../components/mockups/billing-plans/Current.tsx"),
   "./components/mockups/billing-plans/CycleSelector.tsx": () => import("../components/mockups/billing-plans/CycleSelector.tsx"),
+  "./components/mockups/calendar-variants/MonthlyCalendar.tsx": () => import("../components/mockups/calendar-variants/MonthlyCalendar.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Slate.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Slate.tsx"),
   "./components/mockups/client-detail-variants/HeroKPI_Teal.tsx": () => import("../components/mockups/client-detail-variants/HeroKPI_Teal.tsx"),

@@ -16,8 +16,8 @@ interface BusinessTypeOption {
   color: string;
 }
 
-const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v3';
-const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v3';
+const DASHBOARD_VISIBLE_KEY = 'td_dashboard_visible_v4';
+const DASHBOARD_LAYOUT_KEY = 'td_dashboard_layout_v4';
 
 const DASHBOARD_PRESETS: Record<string, string[]> = {
   it_support:          ['stat-open', 'stat-urgent', 'stat-overdue', 'stat-resolved', 'feed-my', 'feed-due', 'chart-trend', 'chart-status'],
