@@ -1,4 +1,6 @@
-const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
+import { Platform } from "react-native";
+
+const BASE_URL = Platform.OS !== "web" && process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "";
 
