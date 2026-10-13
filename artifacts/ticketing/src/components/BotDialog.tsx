@@ -13,6 +13,7 @@ import { useTheme } from '@mui/material/styles';
 import { trackEvent } from '../lib/analytics';
 import { MarkdownContent } from './MarkdownContent';
 import { AlbertAvatarIcon } from './AlbertAvatarIcon';
+import { isYesNoFollowUpOffer } from './botFollowUp';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -835,6 +836,18 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                   : undefined;
                 const isReportSummaryTurn = isLastAssistant
                   && (hasReportSummaryContext(latestUserMessage) || hasReportSummaryContext(msg.content));
+                const followUpQuickReplies: ParsedOption[] | undefined =
+                  isLastAssistant
+                  && !reportWizardActive
+                  && pendingAction === null
+                  && !isReportSummaryTurn
+                  && isYesNoFollowUpOffer(msg.content)
+                    ? [
+                        { id: 'follow-up-yes', label: t.bot.followUpYes, value: t.bot.followUpYes },
+                        { id: 'follow-up-no', label: t.bot.followUpNo, value: t.bot.followUpNo },
+                      ]
+                    : undefined;
+                const quickReplies = reportQuickReplies ?? followUpQuickReplies;
                 return (
                   <MessageBubble
                     key={i}
@@ -842,8 +855,8 @@ export default function BotDialog({ open, unreadCount = 0, onClose, onExpand, on
                     botName={botName}
                     fallbackActionText={botFallback}
                     onOptionClick={isLastAssistant ? (val) => sendWithText(val) : undefined}
-                    quickReplies={reportQuickReplies}
-                    onOpenTicket={isLastAssistant && !isWelcome && !reportWizardActive && !isReportSummaryTurn && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
+                    quickReplies={quickReplies}
+                    onOpenTicket={isLastAssistant && !isWelcome && !reportWizardActive && !isReportSummaryTurn && !followUpQuickReplies && pendingAction?.action !== 'view_ticket' ? () => sendWithText(lang === 'en' ? `open ${entityTerm.articleIndef} ${entityTerm.singularLower}` : `apri ${entityTerm.singularLower}`) : undefined}
                     onViewTicket={onViewTicket}
                     openTicketLabel={lang === 'it' ? `Apri ${entityTerm.singularLower}` : `Open ${entityTerm.articleIndef} ${entityTerm.singularLower}`}
                   />

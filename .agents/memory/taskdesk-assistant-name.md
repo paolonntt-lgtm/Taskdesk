@@ -24,3 +24,9 @@ Do not use the generic “Assistente AI TaskDesk” label in the team-memory lan
 **Why:** The user rejected that label and asked for a stronger, more specific slogan.
 
 **How to apply:** Describe the value of finding useful past tickets instead of using generic AI terminology in this placement.
+
+When Albert offers an optional follow-up check (for example, “Se vuoi, posso fare un controllo più mirato”), show “Sì” and “No” quick replies instead of the generic open-ticket shortcut. Keep the ticket shortcut for ticket-creation offers.
+
+**Why:** The user wants a direct way to accept or decline Albert’s follow-up offer, rather than being prompted to open a ticket.
+
+**How to apply:** Quick replies should answer in the current conversation; do not create or open a ticket merely because Albert offered to investigate further.

@@ -627,6 +627,8 @@ const it = {
     openTicketBtn: 'Apri ticket',
     openTicketFound: 'Esiste già un ticket aperto su questo problema:',
     viewTicketBtn: 'Vai al ticket',
+    followUpYes: 'Sì',
+    followUpNo: 'No',
     fabTooltip: 'Chiedi ad Albert',
   },
   reports: {
@@ -2330,6 +2332,8 @@ const en: typeof it = {
     openTicketBtn: 'Open a ticket',
     openTicketFound: 'There is already an open ticket for this issue:',
     viewTicketBtn: 'Go to ticket',
+    followUpYes: 'Yes',
+    followUpNo: 'No',
     fabTooltip: 'Ask Albert',
   },
   reports: {
