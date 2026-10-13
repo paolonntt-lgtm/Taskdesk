@@ -404,7 +404,6 @@ export default function AnnouncementsSettings() {
             )}
             <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }} gap={2}>
               <TextField
-                inputProps={{ 'data-testid': 'input-announcement-starts-at' }}
                 required
                 type="datetime-local"
                 label={isItalian ? 'Inizio pubblicazione' : 'Starts at'}
@@ -412,6 +411,7 @@ export default function AnnouncementsSettings() {
                 onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
                 disabled={saving}
                 InputLabelProps={{ shrink: true }}
+                inputProps={{ 'data-testid': 'input-announcement-starts-at', max: form.endsAt, step: 60 }}
               />
               <TextField
                 required
@@ -421,7 +421,7 @@ export default function AnnouncementsSettings() {
                 onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
                 disabled={saving}
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ 'data-testid': 'input-announcement-ends-at', min: form.startsAt }}
+                inputProps={{ 'data-testid': 'input-announcement-ends-at', min: form.startsAt, step: 60 }}
               />
             </Box>
             <Typography variant="caption" color="text.secondary">
