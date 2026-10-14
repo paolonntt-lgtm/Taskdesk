@@ -1157,6 +1157,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   let updated: typeof existing;
+  // If an admin starts work on an assigned ticket, track the assigned collaborator,
+  // not the admin performing the status change.
+  const timerUserId = isAdmin && existing.assignedTo != null
+    ? existing.assignedTo
+    : currentUser.id;
   try {
     updated = await db.transaction(async (tx) => {
       if (shouldTrackStatus && updates.status && updates.status !== existing.status) {
@@ -1164,11 +1169,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         if (updates.status === "in_progress") {
           const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
             .from(usersTable)
-            .where(and(eq(usersTable.id, currentUser.id), eq(usersTable.organizationId, orgId)));
+            .where(and(eq(usersTable.id, timerUserId), eq(usersTable.organizationId, orgId)));
           await tx.insert(ticketTimeSessionsTable).values({
             organizationId: orgId,
             ticketId: id,
-            userId: currentUser.id,
+            userId: timerUserId,
             startedAt: now,
             clientBillable: existing.timeTrackingBillable,
             collaboratorRecognizable: existing.timeTrackingCompensationOverride ?? worker?.hourlyCompensated ?? false,
@@ -1201,7 +1206,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         .from(ticketTimeSessionsTable)
         .innerJoin(ticketsTable, eq(ticketTimeSessionsTable.ticketId, ticketsTable.id))
         .where(and(
-          eq(ticketTimeSessionsTable.userId, currentUser.id),
+          eq(ticketTimeSessionsTable.userId, timerUserId),
           eq(ticketTimeSessionsTable.organizationId, orgId),
           isNull(ticketTimeSessionsTable.endedAt),
         ));

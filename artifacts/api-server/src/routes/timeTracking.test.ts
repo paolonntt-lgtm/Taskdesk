@@ -31,6 +31,7 @@ let collaboratorSessionId: string;
 let raceSessionId: string;
 let trackedTicketIds: number[] = [];
 let raceTicketIds: number[] = [];
+let parallelTicketIds: number[] = [];
 let manualTicketId: number;
 let privateTicketId: number;
 
@@ -144,6 +145,24 @@ describe("ticket time tracking", () => {
     }))).returning({ id: ticketsTable.id });
     raceTicketIds = raceTickets.map((ticket) => ticket.id);
 
+    const parallelTickets = await db.insert(ticketsTable).values([
+      { title: "Admin-started parallel timer A", assignedTo: collaboratorId },
+      { title: "Admin-started parallel timer B", assignedTo: raceCollaboratorId },
+    ].map((ticket) => ({
+      organizationId,
+      clientId,
+      title: `${ticket.title} ${runId}`,
+      description: "Admin-started parallel timer test",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: adminId,
+      assignedTo: ticket.assignedTo,
+      timeTrackingEnabled: true,
+    }))).returning({ id: ticketsTable.id });
+    parallelTicketIds = parallelTickets.map((ticket) => ticket.id);
+
     const [manualTicket] = await db.insert(ticketsTable).values({
       organizationId,
       clientId,
@@ -201,7 +220,7 @@ describe("ticket time tracking", () => {
     if (server) {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
-    const ticketIds = [...trackedTicketIds, ...raceTicketIds, manualTicketId, privateTicketId].filter(Number.isInteger);
+    const ticketIds = [...trackedTicketIds, ...raceTicketIds, ...parallelTicketIds, manualTicketId, privateTicketId].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
     const sessionIds = [adminSessionId, collaboratorSessionId, raceSessionId].filter(Boolean);
@@ -346,6 +365,28 @@ describe("ticket time tracking", () => {
       collaboratorRecognizable: true,
     }));
 
+    const parallelStarts = await Promise.all(
+      parallelTicketIds.map((ticketId) => changeStatus(ticketId, "in_progress", adminSessionId)),
+    );
+    expect(parallelStarts.map((result) => result.status)).toEqual([200, 200]);
+    const parallelStates = await db.select({ id: ticketsTable.id, status: ticketsTable.status })
+      .from(ticketsTable).where(inArray(ticketsTable.id, parallelTicketIds));
+    expect(parallelStates).toHaveLength(2);
+    expect(parallelStates.every((ticket) => ticket.status === "in_progress")).toBe(true);
+    const parallelSessions = await db.select({
+      ticketId: ticketTimeSessionsTable.ticketId,
+      userId: ticketTimeSessionsTable.userId,
+      endedAt: ticketTimeSessionsTable.endedAt,
+    }).from(ticketTimeSessionsTable).where(inArray(ticketTimeSessionsTable.ticketId, parallelTicketIds));
+    expect(parallelSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ticketId: parallelTicketIds[0], userId: collaboratorId, endedAt: null }),
+      expect.objectContaining({ ticketId: parallelTicketIds[1], userId: raceCollaboratorId, endedAt: null }),
+    ]));
+    const parallelStops = await Promise.all(
+      parallelTicketIds.map((ticketId) => changeStatus(ticketId, "waiting", adminSessionId)),
+    );
+    expect(parallelStops.map((result) => result.status)).toEqual([200, 200]);
+
     expect((await changeStatus(neitherId, "in_progress")).status).toBe(200);
     const disabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
@@ -359,7 +400,7 @@ describe("ticket time tracking", () => {
     expect((await request("/api/time-tracking/report", adminSessionId)).status).toBe(403);
     const preservedSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.organizationId, organizationId));
-    expect(preservedSessions).toHaveLength(7);
+    expect(preservedSessions).toHaveLength(9);
     expect(preservedSessions.every((session) => session.endedAt !== null)).toBe(true);
     const disabledTicket = await db.select({ status: ticketsTable.status }).from(ticketsTable)
       .where(eq(ticketsTable.id, neitherId));
