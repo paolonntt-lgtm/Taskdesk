@@ -32,6 +32,7 @@ import NotificationsPage from "./pages/Notifications";
 import DailyReportDetailPage from "./pages/DailyReportDetail";
 import TicketTrash from "./pages/TicketTrash";
 import CookieConsentBanner from "./components/CookieConsentBanner";
+import { createAuthRefreshHandler, startAuthRefreshPolling } from "@workspace/api-client-react";
 import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
@@ -183,59 +184,37 @@ function AppShell() {
 
   useEffect(() => {
     if (isLoading || !user?.id) return;
-    let stopped = false;
-    let inFlight = false;
-    const refreshAuth = async () => {
-      if (stopped || inFlight || document.visibilityState === "hidden") return;
-      inFlight = true;
-      try {
-        const response = await fetch("/api/auth/me", {
+    const refreshAuth = createAuthRefreshHandler<User>({
+      request: () => fetch("/api/auth/me", {
           credentials: "include",
           cache: "no-store",
-        });
-        if (response.status === 401) {
-          if (!stopped) {
-            userRef.current = null;
-            setUser(null);
-            qc.clear();
-            setLocation("/login");
-          }
-          return;
-        }
-        if (!response.ok) return;
-        const freshUser = await response.json() as User;
-        if (stopped || freshUser.id !== userRef.current?.id) return;
-        const before = userRef.current;
-        const beforePermissions = JSON.stringify({
-          role: before?.role,
-          permissions: (before as any)?.effectivePermissions ?? before?.groupPermissions ?? [],
-        });
-        const afterPermissions = JSON.stringify({
-          role: freshUser.role,
-          permissions: (freshUser as any).effectivePermissions ?? freshUser.groupPermissions ?? [],
-        });
-        const userChanged = JSON.stringify(before) !== JSON.stringify(freshUser);
+        }),
+      getCurrentUser: () => userRef.current,
+      setCurrentUser: (freshUser) => {
         userRef.current = freshUser;
-        if (userChanged) setUser(freshUser);
-        if (beforePermissions !== afterPermissions) {
-          void qc.resetQueries();
-        }
-      } catch {
-        // Keep the existing signed-in state through transient network failures.
-      } finally {
-        inFlight = false;
-      }
-    };
-    const interval = window.setInterval(refreshAuth, 30_000);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void refreshAuth();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      stopped = true;
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+        setUser(freshUser);
+      },
+      onUnauthorized: () => {
+        userRef.current = null;
+        setUser(null);
+        qc.clear();
+        setLocation("/login");
+      },
+      onPermissionsChanged: () => { void qc.resetQueries(); },
+    });
+    return startAuthRefreshPolling(refreshAuth, {
+      intervalMs: 30_000,
+      isForeground: () => document.visibilityState !== "hidden",
+      subscribeToForeground: (callback) => {
+        const listener = () => {
+          if (document.visibilityState === "visible") callback();
+        };
+        document.addEventListener("visibilitychange", listener);
+        return () => document.removeEventListener("visibilitychange", listener);
+      },
+      setInterval: (callback, intervalMs) => window.setInterval(callback, intervalMs),
+      clearInterval: (handle) => window.clearInterval(handle as number),
+    });
   }, [isLoading, user?.id, qc, setLocation]);
 
   useEffect(() => {

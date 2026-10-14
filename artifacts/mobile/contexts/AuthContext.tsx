@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import { createAuthRefreshHandler, startAuthRefreshPolling } from "@workspace/api-client-react";
 import { apiFetch, apiPost } from "@/utils/api";
 
 interface User {
@@ -49,55 +50,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoading || !user?.id) return;
-    let stopped = false;
-    let inFlight = false;
-    const refreshAuth = async () => {
-      const appState = AppState.currentState;
-      if (stopped || inFlight || appState === "background" || appState === "inactive") return;
-      inFlight = true;
-      try {
-        const response = await apiFetch("/auth/me", { cache: "no-store" });
-        if (response.status === 401) {
-          if (!stopped) {
-            userRef.current = null;
-            setUser(null);
-            queryClient.clear();
-          }
-          return;
-        }
-        if (!response.ok) return;
-        const freshUser = await response.json() as User;
-        if (stopped || freshUser.id !== userRef.current?.id) return;
-        const before = userRef.current;
-        const beforePermissions = JSON.stringify({
-          role: before?.role,
-          permissions: (before as any)?.effectivePermissions ?? before?.groupPermissions ?? [],
-        });
-        const afterPermissions = JSON.stringify({
-          role: freshUser.role,
-          permissions: (freshUser as any).effectivePermissions ?? freshUser.groupPermissions ?? [],
-        });
-        const userChanged = JSON.stringify(before) !== JSON.stringify(freshUser);
+    const refreshAuth = createAuthRefreshHandler<User>({
+      request: () => apiFetch("/auth/me", { cache: "no-store" }),
+      getCurrentUser: () => userRef.current,
+      setCurrentUser: (freshUser) => {
         userRef.current = freshUser;
-        if (userChanged) setUser(freshUser);
-        if (beforePermissions !== afterPermissions) {
-          void queryClient.resetQueries();
-        }
-      } catch {
-        // Keep the existing user through transient network failures.
-      } finally {
-        inFlight = false;
-      }
-    };
-    const interval = setInterval(refreshAuth, 30_000);
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void refreshAuth();
+        setUser(freshUser);
+      },
+      onUnauthorized: () => {
+        userRef.current = null;
+        setUser(null);
+        queryClient.clear();
+      },
+      onPermissionsChanged: () => { void queryClient.resetQueries(); },
     });
-    return () => {
-      stopped = true;
-      clearInterval(interval);
-      subscription.remove();
-    };
+    return startAuthRefreshPolling(refreshAuth, {
+      intervalMs: 30_000,
+      isForeground: () => AppState.currentState !== "background" && AppState.currentState !== "inactive",
+      subscribeToForeground: (callback) => {
+        const subscription = AppState.addEventListener("change", (state) => {
+          if (state === "active") callback();
+        });
+        return () => subscription.remove();
+      },
+      setInterval: (callback, intervalMs) => setInterval(callback, intervalMs),
+      clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>),
+    });
   }, [isLoading, user?.id, queryClient]);
 
   const login = async (email: string, password: string) => {
