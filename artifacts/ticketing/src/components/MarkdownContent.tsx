@@ -3,6 +3,7 @@ import { Box } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { compactEmailDetailLinks } from '../lib/emailDisplay';
 
 interface MarkdownContentProps {
   content: string;
@@ -361,7 +362,7 @@ export function MarkdownContent({
               }}
             >
               <ReactMarkdown components={mdComponents as any}>
-                {preprocessContent(signatureSections.additional)}
+                {preprocessContent(compactEmailDetailLinks(signatureSections.additional))}
               </ReactMarkdown>
             </Box>
           </Box>
