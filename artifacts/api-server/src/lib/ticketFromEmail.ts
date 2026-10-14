@@ -4,6 +4,7 @@ import { createNotificationsForSubscribers, createNotificationsForTicket, create
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { cleanForwardedEmailBody } from "./emailTextCleanup";
+import { hasReplySubjectPrefix, normaliseEmailSubject } from "./emailSubject";
 import { randomUUID } from "crypto";
 
 import type { InboundAttachment } from "./pecUtils";
@@ -130,10 +131,7 @@ function stripEmailQuotes(body: string): string {
  * strips Re:, Fwd:, Fw:, AW:, etc. prefixes (case-insensitive), trims whitespace.
  */
 function normaliseSubject(subject: string): string {
-  return subject
-    .replace(/^(re|fwd|fw|aw|sv|vs|r|rif|ant)[\s:]+/gi, "")
-    .trim()
-    .toLowerCase();
+  return normaliseEmailSubject(subject);
 }
 
 /**
@@ -566,7 +564,7 @@ export async function processInboundEmail(input: EmailTicketInput): Promise<void
     // --- 3. Subject fallback ---
     // Only apply if the incoming subject has a reply prefix (Re:, Rif:, R:, Ant:, …).
     // A fresh email that happens to share the same base subject always creates a new ticket.
-    const hasReplyPrefix = /^(re|fwd|fw|aw|sv|vs|r|rif|ant)[\s:]+/i.test(subject.trim());
+    const hasReplyPrefix = hasReplySubjectPrefix(subject);
     const normSubject = hasReplyPrefix ? normaliseSubject(subject) : "";
     if (normSubject) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
