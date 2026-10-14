@@ -23,7 +23,9 @@ const runId = crypto.randomUUID();
 let server: Server;
 let baseUrl: string;
 let organizationId: number;
+let foreignOrganizationId: number;
 let clientId: number;
+let foreignClientId: number;
 let groupId: number;
 let adminId: number;
 let userId: number;
@@ -88,6 +90,19 @@ describe("client worked-hours report", () => {
       .returning({ id: clientsTable.id });
     clientId = client.id;
 
+    const [foreignOrganization] = await db.insert(organizationsTable)
+      .values({ name: `Other organization ${runId}` })
+      .returning({ id: organizationsTable.id });
+    foreignOrganizationId = foreignOrganization.id;
+    const [foreignClient] = await db.insert(clientsTable)
+      .values({
+        organizationId: foreignOrganizationId,
+        name: "Foreign Organization Client",
+        slug: `foreign-client-${runId}`,
+      })
+      .returning({ id: clientsTable.id });
+    foreignClientId = foreignClient.id;
+
     const [publicTicket] = await db.insert(ticketsTable)
       .values({
         organizationId,
@@ -148,9 +163,11 @@ describe("client worked-hours report", () => {
       await db.delete(clientsTable).where(inArray(clientsTable.id, createdClientIds));
     }
     await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
+    await db.delete(clientsTable).where(eq(clientsTable.id, foreignClientId));
     await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
     await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
     await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, organizationId));
+    await db.delete(organizationsTable).where(eq(organizationsTable.id, foreignOrganizationId));
     await db.delete(organizationsTable).where(eq(organizationsTable.id, organizationId));
     await pool.end();
   });
@@ -309,6 +326,16 @@ describe("client worked-hours report", () => {
     expect(response.body.name).toBe("Client created by team member");
     expect(response.body.organizationId).toBe(organizationId);
     createdClientIds.push(response.body.id);
+  });
+
+  it("does not return clients from another organization", async () => {
+    const clientList = await request("/api/clients", userSessionId);
+    expect(clientList.status).toBe(200);
+    expect(clientList.body.map((client: any) => client.id)).toContain(clientId);
+    expect(clientList.body.map((client: any) => client.id)).not.toContain(foreignClientId);
+
+    const foreignClientDetail = await request(`/api/clients/${foreignClientId}`, userSessionId);
+    expect(foreignClientDetail.status).toBe(404);
   });
 
   it("hides client references from ticket, search, and summary APIs while disabled, then restores them when re-enabled", async () => {

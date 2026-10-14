@@ -217,6 +217,7 @@ function AppShell() {
       throw new Error(msg);
     }
     const body = await res.json();
+    qc.clear();
     setUser(body.user);
     trackEvent("login_succeeded", { method: "password" });
     setLocation("/");
