@@ -1170,19 +1170,43 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       : currentUser.id;
   try {
     updated = await db.transaction(async (tx) => {
-      if (shouldTrackStatus && updates.status && updates.status !== existing.status) {
+      let timerState = existing;
+      if (shouldTrackStatus && (updates.status !== undefined || "assignedTo" in updates)) {
+        const [lockedTicket] = await tx.select().from(ticketsTable)
+          .where(and(
+            eq(ticketsTable.id, id),
+            eq(ticketsTable.organizationId, orgId),
+          ))
+          .for("update");
+        if (lockedTicket) timerState = lockedTicket;
+      }
+
+      const timerStatusChanged = updates.status !== undefined && updates.status !== timerState.status;
+      const timerAssignmentChanged =
+        updates.assignedTo !== undefined && updates.assignedTo !== timerState.assignedTo;
+      if (shouldTrackStatus && timerStatusChanged) {
         const now = new Date();
         if (updates.status === "in_progress") {
+          const assignedForSession = updates.assignedTo !== undefined
+            ? updates.assignedTo
+            : timerState.assignedTo;
+          const sessionUserId =
+            (isAdmin || hasGroupStatusPermission) &&
+            assignedForSession != null &&
+            assignedForSession !== currentUser.id
+              ? assignedForSession
+              : currentUser.id;
           const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
             .from(usersTable)
-            .where(and(eq(usersTable.id, timerUserId), eq(usersTable.organizationId, orgId)));
+            .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)));
           await tx.insert(ticketTimeSessionsTable).values({
             organizationId: orgId,
             ticketId: id,
-            userId: timerUserId,
+            userId: sessionUserId,
             startedAt: now,
-            clientBillable: existing.timeTrackingBillable,
-            collaboratorRecognizable: existing.timeTrackingCompensationOverride ?? worker?.hourlyCompensated ?? false,
+            clientBillable: timerState.timeTrackingBillable,
+            collaboratorRecognizable:
+              timerState.timeTrackingCompensationOverride ?? worker?.hourlyCompensated ?? false,
           });
         } else {
           await tx.update(ticketTimeSessionsTable)
@@ -1192,6 +1216,36 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
               eq(ticketTimeSessionsTable.ticketId, id),
               isNull(ticketTimeSessionsTable.endedAt),
             ));
+        }
+      } else if (
+        shouldTrackStatus &&
+        timerState.status === "in_progress" &&
+        timerAssignmentChanged
+      ) {
+        // End the previous collaborator's session and start a new one for the
+        // assignee at the handoff time. Both writes stay atomic with reassignment.
+        const now = new Date();
+        await tx.update(ticketTimeSessionsTable)
+          .set({ endedAt: now })
+          .where(and(
+            eq(ticketTimeSessionsTable.organizationId, orgId),
+            eq(ticketTimeSessionsTable.ticketId, id),
+            isNull(ticketTimeSessionsTable.endedAt),
+          ));
+        if (updates.assignedTo != null) {
+          const handoffUserId = updates.assignedTo;
+          const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
+            .from(usersTable)
+            .where(and(eq(usersTable.id, handoffUserId), eq(usersTable.organizationId, orgId)));
+          await tx.insert(ticketTimeSessionsTable).values({
+            organizationId: orgId,
+            ticketId: id,
+            userId: handoffUserId,
+            startedAt: now,
+            clientBillable: timerState.timeTrackingBillable,
+            collaboratorRecognizable:
+              timerState.timeTrackingCompensationOverride ?? worker?.hourlyCompensated ?? false,
+          });
         }
       }
       const [saved] = await tx

@@ -40,6 +40,7 @@ let parallelTicketIds: number[] = [];
 let groupManagerParallelTicketIds: number[] = [];
 let manualTicketId: number;
 let privateTicketId: number;
+let handoffTicketId: number;
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -157,6 +158,21 @@ describe("ticket time tracking", () => {
     }))).returning({ id: ticketsTable.id });
     trackedTicketIds = trackedTickets.map((ticket) => ticket.id);
 
+    const [handoffTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      clientId,
+      title: `Active timer handoff ${runId}`,
+      description: "Timer ownership handoff test",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: adminId,
+      assignedTo: collaboratorId,
+      timeTrackingEnabled: true,
+    }).returning({ id: ticketsTable.id });
+    handoffTicketId = handoffTicket.id;
+
     const raceTickets = await db.insert(ticketsTable).values(["Concurrent timer A", "Concurrent timer B"].map((title) => ({
       organizationId,
       clientId,
@@ -273,6 +289,7 @@ describe("ticket time tracking", () => {
       ...groupManagerParallelTicketIds,
       manualTicketId,
       privateTicketId,
+      handoffTicketId,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
@@ -503,5 +520,85 @@ describe("ticket time tracking", () => {
     expect(disabledTicket[0]?.status).toBe("waiting");
     const manualHistory = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(manualHistory.body.tickets.find((ticket: any) => ticket.id === manualTicketId)?.workedMinutes).toBe(45);
+  }, 120_000);
+
+  it("hands an active timer to the new assignee without losing history or creating a duplicate", async () => {
+    const enabled = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: true }),
+    });
+    expect(enabled.status).toBe(200);
+
+    const busyTicketId = raceTicketIds[0];
+    expect((await changeStatus(busyTicketId, "in_progress", adminSessionId)).status).toBe(200);
+    expect((await changeStatus(handoffTicketId, "in_progress", adminSessionId)).status).toBe(200);
+    const rejectedHandoff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(rejectedHandoff.status).toBe(409);
+    expect(rejectedHandoff.body.error).toBe("TIMER_ALREADY_ACTIVE");
+
+    let ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: collaboratorId, status: "in_progress" });
+    let sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ userId: collaboratorId, endedAt: null });
+
+    expect((await changeStatus(busyTicketId, "waiting", adminSessionId)).status).toBe(200);
+    const handedOff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(handedOff.status).toBe(200);
+    expect(handedOff.body.assignedTo).toBe(raceCollaboratorId);
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: raceCollaboratorId, status: "in_progress" });
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessions).toHaveLength(2);
+    expect(sessions.find((session) => session.userId === collaboratorId)?.endedAt).not.toBeNull();
+    expect(sessions.find((session) => session.userId === raceCollaboratorId)?.endedAt).toBeNull();
+
+    const activeRaceSessions = await db.select({
+      ticketId: ticketTimeSessionsTable.ticketId,
+      endedAt: ticketTimeSessionsTable.endedAt,
+    }).from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.userId, raceCollaboratorId));
+    expect(activeRaceSessions.filter((session) => session.endedAt === null)).toEqual([
+      expect.objectContaining({ ticketId: handoffTicketId, endedAt: null }),
+    ]);
+
+    const simultaneousHandoffs = await Promise.all([collaboratorId, groupStatusManagerId].map((assignedTo) =>
+      request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+        method: "PATCH",
+        body: JSON.stringify({ assignedTo }),
+      }),
+    ));
+    expect(simultaneousHandoffs.map((result) => result.status)).toEqual([200, 200]);
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    const activeHandoffSessions = sessions.filter((session) => session.endedAt === null);
+    expect(ticketState[0]?.status).toBe("in_progress");
+    expect(activeHandoffSessions).toHaveLength(1);
+    expect(activeHandoffSessions[0]?.userId).toBe(ticketState[0]?.assignedTo);
+
+    expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+    const disabled = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: false }),
+    });
+    expect(disabled.status).toBe(200);
   }, 60_000);
 });
