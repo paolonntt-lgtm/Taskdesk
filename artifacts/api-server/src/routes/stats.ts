@@ -347,6 +347,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
@@ -407,6 +408,7 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
@@ -497,6 +499,7 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,
@@ -530,6 +533,7 @@ router.get("/stats/assigned-to-me", requireAuth, async (req, res): Promise<void>
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(tickets.map((t) => redactClientData(redactWorkedHours({
     ...t,
@@ -737,6 +741,7 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(withChecklist.map((t) => redactClientData(redactWorkedHours({
     ...t,

@@ -132,6 +132,7 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
 
   const { status, priority, category, location, assignedTo, createdBy, search, dateFrom, dateTo, resource, limit, emailOrigin, clientId, scheduled, recurring, nonClosed } = req.query as Record<string, string>;
@@ -623,6 +624,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     currentUser.organizationId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.status(201).json(redactClientData(redactWorkedHours(
     buildTicketWithDetails(ticket, creator, assigneeUser, 0, 0, null, ticketClient),
@@ -696,6 +698,7 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
   res.json(redactClientData(redactWorkedHours(
     buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient),
@@ -813,12 +816,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   // Check group permissions for non-admins (must happen before the 403 gate)
-  const hasGroupStatusPermission = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin);
+  const hasGroupStatusPermission = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin, req);
   const canViewWorkedHours = await hasGroupPermission(
     currentUser.id,
     orgId,
     VIEW_WORKED_HOURS_PERMISSION,
     isAdmin,
+    req,
   );
 
   // The ticket assignee can also change status / resolve, even without a group permission

@@ -195,6 +195,7 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
       orgId,
       VIEW_WORKED_HOURS_PERMISSION,
       currentUser.role === "admin",
+      req,
     );
     if (!canViewWorkedHours) {
       res.status(403).json({ error: "Permission to view worked hours is required" });
@@ -403,6 +404,7 @@ router.get("/clients/:id", requireClientFeature, async (req, res): Promise<void>
     currentUser.organizationId,
     VIEW_WORKED_HOURS_PERMISSION,
     currentUser.role === "admin",
+    req,
   );
 
   if (!client.slug) {
@@ -583,7 +585,7 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
 
   if (!isAdmin) {
     if (isNotesOnlyUpdate) {
-      const canEditFixed = await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false);
+      const canEditFixed = await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false, req);
       if (!canEditFixed) {
         res.status(403).json({ error: "Forbidden" });
         return;
@@ -622,8 +624,8 @@ router.patch("/clients/:id/layout", requireClientFeature, async (req, res): Prom
   const currentUser = (req as any).currentUser;
   const isAdmin = currentUser.role === "admin";
   const orgId: number | null = currentUser.organizationId ?? null;
-  const canManage = isAdmin || await hasGroupPermission(currentUser.id, orgId, "manage_client_sections", false);
-  const canEditContent = isAdmin || await hasGroupPermission(currentUser.id, orgId, "edit_client_section_content", false);
+  const canManage = isAdmin || await hasGroupPermission(currentUser.id, orgId, "manage_client_sections", false, req);
+  const canEditContent = isAdmin || await hasGroupPermission(currentUser.id, orgId, "edit_client_section_content", false, req);
   if (!canManage && !canEditContent) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
@@ -754,7 +756,7 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
   if (parsed.data.body !== undefined || parsed.data.monthOverride !== undefined) {
     const isAdmin = currentUser.role === 'admin';
     if (!isAdmin) {
-      const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false);
+      const canEditOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false, req);
       if (!canEditOthers) {
         const [storedForAuth] = await db
           .select({ authorId: clientNotesTable.authorId })
@@ -902,7 +904,7 @@ router.delete("/clients/:id/notes/:noteId", requireClientFeature, async (req, re
       .limit(1);
     if (!toDelete) { res.status(404).json({ error: "Not found" }); return; }
     if (toDelete.authorId !== currentUser.id) {
-      const canDeleteOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "delete_client_notes", false);
+      const canDeleteOthers = await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "delete_client_notes", false, req);
       if (!canDeleteOthers) {
         res.status(403).json({ error: "Forbidden: you can only delete your own notes" });
         return;

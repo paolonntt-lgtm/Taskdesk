@@ -69,7 +69,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
 
   const isAdmin = currentUser.role === "admin";
   if (!isAdmin) {
-    const canCreate = await hasGroupPermission(currentUser.id, orgId, "create_appointments", false);
+    const canCreate = await hasGroupPermission(currentUser.id, orgId, "create_appointments", false, req);
     if (!canCreate) {
       res.status(403).json({ error: "Forbidden: missing create_appointments permission" });
       return;

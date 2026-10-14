@@ -170,7 +170,7 @@ router.patch("/sticky-notes/:id", requireAuth, async (req, res): Promise<void> =
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
   const isAuthor = existing.createdBy === currentUser.id;
-  const canEdit = isAdmin || isAuthor || await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false);
+  const canEdit = isAdmin || isAuthor || await hasGroupPermission(currentUser.id, orgId, "edit_fixed_notes", false, req);
   if (!canEdit) {
     res.status(403).json({ error: "Not authorized to edit this note" });
     return;

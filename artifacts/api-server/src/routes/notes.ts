@@ -10,7 +10,7 @@ const router: IRouter = Router();
 async function requireNoteAccess(req: any, res: any, next: any): Promise<void> {
   const user = req.currentUser;
   if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const allowed = await hasGroupPermission(user.id, user.organizationId, "add_notes", user.role === "admin");
+  const allowed = await hasGroupPermission(user.id, user.organizationId, "add_notes", user.role === "admin", req);
   if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
   next();
 }

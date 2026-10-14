@@ -17,6 +17,9 @@ export const GROUP_PERMISSION_KEYS = [
 export type GroupPermission = typeof GROUP_PERMISSION_KEYS[number];
 export type PermissionOverride = "inherit" | "grant" | "deny";
 export type PermissionOverrides = Partial<Record<GroupPermission, PermissionOverride>>;
+type PermissionSummary = Awaited<ReturnType<typeof getUserPermissionSummary>>;
+
+const requestPermissionSummaries = new WeakMap<object, Map<string, Promise<PermissionSummary>>>();
 
 export function parsePermissionOverrides(raw: string | null | undefined): PermissionOverrides {
   try {
@@ -91,9 +94,23 @@ export async function hasGroupPermission(
   organizationId: number | null,
   permission: string,
   isAdmin: boolean,
+  requestContext?: object,
 ): Promise<boolean> {
   if (isAdmin) return true;
   if (!GROUP_PERMISSION_KEYS.includes(permission as GroupPermission)) return false;
-  const summary = await getUserPermissionSummary(userId, organizationId, "user");
+  let summaryPromise: Promise<PermissionSummary>;
+  if (requestContext) {
+    let requestCache = requestPermissionSummaries.get(requestContext);
+    if (!requestCache) {
+      requestCache = new Map();
+      requestPermissionSummaries.set(requestContext, requestCache);
+    }
+    const key = `${userId}:${organizationId ?? "none"}`;
+    summaryPromise = requestCache.get(key) ?? getUserPermissionSummary(userId, organizationId, "user");
+    if (!requestCache.has(key)) requestCache.set(key, summaryPromise);
+  } else {
+    summaryPromise = getUserPermissionSummary(userId, organizationId, "user");
+  }
+  const summary = await summaryPromise;
   return summary.effectivePermissions.includes(permission as GroupPermission);
 }

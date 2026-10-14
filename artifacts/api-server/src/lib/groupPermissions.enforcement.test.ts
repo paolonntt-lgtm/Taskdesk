@@ -54,4 +54,26 @@ describe("hasGroupPermission enforcement", () => {
     await expect(hasGroupPermission(42, 7, "add_notes", true)).resolves.toBe(true);
     expect(mockDb.select).not.toHaveBeenCalled();
   });
+
+  it("reuses one summary within a request and reads fresh overrides on the next request", async () => {
+    const firstRequest = {};
+    rows.push(
+      [{ permissions: '["add_notes","create_appointments"]' }],
+      [{ permissionOverrides: "{}" }],
+      [],
+      [{ permissionOverrides: '{"add_notes":"deny"}' }],
+      [],
+      [{ permissionOverrides: '{"add_notes":"deny"}' }],
+    );
+
+    await expect(hasGroupPermission(42, 7, "add_notes", false, firstRequest)).resolves.toBe(true);
+    await expect(hasGroupPermission(42, 7, "create_appointments", false, firstRequest)).resolves.toBe(true);
+    expect(mockDb.select).toHaveBeenCalledTimes(2);
+
+    await expect(hasGroupPermission(42, 8, "add_notes", false, firstRequest)).resolves.toBe(false);
+    expect(mockDb.select).toHaveBeenCalledTimes(4);
+
+    await expect(hasGroupPermission(42, 7, "add_notes", false, {})).resolves.toBe(false);
+    expect(mockDb.select).toHaveBeenCalledTimes(6);
+  });
 });
