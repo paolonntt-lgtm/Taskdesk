@@ -37,3 +37,4 @@
 - [Express middleware typing](express-middleware-typing.md) — Typed single middleware handlers preserve route parameter inference; passing middleware arrays may leave route handlers implicit-any.
 - [Presentazione email nei ticket](forwarded-email-cleanup.md) — Conservare il testo integrale; evidenziare il messaggio e attenuare visivamente intestazioni e firma.
 - [Effective permission contract](effective-permission-contract.md) — Keep auth payload permissions aligned with final server access; expose group-only inheritance separately.
+- [Pratiche in lavorazione in parallelo](parallel-active-practices.md) — Different collaborators can have distinct practices in progress simultaneously; do not add a global single-active-practice lock.
