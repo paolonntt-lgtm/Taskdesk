@@ -56,7 +56,7 @@ describe("compactEmailDetailLinks", () => {
       "--",
       "Consulenti del Lavoro Associati",
       "Privacy e footer dello studio",
-      "Da: paolo@taskdesk.it Inviato: martedì 13 ottobre 2026 A: Tiziana Oggetto: Demo",
+      "*Da: paolo@taskdesk.it Inviato: martedì 13 ottobre 2026 A: Tiziana Oggetto: Demo*",
       "Buongiorno Tiziana,",
       "possiamo vederci domani.",
       "A presto,",

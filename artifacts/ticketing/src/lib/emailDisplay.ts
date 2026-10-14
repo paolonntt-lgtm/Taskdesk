@@ -24,7 +24,14 @@ export function splitEmailThreadDetails(details: string): EmailThreadDetails {
   let currentBody: string[] = [];
 
   for (const line of details.replace(/\r\n?/g, "\n").split("\n")) {
-    if (QUOTED_EMAIL_HEADER.test(line.trim())) {
+    const normalizedHeader = line
+      .trim()
+      .replace(/^(?:>\s*)+/, "")
+      .replace(/^[*_`\s]+/, "")
+      .replace(/[*_`]+$/, "")
+      .trim();
+
+    if (QUOTED_EMAIL_HEADER.test(normalizedHeader)) {
       if (currentHeader !== null) {
         quotedEmails.push({ header: currentHeader, body: currentBody.join("\n").trim() });
       }
