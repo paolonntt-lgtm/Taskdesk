@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   clientsTable,
   db,
+  groupMembersTable,
+  groupsTable,
   organizationsTable,
   pool,
   sessionsTable,
@@ -26,12 +28,16 @@ let clientId: number;
 let adminId: number;
 let collaboratorId: number;
 let raceCollaboratorId: number;
+let groupStatusManagerId: number;
+let statusGroupId: number;
 let adminSessionId: string;
 let collaboratorSessionId: string;
 let raceSessionId: string;
+let groupStatusManagerSessionId: string;
 let trackedTicketIds: number[] = [];
 let raceTicketIds: number[] = [];
 let parallelTicketIds: number[] = [];
+let groupManagerParallelTicketIds: number[] = [];
 let manualTicketId: number;
 let privateTicketId: number;
 
@@ -91,6 +97,27 @@ describe("ticket time tracking", () => {
       })
       .returning({ id: usersTable.id });
     raceCollaboratorId = raceCollaborator.id;
+
+    const [groupStatusManager] = await db.insert(usersTable)
+      .values({
+        name: "Timer Group Status Manager",
+        email: `timer-group-manager-${runId}@example.test`,
+        passwordHash: "not-used-in-test",
+        role: "user",
+        organizationId,
+      })
+      .returning({ id: usersTable.id });
+    groupStatusManagerId = groupStatusManager.id;
+
+    const [statusGroup] = await db.insert(groupsTable)
+      .values({
+        name: `Timer status managers ${runId}`,
+        organizationId,
+        permissions: JSON.stringify(["change_status"]),
+      })
+      .returning({ id: groupsTable.id });
+    statusGroupId = statusGroup.id;
+    await db.insert(groupMembersTable).values({ groupId: statusGroupId, userId: groupStatusManagerId });
 
     const [client] = await db.insert(clientsTable)
       .values({
@@ -163,6 +190,24 @@ describe("ticket time tracking", () => {
     }))).returning({ id: ticketsTable.id });
     parallelTicketIds = parallelTickets.map((ticket) => ticket.id);
 
+    const groupManagerParallelTickets = await db.insert(ticketsTable).values([
+      { title: "Group-manager-started parallel timer A", assignedTo: collaboratorId },
+      { title: "Group-manager-started parallel timer B", assignedTo: raceCollaboratorId },
+    ].map((ticket) => ({
+      organizationId,
+      clientId,
+      title: `${ticket.title} ${runId}`,
+      description: "Group-manager-started parallel timer test",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: adminId,
+      assignedTo: ticket.assignedTo,
+      timeTrackingEnabled: true,
+    }))).returning({ id: ticketsTable.id });
+    groupManagerParallelTicketIds = groupManagerParallelTickets.map((ticket) => ticket.id);
+
     const [manualTicket] = await db.insert(ticketsTable).values({
       organizationId,
       clientId,
@@ -206,6 +251,7 @@ describe("ticket time tracking", () => {
     adminSessionId = await createSession(adminId);
     collaboratorSessionId = await createSession(collaboratorId);
     raceSessionId = await createSession(raceCollaboratorId);
+    groupStatusManagerSessionId = await createSession(groupStatusManagerId);
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -220,12 +266,23 @@ describe("ticket time tracking", () => {
     if (server) {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
-    const ticketIds = [...trackedTicketIds, ...raceTicketIds, ...parallelTicketIds, manualTicketId, privateTicketId].filter(Number.isInteger);
+    const ticketIds = [
+      ...trackedTicketIds,
+      ...raceTicketIds,
+      ...parallelTicketIds,
+      ...groupManagerParallelTicketIds,
+      manualTicketId,
+      privateTicketId,
+    ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
-    const sessionIds = [adminSessionId, collaboratorSessionId, raceSessionId].filter(Boolean);
+    if (statusGroupId) {
+      await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, statusGroupId));
+      await db.delete(groupsTable).where(eq(groupsTable.id, statusGroupId));
+    }
+    const sessionIds = [adminSessionId, collaboratorSessionId, raceSessionId, groupStatusManagerSessionId].filter(Boolean);
     if (sessionIds.length) await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, sessionIds));
-    const userIds = [adminId, collaboratorId, raceCollaboratorId].filter(Number.isInteger);
+    const userIds = [adminId, collaboratorId, raceCollaboratorId, groupStatusManagerId].filter(Number.isInteger);
     if (userIds.length) await db.delete(usersTable).where(inArray(usersTable.id, userIds));
     if (organizationId) {
       await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, organizationId));
@@ -387,6 +444,45 @@ describe("ticket time tracking", () => {
     );
     expect(parallelStops.map((result) => result.status)).toEqual([200, 200]);
 
+    const groupManagerParallelStarts = await Promise.all(
+      groupManagerParallelTicketIds.map((ticketId) =>
+        changeStatus(ticketId, "in_progress", groupStatusManagerSessionId),
+      ),
+    );
+    expect(groupManagerParallelStarts.map((result) => result.status)).toEqual([200, 200]);
+    const groupManagerParallelStates = await db.select({
+      id: ticketsTable.id,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(inArray(ticketsTable.id, groupManagerParallelTicketIds));
+    expect(groupManagerParallelStates).toHaveLength(2);
+    expect(groupManagerParallelStates.every((ticket) => ticket.status === "in_progress")).toBe(true);
+    const groupManagerParallelSessions = await db.select({
+      ticketId: ticketTimeSessionsTable.ticketId,
+      userId: ticketTimeSessionsTable.userId,
+      endedAt: ticketTimeSessionsTable.endedAt,
+    }).from(ticketTimeSessionsTable).where(inArray(
+      ticketTimeSessionsTable.ticketId,
+      groupManagerParallelTicketIds,
+    ));
+    expect(groupManagerParallelSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ticketId: groupManagerParallelTicketIds[0],
+        userId: collaboratorId,
+        endedAt: null,
+      }),
+      expect.objectContaining({
+        ticketId: groupManagerParallelTicketIds[1],
+        userId: raceCollaboratorId,
+        endedAt: null,
+      }),
+    ]));
+    const groupManagerParallelStops = await Promise.all(
+      groupManagerParallelTicketIds.map((ticketId) =>
+        changeStatus(ticketId, "waiting", groupStatusManagerSessionId),
+      ),
+    );
+    expect(groupManagerParallelStops.map((result) => result.status)).toEqual([200, 200]);
+
     expect((await changeStatus(neitherId, "in_progress")).status).toBe(200);
     const disabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
@@ -400,7 +496,7 @@ describe("ticket time tracking", () => {
     expect((await request("/api/time-tracking/report", adminSessionId)).status).toBe(403);
     const preservedSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.organizationId, organizationId));
-    expect(preservedSessions).toHaveLength(9);
+    expect(preservedSessions).toHaveLength(11);
     expect(preservedSessions.every((session) => session.endedAt !== null)).toBe(true);
     const disabledTicket = await db.select({ status: ticketsTable.status }).from(ticketsTable)
       .where(eq(ticketsTable.id, neitherId));
