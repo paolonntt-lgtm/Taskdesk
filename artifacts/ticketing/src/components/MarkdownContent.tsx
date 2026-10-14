@@ -232,10 +232,18 @@ export function MarkdownContent({
         {/* Keep the full email visible, but give its actual message the strongest emphasis. */}
         {bodySections.message && (
           <Box
-            sx={{
+            sx={(theme) => ({
               ...(compactHeadings ? { ...emailBodySx, ...compactHeadingSx } : emailBodySx),
               fontWeight: 700,
-            }}
+              bgcolor: alpha(theme.palette.primary.main, 0.085),
+              borderLeft: '3px solid',
+              borderColor: alpha(theme.palette.primary.main, 0.52),
+              borderRadius: '0 6px 6px 0',
+              px: 1.25,
+              py: 0.875,
+              '& p': { m: 0, mb: 0.65 },
+              '& p:last-child': { mb: 0 },
+            })}
           >
             <ReactMarkdown components={mdComponents as any}>
               {preprocessContent(bodySections.message)}
