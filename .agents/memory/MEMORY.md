@@ -2,6 +2,7 @@
 - [Replit proxy strips Set-Cookie on 302 redirects](replit-proxy-cookie-on-redirect.md) — Deployment proxy removes Set-Cookie headers from 302 responses; cookies set on redirect are never received by the browser.
 - [Canvas API action formats](canvas-api-actions.md) — Only specific action formats work; create-auto/update/delete use different field shapes (singular vs plural IDs).
 - [Private ticket visibility](private-ticket-visibility.md) — Admin-only tickets require the same access check across all derived resources and notifications.
+- [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; Metro static builds currently contend for port 8081.
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
