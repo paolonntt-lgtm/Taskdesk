@@ -89,6 +89,7 @@ describe('ClientNotesBlock monthly note editing', () => {
   const click = async (id: string) => {
     await act(async () => {
       byTestId<HTMLElement>(id).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
 
