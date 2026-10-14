@@ -599,4 +599,25 @@ describe("client worked-hours report", () => {
     expect(allowedWorkedTime.status).toBe(200);
     expect(allowedWorkedTime.body.workedMinutes).toBe(120);
   }, 120_000);
+
+  it("soft-deletes an organization user without referencing a missing legacy column", async () => {
+    const response = await request(`/api/users/${userId}`, adminSessionId, { method: "DELETE" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ success: true, message: "Utente eliminato" });
+
+    const [deletedUser] = await db
+      .select({ name: usersTable.name, email: usersTable.email, isActive: usersTable.isActive })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    expect(deletedUser).toMatchObject({ name: "Utente eliminato", isActive: false });
+    expect(deletedUser.email).toMatch(/^deleted-\d+-\d+@deleted\.local$/);
+
+    const remainingSessions = await db
+      .select({ sessionId: sessionsTable.sessionId })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.userId, userId));
+    expect(remainingSessions).toHaveLength(0);
+  });
 });

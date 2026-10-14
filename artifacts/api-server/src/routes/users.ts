@@ -265,7 +265,6 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
 
   await db.transaction(async (tx) => {
     await tx.update(ticketsTable).set({ assignedTo: null }).where(eq(ticketsTable.assignedTo, id));
-    await tx.execute(`UPDATE users SET invited_by_id = NULL WHERE invited_by_id = ${id}` as any);
 
     await tx.delete(notificationsTable).where(eq(notificationsTable.userId, id));
     await tx.delete(inviteTokensTable).where(
