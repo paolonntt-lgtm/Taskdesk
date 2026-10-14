@@ -7,6 +7,10 @@ const FORWARDED_HEADER =
 const INLINE_HEADER_FIELDS =
   /\b(?:from|da|sent|inviato|date|data|to|a|cc|bcc|subject|oggetto|reply-to|rispondi a)\s*:/gi;
 
+const SIGN_OFF = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.!]?\s*$/i;
+const SIGNATURE_CONTACT_OR_FOOTER =
+  /(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|https?:\/\/|www\.|(?:cell|tel(?:efono)?|mobile|phone|fax|pec)\s*[:.+-]?|\+?\d[\d\s()./-]{7,}|privacy|riservat|confidential|gdpr|please consider|non rispondere)/i;
+
 function removeForwardedSignatureAndOlderReplies(body: string): string {
   const cutoffPatterns = [
     // Standard signature delimiter used by many mail clients.
@@ -23,6 +27,32 @@ function removeForwardedSignatureAndOlderReplies(body: string): string {
   }
 
   return body.slice(0, cutoff).trim();
+}
+
+function keepNameAndRoleOnly(body: string): string {
+  const lines = body.split("\n");
+  let signOffIndex = -1;
+
+  for (let index = 0; index < lines.length; index++) {
+    if (SIGN_OFF.test(lines[index].trim())) signOffIndex = index;
+  }
+
+  // Without a clear closing line, preserve the content rather than guessing
+  // where the message ends and the signature begins.
+  if (signOffIndex < 0) return body;
+
+  const signatureLines: string[] = [];
+  for (const line of lines.slice(signOffIndex + 1)) {
+    const cleaned = line.replace(/^\s*\*+|\*+\s*$/g, "").trim();
+    if (!cleaned || SIGNATURE_CONTACT_OR_FOOTER.test(cleaned)) continue;
+    signatureLines.push(cleaned);
+    if (signatureLines.length === 2) break;
+  }
+
+  return [
+    ...lines.slice(0, signOffIndex + 1),
+    ...(signatureLines.length ? ["", ...signatureLines] : []),
+  ].join("\n").trim();
 }
 
 /**
@@ -46,7 +76,9 @@ export function cleanForwardedEmailBody(body: string): string {
   if (marker && markerRemainder) {
     const inlineFields = markerRemainder.match(INLINE_HEADER_FIELDS) ?? [];
     if (inlineFields.length >= 2) {
-      const forwardedContent = removeForwardedSignatureAndOlderReplies(remainder);
+      const forwardedContent = keepNameAndRoleOnly(
+        removeForwardedSignatureAndOlderReplies(remainder),
+      );
       if (!forwardedContent) return normalized;
       return [prefix, forwardedContent]
         .filter(Boolean)
@@ -94,8 +126,8 @@ export function cleanForwardedEmailBody(body: string): string {
 
   if (headerCount < 2 || bodyStart < 0) return normalized;
 
-  const forwardedContent = removeForwardedSignatureAndOlderReplies(
-    lines.slice(bodyStart).join("\n").trim(),
+  const forwardedContent = keepNameAndRoleOnly(
+    removeForwardedSignatureAndOlderReplies(lines.slice(bodyStart).join("\n").trim()),
   );
   if (!forwardedContent) return normalized;
 

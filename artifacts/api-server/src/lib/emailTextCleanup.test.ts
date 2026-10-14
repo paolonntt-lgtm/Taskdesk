@@ -45,7 +45,9 @@ describe("cleanForwardedEmailBody", () => {
         "",
         "*Mittente*",
         "Consulente",
-        "Telefono e recapito",
+        "Cell +39 333 1234567",
+        "mittente@example.com",
+        "https://example.com",
         "--",
         "Firma legale e informazioni sulla privacy",
         "Da: paolo@example.com Inviato: martedì 13 ottobre 2026 A: mittente@example.com Oggetto: Richiesta di aiuto",
@@ -58,10 +60,16 @@ describe("cleanForwardedEmailBody", () => {
         "Buongiorno, ho incontrato alcune difficoltà e avrei bisogno di aiuto.",
         "Resto in attesa di un riscontro. Saluti cordiali",
         "",
-        "*Mittente*",
+        "Mittente",
         "Consulente",
-        "Telefono e recapito",
       ].join("\n"),
+    );
+  });
+
+  it("preserves content if there is no recognized closing line", () => {
+    const body = "---------- Forwarded message --------- Da: Client <client@example.com> Subject: Request To: support@example.com\n\nPlease call me at +39 333 1234567.";
+    expect(cleanForwardedEmailBody(body)).toBe(
+      "Please call me at +39 333 1234567.",
     );
   });
 
