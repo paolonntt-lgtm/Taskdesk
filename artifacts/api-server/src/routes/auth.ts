@@ -203,6 +203,7 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const userId = await getCurrentUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Not authenticated" });

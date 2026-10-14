@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPost } from "@/utils/api";
 
 interface User {
@@ -32,14 +34,71 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
-    apiFetch("/auth/me")
+    apiFetch("/auth/me", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => setUser(data ?? null))
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (isLoading || !user?.id) return;
+    let stopped = false;
+    let inFlight = false;
+    const refreshAuth = async () => {
+      const appState = AppState.currentState;
+      if (stopped || inFlight || appState === "background" || appState === "inactive") return;
+      inFlight = true;
+      try {
+        const response = await apiFetch("/auth/me", { cache: "no-store" });
+        if (response.status === 401) {
+          if (!stopped) {
+            userRef.current = null;
+            setUser(null);
+            queryClient.clear();
+          }
+          return;
+        }
+        if (!response.ok) return;
+        const freshUser = await response.json() as User;
+        if (stopped || freshUser.id !== userRef.current?.id) return;
+        const before = userRef.current;
+        const beforePermissions = JSON.stringify({
+          role: before?.role,
+          permissions: (before as any)?.effectivePermissions ?? before?.groupPermissions ?? [],
+        });
+        const afterPermissions = JSON.stringify({
+          role: freshUser.role,
+          permissions: (freshUser as any).effectivePermissions ?? freshUser.groupPermissions ?? [],
+        });
+        const userChanged = JSON.stringify(before) !== JSON.stringify(freshUser);
+        userRef.current = freshUser;
+        if (userChanged) setUser(freshUser);
+        if (beforePermissions !== afterPermissions) {
+          void queryClient.resetQueries();
+        }
+      } catch {
+        // Keep the existing user through transient network failures.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const interval = setInterval(refreshAuth, 30_000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refreshAuth();
+    });
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [isLoading, user?.id, queryClient]);
 
   const login = async (email: string, password: string) => {
     const data = await apiPost<{ user: User }>("/auth/login", { email, password });

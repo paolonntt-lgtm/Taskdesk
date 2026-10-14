@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { Router as WouterRouter, Switch, Route, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material/styles";
@@ -139,10 +139,12 @@ const queryClient = new QueryClient({
 
 function AppShell() {
   const [user, setUser] = useState<User | null>(null);
+  const userRef = useRef<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
     try {
@@ -171,11 +173,68 @@ function AppShell() {
   );
 
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
+    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { setUser(data ?? null); setIsLoading(false); })
       .catch(() => { setUser(null); setIsLoading(false); });
   }, []);
+
+  useEffect(() => {
+    if (isLoading || !user?.id) return;
+    let stopped = false;
+    let inFlight = false;
+    const refreshAuth = async () => {
+      if (stopped || inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        const response = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (response.status === 401) {
+          if (!stopped) {
+            userRef.current = null;
+            setUser(null);
+            qc.clear();
+            setLocation("/login");
+          }
+          return;
+        }
+        if (!response.ok) return;
+        const freshUser = await response.json() as User;
+        if (stopped || freshUser.id !== userRef.current?.id) return;
+        const before = userRef.current;
+        const beforePermissions = JSON.stringify({
+          role: before?.role,
+          permissions: (before as any)?.effectivePermissions ?? before?.groupPermissions ?? [],
+        });
+        const afterPermissions = JSON.stringify({
+          role: freshUser.role,
+          permissions: (freshUser as any).effectivePermissions ?? freshUser.groupPermissions ?? [],
+        });
+        const userChanged = JSON.stringify(before) !== JSON.stringify(freshUser);
+        userRef.current = freshUser;
+        if (userChanged) setUser(freshUser);
+        if (beforePermissions !== afterPermissions) {
+          void qc.resetQueries();
+        }
+      } catch {
+        // Keep the existing signed-in state through transient network failures.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const interval = window.setInterval(refreshAuth, 30_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshAuth();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [isLoading, user?.id, qc, setLocation]);
 
   useEffect(() => {
     if (isLoading) return;
