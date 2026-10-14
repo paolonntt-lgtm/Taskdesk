@@ -408,7 +408,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     recurrenceRule,
   } = parsed.data;
 
-  if ("clientId" in parsed.data) {
+  if (clientId != null) {
     const [organization] = await db
       .select({ clientsEnabled: organizationsTable.clientsEnabled })
       .from(organizationsTable)

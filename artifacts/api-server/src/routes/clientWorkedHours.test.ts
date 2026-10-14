@@ -429,6 +429,20 @@ describe("client worked-hours report", () => {
     });
     expect(blockedTicketCreate.status).toBe(403);
 
+    const nullClientTicketCreate = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Ticket with null client",
+        description: "A null client does not link a client.",
+        category: "Support",
+        priority: "medium",
+        clientId: null,
+      }),
+    });
+    expect(nullClientTicketCreate.status).toBe(201);
+    expect(nullClientTicketCreate.body).not.toHaveProperty("clientId");
+    createdTicketIds.push(nullClientTicketCreate.body.id);
+
     const unlinkedTicketCreate = await request("/api/tickets", adminSessionId, {
       method: "POST",
       body: JSON.stringify({
