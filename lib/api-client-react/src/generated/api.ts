@@ -53,6 +53,7 @@ import type {
   GetCalendarParams,
   GetClient200,
   GetOrganizationSettings200,
+  GetTimeTrackingReportParams,
   GlobalSearchParams,
   GroupInput,
   GroupMemberInput,
@@ -85,6 +86,7 @@ import type {
   StripeAddonSeatsResponse,
   SuccessResponse,
   TicketWithDetails,
+  TimeTrackingReport,
   ToggleReactionBody,
   ToggleReactionResponse,
   TrendPoint,
@@ -4695,6 +4697,90 @@ export const useDeleteAnnouncement = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteAnnouncementMutationOptions(options));
     }
+
+export const getGetTimeTrackingReportUrl = (params?: GetTimeTrackingReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/time-tracking/report?${stringifiedParams}` : `/api/time-tracking/report`
+}
+
+/**
+ * @summary Get tracked and manual worked-time report (admin only)
+ */
+export const getTimeTrackingReport = async (params?: GetTimeTrackingReportParams, options?: Parameters<typeof customFetch>[1]): Promise<TimeTrackingReport> => {
+
+  return customFetch<TimeTrackingReport>(getGetTimeTrackingReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeTrackingReportQueryKey = (params?: GetTimeTrackingReportParams,) => {
+    return [
+    `/api/time-tracking/report`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTimeTrackingReportQueryOptions = <TData = Awaited<ReturnType<typeof getTimeTrackingReport>>, TError = ErrorType<ErrorResponse>>(params?: GetTimeTrackingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeTrackingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeTrackingReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeTrackingReport>>> = ({ signal }) => getTimeTrackingReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeTrackingReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTimeTrackingReportQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeTrackingReport>>>
+export type GetTimeTrackingReportQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get tracked and manual worked-time report (admin only)
+ */
+
+export function useGetTimeTrackingReport<TData = Awaited<ReturnType<typeof getTimeTrackingReport>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetTimeTrackingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTimeTrackingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTimeTrackingReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetDashboardStatsUrl = () => {
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, settingsTable, organizationsTable, usersTable, groupsTable } from "@workspace/db";
+import { eq, and, isNull, inArray } from "drizzle-orm";
+import { db, settingsTable, organizationsTable, usersTable, groupsTable, ticketTimeSessionsTable, ticketStatusesTable, ticketsTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { stripeService } from "../stripeService";
 import { type SmtpConfig } from "../lib/email";
@@ -492,13 +492,14 @@ router.get("/settings/organization", requireAuth, async (req, res): Promise<void
     businessType: org.businessType,
     clientsEnabled: org.clientsEnabled,
     workedTimeEnabled: org.workedTimeEnabled,
+    timeTrackingModuleEnabled: org.timeTrackingModuleEnabled,
     entitySingular: org.entitySingular,
     entityPlural: org.entityPlural,
   });
 });
 
 router.patch("/settings/organization", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const { name, businessType, clientsEnabled, workedTimeEnabled, entitySingular, entityPlural } = req.body ?? {};
+  const { name, businessType, clientsEnabled, workedTimeEnabled, timeTrackingModuleEnabled, entitySingular, entityPlural } = req.body ?? {};
   if (typeof name !== "string" || name.trim().length < 2) {
     res.status(400).json({ message: "Il nome azienda deve avere almeno 2 caratteri" });
     return;
@@ -516,6 +517,7 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
   if (businessType !== undefined) updateData.businessType = businessType || null;
   if (typeof clientsEnabled === "boolean") updateData.clientsEnabled = clientsEnabled;
   if (typeof workedTimeEnabled === "boolean") updateData.workedTimeEnabled = workedTimeEnabled;
+  if (typeof timeTrackingModuleEnabled === "boolean") updateData.timeTrackingModuleEnabled = timeTrackingModuleEnabled;
   if (typeof entitySingular === "string") updateData.entitySingular = entitySingular.trim() || null;
   if (typeof entityPlural === "string") updateData.entityPlural = entityPlural.trim() || null;
   const [updated] = await db
@@ -523,11 +525,41 @@ router.patch("/settings/organization", requireAuth, requireAdmin, async (req, re
     .set(updateData as any)
     .where(eq(organizationsTable.id, currentUser.organizationId))
     .returning();
+  if (timeTrackingModuleEnabled === false) {
+    const endedAt = new Date();
+    const activeSessions = await db.select({ ticketId: ticketTimeSessionsTable.ticketId })
+      .from(ticketTimeSessionsTable)
+      .where(and(eq(ticketTimeSessionsTable.organizationId, currentUser.organizationId), isNull(ticketTimeSessionsTable.endedAt)));
+    const activeTicketIds = [...new Set(activeSessions.map((session) => session.ticketId))];
+    await db.update(ticketTimeSessionsTable)
+      .set({ endedAt })
+      .where(and(eq(ticketTimeSessionsTable.organizationId, currentUser.organizationId), isNull(ticketTimeSessionsTable.endedAt)));
+    if (activeTicketIds.length > 0) {
+      const statuses = await db.select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isClosed: ticketStatusesTable.isClosed })
+        .from(ticketStatusesTable)
+        .where(eq(ticketStatusesTable.organizationId, currentUser.organizationId));
+      const waitingStatus = statuses.find((status) =>
+        !status.isClosed && (status.key === "waiting" || /attesa|waiting/i.test(status.label)),
+      );
+      if (waitingStatus) {
+        await db.update(ticketsTable)
+          .set({ status: waitingStatus.key, updatedAt: endedAt })
+          .where(and(eq(ticketsTable.organizationId, currentUser.organizationId), inArray(ticketsTable.id, activeTicketIds)));
+        await db.insert(ticketActivityLogsTable).values(activeTicketIds.map((ticketId) => ({
+          ticketId,
+          userId: currentUser.id,
+          actionType: "status_changed",
+          actionDescription: `Timer interrotto dopo la disattivazione del modulo; ticket spostato in "${waitingStatus.label}"`,
+        })));
+      }
+    }
+  }
   res.json({
     name: updated.name,
     businessType: updated.businessType,
     clientsEnabled: updated.clientsEnabled,
     workedTimeEnabled: updated.workedTimeEnabled,
+    timeTrackingModuleEnabled: updated.timeTrackingModuleEnabled,
     entitySingular: updated.entitySingular,
     entityPlural: updated.entityPlural,
   });

@@ -41,6 +41,7 @@ import calendarRouter from "./calendar";
 import searchRouter from "./search";
 import dailyReportsRouter from "./dailyReports";
 import announcementsRouter from "./announcements";
+import timeTrackingRouter from "./timeTracking";
 
 const router: IRouter = Router();
 
@@ -86,5 +87,6 @@ router.use(calendarRouter);
 router.use(searchRouter);
 router.use(dailyReportsRouter);
 router.use(announcementsRouter);
+router.use(timeTrackingRouter);
 
 export default router;

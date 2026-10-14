@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Ticket } from './ticket';
+import type { TicketTimeSession } from './ticketTimeSession';
+import type { TicketTimeSummary } from './ticketTimeSummary';
 import type { User } from './user';
 
 export type TicketWithDetails = Ticket & ({
@@ -14,4 +16,7 @@ export type TicketWithDetails = Ticket & ({
   commentCount: number;
   noteCount: number;
   inboundChannelName?: string | null;
+  timeSessions?: TicketTimeSession[];
+  timeTrackingSummary?: TicketTimeSummary;
+  canChangeStatus?: boolean;
 });

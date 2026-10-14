@@ -25,6 +25,7 @@ export const organizationsTable = pgTable("organizations", {
   entitySingular: text("entity_singular"),
   entityPlural: text("entity_plural"),
   workedTimeEnabled: boolean("worked_time_enabled").default(true).notNull(),
+  timeTrackingModuleEnabled: boolean("time_tracking_module_enabled").default(false).notNull(),
   sendClosureEmail: boolean("send_closure_email").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

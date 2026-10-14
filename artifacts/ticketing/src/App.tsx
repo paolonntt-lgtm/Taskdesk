@@ -35,6 +35,7 @@ import CookieConsentBanner from "./components/CookieConsentBanner";
 import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
+import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
@@ -101,6 +102,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/tickets/:id" component={TicketDetail} />
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />
+          <Route path="/time-report">{() => <AdminRoute component={TimeTrackingReportPage} />}</Route>
           <Route path="/daily-reports/:id" component={DailyReportDetailPage} />
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/notifications" component={NotificationsPage} />

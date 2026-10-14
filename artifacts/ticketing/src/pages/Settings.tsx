@@ -768,6 +768,7 @@ function BackupSection() {
 
 export default function Settings() {
   const { user, updateUser } = useAuth();
+  const queryClient = useQueryClient();
   const { t, lang } = useLanguage();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -815,6 +816,7 @@ export default function Settings() {
   const [orgName, setOrgName] = useState('');
   const [orgBusinessType, setOrgBusinessType] = useState((user as any)?.businessType ?? '');
   const [orgWorkedTimeEnabled, setOrgWorkedTimeEnabled] = useState<boolean>((user as any)?.workedTimeEnabled !== false);
+  const [orgTimeTrackingModuleEnabled, setOrgTimeTrackingModuleEnabled] = useState(false);
   const [orgEntitySingular, setOrgEntitySingular] = useState((user as any)?.entitySingular ?? '');
   const [orgEntityPlural, setOrgEntityPlural] = useState((user as any)?.entityPlural ?? '');
   const [orgSaving, setOrgSaving] = useState(false);
@@ -845,6 +847,7 @@ export default function Settings() {
         if (d.businessType) setOrgBusinessType(d.businessType);
         setOrgClientsEnabled(d.clientsEnabled !== false);
         setOrgWorkedTimeEnabled(d.workedTimeEnabled !== false);
+        setOrgTimeTrackingModuleEnabled(d.timeTrackingModuleEnabled === true);
         setOrgEntitySingular(d.entitySingular ?? '');
         setOrgEntityPlural(d.entityPlural ?? '');
       }).catch(() => {});
@@ -912,21 +915,25 @@ export default function Settings() {
           businessType: orgBusinessType || undefined,
           clientsEnabled: orgClientsEnabled,
           workedTimeEnabled: orgWorkedTimeEnabled,
+          timeTrackingModuleEnabled: orgTimeTrackingModuleEnabled,
           entitySingular: orgEntitySingular || undefined,
           entityPlural: orgEntityPlural || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) { setOrgMsg({ type: 'error', text: data.message || 'Errore' }); return; }
+      queryClient.setQueryData(['organization-settings'], data);
       setOrgName(data.name);
       if (data.businessType !== undefined) setOrgBusinessType(data.businessType ?? '');
       if (data.clientsEnabled !== undefined) setOrgClientsEnabled(data.clientsEnabled !== false);
       if (data.workedTimeEnabled !== undefined) setOrgWorkedTimeEnabled(data.workedTimeEnabled !== false);
+      if (data.timeTrackingModuleEnabled !== undefined) setOrgTimeTrackingModuleEnabled(data.timeTrackingModuleEnabled === true);
       updateUser({
         ...(user as any),
         businessType: data.businessType ?? null,
         clientsEnabled: data.clientsEnabled !== undefined ? data.clientsEnabled : (user as any)?.clientsEnabled,
         workedTimeEnabled: data.workedTimeEnabled !== undefined ? data.workedTimeEnabled : (user as any)?.workedTimeEnabled,
+        timeTrackingModuleEnabled: data.timeTrackingModuleEnabled ?? (user as any)?.timeTrackingModuleEnabled,
         entitySingular: data.entitySingular ?? null,
         entityPlural: data.entityPlural ?? null,
       });
@@ -1447,7 +1454,7 @@ export default function Settings() {
                   {!orgClientsEnabled && (
                     <Alert severity="warning" sx={{ py: 0.5 }}>{t.settings.orgClientsDisabledWarning}</Alert>
                   )}
-                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                  <Box display="flex" alignItems="center" gap={1} mt={1} data-testid="toggle-time-tracking-module">
                     <AccessTime color="primary" fontSize="small" />
                     <Switch checked={orgWorkedTimeEnabled} onChange={(e) => setOrgWorkedTimeEnabled(e.target.checked)} disabled={orgSaving} size="small" />
                     <Box>
@@ -1457,6 +1464,22 @@ export default function Settings() {
                   </Box>
                   {!orgWorkedTimeEnabled && (
                     <Alert severity="info" sx={{ py: 0.5 }}>{t.settings.orgWorkedTimeDisabledWarning}</Alert>
+                  )}
+                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                    <AccessTime color="secondary" fontSize="small" />
+                    <Switch
+                      checked={orgTimeTrackingModuleEnabled}
+                      onChange={(e) => setOrgTimeTrackingModuleEnabled(e.target.checked)}
+                      disabled={orgSaving}
+                      size="small"
+                    />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{t.settings.timeTrackingModuleLabel}</Typography>
+                      <Typography variant="caption" color="text.secondary">{t.settings.timeTrackingModuleHint}</Typography>
+                    </Box>
+                  </Box>
+                  {!orgTimeTrackingModuleEnabled && (
+                    <Alert severity="info" sx={{ py: 0.5 }}>{t.settings.timeTrackingModuleDisabledWarning}</Alert>
                   )}
                 </Box>
               </Box>

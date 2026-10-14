@@ -8,6 +8,7 @@ import {
   inviteTokensTable,
   groupMembersTable,
   groupsTable,
+  organizationsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
@@ -36,13 +37,25 @@ const userFields = {
   avatarUrl: usersTable.avatarUrl,
   isActive: usersTable.isActive,
   isAvailable: usersTable.isAvailable,
+  hourlyCompensated: usersTable.hourlyCompensated,
   createdAt: usersTable.createdAt,
   permissionOverrides: usersTable.permissionOverrides,
 };
 
+async function isTimeTrackingModuleEnabled(organizationId: number | null): Promise<boolean> {
+  if (organizationId == null) return false;
+  const [organization] = await db
+    .select({ enabled: organizationsTable.timeTrackingModuleEnabled })
+    .from(organizationsTable)
+    .where(eq(organizationsTable.id, organizationId));
+  return organization?.enabled === true;
+}
+
 router.get("/users", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
+  const exposeHourlyCompensation =
+    currentUser.role === "admin" && await isTimeTrackingModuleEnabled(orgId);
 
   if (orgId == null) {
     res.status(403).json({ error: "Account has no organization" });
@@ -90,7 +103,13 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
     const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];
     const permissionOverrides = parsePermissionOverrides(u.permissionOverrides);
     const summary = resolvePermissionSummary(u.role, inherited, permissionOverrides);
-    return { ...u, groupMemberships, ...summary, permissionOverrides };
+    return {
+      ...u,
+      ...(!exposeHourlyCompensation && { hourlyCompensated: undefined }),
+      groupMemberships,
+      ...summary,
+      permissionOverrides,
+    };
   }));
 });
 
@@ -101,7 +120,7 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     return;
   }
 
-  const { name, email, password, role, mainLocation, group, groups } = parsed.data;
+  const { name, email, password, role, mainLocation, group, groups, hourlyCompensated } = parsed.data;
 
   const [existing] = await db
     .select({ id: usersTable.id })
@@ -114,6 +133,11 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   }
 
   const currentUser = (req as any).currentUser;
+  const trackingEnabled = await isTimeTrackingModuleEnabled(currentUser.organizationId);
+  if (hourlyCompensated !== undefined && !trackingEnabled) {
+    res.status(403).json({ error: "Time tracking module is disabled" });
+    return;
+  }
   const usage = await getSeatUsage(currentUser.organizationId ?? null);
   if (usage.limitReached) {
     res.status(402).json(buildSeatLimitError(usage));
@@ -129,10 +153,11 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
     mainLocation: mainLocation ?? null,
     group: group ?? null,
     groups: groups ? JSON.stringify(groups) : null,
+    ...(hourlyCompensated !== undefined && { hourlyCompensated }),
     isActive: true,
   }).returning(userFields);
 
-  res.status(201).json(user);
+  res.status(201).json(trackingEnabled ? user : { ...user, hourlyCompensated: undefined });
 });
 
 router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
@@ -143,6 +168,8 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const currentUser = (req as any).currentUser;
+  const exposeHourlyCompensation =
+    currentUser.role === "admin" && await isTimeTrackingModuleEnabled(currentUser.organizationId);
 
   if (currentUser.organizationId == null) {
     res.status(403).json({ error: "Account has no organization" });
@@ -178,6 +205,7 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
   const permissionOverrides = parsePermissionOverrides(user.permissionOverrides);
   res.json({
     ...user,
+    ...(!exposeHourlyCompensation && { hourlyCompensated: undefined }),
     ...resolvePermissionSummary(user.role, inherited, permissionOverrides),
     permissionOverrides,
   });
@@ -200,6 +228,12 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
 
   if (currentUser.organizationId == null) {
     res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
+  const trackingEnabled = await isTimeTrackingModuleEnabled(currentUser.organizationId);
+  if (parsed.data.hourlyCompensated !== undefined && !trackingEnabled) {
+    res.status(403).json({ error: "Time tracking module is disabled" });
     return;
   }
 
@@ -274,7 +308,7 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     await stripeStorage.updateUserStripeInfo(id, { stripeCustomerId: null, stripeSubscriptionId: null });
   }
 
-  res.json(updated);
+  res.json(isAdmin && trackingEnabled ? updated : { ...updated, hourlyCompensated: undefined });
 });
 
 router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {

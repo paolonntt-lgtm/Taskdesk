@@ -17,11 +17,17 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   return res;
 }
 
+function createApiError(res: Response, details: any): Error {
+  const error = new Error(details.message || details.error || `HTTP ${res.status}`);
+  Object.assign(error, { status: res.status, data: details });
+  return error;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await apiFetch(path);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+    throw createApiError(res, err);
   }
   return res.json();
 }
@@ -33,7 +39,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+    throw createApiError(res, err);
   }
   return res.json();
 }
@@ -45,7 +51,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+    throw createApiError(res, err);
   }
   return res.json();
 }
@@ -57,7 +63,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+    throw createApiError(res, err);
   }
   return res.json();
 }
@@ -66,7 +72,7 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+    throw createApiError(res, err);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

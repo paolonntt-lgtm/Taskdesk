@@ -32,6 +32,8 @@ import {
   useMediaQuery,
   useTheme,
   Avatar,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   Add,
@@ -51,7 +53,7 @@ import {
 } from '@mui/icons-material';
 import { Link as WLink } from 'wouter';
 import { LinearProgress } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -69,6 +71,7 @@ interface UserFormData {
   password: string;
   role: 'admin' | 'user';
   mainLocation: string;
+  hourlyCompensated: boolean;
 }
 
 const emptyForm: UserFormData = {
@@ -77,6 +80,7 @@ const emptyForm: UserFormData = {
   password: '',
   role: 'user',
   mainLocation: '',
+  hourlyCompensated: false,
 };
 
 type GroupMembership = { id: number; name: string; permissions: string[] };
@@ -189,6 +193,15 @@ export default function Users() {
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
 
   const { data: users = [], isLoading } = useListUsers();
+  const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('organization settings unavailable');
+      return response.json();
+    },
+  });
+  const timeTrackingModuleEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
   const createUser = useCreateUser({ mutation: { onSuccess: invalidateUsers } });
   const updateUser = useUpdateUser({ mutation: { onSuccess: invalidateUsers } });
   const deleteUser = useDeleteUser({ mutation: { onSuccess: invalidateUsers } });
@@ -240,6 +253,7 @@ export default function Users() {
       password: '',
       role: u.role as 'admin' | 'user',
       mainLocation: (u as any).mainLocation ?? '',
+      hourlyCompensated: u.hourlyCompensated === true,
     });
     setFormError(null);
     setDialogOpen(true);
@@ -282,6 +296,7 @@ export default function Users() {
           email: form.email,
           role: form.role,
           mainLocation: form.mainLocation || null,
+          ...(timeTrackingModuleEnabled ? { hourlyCompensated: form.hourlyCompensated } : {}),
         } as any;
         await updateUser.mutateAsync({ id: editTarget.id, data: body });
       } else {
@@ -965,6 +980,23 @@ export default function Users() {
               onChange={(e) => setForm((f) => ({ ...f, mainLocation: e.target.value }))}
               fullWidth
             />
+            {editTarget && timeTrackingModuleEnabled && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.hourlyCompensated}
+                    onChange={(event) => setForm((f) => ({ ...f, hourlyCompensated: event.target.checked }))}
+                  />
+                }
+                data-testid={`toggle-hourly-compensation-${editTarget.id}`}
+                label={
+                  <Box>
+                    <Typography variant="body2">{ut.hourlyCompensated}</Typography>
+                    <Typography variant="caption" color="text.secondary">{ut.hourlyCompensatedHelp}</Typography>
+                  </Box>
+                }
+              />
+            )}
           </Box>
         </DialogContent>
         <Divider />

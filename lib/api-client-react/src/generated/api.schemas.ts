@@ -175,20 +175,21 @@ export interface User {
   avatarUrl?: string | null;
   isActive: boolean;
   isAvailable: boolean;
+  hourlyCompensated?: boolean;
   createdAt: string;
   onboardingDone?: boolean | null;
   businessType?: string | null;
   trialEndsAt?: string | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
-  groupPermissions?: UserGroupPermissionsItem[];
-  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
-  effectivePermissions?: UserEffectivePermissionsItem[];
-  permissionOverrides?: UserPermissionOverrides;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
+  groupPermissions?: UserGroupPermissionsItem[];
+  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
+  effectivePermissions?: UserEffectivePermissionsItem[];
+  permissionOverrides?: UserPermissionOverrides;
 }
 
 export interface LoginResponse {
@@ -213,6 +214,7 @@ export interface CreateUserBody {
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;
+  hourlyCompensated?: boolean;
 }
 
 export type UpdateUserBodyRole = typeof UpdateUserBodyRole[keyof typeof UpdateUserBodyRole];
@@ -236,6 +238,7 @@ export interface UpdateUserBody {
   groups?: string[] | null;
   isActive?: boolean;
   isAvailable?: boolean;
+  hourlyCompensated?: boolean;
   permissionOverrides?: UpdateUserBodyPermissionOverrides;
 }
 
@@ -352,11 +355,34 @@ export interface Ticket {
   resolutionNote?: string | null;
   workedMinutes?: number | null;
   workedBillingStatus?: TicketWorkedBillingStatus;
+  timeTrackingEnabled?: boolean;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: string | null;
   recurrenceParentId?: number | null;
   scheduledAt?: string | null;
+}
+
+export interface TicketTimeSession {
+  id: number;
+  userId: number;
+  userName: string;
+  startedAt: string;
+  /** @nullable */
+  endedAt: string | null;
+  /** @minimum 0 */
+  durationMinutes: number;
+  clientBillable: boolean;
+  collaboratorRecognizable: boolean;
+}
+
+export interface TicketTimeSummary {
+  totalMinutes: number;
+  clientBillableMinutes: number;
+  collaboratorRecognizableMinutes: number;
+  activeForCurrentUser: boolean;
 }
 
 export type TicketWithDetails = Ticket & ({
@@ -365,7 +391,54 @@ export type TicketWithDetails = Ticket & ({
   commentCount: number;
   noteCount: number;
   inboundChannelName?: string | null;
+  timeSessions?: TicketTimeSession[];
+  timeTrackingSummary?: TicketTimeSummary;
+  canChangeStatus?: boolean;
 });
+
+export type TimeTrackingReportRowKind = typeof TimeTrackingReportRowKind[keyof typeof TimeTrackingReportRowKind];
+
+
+export const TimeTrackingReportRowKind = {
+  session: 'session',
+  manual: 'manual',
+} as const;
+
+export type TimeTrackingReportRowBillingStatus = typeof TimeTrackingReportRowBillingStatus[keyof typeof TimeTrackingReportRowBillingStatus];
+
+
+export const TimeTrackingReportRowBillingStatus = {
+  unbilled: 'unbilled',
+  billed: 'billed',
+} as const;
+
+export interface TimeTrackingReportRow {
+  kind: TimeTrackingReportRowKind;
+  ticketId: number;
+  ticketNumber: number | null;
+  title: string;
+  date: string;
+  /** @minimum 0 */
+  durationMinutes: number;
+  clientId?: number | null;
+  clientName?: string | null;
+  collaboratorId?: number | null;
+  collaboratorName?: string | null;
+  billingStatus: TimeTrackingReportRowBillingStatus;
+}
+
+export type TimeTrackingReportTotals = {
+  clientBillableMinutes: number;
+  clientUnbilledMinutes: number;
+  clientBilledMinutes: number;
+  collaboratorRecognizableMinutes: number;
+};
+
+export interface TimeTrackingReport {
+  customerRows: TimeTrackingReportRow[];
+  collaboratorRows: TimeTrackingReportRow[];
+  totals: TimeTrackingReportTotals;
+}
 
 /**
  * The most recent activity only when its log was created no earlier than five seconds before the ticket's last update; otherwise null.
@@ -419,6 +492,9 @@ export interface CreateTicketBody {
   dueAt?: string | null;
   clientId?: number | null;
   visibility?: CreateTicketBodyVisibility;
+  timeTrackingEnabled?: boolean;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   recurrenceRule?: RecurrenceRule | null;
 }
 
@@ -437,6 +513,7 @@ export type UpdateTicketBodyStatus = typeof UpdateTicketBodyStatus[keyof typeof 
 
 export const UpdateTicketBodyStatus = {
   open: 'open',
+  in_progress: 'in_progress',
   waiting: 'waiting',
   resolved: 'resolved',
   closed: 'closed',
@@ -455,6 +532,8 @@ export interface UpdateTicketBody {
   resolutionNote?: string | null;
   /** @minimum 0 */
   workedMinutes?: number | null;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   dueAt?: string | null;
   clientId?: number | null;
 }
@@ -1105,12 +1184,18 @@ export type CompleteOnboarding200 = {
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  clientsEnabled?: boolean;
+  workedTimeEnabled?: boolean;
+  timeTrackingModuleEnabled?: boolean;
 };
 
 export type UpdateOrganizationSettingsBody = {
   /** @minLength 2 */
   name: string;
   businessType?: string | null;
+  clientsEnabled?: boolean;
+  workedTimeEnabled?: boolean;
+  timeTrackingModuleEnabled?: boolean;
 };
 
 export type UpdateOrganizationSettings200 = {
@@ -1136,6 +1221,13 @@ scheduled?: boolean;
  * Return only source tickets with a recurrence rule; generated copies are not included.
  */
 recurring?: boolean;
+};
+
+export type GetTimeTrackingReportParams = {
+dateFrom?: string;
+dateTo?: string;
+clientId?: number;
+collaboratorId?: number;
 };
 
 export type ListClientsParams = {
@@ -1236,4 +1328,3 @@ export type GetCalendarParams = {
 year: number;
 month: number;
 };
-

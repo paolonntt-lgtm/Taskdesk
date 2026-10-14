@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Typography, Tabs, Tab, Chip, Button, Divider,
+  Box, Card, CardContent, Typography, Tabs, Tab, Chip, Button, Divider,
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
@@ -93,7 +93,6 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
   if (!m) return null;
   return { name: m[1].trim(), email: m[2].trim(), body: m[3].trim() };
 }
-
 
 
 export default function TicketDetail() {
@@ -207,7 +206,7 @@ export default function TicketDetail() {
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
   const { data: clientsList = [] } = useListClients(undefined, { query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
-  const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean }>({
+  const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
       const response = await fetch('/api/settings/organization', { credentials: 'include' });
@@ -218,6 +217,17 @@ export default function TicketDetail() {
     staleTime: 5 * 60_000,
   });
   const workedTimeEnabled = organizationSettings?.workedTimeEnabled !== false;
+  const timeTrackingModuleEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
+  const firstWaitingStatusKey = orgStatuses.find((status) =>
+    /waiting|attesa/i.test(`${status.key} ${status.label}`),
+  )?.key;
+  const visibleTicketStatuses = timeTrackingModuleEnabled && Boolean((ticket as any)?.timeTrackingEnabled)
+    ? orgStatuses.filter((status) =>
+        status.key === 'in_progress' ||
+        status.key === firstWaitingStatusKey ||
+        status.isClosed,
+      )
+    : orgStatuses;
   const { data: workload = [] } = useQuery<{ id: number; open: number }[]>({
     queryKey: ['assignee-workload'],
     queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then(r => r.json()),
@@ -341,7 +351,12 @@ export default function TicketDetail() {
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
     } catch (err: any) {
-      setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
+      if (err?.data?.error === 'TIMER_ALREADY_ACTIVE') {
+        const active = err.data.activeTicket;
+        setStatusError(`${t.ticketDetail.timerAlreadyActive}${active ? ` #${active.ticketNumber ?? active.id}: ${active.title}` : ''}`);
+      } else {
+        setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
+      }
     }
   };
 
@@ -1026,6 +1041,78 @@ export default function TicketDetail() {
 
           </Box>
 
+          {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (
+            <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
+              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                  {t.ticketDetail.trackedTimeTitle}
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={2} mb={1}>
+                  <Typography variant="body2">
+                    {t.ticketDetail.trackedTimeTotal}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.totalMinutes ?? 0, lang)}</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    {t.ticketDetail.trackedTimeCustomerBillable}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    {t.ticketDetail.trackedTimeCollaboratorRecognizable}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}</strong>
+                  </Typography>
+                </Box>
+                {(ticket as any).timeSessions?.length > 0 && (
+                  <Box display="flex" flexDirection="column" gap={0.5}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>{t.ticketDetail.trackedTimeSessionBy}</Typography>
+                    {(ticket as any).timeSessions.map((session: any) => (
+                      <Box key={session.id} display="flex" justifyContent="space-between" gap={1} data-testid={`time-session-${session.id}`}>
+                        <Typography variant="body2">{session.userName}</Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatWorkedDuration(session.durationMinutes, lang)}{session.endedAt ? '' : ` · ${t.ticketDetail.trackedTimeActive}`}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+                {isAdmin && (
+                  <Box display="flex" flexWrap="wrap" gap={1.5} mt={1.25}>
+                    <TextField
+                      select size="small" label={t.ticketDetail.trackedTimeCustomerBillable}
+                      value={(ticket as any).timeTrackingBillable ? 'true' : 'false'}
+                      onChange={async (event) => {
+                        try {
+                          await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingBillable: event.target.value === 'true' } });
+                          queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+                        } catch {
+                          setStatusError(t.ticketDetail.trackedTimeChangeError);
+                        }
+                      }}
+                      sx={{ minWidth: 190 }}
+                    >
+                      <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
+                      <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
+                    </TextField>
+                    <TextField
+                      select size="small" label={t.ticketDetail.trackedTimeOverride}
+                      value={(ticket as any).timeTrackingCompensationOverride == null ? '' : String((ticket as any).timeTrackingCompensationOverride)}
+                      onChange={async (event) => {
+                        try {
+                          const value = event.target.value === '' ? null : event.target.value === 'true';
+                          await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingCompensationOverride: value } });
+                          queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+                        } catch {
+                          setStatusError(t.ticketDetail.trackedTimeChangeError);
+                        }
+                      }}
+                      sx={{ minWidth: 220 }}
+                    >
+                      <MenuItem value="">{t.ticketDetail.trackedTimeInherit}</MenuItem>
+                      <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
+                      <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
+                    </TextField>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* H1 Title — E style */}
           <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
@@ -1523,7 +1610,7 @@ export default function TicketDetail() {
       <Popover open={Boolean(statusAnchor)} anchorEl={statusAnchor} onClose={() => setStatusAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { elevation: 3, sx: { p: 1.5, minWidth: 180 } } }}>
         <Box sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1 }}>{t.ticketDetail.statusLabel}</Box>
         <Box display="flex" flexWrap="wrap" gap={0.5}>
-          {orgStatuses.map((s) => {
+          {visibleTicketStatuses.map((s) => {
             const isActive = ticket.status === s.key;
             const customColor = s.color;
             return (

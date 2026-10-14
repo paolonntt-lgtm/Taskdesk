@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { runBackupForOrg, buildBackupPayload } from "../lib/backup";
-import { db, organizationsTable, ticketsTable, ticketCommentsTable, ticketInternalNotesTable, clientsTable, clientNotesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, organizationsTable, ticketsTable, ticketTimeSessionsTable, ticketCommentsTable, ticketInternalNotesTable, clientsTable, clientNotesTable, usersTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -58,6 +58,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
   let commentsRestored = 0;
   let notesRestored = 0;
   let clientNotesRestored = 0;
+  let timeSessionsRestored = 0;
 
   try {
     // ── 1. Clienti (match per nome) ──
@@ -99,6 +100,23 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
     const existingByNum = new Map(existingTickets.map(t => [t.ticketNumber, t.id]));
     const ticketIdMap = new Map<number, number>(); // oldId → newId
     const restoredTicketOldIds = new Set<number>();
+    const backupUsers = Array.isArray(data.users) ? data.users : [];
+    const existingUsers = await db.select({ id: usersTable.id, email: usersTable.email })
+      .from(usersTable).where(eq(usersTable.organizationId, orgId));
+    const userIdByEmail = new Map(existingUsers.map((user) => [user.email.toLowerCase(), user.id]));
+    const userIdMap = new Map<number, number>();
+    for (const backupUser of backupUsers) {
+      if (backupUser?.id != null && typeof backupUser.email === "string") {
+        const mappedId = userIdByEmail.get(backupUser.email.toLowerCase());
+        if (mappedId != null) {
+          userIdMap.set(Number(backupUser.id), mappedId);
+          if (typeof backupUser.hourlyCompensated === "boolean") {
+            await db.update(usersTable).set({ hourlyCompensated: backupUser.hourlyCompensated })
+              .where(and(eq(usersTable.id, mappedId), eq(usersTable.organizationId, orgId)));
+          }
+        }
+      }
+    }
 
     for (const t of data.tickets) {
       if (existingByNum.has(t.ticketNumber)) {
@@ -120,6 +138,11 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
         resolutionNote: t.resolutionNote ?? null,
         workedMinutes: t.workedMinutes ?? null,
         workedBillingStatus: t.workedBillingStatus ?? "unbilled",
+        timeTrackingEnabled: t.timeTrackingEnabled === true,
+        timeTrackingBillable: t.timeTrackingBillable === true,
+        timeTrackingCompensationOverride: typeof t.timeTrackingCompensationOverride === "boolean"
+          ? t.timeTrackingCompensationOverride
+          : null,
         dueAt: t.dueAt ? new Date(t.dueAt) : null,
         closedAt: t.closedAt ? new Date(t.closedAt) : null,
         clientId: t.clientId != null ? (clientIdMap.get(t.clientId) ?? null) : null,
@@ -128,6 +151,24 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
       ticketIdMap.set(t.id, ins.id);
       restoredTicketOldIds.add(t.id);
       ticketsRestored++;
+    }
+
+    // ── 2.1. Sessioni timer dei ticket ripristinati ──
+    for (const session of (data.timeSessions ?? [])) {
+      if (!restoredTicketOldIds.has(session.ticketId)) continue;
+      const newTicketId = ticketIdMap.get(session.ticketId);
+      const newUserId = userIdMap.get(session.userId);
+      if (!newTicketId || !newUserId || !session.startedAt) continue;
+      await db.insert(ticketTimeSessionsTable).values({
+        organizationId: orgId,
+        ticketId: newTicketId,
+        userId: newUserId,
+        startedAt: new Date(session.startedAt),
+        endedAt: session.endedAt ? new Date(session.endedAt) : null,
+        clientBillable: session.clientBillable === true,
+        collaboratorRecognizable: session.collaboratorRecognizable === true,
+      });
+      timeSessionsRestored++;
     }
 
     // ── 3. Commenti dei ticket ripristinati ──
@@ -176,7 +217,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
       clientNotesRestored++;
     }
 
-    res.json({ ok: true, ticketsRestored, clientsRestored, commentsRestored, notesRestored, clientNotesRestored });
+    res.json({ ok: true, ticketsRestored, clientsRestored, commentsRestored, notesRestored, clientNotesRestored, timeSessionsRestored });
   } catch (err: any) {
     req.log.error({ err: err?.message }, "Backup restore failed");
     res.status(500).json({ error: "Ripristino non riuscito. Riprova." });

@@ -443,6 +443,12 @@ paths:
                   businessType:
                     type: string
                     nullable: true
+                  clientsEnabled:
+                    type: boolean
+                  workedTimeEnabled:
+                    type: boolean
+                  timeTrackingModuleEnabled:
+                    type: boolean
     patch:
       operationId: updateOrganizationSettings
       tags: [auth]
@@ -461,6 +467,12 @@ paths:
                 businessType:
                   type: string
                   nullable: true
+                clientsEnabled:
+                  type: boolean
+                workedTimeEnabled:
+                  type: boolean
+                timeTrackingModuleEnabled:
+                  type: boolean
       responses:
         "200":
           description: Organization updated
@@ -1561,6 +1573,44 @@ paths:
           description: Forbidden
         "404":
           description: Announcement not found
+
+  /time-tracking/report:
+    get:
+      operationId: getTimeTrackingReport
+      tags: [reports]
+      summary: Get tracked and manual worked-time report (admin only)
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: clientId
+          in: query
+          schema:
+            type: integer
+        - name: collaboratorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hours report rows and totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeTrackingReport"
+        "403":
+          description: Report unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /stats/dashboard:
     get:
@@ -2803,6 +2853,8 @@ components:
           type: boolean
         isAvailable:
           type: boolean
+        hourlyCompensated:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -2829,7 +2881,22 @@ components:
               type: boolean
             daysLeft:
               type: integer
-          required: [isInTrial, isExpired, daysLeft]
+          required:
+            - isInTrial
+            - isExpired
+            - daysLeft
+        isSuperAdmin:
+          type: boolean
+          nullable: true
+        clientsEnabled:
+          type: boolean
+          nullable: true
+        organizationId:
+          type: integer
+          nullable: true
+        organizationName:
+          type: string
+          nullable: true
         groupPermissions:
           type: array
           items:
@@ -2850,18 +2917,6 @@ components:
           additionalProperties:
             type: string
             enum: [inherit, grant, deny]
-        isSuperAdmin:
-          type: boolean
-          nullable: true
-        clientsEnabled:
-          type: boolean
-          nullable: true
-        organizationId:
-          type: integer
-          nullable: true
-        organizationName:
-          type: string
-          nullable: true
       required:
         - id
         - name
@@ -2896,6 +2951,8 @@ components:
           items:
             type: string
           nullable: true
+        hourlyCompensated:
+          type: boolean
       required:
         - name
         - email
@@ -2930,6 +2987,8 @@ components:
         isActive:
           type: boolean
         isAvailable:
+          type: boolean
+        hourlyCompensated:
           type: boolean
         permissionOverrides:
           type: object
@@ -3057,6 +3116,13 @@ components:
           type: string
           enum: [unbilled, billed]
           nullable: true
+        timeTrackingEnabled:
+          type: boolean
+        timeTrackingBillable:
+          type: boolean
+        timeTrackingCompensationOverride:
+          type: boolean
+          nullable: true
         clientId:
           type: integer
           nullable: true
@@ -3104,10 +3170,116 @@ components:
             inboundChannelName:
               type: string
               nullable: true
+            timeSessions:
+              type: array
+              items:
+                $ref: "#/components/schemas/TicketTimeSession"
+            timeTrackingSummary:
+              $ref: "#/components/schemas/TicketTimeSummary"
+            canChangeStatus:
+              type: boolean
           required:
             - creator
             - commentCount
             - noteCount
+
+    TicketTimeSession:
+      type: object
+      required: [id, userId, userName, startedAt, endedAt, durationMinutes, clientBillable, collaboratorRecognizable]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: ["string", "null"]
+          format: date-time
+        durationMinutes:
+          type: integer
+          minimum: 0
+        clientBillable:
+          type: boolean
+        collaboratorRecognizable:
+          type: boolean
+
+    TicketTimeSummary:
+      type: object
+      required: [totalMinutes, clientBillableMinutes, collaboratorRecognizableMinutes, activeForCurrentUser]
+      properties:
+        totalMinutes:
+          type: integer
+        clientBillableMinutes:
+          type: integer
+        collaboratorRecognizableMinutes:
+          type: integer
+        activeForCurrentUser:
+          type: boolean
+
+    TimeTrackingReportRow:
+      type: object
+      required: [kind, ticketId, ticketNumber, title, date, durationMinutes, billingStatus]
+      properties:
+        kind:
+          type: string
+          enum: [session, manual]
+        ticketId:
+          type: integer
+        ticketNumber:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        date:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          minimum: 0
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        collaboratorId:
+          type: integer
+          nullable: true
+        collaboratorName:
+          type: string
+          nullable: true
+        billingStatus:
+          type: string
+          enum: [unbilled, billed]
+
+    TimeTrackingReport:
+      type: object
+      required: [customerRows, collaboratorRows, totals]
+      properties:
+        customerRows:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeTrackingReportRow"
+        collaboratorRows:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeTrackingReportRow"
+        totals:
+          type: object
+          required: [clientBillableMinutes, clientUnbilledMinutes, clientBilledMinutes, collaboratorRecognizableMinutes]
+          properties:
+            clientBillableMinutes:
+              type: integer
+            clientUnbilledMinutes:
+              type: integer
+            clientBilledMinutes:
+              type: integer
+            collaboratorRecognizableMinutes:
+              type: integer
 
     RecentTicketWithActivity:
       allOf:
@@ -3162,6 +3334,13 @@ components:
         visibility:
           type: string
           enum: [organization, admins]
+        timeTrackingEnabled:
+          type: boolean
+        timeTrackingBillable:
+          type: boolean
+        timeTrackingCompensationOverride:
+          type: boolean
+          nullable: true
         recurrenceRule:
           $ref: "#/components/schemas/RecurrenceRule"
           nullable: true
@@ -3190,7 +3369,7 @@ components:
           enum: [low, medium, high, urgent]
         status:
           type: string
-          enum: [open, waiting, resolved, closed]
+          enum: [open, in_progress, waiting, resolved, closed]
         assignedTo:
           type: integer
           nullable: true
@@ -3203,6 +3382,11 @@ components:
         workedMinutes:
           type: integer
           minimum: 0
+          nullable: true
+        timeTrackingBillable:
+          type: boolean
+        timeTrackingCompensationOverride:
+          type: boolean
           nullable: true
         dueAt:
           type: string

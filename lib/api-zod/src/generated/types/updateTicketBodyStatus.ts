@@ -11,6 +11,7 @@ export type UpdateTicketBodyStatus = typeof UpdateTicketBodyStatus[keyof typeof 
 
 export const UpdateTicketBodyStatus = {
   open: 'open',
+  in_progress: 'in_progress',
   waiting: 'waiting',
   resolved: 'resolved',
   closed: 'closed',

@@ -32,6 +32,9 @@ export interface Ticket {
   resolutionNote?: string | null;
   workedMinutes?: number | null;
   workedBillingStatus?: TicketWorkedBillingStatus;
+  timeTrackingEnabled?: boolean;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   clientId?: number | null;
   recurrenceRule?: RecurrenceRule | null;
   recurrenceNextAt?: Date | null;

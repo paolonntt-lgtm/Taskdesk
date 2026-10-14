@@ -19,5 +19,6 @@ export interface UpdateUserBody {
   groups?: string[] | null;
   isActive?: boolean;
   isAvailable?: boolean;
+  hourlyCompensated?: boolean;
   permissionOverrides?: UpdateUserBodyPermissionOverrides;
 }

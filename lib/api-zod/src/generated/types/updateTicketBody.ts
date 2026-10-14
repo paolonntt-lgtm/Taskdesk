@@ -21,6 +21,8 @@ export interface UpdateTicketBody {
   resolutionNote?: string | null;
   /** @minimum 0 */
   workedMinutes?: number | null;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   dueAt?: Date | null;
   clientId?: number | null;
 }

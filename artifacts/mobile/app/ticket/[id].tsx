@@ -36,6 +36,12 @@ interface Ticket {
   createdAt: string; closedAt?: string;
   resolutionNote?: string | null;
   workedMinutes?: number | null;
+  timeTrackingEnabled?: boolean;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
+  timeSessions?: Array<{ id: number; userName: string; durationMinutes: number; endedAt: string | null; clientBillable: boolean; collaboratorRecognizable: boolean }>;
+  timeTrackingSummary?: { totalMinutes: number; clientBillableMinutes: number; collaboratorRecognizableMinutes: number; activeForCurrentUser: boolean };
+  canChangeStatus?: boolean;
   creator: { name: string }; assignee?: { name: string } | null;
   assignedToGroup?: string | null;
   commentCount: number;
@@ -78,11 +84,12 @@ export default function TicketDetailScreen() {
   const s = styles(colors);
   const organizationSettingsQuery = useQuery({
     queryKey: ["mobile-organization-settings", user?.organizationId],
-    queryFn: () => apiGet<{ workedTimeEnabled?: boolean }>("/settings/organization"),
+    queryFn: () => apiGet<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
   const workedTimeEnabled = organizationSettingsQuery.isSuccess &&
     organizationSettingsQuery.data?.workedTimeEnabled !== false;
+  const timeTrackingModuleEnabled = organizationSettingsQuery.data?.timeTrackingModuleEnabled === true;
 
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -286,7 +293,11 @@ export default function TicketDetailScreen() {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     } catch (e: any) {
-      Alert.alert(t.ticketDetail.error, e.message);
+      const activeTicket = e?.data?.activeTicket;
+      const message = e?.data?.error === "TIMER_ALREADY_ACTIVE"
+        ? `${t.ticketDetail.timerAlreadyActive}${activeTicket ? ` #${activeTicket.ticketNumber ?? activeTicket.id}: ${activeTicket.title}` : ""}`
+        : e.message;
+      Alert.alert(t.ticketDetail.error, message);
     }
   };
 
@@ -537,6 +548,16 @@ export default function TicketDetailScreen() {
     isAdmin ||
     ticket.assignedTo === user?.id ||
     user?.groupPermissions?.includes("change_status") === true;
+  const firstWaitingStatusKey = orgStatuses.find((status) =>
+    /waiting|attesa/i.test(`${status.key} ${status.label}`),
+  )?.key;
+  const visibleStatuses = timeTrackingModuleEnabled && ticket.timeTrackingEnabled
+    ? orgStatuses.filter((status) =>
+        status.key === "in_progress" ||
+        status.key === firstWaitingStatusKey ||
+        isClosedKey(status.key),
+      )
+    : orgStatuses;
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
 
   const metaRows = [
@@ -581,6 +602,74 @@ export default function TicketDetailScreen() {
             </View>
           ))}
         </View>
+
+        {timeTrackingModuleEnabled && ticket.timeTrackingEnabled && (
+          <View style={[s.metaCard, { marginTop: 12, padding: 14 }]}>
+            <Text style={[s.sectionTitle, { marginBottom: 8 }]}>{t.ticketDetail.trackedTimeTitle}</Text>
+            <View style={s.metaRow}>
+              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeTotal}</Text>
+              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.totalMinutes ?? 0, lang)}</Text>
+            </View>
+            <View style={s.metaRow}>
+              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeBillable}</Text>
+              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}</Text>
+            </View>
+            <View style={s.metaRow}>
+              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeRecognizable}</Text>
+              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}</Text>
+            </View>
+            {ticket.timeSessions?.map((session) => (
+              <View key={session.id} style={[s.metaRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                <Text style={s.metaLabel}>{session.userName}</Text>
+                <Text style={s.metaValue}>
+                  {formatWorkedDuration(session.durationMinutes, lang)}{session.endedAt ? "" : ` · ${t.ticketDetail.trackedTimeActive}`}
+                </Text>
+              </View>
+            ))}
+            {isAdmin && (
+              <>
+                <TouchableOpacity
+                  style={[s.metaRow, { borderTopWidth: 1, borderTopColor: colors.border }]}
+                  onPress={async () => {
+                    try {
+                      await apiPatch(`/tickets/${id}`, { timeTrackingBillable: !ticket.timeTrackingBillable });
+                      qc.invalidateQueries({ queryKey: ["ticket", id] });
+                    } catch (error: any) {
+                      Alert.alert(t.ticketDetail.error, error.message || t.ticketDetail.error);
+                    }
+                  }}
+                  accessibilityRole="button"
+                  testID="toggle-ticket-client-billable"
+                >
+                  <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeBillable}</Text>
+                  <Text style={[s.metaValue, { color: colors.primary }]}>{ticket.timeTrackingBillable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.metaRow, { borderTopWidth: 1, borderTopColor: colors.border }]}
+                  onPress={async () => {
+                    const current = ticket.timeTrackingCompensationOverride;
+                    const next = current == null ? true : current ? false : null;
+                    try {
+                      await apiPatch(`/tickets/${id}`, { timeTrackingCompensationOverride: next });
+                      qc.invalidateQueries({ queryKey: ["ticket", id] });
+                    } catch (error: any) {
+                      Alert.alert(t.ticketDetail.error, error.message || t.ticketDetail.error);
+                    }
+                  }}
+                  accessibilityRole="button"
+                  testID="cycle-ticket-compensation-override"
+                >
+                  <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeOverride}</Text>
+                  <Text style={[s.metaValue, { color: colors.primary }]}>
+                    {ticket.timeTrackingCompensationOverride == null
+                      ? t.ticketDetail.trackedTimeInherit
+                      : ticket.timeTrackingCompensationOverride ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t.ticketDetail.description}</Text>
@@ -650,7 +739,7 @@ export default function TicketDetailScreen() {
           <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={s.statusRow}>
-              {orgStatuses.map((st) => (
+              {visibleStatuses.map((st) => (
                 <TouchableOpacity
                   key={st.key}
                   style={[s.statusBtn, ticket.status === st.key && s.statusBtnActive]}

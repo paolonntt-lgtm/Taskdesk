@@ -9,8 +9,10 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPut, apiPost, apiPatch } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Constants from "expo-constants";
+import { useQueryClient } from "@tanstack/react-query";
 
 type SectionKey = "groups" | "locations" | "categories";
 type OrganizationSettings = {
@@ -18,6 +20,7 @@ type OrganizationSettings = {
   businessType: string | null;
   clientsEnabled: boolean;
   workedTimeEnabled: boolean;
+  timeTrackingModuleEnabled: boolean;
   entitySingular: string | null;
   entityPlural: string | null;
 };
@@ -46,8 +49,9 @@ const EMPTY_MODAL: ModalState = {
 
 export default function AdminSettingsScreen() {
   const colors = useColors();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const s = styles(colors);
 
   const [groups, setGroups] = useState<string[]>([]);
@@ -108,6 +112,7 @@ export default function AdminSettingsScreen() {
     try {
       const updated = await apiPatch<OrganizationSettings>("/settings/organization", organization);
       setOrganization(updated);
+      queryClient.setQueryData(["mobile-organization-settings", user?.organizationId], updated);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(t.adminSettings.saved, t.adminSettings.organizationSaved);
     } catch (err: any) {
@@ -332,11 +337,35 @@ export default function AdminSettingsScreen() {
                   trackColor={{ true: colors.primary }}
                 />
               </View>
+              <View style={s.orgSwitchRow}>
+                <View style={s.orgSwitchText}>
+                  <Text style={s.orgLabel}>{t.adminSettings.timeTrackingModuleEnabled}</Text>
+                  <Text style={s.orgDescription}>{t.adminSettings.timeTrackingModuleEnabledHelp}</Text>
+                </View>
+                <Switch
+                  value={organization.timeTrackingModuleEnabled}
+                  onValueChange={(timeTrackingModuleEnabled) => setOrganization((current) => current ? { ...current, timeTrackingModuleEnabled } : current)}
+                  disabled={organizationSaving}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
               {organizationError ? <Text style={s.orgError}>{organizationError}</Text> : null}
               <TouchableOpacity style={s.orgSaveBtn} onPress={() => void saveOrganization()} disabled={organizationSaving} activeOpacity={0.8}>
                 {organizationSaving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={15} color="#fff" />}
                 <Text style={s.addBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
               </TouchableOpacity>
+              {organization.timeTrackingModuleEnabled && (
+                <TouchableOpacity
+                  style={[s.orgSaveBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
+                  onPress={() => router.push("/time-report")}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  testID="open-time-report"
+                >
+                  <Feather name="bar-chart-2" size={15} color={colors.primary} />
+                  <Text style={[s.addBtnText, { color: colors.primary }]}>{lang === "it" ? "Apri rendiconto ore" : "Open hours report"}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}

@@ -21,5 +21,8 @@ export interface CreateTicketBody {
   dueAt?: Date | null;
   clientId?: number | null;
   visibility?: CreateTicketBodyVisibility;
+  timeTrackingEnabled?: boolean;
+  timeTrackingBillable?: boolean;
+  timeTrackingCompensationOverride?: boolean | null;
   recurrenceRule?: RecurrenceRule | null;
 }

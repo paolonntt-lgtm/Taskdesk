@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Box, Card, CardContent, Typography, TextField, Button, MenuItem,
+  Box, Card, CardContent, Typography, TextField, Button, MenuItem, Checkbox,
   ToggleButton, ToggleButtonGroup, Autocomplete, Dialog, DialogTitle,
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
   Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
@@ -73,6 +73,14 @@ export default function NewTicket() {
   const saveAttachment = useSaveTicketAttachment();
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
+  const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('Unable to load organization settings');
+      return response.json();
+    },
+  });
 
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
@@ -97,6 +105,8 @@ export default function NewTicket() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [userSearch, setUserSearch] = useState('');
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
+  const [trackWorkedTime, setTrackWorkedTime] = useState(false);
+  const [timeBillableToClient, setTimeBillableToClient] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(new Date().getDay());
@@ -299,6 +309,9 @@ export default function NewTicket() {
           dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
           clientId: formData.clientId ? parseInt(formData.clientId) : null,
           visibility: formData.visibility,
+          ...(currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true
+            ? { timeTrackingEnabled: trackWorkedTime, timeTrackingBillable: trackWorkedTime && timeBillableToClient }
+            : {}),
           ...(recurrenceEnabled && currentUser?.role === 'admin'
             ? {
                 recurrenceRule: {
@@ -670,6 +683,29 @@ export default function NewTicket() {
                 </SideSection>
 
                 {/* Recurrence (admin only) */}
+                {currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true && (
+                  <SideSection>
+                    <SideLabel>{t.ticketDetail.trackedTimeTitle}</SideLabel>
+                    <FormControlLabel
+                      sx={{ mx: 0, alignItems: 'flex-start' }}
+                      control={<Checkbox size="small" checked={trackWorkedTime} onChange={(event) => {
+                        setTrackWorkedTime(event.target.checked);
+                        if (!event.target.checked) setTimeBillableToClient(false);
+                      }} />}
+                      data-testid="toggle-ticket-time-tracking"
+                      label={<Typography variant="body2" fontSize={12}>{t.newTicket.trackWorkedTime}</Typography>}
+                    />
+                    {trackWorkedTime && (
+                      <FormControlLabel
+                        sx={{ mx: 0, ml: 1.5, alignItems: 'flex-start' }}
+                        control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
+                        data-testid="toggle-ticket-client-billable"
+                        label={<Typography variant="body2" fontSize={12}>{t.newTicket.billableToClient}</Typography>}
+                      />
+                    )}
+                  </SideSection>
+                )}
+
                 {currentUser?.role === 'admin' && (
                   <SideSection>
                     <Box display="flex" alignItems="center" gap={0.5}>

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, ilike, or, gte, lte, lt, sql, inArray, isNotNull, isNull, gt, asc, notInArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable, organizationsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketTimeSessionsTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
@@ -32,6 +32,9 @@ const TICKET_LIST_COLS = {
   resolutionNote: ticketsTable.resolutionNote,
   workedMinutes: ticketsTable.workedMinutes,
   workedBillingStatus: ticketsTable.workedBillingStatus,
+  timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+  timeTrackingBillable: ticketsTable.timeTrackingBillable,
+  timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
   dueAt: ticketsTable.dueAt,
   createdAt: ticketsTable.createdAt,
   updatedAt: ticketsTable.updatedAt,
@@ -59,6 +62,10 @@ const USER_LIST_COLS = {
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
+}
+
+function isWaitingStatus(status: { key: string; label: string; isClosed?: boolean }): boolean {
+  return !status.isClosed && (status.key === "waiting" || /waiting|attesa/i.test(status.label));
 }
 
 function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null): Date {
@@ -407,7 +414,28 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     clientId,
     visibility = "organization",
     recurrenceRule,
+    timeTrackingEnabled = false,
+    timeTrackingBillable = false,
+    timeTrackingCompensationOverride = null,
   } = parsed.data;
+
+  if (timeTrackingEnabled || timeTrackingBillable || timeTrackingCompensationOverride !== null) {
+    if (currentUser.role !== "admin") {
+      res.status(403).json({ error: "Only admins can configure ticket time tracking" });
+      return;
+    }
+    const [organization] = await db.select({ enabled: organizationsTable.timeTrackingModuleEnabled })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, currentUser.organizationId));
+    if (!organization?.enabled) {
+      res.status(403).json({ error: "Time tracking is disabled for this organization" });
+      return;
+    }
+    if (!timeTrackingEnabled && (timeTrackingBillable || timeTrackingCompensationOverride !== null)) {
+      res.status(400).json({ error: "Ticket classification requires time tracking to be enabled" });
+      return;
+    }
+  }
 
   if (clientId != null) {
     const [organization] = await db
@@ -473,11 +501,20 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
   // Use the org's default status if configured, otherwise fall back to "open"
   let defaultStatusKey = "open";
   if (orgIdForNum != null) {
-    const [defaultStatus] = await db
-      .select({ key: ticketStatusesTable.key })
+    const orgStatuses = await db
+      .select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isDefault: ticketStatusesTable.isDefault, isClosed: ticketStatusesTable.isClosed })
       .from(ticketStatusesTable)
-      .where(and(eq(ticketStatusesTable.organizationId, orgIdForNum), eq(ticketStatusesTable.isDefault, true)));
+      .where(eq(ticketStatusesTable.organizationId, orgIdForNum));
+    const defaultStatus = orgStatuses.find((status) => status.isDefault);
     if (defaultStatus) defaultStatusKey = defaultStatus.key;
+    if (timeTrackingEnabled) {
+      const waitingStatus = orgStatuses.find(isWaitingStatus);
+      if (!waitingStatus) {
+        res.status(400).json({ error: "Tracked tickets require an 'In attesa' status in the organization status list" });
+        return;
+      }
+      defaultStatusKey = waitingStatus.key;
+    }
   }
 
   const recurrenceNextAt = recurrenceRule
@@ -499,6 +536,9 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     priority,
     status: defaultStatusKey,
     visibility,
+    timeTrackingEnabled,
+    timeTrackingBillable: timeTrackingEnabled && timeTrackingBillable,
+    timeTrackingCompensationOverride: timeTrackingEnabled ? timeTrackingCompensationOverride : null,
     createdBy: currentUser.id,
     organizationId: currentUser.organizationId,
     ticketNumber: nextTicketNumber,
@@ -700,10 +740,66 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     currentUser.role === "admin",
     req,
   );
-  res.json(redactClientData(redactWorkedHours(
-    buildTicketWithDetails(ticket, creator, assignee, Number(cc), Number(nc), inboundChannelName, ticketClient),
-    canViewWorkedHours,
-  ), clientsEnabled));
+  const detail = buildTicketWithDetails(
+    ticket,
+    creator,
+    assignee,
+    Number(cc),
+    Number(nc),
+    inboundChannelName,
+    ticketClient,
+  );
+  const groupCanChangeStatus = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    "change_status",
+    currentUser.role === "admin",
+  );
+  detail.canChangeStatus =
+    currentUser.role === "admin" || groupCanChangeStatus || ticket.assignedTo === currentUser.id;
+  const [trackingSettings] = await db.select({
+    enabled: organizationsTable.timeTrackingModuleEnabled,
+  }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  if (trackingSettings?.enabled && ticket.timeTrackingEnabled) {
+    const sessionConditions = [
+      eq(ticketTimeSessionsTable.ticketId, id),
+      eq(ticketTimeSessionsTable.organizationId, orgId),
+    ];
+    if (currentUser.role !== "admin") sessionConditions.push(eq(ticketTimeSessionsTable.userId, currentUser.id));
+    const sessions = await db.select({
+      id: ticketTimeSessionsTable.id,
+      userId: ticketTimeSessionsTable.userId,
+      userName: usersTable.name,
+      startedAt: ticketTimeSessionsTable.startedAt,
+      endedAt: ticketTimeSessionsTable.endedAt,
+      clientBillable: ticketTimeSessionsTable.clientBillable,
+      collaboratorRecognizable: ticketTimeSessionsTable.collaboratorRecognizable,
+    })
+      .from(ticketTimeSessionsTable)
+      .innerJoin(usersTable, eq(ticketTimeSessionsTable.userId, usersTable.id))
+      .where(and(...sessionConditions))
+      .orderBy(ticketTimeSessionsTable.startedAt);
+    const now = Date.now();
+    const timeSessions = sessions.map((session) => ({
+      ...session,
+      durationMinutes: Math.max(0, Math.floor(
+        (new Date(session.endedAt ?? now).getTime() - new Date(session.startedAt).getTime()) / 60_000,
+      )),
+    }));
+    const totalMinutes = timeSessions.reduce((sum, session) => sum + session.durationMinutes, 0);
+    detail.timeSessions = timeSessions;
+    detail.timeTrackingSummary = {
+      totalMinutes,
+      clientBillableMinutes: timeSessions
+        .filter((session) => session.clientBillable)
+        .reduce((sum, session) => sum + session.durationMinutes, 0),
+      collaboratorRecognizableMinutes: timeSessions
+        .filter((session) => session.collaboratorRecognizable)
+        .reduce((sum, session) => sum + session.durationMinutes, 0),
+      activeForCurrentUser: sessions.some((session) => session.userId === currentUser.id && session.endedAt == null),
+    };
+  }
+  res.json(redactClientData(redactWorkedHours(detail, canViewWorkedHours), clientsEnabled));
 });
 
 // Admin-only visibility switch for tickets created through private email channels.
@@ -814,6 +910,29 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(404).json({ error: "Ticket not found" });
     return;
   }
+
+  const [organizationTimeTracking] = await db.select({
+    enabled: organizationsTable.timeTrackingModuleEnabled,
+  }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  const timeTrackingModuleEnabled = organizationTimeTracking?.enabled === true;
+  const hasClassificationUpdate =
+    parsed.data.timeTrackingBillable !== undefined ||
+    parsed.data.timeTrackingCompensationOverride !== undefined;
+  if (hasClassificationUpdate) {
+    if (!isAdmin) {
+      res.status(403).json({ error: "Only admins can configure ticket time classifications" });
+      return;
+    }
+    if (!timeTrackingModuleEnabled) {
+      res.status(403).json({ error: "Time tracking is disabled for this organization" });
+      return;
+    }
+    if (!existing.timeTrackingEnabled) {
+      res.status(400).json({ error: "Time tracking is not enabled for this ticket" });
+      return;
+    }
+  }
+  const shouldTrackStatus = timeTrackingModuleEnabled && existing.timeTrackingEnabled;
 
   // Check group permissions for non-admins (must happen before the 403 gate)
   const hasGroupStatusPermission = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin, req);
@@ -926,8 +1045,9 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     let newLabel = fallbackLabels[updates.status] ?? updates.status;
     newIsClosed = updates.status === "closed" || updates.status === "resolved";
 
+    let orgStatuses: { key: string; label: string; isClosed: boolean }[] = [];
     if (orgId != null) {
-      const orgStatuses = await db
+      orgStatuses = await db
         .select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isClosed: ticketStatusesTable.isClosed })
         .from(ticketStatusesTable)
         .where(eq(ticketStatusesTable.organizationId, orgId));
@@ -939,9 +1059,31 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         return;
       }
 
+      if (shouldTrackStatus) {
+        const requestedRow = statusMap.get(updates.status);
+        newIsClosed = requestedRow?.isClosed ?? newIsClosed;
+        const isWorkingStatus = updates.status === "in_progress";
+        const isWaiting = requestedRow ? isWaitingStatus(requestedRow) : updates.status === "waiting";
+        const existingStatusIsClosed =
+          statusMap.get(existing.status)?.isClosed ??
+          (existing.status === "closed" || existing.status === "resolved");
+        const reopening = existingStatusIsClosed && !newIsClosed;
+        if (!newIsClosed && (reopening || (!isWorkingStatus && !isWaiting))) {
+          const waitingStatus = orgStatuses.find(isWaitingStatus);
+          if (waitingStatus) {
+            (updates as any).status = waitingStatus.key;
+          } else if (updates.status !== "waiting") {
+            res.status(400).json({
+              error: "Tracked tickets require an 'In attesa' status in the organization status list",
+            });
+            return;
+          }
+        }
+      }
+
       if (statusMap.has(existing.status)) oldLabel = statusMap.get(existing.status)!.label;
-      if (statusMap.has(updates.status)) {
-        const newStatusRow = statusMap.get(updates.status)!;
+      if (statusMap.has(updates.status as string)) {
+        const newStatusRow = statusMap.get(updates.status as string)!;
         newLabel = newStatusRow.label;
         newIsClosed = newStatusRow.isClosed;
       }
@@ -1014,11 +1156,66 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  const [updated] = await db
-    .update(ticketsTable)
-    .set({ ...updates, updatedAt: new Date() })
-    .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
-    .returning();
+  let updated: typeof existing;
+  try {
+    updated = await db.transaction(async (tx) => {
+      if (shouldTrackStatus && updates.status && updates.status !== existing.status) {
+        const now = new Date();
+        if (updates.status === "in_progress") {
+          const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
+            .from(usersTable)
+            .where(and(eq(usersTable.id, currentUser.id), eq(usersTable.organizationId, orgId)));
+          await tx.insert(ticketTimeSessionsTable).values({
+            organizationId: orgId,
+            ticketId: id,
+            userId: currentUser.id,
+            startedAt: now,
+            clientBillable: existing.timeTrackingBillable,
+            collaboratorRecognizable: existing.timeTrackingCompensationOverride ?? worker?.hourlyCompensated ?? false,
+          });
+        } else {
+          await tx.update(ticketTimeSessionsTable)
+            .set({ endedAt: now })
+            .where(and(
+              eq(ticketTimeSessionsTable.organizationId, orgId),
+              eq(ticketTimeSessionsTable.ticketId, id),
+              isNull(ticketTimeSessionsTable.endedAt),
+            ));
+        }
+      }
+      const [saved] = await tx
+        .update(ticketsTable)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
+        .returning();
+      return saved;
+    });
+  } catch (error: any) {
+    const dbError = error?.cause ?? error;
+    if (dbError?.code === "23505" && dbError?.constraint === "ticket_time_sessions_one_active_per_user") {
+      const [active] = await db.select({
+        ticketId: ticketTimeSessionsTable.ticketId,
+        ticketNumber: ticketsTable.ticketNumber,
+        title: ticketsTable.title,
+      })
+        .from(ticketTimeSessionsTable)
+        .innerJoin(ticketsTable, eq(ticketTimeSessionsTable.ticketId, ticketsTable.id))
+        .where(and(
+          eq(ticketTimeSessionsTable.userId, currentUser.id),
+          eq(ticketTimeSessionsTable.organizationId, orgId),
+          isNull(ticketTimeSessionsTable.endedAt),
+        ));
+      res.status(409).json({
+        error: "TIMER_ALREADY_ACTIVE",
+        message: active
+          ? `You already have an active timer on ticket #${active.ticketNumber ?? active.ticketId}: ${active.title}.`
+          : "You already have an active timer on another ticket.",
+        activeTicket: active ? { id: active.ticketId, ticketNumber: active.ticketNumber, title: active.title } : null,
+      });
+      return;
+    }
+    throw error;
+  }
 
   for (const log of activityLogs) {
     await db.insert(ticketActivityLogsTable).values({

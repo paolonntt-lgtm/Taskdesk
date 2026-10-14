@@ -91,6 +91,7 @@ export const ListGroupsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -101,14 +102,14 @@ export const ListGroupsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })),
   "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
 })
@@ -142,6 +143,7 @@ export const CreateGroupResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -152,14 +154,14 @@ export const CreateGroupResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })),
   "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
 })
@@ -213,6 +215,7 @@ export const UpdateGroupResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -223,14 +226,14 @@ export const UpdateGroupResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })),
   "permissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours']))
 })
@@ -311,6 +314,7 @@ export const LoginResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -321,14 +325,14 @@ export const LoginResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "message": zod.string().optional()
 })
@@ -362,7 +366,10 @@ export const CompleteOnboardingResponse = zod.object({
  */
 export const GetOrganizationSettingsResponse = zod.object({
   "name": zod.string().optional(),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "clientsEnabled": zod.boolean().optional(),
+  "workedTimeEnabled": zod.boolean().optional(),
+  "timeTrackingModuleEnabled": zod.boolean().optional()
 })
 
 
@@ -375,7 +382,10 @@ export const updateOrganizationSettingsBodyNameMin = 2;
 
 export const UpdateOrganizationSettingsBody = zod.object({
   "name": zod.string().min(updateOrganizationSettingsBodyNameMin),
-  "businessType": zod.string().nullish()
+  "businessType": zod.string().nullish(),
+  "clientsEnabled": zod.boolean().optional(),
+  "workedTimeEnabled": zod.boolean().optional(),
+  "timeTrackingModuleEnabled": zod.boolean().optional()
 })
 
 export const UpdateOrganizationSettingsResponse = zod.object({
@@ -398,6 +408,7 @@ export const GetCurrentUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -408,14 +419,14 @@ export const GetCurrentUserResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 
 
@@ -433,6 +444,7 @@ export const ListUsersResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -443,14 +455,14 @@ export const ListUsersResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
@@ -469,7 +481,8 @@ export const CreateUserBody = zod.object({
   "role": zod.enum(['admin', 'user']),
   "mainLocation": zod.string().nullish(),
   "group": zod.string().nullish(),
-  "groups": zod.array(zod.string()).nullish()
+  "groups": zod.array(zod.string()).nullish(),
+  "hourlyCompensated": zod.boolean().optional()
 })
 
 export const CreateUserResponse = zod.object({
@@ -483,6 +496,7 @@ export const CreateUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -493,14 +507,14 @@ export const CreateUserResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 
 
@@ -522,6 +536,7 @@ export const GetUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -532,14 +547,14 @@ export const GetUserResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 
 
@@ -564,6 +579,7 @@ export const UpdateUserBody = zod.object({
   "groups": zod.array(zod.string()).nullish(),
   "isActive": zod.boolean().optional(),
   "isAvailable": zod.boolean().optional(),
+  "hourlyCompensated": zod.boolean().optional(),
   "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 
@@ -578,6 +594,7 @@ export const UpdateUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -588,14 +605,14 @@ export const UpdateUserResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 
 
@@ -637,6 +654,8 @@ export const listTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 export const listTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const listTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
 
+export const listTicketsResponseTwoTimeSessionsItemDurationMinutesMin = 0;
+
 
 
 export const ListTicketsResponseItem = zod.object({
@@ -660,6 +679,9 @@ export const ListTicketsResponseItem = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -683,6 +705,7 @@ export const ListTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -693,14 +716,14 @@ export const ListTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -713,6 +736,7 @@ export const ListTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -723,18 +747,35 @@ export const ListTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(listTicketsResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 export const ListTicketsResponse = zod.array(ListTicketsResponseItem)
 
@@ -761,6 +802,9 @@ export const CreateTicketBody = zod.object({
   "dueAt": zod.coerce.date().nullish(),
   "clientId": zod.int().nullish(),
   "visibility": zod.enum(['organization', 'admins']).optional(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
   "interval": zod.int().nullish(),
@@ -774,6 +818,8 @@ export const createTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
 export const createTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const createTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const createTicketResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -798,6 +844,9 @@ export const CreateTicketResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -821,6 +870,7 @@ export const CreateTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -831,14 +881,14 @@ export const CreateTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -851,6 +901,7 @@ export const CreateTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -861,18 +912,35 @@ export const CreateTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(createTicketResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -887,6 +955,8 @@ export const getTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
 export const getTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const getTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const getTicketResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -911,6 +981,9 @@ export const GetTicketResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -934,6 +1007,7 @@ export const GetTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -944,14 +1018,14 @@ export const GetTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -964,6 +1038,7 @@ export const GetTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -974,18 +1049,35 @@ export const GetTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(getTicketResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -1007,11 +1099,13 @@ export const UpdateTicketBody = zod.object({
   "location": zod.string().optional(),
   "resource": zod.string().nullish(),
   "priority": zod.enum(['low', 'medium', 'high', 'urgent']).optional(),
-  "status": zod.enum(['open', 'waiting', 'resolved', 'closed']).optional(),
+  "status": zod.enum(['open', 'in_progress', 'waiting', 'resolved', 'closed']).optional(),
   "assignedTo": zod.int().nullish(),
   "assignedToGroup": zod.string().nullish(),
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().min(updateTicketBodyWorkedMinutesMin).nullish(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "dueAt": zod.coerce.date().nullish(),
   "clientId": zod.int().nullish()
 })
@@ -1020,6 +1114,8 @@ export const updateTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
 export const updateTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const updateTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const updateTicketResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -1044,6 +1140,9 @@ export const UpdateTicketResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1067,6 +1166,7 @@ export const UpdateTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1077,14 +1177,14 @@ export const UpdateTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -1097,6 +1197,7 @@ export const UpdateTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1107,18 +1208,35 @@ export const UpdateTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(updateTicketResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -1148,6 +1266,8 @@ export const cloneTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 export const cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const cloneTicketResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
 
+export const cloneTicketResponseTwoTimeSessionsItemDurationMinutesMin = 0;
+
 
 
 export const CloneTicketResponse = zod.object({
@@ -1171,6 +1291,9 @@ export const CloneTicketResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1194,6 +1317,7 @@ export const CloneTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1204,14 +1328,14 @@ export const CloneTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -1224,6 +1348,7 @@ export const CloneTicketResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1234,18 +1359,35 @@ export const CloneTicketResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(cloneTicketResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -1276,6 +1418,8 @@ export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const setTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
 
+export const setTicketRecurrenceResponseTwoTimeSessionsItemDurationMinutesMin = 0;
+
 
 
 export const SetTicketRecurrenceResponse = zod.object({
@@ -1299,6 +1443,9 @@ export const SetTicketRecurrenceResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1322,6 +1469,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1332,14 +1480,14 @@ export const SetTicketRecurrenceResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -1352,6 +1500,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1362,18 +1511,35 @@ export const SetTicketRecurrenceResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(setTicketRecurrenceResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -1388,6 +1554,8 @@ export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfMonthMax = 3
 
 export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const deleteTicketRecurrenceResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const deleteTicketRecurrenceResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -1412,6 +1580,9 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -1435,6 +1606,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1445,14 +1617,14 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -1465,6 +1637,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1475,18 +1648,35 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(deleteTicketRecurrenceResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 
 
@@ -1517,6 +1707,7 @@ export const ListTicketCommentsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1527,14 +1718,14 @@ export const ListTicketCommentsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "reactions": zod.array(zod.object({
   "emoji": zod.string(),
@@ -1578,6 +1769,7 @@ export const AddTicketCommentResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1588,14 +1780,14 @@ export const AddTicketCommentResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "reactions": zod.array(zod.object({
   "emoji": zod.string(),
@@ -1638,6 +1830,7 @@ export const UpdateTicketCommentResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1648,14 +1841,14 @@ export const UpdateTicketCommentResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "reactions": zod.array(zod.object({
   "emoji": zod.string(),
@@ -1792,6 +1985,7 @@ export const ListTicketNotesResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1802,14 +1996,14 @@ export const ListTicketNotesResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 })
 export const ListTicketNotesResponse = zod.array(ListTicketNotesResponseItem)
@@ -1843,6 +2037,7 @@ export const AddTicketNoteResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -1853,14 +2048,14 @@ export const AddTicketNoteResponse = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 })
 
@@ -2081,6 +2276,7 @@ export const ListTicketActivityResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2091,14 +2287,14 @@ export const ListTicketActivityResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 })
 })
 export const ListTicketActivityResponse = zod.array(ListTicketActivityResponseItem)
@@ -2302,6 +2498,58 @@ export const DeleteAnnouncementResponse = zod.void()
 
 
 /**
+ * @summary Get tracked and manual worked-time report (admin only)
+ */
+export const GetTimeTrackingReportQueryParams = zod.object({
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional(),
+  "clientId": zod.coerce.number().int().optional(),
+  "collaboratorId": zod.coerce.number().int().optional()
+})
+
+export const getTimeTrackingReportResponseCustomerRowsItemDurationMinutesMin = 0;
+
+export const getTimeTrackingReportResponseCollaboratorRowsItemDurationMinutesMin = 0;
+
+
+
+export const GetTimeTrackingReportResponse = zod.object({
+  "customerRows": zod.array(zod.object({
+  "kind": zod.enum(['session', 'manual']),
+  "ticketId": zod.int(),
+  "ticketNumber": zod.int().nullable(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "durationMinutes": zod.int().min(getTimeTrackingReportResponseCustomerRowsItemDurationMinutesMin),
+  "clientId": zod.int().nullish(),
+  "clientName": zod.string().nullish(),
+  "collaboratorId": zod.int().nullish(),
+  "collaboratorName": zod.string().nullish(),
+  "billingStatus": zod.enum(['unbilled', 'billed'])
+})),
+  "collaboratorRows": zod.array(zod.object({
+  "kind": zod.enum(['session', 'manual']),
+  "ticketId": zod.int(),
+  "ticketNumber": zod.int().nullable(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "durationMinutes": zod.int().min(getTimeTrackingReportResponseCollaboratorRowsItemDurationMinutesMin),
+  "clientId": zod.int().nullish(),
+  "clientName": zod.string().nullish(),
+  "collaboratorId": zod.int().nullish(),
+  "collaboratorName": zod.string().nullish(),
+  "billingStatus": zod.enum(['unbilled', 'billed'])
+})),
+  "totals": zod.object({
+  "clientBillableMinutes": zod.int(),
+  "clientUnbilledMinutes": zod.int(),
+  "clientBilledMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int()
+})
+})
+
+
+/**
  * @summary Get dashboard summary statistics
  */
 export const GetDashboardStatsResponse = zod.object({
@@ -2390,6 +2638,8 @@ export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfMonthMax = 31;
 export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const getRecentTicketsResponseOneOneRecurrenceRuleOneDayOfWeekMax = 6;
 
+export const getRecentTicketsResponseOneTwoTimeSessionsItemDurationMinutesMin = 0;
+
 
 
 export const GetRecentTicketsResponseItem = zod.object({
@@ -2413,6 +2663,9 @@ export const GetRecentTicketsResponseItem = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2436,6 +2689,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2446,14 +2700,14 @@ export const GetRecentTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -2466,6 +2720,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2476,18 +2731,35 @@ export const GetRecentTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(getRecentTicketsResponseOneTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 })).and(zod.object({
   "latestActivity": zod.object({
   "actionType": zod.string(),
@@ -2505,6 +2777,8 @@ export const getMyTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
 export const getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const getMyTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const getMyTicketsResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -2529,6 +2803,9 @@ export const GetMyTicketsResponseItem = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2552,6 +2829,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2562,14 +2840,14 @@ export const GetMyTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -2582,6 +2860,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2592,18 +2871,35 @@ export const GetMyTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(getMyTicketsResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem)
 
@@ -2615,6 +2911,8 @@ export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfMonthMax = 31;
 
 export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMin = 0;
 export const getDueSoonTicketsResponseOneRecurrenceRuleOneDayOfWeekMax = 6;
+
+export const getDueSoonTicketsResponseTwoTimeSessionsItemDurationMinutesMin = 0;
 
 
 
@@ -2639,6 +2937,9 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "resolutionNote": zod.string().nullish(),
   "workedMinutes": zod.int().nullish(),
   "workedBillingStatus": zod.enum(['unbilled', 'billed']).nullish(),
+  "timeTrackingEnabled": zod.boolean().optional(),
+  "timeTrackingBillable": zod.boolean().optional(),
+  "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "clientId": zod.int().nullish(),
   "recurrenceRule": zod.union([zod.object({
   "frequency": zod.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -2662,6 +2963,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2672,14 +2974,14 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "assignee": zod.object({
   "id": zod.int(),
@@ -2692,6 +2994,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "isAvailable": zod.boolean(),
+  "hourlyCompensated": zod.boolean().optional(),
   "createdAt": zod.coerce.date(),
   "onboardingDone": zod.boolean().nullish(),
   "businessType": zod.string().nullish(),
@@ -2702,18 +3005,35 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "isExpired": zod.boolean(),
   "daysLeft": zod.int()
 }).nullish(),
-  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
-  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional(),
   "isSuperAdmin": zod.boolean().nullish(),
   "clientsEnabled": zod.boolean().nullish(),
   "organizationId": zod.int().nullish(),
-  "organizationName": zod.string().nullish()
+  "organizationName": zod.string().nullish(),
+  "groupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "inheritedGroupPermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "effectivePermissions": zod.array(zod.enum(['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'])).optional(),
+  "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }).nullish(),
   "commentCount": zod.int(),
   "noteCount": zod.int(),
-  "inboundChannelName": zod.string().nullish()
+  "inboundChannelName": zod.string().nullish(),
+  "timeSessions": zod.array(zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "userName": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.int().min(getDueSoonTicketsResponseTwoTimeSessionsItemDurationMinutesMin),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})).optional(),
+  "timeTrackingSummary": zod.object({
+  "totalMinutes": zod.int(),
+  "clientBillableMinutes": zod.int(),
+  "collaboratorRecognizableMinutes": zod.int(),
+  "activeForCurrentUser": zod.boolean()
+}).optional(),
+  "canChangeStatus": zod.boolean().optional()
 }))
 export const GetDueSoonTicketsResponse = zod.array(GetDueSoonTicketsResponseItem)
 

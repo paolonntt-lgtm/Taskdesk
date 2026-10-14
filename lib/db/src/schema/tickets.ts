@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, index, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -24,6 +24,9 @@ export const ticketsTable = pgTable("tickets", {
   resolutionNote: text("resolution_note"),
   workedMinutes: integer("worked_minutes"),
   workedBillingStatus: text("worked_billing_status").notNull().default("unbilled"),
+  timeTrackingEnabled: boolean("time_tracking_enabled").notNull().default(false),
+  timeTrackingBillable: boolean("time_tracking_billable").notNull().default(false),
+  timeTrackingCompensationOverride: boolean("time_tracking_compensation_override"),
   dueAt: timestamp("due_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

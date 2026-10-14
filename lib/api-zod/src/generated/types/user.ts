@@ -23,18 +23,19 @@ export interface User {
   avatarUrl?: string | null;
   isActive: boolean;
   isAvailable: boolean;
+  hourlyCompensated?: boolean;
   createdAt: Date;
   onboardingDone?: boolean | null;
   businessType?: string | null;
   trialEndsAt?: Date | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
-  groupPermissions?: UserGroupPermissionsItem[];
-  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
-  effectivePermissions?: UserEffectivePermissionsItem[];
-  permissionOverrides?: UserPermissionOverrides;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
+  groupPermissions?: UserGroupPermissionsItem[];
+  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
+  effectivePermissions?: UserEffectivePermissionsItem[];
+  permissionOverrides?: UserPermissionOverrides;
 }

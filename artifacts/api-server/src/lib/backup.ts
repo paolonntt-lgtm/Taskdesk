@@ -6,6 +6,7 @@ import {
   ticketCommentsTable,
   ticketInternalNotesTable,
   ticketActivityLogsTable,
+  ticketTimeSessionsTable,
   ticketAttachmentsTable,
   clientsTable,
   clientNotesTable,
@@ -28,7 +29,7 @@ async function _buildPayload(orgId: number) {
 
   const users = await db.select({
     id: usersTable.id, name: usersTable.name, email: usersTable.email,
-    role: usersTable.role, isActive: usersTable.isActive, createdAt: usersTable.createdAt,
+    role: usersTable.role, isActive: usersTable.isActive, hourlyCompensated: usersTable.hourlyCompensated, createdAt: usersTable.createdAt,
   }).from(usersTable).where(eq(usersTable.organizationId, orgId));
 
   const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.organizationId, orgId));
@@ -36,13 +37,14 @@ async function _buildPayload(orgId: number) {
   const clients = await db.select().from(clientsTable).where(eq(clientsTable.organizationId, orgId));
   const clientIds = clients.map((c) => c.id);
 
-  const [comments, internalNotes, activityLogs, attachments, clientNotes, groups] = await Promise.all([
+  const [comments, internalNotes, activityLogs, attachments, clientNotes, groups, timeSessions] = await Promise.all([
     ticketIds.length > 0 ? db.select().from(ticketCommentsTable).where(inArray(ticketCommentsTable.ticketId, ticketIds)) : [],
     ticketIds.length > 0 ? db.select().from(ticketInternalNotesTable).where(inArray(ticketInternalNotesTable.ticketId, ticketIds)) : [],
     ticketIds.length > 0 ? db.select().from(ticketActivityLogsTable).where(inArray(ticketActivityLogsTable.ticketId, ticketIds)) : [],
     ticketIds.length > 0 ? db.select().from(ticketAttachmentsTable).where(inArray(ticketAttachmentsTable.ticketId, ticketIds)) : [],
     clientIds.length > 0 ? db.select().from(clientNotesTable).where(inArray(clientNotesTable.clientId, clientIds)) : [],
     db.select().from(groupsTable).where(eq(groupsTable.organizationId, orgId)),
+    ticketIds.length > 0 ? db.select().from(ticketTimeSessionsTable).where(inArray(ticketTimeSessionsTable.ticketId, ticketIds)) : [],
   ]);
 
   const now = new Date();
@@ -54,8 +56,9 @@ async function _buildPayload(orgId: number) {
       internalNotes: internalNotes.length, activityLogs: activityLogs.length,
       attachments: attachments.length, clients: clients.length,
       clientNotes: clientNotes.length, groups: groups.length,
+      timeSessions: timeSessions.length,
     },
-    data: { users, tickets, comments, internalNotes, activityLogs, attachments, clients, clientNotes, groups },
+    data: { users, tickets, comments, internalNotes, activityLogs, attachments, clients, clientNotes, groups, timeSessions },
   };
 }
 

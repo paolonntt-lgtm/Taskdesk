@@ -43,6 +43,7 @@ import {
   SwapHoriz,
   Comment,
   AssignmentInd,
+  AccessTime,
   PriorityHigh,
   Info,
   ChevronLeft,
@@ -62,7 +63,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 import { useEntityTerm } from '../hooks/useEntityTerm';
@@ -153,6 +154,16 @@ export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { data: timeTrackingSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('organization settings unavailable');
+      return response.json();
+    },
+    enabled: user?.role === 'admin',
+    staleTime: 5 * 60_000,
+  });
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -551,6 +562,9 @@ export default function Layout({ children }: LayoutProps) {
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
       : []),
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
+      ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
+      : []),
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');

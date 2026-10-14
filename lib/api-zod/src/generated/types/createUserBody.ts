@@ -16,4 +16,5 @@ export interface CreateUserBody {
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;
+  hourlyCompensated?: boolean;
 }

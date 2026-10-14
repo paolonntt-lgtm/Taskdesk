@@ -9,4 +9,7 @@
 export type GetOrganizationSettings200 = {
   name?: string;
   businessType?: string | null;
+  clientsEnabled?: boolean;
+  workedTimeEnabled?: boolean;
+  timeTrackingModuleEnabled?: boolean;
 };

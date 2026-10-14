@@ -260,6 +260,36 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS worked_time_enabled BOOLEAN NOT NULL DEFAULT true;
     `);
 
+    // Optional timer module. Existing manual worked-time records remain untouched.
+    await client.query(`
+      ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS time_tracking_module_enabled BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS hourly_compensated BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS time_tracking_enabled BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS time_tracking_billable BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS time_tracking_compensation_override BOOLEAN;
+      CREATE TABLE IF NOT EXISTS ticket_time_sessions (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ended_at TIMESTAMPTZ,
+        client_billable BOOLEAN NOT NULL DEFAULT false,
+        collaborator_recognizable BOOLEAN NOT NULL DEFAULT false
+      );
+      CREATE INDEX IF NOT EXISTS ticket_time_sessions_org_started_idx
+        ON ticket_time_sessions (organization_id, started_at);
+      CREATE INDEX IF NOT EXISTS ticket_time_sessions_ticket_idx
+        ON ticket_time_sessions (ticket_id, started_at);
+      CREATE INDEX IF NOT EXISTS ticket_time_sessions_user_idx
+        ON ticket_time_sessions (user_id, started_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS ticket_time_sessions_one_active_per_user
+        ON ticket_time_sessions (user_id) WHERE ended_at IS NULL;
+    `);
+
     // Daily reports — operator EOD report saved in DB; colleagues see badge + auto-briefing
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_reports (

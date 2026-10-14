@@ -59,8 +59,8 @@ async function initStripe() {
   }
 }
 
-seedIfEmpty()
-  .then(() => runAppMigrations())
+runAppMigrations()
+  .then(() => seedIfEmpty())
   .then(() => backfillOrgTicketStatuses())
   .then(() => startAppointmentReminderJob())
   .then(() => startTicketRecurrenceJob())

@@ -89,6 +89,9 @@ export default function NewTicketScreen() {
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
   const [privateTicket, setPrivateTicket] = useState(false);
+  const [timeTrackingModuleEnabled, setTimeTrackingModuleEnabled] = useState(false);
+  const [trackWorkedTime, setTrackWorkedTime] = useState(false);
+  const [timeBillableToClient, setTimeBillableToClient] = useState(false);
   const [attachments, setAttachments] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
   const [uploading, setUploading] = useState(false);
   const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>([]);
@@ -145,6 +148,7 @@ export default function NewTicketScreen() {
     if (isAdmin) requests.push(
       apiGet<UserOption[]>("/users"),
       apiGet<{ value: string[] }>("/settings/groups"),
+      apiGet<{ timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     );
     if (clientsEnabled) requests.push(apiGet<ClientOption[]>("/clients"));
     requests.push(apiGet<ChecklistTemplate[]>("/checklist-templates").catch(() => []));
@@ -171,6 +175,7 @@ export default function NewTicketScreen() {
         if (isAdmin) {
           setUsers((results[index++] as UserOption[]).filter((u) => u.isActive !== false));
           setGroups((results[index++] as { value: string[] }).value ?? []);
+          setTimeTrackingModuleEnabled((results[index++] as { timeTrackingModuleEnabled?: boolean }).timeTrackingModuleEnabled === true);
         }
         if (clientsEnabled) setClientList(results[index++] as ClientOption[]);
         setChecklistTemplates(results[index] as ChecklistTemplate[]);
@@ -238,6 +243,10 @@ export default function NewTicketScreen() {
         dueAt: dueAt?.toISOString() ?? null,
         clientId: selectedClientId ? Number(selectedClientId) : null,
         visibility: isAdmin && privateTicket ? "admins" : "organization",
+        ...(isAdmin && timeTrackingModuleEnabled ? {
+          timeTrackingEnabled: trackWorkedTime,
+          timeTrackingBillable: trackWorkedTime && timeBillableToClient,
+        } : {}),
         ...(isAdmin && recurrenceEnabled ? {
           recurrenceRule: {
             frequency: recurrenceFrequency,
@@ -797,6 +806,30 @@ export default function NewTicketScreen() {
 
       {isAdmin && (
         <View style={s.field}>
+          {timeTrackingModuleEnabled && (
+            <View style={{ marginBottom: 14 }}>
+              <TouchableOpacity style={s.toggleRow} onPress={() => {
+                setTrackWorkedTime((current) => {
+                  if (current) setTimeBillableToClient(false);
+                  return !current;
+                });
+              }}>
+                <Feather name="clock" size={17} color={trackWorkedTime ? colors.primary : colors.mutedForeground} />
+                <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.trackWorkedTime}</Text>
+                <View style={[s.toggleBox, trackWorkedTime && s.toggleBoxActive]}>
+                  {trackWorkedTime && <Feather name="check" size={14} color={colors.primaryForeground} />}
+                </View>
+              </TouchableOpacity>
+              {trackWorkedTime && (
+                <TouchableOpacity style={[s.toggleRow, { marginTop: 8, paddingLeft: 28 }]} onPress={() => setTimeBillableToClient((current) => !current)}>
+                  <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.billableToClient}</Text>
+                  <View style={[s.toggleBox, timeBillableToClient && s.toggleBoxActive]}>
+                    {timeBillableToClient && <Feather name="check" size={14} color={colors.primaryForeground} />}
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
           <TouchableOpacity style={s.toggleRow} onPress={() => setPrivateTicket((current) => !current)}>
             <View style={[s.toggleBox, privateTicket && s.toggleBoxActive]}>
               {privateTicket && <Feather name="check" size={14} color={colors.primaryForeground} />}

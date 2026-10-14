@@ -18,6 +18,7 @@ export const usersTable = pgTable("users", {
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),
   isAvailable: boolean("is_available").notNull().default(true),
+  hourlyCompensated: boolean("hourly_compensated").notNull().default(false),
   isSuperAdmin: boolean("is_superadmin").notNull().default(false),
   isSystem: boolean("is_system").notNull().default(false),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),

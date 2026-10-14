@@ -166,7 +166,6 @@ export default function Reports() {
       <Typography variant="h5" fontWeight="bold" gutterBottom mb={3}>
         {t.reports.title}
       </Typography>
-
       {/* ── Summary stat cards ── */}
       {dashStats && (
         <Grid container spacing={2} mb={3}>

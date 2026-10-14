@@ -1,6 +1,7 @@
 export * from "./organizations";
 export * from "./users";
 export * from "./tickets";
+export * from "./ticket_time_sessions";
 export * from "./ticket_comments";
 export * from "./comment_reactions";
 export * from "./ticket_internal_notes";

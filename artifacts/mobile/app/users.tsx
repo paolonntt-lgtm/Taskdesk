@@ -20,6 +20,7 @@ interface User {
   group?: string | null;
   mainLocation?: string | null;
   isActive: boolean;
+  hourlyCompensated?: boolean;
   createdAt: string;
 }
 
@@ -27,7 +28,7 @@ type ModalMode = "create" | "edit";
 
 const EMPTY_FORM = {
   name: "", email: "", password: "",
-  role: "user", group: "", mainLocation: "", isActive: true,
+  role: "user", group: "", mainLocation: "", isActive: true, hourlyCompensated: false,
 };
 
 export default function UsersScreen() {
@@ -55,6 +56,13 @@ export default function UsersScreen() {
     queryKey: ["users"],
     queryFn: () => apiGet<User[]>("/users"),
   });
+  const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
+    queryKey: ["mobile-organization-settings", me?.organizationId],
+    queryFn: () => apiGet("/settings/organization"),
+    enabled: me?.role === "admin" && me?.organizationId != null,
+    staleTime: 5 * 60_000,
+  });
+  const timeTrackingEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
 
   useEffect(() => {
     apiGet<{ value: string[] }>("/settings/groups")
@@ -89,6 +97,7 @@ export default function UsersScreen() {
       group: u.group ?? "",
       mainLocation: u.mainLocation ?? "",
       isActive: u.isActive,
+      hourlyCompensated: u.hourlyCompensated ?? false,
     });
     setErrors({});
     setModalOpen(true);
@@ -130,6 +139,7 @@ export default function UsersScreen() {
           mainLocation: form.mainLocation || null,
           isActive: form.isActive,
         };
+        if (timeTrackingEnabled) body.hourlyCompensated = form.hourlyCompensated;
         if (form.password) body.password = form.password;
         await apiPatch(`/users/${editingUser.id}`, body);
       }
@@ -404,6 +414,21 @@ export default function UsersScreen() {
                     onValueChange={(v) => setField("isActive", v)}
                     trackColor={{ false: colors.muted, true: colors.primary + "88" }}
                     thumbColor={form.isActive ? colors.primary : colors.mutedForeground}
+                  />
+                </View>
+              )}
+
+              {mode === "edit" && timeTrackingEnabled && (
+                <View style={s.switchRow}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={s.fieldLabel}>{t.users.hourlyCompensated}</Text>
+                    <Text style={s.userEmail}>{t.users.hourlyCompensatedHint}</Text>
+                  </View>
+                  <Switch
+                    value={form.hourlyCompensated}
+                    onValueChange={(value) => setField("hourlyCompensated", value)}
+                    trackColor={{ false: colors.muted, true: colors.primary + "88" }}
+                    thumbColor={form.hourlyCompensated ? colors.primary : colors.mutedForeground}
                   />
                 </View>
               )}
