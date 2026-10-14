@@ -512,6 +512,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /auth/permission-events:
+    get:
+      operationId: waitForPermissionChanges
+      tags: [auth]
+      summary: Wait for a permission change for the current user
+      responses:
+        "200":
+          description: Effective permissions have changed and should be refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [type]
+                properties:
+                  type:
+                    type: string
+                    enum: [permissions_changed]
+        "204":
+          description: No permission change occurred before the wait timed out
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /users:
     get:
       operationId: listUsers

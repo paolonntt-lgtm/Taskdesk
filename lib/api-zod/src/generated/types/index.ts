@@ -151,6 +151,8 @@ export * from './userInheritedGroupPermissionsItem';
 export * from './userPermissionOverrides';
 export * from './userRole';
 export * from './userTrialStatus';
+export * from './waitForPermissionChanges200';
+export * from './waitForPermissionChanges200Type';
 export * from './workedHoursUpdate';
 export * from './workedHoursUpdateResult';
 export * from './workedHoursUpdateResultWorkedBillingStatus';

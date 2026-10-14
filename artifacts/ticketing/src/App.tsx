@@ -202,7 +202,7 @@ function AppShell() {
       },
       onPermissionsChanged: () => { void qc.resetQueries(); },
     });
-    return startAuthRefreshPolling(refreshAuth, {
+    const stopPolling = startAuthRefreshPolling(refreshAuth, {
       intervalMs: 30_000,
       isForeground: () => document.visibilityState !== "hidden",
       subscribeToForeground: (callback) => {
@@ -215,6 +215,70 @@ function AppShell() {
       setInterval: (callback, intervalMs) => window.setInterval(callback, intervalMs),
       clearInterval: (handle) => window.clearInterval(handle as number),
     });
+
+    let stopped = false;
+    let permissionEventsController: AbortController | null = null;
+    let permissionEventsRetry: number | undefined;
+    const isPermissionEventsForeground = () => document.visibilityState !== "hidden";
+    const listenForPermissionChanges = async () => {
+      if (
+        stopped ||
+        permissionEventsController ||
+        !isPermissionEventsForeground() ||
+        userRef.current?.id !== user.id
+      ) return;
+
+      const controller = new AbortController();
+      permissionEventsController = controller;
+      let retryDelay = 0;
+      try {
+        const response = await fetch("/api/auth/permission-events", {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (response.status === 401) {
+          await refreshAuth();
+        } else if (response.status !== 204 && response.ok) {
+          const event = await response.json().catch(() => null);
+          if (event?.type === "permissions_changed") await refreshAuth();
+        } else if (!response.ok) {
+          retryDelay = 5_000;
+        }
+      } catch {
+        if (!controller.signal.aborted) retryDelay = 5_000;
+      } finally {
+        if (permissionEventsController === controller) permissionEventsController = null;
+        if (
+          !stopped &&
+          isPermissionEventsForeground() &&
+          userRef.current?.id === user.id
+        ) {
+          permissionEventsRetry = window.setTimeout(
+            () => void listenForPermissionChanges(),
+            retryDelay,
+          );
+        }
+      }
+    };
+
+    void listenForPermissionChanges();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void listenForPermissionChanges();
+      } else {
+        permissionEventsController?.abort();
+        if (permissionEventsRetry !== undefined) window.clearTimeout(permissionEventsRetry);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stopped = true;
+      stopPolling();
+      permissionEventsController?.abort();
+      if (permissionEventsRetry !== undefined) window.clearTimeout(permissionEventsRetry);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [isLoading, user?.id, qc, setLocation]);
 
   useEffect(() => {

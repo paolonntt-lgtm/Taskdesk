@@ -22,6 +22,7 @@ import {
   parsePermissionOverrides,
   resolvePermissionSummary,
 } from "../lib/groupPermissions";
+import { notifyPermissionChanged } from "../lib/permissionEvents";
 
 const router: IRouter = Router();
 
@@ -302,6 +303,10 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
 
   if (updates.isActive === false) {
     await destroySessionsForUser(id);
+  }
+
+  if (permissionOverrides !== undefined) {
+    notifyPermissionChanged(id);
   }
 
   if (updates.role === 'user') {

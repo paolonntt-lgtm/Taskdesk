@@ -1203,6 +1203,17 @@ export type UpdateOrganizationSettings200 = {
   businessType?: string | null;
 };
 
+export type WaitForPermissionChanges200Type = typeof WaitForPermissionChanges200Type[keyof typeof WaitForPermissionChanges200Type];
+
+
+export const WaitForPermissionChanges200Type = {
+  permissions_changed: 'permissions_changed',
+} as const;
+
+export type WaitForPermissionChanges200 = {
+  type: WaitForPermissionChanges200Type;
+};
+
 export type ListTicketsParams = {
 status?: string;
 priority?: string;

@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       onPermissionsChanged: () => { void queryClient.resetQueries(); },
     });
-    return startAuthRefreshPolling(refreshAuth, {
+    const stopPolling = startAuthRefreshPolling(refreshAuth, {
       intervalMs: 30_000,
       isForeground: () => AppState.currentState !== "background" && AppState.currentState !== "inactive",
       subscribeToForeground: (callback) => {
@@ -76,6 +76,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setInterval: (callback, intervalMs) => setInterval(callback, intervalMs),
       clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>),
     });
+
+    let stopped = false;
+    let permissionEventsController: AbortController | null = null;
+    let permissionEventsRetry: ReturnType<typeof setTimeout> | undefined;
+    const listenForPermissionChanges = async () => {
+      if (
+        stopped ||
+        permissionEventsController ||
+        AppState.currentState !== "active" ||
+        userRef.current?.id !== user.id
+      ) return;
+
+      const controller = new AbortController();
+      permissionEventsController = controller;
+      let retryDelay = 0;
+      try {
+        const response = await apiFetch("/auth/permission-events", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (response.status === 401) {
+          await refreshAuth();
+        } else if (response.status !== 204 && response.ok) {
+          const event = await response.json().catch(() => null);
+          if (event?.type === "permissions_changed") await refreshAuth();
+        } else if (!response.ok) {
+          retryDelay = 5_000;
+        }
+      } catch {
+        if (!controller.signal.aborted) retryDelay = 5_000;
+      } finally {
+        if (permissionEventsController === controller) permissionEventsController = null;
+        if (
+          !stopped &&
+          AppState.currentState === "active" &&
+          userRef.current?.id === user.id
+        ) {
+          permissionEventsRetry = setTimeout(
+            () => void listenForPermissionChanges(),
+            retryDelay,
+          );
+        }
+      }
+    };
+
+    void listenForPermissionChanges();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void listenForPermissionChanges();
+      } else {
+        permissionEventsController?.abort();
+      }
+    });
+    return () => {
+      stopped = true;
+      stopPolling();
+      permissionEventsController?.abort();
+      if (permissionEventsRetry !== undefined) clearTimeout(permissionEventsRetry);
+      subscription.remove();
+    };
   }, [isLoading, user?.id, queryClient]);
 
   const login = async (email: string, password: string) => {

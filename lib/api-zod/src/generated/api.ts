@@ -431,6 +431,14 @@ export const GetCurrentUserResponse = zod.object({
 
 
 /**
+ * @summary Wait for a permission change for the current user
+ */
+export const WaitForPermissionChangesResponse = zod.object({
+  "type": zod.enum(['permissions_changed'])
+})
+
+
+/**
  * @summary List all users
  */
 export const ListUsersResponseItem = zod.object({

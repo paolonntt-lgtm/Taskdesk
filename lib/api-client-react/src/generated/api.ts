@@ -104,6 +104,7 @@ import type {
   UpdateTicketBody,
   UpdateUserBody,
   User,
+  WaitForPermissionChanges200,
   WorkedHoursUpdate,
   WorkedHoursUpdateResult
 } from './api.schemas';
@@ -1464,6 +1465,83 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCurrentUserQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWaitForPermissionChangesUrl = () => {
+
+
+
+
+  return `/api/auth/permission-events`
+}
+
+/**
+ * @summary Wait for a permission change for the current user
+ */
+export const waitForPermissionChanges = async ( options?: Parameters<typeof customFetch>[1]): Promise<WaitForPermissionChanges200 | void> => {
+
+  return customFetch<WaitForPermissionChanges200 | void>(getWaitForPermissionChangesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getWaitForPermissionChangesQueryKey = () => {
+    return [
+    `/api/auth/permission-events`
+    ] as const;
+    }
+
+
+export const getWaitForPermissionChangesQueryOptions = <TData = Awaited<ReturnType<typeof waitForPermissionChanges>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof waitForPermissionChanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getWaitForPermissionChangesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof waitForPermissionChanges>>> = ({ signal }) => waitForPermissionChanges({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof waitForPermissionChanges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type WaitForPermissionChangesQueryResult = NonNullable<Awaited<ReturnType<typeof waitForPermissionChanges>>>
+export type WaitForPermissionChangesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Wait for a permission change for the current user
+ */
+
+export function useWaitForPermissionChanges<TData = Awaited<ReturnType<typeof waitForPermissionChanges>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof waitForPermissionChanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getWaitForPermissionChangesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

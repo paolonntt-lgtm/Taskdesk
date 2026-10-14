@@ -11,6 +11,8 @@ import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
 import { FREE_TRIAL_DURATION_MS, getTrialStatus } from "../lib/trialStatus";
 import { getUserPermissionSummary } from "../lib/groupPermissions";
+import { subscribeToPermissionChanges } from "../lib/permissionEvents";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -200,6 +202,36 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
   }
   res.setHeader("Set-Cookie", "session_id=; Path=/; HttpOnly; Max-Age=0");
   res.json({ success: true, message: "Logout effettuato" });
+});
+
+router.get("/auth/permission-events", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as any).currentUser.id as number;
+  res.setHeader("Cache-Control", "no-store");
+
+  let settled = false;
+  let unsubscribe = () => {};
+  let timeout: ReturnType<typeof setTimeout>;
+  const cleanup = () => {
+    clearTimeout(timeout);
+    unsubscribe();
+  };
+  const finish = (changed: boolean) => {
+    if (settled || res.destroyed) return;
+    settled = true;
+    cleanup();
+    if (changed) {
+      res.status(200).json({ type: "permissions_changed" });
+    } else {
+      res.status(204).end();
+    }
+  };
+
+  unsubscribe = subscribeToPermissionChanges(userId, () => finish(true));
+  timeout = setTimeout(() => finish(false), 25_000);
+  res.once("close", () => {
+    settled = true;
+    cleanup();
+  });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {
