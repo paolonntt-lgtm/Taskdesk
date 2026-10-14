@@ -35,6 +35,36 @@ describe("cleanForwardedEmailBody", () => {
     expect(result).toBe("La fattura allegata riporta un importo errato.");
   });
 
+  it("handles flattened Gmail headers and removes the signature footer and older thread", () => {
+    const result = cleanForwardedEmailBody(
+      [
+        "---------- Forwarded message --------- Da: Mittente <mittente@example.com> Date: mar 13 ott 2026 Subject: Richiesta di aiuto To: paolo@example.com",
+        "",
+        "Buongiorno, ho incontrato alcune difficoltà e avrei bisogno di aiuto.",
+        "Resto in attesa di un riscontro. Saluti cordiali",
+        "",
+        "*Mittente*",
+        "Consulente",
+        "Telefono e recapito",
+        "--",
+        "Firma legale e informazioni sulla privacy",
+        "Da: paolo@example.com Inviato: martedì 13 ottobre 2026 A: mittente@example.com Oggetto: Richiesta di aiuto",
+        "Testo della conversazione precedente",
+      ].join("\n"),
+    );
+
+    expect(result).toBe(
+      [
+        "Buongiorno, ho incontrato alcune difficoltà e avrei bisogno di aiuto.",
+        "Resto in attesa di un riscontro. Saluti cordiali",
+        "",
+        "*Mittente*",
+        "Consulente",
+        "Telefono e recapito",
+      ].join("\n"),
+    );
+  });
+
   it("leaves unrecognized or ambiguous content unchanged", () => {
     const body = "---------- Forwarded message ---------\nTesto senza intestazioni riconoscibili";
     expect(cleanForwardedEmailBody(body)).toBe(body);

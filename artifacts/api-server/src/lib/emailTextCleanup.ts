@@ -1,8 +1,29 @@
 const FORWARDED_MARKER =
-  /^\s*(?:-{2,}\s*(?:forwarded message|messaggio inoltrato|messaggio originale|original message)\s*-{2,}|begin forwarded message:|inizio messaggio inoltrato:)\s*$/im;
+  /^\s*(?:-{2,}\s*(?:forwarded message|messaggio inoltrato|messaggio originale|original message)\s*-{2,}|begin forwarded message:|inizio messaggio inoltrato:)(.*)$/im;
 
 const FORWARDED_HEADER =
   /^\s*(?:from|da|sent|inviato|date|data|to|a|cc|bcc|subject|oggetto|reply-to|rispondi a)\s*:/i;
+
+const INLINE_HEADER_FIELDS =
+  /\b(?:from|da|sent|inviato|date|data|to|a|cc|bcc|subject|oggetto|reply-to|rispondi a)\s*:/gi;
+
+function removeForwardedSignatureAndOlderReplies(body: string): string {
+  const cutoffPatterns = [
+    // Standard signature delimiter used by many mail clients.
+    /^\s*--\s*$/m,
+    // Outlook/Gmail quoted message headers sometimes arrive as one long line.
+    /^\s*(?:Da|From):[^\n]*(?:Inviato|Sent|Oggetto|Subject)\s*:/im,
+    /^\s*(?:Il giorno .{5,200}ha scritto:|On .{5,200}wrote:)\s*$/im,
+  ];
+
+  let cutoff = body.length;
+  for (const pattern of cutoffPatterns) {
+    const match = pattern.exec(body);
+    if (match && match.index < cutoff) cutoff = match.index;
+  }
+
+  return body.slice(0, cutoff).trim();
+}
 
 /**
  * Removes the metadata block inserted by common mail clients when forwarding
@@ -14,9 +35,31 @@ export function cleanForwardedEmailBody(body: string): string {
   if (!normalized) return "";
 
   const marker = FORWARDED_MARKER.exec(normalized);
+  const markerRemainder = marker?.[1]?.trim() ?? "";
   const headerStart = marker ? marker.index + marker[0].length : 0;
   const prefix = marker ? normalized.slice(0, marker.index).trim() : "";
-  const lines = normalized.slice(headerStart).split("\n");
+  const remainder = normalized.slice(headerStart);
+
+  // Some providers flatten the forwarding marker and all its headers onto one
+  // line (e.g. "Forwarded message — Da: ... Date: ... Subject: ... To: ...").
+  // Only treat that line as metadata when it contains multiple known fields.
+  if (marker && markerRemainder) {
+    const inlineFields = markerRemainder.match(INLINE_HEADER_FIELDS) ?? [];
+    if (inlineFields.length >= 2) {
+      const forwardedContent = removeForwardedSignatureAndOlderReplies(remainder);
+      if (!forwardedContent) return normalized;
+      return [prefix, forwardedContent]
+        .filter(Boolean)
+        .join("\n\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+  }
+
+  const lines = [
+    ...(markerRemainder ? [markerRemainder] : []),
+    ...remainder.split("\n"),
+  ];
 
   let index = 0;
   while (index < lines.length && !lines[index].trim()) index++;
@@ -51,7 +94,9 @@ export function cleanForwardedEmailBody(body: string): string {
 
   if (headerCount < 2 || bodyStart < 0) return normalized;
 
-  const forwardedContent = lines.slice(bodyStart).join("\n").trim();
+  const forwardedContent = removeForwardedSignatureAndOlderReplies(
+    lines.slice(bodyStart).join("\n").trim(),
+  );
   if (!forwardedContent) return normalized;
 
   return [prefix, forwardedContent]
