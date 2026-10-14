@@ -28,6 +28,46 @@ function splitEmailContent(text: string): { header: string; body: string } | nul
   };
 }
 
+function splitEmailBodySections(text: string): { metadata: string; message: string; details: string } {
+  const normalized = text.replace(/\r\n?/g, "\n").trim();
+  const lines = normalized.split("\n");
+  const firstBlank = lines.findIndex((line) => !line.trim());
+  let metadata = "";
+  let bodyLines = lines;
+
+  if (firstBlank > 0 && firstBlank <= 8) {
+    const possibleHeader = lines.slice(0, firstBlank);
+    const headerText = possibleHeader.join("\n");
+    const startsLikeHeader =
+      /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(possibleHeader[0]) ||
+      /^\s*(?:-{2,}\s*(?:forwarded|messaggio|original message)|begin forwarded message)/i.test(possibleHeader[0]);
+    const headerFields = headerText.match(
+      /\b(?:tramite|via|from|da|date|data|sent|inviato|subject|oggetto)\b|(?:\bto\b|\ba\b)\s*:|(?:\bto\b|\ba\b)\s+[\w.+-]+@|(?:lun|mar|mer|gio|ven|sab|dom)\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/gi,
+    ) ?? [];
+
+    if (startsLikeHeader && headerFields.length >= 2) {
+      metadata = possibleHeader.join("\n").trim();
+      bodyLines = lines.slice(firstBlank + 1);
+    }
+  }
+
+  let signOffIndex = -1;
+  const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.!]?\s*$/i;
+  for (let index = 0; index < bodyLines.length; index++) {
+    if (signOff.test(bodyLines[index].trim())) signOffIndex = index;
+  }
+
+  if (signOffIndex < 0) {
+    return { metadata, message: bodyLines.join("\n").trim(), details: "" };
+  }
+
+  return {
+    metadata,
+    message: bodyLines.slice(0, signOffIndex + 1).join("\n").trim(),
+    details: bodyLines.slice(signOffIndex + 1).join("\n").trim(),
+  };
+}
+
 function preprocessContent(text: string): string {
   const protectedSegments: string[] = [];
   let result = text.replace(/(`[^`]*`|\[[^\]]+\]\([^)]+\))/g, (segment) => {
@@ -187,6 +227,7 @@ export function MarkdownContent({
   const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
 
   if (emailParts) {
+    const bodySections = splitEmailBodySections(emailParts.body);
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {/* Styled callout for the email sender header */}
@@ -214,12 +255,47 @@ export function MarkdownContent({
           </Box>
         </Box>
 
-        {/* Email body */}
-        <Box sx={compactHeadings ? { ...emailBodySx, ...compactHeadingSx } : emailBodySx}>
-          <ReactMarkdown components={mdComponents as any}>
-            {preprocessContent(emailParts.body)}
-          </ReactMarkdown>
-        </Box>
+        {bodySections.metadata && (
+          <Box sx={{ fontSize: '0.74rem', lineHeight: 1.45, color: 'text.secondary' }}>
+            <ReactMarkdown components={mdComponents as any}>
+              {preprocessContent(bodySections.metadata)}
+            </ReactMarkdown>
+          </Box>
+        )}
+
+        {/* Keep the full email visible, but give its actual message the strongest emphasis. */}
+        {bodySections.message && (
+          <Box
+            sx={{
+              ...(compactHeadings ? { ...emailBodySx, ...compactHeadingSx } : emailBodySx),
+              fontWeight: 700,
+            }}
+          >
+            <ReactMarkdown components={mdComponents as any}>
+              {preprocessContent(bodySections.message)}
+            </ReactMarkdown>
+          </Box>
+        )}
+
+        {bodySections.details && (
+          <Box
+            sx={{
+              ...emailBodySx,
+              fontSize: '0.74rem',
+              lineHeight: 1.45,
+              color: 'text.secondary',
+              borderLeft: '2px solid',
+              borderColor: 'divider',
+              pl: 1.25,
+              '& p': { m: 0, mb: 0.5 },
+              '& p:last-child': { mb: 0 },
+            }}
+          >
+            <ReactMarkdown components={mdComponents as any}>
+              {preprocessContent(bodySections.details)}
+            </ReactMarkdown>
+          </Box>
+        )}
       </Box>
     );
   }

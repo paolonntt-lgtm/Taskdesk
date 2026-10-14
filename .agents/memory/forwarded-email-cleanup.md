@@ -1,10 +1,10 @@
 ---
-name: Forwarded email cleanup
-description: User preference for how forwarded emails should be cleaned when they arrive as new tickets.
+name: Forwarded email presentation
+description: User preference for preserving and visually organizing forwarded email text in ticket descriptions.
 ---
 
-For recognized forwarded messages, keep the useful message text and the original sender's name and role, but remove phone numbers, email addresses, links, legal footers, and older quoted messages. If the signature boundary is ambiguous, preserve content rather than aggressively truncating it.
+Preserve the complete original email body when creating a ticket. In the ticket UI, emphasize the actual message text and visually de-emphasize metadata, signature, legal footer, and quoted thread; do not remove those sections from the stored email.
 
-**Why:** Forwarded emails arriving as tickets were cluttered with contact details, boilerplate, and old thread content. The user chose to retain only the message, name, and role.
+**Why:** Forwarded emails were cluttered, but the user prefers retaining the complete original content and improving readability with visual hierarchy rather than deleting text.
 
-**How to apply:** Use this rule for future inbound ticket creation. Do not rewrite historical tickets unless the user explicitly asks.
+**How to apply:** Apply visual distinction to future ticket descriptions while preserving source text. Do not rewrite historical tickets unless the user explicitly asks.
