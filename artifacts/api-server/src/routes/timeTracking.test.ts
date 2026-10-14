@@ -594,6 +594,47 @@ describe("ticket time tracking", () => {
     expect(activeHandoffSessions).toHaveLength(1);
     expect(activeHandoffSessions[0]?.userId).toBe(ticketState[0]?.assignedTo);
 
+    const sessionsBeforeUnassign = sessions.map((session) => ({
+      id: session.id,
+      userId: session.userId,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+    }));
+    const unassigned = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: null }),
+    });
+    expect(unassigned.status).toBe(200);
+    expect(unassigned.body.assignedTo).toBeNull();
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: null, status: "in_progress" });
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessions).toHaveLength(sessionsBeforeUnassign.length);
+    for (const previous of sessionsBeforeUnassign) {
+      const preserved = sessions.find((session) => session.id === previous.id);
+      expect(preserved).toMatchObject({
+        userId: previous.userId,
+        startedAt: previous.startedAt,
+      });
+      if (previous.endedAt !== null) {
+        expect(preserved?.endedAt).toEqual(previous.endedAt);
+      } else {
+        expect(preserved?.endedAt).toBeInstanceOf(Date);
+        expect(preserved!.endedAt!.getTime()).toBeGreaterThanOrEqual(preserved!.startedAt.getTime());
+      }
+    }
+    expect(sessions.every((session) => session.endedAt !== null)).toBe(true);
+    const removedAssigneeSessions = await db.select({
+      ticketId: ticketTimeSessionsTable.ticketId,
+      endedAt: ticketTimeSessionsTable.endedAt,
+    }).from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.userId, activeHandoffSessions[0]!.userId));
+    expect(removedAssigneeSessions.filter((session) => session.endedAt === null)).toEqual([]);
+
     expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
     const disabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
