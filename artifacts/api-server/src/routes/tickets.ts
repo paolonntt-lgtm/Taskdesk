@@ -1157,11 +1157,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   let updated: typeof existing;
-  // If an admin starts work on an assigned ticket, track the assigned collaborator,
-  // not the admin performing the status change.
-  const timerUserId = isAdmin && existing.assignedTo != null
-    ? existing.assignedTo
-    : currentUser.id;
+  // When an admin or group manager starts work on someone else's assigned ticket,
+  // track the assigned collaborator, not the manager changing the status.
+  const effectiveAssignee = updates.assignedTo !== undefined
+    ? updates.assignedTo
+    : existing.assignedTo;
+  const timerUserId =
+    (isAdmin || hasGroupStatusPermission) &&
+    effectiveAssignee != null &&
+    effectiveAssignee !== currentUser.id
+      ? effectiveAssignee
+      : currentUser.id;
   try {
     updated = await db.transaction(async (tx) => {
       if (shouldTrackStatus && updates.status && updates.status !== existing.status) {
