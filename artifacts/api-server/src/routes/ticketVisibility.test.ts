@@ -282,6 +282,11 @@ describe("manual ticket visibility", () => {
       const response = await request(path, userSessionId);
       expect(response.status, path).toBe(404);
     }
+    const privateUpdateResponse = await request(`/api/tickets/${privateTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress", priority: "urgent" }),
+    });
+    expect(privateUpdateResponse.status).toBe(404);
 
     const directDownloadPath = `/api/storage/objects/${runId}/private.txt`;
     const userDownloadResponse = await request(directDownloadPath, userSessionId);
@@ -422,6 +427,66 @@ describe("manual ticket visibility", () => {
     const reportsResponse = await request("/api/stats/reports-all", userSessionId);
     expect(reportsResponse.status).toBe(200);
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
+  }, 60_000);
+
+  it("lets a non-assignee without status group permission change status and priority only", async () => {
+    const createResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Status and priority access ${runId}`,
+        description: "Only status and priority should be editable by any visible user.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const ticketId = createResponse.body.id as number;
+    createdTicketIds.push(ticketId);
+
+    // The ordinary test user is not the creator or assignee and only has add_notes
+    // permission through their group, not change_status.
+    const statusAndPriorityResponse = await request(`/api/tickets/${ticketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress", priority: "urgent" }),
+    });
+    expect(statusAndPriorityResponse.status).toBe(200);
+    expect(statusAndPriorityResponse.body).toEqual(
+      expect.objectContaining({ status: "in_progress", priority: "urgent" }),
+    );
+
+    const [storedTicket] = await db
+      .select({ title: ticketsTable.title, status: ticketsTable.status, priority: ticketsTable.priority })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(storedTicket).toEqual({
+      title: `Status and priority access ${runId}`,
+      status: "in_progress",
+      priority: "urgent",
+    });
+
+    const activity = await db
+      .select({ actionType: ticketActivityLogsTable.actionType })
+      .from(ticketActivityLogsTable)
+      .where(eq(ticketActivityLogsTable.ticketId, ticketId));
+    expect(activity.map((entry) => entry.actionType)).toEqual(
+      expect.arrayContaining(["status_changed", "priority_changed"]),
+    );
+
+    const unauthorizedMixedUpdate = await request(`/api/tickets/${ticketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "waiting", title: "Unauthorized title change" }),
+    });
+    expect(unauthorizedMixedUpdate.status).toBe(403);
+
+    const [unchangedTicket] = await db
+      .select({ title: ticketsTable.title, status: ticketsTable.status, priority: ticketsTable.priority })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(unchangedTicket).toEqual({
+      title: `Status and priority access ${runId}`,
+      status: "in_progress",
+      priority: "urgent",
+    });
   }, 60_000);
 
   it("returns only current recent activity with a safe missing-author fallback", async () => {

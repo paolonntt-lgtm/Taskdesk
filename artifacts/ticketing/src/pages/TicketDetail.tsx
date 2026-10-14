@@ -232,7 +232,6 @@ export default function TicketDetail() {
 
   const hasGroupPerm = (perm: string) =>
     ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
-  const canChangeStatusByGroup = hasGroupPerm('change_status');
   const isAssignee = !!(ticket && (currentUser as any)?.id && (ticket as any).assignedTo === (currentUser as any).id);
   const canAccessNotes = currentUser?.role === 'admin' || hasGroupPerm('add_notes');
 
@@ -755,7 +754,8 @@ export default function TicketDetail() {
   const isAuthor = (ticket as any).createdBy === currentUser?.id;
   const canEdit = isAdmin || isAuthor;
   const canChangeDueAt = isAdmin || isAssignee;
-  const canChangeStatus = isAdmin || canChangeStatusByGroup || isAssignee;
+  // Anyone who can open the ticket may change its status and priority.
+  const canChangeStatus = !!currentUser;
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;

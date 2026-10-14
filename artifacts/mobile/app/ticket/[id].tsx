@@ -32,6 +32,7 @@ interface Ticket {
   id: number; title: string; description: string;
   category: string; location: string; resource?: string;
   priority: string; status: string;
+  assignedTo?: number | null;
   createdAt: string; closedAt?: string;
   resolutionNote?: string | null;
   workedMinutes?: number | null;
@@ -289,13 +290,26 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const handlePriorityChange = async (priority: string) => {
+    if (!ticket || ticket.priority === priority) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await apiPatch(`/tickets/${id}`, { priority });
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (e: any) {
+      Alert.alert(t.ticketDetail.error, e.message);
+    }
+  };
+
   const confirmResolved = async (note: string) => {
     const hours = workedHours.trim() ? Number(workedHours) : 0;
     const minutes = workedMinutes.trim() ? Number(workedMinutes) : 0;
-    if (
+    if (workedTimeEnabled && canEditWorkedMinutes && (
       (workedHours.trim() || workedMinutes.trim()) &&
       (!Number.isInteger(hours) || hours < 0 || !Number.isInteger(minutes) || minutes < 0 || minutes > 59)
-    ) {
+    )) {
       setWorkedTimeError(true);
       return;
     }
@@ -307,7 +321,7 @@ export default function TicketDetailScreen() {
       await apiPatch(`/tickets/${id}`, {
         status: closedStatusKey,
         resolutionNote: note || null,
-        ...(workedTimeEnabled ? { workedMinutes: totalWorkedMinutes } : {}),
+        ...(workedTimeEnabled && canEditWorkedMinutes ? { workedMinutes: totalWorkedMinutes } : {}),
       });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
@@ -519,6 +533,10 @@ export default function TicketDetailScreen() {
   }
 
   const isAdmin = user?.role === "admin";
+  const canEditWorkedMinutes =
+    isAdmin ||
+    ticket.assignedTo === user?.id ||
+    user?.groupPermissions?.includes("change_status") === true;
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
 
   const metaRows = [
@@ -628,26 +646,47 @@ export default function TicketDetailScreen() {
           </View>
         ) : null}
 
-        {isAdmin && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={s.statusRow}>
-                {orgStatuses.map((st) => (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>{t.ticketDetail.updateStatus}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={s.statusRow}>
+              {orgStatuses.map((st) => (
+                <TouchableOpacity
+                  key={st.key}
+                  style={[s.statusBtn, ticket.status === st.key && s.statusBtnActive]}
+                  onPress={() => handleStatusChange(st.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: ticket.status === st.key }}
+                >
+                  <Text style={[s.statusBtnText, ticket.status === st.key && s.statusBtnTextActive]}>
+                    {st.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={[s.sectionTitle, { marginTop: 16 }]}>{t.ticketDetail.priority}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={s.statusRow}>
+              {(["low", "medium", "high", "urgent"] as const).map((priority) => {
+                const isActive = ticket.priority === priority;
+                return (
                   <TouchableOpacity
-                    key={st.key}
-                    style={[s.statusBtn, ticket.status === st.key && s.statusBtnActive]}
-                    onPress={() => handleStatusChange(st.key)}
+                    key={priority}
+                    style={[s.statusBtn, isActive && s.statusBtnActive]}
+                    onPress={() => handlePriorityChange(priority)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
                   >
-                    <Text style={[s.statusBtnText, ticket.status === st.key && s.statusBtnTextActive]}>
-                      {st.label}
+                    <Text style={[s.statusBtnText, isActive && s.statusBtnTextActive]}>
+                      {t.priority[priority] ?? priority}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
 
         {/* Admin: recurrence + clone actions */}
         {isAdmin && (
@@ -1116,7 +1155,7 @@ export default function TicketDetailScreen() {
                 textAlignVertical="top"
                 autoFocus
               />
-              {workedTimeEnabled && <><Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
+              {workedTimeEnabled && canEditWorkedMinutes && <><Text style={s.workedTimeHint}>{t.ticketDetail.workedTimeOptional}</Text>
               <View style={s.durationRow}>
                 <TextInput
                   style={[s.durationInput, workedTimeError && s.durationInputError]}

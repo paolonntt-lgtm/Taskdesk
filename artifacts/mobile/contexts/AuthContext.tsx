@@ -14,6 +14,7 @@ interface User {
   clientsEnabled?: boolean;
   workedTimeEnabled?: boolean;
   mainLocation?: string | null;
+  groupPermissions?: string[];
   isActive: boolean;
   createdAt: string;
 }
