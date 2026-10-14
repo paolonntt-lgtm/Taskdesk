@@ -2,8 +2,11 @@ import ReactMarkdown from 'react-markdown';
 import { Box } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useLocation } from 'wouter';
-import { useLanguage } from '../contexts/LanguageContext';
-import { compactEmailDetailLinks, splitEmailBodySections } from '../lib/emailDisplay';
+import {
+  compactEmailDetailLinks,
+  splitEmailBodySections,
+  splitEmailThreadDetails,
+} from '../lib/emailDisplay';
 
 interface MarkdownContentProps {
   content: string;
@@ -27,33 +30,6 @@ function splitEmailContent(text: string): { header: string; body: string } | nul
   return {
     header: text.slice(0, sepIdx).trim(),
     body: text.slice(sepIdx + EMAIL_SEPARATOR.length),
-  };
-}
-
-const SIGNATURE_CONTACT_OR_FOOTER =
-  /(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|https?:\/\/|www\.|(?:cell|tel(?:efono)?|mobile|phone|fax|pec)\s*[:.+-]?|\+?\d[\d\s()./-]{7,}|privacy|riservat|confidential|gdpr|please consider|non rispondere)/i;
-
-function splitSignatureDisplay(details: string): { identity: string; additional: string } {
-  const identity: string[] = [];
-  const additional: string[] = [];
-
-  for (const line of details.split('\n')) {
-    const text = line.replace(/^\s*\*+|\*+\s*$/g, '').trim();
-    if (!text) {
-      if (identity.length >= 2) additional.push(line);
-      continue;
-    }
-
-    if (identity.length < 2 && !SIGNATURE_CONTACT_OR_FOOTER.test(text)) {
-      identity.push(line);
-    } else {
-      additional.push(line);
-    }
-  }
-
-  return {
-    identity: identity.join('\n').trim(),
-    additional: additional.join('\n').trim(),
   };
 }
 
@@ -212,13 +188,12 @@ export function MarkdownContent({
   forceUnorderedLists = false,
   compactHeadings = false,
 }: MarkdownContentProps) {
-  const { lang } = useLanguage();
   const emailParts = splitEmailContent(content);
   const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
 
   if (emailParts) {
     const bodySections = splitEmailBodySections(emailParts.body);
-    const signatureSections = splitSignatureDisplay(bodySections.details);
+    const threadDetails = splitEmailThreadDetails(bodySections.details);
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {/* Styled callout for the email sender header */}
@@ -268,7 +243,7 @@ export function MarkdownContent({
           </Box>
         )}
 
-        {signatureSections.identity && (
+        {threadDetails.signatureAndFooter && (
           <Box
             sx={{
               ...emailBodySx,
@@ -281,51 +256,53 @@ export function MarkdownContent({
             }}
           >
             <ReactMarkdown components={mdComponents as any}>
-              {preprocessContent(signatureSections.identity)}
+              {preprocessContent(compactEmailDetailLinks(threadDetails.signatureAndFooter))}
             </ReactMarkdown>
           </Box>
         )}
 
-        {signatureSections.additional && (
-          <Box
-            component="details"
-            sx={{
-              color: 'text.secondary',
-              '& summary': {
-                cursor: 'pointer',
-                fontSize: '0.74rem',
-                lineHeight: 1.4,
-                userSelect: 'none',
-              },
-              '& summary:hover': { color: 'text.primary' },
-            }}
-          >
-            <Box component="summary">
-              {lang === 'it'
-                ? 'Mostra firma completa e messaggi precedenti'
-                : 'Show full signature and earlier messages'}
-            </Box>
+        {threadDetails.quotedEmails.map((email, index) => {
+          const quoteSections = splitEmailBodySections(email.body);
+          return (
             <Box
+              key={`${index}-${email.header}`}
               sx={{
-                ...emailBodySx,
-                mt: 0.75,
-                ml: 1,
-                pl: 1,
                 borderLeft: '2px solid',
                 borderColor: 'divider',
-                fontSize: '0.72rem',
-                lineHeight: 1.4,
-                color: 'text.secondary',
-                '& a': { fontSize: '0.68rem', color: 'text.secondary' },
-                '& p': { m: 0, mb: 0.5 },
-                '& p:last-child': { mb: 0 },
+                bgcolor: 'action.hover',
+                borderRadius: '0 6px 6px 0',
+                px: 1.25,
+                py: 0.875,
               }}
             >
-              <ReactMarkdown components={mdComponents as any}>
-                {preprocessContent(compactEmailDetailLinks(signatureSections.additional))}
-              </ReactMarkdown>
+              <Box sx={{ ...emailBodySx, fontSize: '0.7rem', lineHeight: 1.4, color: 'text.secondary', mb: 0.75 }}>
+                <ReactMarkdown components={mdComponents as any}>
+                  {preprocessContent(email.header)}
+                </ReactMarkdown>
+              </Box>
+              {quoteSections.metadata && (
+                <Box sx={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'text.secondary', mb: 0.5 }}>
+                  <ReactMarkdown components={mdComponents as any}>
+                    {preprocessContent(quoteSections.metadata)}
+                  </ReactMarkdown>
+                </Box>
+              )}
+              {quoteSections.message && (
+                <Box sx={{ ...emailBodySx, fontSize: '0.875rem', lineHeight: 1.55, color: 'text.primary', fontWeight: 500 }}>
+                  <ReactMarkdown components={mdComponents as any}>
+                    {preprocessContent(quoteSections.message)}
+                  </ReactMarkdown>
+                </Box>
+              )}
+              {quoteSections.details && (
+                <Box sx={{ ...emailBodySx, mt: 0.5, fontSize: '0.72rem', lineHeight: 1.4, color: 'text.secondary' }}>
+                  <ReactMarkdown components={mdComponents as any}>
+                    {preprocessContent(compactEmailDetailLinks(quoteSections.details))}
+                  </ReactMarkdown>
+                </Box>
+              )}
             </Box>
-          </Box>
+          );
         )}
       </Box>
     );

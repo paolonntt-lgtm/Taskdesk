@@ -4,6 +4,49 @@ export interface EmailBodySections {
   details: string;
 }
 
+export interface QuotedEmail {
+  header: string;
+  body: string;
+}
+
+export interface EmailThreadDetails {
+  signatureAndFooter: string;
+  quotedEmails: QuotedEmail[];
+}
+
+const QUOTED_EMAIL_HEADER =
+  /^(?:da|from):\s*.+|il .+ ha scritto:\s*|on .+ wrote:\s*|--+\s*(?:messaggio originale|original message)\s*--+$/i;
+
+export function splitEmailThreadDetails(details: string): EmailThreadDetails {
+  const signatureLines: string[] = [];
+  const quotedEmails: QuotedEmail[] = [];
+  let currentHeader: string | null = null;
+  let currentBody: string[] = [];
+
+  for (const line of details.replace(/\r\n?/g, "\n").split("\n")) {
+    if (QUOTED_EMAIL_HEADER.test(line.trim())) {
+      if (currentHeader !== null) {
+        quotedEmails.push({ header: currentHeader, body: currentBody.join("\n").trim() });
+      }
+      currentHeader = line.trim();
+      currentBody = [];
+    } else if (currentHeader !== null) {
+      currentBody.push(line);
+    } else {
+      signatureLines.push(line);
+    }
+  }
+
+  if (currentHeader !== null) {
+    quotedEmails.push({ header: currentHeader, body: currentBody.join("\n").trim() });
+  }
+
+  return {
+    signatureAndFooter: signatureLines.join("\n").trim(),
+    quotedEmails,
+  };
+}
+
 export function splitEmailBodySections(text: string): EmailBodySections {
   const normalized = text.replace(/\r\n?/g, "\n").trim();
   const lines = normalized.split("\n");
@@ -27,7 +70,7 @@ export function splitEmailBodySections(text: string): EmailBodySections {
     }
   }
 
-  const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.!]?\s*$/i;
+  const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.,!?]?\s*$/i;
   const signOffIndex = bodyLines.findIndex((line) => signOff.test(line.trim()));
 
   if (signOffIndex < 0) {
