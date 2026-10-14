@@ -14,6 +14,7 @@ vi.mock('@workspace/api-client-react', () => ({
   useUpdateClientNote: () => ({ mutateAsync: (args: any) => noteStore.update(args) }),
   useDeleteClientNote: () => ({ mutateAsync: vi.fn() }),
   getListClientNotesQueryKey: (clientId: number) => ['client-notes', clientId],
+  getListAllClientNotesQueryKey: () => ['client-notes', 'all'],
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -89,7 +90,6 @@ describe('ClientNotesBlock monthly note editing', () => {
   const click = async (id: string) => {
     await act(async () => {
       byTestId<HTMLElement>(id).dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
 
