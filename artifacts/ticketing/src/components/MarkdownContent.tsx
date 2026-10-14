@@ -303,7 +303,7 @@ export function MarkdownContent({
               )}
             </Box>
           );
-        )}
+        })}
       </Box>
     );
   }
