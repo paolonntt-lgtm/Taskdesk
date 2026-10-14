@@ -81,9 +81,10 @@ const emptyForm: UserFormData = {
 
 type GroupMembership = { id: number; name: string; permissions: string[] };
 
-const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments'] as const;
+const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'] as const;
 
-function getEffectivePermissions(memberships: GroupMembership[]): string[] {
+function getEffectivePermissions(memberships: GroupMembership[], resolved?: string[]): string[] {
+  if (resolved) return resolved;
   const set = new Set<string>();
   for (const g of memberships) {
     for (const p of g.permissions ?? []) {
@@ -117,7 +118,7 @@ function UserPermissionsTooltip({
 
   const isAdmin = user.role === 'admin';
   const memberships = ((user as any).groupMemberships as GroupMembership[] | undefined) ?? [];
-  const effectivePerms = getEffectivePermissions(memberships);
+  const effectivePerms = getEffectivePermissions(memberships, (user as any).effectivePermissions);
 
   const tooltipContent = (
     <Box sx={{ p: 0.5 }}>
@@ -203,6 +204,9 @@ export default function Users() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [permissionTarget, setPermissionTarget] = useState<User | null>(null);
+  const [permissionDraft, setPermissionDraft] = useState<Record<string, 'inherit' | 'grant' | 'deny'>>({});
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   const activeCount = users.filter((u) => u.isActive !== false).length;
 
@@ -370,6 +374,24 @@ export default function Users() {
   };
 
   const isSaving = createUser.isPending || updateUser.isPending;
+  const openPermissionSettings = (target: User) => {
+    const current = (target as any).permissionOverrides ?? {};
+    setPermissionDraft(Object.fromEntries(PERMISSION_KEYS.map((key) => [key, current[key] ?? 'inherit'])));
+    setPermissionError(null);
+    setPermissionTarget(target);
+  };
+  const savePermissionSettings = async () => {
+    if (!permissionTarget) return;
+    try {
+      await updateUser.mutateAsync({
+        id: permissionTarget.id,
+        data: { permissionOverrides: permissionDraft } as any,
+      });
+      setPermissionTarget(null);
+    } catch (error: any) {
+      setPermissionError(error?.data?.message || error?.data?.error || ut.errorSaving);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -566,7 +588,7 @@ export default function Users() {
                     {(() => {
                       const isAdmin = u.role === 'admin';
                       const memberships = ((u as any).groupMemberships as GroupMembership[] | undefined) ?? [];
-                      const effectivePerms = getEffectivePermissions(memberships);
+                      const effectivePerms = getEffectivePermissions(memberships, (u as any).effectivePermissions);
                       const permLabels: Record<string, string> = {
                         change_status: t.groups.permChangeStatus,
                         add_notes: t.groups.permAddNotes,
@@ -598,6 +620,9 @@ export default function Users() {
                     <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1, flexWrap: 'wrap' }}>
                       <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => openEdit(u)}>
                         {ut.editUser}
+                      </Button>
+                      <Button size="small" startIcon={<SecurityOutlined fontSize="small" />} onClick={() => openPermissionSettings(u)}>
+                        {ut.managePermissions}
                       </Button>
                       {!isCurrentUser && (
                         <Button
@@ -715,7 +740,7 @@ export default function Users() {
                                 ml: 0.25,
                                 color: (() => {
                                   if (u.role === 'admin') return 'secondary.main';
-                                  const perms = getEffectivePermissions(((u as any).groupMemberships as GroupMembership[] | undefined) ?? []);
+                                  const perms = getEffectivePermissions(((u as any).groupMemberships as GroupMembership[] | undefined) ?? [], (u as any).effectivePermissions);
                                   return perms.length > 0 ? 'primary.main' : 'action.disabled';
                                 })(),
                               }}
@@ -756,6 +781,11 @@ export default function Users() {
                             <Tooltip title={ut.editUser}>
                               <IconButton size="small" onClick={() => openEdit(u)}>
                                 <Edit fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={ut.managePermissions}>
+                              <IconButton size="small" onClick={() => openPermissionSettings(u)}>
+                                <SecurityOutlined fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             {!isCurrentUser && (
@@ -823,6 +853,64 @@ export default function Users() {
             </Box>
           )}
         </Box>
+      </Dialog>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={!!permissionTarget} onClose={() => setPermissionTarget(null)} maxWidth="sm" fullWidth fullScreen={isMobile}>
+        <DialogTitle>{ut.managePermissions}: {permissionTarget?.name}</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {permissionError && <Alert severity="error" sx={{ mb: 2 }}>{permissionError}</Alert>}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {ut.permissionOverrideHelp}
+          </Typography>
+          {permissionTarget?.role === 'admin' && (
+            <Alert severity="info" sx={{ mb: 2 }}>{ut.adminOverrideNote}</Alert>
+          )}
+          {PERMISSION_KEYS.map((key) => {
+            const labels: Record<string, string> = {
+              change_status: t.groups.permChangeStatus,
+              add_notes: t.groups.permAddNotes,
+              edit_fixed_notes: t.groups.permEditFixedNotes,
+              edit_client_notes: t.groups.permEditClientNotes,
+              delete_client_notes: t.groups.permDeleteClientNotes,
+              manage_client_sections: t.groups.permManageClientSections,
+              edit_client_section_content: t.groups.permEditClientSectionContent,
+              create_appointments: t.groups.permCreateAppointments,
+              view_worked_hours: t.groups.permViewWorkedHours,
+            };
+            const inherited = ((permissionTarget as any)?.inheritedGroupPermissions ?? []).includes(key);
+            const effective = ((permissionTarget as any)?.effectivePermissions ?? []).includes(key);
+            return (
+              <Box key={key} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 150px' }, gap: 1, alignItems: 'center', py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>{labels[key]}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {ut.inherited}: {inherited ? ut.granted : ut.notGranted} · {ut.effective}: {effective ? ut.granted : ut.denied}
+                  </Typography>
+                </Box>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>{ut.override}</InputLabel>
+                  <Select
+                    value={permissionDraft[key] ?? 'inherit'}
+                    label={ut.override}
+                    disabled={permissionTarget?.role === 'admin'}
+                    onChange={(event) => setPermissionDraft((draft) => ({ ...draft, [key]: event.target.value as 'inherit' | 'grant' | 'deny' }))}
+                  >
+                    <MenuItem value="inherit">{ut.inheritGroups}</MenuItem>
+                    <MenuItem value="grant">{ut.grant}</MenuItem>
+                    <MenuItem value="deny">{ut.deny}</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            );
+          })}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setPermissionTarget(null)}>{ut.cancel}</Button>
+          <Button variant="contained" onClick={savePermissionSettings} disabled={updateUser.isPending || permissionTarget?.role === 'admin'}>
+            {updateUser.isPending ? <CircularProgress size={16} /> : ut.save}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Create/Edit Dialog */}

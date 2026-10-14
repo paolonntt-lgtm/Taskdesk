@@ -5,6 +5,10 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { UserEffectivePermissionsItem } from './userEffectivePermissionsItem';
+import type { UserGroupPermissionsItem } from './userGroupPermissionsItem';
+import type { UserInheritedGroupPermissionsItem } from './userInheritedGroupPermissionsItem';
+import type { UserPermissionOverrides } from './userPermissionOverrides';
 import type { UserRole } from './userRole';
 import type { UserTrialStatus } from './userTrialStatus';
 
@@ -25,9 +29,12 @@ export interface User {
   trialEndsAt?: Date | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
+  groupPermissions?: UserGroupPermissionsItem[];
+  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
+  effectivePermissions?: UserEffectivePermissionsItem[];
+  permissionOverrides?: UserPermissionOverrides;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
-  groupPermissions?: string[] | null;
 }

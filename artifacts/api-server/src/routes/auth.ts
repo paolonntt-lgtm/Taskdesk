@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
 import { FREE_TRIAL_DURATION_MS, getTrialStatus } from "../lib/trialStatus";
+import { getUserPermissionSummary } from "../lib/groupPermissions";
 
 const router: IRouter = Router();
 
@@ -100,27 +101,11 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
     `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}${secureFlag}`
   );
 
-  // Fetch group permissions so the login response matches what auth/me returns.
-  // Without this, users would be missing groupPermissions until the next page reload.
-  const loginMemberships = await db
-    .select({ permissions: groupsTable.permissions })
-    .from(groupMembersTable)
-    .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
-    .where(
-      and(
-        eq(groupMembersTable.userId, row.id),
-        row.organizationId != null ? eq(groupsTable.organizationId, row.organizationId) : undefined,
-      )
-    );
-  const groupPermissions: string[] = [...new Set(
-    loginMemberships.flatMap((m) => {
-      try { return JSON.parse(m.permissions ?? "[]") as string[]; } catch { return []; }
-    })
-  )];
+  const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
 
   const { passwordHash: _, ...safeUser } = row;
   const trialStatus = getTrialStatus(safeUser.trialEndsAt, safeUser.stripeSubscriptionId);
-  res.json({ user: { ...safeUser, groupPermissions, trialStatus }, message: "Login effettuato" });
+  res.json({ user: { ...safeUser, ...permissionSummary, trialStatus }, message: "Login effettuato" });
 });
 
 router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
@@ -204,7 +189,8 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
   );
 
   const { passwordHash: _, ...safeUser } = user;
-  res.status(201).json({ user: safeUser, message: "Registrazione completata" });
+  const permissionSummary = await getUserPermissionSummary(user.id, user.organizationId, user.role);
+  res.status(201).json({ user: { ...safeUser, ...permissionSummary }, message: "Registrazione completata" });
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
@@ -274,26 +260,9 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       .catch((err: unknown) => logger.error({ err }, "Failed to refresh lastLoginAt on auth/me"));
   }
 
-  // Collect all permissions the user has through group memberships (scoped to the user's org)
-  const memberships = await db
-    .select({ permissions: groupsTable.permissions })
-    .from(groupMembersTable)
-    .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
-    .where(
-      and(
-        eq(groupMembersTable.userId, userId),
-        row.organizationId != null ? eq(groupsTable.organizationId, row.organizationId) : undefined,
-      )
-    );
-
-  const groupPermissions: string[] = [...new Set(
-    memberships.flatMap((m) => {
-      try { return JSON.parse(m.permissions ?? "[]") as string[]; } catch { return []; }
-    })
-  )];
-
   const trialStatus = getTrialStatus(row.trialEndsAt, row.stripeSubscriptionId);
-  res.json({ ...row, groupPermissions, trialStatus });
+  const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
+  res.json({ ...row, ...permissionSummary, trialStatus });
 });
 
 router.post("/auth/me/tour-done", async (req, res): Promise<void> => {

@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateUserBodyPermissionOverrides } from './updateUserBodyPermissionOverrides';
 import type { UpdateUserBodyRole } from './updateUserBodyRole';
 
 export interface UpdateUserBody {
@@ -18,4 +19,5 @@ export interface UpdateUserBody {
   groups?: string[] | null;
   isActive?: boolean;
   isAvailable?: boolean;
+  permissionOverrides?: UpdateUserBodyPermissionOverrides;
 }

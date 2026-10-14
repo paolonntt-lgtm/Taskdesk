@@ -111,11 +111,58 @@ export const UserRole = {
   user: 'user',
 } as const;
 
+export type UserGroupPermissionsItem = typeof UserGroupPermissionsItem[keyof typeof UserGroupPermissionsItem];
+
+
+export const UserGroupPermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
+export type UserInheritedGroupPermissionsItem = typeof UserInheritedGroupPermissionsItem[keyof typeof UserInheritedGroupPermissionsItem];
+
+
+export const UserInheritedGroupPermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
+export type UserEffectivePermissionsItem = typeof UserEffectivePermissionsItem[keyof typeof UserEffectivePermissionsItem];
+
+
+export const UserEffectivePermissionsItem = {
+  change_status: 'change_status',
+  add_notes: 'add_notes',
+  edit_fixed_notes: 'edit_fixed_notes',
+  edit_client_notes: 'edit_client_notes',
+  delete_client_notes: 'delete_client_notes',
+  manage_client_sections: 'manage_client_sections',
+  edit_client_section_content: 'edit_client_section_content',
+  create_appointments: 'create_appointments',
+  view_worked_hours: 'view_worked_hours',
+} as const;
+
 export type UserTrialStatus = {
   isInTrial: boolean;
   isExpired: boolean;
   daysLeft: number;
 } | null;
+
+export type UserPermissionOverrides = {[key: string]: 'inherit' | 'grant' | 'deny'};
 
 export interface User {
   id: number;
@@ -134,11 +181,14 @@ export interface User {
   trialEndsAt?: string | null;
   stripeSubscriptionId?: string | null;
   trialStatus?: UserTrialStatus;
+  groupPermissions?: UserGroupPermissionsItem[];
+  inheritedGroupPermissions?: UserInheritedGroupPermissionsItem[];
+  effectivePermissions?: UserEffectivePermissionsItem[];
+  permissionOverrides?: UserPermissionOverrides;
   isSuperAdmin?: boolean | null;
   clientsEnabled?: boolean | null;
   organizationId?: number | null;
   organizationName?: string | null;
-  groupPermissions?: string[] | null;
 }
 
 export interface LoginResponse {
@@ -173,6 +223,8 @@ export const UpdateUserBodyRole = {
   user: 'user',
 } as const;
 
+export type UpdateUserBodyPermissionOverrides = {[key: string]: 'inherit' | 'grant' | 'deny'};
+
 export interface UpdateUserBody {
   name?: string;
   email?: string;
@@ -184,6 +236,7 @@ export interface UpdateUserBody {
   groups?: string[] | null;
   isActive?: boolean;
   isAvailable?: boolean;
+  permissionOverrides?: UpdateUserBodyPermissionOverrides;
 }
 
 export type RecurrenceRuleFrequency = typeof RecurrenceRuleFrequency[keyof typeof RecurrenceRuleFrequency];

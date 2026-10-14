@@ -13,6 +13,7 @@ export const usersTable = pgTable("users", {
   mainLocation: text("main_location"),
   group: text("group"),
   groups: text("groups"),
+  permissionOverrides: text("permission_overrides").notNull().default("{}"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),

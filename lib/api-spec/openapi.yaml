@@ -2829,10 +2829,27 @@ components:
               type: boolean
             daysLeft:
               type: integer
-          required:
-            - isInTrial
-            - isExpired
-            - daysLeft
+          required: [isInTrial, isExpired, daysLeft]
+        groupPermissions:
+          type: array
+          items:
+            type: string
+            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+        inheritedGroupPermissions:
+          type: array
+          items:
+            type: string
+            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+        effectivePermissions:
+          type: array
+          items:
+            type: string
+            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+        permissionOverrides:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [inherit, grant, deny]
         isSuperAdmin:
           type: boolean
           nullable: true
@@ -2844,11 +2861,6 @@ components:
           nullable: true
         organizationName:
           type: string
-          nullable: true
-        groupPermissions:
-          type: array
-          items:
-            type: string
           nullable: true
       required:
         - id
@@ -2919,6 +2931,11 @@ components:
           type: boolean
         isAvailable:
           type: boolean
+        permissionOverrides:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [inherit, grant, deny]
 
     RecurrenceRule:
       type: object

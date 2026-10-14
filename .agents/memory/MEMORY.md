@@ -36,3 +36,4 @@
 - [Expo web export base path](expo-web-export-base-path.md) — Static web exports need the artifact prefix, and Expo dev previews must be opened at that prefix too.
 - [Express middleware typing](express-middleware-typing.md) — Typed single middleware handlers preserve route parameter inference; passing middleware arrays may leave route handlers implicit-any.
 - [Presentazione email nei ticket](forwarded-email-cleanup.md) — Conservare il testo integrale; evidenziare il messaggio e attenuare visivamente intestazioni e firma.
+- [Effective permission contract](effective-permission-contract.md) — Keep auth payload permissions aligned with final server access; expose group-only inheritance separately.

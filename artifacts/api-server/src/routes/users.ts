@@ -16,6 +16,11 @@ import { hashPassword } from "./auth";
 import { destroySessionsForUser } from "../lib/session";
 import { getSeatUsage, buildSeatLimitError } from "../seatService";
 import { stripeStorage } from "../stripeStorage";
+import {
+  GROUP_PERMISSION_KEYS,
+  parsePermissionOverrides,
+  resolvePermissionSummary,
+} from "../lib/groupPermissions";
 
 const router: IRouter = Router();
 
@@ -32,6 +37,7 @@ const userFields = {
   isActive: usersTable.isActive,
   isAvailable: usersTable.isAvailable,
   createdAt: usersTable.createdAt,
+  permissionOverrides: usersTable.permissionOverrides,
 };
 
 router.get("/users", requireAuth, async (req, res): Promise<void> => {
@@ -79,7 +85,13 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.setHeader("Cache-Control", "private, max-age=60");
-  res.json(users.map((u) => ({ ...u, groupMemberships: byUser.get(u.id) ?? [] })));
+  res.json(users.map((u) => {
+    const groupMemberships = byUser.get(u.id) ?? [];
+    const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];
+    const permissionOverrides = parsePermissionOverrides(u.permissionOverrides);
+    const summary = resolvePermissionSummary(u.role, inherited, permissionOverrides);
+    return { ...u, groupMemberships, ...summary, permissionOverrides };
+  }));
 });
 
 router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -147,7 +159,28 @@ router.get("/users/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json(user);
+  const memberships = await db
+    .select({ permissions: groupsTable.permissions })
+    .from(groupMembersTable)
+    .innerJoin(groupsTable, eq(groupMembersTable.groupId, groupsTable.id))
+    .where(and(
+      eq(groupMembersTable.userId, user.id),
+      eq(groupsTable.organizationId, currentUser.organizationId),
+    ));
+  const inherited = [...new Set(memberships.flatMap((membership) => {
+    try {
+      const parsed: unknown = JSON.parse(membership.permissions ?? "[]");
+      return Array.isArray(parsed) ? parsed.filter((permission): permission is string => typeof permission === "string") : [];
+    } catch {
+      return [];
+    }
+  }))];
+  const permissionOverrides = parsePermissionOverrides(user.permissionOverrides);
+  res.json({
+    ...user,
+    ...resolvePermissionSummary(user.role, inherited, permissionOverrides),
+    permissionOverrides,
+  });
 });
 
 router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
@@ -186,11 +219,21 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
       return;
     }
   }
+  if (parsed.data.permissionOverrides !== undefined) {
+    const invalidKeys = Object.keys(parsed.data.permissionOverrides).filter(
+      (key) => !GROUP_PERMISSION_KEYS.includes(key as typeof GROUP_PERMISSION_KEYS[number]),
+    );
+    if (invalidKeys.length > 0) {
+      res.status(400).json({ error: "Invalid permission override key", keys: invalidKeys });
+      return;
+    }
+  }
 
-  const { password: _ignoredPassword, groups: groupsArray, ...rest } = parsed.data;
+  const { password: _ignoredPassword, groups: groupsArray, permissionOverrides, ...rest } = parsed.data;
   const updates: Record<string, unknown> = {
     ...rest,
     ...(groupsArray !== undefined && { groups: groupsArray ? JSON.stringify(groupsArray) : null }),
+    ...(permissionOverrides !== undefined && { permissionOverrides: JSON.stringify(permissionOverrides) }),
   };
 
   if (Object.keys(updates).length === 0) {
