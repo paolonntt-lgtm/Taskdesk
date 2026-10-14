@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
-import { compactEmailDetailLinks } from '../lib/emailDisplay';
+import { compactEmailDetailLinks, splitEmailBodySections } from '../lib/emailDisplay';
 
 interface MarkdownContentProps {
   content: string;
@@ -27,46 +27,6 @@ function splitEmailContent(text: string): { header: string; body: string } | nul
   return {
     header: text.slice(0, sepIdx).trim(),
     body: text.slice(sepIdx + EMAIL_SEPARATOR.length),
-  };
-}
-
-function splitEmailBodySections(text: string): { metadata: string; message: string; details: string } {
-  const normalized = text.replace(/\r\n?/g, "\n").trim();
-  const lines = normalized.split("\n");
-  const firstBlank = lines.findIndex((line) => !line.trim());
-  let metadata = "";
-  let bodyLines = lines;
-
-  if (firstBlank > 0 && firstBlank <= 8) {
-    const possibleHeader = lines.slice(0, firstBlank);
-    const headerText = possibleHeader.join("\n");
-    const startsLikeHeader =
-      /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(possibleHeader[0]) ||
-      /^\s*(?:-{2,}\s*(?:forwarded|messaggio|original message)|begin forwarded message)/i.test(possibleHeader[0]);
-    const headerFields = headerText.match(
-      /\b(?:tramite|via|from|da|date|data|sent|inviato|subject|oggetto)\b|(?:\bto\b|\ba\b)\s*:|(?:\bto\b|\ba\b)\s+[\w.+-]+@|(?:lun|mar|mer|gio|ven|sab|dom)\s+\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)/gi,
-    ) ?? [];
-
-    if (startsLikeHeader && headerFields.length >= 2) {
-      metadata = possibleHeader.join("\n").trim();
-      bodyLines = lines.slice(firstBlank + 1);
-    }
-  }
-
-  let signOffIndex = -1;
-  const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.!]?\s*$/i;
-  for (let index = 0; index < bodyLines.length; index++) {
-    if (signOff.test(bodyLines[index].trim())) signOffIndex = index;
-  }
-
-  if (signOffIndex < 0) {
-    return { metadata, message: bodyLines.join("\n").trim(), details: "" };
-  }
-
-  return {
-    metadata,
-    message: bodyLines.slice(0, signOffIndex + 1).join("\n").trim(),
-    details: bodyLines.slice(signOffIndex + 1).join("\n").trim(),
   };
 }
 
