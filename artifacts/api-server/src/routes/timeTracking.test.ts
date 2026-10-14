@@ -654,6 +654,46 @@ describe("ticket time tracking", () => {
     expect(removedAssigneeSessions.filter((session) => session.endedAt === null)).toEqual([]);
 
     expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+    const reassignedToCollaborator = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: collaboratorId }),
+    });
+    expect(reassignedToCollaborator.status).toBe(200);
+    expect((await changeStatus(handoffTicketId, "in_progress", collaboratorSessionId)).status).toBe(200);
+    const selfUnassignSession = (await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId)))
+      .find((session) => session.endedAt === null);
+    expect(selfUnassignSession).toMatchObject({ userId: collaboratorId, endedAt: null });
+
+    const selfUnassigned = await request(`/api/tickets/${handoffTicketId}`, collaboratorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: null }),
+    });
+    expect(selfUnassigned.status).toBe(200);
+    expect(selfUnassigned.body.assignedTo).toBeNull();
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: null, status: "in_progress" });
+    const sessionsAfterSelfUnassign = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessionsAfterSelfUnassign).toHaveLength(sessions.length + 1);
+    const closedSelfUnassignSession = sessionsAfterSelfUnassign.find(
+      (session) => session.id === selfUnassignSession?.id,
+    );
+    expect(closedSelfUnassignSession).toMatchObject({
+      userId: collaboratorId,
+      startedAt: selfUnassignSession?.startedAt,
+    });
+    expect(closedSelfUnassignSession?.endedAt).toBeInstanceOf(Date);
+    expect(closedSelfUnassignSession!.endedAt!.getTime())
+      .toBeGreaterThanOrEqual(closedSelfUnassignSession!.startedAt.getTime());
+    const activeCollaboratorSessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.userId, collaboratorId));
+    expect(activeCollaboratorSessions.filter((session) => session.endedAt === null)).toEqual([]);
+    expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+
     const disabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: false }),
