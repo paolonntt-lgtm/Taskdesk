@@ -171,6 +171,7 @@ describe("ticket time tracking", () => {
       createdBy: adminId,
       assignedTo: collaboratorId,
       timeTrackingEnabled: true,
+      timeTrackingCompensationOverride: true,
     }).returning({ id: ticketsTable.id });
     handoffTicketId = handoffTicket.id;
 
@@ -612,6 +613,13 @@ describe("ticket time tracking", () => {
     expect(activeHandoffSessions).toHaveLength(1);
     expect(activeHandoffSessions[0]?.userId).toBe(ticketState[0]?.assignedTo);
 
+    const activeSession = activeHandoffSessions[0]!;
+    const reportableSessionStart = new Date(Date.now() - 30 * 60_000);
+    await db.update(ticketTimeSessionsTable)
+      .set({ startedAt: reportableSessionStart })
+      .where(eq(ticketTimeSessionsTable.id, activeSession.id));
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
     const sessionsBeforeUnassign = sessions.map((session) => ({
       id: session.id,
       userId: session.userId,
@@ -652,6 +660,40 @@ describe("ticket time tracking", () => {
     }).from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.userId, activeHandoffSessions[0]!.userId));
     expect(removedAssigneeSessions.filter((session) => session.endedAt === null)).toEqual([]);
+
+    const report = await request("/api/time-tracking/report", adminSessionId);
+    expect(report.status).toBe(200);
+    const reportRows = report.body.collaboratorRows.filter((row: any) => row.ticketId === handoffTicketId);
+    const collaboratorNames = new Map([
+      [collaboratorId, "Timer Test Collaborator"],
+      [raceCollaboratorId, "Timer Race Collaborator"],
+      [groupStatusManagerId, "Timer Group Status Manager"],
+    ]);
+    const expectedRows = new Map<number, number>();
+    for (const session of sessions) {
+      const duration = Math.max(0, Math.floor(
+        (session.endedAt!.getTime() - session.startedAt.getTime()) / 60_000,
+      ));
+      expectedRows.set(session.userId, (expectedRows.get(session.userId) ?? 0) + duration);
+    }
+    expect(reportRows).toHaveLength(expectedRows.size);
+    expect(new Set(reportRows.map((row: any) => row.collaboratorId)).size).toBe(reportRows.length);
+    for (const [userId, durationMinutes] of expectedRows) {
+      expect(reportRows).toContainEqual(expect.objectContaining({
+        ticketId: handoffTicketId,
+        collaboratorId: userId,
+        collaboratorName: collaboratorNames.get(userId),
+        durationMinutes,
+      }));
+    }
+    const removedAssigneeReportRow = reportRows.find(
+      (row: any) => row.collaboratorId === activeSession.userId,
+    );
+    expect(removedAssigneeReportRow).toEqual(expect.objectContaining({
+      collaboratorId: activeSession.userId,
+      durationMinutes: expect.any(Number),
+    }));
+    expect(removedAssigneeReportRow.durationMinutes).toBeGreaterThanOrEqual(30);
 
     expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
     const reassignedToCollaborator = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
