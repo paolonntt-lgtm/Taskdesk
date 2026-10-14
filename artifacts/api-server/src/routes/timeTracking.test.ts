@@ -551,13 +551,16 @@ describe("ticket time tracking", () => {
     const busyTicketId = raceTicketIds[0];
     expect((await changeStatus(busyTicketId, "in_progress", adminSessionId)).status).toBe(200);
     expect((await changeStatus(handoffTicketId, "in_progress", adminSessionId)).status).toBe(200);
-    const rejectedHandoff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
-      method: "PATCH",
-      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
-    });
-    expect(rejectedHandoff.status).toBe(409);
-    expect(rejectedHandoff.body.error).toBe("TIMER_ALREADY_ACTIVE");
 
+    const colleagueSessionBefore = (await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId)))
+      .find((session) => session.endedAt === null);
+    expect(colleagueSessionBefore).toMatchObject({ userId: collaboratorId, endedAt: null });
+    const coworkerUnassignAttempt = await request(`/api/tickets/${handoffTicketId}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: null }),
+    });
+    expect(coworkerUnassignAttempt.status).toBe(403);
     let ticketState = await db.select({
       assignedTo: ticketsTable.assignedTo,
       status: ticketsTable.status,
@@ -566,7 +569,34 @@ describe("ticket time tracking", () => {
     let sessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]).toMatchObject({ userId: collaboratorId, endedAt: null });
+    expect(sessions[0]).toMatchObject({
+      id: colleagueSessionBefore!.id,
+      userId: collaboratorId,
+      startedAt: colleagueSessionBefore!.startedAt,
+      endedAt: null,
+    });
+    const coworkerTimerStartedAt = colleagueSessionBefore!.startedAt;
+
+    const rejectedHandoff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(rejectedHandoff.status).toBe(409);
+    expect(rejectedHandoff.body.error).toBe("TIMER_ALREADY_ACTIVE");
+
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: collaboratorId, status: "in_progress" });
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({
+      userId: collaboratorId,
+      startedAt: coworkerTimerStartedAt,
+      endedAt: null,
+    });
 
     expect((await changeStatus(busyTicketId, "waiting", adminSessionId)).status).toBe(200);
     const handedOff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {

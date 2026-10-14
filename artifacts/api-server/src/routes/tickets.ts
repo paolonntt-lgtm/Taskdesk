@@ -964,6 +964,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       (requestedAssignedTo === null && existing.assignedTo === currentUser.id)
     );
 
+  // Do not silently ignore an unauthorized assignment change. In particular,
+  // users with status permissions must not be able to unassign a colleague.
+  if (!isAdmin && requestedAssignedTo !== undefined && !isSelfAssignAttempt) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
   if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !isStatusAccessUpdate) {
