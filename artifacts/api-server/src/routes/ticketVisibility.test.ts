@@ -15,6 +15,7 @@ import {
   ticketCommentsTable,
   ticketInternalNotesTable,
   ticketSubscriptionsTable,
+  ticketStatusesTable,
   ticketsTable,
   usersTable,
 } from "@workspace/db";
@@ -177,6 +178,9 @@ describe("manual ticket visibility", () => {
     if (createdTicketIds.length > 0) {
       await db.delete(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
     }
+    await db
+      .delete(ticketStatusesTable)
+      .where(inArray(ticketStatusesTable.organizationId, [organizationId, otherOrganizationId]));
     if (notesGroupId) {
       await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, notesGroupId));
       await db.delete(groupsTable).where(eq(groupsTable.id, notesGroupId));
@@ -472,9 +476,23 @@ describe("manual ticket visibility", () => {
       expect.arrayContaining(["status_changed", "priority_changed"]),
     );
 
+    const configuredStatuses = await db
+      .select({ key: ticketStatusesTable.key, isClosed: ticketStatusesTable.isClosed })
+      .from(ticketStatusesTable)
+      .where(eq(ticketStatusesTable.organizationId, organizationId));
+    const closeStatus = configuredStatuses.find((status) => status.isClosed)?.key ?? "resolved";
+    const resolutionResponse = await request(`/api/tickets/${ticketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: closeStatus, resolutionNote: "Risolto dal collaboratore" }),
+    });
+    expect(resolutionResponse.status).toBe(200);
+    expect(resolutionResponse.body).toEqual(
+      expect.objectContaining({ status: closeStatus, resolutionNote: "Risolto dal collaboratore" }),
+    );
+
     const unauthorizedMixedUpdate = await request(`/api/tickets/${ticketId}`, userSessionId, {
       method: "PATCH",
-      body: JSON.stringify({ status: "waiting", title: "Unauthorized title change" }),
+      body: JSON.stringify({ status: "in_progress", title: "Unauthorized title change" }),
     });
     expect(unauthorizedMixedUpdate.status).toBe(403);
 
@@ -484,7 +502,7 @@ describe("manual ticket visibility", () => {
       .where(eq(ticketsTable.id, ticketId));
     expect(unchangedTicket).toEqual({
       title: `Status and priority access ${runId}`,
-      status: "in_progress",
+      status: closeStatus,
       priority: "urgent",
     });
   }, 60_000);
