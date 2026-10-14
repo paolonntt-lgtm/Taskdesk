@@ -195,7 +195,7 @@ export function MarkdownContent({
     const bodySections = splitEmailBodySections(emailParts.body);
     const threadDetails = splitEmailThreadDetails(bodySections.details);
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.1 }}>
         {/* Styled callout for the email sender header */}
         <Box
           sx={(theme) => ({
@@ -247,12 +247,15 @@ export function MarkdownContent({
           <Box
             sx={{
               ...emailBodySx,
-              fontSize: '0.78rem',
-              lineHeight: 1.45,
+              fontSize: '0.68rem',
+              lineHeight: 1.3,
               color: 'text.secondary',
-              fontWeight: 500,
-              '& p': { m: 0, mb: 0.5 },
+              fontWeight: 400,
+              '& p': { m: 0, mb: 0.25, fontSize: 'inherit', lineHeight: 'inherit' },
               '& p:last-child': { mb: 0 },
+              '& em, & strong, & a, & li': { fontSize: 'inherit', lineHeight: 'inherit' },
+              '& a': { fontSize: '0.62rem', color: 'text.secondary' },
+              '& ul, & ol': { pl: 2, my: 0.25 },
             }}
           >
             <ReactMarkdown components={mdComponents as any}>
@@ -266,36 +269,36 @@ export function MarkdownContent({
           return (
             <Box
               key={`${index}-${email.header}`}
-              sx={{
+              sx={(theme) => ({
                 borderLeft: '2px solid',
-                borderColor: 'divider',
-                bgcolor: 'action.hover',
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                bgcolor: alpha(theme.palette.primary.main, 0.055),
                 borderRadius: '0 6px 6px 0',
                 px: 1.25,
                 py: 0.875,
-              }}
+              })}
             >
-              <Box sx={{ ...emailBodySx, fontSize: '0.7rem', lineHeight: 1.4, color: 'text.secondary', mb: 0.75 }}>
+              <Box sx={{ ...emailBodySx, fontSize: '0.68rem', lineHeight: 1.35, color: 'text.secondary', mb: 0.65 }}>
                 <ReactMarkdown components={mdComponents as any}>
                   {preprocessContent(email.header)}
                 </ReactMarkdown>
               </Box>
               {quoteSections.metadata && (
-                <Box sx={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'text.secondary', mb: 0.5 }}>
+                <Box sx={{ fontSize: '0.68rem', lineHeight: 1.35, color: 'text.secondary', mb: 0.5 }}>
                   <ReactMarkdown components={mdComponents as any}>
                     {preprocessContent(quoteSections.metadata)}
                   </ReactMarkdown>
                 </Box>
               )}
               {quoteSections.message && (
-                <Box sx={{ ...emailBodySx, fontSize: '0.875rem', lineHeight: 1.55, color: 'text.primary', fontWeight: 500 }}>
+                <Box sx={{ ...emailBodySx, fontSize: '0.92rem', lineHeight: 1.55, color: 'text.primary', fontWeight: 650 }}>
                   <ReactMarkdown components={mdComponents as any}>
                     {preprocessContent(quoteSections.message)}
                   </ReactMarkdown>
                 </Box>
               )}
               {quoteSections.details && (
-                <Box sx={{ ...emailBodySx, mt: 0.5, fontSize: '0.72rem', lineHeight: 1.4, color: 'text.secondary' }}>
+                <Box sx={{ ...emailBodySx, mt: 0.45, fontSize: '0.64rem', lineHeight: 1.3, color: 'text.secondary' }}>
                   <ReactMarkdown components={mdComponents as any}>
                     {preprocessContent(compactEmailDetailLinks(quoteSections.details))}
                   </ReactMarkdown>
