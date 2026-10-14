@@ -41,6 +41,7 @@ let groupManagerParallelTicketIds: number[] = [];
 let manualTicketId: number;
 let privateTicketId: number;
 let handoffTicketId: number;
+let backupHandoffTicketId: number;
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -173,6 +174,22 @@ describe("ticket time tracking", () => {
     }).returning({ id: ticketsTable.id });
     handoffTicketId = handoffTicket.id;
 
+    const [backupHandoffTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      clientId,
+      title: `Backup handoff history ${runId}`,
+      description: "Backup and restore timer handoff history test",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: adminId,
+      assignedTo: collaboratorId,
+      timeTrackingEnabled: true,
+      timeTrackingBillable: true,
+    }).returning({ id: ticketsTable.id });
+    backupHandoffTicketId = backupHandoffTicket.id;
+
     const raceTickets = await db.insert(ticketsTable).values(["Concurrent timer A", "Concurrent timer B"].map((title) => ({
       organizationId,
       clientId,
@@ -290,6 +307,7 @@ describe("ticket time tracking", () => {
       manualTicketId,
       privateTicketId,
       handoffTicketId,
+      backupHandoffTicketId,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
@@ -636,6 +654,105 @@ describe("ticket time tracking", () => {
     expect(removedAssigneeSessions.filter((session) => session.endedAt === null)).toEqual([]);
 
     expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+    const disabled = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: false }),
+    });
+    expect(disabled.status).toBe(200);
+  }, 60_000);
+
+  it("backs up and restores both collaborators' complete handoff sessions", async () => {
+    const enabled = await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: true }),
+    });
+    expect(enabled.status).toBe(200);
+
+    expect((await changeStatus(backupHandoffTicketId, "in_progress", adminSessionId)).status).toBe(200);
+    const handoff = await request(`/api/tickets/${backupHandoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(handoff.status).toBe(200);
+    expect((await changeStatus(backupHandoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+
+    const originalSessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, backupHandoffTicketId));
+    expect(originalSessions).toHaveLength(2);
+    expect(originalSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        userId: collaboratorId,
+        endedAt: expect.any(Date),
+        clientBillable: true,
+        collaboratorRecognizable: true,
+      }),
+      expect.objectContaining({
+        userId: raceCollaboratorId,
+        endedAt: expect.any(Date),
+        clientBillable: true,
+        collaboratorRecognizable: false,
+      }),
+    ]));
+
+    const backup = await buildBackupPayload(organizationId);
+    expect(backup).not.toBeNull();
+    if (!backup) throw new Error("Expected a backup payload for the test organization");
+    const backupTicket = backup.data.tickets.find((ticket) => ticket.id === backupHandoffTicketId);
+    const backupSessions = backup.data.timeSessions.filter((session) => session.ticketId === backupHandoffTicketId);
+    expect(backupSessions).toHaveLength(2);
+    expect(backupSessions.map((session) => ({
+      userId: session.userId,
+      startedAt: session.startedAt.toISOString(),
+      endedAt: session.endedAt?.toISOString() ?? null,
+      clientBillable: session.clientBillable,
+      collaboratorRecognizable: session.collaboratorRecognizable,
+    }))).toEqual(originalSessions.map((session) => ({
+      userId: session.userId,
+      startedAt: session.startedAt.toISOString(),
+      endedAt: session.endedAt?.toISOString() ?? null,
+      clientBillable: session.clientBillable,
+      collaboratorRecognizable: session.collaboratorRecognizable,
+    })));
+    expect(backupTicket).toBeDefined();
+
+    const restoredTicketNumber = 1_000_000_000 + backupHandoffTicketId;
+    const restore = await request("/api/backup/restore", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        exportedAt: backup.exportedAt,
+        data: {
+          users: backup.data.users.filter((user) =>
+            user.id === collaboratorId || user.id === raceCollaboratorId),
+          clients: backup.data.clients.filter((client) => client.id === clientId),
+          tickets: [{ ...backupTicket!, ticketNumber: restoredTicketNumber }],
+          timeSessions: backupSessions,
+        },
+      }),
+    });
+    expect(restore.status).toBe(200);
+    expect(restore.body).toMatchObject({ ticketsRestored: 1, timeSessionsRestored: 2 });
+
+    const [restoredTicket] = await db.select({ id: ticketsTable.id }).from(ticketsTable)
+      .where(eq(ticketsTable.ticketNumber, restoredTicketNumber));
+    expect(restoredTicket).toBeDefined();
+    trackedTicketIds.push(restoredTicket.id);
+    const restoredSessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, restoredTicket.id));
+    expect(restoredSessions).toHaveLength(2);
+    expect(restoredSessions.map((session) => ({
+      userId: session.userId,
+      startedAt: session.startedAt.toISOString(),
+      endedAt: session.endedAt?.toISOString() ?? null,
+      clientBillable: session.clientBillable,
+      collaboratorRecognizable: session.collaboratorRecognizable,
+    }))).toEqual(backupSessions.map((session) => ({
+      userId: session.userId,
+      startedAt: session.startedAt.toISOString(),
+      endedAt: session.endedAt?.toISOString() ?? null,
+      clientBillable: session.clientBillable,
+      collaboratorRecognizable: session.collaboratorRecognizable,
+    })));
+
     const disabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: false }),
