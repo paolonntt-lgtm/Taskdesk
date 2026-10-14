@@ -3,6 +3,7 @@ import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTa
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
+import { cleanForwardedEmailBody } from "./emailTextCleanup";
 import { randomUUID } from "crypto";
 
 import type { InboundAttachment } from "./pecUtils";
@@ -258,12 +259,13 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     : fromEmail;
   const channelIcon = isPec ? "🔏" : "📧";
   const channelLabel = isPec ? "Ricevuto via PEC da" : "Ricevuto via email da";
+  const cleanedBody = cleanForwardedEmailBody(bodyText || "");
   const description = [
     `${channelIcon} ${channelLabel}: ${senderLabel}`,
     "",
     "---",
     "",
-    bodyText || "(nessun testo)",
+    cleanedBody || "(nessun testo)",
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
