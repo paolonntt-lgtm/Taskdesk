@@ -115,6 +115,8 @@ export default function TicketDetail() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [resolutionDialog, setResolutionDialog] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
+  const [closureSummary, setClosureSummary] = useState<any | null>(null);
+  const [closureSummaryOpen, setClosureSummaryOpen] = useState(false);
   const [workedHours, setWorkedHours] = useState('');
   const [workedMinutes, setWorkedMinutes] = useState('');
   const [workedTimeError, setWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
@@ -369,6 +371,7 @@ export default function TicketDetail() {
   const confirmResolved = async (note: string) => {
     const resolvedKey = orgStatuses.find((s) => s.isClosed)?.key ?? 'resolved';
     const workedTime = parseWorkedDuration(workedHours, workedMinutes);
+    const showTrackedClosureSummary = Boolean((ticket as any).timeTrackingEnabled);
     if (workedTimeEnabled && workedTime.error) {
       setWorkedTimeError(workedTime.error);
       return;
@@ -386,13 +389,19 @@ export default function TicketDetail() {
         worked_minutes: workedTime.total ?? 0,
         has_resolution_note: Boolean(note.trim()),
       });
-      queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setResolutionDialog(false);
       setResolutionNote('');
       setWorkedHours('');
       setWorkedMinutes('');
       setWorkedTimeError(null);
+      if (showTrackedClosureSummary) {
+        await loadTrackedClosureSummary(
+          note,
+          workedTimeEnabled ? workedTime.total : undefined,
+        );
+      }
     } catch (err: any) {
       setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
     }
@@ -433,6 +442,28 @@ export default function TicketDetail() {
     }
   };
 
+  const loadTrackedClosureSummary = async (
+    note?: string | null,
+    finalManualMinutes?: number | null,
+  ) => {
+    if (!(ticket as any).timeTrackingEnabled) return;
+    try {
+      const response = await fetch(`/api/tickets/${ticketId}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('ticket summary unavailable');
+      const finalizedTicket = await response.json();
+      setClosureSummary({
+        ...finalizedTicket,
+        closureSummaryNote: note?.trim() || finalizedTicket.resolutionNote || '',
+        manualWorkedMinutes: finalManualMinutes !== undefined
+          ? finalManualMinutes
+          : finalizedTicket.workedMinutes ?? null,
+      });
+      setClosureSummaryOpen(true);
+    } catch {
+      setStatusError(t.ticketDetail.closureSummaryUnavailable);
+    }
+  };
+
   const handleGroupChange = async (val: string) => {
     setTicketUpdateError(null);
     try {
@@ -463,6 +494,10 @@ export default function TicketDetail() {
         );
         if (data.autoResolved) {
           queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+          await loadTrackedClosureSummary(
+            (ticket as any).resolutionNote,
+            (ticket as any).workedMinutes ?? null,
+          );
         }
         queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       }
@@ -1851,6 +1886,87 @@ export default function TicketDetail() {
           <Button onClick={() => confirmResolved('')} disabled={updateTicket.isPending} color="inherit">{t.ticketDetail.resolutionNoteSkip}</Button>
           <Button variant="contained" color="success" onClick={() => confirmResolved(resolutionNote)} disabled={updateTicket.isPending} startIcon={<CheckCircleOutline />}>
             {updateTicket.isPending ? '...' : t.ticketDetail.resolutionNoteConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={closureSummaryOpen}
+        onClose={() => setClosureSummaryOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t.ticketDetail.closureSummaryTitle}</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {t.ticketDetail.closureSummarySubtitle}
+          </Typography>
+          <Box display="flex" flexDirection="column" gap={1.25}>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>
+                {t.ticketDetail.trackedTimeTotal}
+              </Typography>
+              <Typography variant="body2">
+                {formatWorkedDuration(closureSummary?.timeTrackingSummary?.totalMinutes ?? 0, lang)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>
+                {t.ticketDetail.trackedTimeSessionBy}
+              </Typography>
+              {(closureSummary?.timeSessions?.length ?? 0) > 0 ? (
+                Object.entries(
+                  (closureSummary.timeSessions as any[]).reduce((byCollaborator: Record<string, number>, session) => {
+                    byCollaborator[session.userName] = (byCollaborator[session.userName] ?? 0) + session.durationMinutes;
+                    return byCollaborator;
+                  }, {}),
+                ).map(([name, minutes]) => (
+                  <Box key={name} display="flex" justifyContent="space-between" gap={1}>
+                    <Typography variant="body2">{name}</Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {formatWorkedDuration(minutes as number, lang)}
+                    </Typography>
+                  </Box>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">{t.ticketDetail.closureSummaryNoSessions}</Typography>
+              )}
+            </Box>
+            {(closureSummary?.manualWorkedMinutes ?? null) != null && (
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.workedTime}</Typography>
+                <Typography variant="body2">
+                  {formatWorkedDuration(closureSummary.manualWorkedMinutes, lang)}
+                </Typography>
+              </Box>
+            )}
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCustomerBillable}</Typography>
+              <Typography variant="body2">
+                {formatWorkedDuration(closureSummary?.timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}
+                {' · '}
+                {closureSummary?.timeTrackingBillable
+                  ? t.ticketDetail.trackedTimeCustomerBillableOn
+                  : t.ticketDetail.trackedTimeCustomerBillableOff}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>
+              <Typography variant="body2">
+                {formatWorkedDuration(closureSummary?.timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.resolutionNoteLabel}</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {closureSummary?.closureSummaryNote || t.ticketDetail.closureSummaryNoNote}
+              </Typography>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="contained" onClick={() => setClosureSummaryOpen(false)}>
+            {t.ticketDetail.closureSummaryClose}
           </Button>
         </DialogActions>
       </Dialog>
