@@ -687,21 +687,29 @@ export default function NewTicket() {
                   <SideSection>
                     <SideLabel>{t.ticketDetail.trackedTimeTitle}</SideLabel>
                     <FormControlLabel
-                      sx={{ mx: 0, alignItems: 'flex-start' }}
+                      sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
                       control={<Checkbox size="small" checked={trackWorkedTime} onChange={(event) => {
                         setTrackWorkedTime(event.target.checked);
                         if (!event.target.checked) setTimeBillableToClient(false);
                       }} />}
                       data-testid="toggle-ticket-time-tracking"
-                      label={<Typography variant="body2" fontSize={12}>{t.newTicket.trackWorkedTime}</Typography>}
+                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.trackWorkedTime}</Typography>}
                     />
+                    <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
+                      {t.newTicket.trackWorkedTimeHint}
+                    </Typography>
                     {trackWorkedTime && (
-                      <FormControlLabel
-                        sx={{ mx: 0, ml: 1.5, alignItems: 'flex-start' }}
-                        control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
-                        data-testid="toggle-ticket-client-billable"
-                        label={<Typography variant="body2" fontSize={12}>{t.newTicket.billableToClient}</Typography>}
-                      />
+                      <Box sx={{ mt: 0.75 }}>
+                        <FormControlLabel
+                          sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+                          control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
+                          data-testid="toggle-ticket-client-billable"
+                          label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.billableToClient}</Typography>}
+                        />
+                        <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
+                          {t.newTicket.billableToClientHint}
+                        </Typography>
+                      </Box>
                     )}
                   </SideSection>
                 )}
