@@ -13,6 +13,7 @@ export const NOTIFICATION_TYPES = [
   "ticket_priority_changed",
   "ticket_due",
   "daily_report_submitted",
+  "time_session_corrected",
   "system",
 ] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];

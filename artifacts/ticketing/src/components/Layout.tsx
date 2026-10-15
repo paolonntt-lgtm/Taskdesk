@@ -550,6 +550,7 @@ export default function Layout({ children }: LayoutProps) {
     ticket_commented: <Comment fontSize="small" sx={{ color: 'success.main' }} />,
     ticket_assigned: <AssignmentInd fontSize="small" sx={{ color: 'secondary.main' }} />,
     ticket_priority_changed: <PriorityHigh fontSize="small" sx={{ color: 'warning.main' }} />,
+    time_session_corrected: <AccessTime fontSize="small" sx={{ color: 'info.main' }} />,
     daily_report_submitted: <Info fontSize="small" sx={{ color: 'primary.main' }} />,
     system: <Info fontSize="small" sx={{ color: 'text.secondary' }} />,
   };

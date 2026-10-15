@@ -46,6 +46,7 @@ const TYPE_META: Record<string, { emoji: string; it: string; en: string; require
   ticket_assigned:         { emoji: "👤", it: "Ticket assegnato",   en: "Ticket assigned",  requireInteraction: true },
   ticket_priority_changed: { emoji: "⚠️", it: "Priorità aggiornata", en: "Priority changed" },
   daily_report_submitted:  { emoji: "📋", it: "Report giornaliero", en: "Daily report" },
+  time_session_corrected:  { emoji: "⏱️", it: "Ore corrette",        en: "Hours corrected" },
   system:                  { emoji: "ℹ️", it: "TaskDesk",            en: "TaskDesk" },
 };
 

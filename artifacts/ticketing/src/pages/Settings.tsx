@@ -28,6 +28,7 @@ const NOTIF_TYPES = [
   'ticket_commented',
   'ticket_assigned',
   'ticket_priority_changed',
+  'time_session_corrected',
   'system',
 ] as const;
 type NotifType = typeof NOTIF_TYPES[number];

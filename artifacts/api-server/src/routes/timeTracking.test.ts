@@ -583,6 +583,43 @@ describe("ticket time tracking", () => {
 
     expect((await changeStatus(handoffTicketId, "closed", adminSessionId)).status).toBe(200);
     const beforeEdit = resumedSessions.find((session) => session.userId === collaboratorId)!;
+    const initialPreferences = await request("/api/notification-preferences", collaboratorSessionId);
+    expect(initialPreferences.status).toBe(200);
+    expect(initialPreferences.body.preferences).toContainEqual(expect.objectContaining({
+      type: "time_session_corrected",
+      inApp: true,
+      browser: true,
+      sound: true,
+      email: false,
+    }));
+    const saveCorrectionPreference = await request("/api/notification-preferences", collaboratorSessionId, {
+      method: "PUT",
+      body: JSON.stringify({
+        preferences: [{
+          type: "time_session_corrected",
+          inApp: true,
+          browser: false,
+          sound: false,
+          email: false,
+        }],
+      }),
+    });
+    expect(saveCorrectionPreference.status).toBe(200);
+    const savedPreferences = await request("/api/notification-preferences", collaboratorSessionId);
+    expect(savedPreferences.body.preferences).toContainEqual(expect.objectContaining({
+      type: "time_session_corrected",
+      inApp: true,
+      browser: false,
+      sound: false,
+      email: false,
+    }));
+    expect(savedPreferences.body.preferences).toContainEqual(expect.objectContaining({
+      type: "system",
+      inApp: true,
+      browser: true,
+      sound: true,
+      email: false,
+    }));
     const sessionEdit = await request(`/api/tickets/${handoffTicketId}/time-sessions/${beforeEdit.id}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({
@@ -617,7 +654,11 @@ describe("ticket time tracking", () => {
     const forbiddenHistory = await request(`/api/tickets/${handoffTicketId}/time-session-edits`, collaboratorSessionId);
     expect(forbiddenHistory.status).toBe(403);
     const editNotifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, collaboratorId));
-    expect(editNotifications.some((notification) => notification.ticketId === handoffTicketId && notification.notificationText.includes("aggiornato le tue ore"))).toBe(true);
+    expect(editNotifications.some((notification) =>
+      notification.ticketId === handoffTicketId
+      && notification.type === "time_session_corrected"
+      && notification.notificationText.includes("aggiornato le tue ore")
+    )).toBe(true);
     const forbiddenEdit = await request(`/api/tickets/${handoffTicketId}/time-sessions/${beforeEdit.id}`, collaboratorSessionId, {
       method: "PATCH",
       body: JSON.stringify({ durationMinutes: 60, clientBillable: true, collaboratorRecognizable: true }),

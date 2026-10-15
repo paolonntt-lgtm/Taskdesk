@@ -90,7 +90,7 @@ router.patch("/tickets/:id/time-sessions/:sessionId", requireAuth, requireAdmin,
     result.collaboratorId,
     ticketId,
     `L'amministratore ha aggiornato le tue ore registrate sul ticket #${result.ticket.ticketNumber ?? ticketId}: "${result.ticket.title}".`,
-    "system",
+    "time_session_corrected",
     orgId,
   );
   res.status(204).end();
