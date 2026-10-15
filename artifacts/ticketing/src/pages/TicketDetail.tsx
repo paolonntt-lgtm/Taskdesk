@@ -1072,41 +1072,68 @@ export default function TicketDetail() {
                   </Box>
                 )}
                 {isAdmin && (
-                  <Box display="flex" flexWrap="wrap" gap={1.5} mt={1.25}>
-                    <TextField
-                      select size="small" label={t.ticketDetail.trackedTimeCustomerBillable}
-                      value={(ticket as any).timeTrackingBillable ? 'true' : 'false'}
-                      onChange={async (event) => {
-                        try {
-                          await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingBillable: event.target.value === 'true' } });
-                          queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-                        } catch {
-                          setStatusError(t.ticketDetail.trackedTimeChangeError);
-                        }
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 1.5,
+                      borderRadius: 1.5,
+                      bgcolor: 'action.hover',
+                    }}
+                  >
+                    <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                      {t.ticketDetail.trackedTimeClassificationTitle}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                        gap: 1.5,
+                        maxWidth: 760,
                       }}
-                      sx={{ minWidth: 190 }}
                     >
-                      <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
-                      <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
-                    </TextField>
-                    <TextField
-                      select size="small" label={t.ticketDetail.trackedTimeOverride}
-                      value={(ticket as any).timeTrackingCompensationOverride == null ? '' : String((ticket as any).timeTrackingCompensationOverride)}
-                      onChange={async (event) => {
-                        try {
-                          const value = event.target.value === '' ? null : event.target.value === 'true';
-                          await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingCompensationOverride: value } });
-                          queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-                        } catch {
-                          setStatusError(t.ticketDetail.trackedTimeChangeError);
-                        }
-                      }}
-                      sx={{ minWidth: 220 }}
-                    >
-                      <MenuItem value="">{t.ticketDetail.trackedTimeInherit}</MenuItem>
-                      <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
-                      <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
-                    </TextField>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label={t.ticketDetail.trackedTimeCustomerBillable}
+                        helperText={t.ticketDetail.trackedTimeCustomerBillableHelp}
+                        data-testid="select-time-tracking-billable"
+                        value={(ticket as any).timeTrackingBillable ? 'true' : 'false'}
+                        onChange={async (event) => {
+                          try {
+                            await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingBillable: event.target.value === 'true' } });
+                            queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+                          } catch {
+                            setStatusError(t.ticketDetail.trackedTimeChangeError);
+                          }
+                        }}
+                      >
+                        <MenuItem value="true">{t.ticketDetail.trackedTimeCustomerBillableOn}</MenuItem>
+                        <MenuItem value="false">{t.ticketDetail.trackedTimeCustomerBillableOff}</MenuItem>
+                      </TextField>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label={t.ticketDetail.trackedTimeOverride}
+                        helperText={t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
+                        data-testid="select-time-tracking-recognition"
+                        value={(ticket as any).timeTrackingCompensationOverride == null ? '' : String((ticket as any).timeTrackingCompensationOverride)}
+                        onChange={async (event) => {
+                          try {
+                            const value = event.target.value === '' ? null : event.target.value === 'true';
+                            await updateTicket.mutateAsync({ id: ticketId, data: { timeTrackingCompensationOverride: value } });
+                            queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+                          } catch {
+                            setStatusError(t.ticketDetail.trackedTimeChangeError);
+                          }
+                        }}
+                      >
+                        <MenuItem value="">{t.ticketDetail.trackedTimeInherit}</MenuItem>
+                        <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
+                        <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
+                      </TextField>
+                    </Box>
                   </Box>
                 )}
               </CardContent>
