@@ -7,6 +7,7 @@ const store = vi.hoisted(() => ({
     { ticketId: 501, ticketNumber: 81, title: 'Ticket A', date: '2026-10-14T09:00:00.000Z', durationMinutes: 30 },
     { ticketId: 501, ticketNumber: 81, title: 'Ticket A', date: '2026-10-15T09:00:00.000Z', durationMinutes: 60 },
     { ticketId: 502, ticketNumber: 82, title: 'Ticket B', date: '2026-10-15T10:00:00.000Z', durationMinutes: 15 },
+    { ticketId: 503, ticketNumber: 83, title: 'Ticket C', date: '2026-09-30T10:00:00.000Z', durationMinutes: 45 },
   ],
   params: [] as any[],
   mode: 'success' as 'success' | 'loading' | 'error',
@@ -105,6 +106,7 @@ describe('PersonalTimeTrackingReportPage', () => {
       { ticketId: 501, ticketNumber: 81, title: 'Ticket A', date: '2026-10-14T09:00:00.000Z', durationMinutes: 30 },
       { ticketId: 501, ticketNumber: 81, title: 'Ticket A', date: '2026-10-15T09:00:00.000Z', durationMinutes: 60 },
       { ticketId: 502, ticketNumber: 82, title: 'Ticket B', date: '2026-10-15T10:00:00.000Z', durationMinutes: 15 },
+      { ticketId: 503, ticketNumber: 83, title: 'Ticket C', date: '2026-09-30T10:00:00.000Z', durationMinutes: 45 },
     ];
     store.mode = 'success';
     store.location.mockClear();
@@ -113,13 +115,17 @@ describe('PersonalTimeTrackingReportPage', () => {
   it('groups rows by ticket, shows ticket subtotals, and keeps report totals consistent', () => {
     const page = renderPage();
 
-    expect(textContent(findAllByTestId(page, 'personal-time-total')[0])).toBe('1 h 45 min');
-    expect(textContent(findAllByTestId(page, 'personal-time-ticket-count')[0])).toBe('2');
-    expect(findAllByTestId(page, 'personal-time-ticket-501')).toHaveLength(1);
-    expect(findAllByTestId(page, 'personal-time-session-501-0')).toHaveLength(1);
-    expect(findAllByTestId(page, 'personal-time-session-501-1')).toHaveLength(1);
-    expect(textContent(findAllByTestId(page, 'personal-time-ticket-total-501')[0])).toBe('1 h 30 min');
-    expect(textContent(findAllByTestId(page, 'personal-time-ticket-total-502')[0])).toBe('15 min');
+    expect(textContent(findAllByTestId(page, 'personal-time-total')[0])).toBe('2 h 30 min');
+    expect(textContent(findAllByTestId(page, 'personal-time-ticket-count')[0])).toBe('3');
+    expect(findAllByTestId(page, 'personal-time-ticket-2026-10-501')).toHaveLength(1);
+    expect(findAllByTestId(page, 'personal-time-session-2026-10-501-0')).toHaveLength(1);
+    expect(findAllByTestId(page, 'personal-time-session-2026-10-501-1')).toHaveLength(1);
+    expect(textContent(findAllByTestId(page, 'personal-time-ticket-total-2026-10-501')[0])).toBe('1 h 30 min');
+    expect(textContent(findAllByTestId(page, 'personal-time-ticket-total-2026-10-502')[0])).toBe('15 min');
+    expect(findAllByTestId(page, 'personal-time-month-2026-10')).toHaveLength(1);
+    expect(textContent(findAllByTestId(page, 'personal-time-month-total-2026-10')[0])).toBe('1 h 45 min');
+    expect(textContent(findAllByTestId(page, 'personal-time-month-ticket-count-2026-10')[0])).toBe('2 ticket');
+    expect(textContent(findAllByTestId(page, 'personal-time-month-total-2026-09')[0])).toBe('45 min');
   });
 
   it('passes the selected date range to the report and updates rows and totals', () => {
@@ -134,8 +140,10 @@ describe('PersonalTimeTrackingReportPage', () => {
     expect(store.params.at(-1)).toEqual({ dateFrom: '2026-10-15', dateTo: '2026-10-15' });
     expect(textContent(findAllByTestId(filteredPage, 'personal-time-total')[0])).toBe('1 h 15 min');
     expect(textContent(findAllByTestId(filteredPage, 'personal-time-ticket-count')[0])).toBe('2');
-    expect(textContent(findAllByTestId(filteredPage, 'personal-time-ticket-total-501')[0])).toBe('1 h');
-    expect(findAllByTestId(filteredPage, 'personal-time-session-501-1')).toHaveLength(0);
+    expect(textContent(findAllByTestId(filteredPage, 'personal-time-ticket-total-2026-10-501')[0])).toBe('1 h');
+    expect(textContent(findAllByTestId(filteredPage, 'personal-time-month-total-2026-10')[0])).toBe('1 h 15 min');
+    expect(findAllByTestId(filteredPage, 'personal-time-month-2026-09')).toHaveLength(0);
+    expect(findAllByTestId(filteredPage, 'personal-time-session-2026-10-501-1')).toHaveLength(0);
   });
 
   it('shows loading, empty-period, and error states', () => {

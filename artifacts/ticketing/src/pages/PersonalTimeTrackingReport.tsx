@@ -32,6 +32,14 @@ function formatDuration(minutes: number, italian: boolean): string {
   return italian ? `${hours} h ${remainder} min` : `${hours} hr ${remainder} min`;
 }
 
+function formatMonth(monthKey: string, italian: boolean): string {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString(italian ? 'it-IT' : 'en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export default function PersonalTimeTrackingReportPage() {
   const { user } = useAuth();
   const { lang } = useLanguage();
@@ -58,23 +66,41 @@ export default function PersonalTimeTrackingReportPage() {
     if (report.error && [403, 404].includes(Number((report.error as any).status))) setLocation('/');
   }, [user?.role, report.error, setLocation]);
 
-  const grouped = useMemo(() => {
-    const groups = new Map<number, { ticketNumber: number | null; title: string; minutes: number; rows: PersonalTimeTrackingReportRow[] }>();
+  const monthlyGroups = useMemo(() => {
+    const months = new Map<string, {
+      minutes: number;
+      tickets: Map<number, {
+        ticketNumber: number | null;
+        title: string;
+        minutes: number;
+        rows: PersonalTimeTrackingReportRow[];
+      }>;
+    }>();
     for (const row of report.data?.rows ?? []) {
-      const group = groups.get(row.ticketId);
-      if (group) {
-        group.minutes += row.durationMinutes;
-        group.rows.push(row);
+      const month = row.date.slice(0, 7);
+      const monthGroup = months.get(month) ?? { minutes: 0, tickets: new Map() };
+      monthGroup.minutes += row.durationMinutes;
+      const ticket = monthGroup.tickets.get(row.ticketId);
+      if (ticket) {
+        ticket.minutes += row.durationMinutes;
+        ticket.rows.push(row);
       } else {
-        groups.set(row.ticketId, {
+        monthGroup.tickets.set(row.ticketId, {
           ticketNumber: row.ticketNumber,
           title: row.title,
           minutes: row.durationMinutes,
           rows: [row],
         });
       }
+      months.set(month, monthGroup);
     }
-    return [...groups.entries()];
+    return [...months.entries()]
+      .sort(([monthA], [monthB]) => monthB.localeCompare(monthA))
+      .map(([month, group]) => ({
+        month,
+        minutes: group.minutes,
+        tickets: [...group.tickets.entries()],
+      }));
   }, [report.data]);
 
   const text = italian
@@ -85,6 +111,7 @@ export default function PersonalTimeTrackingReportPage() {
         to: 'Al',
         total: 'Totale ore riconosciute',
         tickets: 'Ticket',
+        monthlyBreakdown: 'Riepilogo mensile',
         empty: 'Nessuna sessione riconosciuta in questo periodo.',
         error: 'Rendiconto non disponibile. Se pensi sia un errore, contatta un amministratore.',
         loading: 'Caricamento rendiconto',
@@ -96,6 +123,7 @@ export default function PersonalTimeTrackingReportPage() {
         to: 'To',
         total: 'Total recognized hours',
         tickets: 'Tickets',
+        monthlyBreakdown: 'Monthly breakdown',
         empty: 'No recognized sessions in this period.',
         error: 'Report unavailable. Contact an administrator if you think this is a mistake.',
         loading: 'Loading report',
@@ -138,29 +166,52 @@ export default function PersonalTimeTrackingReportPage() {
                   <Typography variant="h5" fontWeight={800} data-testid="personal-time-ticket-count">{report.data?.totals.ticketCount ?? 0}</Typography>
                 </Grid>
               </Grid>
-              {grouped.length === 0 ? (
+              {monthlyGroups.length === 0 ? (
                 <Typography color="text.secondary" py={2} data-testid="personal-time-empty">{text.empty}</Typography>
               ) : (
-                <Stack spacing={1.5}>
-                  {grouped.map(([ticketId, ticket]) => (
-                    <Box key={ticketId} data-testid={`personal-time-ticket-${ticketId}`} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={0.5} mb={1}>
-                        <Typography variant="subtitle2" fontWeight={700}>
-                          #{ticket.ticketNumber ?? ticketId} · {ticket.title}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={700} data-testid={`personal-time-ticket-total-${ticketId}`}>{formatDuration(ticket.minutes, italian)}</Typography>
-                      </Stack>
-                      <Stack divider={<Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}>
-                        {ticket.rows.map((row, index) => (
-                          <Stack key={`${row.date}-${index}`} data-testid={`personal-time-session-${ticketId}-${index}`} direction="row" justifyContent="space-between" py={0.75}>
-                            <Typography variant="body2" color="text.secondary">
-                              {new Date(row.date).toLocaleDateString(italian ? 'it-IT' : 'en-GB')}
+                <Stack spacing={2} data-testid="personal-time-monthly-breakdown">
+                  {monthlyGroups.map((month) => (
+                    <Card variant="outlined" key={month.month} data-testid={`personal-time-month-${month.month}`}>
+                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={0.5} mb={1.5}>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight={700}>
+                              {text.monthlyBreakdown}: {formatMonth(month.month, italian)}
                             </Typography>
-                            <Typography variant="body2">{formatDuration(row.durationMinutes, italian)}</Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    </Box>
+                            <Typography variant="caption" color="text.secondary" data-testid={`personal-time-month-ticket-count-${month.month}`}>
+                              {month.tickets.length} {text.tickets.toLocaleLowerCase(italian ? 'it-IT' : 'en-GB')}
+                            </Typography>
+                          </Box>
+                          <Typography variant="h6" fontWeight={800} data-testid={`personal-time-month-total-${month.month}`}>
+                            {formatDuration(month.minutes, italian)}
+                          </Typography>
+                        </Stack>
+                        <Stack spacing={1.5}>
+                          {month.tickets.map(([ticketId, ticket]) => (
+                            <Box key={ticketId} data-testid={`personal-time-ticket-${month.month}-${ticketId}`} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={0.5} mb={1}>
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  #{ticket.ticketNumber ?? ticketId} · {ticket.title}
+                                </Typography>
+                                <Typography variant="body2" fontWeight={700} data-testid={`personal-time-ticket-total-${month.month}-${ticketId}`}>
+                                  {formatDuration(ticket.minutes, italian)}
+                                </Typography>
+                              </Stack>
+                              <Stack divider={<Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}>
+                                {ticket.rows.map((row, index) => (
+                                  <Stack key={`${row.date}-${index}`} data-testid={`personal-time-session-${month.month}-${ticketId}-${index}`} direction="row" justifyContent="space-between" py={0.75}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {new Date(row.date).toLocaleDateString(italian ? 'it-IT' : 'en-GB')}
+                                    </Typography>
+                                    <Typography variant="body2">{formatDuration(row.durationMinutes, italian)}</Typography>
+                                  </Stack>
+                                ))}
+                              </Stack>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </CardContent>
+                    </Card>
                   ))}
                 </Stack>
               )}
