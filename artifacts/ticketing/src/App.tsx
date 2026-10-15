@@ -38,6 +38,7 @@ import { trackEvent } from "./lib/analytics";
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
 import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
+import { canAccessPersonalTimeReport } from "./lib/personalTimeReportAccess";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
@@ -62,9 +63,9 @@ function CollaboratorRoute({ component: Component }: { component: React.Componen
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   useEffect(() => {
-    if (user?.role === "admin") setLocation("/");
+    if (user && !canAccessPersonalTimeReport(user.role)) setLocation("/");
   }, [user, setLocation]);
-  if (!user || user.role === "admin") return null;
+  if (!user || !canAccessPersonalTimeReport(user.role)) return null;
   return <Component />;
 }
 

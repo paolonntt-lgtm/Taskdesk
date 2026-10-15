@@ -63,6 +63,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey, useGetPersonalTimeTrackingReport } from '@workspace/api-client-react';
+import { canAccessPersonalTimeReport, shouldShowPersonalTimeReport } from '../lib/personalTimeReportAccess';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
@@ -167,7 +168,7 @@ export default function Layout({ children }: LayoutProps) {
   const personalTimeReport = useGetPersonalTimeTrackingReport(undefined, {
     query: {
       queryKey: ['personal-time-report-nav', user?.id],
-      enabled: !!user && user.role !== 'admin',
+      enabled: !!user && canAccessPersonalTimeReport(user.role),
       staleTime: 60_000,
       refetchInterval: 120_000,
     },
@@ -574,7 +575,7 @@ export default function Layout({ children }: LayoutProps) {
     ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
       ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
-    ...(user?.role !== 'admin' && personalTimeReport.data?.rows.length
+    ...(shouldShowPersonalTimeReport(user?.role, personalTimeReport.data?.rows)
       ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },

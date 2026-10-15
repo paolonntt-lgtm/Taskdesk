@@ -588,8 +588,11 @@ describe("ticket time tracking", () => {
     const otherCollaboratorReport = await request("/api/time-tracking/my-report", raceSessionId);
     expect(otherCollaboratorReport.status).toBe(200);
     expect(otherCollaboratorReport.body.rows.map((row: any) => row.ticketId)).toEqual([raceTicketIds[0]]);
+    expect(otherCollaboratorReport.body.totals).toEqual({ totalMinutes: 20, ticketCount: 1 });
     const stillPrivatePersonalReport = await request("/api/time-tracking/my-report", collaboratorSessionId);
+    expect(stillPrivatePersonalReport.status).toBe(200);
     expect(stillPrivatePersonalReport.body.rows.map((row: any) => row.ticketId)).not.toContain(raceTicketIds[0]);
+    expect(stillPrivatePersonalReport.body.totals).toEqual({ totalMinutes: 238, ticketCount: 3 });
 
     const parallelStarts = await Promise.all(
       parallelTicketIds.map((ticketId) => changeStatus(ticketId, "in_progress", adminSessionId)),

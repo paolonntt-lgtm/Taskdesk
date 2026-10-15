@@ -19,6 +19,10 @@ import type { GetPersonalTimeTrackingReportParams, PersonalTimeTrackingReportRow
 import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import {
+  canAccessPersonalTimeReport,
+  scopePersonalTimeReportQueryKey,
+} from '../lib/personalTimeReportAccess';
 
 function formatDuration(minutes: number, italian: boolean): string {
   const hours = Math.floor(minutes / 60);
@@ -41,13 +45,16 @@ export default function PersonalTimeTrackingReportPage() {
   }), [dateFrom, dateTo]);
   const report = useGetPersonalTimeTrackingReport(params, {
     query: {
-      queryKey: getGetPersonalTimeTrackingReportQueryKey(params),
-      enabled: !!user && user.role !== 'admin',
+      queryKey: scopePersonalTimeReportQueryKey(
+        getGetPersonalTimeTrackingReportQueryKey(params),
+        user?.id,
+      ),
+      enabled: !!user && canAccessPersonalTimeReport(user.role),
     },
   });
 
   useEffect(() => {
-    if (user?.role === 'admin') setLocation('/');
+    if (user && !canAccessPersonalTimeReport(user.role)) setLocation('/');
     if (report.error && [403, 404].includes(Number((report.error as any).status))) setLocation('/');
   }, [user?.role, report.error, setLocation]);
 
