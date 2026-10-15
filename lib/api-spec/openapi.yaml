@@ -192,7 +192,7 @@ paths:
                   type: array
                   items:
                     type: string
-                    enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+                    enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
       responses:
         "200":
           description: Group permissions updated
@@ -207,7 +207,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+                      enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
         "400":
           description: Invalid permissions
         "403":
@@ -2927,17 +2927,17 @@ components:
           type: array
           items:
             type: string
-            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+            enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
         inheritedGroupPermissions:
           type: array
           items:
             type: string
-            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+            enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
         effectivePermissions:
           type: array
           items:
             type: string
-            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+            enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
         permissionOverrides:
           type: object
           additionalProperties:
@@ -4290,7 +4290,7 @@ components:
           type: array
           items:
             type: string
-            enum: [change_status, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
+            enum: [change_status, assign_time_tracked_tickets, add_notes, edit_fixed_notes, edit_client_notes, delete_client_notes, manage_client_sections, edit_client_section_content, create_appointments, view_worked_hours]
       required:
         - id
         - name

@@ -2,8 +2,10 @@ import { eq, and } from "drizzle-orm";
 import { db, groupMembersTable, groupsTable, usersTable } from "@workspace/db";
 
 export const VIEW_WORKED_HOURS_PERMISSION = "view_worked_hours";
+export const ASSIGN_TIME_TRACKED_TICKETS_PERMISSION = "assign_time_tracked_tickets";
 export const GROUP_PERMISSION_KEYS = [
   "change_status",
+  ASSIGN_TIME_TRACKED_TICKETS_PERMISSION,
   "add_notes",
   "edit_fixed_notes",
   "edit_client_notes",

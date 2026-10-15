@@ -85,7 +85,7 @@ const emptyForm: UserFormData = {
 
 type GroupMembership = { id: number; name: string; permissions: string[] };
 
-const PERMISSION_KEYS = ['change_status', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'] as const;
+const PERMISSION_KEYS = ['change_status', 'assign_time_tracked_tickets', 'add_notes', 'edit_fixed_notes', 'edit_client_notes', 'delete_client_notes', 'manage_client_sections', 'edit_client_section_content', 'create_appointments', 'view_worked_hours'] as const;
 
 function getEffectivePermissions(memberships: GroupMembership[], resolved?: string[]): string[] {
   if (resolved) return resolved;
@@ -111,6 +111,7 @@ function UserPermissionsTooltip({
 
   const permLabels: Record<string, string> = {
     change_status: tg.permChangeStatus,
+    assign_time_tracked_tickets: tg.permAssignTimeTrackedTickets,
     add_notes: tg.permAddNotes,
     edit_fixed_notes: tg.permEditFixedNotes,
     edit_client_notes: tg.permEditClientNotes,
@@ -884,6 +885,7 @@ export default function Users() {
           {PERMISSION_KEYS.map((key) => {
             const labels: Record<string, string> = {
               change_status: t.groups.permChangeStatus,
+              assign_time_tracked_tickets: t.groups.permAssignTimeTrackedTickets,
               add_notes: t.groups.permAddNotes,
               edit_fixed_notes: t.groups.permEditFixedNotes,
               edit_client_notes: t.groups.permEditClientNotes,
@@ -892,6 +894,7 @@ export default function Users() {
               edit_client_section_content: t.groups.permEditClientSectionContent,
               create_appointments: t.groups.permCreateAppointments,
               view_worked_hours: t.groups.permViewWorkedHours,
+              assign_time_tracked_tickets: t.groups.permAssignTimeTrackedTickets,
             };
             const inherited = ((permissionTarget as any)?.inheritedGroupPermissions ?? []).includes(key);
             const effective = ((permissionTarget as any)?.effectivePermissions ?? []).includes(key);

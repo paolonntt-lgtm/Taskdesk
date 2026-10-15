@@ -11,6 +11,7 @@ export type UpdateGroupPermissions200PermissionsItem = typeof UpdateGroupPermiss
 
 export const UpdateGroupPermissions200PermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',

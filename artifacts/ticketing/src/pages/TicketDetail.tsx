@@ -776,11 +776,15 @@ export default function TicketDetail() {
   const canEdit = isAdmin || isAuthor;
   const canChangeDueAt = isAdmin || isAssignee;
   // Anyone who can open the ticket may change its status and priority.
-  const canChangeStatus = !!currentUser;
+  const canChangeStatus = (ticket as any).timeTrackingEnabled
+    ? isAdmin || isAssignee
+    : !!currentUser;
   const creator = (ticket as any).creator;
   const assignee = (ticket as any).assignee;
   const assignedGroup = (ticket as any).assignedToGroup;
-  const canChangeAssignment = isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
+  const canChangeAssignment = (ticket as any).timeTrackingEnabled
+    ? isAdmin || hasGroupPerm('assign_time_tracked_tickets')
+    : isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
   const openDueAtEditor = (anchor: HTMLElement) => {
     const dueAt = (ticket as any).dueAt;
     setDueEditVal(dueAt ? toLocalDatetimeInput(dueAt) : '');

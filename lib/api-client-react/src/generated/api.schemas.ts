@@ -116,6 +116,7 @@ export type UserGroupPermissionsItem = typeof UserGroupPermissionsItem[keyof typ
 
 export const UserGroupPermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -131,6 +132,7 @@ export type UserInheritedGroupPermissionsItem = typeof UserInheritedGroupPermiss
 
 export const UserInheritedGroupPermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -146,6 +148,7 @@ export type UserEffectivePermissionsItem = typeof UserEffectivePermissionsItem[k
 
 export const UserEffectivePermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -937,6 +940,7 @@ export type GroupWithMembersPermissionsItem = typeof GroupWithMembersPermissions
 
 export const GroupWithMembersPermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -1127,6 +1131,7 @@ export type UpdateGroupPermissionsBodyPermissionsItem = typeof UpdateGroupPermis
 
 export const UpdateGroupPermissionsBodyPermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -1146,6 +1151,7 @@ export type UpdateGroupPermissions200PermissionsItem = typeof UpdateGroupPermiss
 
 export const UpdateGroupPermissions200PermissionsItem = {
   change_status: 'change_status',
+  assign_time_tracked_tickets: 'assign_time_tracked_tickets',
   add_notes: 'add_notes',
   edit_fixed_notes: 'edit_fixed_notes',
   edit_client_notes: 'edit_client_notes',
@@ -1339,3 +1345,4 @@ export type GetCalendarParams = {
 year: number;
 month: number;
 };
+

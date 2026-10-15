@@ -6,7 +6,7 @@ import { CreateTicketBody, UpdateTicketBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
 import { sendEmailForOrg, buildTicketClosureEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
-import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
+import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION, ASSIGN_TIME_TRACKED_TICKETS_PERMISSION } from "../lib/groupPermissions";
 import { isValidWorkedMinutes, redactWorkedHours } from "../lib/workedTime";
 import { permanentlyDeleteTicket } from "../lib/ticketTrash";
 import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
@@ -933,6 +933,14 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
   const shouldTrackStatus = timeTrackingModuleEnabled && existing.timeTrackingEnabled;
+  const isTimeTrackedTicket = existing.timeTrackingEnabled;
+  const hasTrackedAssignmentPermission = await hasGroupPermission(
+    currentUser.id,
+    orgId,
+    ASSIGN_TIME_TRACKED_TICKETS_PERMISSION,
+    isAdmin,
+    req,
+  );
 
   // Check group permissions for non-admins (must happen before the 403 gate)
   const hasGroupStatusPermission = await hasGroupPermission(currentUser.id, currentUser.organizationId, "change_status", isAdmin, req);
@@ -957,6 +965,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   // A ticket assigned to a group is NOT eligible for self-assign (only admins can reassign from a group).
   const requestedAssignedTo = parsed.data.assignedTo;
   const isSelfAssignAttempt =
+    !isTimeTrackedTicket &&
     requestedAssignedTo !== undefined &&
     !existing.assignedToGroup &&
     (
@@ -967,14 +976,42 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   // Do not silently ignore an unauthorized assignment change. In particular,
   // users with status permissions must not be able to unassign or transfer a
   // ticket assigned to a colleague.
-  if (!isAdmin && requestedAssignedTo !== undefined && !isSelfAssignAttempt) {
+  const hasAssignmentRequest =
+    parsed.data.assignedTo !== undefined || parsed.data.assignedToGroup !== undefined;
+  if (
+    isTimeTrackedTicket &&
+    hasAssignmentRequest &&
+    !isAdmin &&
+    !hasTrackedAssignmentPermission
+  ) {
+    res.status(403).json({ error: "Only admins or users with the tracked-ticket assignment permission can reassign this ticket" });
+    return;
+  }
+
+  if (
+    !isAdmin &&
+    requestedAssignedTo !== undefined &&
+    !isSelfAssignAttempt &&
+    !(isTimeTrackedTicket && hasTrackedAssignmentPermission)
+  ) {
     res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  if (
+    isTimeTrackedTicket &&
+    parsed.data.status !== undefined &&
+    parsed.data.status !== existing.status &&
+    !isAdmin &&
+    !isAssignee
+  ) {
+    res.status(403).json({ error: "Only admins or the current assignee can change the status of a time-tracked ticket" });
     return;
   }
 
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
-  if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !isStatusAccessUpdate) {
+  if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !isStatusAccessUpdate && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest)) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
@@ -1035,9 +1072,39 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     // Remove own assignment: only if currently the assignee
     const canRemoveSelf =
       reqAssignedTo === null && existing.assignedTo === currentUser.id;
-    if (canSelfAssign || canRemoveSelf) {
+    if (canSelfAssign || canRemoveSelf || (isTimeTrackedTicket && hasTrackedAssignmentPermission)) {
       (updates as any).assignedTo = reqAssignedTo;
     }
+  }
+  if (
+    !isAdmin &&
+    isTimeTrackedTicket &&
+    hasTrackedAssignmentPermission &&
+    parsed.data.assignedToGroup !== undefined
+  ) {
+    (updates as any).assignedToGroup = parsed.data.assignedToGroup;
+  }
+
+  const timeTrackedAssignmentChanged =
+    isTimeTrackedTicket &&
+    (
+      ("assignedTo" in updates && updates.assignedTo !== existing.assignedTo) ||
+      ("assignedToGroup" in updates && updates.assignedToGroup !== existing.assignedToGroup)
+    );
+  if (
+    timeTrackedAssignmentChanged &&
+    (existing.status === "in_progress" || updates.status === "in_progress")
+  ) {
+    const orgStatuses = await db
+      .select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isClosed: ticketStatusesTable.isClosed })
+      .from(ticketStatusesTable)
+      .where(eq(ticketStatusesTable.organizationId, orgId));
+    const waitingStatus = orgStatuses.find(isWaitingStatus);
+    if (!waitingStatus) {
+      res.status(400).json({ error: "Tracked ticket reassignment requires an 'In attesa' status in the organization status list" });
+      return;
+    }
+    (updates as any).status = waitingStatus.key;
   }
 
   const activityLogs: { actionType: string; actionDescription: string }[] = [];

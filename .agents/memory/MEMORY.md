@@ -18,6 +18,7 @@
 - [Dashboard location fallback](dashboard-location-fallback.md) — Profile location wins; browser geolocation is an explicit fallback and coordinates are never persisted.
 - [Monthly recurrence scheduling](recurrence-scheduling.md) — A selected day beyond a month’s length uses that month’s last available day.
 - [Timer module and manual worked-time scope](worked-time-scope.md) — New timer sessions are organization-gated and per-ticket opt-in; manual hours remain independent.
+- [Tracked ticket handoffs](tracked-ticket-handoffs.md) — Preserve each collaborator’s recorded sessions; authorized reassignment pauses work, and only admins/current assignees change status.
 - [Collaborator add-on pricing](collaborator-add-on-pricing.md) — Charge €6/month or €60/year per extra collaborator, matching the base plan’s billing interval.
 - [Main landing pricing](main-landing-pricing.md) — Show three fixed-price homepage tiers, keep prerendered schema aligned, and preserve Enterprise on profession pages.
 - [Stripe cancellation timing](stripe-cancellation-timing.md) — Customer-portal cancellations take effect at the end of the paid period; preserve `at_period_end`.
