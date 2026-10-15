@@ -557,6 +557,14 @@ describe("ticket time tracking", () => {
     expect(personalReport.body.rows.map((row: any) => row.ticketId).sort()).toEqual([recognizableOnlyId, bothId, createdUntrackedTicketId].sort());
     expect(personalReport.body.totals).toEqual({ totalMinutes: 238, ticketCount: 3 });
     expect(personalReport.body.rows.every((row: any) => !("collaboratorId" in row) && !("billingStatus" in row))).toBe(true);
+    const futureDate = new Date(Date.now() + 24 * 60 * 60_000).toISOString().slice(0, 10);
+    const emptyPersonalReportPeriod = await request(
+      `/api/time-tracking/my-report?dateFrom=${futureDate}&dateTo=${futureDate}`,
+      collaboratorSessionId,
+    );
+    expect(emptyPersonalReportPeriod.status).toBe(200);
+    expect(emptyPersonalReportPeriod.body.rows).toEqual([]);
+    expect(emptyPersonalReportPeriod.body.totals).toEqual({ totalMinutes: 0, ticketCount: 0 });
     const noHoursPersonalReport = await request("/api/time-tracking/my-report", raceSessionId);
     expect(noHoursPersonalReport.status).toBe(404);
     expect((await request("/api/time-tracking/my-report", adminSessionId)).status).toBe(403);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -112,18 +112,18 @@ export default function PersonalTimeTrackingReportPage() {
         <CardContent>
           <Grid container spacing={1.5} mb={2}>
             <Grid item xs={6} sm={4}>
-              <TextField fullWidth size="small" type="date" label={text.from} value={dateFrom}
+              <TextField fullWidth size="small" type="date" label={text.from} value={dateFrom} data-testid="personal-time-date-from"
                 onChange={(event) => setDateFrom(event.target.value)} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid item xs={6} sm={4}>
-              <TextField fullWidth size="small" type="date" label={text.to} value={dateTo}
+              <TextField fullWidth size="small" type="date" label={text.to} value={dateTo} data-testid="personal-time-date-to"
                 onChange={(event) => setDateTo(event.target.value)} InputLabelProps={{ shrink: true }} />
             </Grid>
           </Grid>
           {report.isLoading ? (
-            <Box display="flex" justifyContent="center" py={4} aria-label={text.loading}><CircularProgress /></Box>
+              <Box data-testid="personal-time-loading" display="flex" justifyContent="center" py={4} aria-label={text.loading}><CircularProgress /></Box>
           ) : report.isError ? (
-            <Alert severity="error">{text.error}</Alert>
+            <Alert severity="error" data-testid="personal-time-error">{text.error}</Alert>
           ) : (
             <>
               <Grid container spacing={1.5} mb={2}>
@@ -135,24 +135,24 @@ export default function PersonalTimeTrackingReportPage() {
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">{text.tickets}</Typography>
-                  <Typography variant="h5" fontWeight={800}>{report.data?.totals.ticketCount ?? 0}</Typography>
+                  <Typography variant="h5" fontWeight={800} data-testid="personal-time-ticket-count">{report.data?.totals.ticketCount ?? 0}</Typography>
                 </Grid>
               </Grid>
               {grouped.length === 0 ? (
-                <Typography color="text.secondary" py={2}>{text.empty}</Typography>
+                <Typography color="text.secondary" py={2} data-testid="personal-time-empty">{text.empty}</Typography>
               ) : (
                 <Stack spacing={1.5}>
                   {grouped.map(([ticketId, ticket]) => (
-                    <Box key={ticketId} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                    <Box key={ticketId} data-testid={`personal-time-ticket-${ticketId}`} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={0.5} mb={1}>
                         <Typography variant="subtitle2" fontWeight={700}>
                           #{ticket.ticketNumber ?? ticketId} · {ticket.title}
                         </Typography>
-                        <Typography variant="body2" fontWeight={700}>{formatDuration(ticket.minutes, italian)}</Typography>
+                        <Typography variant="body2" fontWeight={700} data-testid={`personal-time-ticket-total-${ticketId}`}>{formatDuration(ticket.minutes, italian)}</Typography>
                       </Stack>
                       <Stack divider={<Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}>
                         {ticket.rows.map((row, index) => (
-                          <Stack key={`${row.date}-${index}`} direction="row" justifyContent="space-between" py={0.75}>
+                          <Stack key={`${row.date}-${index}`} data-testid={`personal-time-session-${ticketId}-${index}`} direction="row" justifyContent="space-between" py={0.75}>
                             <Typography variant="body2" color="text.secondary">
                               {new Date(row.date).toLocaleDateString(italian ? 'it-IT' : 'en-GB')}
                             </Typography>
