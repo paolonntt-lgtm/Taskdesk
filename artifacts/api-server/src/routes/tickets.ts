@@ -437,6 +437,15 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if (timeTrackingEnabled && timeTrackingBillable && clientId == null) {
+    res.status(400).json({ error: "Client-billable tracked tickets require a client" });
+    return;
+  }
+  if (timeTrackingEnabled && timeTrackingCompensationOverride === true && assignedTo == null) {
+    res.status(400).json({ error: "Collaborator-recognizable tracked tickets require an individual assignee" });
+    return;
+  }
+
   if (clientId != null) {
     const [organization] = await db
       .select({ clientsEnabled: organizationsTable.clientsEnabled })
@@ -1260,6 +1269,41 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     );
     if (!clientRow) {
       res.status(400).json({ error: "Client not found in organization" });
+      return;
+    }
+  }
+
+  const effectiveClientId = updates.clientId !== undefined ? updates.clientId : existing.clientId;
+  const effectiveClientBillable = updates.timeTrackingBillable ?? existing.timeTrackingBillable;
+  if (effectiveClientBillable && effectiveClientId == null) {
+    res.status(400).json({ error: "Client-billable tracked tickets require a client" });
+    return;
+  }
+  const effectiveCompensationOverride =
+    updates.timeTrackingCompensationOverride !== undefined
+      ? updates.timeTrackingCompensationOverride
+      : existing.timeTrackingCompensationOverride;
+  const effectiveAssignedTo = updates.assignedTo !== undefined ? updates.assignedTo : existing.assignedTo;
+  if (effectiveCompensationOverride === true && effectiveAssignedTo == null) {
+    res.status(400).json({ error: "Collaborator-recognizable tracked tickets require an individual assignee" });
+    return;
+  }
+
+  if (shouldTrackStatus && updates.status === "in_progress" && updates.status !== existing.status) {
+    const assignedForSession = updates.assignedTo !== undefined ? updates.assignedTo : existing.assignedTo;
+    const sessionUserId =
+      (isAdmin || hasGroupStatusPermission) &&
+      assignedForSession != null &&
+      assignedForSession !== currentUser.id
+        ? assignedForSession
+        : currentUser.id;
+    const [sessionUser] = await db.select({ hourlyCompensated: usersTable.hourlyCompensated })
+      .from(usersTable)
+      .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)));
+    const sessionRecognizable =
+      effectiveCompensationOverride ?? sessionUser?.hourlyCompensated ?? false;
+    if (sessionRecognizable && assignedForSession == null) {
+      res.status(400).json({ error: "Collaborator-recognizable tracked tickets require an individual assignee" });
       return;
     }
   }

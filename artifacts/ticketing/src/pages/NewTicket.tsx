@@ -291,6 +291,10 @@ export default function NewTicket() {
     e.preventDefault();
     setChecklistError(false);
     setSubmitError(null);
+    if (trackWorkedTime && timeBillableToClient && !formData.clientId) {
+      setSubmitError(t.newTicket.clientRequiredForBillableTime);
+      return;
+    }
     try {
       const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
       const finalTitle = selectedClient
@@ -816,7 +820,9 @@ export default function NewTicket() {
                 {/* Client */}
                 {showClients && (
                   <SideSection>
-                    <SideLabel>{t.clients.clientField}</SideLabel>
+                    <SideLabel>
+                      {t.clients.clientField}{trackWorkedTime && timeBillableToClient ? ' *' : ''}
+                    </SideLabel>
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <Autocomplete
                         sx={{ flex: 1, '& input': { fontSize: 12 }, '& .MuiAutocomplete-option': { fontSize: 12 } }}
@@ -842,6 +848,11 @@ export default function NewTicket() {
                         </Tooltip>
                       )}
                     </Box>
+                    {trackWorkedTime && timeBillableToClient && !formData.clientId && (
+                      <Typography variant="caption" color="error" display="block" sx={{ mt: 0.25 }}>
+                        {t.newTicket.clientRequiredForBillableTime}
+                      </Typography>
+                    )}
                   </SideSection>
                 )}
 

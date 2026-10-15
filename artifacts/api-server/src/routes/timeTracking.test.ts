@@ -44,6 +44,7 @@ let manualTicketId: number;
 let privateTicketId: number;
 let handoffTicketId: number;
 let backupHandoffTicketId: number;
+let unassignedRecognizableTicketId: number;
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -193,6 +194,20 @@ describe("ticket time tracking", () => {
     }).returning({ id: ticketsTable.id });
     backupHandoffTicketId = backupHandoffTicket.id;
 
+    const [unassignedRecognizableTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Unassigned recognizable hours ${runId}`,
+      description: "Recognizable tracked hours require an individual assignee",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: adminId,
+      timeTrackingEnabled: true,
+      timeTrackingCompensationOverride: null,
+    }).returning({ id: ticketsTable.id });
+    unassignedRecognizableTicketId = unassignedRecognizableTicket.id;
+
     const raceTickets = await db.insert(ticketsTable).values(["Concurrent timer A", "Concurrent timer B"].map((title) => ({
       organizationId,
       clientId,
@@ -311,6 +326,7 @@ describe("ticket time tracking", () => {
       privateTicketId,
       handoffTicketId,
       backupHandoffTicketId,
+      unassignedRecognizableTicketId,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
@@ -356,6 +372,42 @@ describe("ticket time tracking", () => {
     });
     expect(enabled.status).toBe(200);
     expect(enabled.body.timeTrackingModuleEnabled).toBe(true);
+    const billableWithoutClient = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Billable without client ${runId}`,
+        description: "Must be rejected",
+        category: "Support",
+        priority: "medium",
+        timeTrackingEnabled: true,
+        timeTrackingBillable: true,
+      }),
+    });
+    expect(billableWithoutClient.status).toBe(400);
+    expect(billableWithoutClient.body.error).toBe("Client-billable tracked tickets require a client");
+
+    const recognizableWithoutAssignee = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Recognizable without assignee ${runId}`,
+        description: "Must be rejected",
+        category: "Support",
+        priority: "medium",
+        timeTrackingEnabled: true,
+        timeTrackingCompensationOverride: true,
+      }),
+    });
+    expect(recognizableWithoutAssignee.status).toBe(400);
+    expect(recognizableWithoutAssignee.body.error).toBe("Collaborator-recognizable tracked tickets require an individual assignee");
+
+    await db.update(usersTable).set({ hourlyCompensated: true }).where(eq(usersTable.id, adminId));
+    const recognizableWithoutAssigneeStart = await changeStatus(unassignedRecognizableTicketId, "in_progress", adminSessionId);
+    await db.update(usersTable).set({ hourlyCompensated: false }).where(eq(usersTable.id, adminId));
+    expect(recognizableWithoutAssigneeStart.status).toBe(400);
+    expect(recognizableWithoutAssigneeStart.body.error).toBe("Collaborator-recognizable tracked tickets require an individual assignee");
+    expect((await db.select({ status: ticketsTable.status }).from(ticketsTable)
+      .where(eq(ticketsTable.id, unassignedRecognizableTicketId)))[0]?.status).toBe("waiting");
+
     const enabledCompensationUpdate = await request(`/api/users/${collaboratorId}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ hourlyCompensated: true }),
