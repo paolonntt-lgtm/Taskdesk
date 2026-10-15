@@ -13,6 +13,7 @@ export const ticketTimeSessionsTable = pgTable("ticket_time_sessions", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
   clientBillable: boolean("client_billable").notNull().default(false),
   collaboratorRecognizable: boolean("collaborator_recognizable").notNull().default(false),
+  collaboratorInvoiceReceived: boolean("collaborator_invoice_received").notNull().default(false),
 }, (table) => [
   index("ticket_time_sessions_org_started_idx").on(table.organizationId, table.startedAt),
   index("ticket_time_sessions_ticket_idx").on(table.ticketId, table.startedAt),

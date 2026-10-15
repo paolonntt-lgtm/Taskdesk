@@ -161,6 +161,7 @@ type ReportRow = {
   collaboratorId: number | null;
   collaboratorName: string | null;
   billingStatus: "unbilled" | "billed";
+  collaboratorInvoiceReceived: boolean | null;
 };
 
 function parseDateBoundary(raw: unknown, endOfDay: boolean): Date | null {
@@ -168,6 +169,78 @@ function parseDateBoundary(raw: unknown, endOfDay: boolean): Date | null {
   const date = new Date(`${raw}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+const ClientBillingUpdate = z.object({
+  ticketId: z.number().int().positive(),
+  status: z.enum(["unbilled", "billed"]),
+});
+
+router.patch("/time-tracking/client-billing-status", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const parsed = ClientBillingUpdate.safeParse(req.body);
+  if (!parsed.success || currentUser.organizationId == null) {
+    res.status(400).json({ error: "Invalid client billing update" });
+    return;
+  }
+  const [ticket] = await db.select({
+    id: ticketsTable.id,
+    workedMinutes: ticketsTable.workedMinutes,
+    clientId: ticketsTable.clientId,
+  }).from(ticketsTable).where(and(
+    eq(ticketsTable.id, parsed.data.ticketId),
+    eq(ticketsTable.organizationId, currentUser.organizationId),
+    isNull(ticketsTable.deletedAt),
+  ));
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found" });
+    return;
+  }
+  const hasBillableSession = (await db.select({ id: ticketTimeSessionsTable.id })
+    .from(ticketTimeSessionsTable)
+    .where(and(
+      eq(ticketTimeSessionsTable.ticketId, ticket.id),
+      eq(ticketTimeSessionsTable.organizationId, currentUser.organizationId),
+      eq(ticketTimeSessionsTable.clientBillable, true),
+    ))
+    .limit(1)).length > 0;
+  if (ticket.workedMinutes == null && !hasBillableSession) {
+    res.status(404).json({ error: "No customer-billable hours found" });
+    return;
+  }
+  await db.update(ticketsTable)
+    .set({ workedBillingStatus: parsed.data.status })
+    .where(eq(ticketsTable.id, ticket.id));
+  res.status(204).end();
+});
+
+const CollaboratorInvoiceUpdate = z.object({
+  ticketId: z.number().int().positive(),
+  collaboratorId: z.number().int().positive(),
+  invoiceReceived: z.boolean(),
+});
+
+router.patch("/time-tracking/collaborator-invoice-status", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const parsed = CollaboratorInvoiceUpdate.safeParse(req.body);
+  if (!parsed.success || currentUser.organizationId == null) {
+    res.status(400).json({ error: "Invalid collaborator invoice update" });
+    return;
+  }
+  const updated = await db.update(ticketTimeSessionsTable)
+    .set({ collaboratorInvoiceReceived: parsed.data.invoiceReceived })
+    .where(and(
+      eq(ticketTimeSessionsTable.ticketId, parsed.data.ticketId),
+      eq(ticketTimeSessionsTable.organizationId, currentUser.organizationId),
+      eq(ticketTimeSessionsTable.userId, parsed.data.collaboratorId),
+      eq(ticketTimeSessionsTable.collaboratorRecognizable, true),
+    ))
+    .returning({ id: ticketTimeSessionsTable.id });
+  if (updated.length === 0) {
+    res.status(404).json({ error: "No recognizable collaborator hours found" });
+    return;
+  }
+  res.status(204).end();
+});
 
 router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
@@ -239,6 +312,7 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
         endedAt: ticketTimeSessionsTable.endedAt,
         clientBillable: ticketTimeSessionsTable.clientBillable,
         collaboratorRecognizable: ticketTimeSessionsTable.collaboratorRecognizable,
+        collaboratorInvoiceReceived: ticketTimeSessionsTable.collaboratorInvoiceReceived,
       })
         .from(ticketTimeSessionsTable)
         .innerJoin(usersTable, eq(ticketTimeSessionsTable.userId, usersTable.id))
@@ -272,7 +346,11 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
     if (session.collaboratorRecognizable) {
       const key = `${ticket.id}:${session.userId}`;
       const current = collaboratorGroups.get(key);
-      if (current) current.durationMinutes += minutes;
+      if (current) {
+        current.durationMinutes += minutes;
+        current.collaboratorInvoiceReceived =
+          current.collaboratorInvoiceReceived && session.collaboratorInvoiceReceived;
+      }
       else {
         collaboratorGroups.set(key, {
           kind: "session",
@@ -286,6 +364,7 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
           collaboratorId: session.userId,
           collaboratorName: session.userName,
           billingStatus: ticket.workedBillingStatus === "billed" ? "billed" : "unbilled",
+          collaboratorInvoiceReceived: session.collaboratorInvoiceReceived,
         });
       }
       collaboratorRecognizableMinutes += minutes;
@@ -307,6 +386,7 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
       collaboratorId: null,
       collaboratorName: null,
       billingStatus: ticket.workedBillingStatus === "billed" ? "billed" : "unbilled",
+      collaboratorInvoiceReceived: null,
     });
   }
 
@@ -329,6 +409,7 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
       collaboratorId: null,
       collaboratorName: null,
       billingStatus: ticket.workedBillingStatus === "billed" ? "billed" : "unbilled",
+      collaboratorInvoiceReceived: null,
     });
     clientBillableMinutes += minutes;
     if (ticket.workedBillingStatus === "billed") clientBilledMinutes += minutes;

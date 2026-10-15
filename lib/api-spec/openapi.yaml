@@ -1695,6 +1695,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /time-tracking/client-billing-status:
+    patch:
+      operationId: updateTimeTrackingClientBillingStatus
+      tags: [reports]
+      summary: Mark billable ticket hours as billed or unbilled (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeTrackingClientBillingUpdate"
+      responses:
+        "204":
+          description: Billing status updated for the entire ticket
+        "400":
+          description: Invalid update
+        "404":
+          description: Ticket or billable hours not found
+
+  /time-tracking/collaborator-invoice-status:
+    patch:
+      operationId: updateCollaboratorInvoiceStatus
+      tags: [reports]
+      summary: Mark recognizable collaborator hours as invoiced (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeTrackingCollaboratorInvoiceUpdate"
+      responses:
+        "204":
+          description: Collaborator invoice status updated
+        "400":
+          description: Invalid update
+        "404":
+          description: No recognizable hours found
+
   /stats/dashboard:
     get:
       operationId: getDashboardStats
@@ -3307,7 +3345,7 @@ components:
 
     TimeTrackingReportRow:
       type: object
-      required: [kind, ticketId, ticketNumber, title, date, durationMinutes, billingStatus]
+      required: [kind, ticketId, ticketNumber, title, date, durationMinutes, billingStatus, collaboratorInvoiceReceived]
       properties:
         kind:
           type: string
@@ -3340,6 +3378,32 @@ components:
         billingStatus:
           type: string
           enum: [unbilled, billed]
+        collaboratorInvoiceReceived:
+          type: ["boolean", "null"]
+
+    TimeTrackingClientBillingUpdate:
+      type: object
+      required: [ticketId, status]
+      properties:
+        ticketId:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [unbilled, billed]
+
+    TimeTrackingCollaboratorInvoiceUpdate:
+      type: object
+      required: [ticketId, collaboratorId, invoiceReceived]
+      properties:
+        ticketId:
+          type: integer
+          minimum: 1
+        collaboratorId:
+          type: integer
+          minimum: 1
+        invoiceReceived:
+          type: boolean
 
     TimeTrackingReport:
       type: object

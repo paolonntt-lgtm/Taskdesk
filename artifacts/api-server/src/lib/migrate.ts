@@ -290,6 +290,10 @@ export async function runAppMigrations(): Promise<void> {
         ON ticket_time_sessions (user_id) WHERE ended_at IS NULL;
     `);
     await client.query(`
+      ALTER TABLE ticket_time_sessions
+        ADD COLUMN IF NOT EXISTS collaborator_invoice_received BOOLEAN NOT NULL DEFAULT false;
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ticket_time_session_edits (
         id SERIAL PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
