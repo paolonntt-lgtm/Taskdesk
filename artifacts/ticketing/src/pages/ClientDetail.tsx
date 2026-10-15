@@ -26,6 +26,7 @@ import {
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
 import ClientNotesBlock from '../components/ClientNotesBlock';
+import ClientUnbilledWorkSection from '../components/ClientUnbilledWorkSection';
 import FixedNotesBlock from '../components/FixedNotesBlock';
 import WorkedHoursReport from '../components/WorkedHoursReport';
 import { useQueryClient } from '@tanstack/react-query';
@@ -813,6 +814,7 @@ export default function ClientDetail() {
               canEditClientNotes={userGroupPerms.includes('edit_client_notes')}
               canDeleteClientNotes={userGroupPerms.includes('delete_client_notes')}
             />
+            <ClientUnbilledWorkSection clientId={clientId} tickets={client.tickets ?? []} isAdmin={isAdmin} />
           </CardContent>
         </Card>
       );
