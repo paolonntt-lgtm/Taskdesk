@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
   reportRows: [] as any[],
+  collaboratorRows: [] as any[],
+  reportCalls: [] as any[],
+  settings: { timeTrackingModuleEnabled: true, workedTimeEnabled: true } as Record<string, boolean>,
   mutationError: false,
   mutationArgs: null as any,
   invalidateQueries: vi.fn(() => Promise.resolve()),
@@ -16,11 +19,14 @@ vi.mock('@workspace/api-client-react', () => ({
   getGetClientQueryKey: (clientId: number) => ['/api/clients', clientId],
   getGetTimeTrackingReportQueryKey: () => ['/api/time-tracking/report'],
   getListClientsQueryKey: () => ['/api/clients'],
-  useGetTimeTrackingReport: () => ({
-    data: { customerRows: store.reportRows },
-    isLoading: false,
-    isError: false,
-  }),
+  useGetTimeTrackingReport: (params: unknown, options: unknown) => {
+    store.reportCalls.push({ params, options });
+    return {
+      data: { customerRows: store.reportRows, collaboratorRows: store.collaboratorRows },
+      isLoading: false,
+      isError: false,
+    };
+  },
   useUpdateTimeTrackingClientBillingStatus: () => ({
     mutate: (args: unknown, options: unknown) => {
       store.mutationArgs = { args, options };
@@ -31,8 +37,8 @@ vi.mock('@workspace/api-client-react', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({
-    data: { timeTrackingModuleEnabled: true, workedTimeEnabled: true },
+  useQuery: (_options: unknown) => ({
+    data: store.settings,
     isLoading: false,
     isError: false,
   }),
@@ -53,6 +59,7 @@ const unbilledRow = {
   date: '2026-10-14T10:00:00.000Z',
   durationMinutes: 75,
   billingStatus: 'unbilled',
+  clientId: 7,
 };
 
 function findElementByTestId(node: unknown, testId: string): any | undefined {
@@ -77,13 +84,24 @@ function getText(node: unknown): string {
   return getText((node as { props?: { children?: unknown } }).props?.children);
 }
 
-function renderSection() {
-  return ClientUnbilledWorkSection({ clientId: 7, tickets: [], isAdmin: true });
+function renderSection({
+  clientId = 7,
+  tickets = [],
+  isAdmin = true,
+}: {
+  clientId?: number;
+  tickets?: any[];
+  isAdmin?: boolean;
+} = {}) {
+  return ClientUnbilledWorkSection({ clientId, tickets, isAdmin });
 }
 
 describe('ClientUnbilledWorkSection billing updates', () => {
   beforeEach(() => {
     store.reportRows = [unbilledRow];
+    store.collaboratorRows = [];
+    store.reportCalls = [];
+    store.settings = { timeTrackingModuleEnabled: true, workedTimeEnabled: true };
     store.mutationError = false;
     store.mutationArgs = null;
     store.invalidateQueries.mockClear();
@@ -91,6 +109,53 @@ describe('ClientUnbilledWorkSection billing updates', () => {
 
   afterEach(() => {
     store.reportRows = [];
+    store.collaboratorRows = [];
+  });
+
+  it('aggregates timer and manual customer-billable rows by ticket, excluding billed, foreign-client, and collaborator-only rows', () => {
+    store.reportRows = [
+      { ...unbilledRow, durationMinutes: 75 },
+      { ...unbilledRow, kind: 'manual', durationMinutes: 30, date: '2026-10-13T10:00:00.000Z' },
+      { ...unbilledRow, ticketId: 315, billingStatus: 'billed', durationMinutes: 60 },
+      { ...unbilledRow, ticketId: 316, clientId: 8, durationMinutes: 90 },
+    ];
+    store.collaboratorRows = [
+      { ...unbilledRow, ticketId: 317, durationMinutes: 120, clientId: 7 },
+    ];
+
+    const section = renderSection();
+
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-314')).toBeDefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-315')).toBeUndefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-316')).toBeUndefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-317')).toBeUndefined();
+    expect(getText(findElementByTestId(section, 'client-unbilled-work-ticket-314'))).toContain('1 h 45 min');
+    expect(findElementByTestId(section, 'client-unbilled-work-total').props.label).toBe('1 h 45 min');
+    expect(store.reportCalls[0].params).toEqual({ clientId: 7 });
+  });
+
+  it('falls back to unbilled manual ticket hours when timer tracking is disabled', () => {
+    store.settings = { timeTrackingModuleEnabled: false, workedTimeEnabled: true };
+    const section = renderSection({
+      tickets: [
+        { id: 401, ticketNumber: 41, title: 'Ore manuali', closedAt: '2026-10-14T10:00:00.000Z', workedMinutes: 95, workedBillingStatus: 'unbilled' },
+        { id: 402, ticketNumber: 42, title: 'Già fatturato', closedAt: '2026-10-14T10:00:00.000Z', workedMinutes: 40, workedBillingStatus: 'billed' },
+        { id: 403, ticketNumber: 43, title: 'Non chiuso', workedMinutes: 25, workedBillingStatus: 'unbilled' },
+      ],
+    });
+
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-401')).toBeDefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-402')).toBeUndefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-403')).toBeUndefined();
+    expect(findElementByTestId(section, 'client-unbilled-work-total').props.label).toBe('1 h 35 min');
+    expect(store.reportCalls[0].options).toMatchObject({ query: { enabled: false } });
+  });
+
+  it('renders nothing and disables billing-data queries for non-admin users', () => {
+    const section = renderSection({ isAdmin: false });
+
+    expect(section).toBeNull();
+    expect(store.reportCalls[0].options).toMatchObject({ query: { enabled: false } });
   });
 
   it('refreshes the report, client detail, and filtered client lists after billing succeeds', async () => {

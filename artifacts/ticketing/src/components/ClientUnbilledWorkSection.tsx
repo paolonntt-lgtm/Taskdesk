@@ -85,7 +85,7 @@ export default function ClientUnbilledWorkSection({
     if (trackingEnabled) {
       const grouped = new Map<number, WorkItem>();
       for (const row of (report.data?.customerRows ?? []) as TimeTrackingReportRow[]) {
-        if (row.billingStatus !== 'unbilled') continue;
+        if (row.billingStatus !== 'unbilled' || row.clientId !== clientId) continue;
         const current = grouped.get(row.ticketId);
         if (current) {
           current.durationMinutes += row.durationMinutes;
