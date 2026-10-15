@@ -811,7 +811,14 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       activeForCurrentUser: sessions.some((session) => session.userId === currentUser.id && session.endedAt == null),
     };
   }
-  res.json(redactClientData(redactWorkedHours(detail, canViewWorkedHours), clientsEnabled));
+  const responseDetail = redactClientData(redactWorkedHours(detail, canViewWorkedHours), clientsEnabled);
+  if (detail.timeTrackingEnabled && !detail.canViewTimeTrackingSummary) {
+    delete (responseDetail as any).timeTrackingBillable;
+    delete (responseDetail as any).timeTrackingCompensationOverride;
+    delete (responseDetail as any).workedMinutes;
+    delete (responseDetail as any).workedBillingStatus;
+  }
+  res.json(responseDetail);
 });
 
 // Admin-only visibility switch for tickets created through private email channels.

@@ -783,7 +783,8 @@ export const ListTicketsResponseItem = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 export const ListTicketsResponse = zod.array(ListTicketsResponseItem)
 
@@ -948,7 +949,8 @@ export const CreateTicketResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -1085,7 +1087,8 @@ export const GetTicketResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -1244,7 +1247,8 @@ export const UpdateTicketResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -1256,6 +1260,28 @@ export const DeleteTicketParams = zod.object({
 })
 
 export const DeleteTicketResponse = zod.void()
+
+
+/**
+ * @summary Correct a closed tracked session (admin only)
+ */
+export const CorrectTicketTimeSessionParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "sessionId": zod.coerce.number().int()
+})
+
+export const correctTicketTimeSessionBodyDurationMinutesMin = 0;
+export const correctTicketTimeSessionBodyDurationMinutesMax = 5256000;
+
+
+
+export const CorrectTicketTimeSessionBody = zod.object({
+  "durationMinutes": zod.int().min(correctTicketTimeSessionBodyDurationMinutesMin).max(correctTicketTimeSessionBodyDurationMinutesMax),
+  "clientBillable": zod.boolean(),
+  "collaboratorRecognizable": zod.boolean()
+})
+
+export const CorrectTicketTimeSessionResponse = zod.void()
 
 
 /**
@@ -1395,7 +1421,8 @@ export const CloneTicketResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -1547,7 +1574,8 @@ export const SetTicketRecurrenceResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -1684,7 +1712,8 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 
 
@@ -2767,7 +2796,8 @@ export const GetRecentTicketsResponseItem = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 })).and(zod.object({
   "latestActivity": zod.object({
   "actionType": zod.string(),
@@ -2907,7 +2937,8 @@ export const GetMyTicketsResponseItem = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 export const GetMyTicketsResponse = zod.array(GetMyTicketsResponseItem)
 
@@ -3041,7 +3072,8 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "collaboratorRecognizableMinutes": zod.int(),
   "activeForCurrentUser": zod.boolean()
 }).optional(),
-  "canChangeStatus": zod.boolean().optional()
+  "canChangeStatus": zod.boolean().optional(),
+  "canViewTimeTrackingSummary": zod.boolean().optional()
 }))
 export const GetDueSoonTicketsResponse = zod.array(GetDueSoonTicketsResponseItem)
 

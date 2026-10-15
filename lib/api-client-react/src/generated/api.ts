@@ -89,6 +89,7 @@ import type {
   TimeTrackingReport,
   ToggleReactionBody,
   ToggleReactionResponse,
+  TrackedTimeSessionCorrection,
   TrendPoint,
   UpdateAppointmentBody,
   UpdateChecklistBody,
@@ -2337,6 +2338,89 @@ export const useDeleteTicket = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteTicketMutationOptions(options));
+    }
+
+export const getCorrectTicketTimeSessionUrl = (id: number,
+    sessionId: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/time-sessions/${sessionId}`
+}
+
+/**
+ * @summary Correct a closed tracked session (admin only)
+ */
+export const correctTicketTimeSession = async (id: number,
+    sessionId: number,
+    trackedTimeSessionCorrection: TrackedTimeSessionCorrection, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<void>(getCorrectTicketTimeSessionUrl(id,sessionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(trackedTimeSessionCorrection)
+  }
+);}
+
+
+
+
+
+export const getCorrectTicketTimeSessionMutationKey = () => ['correctTicketTimeSession'] as const;
+
+export const getCorrectTicketTimeSessionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctTicketTimeSession>>, TError,CorrectTicketTimeSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof correctTicketTimeSession>>, TError,CorrectTicketTimeSessionMutationVariables, TContext> => {
+
+const mutationKey = getCorrectTicketTimeSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof correctTicketTimeSession>>, CorrectTicketTimeSessionMutationVariables> = (props) => {
+          const {id,sessionId,data} = props ?? {};
+
+          return  correctTicketTimeSession(id,sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CorrectTicketTimeSessionMutationResult = NonNullable<Awaited<ReturnType<typeof correctTicketTimeSession>>>
+    export type CorrectTicketTimeSessionMutationBody = BodyType<TrackedTimeSessionCorrection>
+    export type CorrectTicketTimeSessionMutationError = ErrorType<void>
+    export type CorrectTicketTimeSessionMutationVariables = {id: number;sessionId: number;data: BodyType<TrackedTimeSessionCorrection>}
+
+    /**
+ * @summary Correct a closed tracked session (admin only)
+ */
+export const useCorrectTicketTimeSession = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctTicketTimeSession>>, TError,CorrectTicketTimeSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof correctTicketTimeSession>>,
+        TError,
+        CorrectTicketTimeSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCorrectTicketTimeSessionMutationOptions(options));
     }
 
 export const getCloneTicketUrl = (id: number,) => {

@@ -85,19 +85,11 @@ router.patch("/tickets/:id/time-sessions/:sessionId", requireAuth, requireAdmin,
   await createNotificationForUser(
     result.collaboratorId,
     ticketId,
-    `An administrator updated your recorded time on ticket #${result.ticket.ticketNumber ?? ticketId}: "${result.ticket.title}".`,
+    `L'amministratore ha aggiornato le tue ore registrate sul ticket #${result.ticket.ticketNumber ?? ticketId}: "${result.ticket.title}".`,
     "system",
     orgId,
   );
-  res.json({
-    id: result.session.id,
-    userId: result.session.userId,
-    startedAt: result.session.startedAt,
-    endedAt: result.session.endedAt,
-    durationMinutes: parsed.data.durationMinutes,
-    clientBillable: result.session.clientBillable,
-    collaboratorRecognizable: result.session.collaboratorRecognizable,
-  });
+  res.status(204).end();
 });
 
 type ReportRow = {

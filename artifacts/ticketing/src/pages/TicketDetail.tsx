@@ -2017,6 +2017,37 @@ export default function TicketDetail() {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={!!editingTimeSession} onClose={() => setEditingTimeSession(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t.ticketDetail.editTrackedSession}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            {editingTimeSession?.userName}
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            type="number"
+            label={t.ticketDetail.trackedSessionDuration}
+            value={editedSessionMinutes}
+            onChange={(event) => setEditedSessionMinutes(event.target.value)}
+            inputProps={{ min: 0, step: 1 }}
+            sx={{ mb: 1 }}
+          />
+          <FormControlLabel control={<Checkbox checked={editedSessionBillable} onChange={(event) => setEditedSessionBillable(event.target.checked)} />} label={t.ticketDetail.trackedTimeCustomerBillable} />
+          <FormControlLabel control={<Checkbox checked={editedSessionRecognizable} onChange={(event) => setEditedSessionRecognizable(event.target.checked)} />} label={t.ticketDetail.trackedTimeCollaboratorRecognizable} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingTimeSession(null)}>{t.ticketDetail.closureSummaryClose}</Button>
+          <Button
+            variant="contained"
+            onClick={() => void saveTimeSessionEdit()}
+            disabled={!Number.isInteger(Number(editedSessionMinutes)) || Number(editedSessionMinutes) < 0}
+          >
+            {t.ticketDetail.editTrackedSessionSave}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Email reply sent */}
       <Snackbar open={emailReplySent} autoHideDuration={4000} onClose={() => setEmailReplySent(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="success" onClose={() => setEmailReplySent(false)} sx={{ width: '100%' }}>{t.ticketDetail.emailReplySentOk}</Alert>

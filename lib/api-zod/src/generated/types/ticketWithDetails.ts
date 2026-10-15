@@ -19,4 +19,5 @@ export type TicketWithDetails = Ticket & ({
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;
+  canViewTimeTrackingSummary?: boolean;
 });

@@ -9,9 +9,11 @@ import {
   pool,
   sessionsTable,
   ticketStatusesTable,
+  ticketTimeSessionEditsTable,
   ticketsTable,
   ticketTimeSessionsTable,
   usersTable,
+  notificationsTable,
 } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import app from "../app";
@@ -564,6 +566,46 @@ describe("ticket time tracking", () => {
     ]));
     expect((await changeStatus(handoffTicketId, "waiting", groupStatusManagerSessionId)).status).toBe(403);
     expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+    await db.update(ticketsTable).set({ workedMinutes: 30 }).where(eq(ticketsTable.id, handoffTicketId));
+
+    const nonParticipantDetail = await request(`/api/tickets/${handoffTicketId}`, groupStatusManagerSessionId);
+    expect(nonParticipantDetail.body.canViewTimeTrackingSummary).toBe(false);
+    expect(nonParticipantDetail.body).not.toHaveProperty("timeSessions");
+    expect(nonParticipantDetail.body).not.toHaveProperty("workedMinutes");
+    const participantDetail = await request(`/api/tickets/${handoffTicketId}`, collaboratorSessionId);
+    expect(participantDetail.body.canViewTimeTrackingSummary).toBe(true);
+    expect(participantDetail.body.timeSessions.every((session: any) => session.userId === collaboratorId)).toBe(true);
+    expect(participantDetail.body.workedMinutes).toBeNull();
+    const adminDetail = await request(`/api/tickets/${handoffTicketId}`, adminSessionId);
+    expect(adminDetail.body.canViewTimeTrackingSummary).toBe(true);
+    expect(adminDetail.body.timeSessions).toHaveLength(2);
+    expect(adminDetail.body.workedMinutes).toBe(30);
+
+    expect((await changeStatus(handoffTicketId, "closed", adminSessionId)).status).toBe(200);
+    const beforeEdit = resumedSessions.find((session) => session.userId === collaboratorId)!;
+    const sessionEdit = await request(`/api/tickets/${handoffTicketId}/time-sessions/${beforeEdit.id}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        durationMinutes: 42,
+        clientBillable: false,
+        collaboratorRecognizable: false,
+      }),
+    });
+    expect(sessionEdit.status).toBe(204);
+    const savedEdit = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.id, beforeEdit.id));
+    expect(Math.floor((savedEdit[0]!.endedAt!.getTime() - savedEdit[0]!.startedAt.getTime()) / 60_000)).toBe(42);
+    expect(savedEdit[0]).toMatchObject({ clientBillable: false, collaboratorRecognizable: false });
+    const auditRows = await db.select().from(ticketTimeSessionEditsTable)
+      .where(eq(ticketTimeSessionEditsTable.sessionId, beforeEdit.id));
+    expect(auditRows).toHaveLength(1);
+    const editNotifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, collaboratorId));
+    expect(editNotifications.some((notification) => notification.ticketId === handoffTicketId && notification.notificationText.includes("aggiornato le tue ore"))).toBe(true);
+    const forbiddenEdit = await request(`/api/tickets/${handoffTicketId}/time-sessions/${beforeEdit.id}`, collaboratorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ durationMinutes: 60, clientBillable: true, collaboratorRecognizable: true }),
+    });
+    expect(forbiddenEdit.status).toBe(403);
   }, 60_000);
 
   it.skip("legacy active-timer handoff behavior", async () => {

@@ -121,6 +121,7 @@ export * from './timeTrackingReportRowKind';
 export * from './timeTrackingReportTotals';
 export * from './toggleReactionBody';
 export * from './toggleReactionResponse';
+export * from './trackedTimeSessionCorrection';
 export * from './trendPoint';
 export * from './updateAppointmentBody';
 export * from './updateChecklistBody';

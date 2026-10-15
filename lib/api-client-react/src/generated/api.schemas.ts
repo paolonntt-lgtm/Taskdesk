@@ -397,6 +397,7 @@ export type TicketWithDetails = Ticket & ({
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;
+  canViewTimeTrackingSummary?: boolean;
 });
 
 export type TimeTrackingReportRowKind = typeof TimeTrackingReportRowKind[keyof typeof TimeTrackingReportRowKind];
@@ -499,6 +500,16 @@ export interface CreateTicketBody {
   timeTrackingBillable?: boolean;
   timeTrackingCompensationOverride?: boolean | null;
   recurrenceRule?: RecurrenceRule | null;
+}
+
+export interface TrackedTimeSessionCorrection {
+  /**
+     * @minimum 0
+     * @maximum 5256000
+     */
+  durationMinutes: number;
+  clientBillable: boolean;
+  collaboratorRecognizable: boolean;
 }
 
 export type UpdateTicketBodyPriority = typeof UpdateTicketBodyPriority[keyof typeof UpdateTicketBodyPriority];
