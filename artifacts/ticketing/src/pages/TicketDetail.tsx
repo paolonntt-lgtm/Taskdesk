@@ -440,6 +440,8 @@ export default function TicketDetail() {
       if (err?.data?.error === 'TIMER_ALREADY_ACTIVE') {
         const active = err.data.activeTicket;
         setStatusError(`${t.ticketDetail.timerAlreadyActive}${active ? ` #${active.ticketNumber ?? active.id}: ${active.title}` : ''}`);
+      } else if (err?.data?.error === 'Collaborator-recognizable tracked tickets require an individual assignee') {
+        setStatusError(t.ticketDetail.trackedTimeAssigneeRequired);
       } else {
         setStatusError(err?.data?.message || err?.message || t.ticketDetail.statusChangeError);
       }
