@@ -1429,7 +1429,9 @@ export default function TicketDetail() {
                         label={t.ticketDetail.trackedTimeOverride}
                         helperText={t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
                         data-testid="select-time-tracking-recognition"
-                        value={(ticket as any).timeTrackingCompensationOverride == null ? '' : String((ticket as any).timeTrackingCompensationOverride)}
+                        value={(ticket as any).timeTrackingCompensationOverride == null
+                          ? (ticket as any).timeTrackingEnabled ? '' : 'false'
+                          : String((ticket as any).timeTrackingCompensationOverride)}
                         onChange={async (event) => {
                           try {
                             const value = event.target.value === '' ? null : event.target.value === 'true';
@@ -1440,7 +1442,9 @@ export default function TicketDetail() {
                           }
                         }}
                       >
-                        <MenuItem value="">{t.ticketDetail.trackedTimeInherit}</MenuItem>
+                          {(ticket as any).timeTrackingEnabled && (
+                            <MenuItem value="">{t.ticketDetail.trackedTimeInherit}</MenuItem>
+                          )}
                         <MenuItem value="true">{t.ticketDetail.trackedTimeOn}</MenuItem>
                         <MenuItem value="false">{t.ticketDetail.trackedTimeOff}</MenuItem>
                       </TextField>
@@ -2132,22 +2136,26 @@ export default function TicketDetail() {
                 </Typography>
               </Box>
             )}
-            <Box>
-              <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCustomerBillable}</Typography>
-              <Typography variant="body2">
-                {formatWorkedDuration(closureSummary?.timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}
-                {' · '}
-                {closureSummary?.timeTrackingBillable
-                  ? t.ticketDetail.trackedTimeCustomerBillableOn
-                  : t.ticketDetail.trackedTimeCustomerBillableOff}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>
-              <Typography variant="body2">
-                {formatWorkedDuration(closureSummary?.timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}
-              </Typography>
-            </Box>
+            {isAdmin && (
+              <>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCustomerBillable}</Typography>
+                  <Typography variant="body2">
+                    {formatWorkedDuration(closureSummary?.timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}
+                    {' · '}
+                    {closureSummary?.timeTrackingBillable
+                      ? t.ticketDetail.trackedTimeCustomerBillableOn
+                      : t.ticketDetail.trackedTimeCustomerBillableOff}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>
+                  <Typography variant="body2">
+                    {formatWorkedDuration(closureSummary?.timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}
+                  </Typography>
+                </Box>
+              </>
+            )}
             <Box>
               <Typography variant="subtitle2" fontWeight={700}>{t.ticketDetail.resolutionNoteLabel}</Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>

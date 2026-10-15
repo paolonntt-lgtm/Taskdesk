@@ -45,6 +45,7 @@ let privateTicketId: number;
 let handoffTicketId: number;
 let backupHandoffTicketId: number;
 let unassignedRecognizableTicketId: number;
+let createdUntrackedTicketId: number;
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -327,6 +328,7 @@ describe("ticket time tracking", () => {
       handoffTicketId,
       backupHandoffTicketId,
       unassignedRecognizableTicketId,
+      createdUntrackedTicketId,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
@@ -399,6 +401,51 @@ describe("ticket time tracking", () => {
     });
     expect(recognizableWithoutAssignee.status).toBe(400);
     expect(recognizableWithoutAssignee.body.error).toBe("Collaborator-recognizable tracked tickets require an individual assignee");
+
+    const untrackedCreated = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Initially untracked ${runId}`,
+        description: "Can be activated later from ticket detail",
+        category: "Support",
+        priority: "medium",
+        assignedTo: collaboratorId,
+      }),
+    });
+    expect(untrackedCreated.status).toBe(201);
+    createdUntrackedTicketId = untrackedCreated.body.id;
+    const moveUntrackedToProgress = await request(`/api/tickets/${createdUntrackedTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress" }),
+    });
+    expect(moveUntrackedToProgress.status).toBe(200);
+    const activateTracking = await request(`/api/tickets/${createdUntrackedTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ timeTrackingBillable: false, timeTrackingCompensationOverride: true }),
+    });
+    expect(activateTracking.status).toBe(200);
+    expect(activateTracking.body).toMatchObject({
+      timeTrackingEnabled: true,
+      timeTrackingBillable: false,
+      timeTrackingCompensationOverride: true,
+    });
+    const activatedDetail = await request(`/api/tickets/${createdUntrackedTicketId}`, adminSessionId);
+    expect(activatedDetail.body.timeSessions).toHaveLength(1);
+    expect(activatedDetail.body.timeSessions[0]).toMatchObject({
+      userId: collaboratorId,
+      clientBillable: false,
+      collaboratorRecognizable: true,
+      endedAt: null,
+    });
+    expect((await changeStatus(createdUntrackedTicketId, "waiting", adminSessionId)).status).toBe(200);
+    const turnOffFutureRecognition = await request(`/api/tickets/${createdUntrackedTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ timeTrackingCompensationOverride: false }),
+    });
+    expect(turnOffFutureRecognition.status).toBe(200);
+    const afterClassificationChange = await request(`/api/tickets/${createdUntrackedTicketId}`, adminSessionId);
+    expect(afterClassificationChange.body.timeTrackingCompensationOverride).toBe(false);
+    expect(afterClassificationChange.body.timeSessions[0].collaboratorRecognizable).toBe(true);
 
     await db.update(usersTable).set({ hourlyCompensated: true }).where(eq(usersTable.id, adminId));
     const recognizableWithoutAssigneeStart = await changeStatus(unassignedRecognizableTicketId, "in_progress", adminSessionId);
@@ -503,7 +550,7 @@ describe("ticket time tracking", () => {
     expect(visiblePrivateTicket.body.timeSessions).toHaveLength(1);
 
     const backup = await buildBackupPayload(organizationId);
-    expect(backup?.summary.timeSessions).toBe(6);
+    expect(backup?.summary.timeSessions).toBe(7);
     expect(backup?.data.users.find((user) => user.id === collaboratorId)?.hourlyCompensated).toBe(true);
     expect(backup?.data.tickets.find((ticket) => ticket.id === bothId)?.timeTrackingBillable).toBe(true);
     expect(backup?.data.timeSessions).toContainEqual(expect.objectContaining({
@@ -575,7 +622,7 @@ describe("ticket time tracking", () => {
     expect((await request("/api/time-tracking/report", adminSessionId)).status).toBe(403);
     const preservedSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.organizationId, organizationId));
-    expect(preservedSessions).toHaveLength(9);
+    expect(preservedSessions).toHaveLength(10);
     expect(preservedSessions.every((session) => session.endedAt !== null)).toBe(true);
     const disabledTicket = await db.select({ status: ticketsTable.status }).from(ticketsTable)
       .where(eq(ticketsTable.id, neitherId));
@@ -623,15 +670,30 @@ describe("ticket time tracking", () => {
     const nonParticipantDetail = await request(`/api/tickets/${handoffTicketId}`, groupStatusManagerSessionId);
     expect(nonParticipantDetail.body.canViewTimeTrackingSummary).toBe(false);
     expect(nonParticipantDetail.body).not.toHaveProperty("timeSessions");
+    expect(nonParticipantDetail.body).not.toHaveProperty("timeTrackingBillable");
+    expect(nonParticipantDetail.body).not.toHaveProperty("timeTrackingCompensationOverride");
     expect(nonParticipantDetail.body).not.toHaveProperty("workedMinutes");
     const participantDetail = await request(`/api/tickets/${handoffTicketId}`, collaboratorSessionId);
     expect(participantDetail.body.canViewTimeTrackingSummary).toBe(true);
     expect(participantDetail.body.timeSessions.every((session: any) => session.userId === collaboratorId)).toBe(true);
+    expect(participantDetail.body.timeSessions[0]).not.toHaveProperty("clientBillable");
+    expect(participantDetail.body.timeSessions[0]).not.toHaveProperty("collaboratorRecognizable");
+    expect(participantDetail.body.timeTrackingSummary).not.toHaveProperty("clientBillableMinutes");
+    expect(participantDetail.body.timeTrackingSummary).not.toHaveProperty("collaboratorRecognizableMinutes");
+    expect(participantDetail.body).not.toHaveProperty("timeTrackingBillable");
+    expect(participantDetail.body).not.toHaveProperty("timeTrackingCompensationOverride");
     expect(participantDetail.body.workedMinutes).toBeNull();
     const adminDetail = await request(`/api/tickets/${handoffTicketId}`, adminSessionId);
     expect(adminDetail.body.canViewTimeTrackingSummary).toBe(true);
     expect(adminDetail.body.timeSessions).toHaveLength(2);
+    expect(adminDetail.body.timeSessions[0]).toHaveProperty("clientBillable");
+    expect(adminDetail.body.timeSessions[0]).toHaveProperty("collaboratorRecognizable");
+    expect(adminDetail.body.timeTrackingSummary).toHaveProperty("clientBillableMinutes");
     expect(adminDetail.body.workedMinutes).toBe(30);
+    const collaboratorTicketList = await request("/api/tickets", collaboratorSessionId);
+    const listedTrackedTicket = collaboratorTicketList.body.find((item: any) => item.id === handoffTicketId);
+    expect(listedTrackedTicket).not.toHaveProperty("timeTrackingBillable");
+    expect(listedTrackedTicket).not.toHaveProperty("timeTrackingCompensationOverride");
 
     expect((await changeStatus(handoffTicketId, "closed", adminSessionId)).status).toBe(200);
     const beforeEdit = resumedSessions.find((session) => session.userId === collaboratorId)!;

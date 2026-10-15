@@ -657,7 +657,13 @@ export default function NewTicketScreen() {
             {(["user", "group"] as const).map((mode) => (
               <TouchableOpacity
                 key={mode}
-                style={[s.chip, assignmentMode === mode && s.chipActive]}
+                disabled={mode === "group" && timeRecognizableToCollaborator}
+                accessibilityState={{ disabled: mode === "group" && timeRecognizableToCollaborator }}
+                style={[
+                  s.chip,
+                  assignmentMode === mode && s.chipActive,
+                  mode === "group" && timeRecognizableToCollaborator && { opacity: 0.45 },
+                ]}
                 onPress={() => setAssignmentMode(mode)}
               >
                 <Text style={[s.chipText, assignmentMode === mode && s.chipTextActive]}>
@@ -827,13 +833,22 @@ export default function NewTicketScreen() {
                 </View>
               </TouchableOpacity>
               <Text style={s.helperText}>{t.newTicket.billableToClientHint}</Text>
-              <TouchableOpacity style={[s.toggleRow, { marginTop: 8 }]} onPress={() => setTimeRecognizableToCollaborator((current) => !current)}>
-                <Text style={[s.optionText, { flex: 1 }]}>{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Text>
+              <TouchableOpacity
+                style={[s.toggleRow, { marginTop: 8 }, assignmentMode === "group" && { opacity: 0.5 }]}
+                disabled={assignmentMode === "group"}
+                accessibilityState={{ disabled: assignmentMode === "group" }}
+                onPress={() => setTimeRecognizableToCollaborator((current) => !current)}
+              >
+                <Text style={[s.optionText, { flex: 1 }]}>{t.ticketDetail.trackedTimeRecognizable}</Text>
                 <View style={[s.toggleBox, timeRecognizableToCollaborator && s.toggleBoxActive]}>
                   {timeRecognizableToCollaborator && <Feather name="check" size={14} color={colors.primaryForeground} />}
                 </View>
               </TouchableOpacity>
-              <Text style={s.helperText}>{t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}</Text>
+              <Text style={s.helperText}>
+                {assignmentMode === "group"
+                  ? t.ticketDetail.recognitionRequiresIndividualAssignee
+                  : t.ticketDetail.trackedTimeRecognizableHelp}
+              </Text>
             </View>
           )}
           <TouchableOpacity style={s.toggleRow} onPress={() => setPrivateTicket((current) => !current)}>

@@ -712,13 +712,18 @@ export default function NewTicket() {
                     </Typography>
                     <FormControlLabel
                       sx={{ mx: 0, mt: 0.75, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-                      control={<Checkbox size="small" checked={timeRecognizableToCollaborator} onChange={(event) => setTimeRecognizableToCollaborator(event.target.checked)} />}
+                      control={<Checkbox size="small" disabled={assignMode === 'group'} checked={timeRecognizableToCollaborator} onChange={(event) => setTimeRecognizableToCollaborator(event.target.checked)} />}
                       data-testid="toggle-ticket-collaborator-recognizable"
                       label={<Typography variant="body2" fontSize={12} textAlign="center">{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>}
                     />
                     <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
                       {t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
                     </Typography>
+                    {assignMode === 'group' && (
+                      <Typography variant="caption" color="warning.main" textAlign="center" display="block" sx={{ px: 1 }}>
+                        {t.ticketDetail.recognitionRequiresIndividualAssignee}
+                      </Typography>
+                    )}
                   </SideSection>
                 )}
 
@@ -825,7 +830,7 @@ export default function NewTicket() {
                 {showClients && (
                   <SideSection>
                     <SideLabel>
-                      {t.clients.clientField}{trackWorkedTime && timeBillableToClient ? ' *' : ''}
+                      {t.clients.clientField}{timeBillableToClient ? ' *' : ''}
                     </SideLabel>
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <Autocomplete
@@ -852,7 +857,7 @@ export default function NewTicket() {
                         </Tooltip>
                       )}
                     </Box>
-                    {trackWorkedTime && timeBillableToClient && !formData.clientId && (
+                    {timeBillableToClient && !formData.clientId && (
                       <Typography variant="caption" color="error" display="block" sx={{ mt: 0.25 }}>
                         {t.newTicket.clientRequiredForBillableTime}
                       </Typography>
@@ -875,7 +880,7 @@ export default function NewTicket() {
                       <ToggleButton value="user">
                         <Person sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignUser}
                       </ToggleButton>
-                      <ToggleButton value="group">
+                      <ToggleButton value="group" disabled={timeRecognizableToCollaborator}>
                         <Group sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignGroup}
                       </ToggleButton>
                     </ToggleButtonGroup>

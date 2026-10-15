@@ -969,7 +969,15 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       return;
     }
   }
-  const shouldTrackStatus = timeTrackingModuleEnabled && existing.timeTrackingEnabled;
+  const effectiveClientBillable =
+    parsed.data.timeTrackingBillable ?? existing.timeTrackingBillable;
+  const effectiveCompensationOverride =
+    parsed.data.timeTrackingCompensationOverride !== undefined
+      ? parsed.data.timeTrackingCompensationOverride
+      : existing.timeTrackingCompensationOverride;
+  const shouldTrackStatus =
+    timeTrackingModuleEnabled &&
+    (existing.timeTrackingEnabled || effectiveClientBillable || effectiveCompensationOverride === true);
   const isTimeTrackedTicket = existing.timeTrackingEnabled;
   const hasTrackedAssignmentPermission = await hasGroupPermission(
     currentUser.id,
@@ -1053,7 +1061,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const updates: typeof parsed.data = isAdmin
+  const updates: typeof parsed.data & { timeTrackingEnabled?: boolean } = isAdmin
     ? parsed.data
     : hasGroupStatusPermission
     ? {
@@ -1283,15 +1291,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const effectiveClientId = updates.clientId !== undefined ? updates.clientId : existing.clientId;
-  const effectiveClientBillable = updates.timeTrackingBillable ?? existing.timeTrackingBillable;
   if (effectiveClientBillable && effectiveClientId == null) {
     res.status(400).json({ error: "Client-billable tracked tickets require a client" });
     return;
   }
-  const effectiveCompensationOverride =
-    updates.timeTrackingCompensationOverride !== undefined
-      ? updates.timeTrackingCompensationOverride
-      : existing.timeTrackingCompensationOverride;
   if (hasClassificationUpdate) {
     updates.timeTrackingEnabled =
       existing.timeTrackingEnabled || effectiveClientBillable || effectiveCompensationOverride === true;
@@ -1336,7 +1339,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   try {
     updated = await db.transaction(async (tx) => {
       let timerState = existing;
-      if (shouldTrackStatus && (updates.status !== undefined || "assignedTo" in updates)) {
+      if (shouldTrackStatus && (updates.status !== undefined || "assignedTo" in updates || hasClassificationUpdate)) {
         const [lockedTicket] = await tx.select().from(ticketsTable)
           .where(and(
             eq(ticketsTable.id, id),
@@ -1349,7 +1352,31 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       const timerStatusChanged = updates.status !== undefined && updates.status !== timerState.status;
       const timerAssignmentChanged =
         updates.assignedTo !== undefined && updates.assignedTo !== timerState.assignedTo;
-      if (shouldTrackStatus && timerStatusChanged) {
+      const trackingJustEnabled = !timerState.timeTrackingEnabled && updates.timeTrackingEnabled === true;
+      if (shouldTrackStatus && trackingJustEnabled && timerState.status === "in_progress") {
+        const now = new Date();
+        const assignedForSession = updates.assignedTo !== undefined
+          ? updates.assignedTo
+          : timerState.assignedTo;
+        const sessionUserId =
+          (isAdmin || hasGroupStatusPermission) &&
+          assignedForSession != null &&
+          assignedForSession !== currentUser.id
+            ? assignedForSession
+            : currentUser.id;
+        const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
+          .from(usersTable)
+          .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)));
+        await tx.insert(ticketTimeSessionsTable).values({
+          organizationId: orgId,
+          ticketId: id,
+          userId: sessionUserId,
+          startedAt: now,
+          clientBillable: effectiveClientBillable,
+          collaboratorRecognizable:
+            effectiveCompensationOverride ?? worker?.hourlyCompensated ?? false,
+        });
+      } else if (shouldTrackStatus && timerStatusChanged) {
         const now = new Date();
         if (updates.status === "in_progress") {
           const assignedForSession = updates.assignedTo !== undefined

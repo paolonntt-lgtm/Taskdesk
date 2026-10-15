@@ -627,7 +627,8 @@ export default function TicketDetailScreen() {
           ))}
         </View>
 
-        {timeTrackingModuleEnabled && (ticket.timeTrackingEnabled || isAdmin) && (
+        {timeTrackingModuleEnabled &&
+          ((ticket.timeTrackingEnabled && ticket.canViewTimeTrackingSummary) || isAdmin) && (
           <View style={[s.metaCard, { marginTop: 12, padding: 14 }]}>
             <Text style={[s.sectionTitle, { marginBottom: 8 }]}>{t.ticketDetail.trackedTimeTitle}</Text>
             {ticket.timeTrackingSummary && (
@@ -719,7 +720,9 @@ export default function TicketDetailScreen() {
                   style={[s.metaRow, { borderTopWidth: 1, borderTopColor: colors.border }]}
                   onPress={async () => {
                     const current = ticket.timeTrackingCompensationOverride;
-                    const next = current == null ? true : current ? false : null;
+                    const next = ticket.timeTrackingEnabled
+                      ? current == null ? true : current ? false : null
+                      : current === true ? false : true;
                     try {
                       await apiPatch(`/tickets/${id}`, { timeTrackingCompensationOverride: next });
                       qc.invalidateQueries({ queryKey: ["ticket", id] });
@@ -732,7 +735,7 @@ export default function TicketDetailScreen() {
                 >
                   <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeOverride}</Text>
                   <Text style={[s.metaValue, { color: colors.primary }]}>
-                    {ticket.timeTrackingCompensationOverride == null
+                    {ticket.timeTrackingCompensationOverride == null && ticket.timeTrackingEnabled
                       ? t.ticketDetail.trackedTimeInherit
                       : ticket.timeTrackingCompensationOverride ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff}
                   </Text>
