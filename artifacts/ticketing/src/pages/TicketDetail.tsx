@@ -87,6 +87,12 @@ function formatWorkedDuration(total: number, lang: 'it' | 'en'): string {
   return `${hours} ${hourLabel} and ${minutes} ${minuteLabel}`;
 }
 
+function toCsvCell(value: string | number): string {
+  const text = String(value);
+  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
 // Matches both legacy format (header\n\nbody) and new format (header\n\n---\n\nbody)
 const CUSTOMER_REPLY_RE = /^📧 \*\*Risposta del cliente\*\* — da: (.+?) <([^>]+)>\n\n(?:---\n\n)?([\s\S]*)$/;
 function parseCustomerReply(text: string): { name: string; email: string; body: string } | null {
@@ -125,6 +131,8 @@ export default function TicketDetail() {
   const [workedHours, setWorkedHours] = useState('');
   const [workedMinutes, setWorkedMinutes] = useState('');
   const [workedTimeError, setWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
+  const [timeSessionEditsDownloading, setTimeSessionEditsDownloading] = useState(false);
+  const [timeSessionEditsExportError, setTimeSessionEditsExportError] = useState(false);
   const [visibilityDialog, setVisibilityDialog] = useState(false);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
 
@@ -229,6 +237,7 @@ export default function TicketDetail() {
     data: timeSessionEdits = [],
     isLoading: timeSessionEditsLoading,
     isError: timeSessionEditsError,
+    refetch: refetchTimeSessionEdits,
   } = useGetTicketTimeSessionEdits(ticketId, {
     query: {
       enabled: currentUser?.role === 'admin'
@@ -270,6 +279,57 @@ export default function TicketDetail() {
   const addNote = useAddTicketNote();
 
   const dateLocale = lang === 'en' ? 'en-US' : 'it-IT';
+
+  const handleExportTimeSessionEdits = async () => {
+    setTimeSessionEditsDownloading(true);
+    setTimeSessionEditsExportError(false);
+    try {
+      const result = await refetchTimeSessionEdits();
+      if (!result.isSuccess || result.data.length === 0) {
+        if (!result.isSuccess) setTimeSessionEditsExportError(true);
+        return;
+      }
+
+      const csvRows = [
+        [
+          t.ticketDetail.trackedTimeEditCsvDate,
+          t.ticketDetail.trackedTimeEditCsvAuthor,
+          t.ticketDetail.trackedTimeEditCsvCollaborator,
+          t.ticketDetail.trackedTimeEditCsvPreviousDuration,
+          t.ticketDetail.trackedTimeEditCsvUpdatedDuration,
+          t.ticketDetail.trackedTimeEditCsvPreviousBillable,
+          t.ticketDetail.trackedTimeEditCsvUpdatedBillable,
+          t.ticketDetail.trackedTimeEditCsvPreviousRecognizable,
+          t.ticketDetail.trackedTimeEditCsvUpdatedRecognizable,
+        ],
+        ...result.data.map((edit) => [
+          new Date(edit.editedAt).toISOString(),
+          edit.editedByName,
+          edit.collaboratorName,
+          edit.previousDurationMinutes,
+          edit.updatedDurationMinutes,
+          edit.previousClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff,
+          edit.updatedClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff,
+          edit.previousCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff,
+          edit.updatedCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff,
+        ]),
+      ];
+      const csv = `\uFEFF${csvRows.map((row) => row.map(toCsvCell).join(',')).join('\r\n')}`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ticket-${(ticket as any)?.ticketNumber ?? ticketId}-time-corrections.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setTimeSessionEditsExportError(true);
+    } finally {
+      setTimeSessionEditsDownloading(false);
+    }
+  };
 
   const formatReactionTooltip = (users: string[]): string => {
     if (users.length === 0) return '';
@@ -1253,9 +1313,25 @@ export default function TicketDetail() {
                 )}
                 {isAdmin && (
                   <Box mt={1.75} data-testid="time-session-edit-history">
-                    <Typography variant="subtitle2" fontWeight={700} mb={0.75}>
-                      {t.ticketDetail.trackedTimeEditHistory}
-                    </Typography>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} mb={0.75}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        {t.ticketDetail.trackedTimeEditHistory}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={timeSessionEditsDownloading ? <CircularProgress size={16} /> : <Download fontSize="small" />}
+                        onClick={handleExportTimeSessionEdits}
+                        disabled={timeSessionEditsLoading || timeSessionEditsDownloading || (!timeSessionEditsError && timeSessionEdits.length === 0)}
+                      >
+                        {timeSessionEditsDownloading ? t.ticketDetail.trackedTimeEditExporting : t.ticketDetail.trackedTimeEditExport}
+                      </Button>
+                    </Box>
+                    {timeSessionEditsExportError && (
+                      <Alert severity="error" sx={{ mb: 1 }}>
+                        {t.ticketDetail.trackedTimeEditExportError}
+                      </Alert>
+                    )}
                     {timeSessionEditsLoading ? (
                       <CircularProgress size={18} aria-label={t.ticketDetail.trackedTimeEditHistory} />
                     ) : timeSessionEditsError ? (
