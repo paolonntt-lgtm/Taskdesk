@@ -18,13 +18,9 @@ import {
 import { AccessTime, ArrowBackIosNew, ArrowForwardIos, ArrowOutward, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
 import {
   getGetTimeTrackingReportQueryKey,
-  getListClientsQueryKey,
-  getListUsersQueryKey,
   useUpdateCollaboratorInvoiceStatus,
   useUpdateTimeTrackingClientBillingStatus,
   useGetTimeTrackingReport,
-  useListClients,
-  useListUsers,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GetTimeTrackingReportParams, TimeTrackingReportRow } from '@workspace/api-client-react';
@@ -234,7 +230,7 @@ export default function TimeTrackingReportPanel() {
   const isItalian = lang === 'it';
   const copy = isItalian
     ? {
-        title: 'Rendiconto ore',
+        title: 'Rendiconto',
         intro: 'Una vista chiara del tempo registrato, fatturabile ai clienti e riconoscibile ai collaboratori.',
         from: 'Dal',
         to: 'Al',
@@ -265,7 +261,7 @@ export default function TimeTrackingReportPanel() {
         invoiceReceived: 'Fattura ricevuta',
       }
     : {
-        title: 'Hours report',
+        title: 'Report',
         intro: 'A clear view of tracked time, billable to customers and recognizable to collaborators.',
         from: 'From',
         to: 'To',
@@ -306,20 +302,35 @@ export default function TimeTrackingReportPanel() {
     ...(clientId ? { clientId: Number(clientId) } : {}),
     ...(collaboratorId ? { collaboratorId: Number(collaboratorId) } : {}),
   }), [dateFrom, dateTo, clientId, collaboratorId]);
+  const periodParams = useMemo<GetTimeTrackingReportParams>(() => ({
+    ...(dateFrom ? { dateFrom } : {}),
+    ...(dateTo ? { dateTo } : {}),
+  }), [dateFrom, dateTo]);
 
   const reportQuery = useGetTimeTrackingReport(params, {
     query: { queryKey: getGetTimeTrackingReportQueryKey(params), enabled: true },
   });
-  const clientsQuery = useListClients(undefined, {
-    query: { queryKey: getListClientsQueryKey(), staleTime: 60_000 },
-  });
-  const usersQuery = useListUsers({
-    query: { queryKey: getListUsersQueryKey(), staleTime: 60_000 },
+  const periodReportQuery = useGetTimeTrackingReport(periodParams, {
+    query: { queryKey: getGetTimeTrackingReportQueryKey(periodParams), enabled: true },
   });
   const report = reportQuery.data;
   const totals = report?.totals;
   const hasData = Boolean(report && (report.customerRows.length || report.collaboratorRows.length));
   const hasFilters = Boolean(dateFrom || dateTo || clientId || collaboratorId);
+  const availableClients = useMemo(() => {
+    const clients = new Map<number, string>();
+    for (const row of periodReportQuery.data?.customerRows ?? []) {
+      if (row.clientId != null && row.clientName) clients.set(row.clientId, row.clientName);
+    }
+    return [...clients].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, isItalian ? 'it' : 'en'));
+  }, [periodReportQuery.data, isItalian]);
+  const availableCollaborators = useMemo(() => {
+    const collaborators = new Map<number, string>();
+    for (const row of periodReportQuery.data?.collaboratorRows ?? []) {
+      if (row.collaboratorId != null && row.collaboratorName) collaborators.set(row.collaboratorId, row.collaboratorName);
+    }
+    return [...collaborators].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, isItalian ? 'it' : 'en'));
+  }, [periodReportQuery.data, isItalian]);
   const labels = { ticket: copy.ticket, billed: copy.billed, unbilled: copy.unbilled, manual: copy.manual, session: copy.session };
 
   const resetFilters = () => {
@@ -335,6 +346,8 @@ export default function TimeTrackingReportPanel() {
     setSelectedMonth(`${year}-${String(month + 1).padStart(2, '0')}`);
     setDateFrom(`${year}-${String(month + 1).padStart(2, '0')}-01`);
     setDateTo(`${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`);
+    setClientId('');
+    setCollaboratorId('');
   };
   const moveMonth = (delta: number) => {
     const current = selectedMonth ? new Date(`${selectedMonth}-01T12:00:00`) : new Date();
@@ -415,7 +428,7 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.from}
               value={dateFrom}
-              onChange={(event) => { setSelectedMonth(null); setDateFrom(event.target.value); }}
+              onChange={(event) => { setSelectedMonth(null); setDateFrom(event.target.value); setClientId(''); setCollaboratorId(''); }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-from' }}
             />
@@ -427,7 +440,7 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.to}
               value={dateTo}
-              onChange={(event) => { setSelectedMonth(null); setDateTo(event.target.value); }}
+              onChange={(event) => { setSelectedMonth(null); setDateTo(event.target.value); setClientId(''); setCollaboratorId(''); }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-to' }}
             />
@@ -443,7 +456,7 @@ export default function TimeTrackingReportPanel() {
               inputProps={{ 'data-testid': 'select-report-client' }}
             >
               <MenuItem value="">{copy.allClients}</MenuItem>
-              {(clientsQuery.data ?? []).map((client) => (
+              {availableClients.map((client) => (
                 <MenuItem key={client.id} value={String(client.id)}>{client.name}</MenuItem>
               ))}
             </TextField>
@@ -459,15 +472,15 @@ export default function TimeTrackingReportPanel() {
               inputProps={{ 'data-testid': 'select-report-collaborator' }}
             >
               <MenuItem value="">{copy.allCollaborators}</MenuItem>
-              {(usersQuery.data ?? []).map((user) => (
+              {availableCollaborators.map((user) => (
                 <MenuItem key={user.id} value={String(user.id)}>{user.name}</MenuItem>
               ))}
             </TextField>
           </Grid>
         </Grid>
-        {(clientsQuery.isError || usersQuery.isError) && (
+        {periodReportQuery.isError && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-            {isItalian ? 'Alcune opzioni filtro non sono disponibili.' : 'Some filter options are unavailable.'}
+            {isItalian ? 'Non è stato possibile caricare le opzioni per il periodo selezionato.' : 'Could not load filter options for the selected period.'}
           </Typography>
         )}
       </Box>

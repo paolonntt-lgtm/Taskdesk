@@ -294,6 +294,12 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS collaborator_invoice_received BOOLEAN NOT NULL DEFAULT false;
     `);
     await client.query(`
+      UPDATE ticket_statuses
+      SET label = 'In attesa'
+      WHERE key = 'waiting_client'
+        AND label = 'In attesa cliente';
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ticket_time_session_edits (
         id SERIAL PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

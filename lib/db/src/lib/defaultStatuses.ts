@@ -13,7 +13,7 @@ export function getDefaultStatuses(businessType: string | null | undefined): Sta
       return [
         { key: "open", label: "Aperta", color: "#1976d2", sortOrder: 0, isDefault: true, isClosed: false },
         { key: "in_progress", label: "In lavorazione", color: "#ed6c02", sortOrder: 1, isDefault: false, isClosed: false },
-        { key: "waiting_client", label: "In attesa cliente", color: "#9c27b0", sortOrder: 2, isDefault: false, isClosed: false },
+        { key: "waiting_client", label: "In attesa", color: "#9c27b0", sortOrder: 2, isDefault: false, isClosed: false },
         { key: "waiting_document", label: "In attesa documento", color: "#0288d1", sortOrder: 3, isDefault: false, isClosed: false },
         { key: "waiting_approval", label: "In attesa approvazione", color: "#f57c00", sortOrder: 4, isDefault: false, isClosed: false },
         { key: "closed", label: "Chiusa", color: "#616161", sortOrder: 5, isDefault: false, isClosed: true },

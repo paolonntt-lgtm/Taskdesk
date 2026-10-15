@@ -25,8 +25,8 @@ export default function TimeTrackingReportPage() {
     return (
       <Alert severity="info">
         {lang === 'it'
-          ? 'Il modulo Rendiconto ore non è attivo per questa organizzazione.'
-          : 'The Hours report module is not enabled for this organization.'}
+          ? 'Il modulo Rendiconto non è attivo per questa organizzazione.'
+          : 'The report module is not enabled for this organization.'}
       </Alert>
     );
   }
