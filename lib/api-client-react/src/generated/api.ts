@@ -87,6 +87,8 @@ import type {
   SuccessResponse,
   TicketTimeSessionEdit,
   TicketWithDetails,
+  TimeTrackingClientBillingUpdate,
+  TimeTrackingCollaboratorInvoiceUpdate,
   TimeTrackingReport,
   ToggleReactionBody,
   ToggleReactionResponse,
@@ -5021,6 +5023,166 @@ export function useGetTimeTrackingReport<TData = Awaited<ReturnType<typeof getTi
 
 
 
+
+export const getUpdateTimeTrackingClientBillingStatusUrl = () => {
+
+
+
+
+  return `/api/time-tracking/client-billing-status`
+}
+
+/**
+ * @summary Mark billable ticket hours as billed or unbilled (admin only)
+ */
+export const updateTimeTrackingClientBillingStatus = async (timeTrackingClientBillingUpdate: TimeTrackingClientBillingUpdate, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<void>(getUpdateTimeTrackingClientBillingStatusUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(timeTrackingClientBillingUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTimeTrackingClientBillingStatusMutationKey = () => ['updateTimeTrackingClientBillingStatus'] as const;
+
+export const getUpdateTimeTrackingClientBillingStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>, TError,UpdateTimeTrackingClientBillingStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>, TError,UpdateTimeTrackingClientBillingStatusMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTimeTrackingClientBillingStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>, UpdateTimeTrackingClientBillingStatusMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateTimeTrackingClientBillingStatus(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTimeTrackingClientBillingStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>>
+    export type UpdateTimeTrackingClientBillingStatusMutationBody = BodyType<TimeTrackingClientBillingUpdate>
+    export type UpdateTimeTrackingClientBillingStatusMutationError = ErrorType<void>
+    export type UpdateTimeTrackingClientBillingStatusMutationVariables = {data: BodyType<TimeTrackingClientBillingUpdate>}
+
+    /**
+ * @summary Mark billable ticket hours as billed or unbilled (admin only)
+ */
+export const useUpdateTimeTrackingClientBillingStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>, TError,UpdateTimeTrackingClientBillingStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTimeTrackingClientBillingStatus>>,
+        TError,
+        UpdateTimeTrackingClientBillingStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTimeTrackingClientBillingStatusMutationOptions(options));
+    }
+
+export const getUpdateCollaboratorInvoiceStatusUrl = () => {
+
+
+
+
+  return `/api/time-tracking/collaborator-invoice-status`
+}
+
+/**
+ * @summary Mark recognizable collaborator hours as invoiced (admin only)
+ */
+export const updateCollaboratorInvoiceStatus = async (timeTrackingCollaboratorInvoiceUpdate: TimeTrackingCollaboratorInvoiceUpdate, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<void>(getUpdateCollaboratorInvoiceStatusUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(timeTrackingCollaboratorInvoiceUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateCollaboratorInvoiceStatusMutationKey = () => ['updateCollaboratorInvoiceStatus'] as const;
+
+export const getUpdateCollaboratorInvoiceStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>, TError,UpdateCollaboratorInvoiceStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>, TError,UpdateCollaboratorInvoiceStatusMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCollaboratorInvoiceStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>, UpdateCollaboratorInvoiceStatusMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCollaboratorInvoiceStatus(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCollaboratorInvoiceStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>>
+    export type UpdateCollaboratorInvoiceStatusMutationBody = BodyType<TimeTrackingCollaboratorInvoiceUpdate>
+    export type UpdateCollaboratorInvoiceStatusMutationError = ErrorType<void>
+    export type UpdateCollaboratorInvoiceStatusMutationVariables = {data: BodyType<TimeTrackingCollaboratorInvoiceUpdate>}
+
+    /**
+ * @summary Mark recognizable collaborator hours as invoiced (admin only)
+ */
+export const useUpdateCollaboratorInvoiceStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>, TError,UpdateCollaboratorInvoiceStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCollaboratorInvoiceStatus>>,
+        TError,
+        UpdateCollaboratorInvoiceStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCollaboratorInvoiceStatusMutationOptions(options));
+    }
 
 export const getGetDashboardStatsUrl = () => {
 

@@ -429,6 +429,30 @@ export interface TimeTrackingReportRow {
   collaboratorId?: number | null;
   collaboratorName?: string | null;
   billingStatus: TimeTrackingReportRowBillingStatus;
+  /** @nullable */
+  collaboratorInvoiceReceived: boolean | null;
+}
+
+export type TimeTrackingClientBillingUpdateStatus = typeof TimeTrackingClientBillingUpdateStatus[keyof typeof TimeTrackingClientBillingUpdateStatus];
+
+
+export const TimeTrackingClientBillingUpdateStatus = {
+  unbilled: 'unbilled',
+  billed: 'billed',
+} as const;
+
+export interface TimeTrackingClientBillingUpdate {
+  /** @minimum 1 */
+  ticketId: number;
+  status: TimeTrackingClientBillingUpdateStatus;
+}
+
+export interface TimeTrackingCollaboratorInvoiceUpdate {
+  /** @minimum 1 */
+  ticketId: number;
+  /** @minimum 1 */
+  collaboratorId: number;
+  invoiceReceived: boolean;
 }
 
 export type TimeTrackingReportTotals = {

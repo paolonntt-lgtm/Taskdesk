@@ -8,21 +8,25 @@ import {
   Chip,
   Divider,
   Grid,
+  IconButton,
   MenuItem,
   Skeleton,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { AccessTime, ArrowOutward, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
+import { AccessTime, ArrowBackIosNew, ArrowForwardIos, ArrowOutward, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
 import {
   getGetTimeTrackingReportQueryKey,
   getListClientsQueryKey,
   getListUsersQueryKey,
+  useUpdateCollaboratorInvoiceStatus,
+  useUpdateTimeTrackingClientBillingStatus,
   useGetTimeTrackingReport,
   useListClients,
   useListUsers,
 } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { GetTimeTrackingReportParams, TimeTrackingReportRow } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -55,12 +59,18 @@ function ReportRows({
   labels,
   emptyLabel,
   testPrefix,
+  onToggleBilling,
+  onToggleInvoice,
+  busy = false,
 }: {
   rows: TimeTrackingReportRow[];
   lang: string;
   labels: { ticket: string; billed: string; unbilled: string; manual: string; session: string };
   emptyLabel: string;
   testPrefix: string;
+  onToggleBilling?: (row: TimeTrackingReportRow) => void;
+  onToggleInvoice?: (row: TimeTrackingReportRow) => void;
+  busy?: boolean;
 }) {
   if (rows.length === 0) {
     return (
@@ -150,7 +160,22 @@ function ReportRows({
             label={row.billingStatus === 'billed' ? labels.billed : labels.unbilled}
             color={row.billingStatus === 'billed' ? 'success' : 'warning'}
             variant="outlined"
+            onClick={() => onToggleBilling?.(row)}
+            clickable={Boolean(onToggleBilling)}
+            disabled={busy}
+            title={onToggleBilling ? (lang === 'it' ? 'Cambia stato fatturazione per tutto il ticket' : 'Change billing status for the whole ticket') : undefined}
             data-testid={`status-billing-${row.ticketId}-${testPrefix}-${index}`}
+            sx={{ gridColumn: { xs: 1, sm: 2 }, gridRow: { xs: 2, sm: 1 }, width: 'fit-content' }}
+          />}
+          {testPrefix === 'collaborator' && row.collaboratorId != null && <Chip
+            size="small"
+            label={row.collaboratorInvoiceReceived ? (lang === 'it' ? 'Fattura ricevuta' : 'Invoice received') : (lang === 'it' ? 'Fattura da ricevere' : 'Invoice pending')}
+            color={row.collaboratorInvoiceReceived ? 'success' : 'default'}
+            variant="outlined"
+            onClick={() => onToggleInvoice?.(row)}
+            clickable={Boolean(onToggleInvoice)}
+            disabled={busy}
+            data-testid={`status-invoice-${row.ticketId}-${row.collaboratorId}-${index}`}
             sx={{ gridColumn: { xs: 1, sm: 2 }, gridRow: { xs: 2, sm: 1 }, width: 'fit-content' }}
           />}
           <Typography
@@ -202,6 +227,10 @@ function Metric({
 
 export default function TimeTrackingReportPanel() {
   const { lang } = useLanguage();
+  const queryClient = useQueryClient();
+  const billingMutation = useUpdateTimeTrackingClientBillingStatus();
+  const invoiceMutation = useUpdateCollaboratorInvoiceStatus();
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const isItalian = lang === 'it';
   const copy = isItalian
     ? {
@@ -232,6 +261,8 @@ export default function TimeTrackingReportPanel() {
         ticket: 'Ticket',
         manual: 'Inserimento manuale',
         session: 'Sessione timer',
+        month: 'Mese',
+        invoiceReceived: 'Fattura ricevuta',
       }
     : {
         title: 'Hours report',
@@ -261,6 +292,8 @@ export default function TimeTrackingReportPanel() {
         ticket: 'Ticket',
         manual: 'Manual entry',
         session: 'Timer session',
+        month: 'Month',
+        invoiceReceived: 'Invoice received',
       };
 
   const [dateFrom, setDateFrom] = useState('');
@@ -294,6 +327,30 @@ export default function TimeTrackingReportPanel() {
     setDateTo('');
     setClientId('');
     setCollaboratorId('');
+    setSelectedMonth(null);
+  };
+  const selectMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    setSelectedMonth(`${year}-${String(month + 1).padStart(2, '0')}`);
+    setDateFrom(`${year}-${String(month + 1).padStart(2, '0')}-01`);
+    setDateTo(`${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`);
+  };
+  const moveMonth = (delta: number) => {
+    const current = selectedMonth ? new Date(`${selectedMonth}-01T12:00:00`) : new Date();
+    current.setMonth(current.getMonth() + delta);
+    selectMonth(current);
+  };
+  const monthLabel = selectedMonth
+    ? new Date(`${selectedMonth}-01T12:00:00`).toLocaleDateString(isItalian ? 'it-IT' : 'en-GB', { month: 'long', year: 'numeric' })
+    : null;
+  const refreshReport = () => queryClient.invalidateQueries({ queryKey: getGetTimeTrackingReportQueryKey() });
+  const toggleBilling = (row: TimeTrackingReportRow) => {
+    billingMutation.mutate({ data: { ticketId: row.ticketId, status: row.billingStatus === 'billed' ? 'unbilled' : 'billed' } }, { onSuccess: refreshReport });
+  };
+  const toggleInvoice = (row: TimeTrackingReportRow) => {
+    if (row.collaboratorId == null) return;
+    invoiceMutation.mutate({ data: { ticketId: row.ticketId, collaboratorId: row.collaboratorId, invoiceReceived: !row.collaboratorInvoiceReceived } }, { onSuccess: refreshReport });
   };
 
   return (
@@ -341,6 +398,16 @@ export default function TimeTrackingReportPanel() {
           )}
         </Stack>
         <Grid container spacing={1.5} sx={{ mt: 1.5 }}>
+          <Grid item xs={12}>
+            <Stack direction="row" alignItems="center" justifyContent="center" gap={1}>
+              <IconButton size="small" aria-label={isItalian ? 'Mese precedente' : 'Previous month'} onClick={() => moveMonth(-1)} data-testid="button-report-previous-month"><ArrowBackIosNew fontSize="small" /></IconButton>
+              <Typography variant="body2" fontWeight={700} sx={{ minWidth: 150, textAlign: 'center' }}>
+                {monthLabel ?? (isItalian ? 'Tutti i periodi' : 'All dates')}
+              </Typography>
+              <IconButton size="small" aria-label={isItalian ? 'Mese successivo' : 'Next month'} onClick={() => moveMonth(1)} data-testid="button-report-next-month"><ArrowForwardIos fontSize="small" /></IconButton>
+              {!selectedMonth && <Button size="small" onClick={() => selectMonth(new Date())}>{isItalian ? 'Questo mese' : 'This month'}</Button>}
+            </Stack>
+          </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
               fullWidth
@@ -348,7 +415,7 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.from}
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
+              onChange={(event) => { setSelectedMonth(null); setDateFrom(event.target.value); }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-from' }}
             />
@@ -360,7 +427,7 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.to}
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
+              onChange={(event) => { setSelectedMonth(null); setDateTo(event.target.value); }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-to' }}
             />
@@ -406,6 +473,11 @@ export default function TimeTrackingReportPanel() {
       </Box>
 
       <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
+        {(billingMutation.isError || invoiceMutation.isError) && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {isItalian ? 'Impossibile aggiornare lo stato. Riprova.' : 'Could not update the status. Please try again.'}
+          </Alert>
+        )}
         {reportQuery.isLoading ? (
           <Stack gap={2} data-testid="status-time-report-loading" aria-label={copy.loading}>
             <Grid container spacing={1.5}>{[0, 1, 2, 3].map((item) => <Grid item xs={6} sm={3} key={item}><Skeleton variant="rounded" height={76} /></Grid>)}</Grid>
@@ -455,7 +527,7 @@ export default function TimeTrackingReportPanel() {
                       </Box>
                       <Chip size="small" icon={<ReceiptLong />} label={formatDuration(totals?.clientBillableMinutes ?? 0, lang)} color="primary" variant="outlined" />
                     </Stack>
-                    <ReportRows rows={report?.customerRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCustomerRows} testPrefix="customer" />
+                    <ReportRows rows={report?.customerRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCustomerRows} testPrefix="customer" onToggleBilling={toggleBilling} busy={billingMutation.isPending} />
                   </CardContent>
                 </Card>
               </Grid>
@@ -469,7 +541,7 @@ export default function TimeTrackingReportPanel() {
                       </Box>
                       <Chip size="small" icon={<Groups2 />} label={formatDuration(totals?.collaboratorRecognizableMinutes ?? 0, lang)} color="secondary" variant="outlined" />
                     </Stack>
-                    <ReportRows rows={report?.collaboratorRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCollaboratorRows} testPrefix="collaborator" />
+                    <ReportRows rows={report?.collaboratorRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCollaboratorRows} testPrefix="collaborator" onToggleInvoice={toggleInvoice} busy={invoiceMutation.isPending} />
                   </CardContent>
                 </Card>
               </Grid>

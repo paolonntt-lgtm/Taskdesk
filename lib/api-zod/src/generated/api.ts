@@ -2585,7 +2585,8 @@ export const GetTimeTrackingReportResponse = zod.object({
   "clientName": zod.string().nullish(),
   "collaboratorId": zod.int().nullish(),
   "collaboratorName": zod.string().nullish(),
-  "billingStatus": zod.enum(['unbilled', 'billed'])
+  "billingStatus": zod.enum(['unbilled', 'billed']),
+  "collaboratorInvoiceReceived": zod.boolean().nullable()
 })),
   "collaboratorRows": zod.array(zod.object({
   "kind": zod.enum(['session', 'manual']),
@@ -2598,7 +2599,8 @@ export const GetTimeTrackingReportResponse = zod.object({
   "clientName": zod.string().nullish(),
   "collaboratorId": zod.int().nullish(),
   "collaboratorName": zod.string().nullish(),
-  "billingStatus": zod.enum(['unbilled', 'billed'])
+  "billingStatus": zod.enum(['unbilled', 'billed']),
+  "collaboratorInvoiceReceived": zod.boolean().nullable()
 })),
   "totals": zod.object({
   "clientBillableMinutes": zod.int(),
@@ -2607,6 +2609,36 @@ export const GetTimeTrackingReportResponse = zod.object({
   "collaboratorRecognizableMinutes": zod.int()
 })
 })
+
+
+/**
+ * @summary Mark billable ticket hours as billed or unbilled (admin only)
+ */
+
+
+
+export const UpdateTimeTrackingClientBillingStatusBody = zod.object({
+  "ticketId": zod.int().min(1),
+  "status": zod.enum(['unbilled', 'billed'])
+})
+
+export const UpdateTimeTrackingClientBillingStatusResponse = zod.void()
+
+
+/**
+ * @summary Mark recognizable collaborator hours as invoiced (admin only)
+ */
+
+
+
+
+export const UpdateCollaboratorInvoiceStatusBody = zod.object({
+  "ticketId": zod.int().min(1),
+  "collaboratorId": zod.int().min(1),
+  "invoiceReceived": zod.boolean()
+})
+
+export const UpdateCollaboratorInvoiceStatusResponse = zod.void()
 
 
 /**

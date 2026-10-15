@@ -21,4 +21,6 @@ export interface TimeTrackingReportRow {
   collaboratorId?: number | null;
   collaboratorName?: string | null;
   billingStatus: TimeTrackingReportRowBillingStatus;
+  /** @nullable */
+  collaboratorInvoiceReceived: boolean | null;
 }

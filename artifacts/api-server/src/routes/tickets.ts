@@ -1220,20 +1220,34 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         res.status(400).json({ error: "Assignee not found in organization" });
         return;
       }
+      const wasAssigned = existing.assignedTo != null || existing.assignedToGroup != null;
+      const [previousAssignee] = existing.assignedTo
+        ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, existing.assignedTo))
+        : [];
+      const previousLabel = previousAssignee?.name
+        ?? (existing.assignedToGroup ? `gruppo "${existing.assignedToGroup}"` : null);
       activityLogs.push({
-        actionType: "assigned",
-        actionDescription: `Ticket assegnato a ${assigneeUser.name}`,
+        actionType: wasAssigned ? "reassigned" : "assigned",
+        actionDescription: wasAssigned
+          ? `Ticket riassegnato da ${previousLabel} a ${assigneeUser.name}`
+          : `Ticket assegnato a ${assigneeUser.name}`,
       });
     } else {
       activityLogs.push({ actionType: "unassigned", actionDescription: "Assegnazione rimossa" });
     }
   }
 
-  if ("assignedToGroup" in updates && updates.assignedToGroup !== existing.assignedToGroup) {
+  if (!("assignedTo" in updates) && "assignedToGroup" in updates && updates.assignedToGroup !== existing.assignedToGroup) {
     if (updates.assignedToGroup) {
+      const previousLabel = existing.assignedTo
+        ? (await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, existing.assignedTo)))[0]?.name
+        : existing.assignedToGroup ? `gruppo "${existing.assignedToGroup}"` : null;
+      const wasAssigned = existing.assignedTo != null || existing.assignedToGroup != null;
       activityLogs.push({
-        actionType: "assigned",
-        actionDescription: `Ticket assegnato al gruppo "${updates.assignedToGroup}"`,
+        actionType: wasAssigned ? "reassigned" : "assigned",
+        actionDescription: wasAssigned
+          ? `Ticket riassegnato da ${previousLabel ?? "assegnazione precedente"} al gruppo "${updates.assignedToGroup}"`
+          : `Ticket assegnato al gruppo "${updates.assignedToGroup}"`,
       });
     } else {
       activityLogs.push({ actionType: "unassigned", actionDescription: "Assegnazione gruppo rimossa" });
@@ -1453,13 +1467,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     const priorityLabel = priorityLabels[updates.priority!] ?? updates.priority!;
     await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato la priorità del ticket #${displayNum} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed", orgId);
   }
-  if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
+  if (activityLogs.some((l) => l.actionType === "assigned" || l.actionType === "reassigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) {
     await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${existing.title}"`, "ticket_assigned", orgId);
   }
-  if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedTo && orgId != null) {
+  if (activityLogs.some((l) => l.actionType === "assigned" || l.actionType === "reassigned") && updates.assignedTo && orgId != null) {
     await subscribeUserToTicket(updates.assignedTo, id, orgId);
   }
-  if (activityLogs.some((l) => l.actionType === "assigned") && updates.assignedToGroup && updates.assignedToGroup !== existing.assignedToGroup) {
+  if (activityLogs.some((l) => l.actionType === "assigned" || l.actionType === "reassigned") && updates.assignedToGroup && updates.assignedToGroup !== existing.assignedToGroup) {
     const groupName = updates.assignedToGroup;
     const [grp] = await db
       .select({ id: groupsTable.id })
