@@ -230,8 +230,8 @@ export default function TimeTrackingReportPanel() {
   const isItalian = lang === 'it';
   const copy = isItalian
     ? {
-        title: 'Rendiconto',
-        intro: 'Una vista chiara del tempo registrato, fatturabile ai clienti e riconoscibile ai collaboratori.',
+        title: 'Rendiconto ore',
+        intro: 'Consulta separatamente le ore fatturabili ai clienti e quelle riconoscibili ai collaboratori.',
         from: 'Dal',
         to: 'Al',
         client: 'Cliente',
@@ -240,9 +240,11 @@ export default function TimeTrackingReportPanel() {
         allCollaborators: 'Tutti i collaboratori',
         clear: 'Azzera filtri',
         customerTitle: 'Tempo fatturabile ai clienti',
-        customerHint: 'Tempo registrato per i clienti, con stato di fatturazione.',
+        customerHint: 'Sessioni e inserimenti manuali inclusi nel totale fatturabile.',
         collaboratorTitle: 'Tempo riconoscibile ai collaboratori',
-        collaboratorHint: 'Tempo idoneo al riconoscimento del collaboratore.',
+        collaboratorHint: 'Sessioni e inserimenti manuali inclusi nel totale riconoscibile.',
+        billedScope: 'Fatturato/Da fatturare vale per l’intero ticket, anche fuori dal periodo selezionato.',
+        invoiceScope: 'La ricezione della fattura è separata dal totale delle ore riconoscibili.',
         billable: 'Fatturabile',
         billed: 'Fatturato',
         unbilled: 'Da fatturare',
@@ -261,8 +263,8 @@ export default function TimeTrackingReportPanel() {
         invoiceReceived: 'Fattura ricevuta',
       }
     : {
-        title: 'Report',
-        intro: 'A clear view of tracked time, billable to customers and recognizable to collaborators.',
+        title: 'Time report',
+        intro: 'Review customer-billable time and collaborator-recognizable time as separate totals.',
         from: 'From',
         to: 'To',
         client: 'Customer',
@@ -271,9 +273,11 @@ export default function TimeTrackingReportPanel() {
         allCollaborators: 'All collaborators',
         clear: 'Clear filters',
         customerTitle: 'Customer-billable time',
-        customerHint: 'Time recorded for customers, with billing status.',
+        customerHint: 'Timer sessions and manual entries included in the billable total.',
         collaboratorTitle: 'Collaborator-recognizable time',
-        collaboratorHint: 'Time eligible for collaborator recognition.',
+        collaboratorHint: 'Timer sessions and manual entries included in the recognizable total.',
+        billedScope: 'Billed/Unbilled applies to the whole ticket, including time outside this period.',
+        invoiceScope: 'Invoice receipt is tracked separately from the recognizable-hours total.',
         billable: 'Billable',
         billed: 'Billed',
         unbilled: 'Unbilled',
@@ -509,18 +513,49 @@ export default function TimeTrackingReportPanel() {
         ) : (
           <>
             {totals && (
-              <Grid container spacing={1.25} sx={{ mb: 2.5 }}>
-                <Grid item xs={6} md={3}>
-                  <Metric label={copy.billable} value={formatDuration(totals.clientBillableMinutes, lang)} testId="metric-client-billable-minutes" />
+              <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+                <Grid item xs={12} md={7}>
+                  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
+                    <CardContent sx={{ p: { xs: 1.75, sm: 2.25 }, '&:last-child': { pb: { xs: 1.75, sm: 2.25 } } }}>
+                      <Stack direction="row" alignItems="center" gap={1.25} mb={1.5}>
+                        <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 1.5, bgcolor: 'action.hover', color: 'primary.main', flexShrink: 0 }}>
+                          <ReceiptLong fontSize="small" />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>{copy.customerTitle}</Typography>
+                          <Typography variant="h5" fontWeight={800} color="primary.main" data-testid="metric-client-billable-minutes">
+                            {formatDuration(totals.clientBillableMinutes, lang)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                          <Metric label={copy.billed} value={formatDuration(totals.clientBilledMinutes, lang)} accent="success.main" testId="metric-client-billed-minutes" />
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Metric label={copy.unbilled} value={formatDuration(totals.clientUnbilledMinutes, lang)} accent="warning.dark" testId="metric-client-unbilled-minutes" />
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
                 </Grid>
-                <Grid item xs={6} md={3}>
-                  <Metric label={copy.billed} value={formatDuration(totals.clientBilledMinutes, lang)} accent="success.main" testId="metric-client-billed-minutes" />
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Metric label={copy.unbilled} value={formatDuration(totals.clientUnbilledMinutes, lang)} accent="warning.dark" testId="metric-client-unbilled-minutes" />
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Metric label={copy.recognizable} value={formatDuration(totals.collaboratorRecognizableMinutes, lang)} accent="secondary.main" testId="metric-collaborator-recognizable-minutes" />
+                <Grid item xs={12} md={5}>
+                  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
+                    <CardContent sx={{ p: { xs: 1.75, sm: 2.25 }, '&:last-child': { pb: { xs: 1.75, sm: 2.25 } } }}>
+                      <Stack direction="row" alignItems="center" gap={1.25} mb={1}>
+                        <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 1.5, bgcolor: 'action.hover', color: 'secondary.main', flexShrink: 0 }}>
+                          <Groups2 fontSize="small" />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>{copy.collaboratorTitle}</Typography>
+                          <Typography variant="h5" fontWeight={800} color="secondary.main" data-testid="metric-collaborator-recognizable-minutes">
+                            {formatDuration(totals.collaboratorRecognizableMinutes, lang)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">{copy.invoiceScope}</Typography>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </Grid>
             )}
@@ -529,8 +564,8 @@ export default function TimeTrackingReportPanel() {
               <Alert severity="info" sx={{ mb: 2 }} data-testid="status-time-report-no-results">{copy.noResults}</Alert>
             )}
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} lg={7}>
+            <Grid container spacing={1.5}>
+              <Grid item xs={12}>
                 <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
                   <CardContent sx={{ p: { xs: 1.75, sm: 2.5 } }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.25}>
@@ -538,13 +573,13 @@ export default function TimeTrackingReportPanel() {
                         <Typography variant="subtitle1" fontWeight={800} data-testid="text-customer-report-heading">{copy.customerTitle}</Typography>
                         <Typography variant="caption" color="text.secondary">{copy.customerHint}</Typography>
                       </Box>
-                      <Chip size="small" icon={<ReceiptLong />} label={formatDuration(totals?.clientBillableMinutes ?? 0, lang)} color="primary" variant="outlined" />
                     </Stack>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{copy.billedScope}</Typography>
                     <ReportRows rows={report?.customerRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCustomerRows} testPrefix="customer" onToggleBilling={toggleBilling} busy={billingMutation.isPending} />
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} lg={5}>
+              <Grid item xs={12}>
                 <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
                   <CardContent sx={{ p: { xs: 1.75, sm: 2.5 } }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.25}>
@@ -552,8 +587,8 @@ export default function TimeTrackingReportPanel() {
                         <Typography variant="subtitle1" fontWeight={800} data-testid="text-collaborator-report-heading">{copy.collaboratorTitle}</Typography>
                         <Typography variant="caption" color="text.secondary">{copy.collaboratorHint}</Typography>
                       </Box>
-                      <Chip size="small" icon={<Groups2 />} label={formatDuration(totals?.collaboratorRecognizableMinutes ?? 0, lang)} color="secondary" variant="outlined" />
                     </Stack>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{copy.invoiceScope}</Typography>
                     <ReportRows rows={report?.collaboratorRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCollaboratorRows} testPrefix="collaborator" onToggleInvoice={toggleInvoice} busy={invoiceMutation.isPending} />
                   </CardContent>
                 </Card>
