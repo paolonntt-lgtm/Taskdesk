@@ -39,6 +39,7 @@ interface Ticket {
   timeTrackingEnabled?: boolean;
   timeTrackingBillable?: boolean;
   timeTrackingCompensationOverride?: boolean | null;
+  canViewTimeTrackingSummary?: boolean;
   timeSessions?: Array<{ id: number; userName: string; durationMinutes: number; endedAt: string | null; clientBillable: boolean; collaboratorRecognizable: boolean }>;
   timeTrackingSummary?: { totalMinutes: number; clientBillableMinutes: number; collaboratorRecognizableMinutes: number; activeForCurrentUser: boolean };
   canChangeStatus?: boolean;
@@ -626,21 +627,27 @@ export default function TicketDetailScreen() {
           ))}
         </View>
 
-        {timeTrackingModuleEnabled && ticket.timeTrackingEnabled && (
+        {timeTrackingModuleEnabled && (ticket.timeTrackingEnabled || isAdmin) && (
           <View style={[s.metaCard, { marginTop: 12, padding: 14 }]}>
             <Text style={[s.sectionTitle, { marginBottom: 8 }]}>{t.ticketDetail.trackedTimeTitle}</Text>
-            <View style={s.metaRow}>
-              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeTotal}</Text>
-              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.totalMinutes ?? 0, lang)}</Text>
-            </View>
-            <View style={s.metaRow}>
-              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeBillable}</Text>
-              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}</Text>
-            </View>
-            <View style={s.metaRow}>
-              <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeRecognizable}</Text>
-              <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}</Text>
-            </View>
+            {ticket.timeTrackingSummary && (
+              <View style={s.metaRow}>
+                <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeTotal}</Text>
+                <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary.totalMinutes, lang)}</Text>
+              </View>
+            )}
+            {isAdmin && ticket.timeTrackingSummary && (
+              <>
+                <View style={s.metaRow}>
+                  <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeBillable}</Text>
+                  <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary.clientBillableMinutes ?? 0, lang)}</Text>
+                </View>
+                <View style={s.metaRow}>
+                  <Text style={s.metaLabel}>{t.ticketDetail.trackedTimeRecognizable}</Text>
+                  <Text style={s.metaValue}>{formatWorkedDuration(ticket.timeTrackingSummary.collaboratorRecognizableMinutes ?? 0, lang)}</Text>
+                </View>
+              </>
+            )}
             {ticket.timeSessions?.map((session) => (
               <View key={session.id} style={[s.metaRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
                 <Text style={s.metaLabel}>{session.userName}</Text>

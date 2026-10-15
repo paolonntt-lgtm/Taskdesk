@@ -105,8 +105,8 @@ export default function NewTicket() {
   const [assignMode, setAssignMode] = useState<'user' | 'group'>('user');
   const [userSearch, setUserSearch] = useState('');
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
-  const [trackWorkedTime, setTrackWorkedTime] = useState(false);
   const [timeBillableToClient, setTimeBillableToClient] = useState(false);
+  const [timeRecognizableToCollaborator, setTimeRecognizableToCollaborator] = useState(false);
   const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState(new Date().getDay());
@@ -291,8 +291,12 @@ export default function NewTicket() {
     e.preventDefault();
     setChecklistError(false);
     setSubmitError(null);
-    if (trackWorkedTime && timeBillableToClient && !formData.clientId) {
+    if (timeBillableToClient && !formData.clientId) {
       setSubmitError(t.newTicket.clientRequiredForBillableTime);
+      return;
+    }
+    if (timeRecognizableToCollaborator && (assignMode !== 'user' || !formData.assignedTo)) {
+      setSubmitError(t.ticketDetail.trackedTimeAssigneeRequired);
       return;
     }
     try {
@@ -314,7 +318,14 @@ export default function NewTicket() {
           clientId: formData.clientId ? parseInt(formData.clientId) : null,
           visibility: formData.visibility,
           ...(currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true
-            ? { timeTrackingEnabled: trackWorkedTime, timeTrackingBillable: trackWorkedTime && timeBillableToClient }
+             ? {
+                 timeTrackingEnabled: timeBillableToClient || timeRecognizableToCollaborator,
+                 timeTrackingBillable: timeBillableToClient,
+                 timeTrackingCompensationOverride:
+                   timeBillableToClient || timeRecognizableToCollaborator
+                     ? timeRecognizableToCollaborator
+                     : null,
+               }
             : {}),
           ...(recurrenceEnabled && currentUser?.role === 'admin'
             ? {
@@ -692,29 +703,22 @@ export default function NewTicket() {
                     <SideLabel>{t.ticketDetail.trackedTimeTitle}</SideLabel>
                     <FormControlLabel
                       sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-                      control={<Checkbox size="small" checked={trackWorkedTime} onChange={(event) => {
-                        setTrackWorkedTime(event.target.checked);
-                        if (!event.target.checked) setTimeBillableToClient(false);
-                      }} />}
-                      data-testid="toggle-ticket-time-tracking"
-                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.trackWorkedTime}</Typography>}
+                      control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
+                      data-testid="toggle-ticket-client-billable"
+                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.billableToClient}</Typography>}
                     />
                     <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
-                      {t.newTicket.trackWorkedTimeHint}
+                      {t.newTicket.billableToClientHint}
                     </Typography>
-                    {trackWorkedTime && (
-                      <Box sx={{ mt: 0.75 }}>
-                        <FormControlLabel
-                          sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-                          control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
-                          data-testid="toggle-ticket-client-billable"
-                          label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.billableToClient}</Typography>}
-                        />
-                        <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
-                          {t.newTicket.billableToClientHint}
-                        </Typography>
-                      </Box>
-                    )}
+                    <FormControlLabel
+                      sx={{ mx: 0, mt: 0.75, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+                      control={<Checkbox size="small" checked={timeRecognizableToCollaborator} onChange={(event) => setTimeRecognizableToCollaborator(event.target.checked)} />}
+                      data-testid="toggle-ticket-collaborator-recognizable"
+                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>}
+                    />
+                    <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
+                      {t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
+                    </Typography>
                   </SideSection>
                 )}
 

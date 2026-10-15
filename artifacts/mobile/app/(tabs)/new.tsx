@@ -90,8 +90,8 @@ export default function NewTicketScreen() {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
   const [privateTicket, setPrivateTicket] = useState(false);
   const [timeTrackingModuleEnabled, setTimeTrackingModuleEnabled] = useState(false);
-  const [trackWorkedTime, setTrackWorkedTime] = useState(false);
   const [timeBillableToClient, setTimeBillableToClient] = useState(false);
+  const [timeRecognizableToCollaborator, setTimeRecognizableToCollaborator] = useState(false);
   const [attachments, setAttachments] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
   const [uploading, setUploading] = useState(false);
   const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>([]);
@@ -221,6 +221,14 @@ export default function NewTicketScreen() {
       Alert.alert(t.newTicket.errorDesc, t.newTicket.errorDescMsg);
       return;
     }
+    if (timeBillableToClient && !selectedClientId) {
+      Alert.alert(t.newTicket.errorCreate, t.newTicket.clientRequiredForBillableTime);
+      return;
+    }
+    if (timeRecognizableToCollaborator && (assignmentMode !== "user" || !assignedUserId)) {
+      Alert.alert(t.newTicket.errorCreate, t.ticketDetail.trackedTimeAssigneeRequired);
+      return;
+    }
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     let createdTicketId: number | null = null;
@@ -244,8 +252,12 @@ export default function NewTicketScreen() {
         clientId: selectedClientId ? Number(selectedClientId) : null,
         visibility: isAdmin && privateTicket ? "admins" : "organization",
         ...(isAdmin && timeTrackingModuleEnabled ? {
-          timeTrackingEnabled: trackWorkedTime,
-          timeTrackingBillable: trackWorkedTime && timeBillableToClient,
+          timeTrackingEnabled: timeBillableToClient || timeRecognizableToCollaborator,
+          timeTrackingBillable: timeBillableToClient,
+          timeTrackingCompensationOverride:
+            timeBillableToClient || timeRecognizableToCollaborator
+              ? timeRecognizableToCollaborator
+              : null,
         } : {}),
         ...(isAdmin && recurrenceEnabled ? {
           recurrenceRule: {
@@ -808,26 +820,20 @@ export default function NewTicketScreen() {
         <View style={s.field}>
           {timeTrackingModuleEnabled && (
             <View style={{ marginBottom: 14 }}>
-              <TouchableOpacity style={s.toggleRow} onPress={() => {
-                setTrackWorkedTime((current) => {
-                  if (current) setTimeBillableToClient(false);
-                  return !current;
-                });
-              }}>
-                <Feather name="clock" size={17} color={trackWorkedTime ? colors.primary : colors.mutedForeground} />
-                <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.trackWorkedTime}</Text>
-                <View style={[s.toggleBox, trackWorkedTime && s.toggleBoxActive]}>
-                  {trackWorkedTime && <Feather name="check" size={14} color={colors.primaryForeground} />}
+              <TouchableOpacity style={s.toggleRow} onPress={() => setTimeBillableToClient((current) => !current)}>
+                <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.billableToClient}</Text>
+                <View style={[s.toggleBox, timeBillableToClient && s.toggleBoxActive]}>
+                  {timeBillableToClient && <Feather name="check" size={14} color={colors.primaryForeground} />}
                 </View>
               </TouchableOpacity>
-              {trackWorkedTime && (
-                <TouchableOpacity style={[s.toggleRow, { marginTop: 8, paddingLeft: 28 }]} onPress={() => setTimeBillableToClient((current) => !current)}>
-                  <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.billableToClient}</Text>
-                  <View style={[s.toggleBox, timeBillableToClient && s.toggleBoxActive]}>
-                    {timeBillableToClient && <Feather name="check" size={14} color={colors.primaryForeground} />}
-                  </View>
-                </TouchableOpacity>
-              )}
+              <Text style={s.helperText}>{t.newTicket.billableToClientHint}</Text>
+              <TouchableOpacity style={[s.toggleRow, { marginTop: 8 }]} onPress={() => setTimeRecognizableToCollaborator((current) => !current)}>
+                <Text style={[s.optionText, { flex: 1 }]}>{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Text>
+                <View style={[s.toggleBox, timeRecognizableToCollaborator && s.toggleBoxActive]}>
+                  {timeRecognizableToCollaborator && <Feather name="check" size={14} color={colors.primaryForeground} />}
+                </View>
+              </TouchableOpacity>
+              <Text style={s.helperText}>{t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}</Text>
             </View>
           )}
           <TouchableOpacity style={s.toggleRow} onPress={() => setPrivateTicket((current) => !current)}>

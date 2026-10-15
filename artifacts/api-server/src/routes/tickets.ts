@@ -371,7 +371,14 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> => {
   }));
 
   res.setHeader("Cache-Control", "no-store");
-  res.json(result.map((ticket) => redactClientData(redactWorkedHours(ticket, canViewWorkedHours), clientsEnabled)));
+  res.json(result.map((ticket) => {
+    const responseTicket = redactClientData(redactWorkedHours(ticket, canViewWorkedHours), clientsEnabled);
+    if (currentUser.role !== "admin") {
+      delete (responseTicket as any).timeTrackingBillable;
+      delete (responseTicket as any).timeTrackingCompensationOverride;
+    }
+    return responseTicket;
+  }));
 });
 
 router.get("/tickets/trash", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -808,22 +815,28 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       )),
     }));
     const totalMinutes = timeSessions.reduce((sum, session) => sum + session.durationMinutes, 0);
-    detail.timeSessions = timeSessions;
+    detail.timeSessions = currentUser.role === "admin"
+      ? timeSessions
+      : timeSessions.map(({ clientBillable: _clientBillable, collaboratorRecognizable: _collaboratorRecognizable, ...session }) => session);
     detail.timeTrackingSummary = {
       totalMinutes,
-      clientBillableMinutes: timeSessions
-        .filter((session) => session.clientBillable)
-        .reduce((sum, session) => sum + session.durationMinutes, 0),
-      collaboratorRecognizableMinutes: timeSessions
-        .filter((session) => session.collaboratorRecognizable)
-        .reduce((sum, session) => sum + session.durationMinutes, 0),
       activeForCurrentUser: sessions.some((session) => session.userId === currentUser.id && session.endedAt == null),
     };
+    if (currentUser.role === "admin") {
+      detail.timeTrackingSummary.clientBillableMinutes = timeSessions
+        .filter((session) => session.clientBillable)
+        .reduce((sum, session) => sum + session.durationMinutes, 0);
+      detail.timeTrackingSummary.collaboratorRecognizableMinutes = timeSessions
+        .filter((session) => session.collaboratorRecognizable)
+        .reduce((sum, session) => sum + session.durationMinutes, 0);
+    }
   }
   const responseDetail = redactClientData(redactWorkedHours(detail, canViewWorkedHours), clientsEnabled);
-  if (detail.timeTrackingEnabled && !detail.canViewTimeTrackingSummary) {
+  if (currentUser.role !== "admin") {
     delete (responseDetail as any).timeTrackingBillable;
     delete (responseDetail as any).timeTrackingCompensationOverride;
+  }
+  if (detail.timeTrackingEnabled && !detail.canViewTimeTrackingSummary) {
     delete (responseDetail as any).workedMinutes;
     delete (responseDetail as any).workedBillingStatus;
   }
@@ -953,10 +966,6 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     }
     if (!timeTrackingModuleEnabled) {
       res.status(403).json({ error: "Time tracking is disabled for this organization" });
-      return;
-    }
-    if (!existing.timeTrackingEnabled) {
-      res.status(400).json({ error: "Time tracking is not enabled for this ticket" });
       return;
     }
   }
@@ -1283,6 +1292,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     updates.timeTrackingCompensationOverride !== undefined
       ? updates.timeTrackingCompensationOverride
       : existing.timeTrackingCompensationOverride;
+  if (hasClassificationUpdate) {
+    updates.timeTrackingEnabled =
+      existing.timeTrackingEnabled || effectiveClientBillable || effectiveCompensationOverride === true;
+  }
   const effectiveAssignedTo = updates.assignedTo !== undefined ? updates.assignedTo : existing.assignedTo;
   if (effectiveCompensationOverride === true && effectiveAssignedTo == null) {
     res.status(400).json({ error: "Collaborator-recognizable tracked tickets require an individual assignee" });

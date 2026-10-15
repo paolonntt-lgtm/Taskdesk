@@ -1250,9 +1250,11 @@ export default function TicketDetail() {
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
-          {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary && (
+          {timeTrackingModuleEnabled &&
+            (((ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary) || isAdmin) && (
             <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                {(ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -1272,7 +1274,7 @@ export default function TicketDetail() {
                       <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.totalMinutes ?? 0, lang)}</strong>
                     </Typography>
                   </Box>
-                  <Box display="flex" flexWrap="wrap" gap={0.75}>
+                  {isAdmin && <Box display="flex" flexWrap="wrap" gap={0.75}>
                     <Chip
                       size="small"
                       variant="outlined"
@@ -1289,9 +1291,10 @@ export default function TicketDetail() {
                           ? t.ticketDetail.trackedTimeOn
                           : t.ticketDetail.trackedTimeOff}`}
                     />
-                  </Box>
+                  </Box>}
                 </Box>
-                {(ticket as any).timeSessions?.length > 0 && (
+                )}
+                {(ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary && (ticket as any).timeSessions?.length > 0 && (
                   <Box display="flex" flexDirection="column" gap={0.5}>
                     <Typography variant="caption" color="text.secondary" fontWeight={600}>
                       {t.ticketDetail.trackedTimeSessionBy}
@@ -1313,7 +1316,7 @@ export default function TicketDetail() {
                     ))}
                   </Box>
                 )}
-                {isAdmin && (
+                {isAdmin && (ticket as any).timeTrackingEnabled && (
                   <Box mt={1.75} data-testid="time-session-edit-history">
                     <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} mb={0.75}>
                       <Typography variant="subtitle2" fontWeight={700}>
