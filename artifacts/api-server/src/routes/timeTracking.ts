@@ -6,11 +6,99 @@ import {
   organizationsTable,
   ticketsTable,
   ticketTimeSessionsTable,
+  ticketTimeSessionEditsTable,
   usersTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { z } from "zod";
+import { createNotificationForUser } from "../lib/notifications";
 
 const router: IRouter = Router();
+
+const UpdateTimeSessionInput = z.object({
+  durationMinutes: z.number().int().min(0).max(5256000),
+  clientBillable: z.boolean(),
+  collaboratorRecognizable: z.boolean(),
+});
+
+router.patch("/tickets/:id/time-sessions/:sessionId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const ticketId = Number(req.params.id);
+  const sessionId = Number(req.params.sessionId);
+  const parsed = UpdateTimeSessionInput.safeParse(req.body);
+  if (!Number.isInteger(ticketId) || ticketId < 1 || !Number.isInteger(sessionId) || sessionId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid time session update" });
+    return;
+  }
+
+  const orgId = currentUser.organizationId;
+  const result = await db.transaction(async (tx) => {
+    const [ticket] = await tx.select({
+      id: ticketsTable.id,
+      ticketNumber: ticketsTable.ticketNumber,
+      title: ticketsTable.title,
+      timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+      closedAt: ticketsTable.closedAt,
+    }).from(ticketsTable).where(and(
+      eq(ticketsTable.id, ticketId),
+      eq(ticketsTable.organizationId, orgId),
+      isNull(ticketsTable.deletedAt),
+    )).for("update");
+    if (!ticket?.timeTrackingEnabled || !ticket.closedAt) return null;
+
+    const [session] = await tx.select().from(ticketTimeSessionsTable).where(and(
+      eq(ticketTimeSessionsTable.id, sessionId),
+      eq(ticketTimeSessionsTable.ticketId, ticketId),
+      eq(ticketTimeSessionsTable.organizationId, orgId),
+    )).for("update");
+    if (!session?.endedAt) return null;
+
+    const previousDurationMinutes = Math.max(0, Math.floor(
+      (session.endedAt.getTime() - session.startedAt.getTime()) / 60_000,
+    ));
+    const endedAt = new Date(session.startedAt.getTime() + parsed.data.durationMinutes * 60_000);
+    await tx.insert(ticketTimeSessionEditsTable).values({
+      organizationId: orgId,
+      ticketId,
+      sessionId,
+      collaboratorId: session.userId,
+      editedBy: currentUser.id,
+      previousDurationMinutes,
+      updatedDurationMinutes: parsed.data.durationMinutes,
+      previousClientBillable: session.clientBillable,
+      updatedClientBillable: parsed.data.clientBillable,
+      previousCollaboratorRecognizable: session.collaboratorRecognizable,
+      updatedCollaboratorRecognizable: parsed.data.collaboratorRecognizable,
+    });
+    const [updated] = await tx.update(ticketTimeSessionsTable).set({
+      endedAt,
+      clientBillable: parsed.data.clientBillable,
+      collaboratorRecognizable: parsed.data.collaboratorRecognizable,
+    }).where(eq(ticketTimeSessionsTable.id, sessionId)).returning();
+    return { ticket, session: updated, collaboratorId: session.userId };
+  });
+  if (!result) {
+    res.status(404).json({ error: "Closed tracked session not found" });
+    return;
+  }
+
+  await createNotificationForUser(
+    result.collaboratorId,
+    ticketId,
+    `An administrator updated your recorded time on ticket #${result.ticket.ticketNumber ?? ticketId}: "${result.ticket.title}".`,
+    "system",
+    orgId,
+  );
+  res.json({
+    id: result.session.id,
+    userId: result.session.userId,
+    startedAt: result.session.startedAt,
+    endedAt: result.session.endedAt,
+    durationMinutes: parsed.data.durationMinutes,
+    clientBillable: result.session.clientBillable,
+    collaboratorRecognizable: result.session.collaboratorRecognizable,
+  });
+});
 
 type ReportRow = {
   kind: "session" | "manual";

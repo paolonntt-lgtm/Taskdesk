@@ -761,7 +761,18 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const [trackingSettings] = await db.select({
     enabled: organizationsTable.timeTrackingModuleEnabled,
   }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
-  if (trackingSettings?.enabled && ticket.timeTrackingEnabled) {
+  const isTimeTrackingParticipant = currentUser.role === "admin" || (await db
+    .select({ id: ticketTimeSessionsTable.id })
+    .from(ticketTimeSessionsTable)
+    .where(and(
+      eq(ticketTimeSessionsTable.ticketId, id),
+      eq(ticketTimeSessionsTable.organizationId, orgId),
+      eq(ticketTimeSessionsTable.userId, currentUser.id),
+    ))
+    .limit(1)).length > 0;
+  detail.canViewTimeTrackingSummary =
+    trackingSettings?.enabled === true && ticket.timeTrackingEnabled && isTimeTrackingParticipant;
+  if (detail.canViewTimeTrackingSummary) {
     const sessionConditions = [
       eq(ticketTimeSessionsTable.ticketId, id),
       eq(ticketTimeSessionsTable.organizationId, orgId),

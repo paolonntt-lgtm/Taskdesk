@@ -289,6 +289,27 @@ export async function runAppMigrations(): Promise<void> {
       CREATE UNIQUE INDEX IF NOT EXISTS ticket_time_sessions_one_active_per_user
         ON ticket_time_sessions (user_id) WHERE ended_at IS NULL;
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ticket_time_session_edits (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+        session_id INTEGER NOT NULL REFERENCES ticket_time_sessions(id) ON DELETE CASCADE,
+        collaborator_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        edited_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        previous_duration_minutes INTEGER NOT NULL,
+        updated_duration_minutes INTEGER NOT NULL,
+        previous_client_billable BOOLEAN NOT NULL,
+        updated_client_billable BOOLEAN NOT NULL,
+        previous_collaborator_recognizable BOOLEAN NOT NULL,
+        updated_collaborator_recognizable BOOLEAN NOT NULL,
+        edited_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ticket_time_session_edits_ticket_idx
+        ON ticket_time_session_edits (ticket_id, edited_at);
+      CREATE INDEX IF NOT EXISTS ticket_time_session_edits_collaborator_idx
+        ON ticket_time_session_edits (collaborator_id, edited_at);
+    `);
 
     // Daily reports — operator EOD report saved in DB; colleagues see badge + auto-briefing
     await client.query(`

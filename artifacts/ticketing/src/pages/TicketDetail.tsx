@@ -117,6 +117,10 @@ export default function TicketDetail() {
   const [resolutionNote, setResolutionNote] = useState('');
   const [closureSummary, setClosureSummary] = useState<any | null>(null);
   const [closureSummaryOpen, setClosureSummaryOpen] = useState(false);
+  const [editingTimeSession, setEditingTimeSession] = useState<any | null>(null);
+  const [editedSessionMinutes, setEditedSessionMinutes] = useState('');
+  const [editedSessionBillable, setEditedSessionBillable] = useState(false);
+  const [editedSessionRecognizable, setEditedSessionRecognizable] = useState(false);
   const [workedHours, setWorkedHours] = useState('');
   const [workedMinutes, setWorkedMinutes] = useState('');
   const [workedTimeError, setWorkedTimeError] = useState<'hours' | 'minutes' | null>(null);
@@ -451,6 +455,7 @@ export default function TicketDetail() {
       const response = await fetch(`/api/tickets/${ticketId}`, { credentials: 'include' });
       if (!response.ok) throw new Error('ticket summary unavailable');
       const finalizedTicket = await response.json();
+      if (!finalizedTicket.canViewTimeTrackingSummary) return;
       setClosureSummary({
         ...finalizedTicket,
         closureSummaryNote: note?.trim() || finalizedTicket.resolutionNote || '',
@@ -461,6 +466,40 @@ export default function TicketDetail() {
       setClosureSummaryOpen(true);
     } catch {
       setStatusError(t.ticketDetail.closureSummaryUnavailable);
+    }
+  };
+
+  const openTimeSessionEditor = (session: any) => {
+    setEditingTimeSession(session);
+    setEditedSessionMinutes(String(session.durationMinutes));
+    setEditedSessionBillable(Boolean(session.clientBillable));
+    setEditedSessionRecognizable(Boolean(session.collaboratorRecognizable));
+  };
+
+  const saveTimeSessionEdit = async () => {
+    if (!editingTimeSession) return;
+    const durationMinutes = Number(editedSessionMinutes);
+    if (!Number.isInteger(durationMinutes) || durationMinutes < 0) return;
+    try {
+      const response = await fetch(`/api/tickets/${ticketId}/time-sessions/${editingTimeSession.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          durationMinutes,
+          clientBillable: editedSessionBillable,
+          collaboratorRecognizable: editedSessionRecognizable,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || error?.error || t.ticketDetail.trackedTimeChangeError);
+      }
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      setEditingTimeSession(null);
+    } catch (error: any) {
+      setStatusError(error?.message || t.ticketDetail.trackedTimeChangeError);
     }
   };
 
@@ -1134,7 +1173,7 @@ export default function TicketDetail() {
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
-          {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (
+          {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary && (
             <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 <Box
@@ -1181,11 +1220,18 @@ export default function TicketDetail() {
                       {t.ticketDetail.trackedTimeSessionBy}
                     </Typography>
                     {(ticket as any).timeSessions.map((session: any) => (
-                      <Box key={session.id} display="flex" justifyContent="space-between" gap={1} data-testid={`time-session-${session.id}`}>
+                      <Box key={session.id} display="flex" justifyContent="space-between" alignItems="center" gap={1} data-testid={`time-session-${session.id}`}>
                         <Typography variant="body2">{session.userName}</Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                          {formatWorkedDuration(session.durationMinutes, lang)}{session.endedAt ? '' : ` · ${t.ticketDetail.trackedTimeActive}`}
-                        </Typography>
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <Typography variant="body2" fontWeight={600}>
+                            {formatWorkedDuration(session.durationMinutes, lang)}{session.endedAt ? '' : ` · ${t.ticketDetail.trackedTimeActive}`}
+                          </Typography>
+                          {isAdmin && (ticket as any).closedAt && session.endedAt && (
+                            <IconButton size="small" aria-label={t.ticketDetail.editTrackedSession} onClick={() => openTimeSessionEditor(session)}>
+                              <EditOutlined fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
                       </Box>
                     ))}
                   </Box>
