@@ -108,7 +108,7 @@ export default function TicketDetail() {
   const backTo = fromParam === 'dashboard' ? '/' : fromParam === 'calendar' ? '/calendar' : '/tickets';
   const { statuses: orgStatuses, isClosedKey, getLabelForKey, getColorForKey } = useTicketStatuses();
 
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState<number | null>(null);
   const [newComment, setNewComment] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
@@ -325,6 +325,10 @@ export default function TicketDetail() {
   }, [ticket]);
 
   useEffect(() => {
+    setTabValue(null);
+  }, [ticketId]);
+
+  useEffect(() => {
     if (!ticket) return;
     const d = (ticket as any).dueAt;
     setDueEditVal(d ? toLocalDatetimeInput(d) : '');
@@ -333,6 +337,8 @@ export default function TicketDetail() {
   if (isLoading || !ticket) {
     return <Box display="flex" justifyContent="center" mt={10}><CircularProgress /></Box>;
   }
+
+  const selectedTabValue = tabValue ?? ((ticket as any).timeTrackingEnabled ? 1 : 0);
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === ticket.status) return;
@@ -1086,6 +1092,9 @@ export default function TicketDetail() {
             })()}
           </Box>
 
+          {/* Checklist */}
+          <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
+
           {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (
             <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
@@ -1211,16 +1220,13 @@ export default function TicketDetail() {
             </Card>
           )}
 
-          {/* Checklist */}
-          <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
-
           <Divider sx={{ mt: 1.5, mb: 1.5 }} />
 
           {/* Tabs — E style: minimal underline indicator */}
           <Box>
             <Box sx={{ borderBottom: '1px solid', borderBottomColor: 'divider' }}>
               <Tabs
-                value={tabValue}
+                value={selectedTabValue}
                 onChange={(_, v) => setTabValue(v)}
                 textColor="inherit"
                 variant="scrollable"
@@ -1252,7 +1258,7 @@ export default function TicketDetail() {
             </Box>
 
             {/* ── Tab: Comments ── */}
-            <TabPanel value={tabValue} index={0}>
+            <TabPanel value={selectedTabValue} index={0}>
               <Box display="flex" flexDirection="column" gap={0}>
                 {comments?.length === 0 && !(ticket as any).resolutionNote && (
                   <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: 'text.secondary' }}>
@@ -1544,7 +1550,7 @@ export default function TicketDetail() {
             </TabPanel>
 
             {/* ── Tab: Activity ── */}
-            <TabPanel value={tabValue} index={1}>
+            <TabPanel value={selectedTabValue} index={1}>
               <Box sx={{ pt: 0.5, pb: 0.5 }}>
                 {activities?.length === 0 && (
                   <Box component="p" sx={{ m: 0, py: 3, textAlign: 'center', fontSize: 14, color: 'text.secondary' }}>{t.ticketDetail.noActivity}</Box>
@@ -1570,7 +1576,7 @@ export default function TicketDetail() {
 
             {/* ── Tab: Notes ── */}
             {canAccessNotes && (
-              <TabPanel value={tabValue} index={2}>
+              <TabPanel value={selectedTabValue} index={2}>
                 <Box display="flex" flexDirection="column" gap={2}>
                   <Box display="flex" alignItems="center" justifyContent="flex-end">
                     <PermissionGateButton permission="add_notes" sectionLabel={t.ticketDetail.tabNotes} />
