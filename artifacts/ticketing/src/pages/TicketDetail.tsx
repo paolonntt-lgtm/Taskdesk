@@ -1041,26 +1041,97 @@ export default function TicketDetail() {
 
           </Box>
 
+          {/* H1 Title — E style */}
+          <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+            {ticket.title}
+          </Box>
+
+          {/* Description block — flat, no card border */}
+          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
+            <Box sx={{ fontSize: 11, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
+              {t.ticketDetail.descriptionLabel}
+            </Box>
+            <MarkdownContent content={ticket.description} />
+            {/* Ticket-level attachments */}
+            {(() => {
+              const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
+              if (!ticketAttachments.length) return null;
+              const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
+              const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
+              return (
+                <Box mt={2}>
+                  {imgs.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
+                      {imgs.map((a: any) => {
+                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                        return (
+                          <Box key={a.id} onClick={() => setLightboxSrc(href)} sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover img': { opacity: 0.85 } }}>
+                            <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 200, maxHeight: 140, objectFit: 'cover' }} />
+                            <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fileName}</Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                  {files.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {files.map((a: any) => {
+                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
+                        return <Chip key={a.id} icon={<InsertDriveFile fontSize="small" />} label={a.fileName} size="small" variant="outlined" component="a" href={href} target="_blank" rel="noopener noreferrer" clickable deleteIcon={<Download fontSize="small" />} onDelete={() => window.open(href, '_blank')} sx={{ maxWidth: 280 }} />;
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              );
+            })()}
+          </Box>
+
           {timeTrackingModuleEnabled && (ticket as any).timeTrackingEnabled && (
             <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                  {t.ticketDetail.trackedTimeTitle}
-                </Typography>
-                <Box display="flex" flexWrap="wrap" gap={2} mb={1}>
-                  <Typography variant="body2">
-                    {t.ticketDetail.trackedTimeTotal}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.totalMinutes ?? 0, lang)}</strong>
-                  </Typography>
-                  <Typography variant="body2">
-                    {t.ticketDetail.trackedTimeCustomerBillable}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.clientBillableMinutes ?? 0, lang)}</strong>
-                  </Typography>
-                  <Typography variant="body2">
-                    {t.ticketDetail.trackedTimeCollaboratorRecognizable}: <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.collaboratorRecognizableMinutes ?? 0, lang)}</strong>
-                  </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 1.25,
+                    mb: (ticket as any).timeSessions?.length > 0 ? 1.5 : 0,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {t.ticketDetail.trackedTimeTitle}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>
+                      {t.ticketDetail.trackedTimeTotal}:{' '}
+                      <strong>{formatWorkedDuration((ticket as any).timeTrackingSummary?.totalMinutes ?? 0, lang)}</strong>
+                    </Typography>
+                  </Box>
+                  <Box display="flex" flexWrap="wrap" gap={0.75}>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={(ticket as any).timeTrackingBillable ? 'success' : 'default'}
+                      label={`${t.ticketDetail.trackedTimeCustomerBillable}: ${(ticket as any).timeTrackingBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff}`}
+                    />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={(ticket as any).timeTrackingCompensationOverride === true ? 'success' : 'default'}
+                      label={`${t.ticketDetail.trackedTimeOverride}: ${(ticket as any).timeTrackingCompensationOverride == null
+                        ? t.ticketDetail.trackedTimeInherit
+                        : (ticket as any).timeTrackingCompensationOverride
+                          ? t.ticketDetail.trackedTimeOn
+                          : t.ticketDetail.trackedTimeOff}`}
+                    />
+                  </Box>
                 </Box>
                 {(ticket as any).timeSessions?.length > 0 && (
                   <Box display="flex" flexDirection="column" gap={0.5}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}>{t.ticketDetail.trackedTimeSessionBy}</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      {t.ticketDetail.trackedTimeSessionBy}
+                    </Typography>
                     {(ticket as any).timeSessions.map((session: any) => (
                       <Box key={session.id} display="flex" justifyContent="space-between" gap={1} data-testid={`time-session-${session.id}`}>
                         <Typography variant="body2">{session.userName}</Typography>
@@ -1074,7 +1145,7 @@ export default function TicketDetail() {
                 {isAdmin && (
                   <Box
                     sx={{
-                      mt: 2,
+                      mt: 1.5,
                       p: 1.5,
                       borderRadius: 1.5,
                       bgcolor: 'action.hover',
@@ -1139,51 +1210,6 @@ export default function TicketDetail() {
               </CardContent>
             </Card>
           )}
-
-          {/* H1 Title — E style */}
-          <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
-            {ticket.title}
-          </Box>
-
-          {/* Description block — flat, no card border */}
-          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
-            <Box sx={{ fontSize: 11, fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.07em', mb: '6px' }}>
-              {t.ticketDetail.descriptionLabel}
-            </Box>
-            <MarkdownContent content={ticket.description} />
-            {/* Ticket-level attachments */}
-            {(() => {
-              const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
-              if (!ticketAttachments.length) return null;
-              const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
-              const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
-              return (
-                <Box mt={2}>
-                  {imgs.length > 0 && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: files.length ? 1 : 0 }}>
-                      {imgs.map((a: any) => {
-                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                        return (
-                          <Box key={a.id} onClick={() => setLightboxSrc(href)} sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider', cursor: 'zoom-in', '&:hover img': { opacity: 0.85 } }}>
-                            <img src={href} alt={a.fileName} style={{ display: 'block', maxWidth: 200, maxHeight: 140, objectFit: 'cover' }} />
-                            <Box sx={{ px: 1, py: 0.4, fontSize: '0.7rem', color: 'text.secondary', borderTop: '1px solid', borderColor: 'divider', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fileName}</Box>
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  )}
-                  {files.length > 0 && (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {files.map((a: any) => {
-                        const href = `/api/storage/objects/${(a.objectPath as string).replace(/^\/objects\//, '')}`;
-                        return <Chip key={a.id} icon={<InsertDriveFile fontSize="small" />} label={a.fileName} size="small" variant="outlined" component="a" href={href} target="_blank" rel="noopener noreferrer" clickable deleteIcon={<Download fontSize="small" />} onDelete={() => window.open(href, '_blank')} sx={{ maxWidth: 280 }} />;
-                      })}
-                    </Box>
-                  )}
-                </Box>
-              );
-            })()}
-          </Box>
 
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
