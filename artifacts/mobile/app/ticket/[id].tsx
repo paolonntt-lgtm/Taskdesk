@@ -59,6 +59,20 @@ interface TicketAttachment {
   mimeType: string;
 }
 
+interface TimeSessionEdit {
+  id: number;
+  sessionId: number;
+  collaboratorName: string;
+  editedByName: string;
+  editedAt: string;
+  previousDurationMinutes: number;
+  updatedDurationMinutes: number;
+  previousClientBillable: boolean;
+  updatedClientBillable: boolean;
+  previousCollaboratorRecognizable: boolean;
+  updatedCollaboratorRecognizable: boolean;
+}
+
 type UploadUrlResponse = { uploadURL: string; objectPath: string };
 
 function formatWorkedDuration(total: number, lang: string): string {
@@ -133,6 +147,15 @@ export default function TicketDetailScreen() {
     queryKey: ["ticket", id],
     queryFn: () => apiGet<Ticket>(`/tickets/${id}`),
     enabled: !!id,
+  });
+
+  const timeSessionEditsQuery = useQuery({
+    queryKey: ["ticket-time-session-edits", id],
+    queryFn: () => apiGet<TimeSessionEdit[]>(`/tickets/${id}/time-session-edits`),
+    enabled: user?.role === "admin" &&
+      !!id &&
+      timeTrackingModuleEnabled &&
+      ticket?.timeTrackingEnabled === true,
   });
 
   useEffect(() => {
@@ -626,6 +649,47 @@ export default function TicketDetailScreen() {
                 </Text>
               </View>
             ))}
+            {isAdmin && (
+              <View style={s.timeEditsSection} testID="time-session-edit-history">
+                <Text style={s.sectionTitle}>{t.ticketDetail.trackedTimeEditHistory}</Text>
+                {timeSessionEditsQuery.isLoading ? (
+                  <View style={s.timeEditsStatus}>
+                    <ActivityIndicator color={colors.primary} size="small" />
+                    <Text style={s.timeEditsMuted}>{t.ticketDetail.trackedTimeEditHistoryLoading}</Text>
+                  </View>
+                ) : timeSessionEditsQuery.isError ? (
+                  <View style={s.timeEditsStatus}>
+                    <Text style={s.timeEditsError}>{t.ticketDetail.trackedTimeEditHistoryLoadError}</Text>
+                    <TouchableOpacity
+                      onPress={() => timeSessionEditsQuery.refetch()}
+                      accessibilityRole="button"
+                      testID="retry-time-session-edit-history"
+                    >
+                      <Text style={s.timeEditsRetry}>{t.ticketDetail.trackedTimeEditHistoryRetry}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (timeSessionEditsQuery.data?.length ?? 0) === 0 ? (
+                  <Text style={s.timeEditsMuted}>{t.ticketDetail.trackedTimeEditHistoryEmpty}</Text>
+                ) : (
+                  timeSessionEditsQuery.data?.map((edit) => (
+                    <View key={edit.id} style={s.timeEditCard} testID={`time-session-edit-${edit.id}`}>
+                      <Text style={s.timeEditMeta}>
+                        {new Date(edit.editedAt).toLocaleString(lang === "en" ? "en-GB" : "it-IT")} · {edit.editedByName} · {t.ticketDetail.trackedTimeEditAttribution} {edit.collaboratorName}
+                      </Text>
+                      <Text style={s.timeEditValue}>
+                        {t.ticketDetail.trackedTimeEditDuration}: {formatWorkedDuration(edit.previousDurationMinutes, lang)} → {formatWorkedDuration(edit.updatedDurationMinutes, lang)}
+                      </Text>
+                      <Text style={s.timeEditValue}>
+                        {t.ticketDetail.trackedTimeEditBillable}: {edit.previousClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff} → {edit.updatedClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff}
+                      </Text>
+                      <Text style={s.timeEditValue}>
+                        {t.ticketDetail.trackedTimeEditRecognizable}: {edit.previousCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff} → {edit.updatedCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
             {isAdmin && (
               <>
                 <TouchableOpacity
@@ -1314,6 +1378,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     metaRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
     metaLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     metaValue: { fontSize: 12, color: colors.foreground, fontWeight: "500" as const, fontFamily: "Inter_500Medium", maxWidth: "55%", textAlign: "right" },
+    timeEditsSection: { gap: 8, borderTopWidth: 1, borderTopColor: colors.border, padding: 14 },
+    timeEditsStatus: { gap: 8, alignItems: "flex-start" },
+    timeEditsMuted: { fontSize: 12, lineHeight: 17, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    timeEditsError: { fontSize: 12, lineHeight: 17, color: colors.destructive, fontFamily: "Inter_400Regular" },
+    timeEditsRetry: { fontSize: 13, color: colors.primary, fontFamily: "Inter_600SemiBold", paddingVertical: 3 },
+    timeEditCard: { gap: 5, padding: 10, borderRadius: 8, backgroundColor: colors.muted },
+    timeEditMeta: { fontSize: 11, lineHeight: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    timeEditValue: { fontSize: 12, lineHeight: 17, color: colors.foreground, fontFamily: "Inter_400Regular" },
     section: {},
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
     descBox: { backgroundColor: colors.card, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.border },
