@@ -468,6 +468,30 @@ export interface TimeTrackingReport {
   totals: TimeTrackingReportTotals;
 }
 
+export interface PersonalTimeTrackingReportRow {
+  ticketId: number;
+  /** @nullable */
+  ticketNumber: number | null;
+  title: string;
+  date: string;
+  /** @minimum 0 */
+  durationMinutes: number;
+  /** @minimum 1 */
+  sessionCount: number;
+}
+
+export type PersonalTimeTrackingReportTotals = {
+  /** @minimum 0 */
+  totalMinutes: number;
+  /** @minimum 0 */
+  ticketCount: number;
+};
+
+export interface PersonalTimeTrackingReport {
+  rows: PersonalTimeTrackingReportRow[];
+  totals: PersonalTimeTrackingReportTotals;
+}
+
 /**
  * The most recent activity only when its log was created no earlier than five seconds before the ticket's last update; otherwise null.
  * @nullable
@@ -1294,6 +1318,11 @@ dateFrom?: string;
 dateTo?: string;
 clientId?: number;
 collaboratorId?: number;
+};
+
+export type GetPersonalTimeTrackingReportParams = {
+dateFrom?: string;
+dateTo?: string;
 };
 
 export type ListClientsParams = {

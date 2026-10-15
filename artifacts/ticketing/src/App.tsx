@@ -37,6 +37,7 @@ import type { User } from "@workspace/api-client-react";
 import { trackEvent } from "./lib/analytics";
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from "./lib/professionalTrialAttribution";
 import TimeTrackingReportPage from "./pages/TimeTrackingReport";
+import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
@@ -54,6 +55,16 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
     if (user && user.role !== "admin") setLocation("/");
   }, [user, setLocation]);
   if (!user || user.role !== "admin") return null;
+  return <Component />;
+}
+
+function CollaboratorRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (user?.role === "admin") setLocation("/");
+  }, [user, setLocation]);
+  if (!user || user.role === "admin") return null;
   return <Component />;
 }
 
@@ -104,6 +115,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />
           <Route path="/time-report">{() => <AdminRoute component={TimeTrackingReportPage} />}</Route>
+          <Route path="/my-time-report">{() => <CollaboratorRoute component={PersonalTimeTrackingReportPage} />}</Route>
           <Route path="/daily-reports/:id" component={DailyReportDetailPage} />
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/notifications" component={NotificationsPage} />

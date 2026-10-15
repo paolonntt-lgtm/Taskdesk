@@ -53,6 +53,7 @@ import type {
   GetCalendarParams,
   GetClient200,
   GetOrganizationSettings200,
+  GetPersonalTimeTrackingReportParams,
   GetTimeTrackingReportParams,
   GlobalSearchParams,
   GroupInput,
@@ -70,6 +71,7 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  PersonalTimeTrackingReport,
   RecentTicketWithActivity,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -5012,6 +5014,90 @@ export function useGetTimeTrackingReport<TData = Awaited<ReturnType<typeof getTi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTimeTrackingReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPersonalTimeTrackingReportUrl = (params?: GetPersonalTimeTrackingReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/time-tracking/my-report?${stringifiedParams}` : `/api/time-tracking/my-report`
+}
+
+/**
+ * @summary Get the authenticated collaborator's recognizable tracked time
+ */
+export const getPersonalTimeTrackingReport = async (params?: GetPersonalTimeTrackingReportParams, options?: Parameters<typeof customFetch>[1]): Promise<PersonalTimeTrackingReport> => {
+
+  return customFetch<PersonalTimeTrackingReport>(getGetPersonalTimeTrackingReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPersonalTimeTrackingReportQueryKey = (params?: GetPersonalTimeTrackingReportParams,) => {
+    return [
+    `/api/time-tracking/my-report`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPersonalTimeTrackingReportQueryOptions = <TData = Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>, TError = ErrorType<ErrorResponse | void>>(params?: GetPersonalTimeTrackingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPersonalTimeTrackingReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>> = ({ signal }) => getPersonalTimeTrackingReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPersonalTimeTrackingReportQueryResult = NonNullable<Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>>
+export type GetPersonalTimeTrackingReportQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary Get the authenticated collaborator's recognizable tracked time
+ */
+
+export function useGetPersonalTimeTrackingReport<TData = Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>, TError = ErrorType<ErrorResponse | void>>(
+ params?: GetPersonalTimeTrackingReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPersonalTimeTrackingReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPersonalTimeTrackingReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

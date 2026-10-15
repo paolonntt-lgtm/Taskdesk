@@ -354,6 +354,8 @@ describe("ticket time tracking", () => {
 
     const disabledReport = await request("/api/time-tracking/report", adminSessionId);
     expect(disabledReport.status).toBe(403);
+    const disabledPersonalReport = await request("/api/time-tracking/my-report", collaboratorSessionId);
+    expect(disabledPersonalReport.status).toBe(403);
     const disabledClassification = await request(`/api/tickets/${trackedTicketIds[0]}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ timeTrackingBillable: false }),
@@ -547,6 +549,17 @@ describe("ticket time tracking", () => {
 
     const userReport = await request("/api/time-tracking/report", collaboratorSessionId);
     expect(userReport.status).toBe(403);
+    const personalReport = await request(
+      `/api/time-tracking/my-report?dateFrom=${dateFrom}&dateTo=${dateTo}`,
+      collaboratorSessionId,
+    );
+    expect(personalReport.status).toBe(200);
+    expect(personalReport.body.rows.map((row: any) => row.ticketId).sort()).toEqual([recognizableOnlyId, bothId, createdUntrackedTicketId].sort());
+    expect(personalReport.body.totals).toEqual({ totalMinutes: 238, ticketCount: 3 });
+    expect(personalReport.body.rows.every((row: any) => !("collaboratorId" in row) && !("billingStatus" in row))).toBe(true);
+    const noHoursPersonalReport = await request("/api/time-tracking/my-report", raceSessionId);
+    expect(noHoursPersonalReport.status).toBe(404);
+    expect((await request("/api/time-tracking/my-report", adminSessionId)).status).toBe(403);
     const hiddenPrivateTicket = await request(`/api/tickets/${privateTicketId}`, collaboratorSessionId);
     expect(hiddenPrivateTicket.status).toBe(404);
     const visiblePrivateTicket = await request(`/api/tickets/${privateTicketId}`, adminSessionId);
@@ -562,6 +575,21 @@ describe("ticket time tracking", () => {
       clientBillable: false,
       collaboratorRecognizable: true,
     }));
+
+    await db.insert(ticketTimeSessionsTable).values({
+      organizationId,
+      ticketId: raceTicketIds[0]!,
+      userId: raceCollaboratorId,
+      startedAt: new Date(Date.now() - 30 * 60_000),
+      endedAt: new Date(Date.now() - 10 * 60_000),
+      clientBillable: false,
+      collaboratorRecognizable: true,
+    });
+    const otherCollaboratorReport = await request("/api/time-tracking/my-report", raceSessionId);
+    expect(otherCollaboratorReport.status).toBe(200);
+    expect(otherCollaboratorReport.body.rows.map((row: any) => row.ticketId)).toEqual([raceTicketIds[0]]);
+    const stillPrivatePersonalReport = await request("/api/time-tracking/my-report", collaboratorSessionId);
+    expect(stillPrivatePersonalReport.body.rows.map((row: any) => row.ticketId)).not.toContain(raceTicketIds[0]);
 
     const parallelStarts = await Promise.all(
       parallelTicketIds.map((ticketId) => changeStatus(ticketId, "in_progress", adminSessionId)),
@@ -626,7 +654,7 @@ describe("ticket time tracking", () => {
     expect((await request("/api/time-tracking/report", adminSessionId)).status).toBe(403);
     const preservedSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.organizationId, organizationId));
-    expect(preservedSessions).toHaveLength(10);
+    expect(preservedSessions).toHaveLength(11);
     expect(preservedSessions.every((session) => session.endedAt !== null)).toBe(true);
     const disabledTicket = await db.select({ status: ticketsTable.status }).from(ticketsTable)
       .where(eq(ticketsTable.id, neitherId));

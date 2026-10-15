@@ -13,7 +13,7 @@ import {
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 import { createNotificationForUser } from "../lib/notifications";
-import { GetTicketTimeSessionEditsResponse } from "@workspace/api-zod";
+import { GetPersonalTimeTrackingReportResponse, GetTicketTimeSessionEditsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const editedByUsersTable = alias(usersTable, "time_session_edit_authors");
@@ -240,6 +240,91 @@ router.patch("/time-tracking/collaborator-invoice-status", requireAuth, requireA
     return;
   }
   res.status(204).end();
+});
+
+router.get("/time-tracking/my-report", requireAuth, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (currentUser.role === "admin" || orgId == null) {
+    res.status(403).json({ error: "Collaborator report unavailable" });
+    return;
+  }
+  const [organization] = await db.select({ enabled: organizationsTable.timeTrackingModuleEnabled })
+    .from(organizationsTable).where(eq(organizationsTable.id, orgId));
+  if (!organization?.enabled) {
+    res.status(403).json({ error: "Time tracking is disabled for this organization" });
+    return;
+  }
+  const dateFrom = req.query.dateFrom ? parseDateBoundary(req.query.dateFrom, false) : null;
+  const dateTo = req.query.dateTo ? parseDateBoundary(req.query.dateTo, true) : null;
+  if ((req.query.dateFrom && !dateFrom) || (req.query.dateTo && !dateTo)) {
+    res.status(400).json({ error: "Invalid personal time-report filters" });
+    return;
+  }
+  const ownRecognizable = and(
+    eq(ticketTimeSessionsTable.organizationId, orgId),
+    eq(ticketTimeSessionsTable.userId, currentUser.id),
+    eq(ticketTimeSessionsTable.collaboratorRecognizable, true),
+    eq(ticketsTable.organizationId, orgId),
+    eq(ticketsTable.timeTrackingEnabled, true),
+    isNull(ticketsTable.deletedAt),
+  );
+  const [hasAny] = await db.select({ id: ticketTimeSessionsTable.id })
+    .from(ticketTimeSessionsTable)
+    .innerJoin(ticketsTable, eq(ticketTimeSessionsTable.ticketId, ticketsTable.id))
+    .where(ownRecognizable)
+    .limit(1);
+  if (!hasAny) {
+    res.status(404).json({ error: "No recognizable timer sessions found" });
+    return;
+  }
+  const filters = [ownRecognizable];
+  if (dateFrom) filters.push(gte(ticketTimeSessionsTable.startedAt, dateFrom));
+  if (dateTo) filters.push(lte(ticketTimeSessionsTable.startedAt, dateTo));
+  const sessions = await db.select({
+    ticketId: ticketsTable.id,
+    ticketNumber: ticketsTable.ticketNumber,
+    title: ticketsTable.title,
+    startedAt: ticketTimeSessionsTable.startedAt,
+    endedAt: ticketTimeSessionsTable.endedAt,
+  }).from(ticketTimeSessionsTable)
+    .innerJoin(ticketsTable, eq(ticketTimeSessionsTable.ticketId, ticketsTable.id))
+    .where(and(...filters))
+    .orderBy(desc(ticketTimeSessionsTable.startedAt));
+  const now = Date.now();
+  const grouped = new Map<string, {
+    ticketId: number; ticketNumber: number | null; title: string; date: string; durationMinutes: number; sessionCount: number;
+  }>();
+  for (const session of sessions) {
+    const date = session.startedAt.toISOString().slice(0, 10);
+    const key = `${session.ticketId}:${date}`;
+    const durationMinutes = Math.max(0, Math.floor(
+      ((session.endedAt ?? new Date(now)).getTime() - session.startedAt.getTime()) / 60_000,
+    ));
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.durationMinutes += durationMinutes;
+      existing.sessionCount += 1;
+    } else {
+      grouped.set(key, {
+        ticketId: session.ticketId,
+        ticketNumber: session.ticketNumber,
+        title: session.title,
+        date,
+        durationMinutes,
+        sessionCount: 1,
+      });
+    }
+  }
+  const rows = [...grouped.values()];
+  res.setHeader("Cache-Control", "no-store");
+  res.json(GetPersonalTimeTrackingReportResponse.parse({
+    rows,
+    totals: {
+      totalMinutes: rows.reduce((sum, row) => sum + row.durationMinutes, 0),
+      ticketCount: new Set(rows.map((row) => row.ticketId)).size,
+    },
+  }));
 });
 
 router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res): Promise<void> => {

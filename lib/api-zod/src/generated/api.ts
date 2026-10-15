@@ -2612,6 +2612,39 @@ export const GetTimeTrackingReportResponse = zod.object({
 
 
 /**
+ * @summary Get the authenticated collaborator's recognizable tracked time
+ */
+export const GetPersonalTimeTrackingReportQueryParams = zod.object({
+  "dateFrom": zod.date().optional(),
+  "dateTo": zod.date().optional()
+})
+
+export const getPersonalTimeTrackingReportResponseRowsItemDurationMinutesMin = 0;
+
+
+export const getPersonalTimeTrackingReportResponseTotalsTotalMinutesMin = 0;
+
+export const getPersonalTimeTrackingReportResponseTotalsTicketCountMin = 0;
+
+
+
+export const GetPersonalTimeTrackingReportResponse = zod.object({
+  "rows": zod.array(zod.object({
+  "ticketId": zod.int(),
+  "ticketNumber": zod.int().nullable(),
+  "title": zod.string(),
+  "date": zod.coerce.date(),
+  "durationMinutes": zod.int().min(getPersonalTimeTrackingReportResponseRowsItemDurationMinutesMin),
+  "sessionCount": zod.int().min(1)
+})),
+  "totals": zod.object({
+  "totalMinutes": zod.int().min(getPersonalTimeTrackingReportResponseTotalsTotalMinutesMin),
+  "ticketCount": zod.int().min(getPersonalTimeTrackingReportResponseTotalsTicketCountMin)
+})
+})
+
+
+/**
  * @summary Mark billable ticket hours as billed or unbilled (admin only)
  */
 

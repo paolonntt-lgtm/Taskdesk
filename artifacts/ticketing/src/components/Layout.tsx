@@ -62,7 +62,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey } from '@workspace/api-client-react';
+import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey, useGetPersonalTimeTrackingReport } from '@workspace/api-client-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
 import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
@@ -163,6 +163,14 @@ export default function Layout({ children }: LayoutProps) {
     },
     enabled: user?.role === 'admin',
     staleTime: 5 * 60_000,
+  });
+  const personalTimeReport = useGetPersonalTimeTrackingReport(undefined, {
+    query: {
+      queryKey: ['personal-time-report-nav', user?.id],
+      enabled: !!user && user.role !== 'admin',
+      staleTime: 60_000,
+      refetchInterval: 120_000,
+    },
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -565,6 +573,9 @@ export default function Layout({ children }: LayoutProps) {
     { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
       ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
+      : []),
+    ...(user?.role !== 'admin' && personalTimeReport.data?.rows.length
+      ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
     { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
