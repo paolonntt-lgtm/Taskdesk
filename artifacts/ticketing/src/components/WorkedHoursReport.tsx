@@ -34,6 +34,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
+import { trackEvent } from '../lib/analytics';
 
 type BillingFilter = 'all' | 'billed' | 'unbilled';
 
@@ -157,6 +158,7 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
         ticketId,
         data: { status },
       });
+      trackEvent('time_billing_status_changed', { status, source: 'client_work_report' });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) }),
         queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
@@ -189,6 +191,10 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
         id: clientId,
         ticketId: editingTicket.id,
         data: { workedMinutes },
+      });
+      trackEvent('manual_worked_hours_updated', {
+        action: workedMinutes == null ? 'removed' : 'saved',
+        source: 'client_work_report',
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) }),
@@ -246,7 +252,10 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
             type="date"
             label={tc.workedHoursFrom}
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            onChange={(event) => {
+              setDateFrom(event.target.value);
+              trackEvent('time_report_filter_changed', { scope: 'client_work', field: 'date_from' });
+            }}
             InputLabelProps={{ shrink: true }}
             sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 150 } }}
           />
@@ -255,14 +264,20 @@ export default function WorkedHoursReport({ clientId, tickets, isAdmin }: Worked
             type="date"
             label={tc.workedHoursTo}
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            onChange={(event) => {
+              setDateTo(event.target.value);
+              trackEvent('time_report_filter_changed', { scope: 'client_work', field: 'date_to' });
+            }}
             InputLabelProps={{ shrink: true }}
             sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 150 } }}
           />
           <Select
             size="small"
             value={billingFilter}
-            onChange={(event) => setBillingFilter(event.target.value as BillingFilter)}
+            onChange={(event) => {
+              setBillingFilter(event.target.value as BillingFilter);
+              trackEvent('time_report_filter_changed', { scope: 'client_work', field: 'billing_status' });
+            }}
             aria-label={tc.workedHoursBillingFilter}
             sx={{ minWidth: { xs: '100%', sm: 180 } }}
           >

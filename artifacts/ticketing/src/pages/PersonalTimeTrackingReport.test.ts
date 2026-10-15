@@ -12,6 +12,7 @@ const store = vi.hoisted(() => ({
   params: [] as any[],
   mode: 'success' as 'success' | 'loading' | 'error',
   location: vi.fn(),
+  trackEvent: vi.fn(),
 }));
 
 vi.mock('react', async (importOriginal) => {
@@ -75,6 +76,10 @@ vi.mock('../contexts/LanguageContext', () => ({
   useLanguage: () => ({ lang: 'it' }),
 }));
 
+vi.mock('../lib/analytics', () => ({
+  trackEvent: store.trackEvent,
+}));
+
 import PersonalTimeTrackingReportPage from './PersonalTimeTrackingReport';
 
 function renderPage() {
@@ -110,6 +115,7 @@ describe('PersonalTimeTrackingReportPage', () => {
     ];
     store.mode = 'success';
     store.location.mockClear();
+    store.trackEvent.mockClear();
   });
 
   it('groups rows by ticket, shows ticket subtotals, and keeps report totals consistent', () => {
@@ -144,6 +150,14 @@ describe('PersonalTimeTrackingReportPage', () => {
     expect(textContent(findAllByTestId(filteredPage, 'personal-time-month-total-2026-10')[0])).toBe('1 h 15 min');
     expect(findAllByTestId(filteredPage, 'personal-time-month-2026-09')).toHaveLength(0);
     expect(findAllByTestId(filteredPage, 'personal-time-session-2026-10-501-1')).toHaveLength(0);
+    expect(store.trackEvent).toHaveBeenCalledWith('time_report_filter_changed', {
+      scope: 'personal',
+      field: 'date_from',
+    });
+    expect(store.trackEvent).toHaveBeenCalledWith('time_report_filter_changed', {
+      scope: 'personal',
+      field: 'date_to',
+    });
   });
 
   it('shows loading, empty-period, and error states', () => {

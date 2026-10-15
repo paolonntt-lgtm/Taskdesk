@@ -28,6 +28,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { GetTimeTrackingReportParams, TimeTrackingReportRow } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
+import { trackEvent } from '../lib/analytics';
 
 function formatDuration(totalMinutes: number, lang: string): string {
   const hours = Math.floor(totalMinutes / 60);
@@ -372,14 +373,29 @@ export default function TimeTrackingReportPanel() {
       : [queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(row.clientId) })]),
   ]);
   const toggleBilling = (row: TimeTrackingReportRow) => {
+    const status = row.billingStatus === 'billed' ? 'unbilled' : 'billed';
     billingMutation.mutate(
-      { data: { ticketId: row.ticketId, status: row.billingStatus === 'billed' ? 'unbilled' : 'billed' } },
-      { onSuccess: () => refreshBillingViews(row) },
+      { data: { ticketId: row.ticketId, status } },
+      {
+        onSuccess: () => {
+          trackEvent('time_billing_status_changed', { status, source: 'time_tracking_report' });
+          return refreshBillingViews(row);
+        },
+      },
     );
   };
   const toggleInvoice = (row: TimeTrackingReportRow) => {
     if (row.collaboratorId == null) return;
-    invoiceMutation.mutate({ data: { ticketId: row.ticketId, collaboratorId: row.collaboratorId, invoiceReceived: !row.collaboratorInvoiceReceived } }, { onSuccess: refreshReport });
+    const received = !row.collaboratorInvoiceReceived;
+    invoiceMutation.mutate(
+      { data: { ticketId: row.ticketId, collaboratorId: row.collaboratorId, invoiceReceived: received } },
+      {
+        onSuccess: () => {
+          trackEvent('collaborator_invoice_status_changed', { received, source: 'time_tracking_report' });
+          return refreshReport();
+        },
+      },
+    );
   };
 
   return (
@@ -444,7 +460,13 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.from}
               value={dateFrom}
-              onChange={(event) => { setSelectedMonth(null); setDateFrom(event.target.value); setClientId(''); setCollaboratorId(''); }}
+              onChange={(event) => {
+                setSelectedMonth(null);
+                setDateFrom(event.target.value);
+                setClientId('');
+                setCollaboratorId('');
+                trackEvent('time_report_filter_changed', { scope: 'admin', field: 'date_from' });
+              }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-from' }}
             />
@@ -456,7 +478,13 @@ export default function TimeTrackingReportPanel() {
               type="date"
               label={copy.to}
               value={dateTo}
-              onChange={(event) => { setSelectedMonth(null); setDateTo(event.target.value); setClientId(''); setCollaboratorId(''); }}
+              onChange={(event) => {
+                setSelectedMonth(null);
+                setDateTo(event.target.value);
+                setClientId('');
+                setCollaboratorId('');
+                trackEvent('time_report_filter_changed', { scope: 'admin', field: 'date_to' });
+              }}
               InputLabelProps={{ shrink: true }}
               inputProps={{ 'data-testid': 'input-report-date-to' }}
             />

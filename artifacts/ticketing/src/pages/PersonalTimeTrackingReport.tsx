@@ -23,6 +23,7 @@ import {
   canAccessPersonalTimeReport,
   scopePersonalTimeReportQueryKey,
 } from '../lib/personalTimeReportAccess';
+import { trackEvent } from '../lib/analytics';
 
 function formatDuration(minutes: number, italian: boolean): string {
   const hours = Math.floor(minutes / 60);
@@ -141,11 +142,17 @@ export default function PersonalTimeTrackingReportPage() {
           <Grid container spacing={1.5} mb={2}>
             <Grid item xs={6} sm={4}>
               <TextField fullWidth size="small" type="date" label={text.from} value={dateFrom} data-testid="personal-time-date-from"
-                onChange={(event) => setDateFrom(event.target.value)} InputLabelProps={{ shrink: true }} />
+                onChange={(event) => {
+                  setDateFrom(event.target.value);
+                  trackEvent('time_report_filter_changed', { scope: 'personal', field: 'date_from' });
+                }} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid item xs={6} sm={4}>
               <TextField fullWidth size="small" type="date" label={text.to} value={dateTo} data-testid="personal-time-date-to"
-                onChange={(event) => setDateTo(event.target.value)} InputLabelProps={{ shrink: true }} />
+                onChange={(event) => {
+                  setDateTo(event.target.value);
+                  trackEvent('time_report_filter_changed', { scope: 'personal', field: 'date_to' });
+                }} InputLabelProps={{ shrink: true }} />
             </Grid>
           </Grid>
           {report.isLoading ? (
