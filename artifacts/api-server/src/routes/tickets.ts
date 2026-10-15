@@ -965,7 +965,8 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     );
 
   // Do not silently ignore an unauthorized assignment change. In particular,
-  // users with status permissions must not be able to unassign a colleague.
+  // users with status permissions must not be able to unassign or transfer a
+  // ticket assigned to a colleague.
   if (!isAdmin && requestedAssignedTo !== undefined && !isSelfAssignAttempt) {
     res.status(403).json({ error: "Forbidden" });
     return;

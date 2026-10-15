@@ -561,6 +561,11 @@ describe("ticket time tracking", () => {
       body: JSON.stringify({ assignedTo: null }),
     });
     expect(coworkerUnassignAttempt.status).toBe(403);
+    const coworkerTransferAttempt = await request(`/api/tickets/${handoffTicketId}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(coworkerTransferAttempt.status).toBe(403);
     let ticketState = await db.select({
       assignedTo: ticketsTable.assignedTo,
       status: ticketsTable.status,
@@ -575,6 +580,7 @@ describe("ticket time tracking", () => {
       startedAt: colleagueSessionBefore!.startedAt,
       endedAt: null,
     });
+    expect(sessions).toHaveLength(1);
     const coworkerTimerStartedAt = colleagueSessionBefore!.startedAt;
 
     const rejectedHandoff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
