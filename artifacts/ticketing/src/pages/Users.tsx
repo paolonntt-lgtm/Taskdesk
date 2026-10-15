@@ -894,7 +894,6 @@ export default function Users() {
               edit_client_section_content: t.groups.permEditClientSectionContent,
               create_appointments: t.groups.permCreateAppointments,
               view_worked_hours: t.groups.permViewWorkedHours,
-              assign_time_tracked_tickets: t.groups.permAssignTimeTrackedTickets,
             };
             const inherited = ((permissionTarget as any)?.inheritedGroupPermissions ?? []).includes(key);
             const effective = ((permissionTarget as any)?.effectivePermissions ?? []).includes(key);

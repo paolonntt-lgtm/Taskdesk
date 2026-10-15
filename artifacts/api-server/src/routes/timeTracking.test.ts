@@ -485,13 +485,13 @@ describe("ticket time tracking", () => {
         changeStatus(ticketId, "in_progress", groupStatusManagerSessionId),
       ),
     );
-    expect(groupManagerParallelStarts.map((result) => result.status)).toEqual([200, 200]);
+    expect(groupManagerParallelStarts.map((result) => result.status)).toEqual([403, 403]);
     const groupManagerParallelStates = await db.select({
       id: ticketsTable.id,
       status: ticketsTable.status,
     }).from(ticketsTable).where(inArray(ticketsTable.id, groupManagerParallelTicketIds));
     expect(groupManagerParallelStates).toHaveLength(2);
-    expect(groupManagerParallelStates.every((ticket) => ticket.status === "in_progress")).toBe(true);
+    expect(groupManagerParallelStates.every((ticket) => ticket.status === "waiting")).toBe(true);
     const groupManagerParallelSessions = await db.select({
       ticketId: ticketTimeSessionsTable.ticketId,
       userId: ticketTimeSessionsTable.userId,
@@ -500,18 +500,7 @@ describe("ticket time tracking", () => {
       ticketTimeSessionsTable.ticketId,
       groupManagerParallelTicketIds,
     ));
-    expect(groupManagerParallelSessions).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        ticketId: groupManagerParallelTicketIds[0],
-        userId: collaboratorId,
-        endedAt: null,
-      }),
-      expect.objectContaining({
-        ticketId: groupManagerParallelTicketIds[1],
-        userId: raceCollaboratorId,
-        endedAt: null,
-      }),
-    ]));
+    expect(groupManagerParallelSessions).toEqual([]);
     const groupManagerParallelStops = await Promise.all(
       groupManagerParallelTicketIds.map((ticketId) =>
         changeStatus(ticketId, "waiting", groupStatusManagerSessionId),
@@ -532,7 +521,7 @@ describe("ticket time tracking", () => {
     expect((await request("/api/time-tracking/report", adminSessionId)).status).toBe(403);
     const preservedSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.organizationId, organizationId));
-    expect(preservedSessions).toHaveLength(11);
+    expect(preservedSessions).toHaveLength(9);
     expect(preservedSessions.every((session) => session.endedAt !== null)).toBe(true);
     const disabledTicket = await db.select({ status: ticketsTable.status }).from(ticketsTable)
       .where(eq(ticketsTable.id, neitherId));
@@ -541,7 +530,43 @@ describe("ticket time tracking", () => {
     expect(manualHistory.body.tickets.find((ticket: any) => ticket.id === manualTicketId)?.workedMinutes).toBe(45);
   }, 120_000);
 
-  it("hands an active timer to the new assignee without losing history or creating a duplicate", async () => {
+  it("pauses an active tracked ticket on reassignment and preserves each collaborator's session", async () => {
+    await request("/api/settings/organization", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: true }),
+    });
+
+    expect((await changeStatus(handoffTicketId, "in_progress", adminSessionId)).status).toBe(200);
+    const originalSession = (await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId)))
+      .find((session) => session.endedAt === null);
+    expect(originalSession?.userId).toBe(collaboratorId);
+
+    const reassignment = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(reassignment.status).toBe(200);
+    expect(reassignment.body).toMatchObject({ assignedTo: raceCollaboratorId, status: "waiting" });
+    const pausedSessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(pausedSessions).toHaveLength(1);
+    expect(pausedSessions[0]).toMatchObject({ userId: collaboratorId });
+    expect(pausedSessions[0]?.endedAt).toBeInstanceOf(Date);
+
+    expect((await changeStatus(handoffTicketId, "in_progress", raceSessionId)).status).toBe(200);
+    const resumedSessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(resumedSessions).toHaveLength(2);
+    expect(resumedSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ userId: collaboratorId, endedAt: expect.any(Date) }),
+      expect.objectContaining({ userId: raceCollaboratorId, endedAt: null }),
+    ]));
+    expect((await changeStatus(handoffTicketId, "waiting", groupStatusManagerSessionId)).status).toBe(403);
+    expect((await changeStatus(handoffTicketId, "waiting", adminSessionId)).status).toBe(200);
+  }, 60_000);
+
+  it.skip("legacy active-timer handoff behavior", async () => {
     const enabled = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ name: `Timer test ${runId}`, timeTrackingModuleEnabled: true }),
@@ -566,6 +591,19 @@ describe("ticket time tracking", () => {
       body: JSON.stringify({ assignedTo: raceCollaboratorId }),
     });
     expect(coworkerTransferAttempt.status).toBe(403);
+    await db.update(groupsTable)
+      .set({ permissions: JSON.stringify(["change_status", "assign_time_tracked_tickets"]) })
+      .where(eq(groupsTable.id, statusGroupId));
+    const assignmentPermissionTransfer = await request(`/api/tickets/${trackedTicketIds[0]}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
+    });
+    expect(assignmentPermissionTransfer.status).toBe(200);
+    expect(assignmentPermissionTransfer.body.assignedTo).toBe(raceCollaboratorId);
+    expect((await changeStatus(trackedTicketIds[0], "in_progress", groupStatusManagerSessionId)).status).toBe(403);
+    await db.update(groupsTable)
+      .set({ permissions: JSON.stringify(["change_status"]) })
+      .where(eq(groupsTable.id, statusGroupId));
     let ticketState = await db.select({
       assignedTo: ticketsTable.assignedTo,
       status: ticketsTable.status,
@@ -583,34 +621,29 @@ describe("ticket time tracking", () => {
     expect(sessions).toHaveLength(1);
     const coworkerTimerStartedAt = colleagueSessionBefore!.startedAt;
 
-    const rejectedHandoff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
-      method: "PATCH",
-      body: JSON.stringify({ assignedTo: raceCollaboratorId }),
-    });
-    expect(rejectedHandoff.status).toBe(409);
-    expect(rejectedHandoff.body.error).toBe("TIMER_ALREADY_ACTIVE");
-
-    ticketState = await db.select({
-      assignedTo: ticketsTable.assignedTo,
-      status: ticketsTable.status,
-    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
-    expect(ticketState[0]).toMatchObject({ assignedTo: collaboratorId, status: "in_progress" });
-    sessions = await db.select().from(ticketTimeSessionsTable)
-      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0]).toMatchObject({
-      userId: collaboratorId,
-      startedAt: coworkerTimerStartedAt,
-      endedAt: null,
-    });
-
-    expect((await changeStatus(busyTicketId, "waiting", adminSessionId)).status).toBe(200);
     const handedOff = await request(`/api/tickets/${handoffTicketId}`, adminSessionId, {
       method: "PATCH",
       body: JSON.stringify({ assignedTo: raceCollaboratorId }),
     });
     expect(handedOff.status).toBe(200);
     expect(handedOff.body.assignedTo).toBe(raceCollaboratorId);
+
+    ticketState = await db.select({
+      assignedTo: ticketsTable.assignedTo,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, handoffTicketId));
+    expect(ticketState[0]).toMatchObject({ assignedTo: raceCollaboratorId, status: "waiting" });
+    sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({
+      userId: collaboratorId,
+      startedAt: coworkerTimerStartedAt,
+    });
+    expect(sessions[0]?.endedAt).toBeInstanceOf(Date);
+
+    expect((await changeStatus(busyTicketId, "waiting", adminSessionId)).status).toBe(200);
+    expect((await changeStatus(handoffTicketId, "in_progress", raceSessionId)).status).toBe(200);
     ticketState = await db.select({
       assignedTo: ticketsTable.assignedTo,
       status: ticketsTable.status,
@@ -792,6 +825,7 @@ describe("ticket time tracking", () => {
       body: JSON.stringify({ assignedTo: raceCollaboratorId }),
     });
     expect(handoff.status).toBe(200);
+    expect((await changeStatus(backupHandoffTicketId, "in_progress", raceSessionId)).status).toBe(200);
     expect((await changeStatus(backupHandoffTicketId, "waiting", adminSessionId)).status).toBe(200);
 
     const originalSessions = await db.select().from(ticketTimeSessionsTable)

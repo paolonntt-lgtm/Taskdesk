@@ -755,8 +755,9 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     "change_status",
     currentUser.role === "admin",
   );
-  detail.canChangeStatus =
-    currentUser.role === "admin" || groupCanChangeStatus || ticket.assignedTo === currentUser.id;
+  detail.canChangeStatus = ticket.timeTrackingEnabled
+    ? currentUser.role === "admin" || ticket.assignedTo === currentUser.id
+    : currentUser.role === "admin" || groupCanChangeStatus || ticket.assignedTo === currentUser.id;
   const [trackingSettings] = await db.select({
     enabled: organizationsTable.timeTrackingModuleEnabled,
   }).from(organizationsTable).where(eq(organizationsTable.id, orgId));
