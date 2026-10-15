@@ -512,6 +512,20 @@ export interface TrackedTimeSessionCorrection {
   collaboratorRecognizable: boolean;
 }
 
+export interface TicketTimeSessionEdit {
+  id: number;
+  sessionId: number;
+  collaboratorName: string;
+  editedByName: string;
+  editedAt: string;
+  previousDurationMinutes: number;
+  updatedDurationMinutes: number;
+  previousClientBillable: boolean;
+  updatedClientBillable: boolean;
+  previousCollaboratorRecognizable: boolean;
+  updatedCollaboratorRecognizable: boolean;
+}
+
 export type UpdateTicketBodyPriority = typeof UpdateTicketBodyPriority[keyof typeof UpdateTicketBodyPriority];
 
 

@@ -85,6 +85,7 @@ import type {
   StripeAddonSeatsInput,
   StripeAddonSeatsResponse,
   SuccessResponse,
+  TicketTimeSessionEdit,
   TicketWithDetails,
   TimeTrackingReport,
   ToggleReactionBody,
@@ -2422,6 +2423,83 @@ export const useCorrectTicketTimeSession = <TError = ErrorType<void>,
       > => {
       return useMutation(getCorrectTicketTimeSessionMutationOptions(options));
     }
+
+export const getGetTicketTimeSessionEditsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/time-session-edits`
+}
+
+/**
+ * @summary List time-session corrections for a tracked ticket (admin only)
+ */
+export const getTicketTimeSessionEdits = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<TicketTimeSessionEdit[]> => {
+
+  return customFetch<TicketTimeSessionEdit[]>(getGetTicketTimeSessionEditsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTicketTimeSessionEditsQueryKey = (id: number,) => {
+    return [
+    `/api/tickets/${id}/time-session-edits`
+    ] as const;
+    }
+
+
+export const getGetTicketTimeSessionEditsQueryOptions = <TData = Awaited<ReturnType<typeof getTicketTimeSessionEdits>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTicketTimeSessionEdits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTicketTimeSessionEditsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTicketTimeSessionEdits>>> = ({ signal }) => getTicketTimeSessionEdits(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTicketTimeSessionEdits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTicketTimeSessionEditsQueryResult = NonNullable<Awaited<ReturnType<typeof getTicketTimeSessionEdits>>>
+export type GetTicketTimeSessionEditsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List time-session corrections for a tracked ticket (admin only)
+ */
+
+export function useGetTicketTimeSessionEdits<TData = Awaited<ReturnType<typeof getTicketTimeSessionEdits>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTicketTimeSessionEdits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTicketTimeSessionEditsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCloneTicketUrl = (id: number,) => {
 

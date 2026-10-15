@@ -1285,6 +1285,29 @@ export const CorrectTicketTimeSessionResponse = zod.void()
 
 
 /**
+ * @summary List time-session corrections for a tracked ticket (admin only)
+ */
+export const GetTicketTimeSessionEditsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTicketTimeSessionEditsResponseItem = zod.object({
+  "id": zod.int(),
+  "sessionId": zod.int(),
+  "collaboratorName": zod.string(),
+  "editedByName": zod.string(),
+  "editedAt": zod.coerce.date(),
+  "previousDurationMinutes": zod.int(),
+  "updatedDurationMinutes": zod.int(),
+  "previousClientBillable": zod.boolean(),
+  "updatedClientBillable": zod.boolean(),
+  "previousCollaboratorRecognizable": zod.boolean(),
+  "updatedCollaboratorRecognizable": zod.boolean()
+})
+export const GetTicketTimeSessionEditsResponse = zod.array(GetTicketTimeSessionEditsResponseItem)
+
+
+/**
  * @summary Clone a ticket with optional scheduled date (admin only)
  */
 export const CloneTicketParams = zod.object({

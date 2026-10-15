@@ -599,6 +599,23 @@ describe("ticket time tracking", () => {
     const auditRows = await db.select().from(ticketTimeSessionEditsTable)
       .where(eq(ticketTimeSessionEditsTable.sessionId, beforeEdit.id));
     expect(auditRows).toHaveLength(1);
+    const editHistory = await request(`/api/tickets/${handoffTicketId}/time-session-edits`, adminSessionId);
+    expect(editHistory.status).toBe(200);
+    expect(editHistory.body).toHaveLength(1);
+    expect(editHistory.body[0]).toMatchObject({
+      sessionId: beforeEdit.id,
+      collaboratorName: "Timer Test Collaborator",
+      editedByName: "Timer Test Admin",
+      previousDurationMinutes: auditRows[0]!.previousDurationMinutes,
+      updatedDurationMinutes: 42,
+      previousClientBillable: auditRows[0]!.previousClientBillable,
+      updatedClientBillable: false,
+      previousCollaboratorRecognizable: auditRows[0]!.previousCollaboratorRecognizable,
+      updatedCollaboratorRecognizable: false,
+    });
+    expect(Number.isNaN(Date.parse(editHistory.body[0].editedAt))).toBe(false);
+    const forbiddenHistory = await request(`/api/tickets/${handoffTicketId}/time-session-edits`, collaboratorSessionId);
+    expect(forbiddenHistory.status).toBe(403);
     const editNotifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, collaboratorId));
     expect(editNotifications.some((notification) => notification.ticketId === handoffTicketId && notification.notificationText.includes("aggiornato le tue ore"))).toBe(true);
     const forbiddenEdit = await request(`/api/tickets/${handoffTicketId}/time-sessions/${beforeEdit.id}`, collaboratorSessionId, {

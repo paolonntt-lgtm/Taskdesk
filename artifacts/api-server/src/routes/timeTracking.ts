@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   db,
   clientsTable,
@@ -12,8 +13,11 @@ import {
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 import { createNotificationForUser } from "../lib/notifications";
+import { GetTicketTimeSessionEditsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+const editedByUsersTable = alias(usersTable, "time_session_edit_authors");
+const collaboratorsTable = alias(usersTable, "time_session_edit_collaborators");
 
 const UpdateTimeSessionInput = z.object({
   durationMinutes: z.number().int().min(0).max(5256000),
@@ -90,6 +94,59 @@ router.patch("/tickets/:id/time-sessions/:sessionId", requireAuth, requireAdmin,
     orgId,
   );
   res.status(204).end();
+});
+
+router.get("/tickets/:id/time-session-edits", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const rawTicketId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const ticketId = /^\d+$/.test(rawTicketId) ? Number(rawTicketId) : NaN;
+  const orgId = currentUser.organizationId;
+  if (!Number.isInteger(ticketId) || ticketId < 1) {
+    res.status(400).json({ error: "Invalid ticket id" });
+    return;
+  }
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+
+  const [ticket] = await db.select({ id: ticketsTable.id })
+    .from(ticketsTable)
+    .where(and(
+      eq(ticketsTable.id, ticketId),
+      eq(ticketsTable.organizationId, orgId),
+      eq(ticketsTable.timeTrackingEnabled, true),
+      isNull(ticketsTable.deletedAt),
+    ));
+  if (!ticket) {
+    res.status(404).json({ error: "Tracked ticket not found" });
+    return;
+  }
+
+  const edits = await db.select({
+    id: ticketTimeSessionEditsTable.id,
+    sessionId: ticketTimeSessionEditsTable.sessionId,
+    collaboratorName: collaboratorsTable.name,
+    editedByName: editedByUsersTable.name,
+    editedAt: ticketTimeSessionEditsTable.editedAt,
+    previousDurationMinutes: ticketTimeSessionEditsTable.previousDurationMinutes,
+    updatedDurationMinutes: ticketTimeSessionEditsTable.updatedDurationMinutes,
+    previousClientBillable: ticketTimeSessionEditsTable.previousClientBillable,
+    updatedClientBillable: ticketTimeSessionEditsTable.updatedClientBillable,
+    previousCollaboratorRecognizable: ticketTimeSessionEditsTable.previousCollaboratorRecognizable,
+    updatedCollaboratorRecognizable: ticketTimeSessionEditsTable.updatedCollaboratorRecognizable,
+  })
+    .from(ticketTimeSessionEditsTable)
+    .innerJoin(editedByUsersTable, eq(ticketTimeSessionEditsTable.editedBy, editedByUsersTable.id))
+    .innerJoin(collaboratorsTable, eq(ticketTimeSessionEditsTable.collaboratorId, collaboratorsTable.id))
+    .where(and(
+      eq(ticketTimeSessionEditsTable.ticketId, ticketId),
+      eq(ticketTimeSessionEditsTable.organizationId, orgId),
+    ))
+    .orderBy(desc(ticketTimeSessionEditsTable.editedAt), desc(ticketTimeSessionEditsTable.id));
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json(GetTicketTimeSessionEditsResponse.parse(edits));
 });
 
 type ReportRow = {

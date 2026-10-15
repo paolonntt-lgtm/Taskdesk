@@ -110,6 +110,7 @@ export * from './ticket';
 export * from './ticketPriority';
 export * from './ticketStatus';
 export * from './ticketTimeSession';
+export * from './ticketTimeSessionEdit';
 export * from './ticketTimeSummary';
 export * from './ticketVisibility';
 export * from './ticketWithDetails';

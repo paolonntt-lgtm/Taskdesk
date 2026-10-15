@@ -17,6 +17,7 @@ import {
   useUpdateTicketComment, useDeleteTicketComment,
   useListClients,
   useSetTicketRecurrence, useDeleteTicketRecurrence,
+  useGetTicketTimeSessionEdits, getGetTicketTimeSessionEditsQueryKey,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
@@ -224,6 +225,19 @@ export default function TicketDetail() {
   });
   const workedTimeEnabled = organizationSettings?.workedTimeEnabled !== false;
   const timeTrackingModuleEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
+  const {
+    data: timeSessionEdits = [],
+    isLoading: timeSessionEditsLoading,
+    isError: timeSessionEditsError,
+  } = useGetTicketTimeSessionEdits(ticketId, {
+    query: {
+      enabled: currentUser?.role === 'admin'
+        && timeTrackingModuleEnabled
+        && (ticket as any)?.timeTrackingEnabled === true
+        && (ticket as any)?.canViewTimeTrackingSummary === true,
+      staleTime: 30_000,
+    },
+  } as any);
   const firstWaitingStatusKey = orgStatuses.find((status) =>
     /waiting|attesa/i.test(`${status.key} ${status.label}`),
   )?.key;
@@ -497,6 +511,7 @@ export default function TicketDetail() {
       }
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getGetTicketTimeSessionEditsQueryKey(ticketId) });
       setEditingTimeSession(null);
     } catch (error: any) {
       setStatusError(error?.message || t.ticketDetail.trackedTimeChangeError);
@@ -1234,6 +1249,56 @@ export default function TicketDetail() {
                         </Box>
                       </Box>
                     ))}
+                  </Box>
+                )}
+                {isAdmin && (
+                  <Box mt={1.75} data-testid="time-session-edit-history">
+                    <Typography variant="subtitle2" fontWeight={700} mb={0.75}>
+                      {t.ticketDetail.trackedTimeEditHistory}
+                    </Typography>
+                    {timeSessionEditsLoading ? (
+                      <CircularProgress size={18} aria-label={t.ticketDetail.trackedTimeEditHistory} />
+                    ) : timeSessionEditsError ? (
+                      <Typography variant="body2" color="error">
+                        {t.ticketDetail.trackedTimeEditHistoryLoadError}
+                      </Typography>
+                    ) : timeSessionEdits.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t.ticketDetail.trackedTimeEditHistoryEmpty}
+                      </Typography>
+                    ) : (
+                      <Box display="flex" flexDirection="column" gap={0.75}>
+                        {timeSessionEdits.map((edit) => (
+                          <Box
+                            key={edit.id}
+                            sx={{ p: 1, borderRadius: 1, bgcolor: 'action.hover' }}
+                            data-testid={`time-session-edit-${edit.id}`}
+                          >
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(edit.editedAt).toLocaleString(dateLocale)} · {edit.editedByName} · {t.ticketDetail.trackedTimeEditAttribution} {edit.collaboratorName}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                                gap: 0.5,
+                                mt: 0.5,
+                              }}
+                            >
+                              <Typography variant="body2">
+                                {t.ticketDetail.trackedTimeEditDuration}: {formatWorkedDuration(edit.previousDurationMinutes, lang)} → {formatWorkedDuration(edit.updatedDurationMinutes, lang)}
+                              </Typography>
+                              <Typography variant="body2">
+                                {t.ticketDetail.trackedTimeEditBillable}: {edit.previousClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff} → {edit.updatedClientBillable ? t.ticketDetail.trackedTimeCustomerBillableOn : t.ticketDetail.trackedTimeCustomerBillableOff}
+                              </Typography>
+                              <Typography variant="body2">
+                                {t.ticketDetail.trackedTimeEditRecognizable}: {edit.previousCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff} → {edit.updatedCollaboratorRecognizable ? t.ticketDetail.trackedTimeOn : t.ticketDetail.trackedTimeOff}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
                   </Box>
                 )}
                 {isAdmin && (

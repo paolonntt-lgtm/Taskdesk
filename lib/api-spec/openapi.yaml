@@ -851,6 +851,31 @@ paths:
         "404":
           description: Closed tracked session not found
 
+  /tickets/{id}/time-session-edits:
+    get:
+      operationId: getTicketTimeSessionEdits
+      tags: [tickets]
+      summary: List time-session corrections for a tracked ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Time-session correction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketTimeSessionEdit"
+        "403":
+          description: Admin access required
+        "404":
+          description: Tracked ticket not found
+
   /tickets/{id}/clone:
     post:
       operationId: cloneTicket
@@ -3421,6 +3446,45 @@ components:
         clientBillable:
           type: boolean
         collaboratorRecognizable:
+          type: boolean
+
+    TicketTimeSessionEdit:
+      type: object
+      required:
+        - id
+        - sessionId
+        - collaboratorName
+        - editedByName
+        - editedAt
+        - previousDurationMinutes
+        - updatedDurationMinutes
+        - previousClientBillable
+        - updatedClientBillable
+        - previousCollaboratorRecognizable
+        - updatedCollaboratorRecognizable
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        collaboratorName:
+          type: string
+        editedByName:
+          type: string
+        editedAt:
+          type: string
+          format: date-time
+        previousDurationMinutes:
+          type: integer
+        updatedDurationMinutes:
+          type: integer
+        previousClientBillable:
+          type: boolean
+        updatedClientBillable:
+          type: boolean
+        previousCollaboratorRecognizable:
+          type: boolean
+        updatedCollaboratorRecognizable:
           type: boolean
 
     UpdateTicketBody:
