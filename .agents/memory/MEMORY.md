@@ -11,6 +11,7 @@
 - [Dashboard opening message](dashboard-opening-message.md) — Keep a warm “Buongiorno” greeting when refining the selected TaskDesk dashboard direction.
 - [Dashboard visual accent](dashboard-visual-accent.md) — Keep the calm surfaces, but use the previous blue as the dominant Dashboard and hero accent.
 - [Dashboard navigation preferences](dashboard-navigation-preferences.md) — Keep the grouped sidebar and top-right search; put Settings in the profile menu.
+- [Feature-gated dashboard widgets](dashboard-widget-availability.md) — Hide widgets when their feature is unavailable without rewriting saved layouts, so preferences return if re-enabled.
 - [Statistics vs. daily reports](statistics-vs-daily-reports.md) — Reserve “Report” for daily-report workflows; use “Statistiche”/“Statistics” for analytics navigation.
 - [Shared motivational messages](shared-motivational-messages.md) — Admin-managed organization messages rotate by day and appear to every dashboard user.
 - [TaskDesk assistant name](taskdesk-assistant-name.md) — Use “Albert” in both languages, with occasional Einstein-inspired curiosity and no invented quotes.

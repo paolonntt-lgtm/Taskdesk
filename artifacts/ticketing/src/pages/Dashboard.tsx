@@ -50,6 +50,8 @@ import {
   useGetStatsByLocation, useGetStatsByPriority, useGetStatsByAssignee,
   useGetTicketTrend, useListAllClientNotes,
 } from '@workspace/api-client-react';
+import { isDashboardWidgetAvailable } from '../lib/dashboardWidgetUtils';
+import UnbilledHoursWidget from '../components/UnbilledHoursWidget';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -1728,6 +1730,7 @@ interface WidgetSettingField {
 
 interface WidgetMeta {
   requireClients?: boolean;
+  requireTimeTracking?: boolean;
   id: string;
   labelKey: string;
   defaultLayout: Omit<LayoutItem, 'i'>;
@@ -1893,6 +1896,7 @@ const WIDGET_REGISTRY: WidgetMeta[] = [
   { id: 'feed-category',  labelKey: 'widgetFeedCategory',  defaultLayout: { x: 0, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedCategoryWidget },
   { id: 'feed-status',    labelKey: 'widgetFeedStatus',    defaultLayout: { x: 4, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedStatusWidget },
   { id: 'feed-all-assigned', labelKey: 'widgetFeedAllAssigned', defaultLayout: { x: 8, y: 60, w: 4, h: 7, minW: 2, minH: 3 }, component: FeedAllAssignedWidget, settingsSchema: FEED_SETTINGS_SCHEMA },
+  { id: 'billing-unbilled', labelKey: 'widgetUnbilled', defaultLayout: { x: 0, y: 67, w: 4, h: 4, minW: 2, minH: 3 }, component: UnbilledHoursWidget, requireAdmin: true, requireTimeTracking: true },
 ];
 
 const DEFAULT_VISIBLE_IDS = ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'];
@@ -2143,7 +2147,7 @@ function AddWidgetDialog({
             const groups: { label: string; ids: string[] }[] = [
               { label: t.dashboard.wgStat   ?? 'Statistiche', ids: ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue'] },
               { label: t.dashboard.wgFeed   ?? 'Liste',       ids: ['feed-my', 'feed-due', 'feed-recent', 'feed-assigned', 'feed-open', 'feed-overdue', 'feed-person', 'feed-group', 'feed-category', 'feed-status', 'feed-all-assigned'] },
-              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'acquisition'] },
+              { label: t.dashboard.wgOther  ?? 'Altro',       ids: ['workload', 'client-notes', 'acquisition', 'billing-unbilled'] },
               { label: t.dashboard.wgChart  ?? 'Grafici',     ids: ['chart-trend', 'chart-status', 'chart-category', 'chart-priority', 'chart-location', 'chart-assignee'] },
             ];
             return groups.map((group) => {
@@ -2214,12 +2218,24 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
+  const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
+    queryKey: ['organization-settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/organization', { credentials: 'include' });
+      if (!response.ok) throw new Error('organization settings unavailable');
+      return response.json();
+    },
+    enabled: isAdmin,
+    staleTime: 5 * 60_000,
+  });
+  const timeTrackingEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
 
   const { data: dashStats } = useGetDashboardStats({ query: { staleTime: 30_000, refetchInterval: POLL_MS * 2, refetchIntervalInBackground: false } as any });
   const hasNoTickets = !!dashStats && dashStats.totalTickets === 0;
 
   const effectiveRegistry = WIDGET_REGISTRY.filter(
-    (w) => (w.id !== 'acquisition' || isSuperAdmin) && (!w.requireAdmin || isAdmin) && (!w.requireClients || clientsEnabled),
+    (w) => (w.id !== 'acquisition' || isSuperAdmin)
+      && isDashboardWidgetAvailable(w, { isAdmin, clientsEnabled, timeTrackingEnabled }),
   );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -2412,7 +2428,8 @@ function Dashboard() {
 
   const hiddenWidgets = effectiveRegistry.filter((w) => !visibleIds.includes(w.id));
 
-  const activeLayout: LayoutItem[] = layout.filter((l) => visibleIds.includes(l.i));
+  const activeWidgetIds = new Set(effectiveRegistry.map((widget) => widget.id));
+  const activeLayout: LayoutItem[] = layout.filter((l) => visibleIds.includes(l.i) && activeWidgetIds.has(getBaseId(l.i)));
   const greetingKey = getGreetingKey(now.getHours());
   const greeting = (t.dashboard as Record<string, unknown>)[greetingKey] as string;
   const firstName = user?.name?.trim().split(/\s+/)[0] || '';
