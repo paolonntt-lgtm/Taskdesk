@@ -231,12 +231,11 @@ describe("client worked-hours report", () => {
     });
     expect(forbiddenResponse.status).toBe(403);
 
-    const updateResponse = await request(`/api/clients/${clientId}/tickets/${publicTicketId}/billing-status`, adminSessionId, {
+    const updateResponse = await request("/api/time-tracking/client-billing-status", adminSessionId, {
       method: "PATCH",
-      body: JSON.stringify({ status: "billed" }),
+      body: JSON.stringify({ ticketId: publicTicketId, status: "billed" }),
     });
-    expect(updateResponse.status).toBe(200);
-    expect(updateResponse.body.workedBillingStatus).toBe("billed");
+    expect(updateResponse.status).toBe(204);
 
     const userUnbilledClients = await request("/api/clients?hasUnbilledWorkedTime=true", userSessionId);
     expect(userUnbilledClients.status).toBe(200);

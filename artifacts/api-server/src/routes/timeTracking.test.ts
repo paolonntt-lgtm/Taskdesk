@@ -521,8 +521,11 @@ describe("ticket time tracking", () => {
         .set({ startedAt: new Date(Date.now() - 120 * 60_000) })
         .where(eq(ticketTimeSessionsTable.ticketId, ticketId));
     }
-    await db.update(ticketsTable).set({ workedBillingStatus: "billed" })
-      .where(eq(ticketsTable.id, bothId));
+    const markBilled = await request("/api/time-tracking/client-billing-status", adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ ticketId: bothId, status: "billed" }),
+    });
+    expect(markBilled.status).toBe(204);
 
     const dateFrom = new Date(Date.now() - 24 * 60 * 60_000).toISOString().slice(0, 10);
     const dateTo = new Date(Date.now() + 24 * 60 * 60_000).toISOString().slice(0, 10);
@@ -533,6 +536,7 @@ describe("ticket time tracking", () => {
     expect(filteredReport.status).toBe(200);
     expect(filteredReport.body.customerRows).toHaveLength(3);
     expect(filteredReport.body.customerRows.map((row: any) => row.kind).sort()).toEqual(["manual", "session", "session"]);
+    expect(filteredReport.body.customerRows.find((row: any) => row.ticketId === bothId)?.billingStatus).toBe("billed");
     expect(filteredReport.body.collaboratorRows.map((row: any) => row.ticketId).sort()).toEqual([recognizableOnlyId, bothId].sort());
     expect(filteredReport.body.totals).toMatchObject({
       clientBillableMinutes: 283,

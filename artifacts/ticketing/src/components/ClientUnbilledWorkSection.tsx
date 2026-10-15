@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Alert,
   Box,
@@ -152,11 +152,11 @@ export default function ClientUnbilledWorkSection({
     updateBilling.mutate(
       { data: { ticketId, status: 'billed' } },
       {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetTimeTrackingReportQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
-          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
-        },
+        onSuccess: () => Promise.all([
+          queryClient.invalidateQueries({ queryKey: getGetTimeTrackingReportQueryKey() }),
+          queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) }),
+          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+        ]),
       },
     );
   };
