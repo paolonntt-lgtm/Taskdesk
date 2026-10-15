@@ -17,9 +17,12 @@ function consumerRequire(name, version) {
   return createRequire(path.join(store, installed, "node_modules", name, "package.json"));
 }
 
+const micromatch = consumerRequire("micromatch", "4.0.8")(".");
 const braces = consumerRequire("micromatch", "4.0.8")("braces");
 const forge = consumerRequire("@expo/code-signing-certificates", "0.0.6")("node-forge");
 const { sprintf, vsprintf } = consumerRequire("argparse", "1.0.10")("sprintf-js");
+const { ArgumentParser } = consumerRequire("argparse", "1.0.10")(".");
+const expoCertificates = consumerRequire("@expo/code-signing-certificates", "0.0.6")(".");
 
 test("braces preserves ordinary compilation, expansion, escaping and parentheses", () => {
   assert.equal(braces.compile("a/{b,c}/d"), "a/(b|c)/d");
@@ -58,6 +61,14 @@ test("braces guards directly supplied ASTs, including cycles", () => {
   }
 });
 
+test("micromatch uses guarded braces for its public brace expansion API", () => {
+  assert.deepEqual(micromatch.braceExpand("src/{one,two}.js"), ["src/one.js", "src/two.js"]);
+  assert.throws(
+    () => micromatch.braceExpand("{".repeat(4000) + "a,b" + "}".repeat(4000)),
+    { name: "SyntaxError", message: /maximum nesting depth/ },
+  );
+});
+
 test("sprintf preserves ordinary formatting and bounds numeric precision", () => {
   assert.equal(sprintf("%.2f", 1.234), "1.23");
   assert.equal(sprintf("%.2e", 1.234), "1.23e+0");
@@ -72,6 +83,19 @@ test("sprintf preserves ordinary formatting and bounds numeric precision", () =>
   }
   assert.equal(sprintf("%.0f", 1.234), "1");
   assert.equal(sprintf("%.0g", 1.234), "1");
+});
+
+test("argparse help rendering uses bounded sprintf precision", () => {
+  const parser = new ArgumentParser({
+    prog: "taskdesk",
+    description: "Help for %(prog)s",
+  });
+  parser.addArgument("--ratio", { defaultValue: 1.234, help: "%(defaultValue).1000000f" });
+  const help = parser.formatHelp();
+  assert.match(help, /Help for taskdesk/);
+  // argparse may wrap long numeric help text; successful rendering is the
+  // regression here (unpatched sprintf throws before any help is returned).
+  assert.match(help, /--ratio RATIO\s+1\./);
 });
 
 test("node-forge accepts valid RSA signatures but rejects malformed DigestAlgorithm sequences", () => {
@@ -100,9 +124,29 @@ test("node-forge accepts valid RSA signatures but rejects malformed DigestAlgori
     [oid(), create(asn1.Type.OCTETSTRING, false, "garbage")],
     [oid(), create(asn1.Type.NULL, false, "garbage")],
     [oid(), nil(), nil()],
+    [],
+    [nil()],
+    ...[asn1.Class.CONTEXT_SPECIFIC, asn1.Class.APPLICATION, asn1.Class.PRIVATE].map(tagClass =>
+      [oid(), asn1.create(tagClass, asn1.Type.NULL, false, "")]),
+    [oid(), create(asn1.Type.NULL, true, [])],
   ]) {
     assert.throws(() => keys.publicKey.verify(digest, signature(algorithm)), /DigestInfo/);
   }
+});
+
+test("Expo code signing still signs and verifies valid manifests", () => {
+  const keyPair = forge.pki.rsa.generateKeyPair({ bits: 2048, e: 65537 });
+  const certificate = expoCertificates.generateSelfSignedCodeSigningCertificate({
+    keyPair,
+    validityNotBefore: new Date("2020-01-01T00:00:00Z"),
+    validityNotAfter: new Date("2040-01-01T00:00:00Z"),
+    commonName: "dependency-security-test",
+  });
+  expoCertificates.validateSelfSignedCertificate(certificate, keyPair);
+  const manifest = Buffer.from('{"runtimeVersion":"security-test"}');
+  const signature = expoCertificates.signBufferRSASHA256AndVerify(keyPair.privateKey, certificate, manifest);
+  const digest = forge.md.sha256.create().update(manifest.toString("binary")).digest().getBytes();
+  assert.equal(keyPair.publicKey.verify(digest, Buffer.from(signature, "base64").toString("binary")), true);
 });
 
 test("Metro can read image assets with the patched image-size major", async () => {

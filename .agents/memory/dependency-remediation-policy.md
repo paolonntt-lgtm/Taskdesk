@@ -38,3 +38,14 @@ Linux GNU host.
 **How to apply:** Keep upstream optional binary dependencies for all supported
 operating systems, architectures, and libc variants; check frozen installs for
 non-host package availability as well as native builds on the current host.
+
+Verify patched behavior after restoring dependency caches, not just lockfile
+patch hashes.
+
+**Why:** A restored installation contained original vulnerable source inside
+directories named for patched snapshots. A normal frozen install considered
+them current; behavioral tests exposed the mismatch.
+
+**How to apply:** Run exploit regressions against installed consumer paths.
+If cached source is stale, force a frozen reinstall without lifecycle scripts,
+then verify behavior again. Never treat a patched directory name as proof.

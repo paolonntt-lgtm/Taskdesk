@@ -141,7 +141,7 @@ patchedDependencies:
     hash: b1e5d5642afc527cd7132ec0eb1a5ee77cf90f3d4d243c21ccc688b63fc5a18c
     path: patches/metro@0.83.7.patch
   node-forge@1.4.0:
-    hash: d8ca92892d01a78e3105898ae2ecdc4851f8a6b71283e54688de7c0d169a505e
+    hash: 2164d9d0aef4b65f54ce86880f9cc5a5b68e872e9a41f7bb4caec2c72c7debfb
     path: patches/node-forge@1.4.0.patch
   sprintf-js@1.0.3:
     hash: d70765bf1f3a5df09502c768cedd436f36dcfa0f9a11e77accfa46b7c96f5971
@@ -9526,7 +9526,7 @@ snapshots:
       glob: 13.0.6
       lan-network: 0.1.7
       minimatch: 9.0.9
-      node-forge: 1.4.0(patch_hash=d8ca92892d01a78e3105898ae2ecdc4851f8a6b71283e54688de7c0d169a505e)
+      node-forge: 1.4.0(patch_hash=2164d9d0aef4b65f54ce86880f9cc5a5b68e872e9a41f7bb4caec2c72c7debfb)
       npm-package-arg: 11.0.3
       ora: 3.4.0
       picomatch: 3.0.2
@@ -9603,7 +9603,7 @@ snapshots:
       glob: 13.0.6
       lan-network: 0.2.1
       minimatch: 9.0.9
-      node-forge: 1.4.0(patch_hash=d8ca92892d01a78e3105898ae2ecdc4851f8a6b71283e54688de7c0d169a505e)
+      node-forge: 1.4.0(patch_hash=2164d9d0aef4b65f54ce86880f9cc5a5b68e872e9a41f7bb4caec2c72c7debfb)
       npm-package-arg: 11.0.3
       ora: 3.4.0
       picomatch: 4.0.4
@@ -9640,7 +9640,7 @@ snapshots:
 
   '@expo/code-signing-certificates@0.0.6':
     dependencies:
-      node-forge: 1.4.0(patch_hash=d8ca92892d01a78e3105898ae2ecdc4851f8a6b71283e54688de7c0d169a505e)
+      node-forge: 1.4.0(patch_hash=2164d9d0aef4b65f54ce86880f9cc5a5b68e872e9a41f7bb4caec2c72c7debfb)
 
   '@expo/config-plugins@54.0.4':
     dependencies:
@@ -15368,7 +15368,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-forge@1.4.0(patch_hash=d8ca92892d01a78e3105898ae2ecdc4851f8a6b71283e54688de7c0d169a505e): {}
+  node-forge@1.4.0(patch_hash=2164d9d0aef4b65f54ce86880f9cc5a5b68e872e9a41f7bb4caec2c72c7debfb): {}
 
   node-int64@0.4.0: {}
 

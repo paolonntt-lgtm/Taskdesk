@@ -7,7 +7,7 @@ remove the patches until an upstream release fixes the corresponding advisory.
 | Package | Advisory | Local fix |
 | --- | --- | --- |
 | braces 3.0.3 | GHSA-vfj7-8cjw-p6xm | Limit brace and parenthesis nesting before parsing; iteratively validate directly supplied ASTs before compilation, expansion, and stringification. Excessive nesting fails with a controlled SyntaxError instead of exhausting the native stack. |
-| node-forge 1.4.0 | GHSA-86w9-cpqp-85rv | Require DigestAlgorithm to contain exactly an OID and optional empty NULL, rejecting trailing or malformed ASN.1 fields before signature comparison. |
+| node-forge 1.4.0 | GHSA-86w9-cpqp-85rv | Require DigestAlgorithm to contain exactly an OID and optional empty, primitive, universal NULL, rejecting trailing fields and malformed ASN.1 tags before signature comparison. |
 | sprintf-js 1.0.3 | GHSA-hp3w-g68c-fv3c | Bound numeric precision to ECMAScript's supported range (0–100 for e/f, 1–100 for g), preventing formatter RangeError exceptions. |
 
 These packages had no patched upstream release at the time of remediation.
@@ -15,6 +15,13 @@ Version-only audits still report their original versions; those findings are
 **not suppressed**. Their remediation is recorded here and verified against the
 installed consumer paths by `pnpm run test:dependency-security`, including the
 reported attack cases and valid-input compatibility.
+
+Run that test after restoring a dependency cache as well: a patched snapshot
+name in the lockfile is not proof that cached on-disk files contain the patch.
+If a restored installation fails these tests, reinstall the locked packages with
+`pnpm install --frozen-lockfile --force --ignore-scripts` and rerun the tests.
+Consumer checks cover micromatch brace expansion, argparse help rendering, and
+Expo manifest signing as well as the dependency APIs directly.
 
 The other findings are addressed through published patched versions. Workspace
 overrides are centralized in `pnpm-workspace.yaml`: root `package.json` overrides
