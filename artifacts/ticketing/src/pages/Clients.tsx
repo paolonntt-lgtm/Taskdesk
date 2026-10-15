@@ -216,7 +216,7 @@ function validateRows(rows: ParsedRow[], existingVats: Set<string>): ParsedRow[]
 }
 
 export default function Clients() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const tc = t.clients;
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
@@ -241,10 +241,12 @@ export default function Clients() {
     && organizationSettings.workedTimeEnabled !== false;
   const [unbilledOnly, setUnbilledOnly] = useState(false);
   const isFilteringUnbilled = canFilterByUnbilledWorkedTime && unbilledOnly;
-  const { data: clients = [], isLoading } = useListClients({
+  const clientsQuery = useListClients({
     search: search || undefined,
     ...(isFilteringUnbilled ? { hasUnbilledWorkedTime: true } : {}),
   });
+  const clients = clientsQuery.data ?? [];
+  const isLoading = clientsQuery.isLoading;
   const { data: allClients = [] } = useListClients({});
 
   const createClient = useCreateClient();
@@ -488,6 +490,22 @@ export default function Clients() {
         )}
       </Box>
 
+      {clientsQuery.isError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => clientsQuery.refetch()}>
+              {lang === 'it' ? 'Riprova' : 'Try again'}
+            </Button>
+          }
+        >
+          {lang === 'it'
+            ? 'Impossibile aggiornare l’elenco clienti. I dati visualizzati potrebbero non essere aggiornati.'
+            : 'Could not refresh the customer list. The displayed data may be out of date.'}
+        </Alert>
+      )}
+
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
@@ -500,7 +518,7 @@ export default function Clients() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {!isLoading && clients.length === 0 && (
+            {!isLoading && !clientsQuery.isError && clients.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                   {isFilteringUnbilled ? tc.noClientsWithUnbilledWorkedTime : tc.noClients}

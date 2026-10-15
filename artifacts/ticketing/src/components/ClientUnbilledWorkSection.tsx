@@ -135,6 +135,7 @@ export default function ClientUnbilledWorkSection({
         ticket: 'Ticket',
         markBilled: 'Segna fatturato',
         busy: 'Aggiornamento…',
+        retry: 'Riprova',
         wholeTicket: 'Lo stato di fatturazione vale per tutto il ticket.',
       }
     : {
@@ -145,6 +146,7 @@ export default function ClientUnbilledWorkSection({
         ticket: 'Ticket',
         markBilled: 'Mark as billed',
         busy: 'Updating…',
+        retry: 'Try again',
         wholeTicket: 'Billing status applies to the whole ticket.',
       };
 
@@ -167,7 +169,7 @@ export default function ClientUnbilledWorkSection({
       <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
         <ReceiptLong fontSize="small" color="action" />
         <Typography variant="subtitle1" fontWeight={700}>{labels.heading}</Typography>
-        {!loading && !error && (
+        {!loading && (!error || items.length > 0) && (
           <Chip
             size="small"
             color={items.length ? 'warning' : 'default'}
@@ -187,11 +189,33 @@ export default function ClientUnbilledWorkSection({
         </Alert>
       )}
 
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 1.5 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                void settings.refetch();
+                if (trackingEnabled) void report.refetch();
+              }}
+            >
+              {labels.retry}
+            </Button>
+          }
+        >
+          {labels.error}
+          {items.length > 0 && (isItalian
+            ? ' Sono mostrate le ultime informazioni disponibili.'
+            : ' Showing the last available information.')}
+        </Alert>
+      )}
+
       {loading ? (
         <Box display="flex" justifyContent="center" py={2}><CircularProgress size={22} /></Box>
-      ) : error ? (
-        <Alert severity="error">{labels.error}</Alert>
-      ) : items.length === 0 ? (
+      ) : error && items.length === 0 ? null : items.length === 0 ? (
         <Typography variant="body2" color="text.secondary" py={1}>{labels.empty}</Typography>
       ) : (
         <Stack divider={<Divider flexItem />} spacing={0}>

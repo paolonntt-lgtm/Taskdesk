@@ -305,7 +305,7 @@ const ADDABLE_BLOCK_TYPES = [
 ] as const;
 
 export default function ClientDetail() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const tc = t.clients;
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
@@ -318,7 +318,8 @@ export default function ClientDetail() {
   const canEditSectionContent = isAdmin || userGroupPerms.includes('edit_client_section_content');
   const qc = useQueryClient();
 
-  const { data, isLoading, isError } = useGetClient(clientId);
+  const clientQuery = useGetClient(clientId);
+  const { data, isLoading, isError } = clientQuery;
   const updateClient = useUpdateClient();
   const [layout, setLayout] = useState<BlockConfig[]>(() => loadClientLayoutCache(clientId));
   const [editMode, setEditMode] = useState(false);
@@ -669,13 +670,22 @@ export default function ClientDetail() {
     );
   }
 
-  if (isError || !data) {
+  if (!data) {
     return (
       <Box>
         <Button startIcon={<ArrowBack />} onClick={() => setLocation('/clients')} sx={{ mb: 2 }}>
           {tc.backToClients}
         </Button>
-        <Typography color="error">Client not found.</Typography>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => clientQuery.refetch()}>
+              {lang === 'it' ? 'Riprova' : 'Try again'}
+            </Button>
+          }
+        >
+          {lang === 'it' ? 'Impossibile caricare i dati del cliente.' : 'Could not load customer details.'}
+        </Alert>
       </Box>
     );
   }
@@ -1009,6 +1019,21 @@ export default function ClientDetail() {
 
   return (
     <Box>
+      {isError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => clientQuery.refetch()}>
+              {lang === 'it' ? 'Riprova' : 'Try again'}
+            </Button>
+          }
+        >
+          {lang === 'it'
+            ? 'Impossibile aggiornare i dati del cliente. Sono mostrati gli ultimi dati disponibili.'
+            : 'Could not refresh customer details. Showing the last available data.'}
+        </Alert>
+      )}
       {/* HeroKPI Header */}
       <Box
         sx={{

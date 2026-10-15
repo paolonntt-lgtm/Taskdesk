@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -17,7 +17,9 @@ import {
 } from '@mui/material';
 import { AccessTime, ArrowBackIosNew, ArrowForwardIos, ArrowOutward, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
 import {
+  getGetClientQueryKey,
   getGetTimeTrackingReportQueryKey,
+  getListClientsQueryKey,
   useUpdateCollaboratorInvoiceStatus,
   useUpdateTimeTrackingClientBillingStatus,
   useGetTimeTrackingReport,
@@ -362,8 +364,18 @@ export default function TimeTrackingReportPanel() {
     ? new Date(`${selectedMonth}-01T12:00:00`).toLocaleDateString(isItalian ? 'it-IT' : 'en-GB', { month: 'long', year: 'numeric' })
     : null;
   const refreshReport = () => queryClient.invalidateQueries({ queryKey: getGetTimeTrackingReportQueryKey() });
+  const refreshBillingViews = (row: TimeTrackingReportRow) => Promise.all([
+    refreshReport(),
+    queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+    ...(row.clientId == null
+      ? []
+      : [queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(row.clientId) })]),
+  ]);
   const toggleBilling = (row: TimeTrackingReportRow) => {
-    billingMutation.mutate({ data: { ticketId: row.ticketId, status: row.billingStatus === 'billed' ? 'unbilled' : 'billed' } }, { onSuccess: refreshReport });
+    billingMutation.mutate(
+      { data: { ticketId: row.ticketId, status: row.billingStatus === 'billed' ? 'unbilled' : 'billed' } },
+      { onSuccess: () => refreshBillingViews(row) },
+    );
   };
   const toggleInvoice = (row: TimeTrackingReportRow) => {
     if (row.collaboratorId == null) return;
@@ -501,7 +513,7 @@ export default function TimeTrackingReportPanel() {
             <Skeleton variant="rounded" height={180} />
             <Skeleton variant="rounded" height={180} />
           </Stack>
-        ) : reportQuery.isError ? (
+        ) : reportQuery.isError && !report ? (
           <Alert
             severity="error"
             data-testid="status-time-report-error"
@@ -512,6 +524,17 @@ export default function TimeTrackingReportPanel() {
           </Alert>
         ) : (
           <>
+            {reportQuery.isError && (
+              <Alert
+                severity="error"
+                data-testid="status-time-report-refresh-error"
+                action={<Button color="inherit" size="small" onClick={() => reportQuery.refetch()} data-testid="button-retry-time-report">{copy.retry}</Button>}
+                sx={{ mb: 2 }}
+              >
+                <Typography variant="subtitle2" fontWeight={700}>{copy.errorTitle}</Typography>
+                <Typography variant="body2">{copy.errorText}</Typography>
+              </Alert>
+            )}
             {totals && (
               <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
                 <Grid item xs={12} md={7}>

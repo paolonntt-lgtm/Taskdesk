@@ -5,6 +5,7 @@ const store = vi.hoisted(() => ({
   collaboratorRows: [] as any[],
   reportCalls: [] as any[],
   settings: { timeTrackingModuleEnabled: true, workedTimeEnabled: true } as Record<string, boolean>,
+  reportError: false,
   mutationError: false,
   mutationArgs: null as any,
   invalidateQueries: vi.fn(() => Promise.resolve()),
@@ -24,7 +25,7 @@ vi.mock('@workspace/api-client-react', () => ({
     return {
       data: { customerRows: store.reportRows, collaboratorRows: store.collaboratorRows },
       isLoading: false,
-      isError: false,
+      isError: store.reportError,
     };
   },
   useUpdateTimeTrackingClientBillingStatus: () => ({
@@ -102,6 +103,7 @@ describe('ClientUnbilledWorkSection billing updates', () => {
     store.collaboratorRows = [];
     store.reportCalls = [];
     store.settings = { timeTrackingModuleEnabled: true, workedTimeEnabled: true };
+    store.reportError = false;
     store.mutationError = false;
     store.mutationArgs = null;
     store.invalidateQueries.mockClear();
@@ -187,5 +189,15 @@ describe('ClientUnbilledWorkSection billing updates', () => {
     expect(findElementByTestId(afterFailure, 'client-unbilled-work-ticket-314')).toBeDefined();
     expect(getText(afterFailure)).toContain('Impossibile aggiornare lo stato di fatturazione.');
     expect(store.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it('keeps previously loaded unbilled hours visible when refreshing the report fails', () => {
+    store.reportError = true;
+
+    const section = renderSection();
+
+    expect(findElementByTestId(section, 'client-unbilled-work-ticket-314')).toBeDefined();
+    expect(getText(section)).toContain('Impossibile caricare le ore da fatturare.');
+    expect(getText(section)).toContain('Sono mostrate le ultime informazioni disponibili.');
   });
 });
