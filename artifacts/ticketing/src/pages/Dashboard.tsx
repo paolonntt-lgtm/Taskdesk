@@ -33,6 +33,8 @@ import {
   NoteAlt as ClientNotesIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
   Category as CategoryIcon,
   FilterList as FilterListIcon,
   PeopleAlt as PeopleAltIcon,
@@ -2253,6 +2255,7 @@ function Dashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
   const [now, setNow] = useState(() => new Date());
+  const [expandedTodayEventId, setExpandedTodayEventId] = useState<string | null>(null);
   const { data: calendarItems = [], isLoading: calendarLoading, isError: calendarError } = useGetCalendar(
     { year: now.getFullYear(), month: now.getMonth() + 1 },
     { query: { staleTime: 30_000, refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any },
@@ -2675,36 +2678,71 @@ function Dashboard() {
                         component="li"
                         sx={{ '&:not(:last-child)': { borderBottom: '1px solid #dce8f0' } }}
                       >
-                        <Box
-                          component={Link}
-                          href={event.type === 'ticket' ? `/tickets/${event.id}?from=dashboard` : '/calendar'}
-                          sx={{
-                            display: 'grid',
-                            gridTemplateColumns: 'auto minmax(0, 1fr) auto',
-                            alignItems: 'center',
-                            gap: { xs: 0.8, sm: 1 },
-                            py: 0.65,
-                            color: '#30495d',
-                            textDecoration: 'none',
-                            '&:hover .dashboard-event-title': { textDecoration: 'underline' },
-                          }}
-                        >
-                          <Typography component="span" sx={{
-                            flexShrink: 0, color: '#315f82', fontSize: '0.76rem',
-                            fontWeight: 750, fontVariantNumeric: 'tabular-nums',
-                          }}>
-                            {formatDashboardEventTime(event, lang)}
-                          </Typography>
-                          <Typography className="dashboard-event-title" component="span" noWrap sx={{
-                            minWidth: 0, fontSize: '0.79rem', fontWeight: 650,
-                          }}>
-                            {event.title}
-                          </Typography>
-                          <Typography component="span" sx={{
-                            flexShrink: 0, color: '#607789', fontSize: '0.65rem',
-                          }}>
-                            {event.type === 'ticket' ? t.dashboard.todayEventsTicket : t.dashboard.todayEventsAppointment}
-                          </Typography>
+                        <Box sx={{ py: 0.35 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.35 }}>
+                            <Box
+                              component={Link}
+                              href={event.type === 'ticket' ? `/tickets/${event.id}?from=dashboard` : '/calendar'}
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+                                alignItems: 'center',
+                                flex: 1,
+                                minWidth: 0,
+                                gap: { xs: 0.8, sm: 1 },
+                                py: 0.3,
+                                color: '#30495d',
+                                textDecoration: 'none',
+                                '&:hover .dashboard-event-title': { textDecoration: 'underline' },
+                              }}
+                            >
+                              <Typography component="span" sx={{
+                                flexShrink: 0, color: '#315f82', fontSize: '0.76rem',
+                                fontWeight: 750, fontVariantNumeric: 'tabular-nums',
+                              }}>
+                                {formatDashboardEventTime(event, lang)}
+                              </Typography>
+                              <Typography className="dashboard-event-title" component="span" noWrap sx={{
+                                minWidth: 0, fontSize: '0.79rem', fontWeight: 650,
+                              }}>
+                                {event.title}
+                              </Typography>
+                              <Typography component="span" sx={{
+                                flexShrink: 0, color: '#607789', fontSize: '0.65rem',
+                              }}>
+                                {event.type === 'ticket' ? t.dashboard.todayEventsTicket : t.dashboard.todayEventsAppointment}
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              aria-label={expandedTodayEventId === `${event.type}-${event.id}-${event.date}`
+                                ? t.dashboard.todayEventsHideTitle
+                                : t.dashboard.todayEventsShowTitle}
+                              aria-expanded={expandedTodayEventId === `${event.type}-${event.id}-${event.date}`}
+                              aria-controls={`dashboard-event-title-${event.type}-${event.id}-${event.date}`}
+                              data-testid={`button-toggle-event-title-${event.type}-${event.id}`}
+                              onClick={() => {
+                                const eventKey = `${event.type}-${event.id}-${event.date}`;
+                                setExpandedTodayEventId((current) => current === eventKey ? null : eventKey);
+                              }}
+                              sx={{ flexShrink: 0, p: 0.4, color: '#315f82' }}
+                            >
+                              {expandedTodayEventId === `${event.type}-${event.id}-${event.date}`
+                                ? <ExpandLessIcon fontSize="small" />
+                                : <ExpandMoreIcon fontSize="small" />}
+                            </IconButton>
+                          </Box>
+                          <Box
+                            id={`dashboard-event-title-${event.type}-${event.id}-${event.date}`}
+                            role="region"
+                            aria-label={event.title}
+                            hidden={expandedTodayEventId !== `${event.type}-${event.id}-${event.date}`}
+                            sx={{ pl: { xs: 0.2, sm: 0.4 }, pr: 1, pb: 0.45 }}
+                          >
+                            <Typography sx={{ color: '#30495d', fontSize: '0.76rem', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                              {event.title}
+                            </Typography>
+                          </Box>
                         </Box>
                       </Box>
                     ))}
