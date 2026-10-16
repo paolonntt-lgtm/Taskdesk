@@ -546,6 +546,14 @@ describe("ticket time tracking", () => {
       clientBilledMinutes: 164,
       collaboratorRecognizableMinutes: 238,
     });
+    expect(filteredReport.body.monthlyTotals.reduce((sum: number, month: any) => sum + month.clientBillableMinutes, 0))
+      .toBe(filteredReport.body.totals.clientBillableMinutes);
+    expect(filteredReport.body.monthlyTotals.reduce((sum: number, month: any) => sum + month.clientBilledMinutes, 0))
+      .toBe(filteredReport.body.totals.clientBilledMinutes);
+    expect(filteredReport.body.monthlyTotals.reduce((sum: number, month: any) => sum + month.clientUnbilledMinutes, 0))
+      .toBe(filteredReport.body.totals.clientUnbilledMinutes);
+    expect(filteredReport.body.monthlyTotals.reduce((sum: number, month: any) => sum + month.collaboratorRecognizableMinutes, 0))
+      .toBe(filteredReport.body.totals.collaboratorRecognizableMinutes);
 
     const userReport = await request("/api/time-tracking/report", collaboratorSessionId);
     expect(userReport.status).toBe(403);
@@ -601,6 +609,37 @@ describe("ticket time tracking", () => {
     expect(stillPrivatePersonalReport.status).toBe(200);
     expect(stillPrivatePersonalReport.body.rows.map((row: any) => row.ticketId)).not.toContain(raceTicketIds[0]);
     expect(stillPrivatePersonalReport.body.totals).toEqual({ totalMinutes: 238, ticketCount: 3 });
+
+    const sessionToMove = (await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, bothId)).limit(1))[0];
+    expect(sessionToMove).toBeDefined();
+    const sessionEnd = sessionToMove!.endedAt ?? new Date();
+    const preservedDuration = Math.max(0, Math.floor(
+      (sessionEnd.getTime() - sessionToMove!.startedAt.getTime()) / 60_000,
+    ));
+    const previousMonthStart = new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth() - 1,
+      15,
+      12,
+    ));
+    await db.update(ticketTimeSessionsTable).set({
+      startedAt: previousMonthStart,
+      endedAt: new Date(previousMonthStart.getTime() + preservedDuration * 60_000),
+    }).where(eq(ticketTimeSessionsTable.id, sessionToMove!.id));
+    const previousMonthKey = previousMonthStart.toISOString().slice(0, 7);
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    const crossMonthReport = await request(
+      `/api/time-tracking/report?dateFrom=${new Date(Date.UTC(previousMonthStart.getUTCFullYear(), previousMonthStart.getUTCMonth(), 1)).toISOString().slice(0, 10)}&dateTo=${dateTo}&clientId=${clientId}`,
+      adminSessionId,
+    );
+    expect(crossMonthReport.status).toBe(200);
+    expect(crossMonthReport.body.monthlyTotals.map((month: any) => month.month)).toEqual([
+      currentMonthKey,
+      previousMonthKey,
+    ]);
+    expect(crossMonthReport.body.monthlyTotals.reduce((sum: number, month: any) => sum + month.clientBillableMinutes, 0))
+      .toBe(crossMonthReport.body.totals.clientBillableMinutes);
 
     const parallelStarts = await Promise.all(
       parallelTicketIds.map((ticketId) => changeStatus(ticketId, "in_progress", adminSessionId)),

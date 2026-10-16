@@ -123,6 +123,7 @@ export * from './timeTrackingClientBillingUpdate';
 export * from './timeTrackingClientBillingUpdateStatus';
 export * from './timeTrackingCollaboratorInvoiceUpdate';
 export * from './timeTrackingReport';
+export * from './timeTrackingReportMonthTotal';
 export * from './timeTrackingReportRow';
 export * from './timeTrackingReportRowBillingStatus';
 export * from './timeTrackingReportRowKind';

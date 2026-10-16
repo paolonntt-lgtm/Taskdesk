@@ -50,6 +50,13 @@ vi.mock('@workspace/api-client-react', () => ({
     data: {
       customerRows: [store.row],
       collaboratorRows: [store.collaboratorRow],
+      monthlyTotals: [{
+        month: '2026-10',
+        clientBillableMinutes: 75,
+        clientUnbilledMinutes: 75,
+        clientBilledMinutes: 0,
+        collaboratorRecognizableMinutes: 45,
+      }],
       totals: {
         clientBillableMinutes: 75,
         clientUnbilledMinutes: 75,

@@ -13,7 +13,11 @@ import {
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod";
 import { createNotificationForUser } from "../lib/notifications";
-import { GetPersonalTimeTrackingReportResponse, GetTicketTimeSessionEditsResponse } from "@workspace/api-zod";
+import {
+  GetPersonalTimeTrackingReportResponse,
+  GetTicketTimeSessionEditsResponse,
+  GetTimeTrackingReportResponse,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const editedByUsersTable = alias(usersTable, "time_session_edit_authors");
@@ -407,10 +411,33 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
   const now = Date.now();
   const customerSessionGroups = new Map<number, { minutes: number; date: Date }>();
   const collaboratorGroups = new Map<string, ReportRow>();
+  const monthlyTotals = new Map<string, {
+    month: string;
+    clientBillableMinutes: number;
+    clientUnbilledMinutes: number;
+    clientBilledMinutes: number;
+    collaboratorRecognizableMinutes: number;
+  }>();
   let clientBillableMinutes = 0;
   let clientUnbilledMinutes = 0;
   let clientBilledMinutes = 0;
   let collaboratorRecognizableMinutes = 0;
+
+  const getMonthlyTotal = (date: Date) => {
+    const month = date.toISOString().slice(0, 7);
+    let total = monthlyTotals.get(month);
+    if (!total) {
+      total = {
+        month,
+        clientBillableMinutes: 0,
+        clientUnbilledMinutes: 0,
+        clientBilledMinutes: 0,
+        collaboratorRecognizableMinutes: 0,
+      };
+      monthlyTotals.set(month, total);
+    }
+    return total;
+  };
 
   for (const session of sessions) {
     const ticket = ticketMap.get(session.ticketId);
@@ -425,8 +452,12 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
         customerSessionGroups.set(ticket.id, { minutes, date: new Date(session.startedAt) });
       }
       clientBillableMinutes += minutes;
+      const monthTotal = getMonthlyTotal(session.startedAt);
+      monthTotal.clientBillableMinutes += minutes;
       if (ticket.workedBillingStatus === "billed") clientBilledMinutes += minutes;
       else clientUnbilledMinutes += minutes;
+      if (ticket.workedBillingStatus === "billed") monthTotal.clientBilledMinutes += minutes;
+      else monthTotal.clientUnbilledMinutes += minutes;
     }
     if (session.collaboratorRecognizable) {
       const key = `${ticket.id}:${session.userId}`;
@@ -453,6 +484,7 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
         });
       }
       collaboratorRecognizableMinutes += minutes;
+      getMonthlyTotal(session.startedAt).collaboratorRecognizableMinutes += minutes;
     }
   }
 
@@ -482,6 +514,10 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
     if (dateFrom && closedAt < dateFrom) continue;
     if (dateTo && closedAt > dateTo) continue;
     const minutes = ticket.workedMinutes;
+    const monthTotal = getMonthlyTotal(closedAt);
+    monthTotal.clientBillableMinutes += minutes;
+    if (ticket.workedBillingStatus === "billed") monthTotal.clientBilledMinutes += minutes;
+    else monthTotal.clientUnbilledMinutes += minutes;
     customerRows.push({
       kind: "manual",
       ticketId: ticket.id,
@@ -503,18 +539,20 @@ router.get("/time-tracking/report", requireAuth, requireAdmin, async (req, res):
 
   customerRows.sort((a, b) => b.date.getTime() - a.date.getTime());
   const collaboratorRows = [...collaboratorGroups.values()].sort((a, b) => b.date.getTime() - a.date.getTime());
+  const sortedMonthlyTotals = [...monthlyTotals.values()].sort((a, b) => b.month.localeCompare(a.month));
 
   res.setHeader("Cache-Control", "no-store");
-  res.json({
+  res.json(GetTimeTrackingReportResponse.parse({
     customerRows,
     collaboratorRows,
+    monthlyTotals: sortedMonthlyTotals,
     totals: {
       clientBillableMinutes,
       clientUnbilledMinutes,
       clientBilledMinutes,
       collaboratorRecognizableMinutes,
     },
-  });
+  }));
 });
 
 export default router;

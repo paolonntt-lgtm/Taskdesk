@@ -3425,6 +3425,26 @@ components:
         collaboratorInvoiceReceived:
           type: ["boolean", "null"]
 
+    TimeTrackingReportMonthTotal:
+      type: object
+      required: [month, clientBillableMinutes, clientUnbilledMinutes, clientBilledMinutes, collaboratorRecognizableMinutes]
+      properties:
+        month:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+        clientBillableMinutes:
+          type: integer
+          minimum: 0
+        clientUnbilledMinutes:
+          type: integer
+          minimum: 0
+        clientBilledMinutes:
+          type: integer
+          minimum: 0
+        collaboratorRecognizableMinutes:
+          type: integer
+          minimum: 0
+
     TimeTrackingClientBillingUpdate:
       type: object
       required: [ticketId, status]
@@ -3451,7 +3471,7 @@ components:
 
     TimeTrackingReport:
       type: object
-      required: [customerRows, collaboratorRows, totals]
+      required: [customerRows, collaboratorRows, totals, monthlyTotals]
       properties:
         customerRows:
           type: array
@@ -3461,6 +3481,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TimeTrackingReportRow"
+        monthlyTotals:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeTrackingReportMonthTotal"
         totals:
           type: object
           required: [clientBillableMinutes, clientUnbilledMinutes, clientBilledMinutes, collaboratorRecognizableMinutes]

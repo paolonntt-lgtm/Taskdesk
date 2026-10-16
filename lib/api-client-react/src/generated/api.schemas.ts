@@ -433,6 +433,19 @@ export interface TimeTrackingReportRow {
   collaboratorInvoiceReceived: boolean | null;
 }
 
+export interface TimeTrackingReportMonthTotal {
+  /** @pattern ^\d{4}-\d{2}$ */
+  month: string;
+  /** @minimum 0 */
+  clientBillableMinutes: number;
+  /** @minimum 0 */
+  clientUnbilledMinutes: number;
+  /** @minimum 0 */
+  clientBilledMinutes: number;
+  /** @minimum 0 */
+  collaboratorRecognizableMinutes: number;
+}
+
 export type TimeTrackingClientBillingUpdateStatus = typeof TimeTrackingClientBillingUpdateStatus[keyof typeof TimeTrackingClientBillingUpdateStatus];
 
 
@@ -465,6 +478,7 @@ export type TimeTrackingReportTotals = {
 export interface TimeTrackingReport {
   customerRows: TimeTrackingReportRow[];
   collaboratorRows: TimeTrackingReportRow[];
+  monthlyTotals: TimeTrackingReportMonthTotal[];
   totals: TimeTrackingReportTotals;
 }
 

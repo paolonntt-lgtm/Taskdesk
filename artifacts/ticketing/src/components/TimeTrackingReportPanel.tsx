@@ -29,6 +29,7 @@ import type { GetTimeTrackingReportParams, TimeTrackingReportRow } from '@worksp
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { trackEvent } from '../lib/analytics';
+import TimeTrackingReportBreakdown from './TimeTrackingReportBreakdown';
 
 function formatDuration(totalMinutes: number, lang: string): string {
   const hours = Math.floor(totalMinutes / 60);
@@ -609,6 +610,15 @@ export default function TimeTrackingReportPanel() {
                   </Card>
                 </Grid>
               </Grid>
+            )}
+
+            {hasData && report && (
+              <TimeTrackingReportBreakdown
+                customerRows={report.customerRows}
+                collaboratorRows={report.collaboratorRows}
+                monthlyTotals={report.monthlyTotals}
+                lang={lang}
+              />
             )}
 
             {!hasData && hasFilters && (

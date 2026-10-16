@@ -5,11 +5,13 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { TimeTrackingReportMonthTotal } from './timeTrackingReportMonthTotal';
 import type { TimeTrackingReportRow } from './timeTrackingReportRow';
 import type { TimeTrackingReportTotals } from './timeTrackingReportTotals';
 
 export interface TimeTrackingReport {
   customerRows: TimeTrackingReportRow[];
   collaboratorRows: TimeTrackingReportRow[];
+  monthlyTotals: TimeTrackingReportMonthTotal[];
   totals: TimeTrackingReportTotals;
 }

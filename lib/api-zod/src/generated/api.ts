@@ -2571,6 +2571,15 @@ export const getTimeTrackingReportResponseCustomerRowsItemDurationMinutesMin = 0
 
 export const getTimeTrackingReportResponseCollaboratorRowsItemDurationMinutesMin = 0;
 
+export const getTimeTrackingReportResponseMonthlyTotalsItemMonthRegExp = new RegExp('^\\d{4}-\\d{2}$');
+export const getTimeTrackingReportResponseMonthlyTotalsItemClientBillableMinutesMin = 0;
+
+export const getTimeTrackingReportResponseMonthlyTotalsItemClientUnbilledMinutesMin = 0;
+
+export const getTimeTrackingReportResponseMonthlyTotalsItemClientBilledMinutesMin = 0;
+
+export const getTimeTrackingReportResponseMonthlyTotalsItemCollaboratorRecognizableMinutesMin = 0;
+
 
 
 export const GetTimeTrackingReportResponse = zod.object({
@@ -2601,6 +2610,13 @@ export const GetTimeTrackingReportResponse = zod.object({
   "collaboratorName": zod.string().nullish(),
   "billingStatus": zod.enum(['unbilled', 'billed']),
   "collaboratorInvoiceReceived": zod.boolean().nullable()
+})),
+  "monthlyTotals": zod.array(zod.object({
+  "month": zod.string().regex(getTimeTrackingReportResponseMonthlyTotalsItemMonthRegExp),
+  "clientBillableMinutes": zod.int().min(getTimeTrackingReportResponseMonthlyTotalsItemClientBillableMinutesMin),
+  "clientUnbilledMinutes": zod.int().min(getTimeTrackingReportResponseMonthlyTotalsItemClientUnbilledMinutesMin),
+  "clientBilledMinutes": zod.int().min(getTimeTrackingReportResponseMonthlyTotalsItemClientBilledMinutesMin),
+  "collaboratorRecognizableMinutes": zod.int().min(getTimeTrackingReportResponseMonthlyTotalsItemCollaboratorRecognizableMinutesMin)
 })),
   "totals": zod.object({
   "clientBillableMinutes": zod.int(),
