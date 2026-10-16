@@ -11,14 +11,36 @@ const mocks = vi.hoisted(() => ({
   externalCreditsCreated: 0,
   balanceTransactions: new Map<string, { id: string }>(),
   stripeChargeRetrieve: vi.fn(),
+  notificationRows: [] as Record<string, unknown>[],
+  lockedReferral: undefined as Record<string, unknown> | null | undefined,
+  transactionInsert: vi.fn(),
 }));
 vi.mock("@workspace/db", () => ({
   db: {
     select: mocks.select,
     insert: mocks.insert,
     update: mocks.update,
-    transaction: vi.fn(async (callback) => callback({ select: mocks.select, update: mocks.update })),
+    transaction: vi.fn(async (callback) => callback({
+      select: mocks.select,
+      insert: mocks.transactionInsert,
+      update: vi.fn(() => {
+        const updateQuery = mocks.update();
+        return {
+          set: (values: unknown) => {
+            const query = updateQuery.set(values);
+            return {
+              where: async (...args: unknown[]) => {
+                const result = await query.where(...args);
+                mocks.lockedReferral = null;
+                return result;
+              },
+            };
+          },
+        };
+      }),
+    })),
   },
+  notificationsTable: { userId: "notifications.userId" },
   organizationsTable: { id: "organizations.id", name: "organizations.name" },
   referralCodesTable: { code: "referral_codes.code", organizationId: "referral_codes.organizationId" },
   referralsTable: {
@@ -35,6 +57,7 @@ vi.mock("@workspace/db", () => ({
     rewardCurrency: "referrals.rewardCurrency",
   },
   usersTable: {
+    id: "users.id",
     organizationId: "users.organizationId",
     stripeCustomerId: "users.stripeCustomerId",
     role: "users.role",
@@ -74,7 +97,10 @@ function queryReturning(value: unknown) {
     from: vi.fn(() => query),
     innerJoin: vi.fn(() => query),
     where: vi.fn(() => query),
-    for: vi.fn(async () => value),
+    for: vi.fn(async () => {
+      if (mocks.lockedReferral === undefined) return value;
+      return mocks.lockedReferral === null ? [] : [mocks.lockedReferral];
+    }),
     then: (resolve: (result: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve(value).then(resolve, reject),
   };
@@ -134,10 +160,19 @@ describe("TaskDesk referral Stripe rewards", () => {
     vi.clearAllMocks();
     mocks.externalCreditsCreated = 0;
     mocks.balanceTransactions.clear();
+    mocks.notificationRows = [];
+    mocks.lockedReferral = { ...pendingReferral };
+    mocks.transactionInsert.mockImplementation(() => ({
+      values: vi.fn(async (values) => {
+        mocks.notificationRows.push(...values);
+      }),
+    }));
     mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
       const keys = Object.keys(projection ?? {});
       if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
       if (keys.includes("stripeCustomerId")) return queryReturning([{ stripeCustomerId: "cus_referrer" }]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
       return queryReturning([pendingReferral]);
     });
     mocks.update.mockImplementation(() => ({
@@ -211,6 +246,8 @@ describe("TaskDesk referral Stripe rewards", () => {
       }
       if (keys.includes("stripeCustomerId")) return queryReturning([{ stripeCustomerId: "cus_referrer" }]);
       if (keys.includes("rewardCustomerId")) return queryReturning([{ rewardCustomerId: "cus_referrer" }]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
       return queryReturning([pendingReferral]);
     });
 
@@ -286,6 +323,20 @@ describe("TaskDesk referral Stripe rewards", () => {
     expect(mocks.externalCreditsCreated).toBe(1);
   });
 
+  it("notifies the referrer admin once and identifies the invited organization on webhook retries", async () => {
+    await applyPendingReferralCreditsForCustomer("cus_referrer");
+    await applyPendingReferralCreditsForCustomer("cus_referrer");
+
+    expect(mocks.notificationRows).toEqual([{
+      userId: 101,
+      ticketId: null,
+      type: "system",
+      notificationText: "Premio referral accreditato per Invited Company",
+      isRead: false,
+    }]);
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledTimes(1);
+  });
+
   it("credits one month of the referrer's current plan after a plan and Stripe customer change", async () => {
     const annualPrice = {
       ...monthlyPrice,
@@ -311,6 +362,8 @@ describe("TaskDesk referral Stripe rewards", () => {
       const keys = Object.keys(projection ?? {});
       if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
       if (keys.includes("stripeCustomerId")) return queryReturning([{ stripeCustomerId: "cus_renewed" }]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
       return queryReturning([pendingReferral]);
     });
 

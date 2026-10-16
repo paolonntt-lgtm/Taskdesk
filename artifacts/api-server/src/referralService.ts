@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, isNotNull } from "drizzle-orm";
 import {
-  db, organizationsTable, referralCodesTable, referralsTable, usersTable,
+  db, notificationsTable, organizationsTable, referralCodesTable, referralsTable, usersTable,
 } from "@workspace/db";
 import type Stripe from "stripe";
 import { getUncachableStripeClient } from "./stripeClient";
@@ -205,6 +205,29 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
         eq(referralsTable.id, lockedReferral.id),
         eq(referralsTable.status, "pending_reward"),
       ));
+
+      const [referredOrganization] = await tx.select({
+        name: organizationsTable.name,
+      }).from(organizationsTable).where(
+        eq(organizationsTable.id, lockedReferral.referredOrganizationId),
+      );
+      if (!referredOrganization?.name) {
+        throw new Error(`Referred organization for referral ${lockedReferral.id} was not found`);
+      }
+      const admins = await tx.select({ id: usersTable.id }).from(usersTable).where(and(
+        eq(usersTable.organizationId, lockedReferral.referrerOrganizationId),
+        eq(usersTable.role, "admin"),
+        eq(usersTable.isActive, true),
+      ));
+      if (admins.length > 0) {
+        await tx.insert(notificationsTable).values(admins.map(({ id }) => ({
+          userId: id,
+          ticketId: null,
+          type: "system",
+          notificationText: `Premio referral accreditato per ${referredOrganization.name}`,
+          isRead: false,
+        })));
+      }
     });
   }
 }
