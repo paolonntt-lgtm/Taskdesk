@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { ReactGridLayout as GridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import type { LayoutItem } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -48,7 +48,8 @@ import {
   useGetDashboardStats, useGetMyTickets, useGetDueSoonTickets,
   useGetRecentTickets, useGetStatsByStatus, useGetStatsByCategory,
   useGetStatsByLocation, useGetStatsByPriority, useGetStatsByAssignee,
-  useGetTicketTrend, useListAllClientNotes,
+  useGetTicketTrend, useListAllClientNotes, useGetCalendar,
+  type CalendarItem,
 } from '@workspace/api-client-react';
 import { isDashboardWidgetAvailable } from '../lib/dashboardWidgetUtils';
 import UnbilledHoursWidget from '../components/UnbilledHoursWidget';
@@ -105,6 +106,17 @@ function formatDashboardDate(date: Date, lang: string): string {
     year: 'numeric',
   }).format(date);
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function formatDashboardEventTime(event: CalendarItem, lang: string): string {
+  if (event.type === 'appointment' && event.isAllDay) {
+    return lang === 'it' ? 'Tutto il giorno' : 'All day';
+  }
+  const start = event.startsAt ? new Date(event.startsAt) : new Date(`${event.date}T00:00:00`);
+  return start.toLocaleTimeString(lang === 'it' ? 'it-IT' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // ── WIDGET SETTINGS STORAGE ────────────────────────────────────────────────
@@ -2241,6 +2253,10 @@ function Dashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { names: customNames, setName: setCustomName } = useWidgetCustomNames();
   const [now, setNow] = useState(() => new Date());
+  const { data: calendarItems = [], isLoading: calendarLoading, isError: calendarError } = useGetCalendar(
+    { year: now.getFullYear(), month: now.getMonth() + 1 },
+    { query: { staleTime: 30_000, refetchInterval: POLL_MS, refetchIntervalInBackground: false } as any },
+  );
   const [motivationalMessages, setMotivationalMessages] = useState<MotivationalMessagesByLanguage>({ it: [], en: [] });
   const [detectedLocation, setDetectedLocation] = useState('');
   const [locationRequestState, setLocationRequestState] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -2450,6 +2466,14 @@ function Dashboard() {
     : dailyNet < 0
       ? (lang === 'it' ? `Saldo ${dailyNet}` : `Net ${dailyNet}`)
       : (lang === 'it' ? 'Saldo 0' : 'Net 0');
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayEvents = useMemo<CalendarItem[]>(
+    () => (calendarItems as CalendarItem[])
+      .filter((item) => item.date === todayKey)
+      .sort((a, b) => new Date(a.startsAt ?? `${a.date}T00:00:00`).getTime() - new Date(b.startsAt ?? `${b.date}T00:00:00`).getTime()),
+    [calendarItems, todayKey],
+  );
+  const visibleTodayEvents = todayEvents.slice(0, 3);
   const profileLocation = user?.mainLocation?.trim() || '';
   const locationLabel = profileLocation || detectedLocation;
   const locationActionLabel = locationRequestState === 'loading'
@@ -2632,6 +2656,49 @@ function Dashboard() {
               <Typography sx={{ mt: 0.35, color: dailyNet > 0 ? '#c56648' : '#7f8b96', fontSize: '0.61rem', textAlign: 'right' }}>
                 {dailyNetLabel} · {handledTickets} {lang === 'it' ? 'gestite in totale' : 'handled overall'}
               </Typography>
+            </Box>
+            <Box sx={{ mt: 1.1, pt: 0.9, borderTop: '1px solid #e4ebf1' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5, mb: 0.35 }}>
+                <Typography sx={{ color: '#8a96a5', fontSize: '0.61rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {t.dashboard.todayEventsTitle}
+                </Typography>
+                <Button component={Link} href="/calendar" size="small" sx={{ minWidth: 0, p: 0, fontSize: '0.61rem', lineHeight: 1.3, textTransform: 'none' }}>
+                  {t.dashboard.todayEventsOpen}
+                </Button>
+              </Box>
+              {calendarLoading ? (
+                <Typography sx={{ color: '#7f8b96', fontSize: '0.65rem' }}>{t.dashboard.todayEventsLoading}</Typography>
+              ) : calendarError ? (
+                <Typography sx={{ color: '#b42318', fontSize: '0.65rem' }}>{t.dashboard.todayEventsError}</Typography>
+              ) : todayEvents.length === 0 ? (
+                <Typography sx={{ color: '#7f8b96', fontSize: '0.65rem' }}>{t.dashboard.todayEventsEmpty}</Typography>
+              ) : (
+                <>
+                  {visibleTodayEvents.map((event) => (
+                    <Box
+                      key={`${event.type}-${event.id}-${event.date}`}
+                      component={Link}
+                      href={event.type === 'ticket' ? `/tickets/${event.id}?from=dashboard` : '/calendar'}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 0.6, py: 0.3, color: '#46586a', textDecoration: 'none', '&:hover .dashboard-event-title': { textDecoration: 'underline' } }}
+                    >
+                      <Typography component="span" sx={{ flexShrink: 0, color: '#718096', fontSize: '0.62rem', fontVariantNumeric: 'tabular-nums' }}>
+                        {formatDashboardEventTime(event, lang)}
+                      </Typography>
+                      <Typography className="dashboard-event-title" component="span" noWrap sx={{ flex: 1, minWidth: 0, fontSize: '0.66rem', fontWeight: 650 }}>
+                        {event.title}
+                      </Typography>
+                      <Typography component="span" sx={{ flexShrink: 0, color: '#8a96a5', fontSize: '0.56rem' }}>
+                        {event.type === 'ticket' ? t.dashboard.todayEventsTicket : t.dashboard.todayEventsAppointment}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {todayEvents.length > visibleTodayEvents.length && (
+                    <Typography sx={{ mt: 0.2, color: '#718096', fontSize: '0.6rem' }}>
+                      {t.dashboard.todayEventsMore(todayEvents.length - visibleTodayEvents.length)}
+                    </Typography>
+                  )}
+                </>
+              )}
             </Box>
         </Box>
       </Box>
