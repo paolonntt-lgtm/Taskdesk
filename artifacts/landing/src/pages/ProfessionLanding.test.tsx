@@ -48,6 +48,15 @@ describe("ProfessionLanding language switch", () => {
         '[data-testid="button-language"]',
       );
       expect(languageButton).not.toBeNull();
+      const footerDisclaimer = container.querySelector("footer p.text-center.text-xs")!;
+      expect(footerDisclaimer).not.toBeNull();
+      const disclaimers = [...container.querySelectorAll("p")]
+        .filter((paragraph) => paragraph.textContent === footerDisclaimer.textContent);
+      expect(disclaimers).toHaveLength(2);
+      for (const disclaimer of disclaimers) {
+        expect(disclaimer.classList.contains("text-gray-600")).toBe(true);
+        expect(disclaimer.classList.contains("text-gray-400")).toBe(false);
+      }
 
       await act(async () => {
         languageButton!.dispatchEvent(new MouseEvent("click", {

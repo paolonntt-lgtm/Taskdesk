@@ -47,10 +47,6 @@ const ANIMATIONS = `
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-@keyframes ld-float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-8px); }
-}
 @keyframes ld-bubble-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -72,7 +68,6 @@ const ANIMATIONS = `
   background-clip: text;
   animation: ld-gradient-shift 5s ease infinite;
 }
-.ld-float { animation: ld-float 5s ease-in-out infinite; }
 .ld-bubble-in { animation: ld-bubble-in 0.4s cubic-bezier(.16,1,.3,1) both; }
 .ld-card-hover {
   transition: all 0.25s cubic-bezier(.16,1,.3,1);
@@ -245,7 +240,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
     : "#5 — Missing documents for tax return filing";
 
   return (
-    <div data-testid="ticket-chat-mockup" className="ld-float bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
+    <div data-testid="ticket-chat-mockup" className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
         <div className="text-xs text-gray-400 font-semibold mb-1 uppercase tracking-wide">
           {lang === "it" ? "Pratica" : "Request"}
@@ -413,7 +408,7 @@ function UnifiedRequestVisual({ lang }: { lang: "it" | "en" }) {
       data-testid="hero-unified-request-visual"
       role="img"
       aria-label={copy.accessibleLabel}
-      className="ld-float relative h-[460px] w-full max-w-[490px]"
+      className="relative h-[460px] w-full max-w-[490px]"
     >
       <div className="absolute inset-[5%] rounded-full border border-blue-100/80" aria-hidden="true" />
       <div className="absolute inset-[15%] rounded-full border border-violet-100/70" aria-hidden="true" />
@@ -888,7 +883,7 @@ export default function Landing() {
                 </div>
                 <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-3 leading-tight">{t.pricing.title}</h2>
                 <p className="text-xl font-semibold text-blue-600 mb-3">{t.pricing.trialHeader}</p>
-                <p className="text-lg text-gray-400">{t.pricing.subtitle}</p>
+                <p className="text-lg text-gray-600">{t.pricing.subtitle}</p>
               </div>
             </ScrollReveal>
 

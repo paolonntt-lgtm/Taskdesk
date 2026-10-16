@@ -249,7 +249,7 @@ export function ProfessionLanding({
               <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-blue-700">{lang === "it" ? "Il flusso" : "The workflow"}</p>
               <h2 id="workflow-title" className="text-3xl font-black leading-tight tracking-[-0.035em] text-gray-950 md:text-4xl">{copy.workflowHeading}</h2>
               <p className="mt-5 max-w-md text-base leading-7 text-gray-500">{copy.messageBody}</p>
-              <p className="mt-7 border-l-2 border-blue-600 pl-4 text-xs leading-5 text-gray-400">{copy.boundaryNote}</p>
+              <p className="mt-7 border-l-2 border-blue-600 pl-4 text-xs leading-5 text-gray-600">{copy.boundaryNote}</p>
             </div>
             <ol className="space-y-3">
               {copy.workflowSteps.map((step, index) => (
@@ -355,7 +355,7 @@ export function ProfessionLanding({
       <footer className="border-t border-gray-100 px-5 py-7 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <Link href={currentRoutes.home} className="text-sm font-bold tracking-tight text-gray-700">TaskDesk</Link>
-          <p className="text-center text-xs text-gray-400">{copy.boundaryNote}</p>
+          <p className="text-center text-xs text-gray-600">{copy.boundaryNote}</p>
           <a href={signupUrl} onClick={() => trackProfessionalTrialCta(profession, lang, "footer", campaign)} className="text-sm font-semibold text-blue-700 hover:text-blue-900">{copy.primaryCta}</a>
         </div>
       </footer>

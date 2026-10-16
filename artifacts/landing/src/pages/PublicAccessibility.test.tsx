@@ -55,6 +55,21 @@ describe("public visitor controls", () => {
     expect(price.textContent).toBe(monthlyPrice);
   });
 
+  it.each(["it", "en"])("keeps illustrations static and pricing copy readable in %s", async (lang) => {
+    window.history.replaceState({}, "", `/${lang}/`);
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(Landing)));
+    });
+    for (const testId of ["hero-unified-request-visual", "ticket-chat-mockup"]) {
+      const illustration = container.querySelector(`[data-testid="${testId}"]`)!;
+      expect(illustration).not.toBeNull();
+      expect(illustration.classList.contains("ld-float")).toBe(false);
+    }
+    expect(container.querySelector("style")?.textContent).not.toContain("ld-float");
+    expect(container.querySelector("#pricing p.text-lg")?.classList.contains("text-gray-600"))
+      .toBe(true);
+  });
+
   it("keeps the darker install close icon named and functional", async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, "", "/en/");
