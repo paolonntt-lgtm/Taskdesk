@@ -97,7 +97,7 @@ describe("external tickets count in statistics but stay out of charts", () => {
         location: " Esterno ",
         priority: "low",
         status: "resolved",
-        createdBy: adminId,
+        createdBy: systemUserId,
         assignedTo: adminId,
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
         closedAt: new Date(),
@@ -111,34 +111,6 @@ describe("external tickets count in statistics but stay out of charts", () => {
       server.listen(0, "127.0.0.1", resolve);
     });
     const address = server.address();
-
-    const [
-      dashboard,
-      trend,
-      byStatus,
-      byCategory,
-      byLocation,
-      byPriority,
-      byAssignee,
-      recentTickets,
-      reportsAll,
-      resolutionByAssignee,
-      resolutionByCategory,
-      resolutionByPriority,
-    ] = await Promise.all([
-      request("/api/stats/dashboard", adminSessionId),
-      request("/api/stats/trend?days=30", adminSessionId),
-      request("/api/stats/by-status", adminSessionId),
-      request("/api/stats/by-category", adminSessionId),
-      request("/api/stats/by-location", adminSessionId),
-      request("/api/stats/by-priority", adminSessionId),
-      request("/api/stats/by-assignee", adminSessionId),
-      request("/api/stats/recent-tickets", adminSessionId),
-      request("/api/stats/reports-all", adminSessionId),
-      request("/api/stats/resolution-by-assignee", adminSessionId),
-      request("/api/stats/resolution-by-category", adminSessionId),
-      request("/api/stats/resolution-by-priority", adminSessionId),
-    ]);
     if (!address || typeof address === "string") {
       throw new Error("Test server did not expose an address");
     }
@@ -239,10 +211,10 @@ describe("external tickets count in statistics but stay out of charts", () => {
       { name: "Regression ordinary category", count: 1 },
     ]);
     expect(reportsAll.body.leaderboard.openers).toEqual([
-      { id: adminId, name: "Stats Source Exclusions Admin", count: 2 },
+      { id: adminId, name: "Stats Source Exclusions Admin", count: 1 },
     ]);
     expect(leaderboard.body.openers).toEqual([
-      { id: adminId, name: "Stats Source Exclusions Admin", count: 2 },
+      { id: adminId, name: "Stats Source Exclusions Admin", count: 1 },
     ]);
 
     expect(resolutionByAssignee.body.overall.count).toBe(1);

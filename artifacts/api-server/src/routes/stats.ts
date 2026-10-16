@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and, gte, isNotNull, isNull, inArray, lt, notInArray, asc, desc } from "drizzle-orm";
+import { eq, sql, and, or, gte, isNotNull, isNull, inArray, lt, notInArray, asc, desc } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketCommentsTable, organizationsTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, ticketActivityLogsTable } from "@workspace/db";
 import { requireAuth, requireAdmin, requireSuperAdmin } from "../middlewares/auth";
 import { getTrialStatus } from "../lib/trialStatus";
@@ -38,11 +38,14 @@ function statsTicketFilter(orgId: number, currentUser: any) {
     isNull(ticketsTable.deletedAt),
     eq(ticketsTable.organizationId, orgId),
     currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
-    notInArray(
-      ticketsTable.createdBy,
-      db.select({ id: usersTable.id })
-        .from(usersTable)
-        .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true))),
+    or(
+      notInArray(
+        ticketsTable.createdBy,
+        db.select({ id: usersTable.id })
+          .from(usersTable)
+          .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true))),
+      ),
+      sql`lower(trim(coalesce(${ticketsTable.location}, ''))) = 'esterno'`,
     ),
   );
 }
@@ -534,7 +537,10 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
   const orgFilter = statsTicketFilter(orgId, currentUser);
   const chartFilter = statsChartTicketFilter(orgId, currentUser);
-  const userOrgFilter = eq(usersTable.organizationId, orgId);
+  const userOrgFilter = and(
+    eq(usersTable.organizationId, orgId),
+    eq(usersTable.isSystem, false),
+  );
 
   const [
     dashRow,
