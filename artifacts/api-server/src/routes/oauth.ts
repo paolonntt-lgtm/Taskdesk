@@ -23,10 +23,16 @@ type ProfessionalTrialAttribution = {
     | "commercio";
   language: "it" | "en";
 };
+type UTMAttribution = {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+};
 type PendingOAuthState = {
   createdAt: number;
   professionalAttribution: ProfessionalTrialAttribution | null;
   referralCode: string | null;
+  utmAttribution: UTMAttribution;
 };
 const pendingOAuthStates = new Map<string, PendingOAuthState>();
 
@@ -55,6 +61,19 @@ function parseProfessionalTrialAttribution(query: import("express").Request["que
   if (typeof profession !== "string" || !allowedProfessions.includes(profession)) return null;
   if (language !== "it" && language !== "en") return null;
   return { profession: profession as ProfessionalTrialAttribution["profession"], language };
+}
+
+function parseUtmAttribution(query: import("express").Request["query"]): UTMAttribution {
+  const read = (value: unknown): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 && trimmed.length <= 200 ? trimmed : null;
+  };
+  return {
+    utmSource: read(query.utm_source),
+    utmMedium: read(query.utm_medium),
+    utmCampaign: read(query.utm_campaign),
+  };
 }
 
 function nonceCookieValue(state: string): string {
@@ -118,6 +137,7 @@ router.get("/auth/google", (req, res) => {
     referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
       ? req.query.ref
       : null,
+    utmAttribution: parseUtmAttribution(req.query),
   });
 
   const params = new URLSearchParams({
@@ -226,7 +246,13 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     let newlyCreated = false;
 
     if (!user) {
-      const [org] = await db.insert(organizationsTable).values({ name, onboardingDone: false }).returning();
+      const [org] = await db.insert(organizationsTable).values({
+        name,
+        onboardingDone: false,
+        utmSource: pendingState.utmAttribution.utmSource,
+        utmMedium: pendingState.utmAttribution.utmMedium,
+        utmCampaign: pendingState.utmAttribution.utmCampaign,
+      }).returning();
 
       const trialEndsAt = new Date(Date.now() + FREE_TRIAL_DURATION_MS);
       [user] = await db.insert(usersTable).values({

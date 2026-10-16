@@ -94,12 +94,12 @@ export async function attachReferralAtSignup(
   if (!organizationId || organizationId === referredOrganizationId
     || records.some((record) => record.referrerEmail.toLowerCase() === signupEmail.toLowerCase())) return false;
   if (!(await getReferralPlan(organizationId, true))) return false;
-  await db.insert(referralsTable).values({
+  const inserted = await db.insert(referralsTable).values({
     referrerOrganizationId: organizationId,
     referredOrganizationId,
     status: "pending_payment",
-  }).onConflictDoNothing();
-  return true;
+  }).onConflictDoNothing().returning({ id: referralsTable.id });
+  return inserted.length > 0;
 }
 
 export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promise<void> {

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   },
   createSession: vi.fn(),
   getCurrentUserId: vi.fn(),
+  attachReferralAtSignup: vi.fn(),
 }));
 
 vi.mock("@workspace/db", () => {
@@ -45,6 +46,10 @@ vi.mock("../lib/session", () => ({
     return match?.[1];
   },
   destroySession: vi.fn(),
+}));
+
+vi.mock("../referralService", () => ({
+  attachReferralAtSignup: mocks.attachReferralAtSignup,
 }));
 
 vi.mock("./settings", () => ({
@@ -115,6 +120,7 @@ describe("Google OAuth callback", () => {
     vi.clearAllMocks();
     globalThis.fetch = originalGlobalFetch;
     mocks.createSession.mockResolvedValue("test-session-id");
+    mocks.attachReferralAtSignup.mockResolvedValue(true);
     mocks.getCurrentUserId.mockImplementation((req: { headers: { cookie?: string } }) =>
       req.headers.cookie?.includes("session_id=test-session-id") ? oauthUser.id : undefined,
     );
@@ -298,6 +304,10 @@ describe("Google OAuth callback", () => {
     const { state, nonceCookie } = await startOAuth({
       trial_profession: profession,
       trial_language: "en",
+      ref: "ReferralCode_123",
+      utm_source: "partner",
+      utm_medium: "email",
+      utm_campaign: "autumn",
       email: "must-not-be-carried@example.test",
       custom: "free text must not be carried",
     });
@@ -306,13 +316,25 @@ describe("Google OAuth callback", () => {
     const response = await callback(state, nonceCookie);
     const html = await response.text();
     const insertedUser = insertedValues.find((entry) => entry.table === usersTable);
+    const insertedOrganization = insertedValues.find((entry) => entry.table === organizationsTable);
 
     expect(response.status).toBe(200);
     expect(insertedUser?.values.trialEndsAt).toBeInstanceOf(Date);
+    expect(insertedOrganization?.values).toMatchObject({
+      utmSource: "partner",
+      utmMedium: "email",
+      utmCampaign: "autumn",
+    });
+    expect(mocks.attachReferralAtSignup).toHaveBeenCalledWith(
+      "ReferralCode_123",
+      org.id,
+      oauthUser.email,
+    );
     const actualTrialDuration = (insertedUser?.values.trialEndsAt as Date).getTime() - Date.now();
     expect(actualTrialDuration).toBeGreaterThan(FREE_TRIAL_DURATION_MS - 1_000);
     expect(actualTrialDuration).toBeLessThanOrEqual(FREE_TRIAL_DURATION_MS);
     expect(html).toContain(`/app/?oauth_trial_signup=1&trial_profession=${profession}&trial_language=en`);
+    expect(html).toContain("&ref=ReferralCode_123");
     expect(html).not.toContain("must-not-be-carried");
     expect(html).not.toContain("custom");
   });

@@ -88,6 +88,16 @@ export default function Login() {
     googleParams.set('trial_language', professionalAttribution.language);
   }
   if (initialReferralCode) googleParams.set('ref', initialReferralCode);
+  try {
+    const utm = JSON.parse(sessionStorage.getItem('td_utm') ?? '{}') as Record<string, unknown>;
+    for (const [key, queryKey] of [
+      ['utm_source', 'utm_source'],
+      ['utm_medium', 'utm_medium'],
+      ['utm_campaign', 'utm_campaign'],
+    ] as const) {
+      if (typeof utm[key] === 'string' && utm[key]) googleParams.set(queryKey, utm[key] as string);
+    }
+  } catch {}
   const googleRegistrationUrl = `/api/auth/google${googleParams.size ? `?${googleParams}` : ''}`;
 
   useEffect(() => {

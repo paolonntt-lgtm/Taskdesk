@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   select: vi.fn(),
+  insert: vi.fn(),
   update: vi.fn(),
   stripeSubscriptionsList: vi.fn(),
   stripeSubscriptionsRetrieve: vi.fn(),
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@workspace/db", () => ({
-  db: { select: mocks.select, update: mocks.update },
+  db: { select: mocks.select, insert: mocks.insert, update: mocks.update },
   organizationsTable: { id: "organizations.id", name: "organizations.name" },
   referralCodesTable: { code: "referral_codes.code", organizationId: "referral_codes.organizationId" },
   referralsTable: {
@@ -29,6 +30,7 @@ vi.mock("@workspace/db", () => ({
     stripeCustomerId: "users.stripeCustomerId",
     role: "users.role",
     isActive: "users.isActive",
+    email: "users.email",
   },
 }));
 
@@ -126,6 +128,13 @@ describe("TaskDesk referral Stripe rewards", () => {
     });
     mocks.update.mockImplementation(() => ({
       set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+    }));
+    mocks.insert.mockImplementation(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(async () => [{ id: 43 }]),
+        })),
+      })),
     }));
     configureStripe();
     mocks.stripeBalanceCredit.mockImplementation(async (_customer, _params, options) => {
@@ -235,5 +244,71 @@ describe("TaskDesk referral Stripe rewards", () => {
     // Stripe's idempotency behavior is represented by the keyed mock above:
     // both webhook attempts resolve to the same balance transaction.
     expect(mocks.externalCreditsCreated).toBe(1);
+  });
+
+  it("rejects malformed referral codes without querying storage or Stripe", async () => {
+    await expect(
+      (await import("./referralService")).attachReferralAtSignup("bad", 20, "new@example.test"),
+    ).resolves.toBe(false);
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
+  });
+
+  it("rejects a well-formed but unknown referral code", async () => {
+    mocks.select.mockImplementationOnce(() => queryReturning([]));
+    const { attachReferralAtSignup } = await import("./referralService");
+
+    await expect(attachReferralAtSignup("UnknownCode_123", 20, "new@example.test")).resolves.toBe(false);
+    expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects the referrer's own email before checking subscription eligibility", async () => {
+    mocks.select.mockImplementationOnce(() => queryReturning([{
+      organizationId: 10,
+      referrerEmail: "same@example.test",
+    }]));
+    const { attachReferralAtSignup } = await import("./referralService");
+
+    await expect(attachReferralAtSignup("ValidCode_123", 20, "SAME@example.test")).resolves.toBe(false);
+    expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a referral code when the referrer has no active paid plan", async () => {
+    mocks.select
+      .mockImplementationOnce(() => queryReturning([{
+        organizationId: 10,
+        referrerEmail: "referrer@example.test",
+      }]))
+      .mockImplementationOnce(() => queryReturning([{ stripeCustomerId: "cus_referrer" }]));
+    mocks.stripeSubscriptionsList.mockResolvedValue({ data: [{
+      ...activeSubscription,
+      status: "trialing",
+    }] });
+    const { attachReferralAtSignup } = await import("./referralService");
+
+    await expect(attachReferralAtSignup("ValidCode_123", 20, "new@example.test")).resolves.toBe(false);
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("does not create a second attribution when the referred organization already has one", async () => {
+    mocks.select
+      .mockImplementationOnce(() => queryReturning([{
+        organizationId: 10,
+        referrerEmail: "referrer@example.test",
+      }]))
+      .mockImplementationOnce(() => queryReturning([{ stripeCustomerId: "cus_referrer" }]));
+    mocks.insert.mockImplementationOnce(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(async () => []),
+        })),
+      })),
+    }));
+    const { attachReferralAtSignup } = await import("./referralService");
+
+    await expect(attachReferralAtSignup("ValidCode_123", 20, "new@example.test")).resolves.toBe(false);
+    expect(mocks.insert).toHaveBeenCalledTimes(1);
   });
 });
