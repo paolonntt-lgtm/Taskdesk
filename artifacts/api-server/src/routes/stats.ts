@@ -742,7 +742,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.createdBy, usersTable.id),
-          statsTicketFilter(orgId, currentUser),
+          statsChartTicketFilter(orgId, currentUser),
         )
       )
       .where(userOrgFilter)

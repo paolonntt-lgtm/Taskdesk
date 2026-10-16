@@ -2526,7 +2526,7 @@ function Dashboard() {
         className="td-dashboard__welcome"
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 235px' },
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 320px' },
           gap: 2,
           mb: { xs: 2, sm: 2.5 },
         }}
@@ -2642,6 +2642,81 @@ function Dashboard() {
                 {actionableLabel}
               </Typography>
             </Box>
+            <Box sx={{
+              mt: 1,
+              p: { xs: 1.1, sm: 1.25 },
+              border: '1px solid #d7e4ee',
+              borderRadius: '12px',
+              backgroundColor: '#f1f7fb',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 0.55 }}>
+                <Typography sx={{ color: '#365c7c', fontSize: '0.69rem', fontWeight: 800, letterSpacing: '0.04em' }}>
+                  {t.dashboard.todayEventsTitle}
+                </Typography>
+                <Button component={Link} href="/calendar" size="small" sx={{
+                  minWidth: 0, flexShrink: 0, p: 0, fontSize: '0.69rem', lineHeight: 1.3,
+                  fontWeight: 700, textTransform: 'none',
+                }}>
+                  {t.dashboard.todayEventsOpen}
+                </Button>
+              </Box>
+              {calendarLoading ? (
+                <Typography sx={{ color: '#536b7c', fontSize: '0.75rem' }}>{t.dashboard.todayEventsLoading}</Typography>
+              ) : calendarError ? (
+                <Typography sx={{ color: '#b42318', fontSize: '0.75rem' }}>{t.dashboard.todayEventsError}</Typography>
+              ) : todayEvents.length === 0 ? (
+                <Typography sx={{ color: '#536b7c', fontSize: '0.75rem' }}>{t.dashboard.todayEventsEmpty}</Typography>
+              ) : (
+                <>
+                  <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+                    {visibleTodayEvents.map((event) => (
+                      <Box
+                        key={`${event.type}-${event.id}-${event.date}`}
+                        component="li"
+                        sx={{ '&:not(:last-child)': { borderBottom: '1px solid #dce8f0' } }}
+                      >
+                        <Box
+                          component={Link}
+                          href={event.type === 'ticket' ? `/tickets/${event.id}?from=dashboard` : '/calendar'}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+                            alignItems: 'center',
+                            gap: { xs: 0.8, sm: 1 },
+                            py: 0.65,
+                            color: '#30495d',
+                            textDecoration: 'none',
+                            '&:hover .dashboard-event-title': { textDecoration: 'underline' },
+                          }}
+                        >
+                          <Typography component="span" sx={{
+                            flexShrink: 0, color: '#315f82', fontSize: '0.76rem',
+                            fontWeight: 750, fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {formatDashboardEventTime(event, lang)}
+                          </Typography>
+                          <Typography className="dashboard-event-title" component="span" noWrap sx={{
+                            minWidth: 0, fontSize: '0.79rem', fontWeight: 650,
+                          }}>
+                            {event.title}
+                          </Typography>
+                          <Typography component="span" sx={{
+                            flexShrink: 0, color: '#607789', fontSize: '0.65rem',
+                          }}>
+                            {event.type === 'ticket' ? t.dashboard.todayEventsTicket : t.dashboard.todayEventsAppointment}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                  {todayEvents.length > visibleTodayEvents.length && (
+                    <Typography sx={{ mt: 0.4, color: '#536b7c', fontSize: '0.7rem', fontWeight: 600 }}>
+                      {t.dashboard.todayEventsMore(todayEvents.length - visibleTodayEvents.length)}
+                    </Typography>
+                  )}
+                </>
+              )}
+            </Box>
             <Typography sx={{ mt: 0.6, color: '#6d7b8c', fontSize: '0.68rem', lineHeight: 1.25 }}>
               {dashStats?.waitingTickets ?? 0} {lang === 'it' ? 'in attesa' : 'waiting'}
           </Typography>
@@ -2656,49 +2731,6 @@ function Dashboard() {
               <Typography sx={{ mt: 0.35, color: dailyNet > 0 ? '#c56648' : '#7f8b96', fontSize: '0.61rem', textAlign: 'right' }}>
                 {dailyNetLabel} · {handledTickets} {lang === 'it' ? 'gestite in totale' : 'handled overall'}
               </Typography>
-            </Box>
-            <Box sx={{ mt: 1.1, pt: 0.9, borderTop: '1px solid #e4ebf1' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5, mb: 0.35 }}>
-                <Typography sx={{ color: '#8a96a5', fontSize: '0.61rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  {t.dashboard.todayEventsTitle}
-                </Typography>
-                <Button component={Link} href="/calendar" size="small" sx={{ minWidth: 0, p: 0, fontSize: '0.61rem', lineHeight: 1.3, textTransform: 'none' }}>
-                  {t.dashboard.todayEventsOpen}
-                </Button>
-              </Box>
-              {calendarLoading ? (
-                <Typography sx={{ color: '#7f8b96', fontSize: '0.65rem' }}>{t.dashboard.todayEventsLoading}</Typography>
-              ) : calendarError ? (
-                <Typography sx={{ color: '#b42318', fontSize: '0.65rem' }}>{t.dashboard.todayEventsError}</Typography>
-              ) : todayEvents.length === 0 ? (
-                <Typography sx={{ color: '#7f8b96', fontSize: '0.65rem' }}>{t.dashboard.todayEventsEmpty}</Typography>
-              ) : (
-                <>
-                  {visibleTodayEvents.map((event) => (
-                    <Box
-                      key={`${event.type}-${event.id}-${event.date}`}
-                      component={Link}
-                      href={event.type === 'ticket' ? `/tickets/${event.id}?from=dashboard` : '/calendar'}
-                      sx={{ display: 'flex', alignItems: 'center', gap: 0.6, py: 0.3, color: '#46586a', textDecoration: 'none', '&:hover .dashboard-event-title': { textDecoration: 'underline' } }}
-                    >
-                      <Typography component="span" sx={{ flexShrink: 0, color: '#718096', fontSize: '0.62rem', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDashboardEventTime(event, lang)}
-                      </Typography>
-                      <Typography className="dashboard-event-title" component="span" noWrap sx={{ flex: 1, minWidth: 0, fontSize: '0.66rem', fontWeight: 650 }}>
-                        {event.title}
-                      </Typography>
-                      <Typography component="span" sx={{ flexShrink: 0, color: '#8a96a5', fontSize: '0.56rem' }}>
-                        {event.type === 'ticket' ? t.dashboard.todayEventsTicket : t.dashboard.todayEventsAppointment}
-                      </Typography>
-                    </Box>
-                  ))}
-                  {todayEvents.length > visibleTodayEvents.length && (
-                    <Typography sx={{ mt: 0.2, color: '#718096', fontSize: '0.6rem' }}>
-                      {t.dashboard.todayEventsMore(todayEvents.length - visibleTodayEvents.length)}
-                    </Typography>
-                  )}
-                </>
-              )}
             </Box>
         </Box>
       </Box>

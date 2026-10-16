@@ -111,6 +111,34 @@ describe("external tickets count in statistics but stay out of charts", () => {
       server.listen(0, "127.0.0.1", resolve);
     });
     const address = server.address();
+
+    const [
+      dashboard,
+      trend,
+      byStatus,
+      byCategory,
+      byLocation,
+      byPriority,
+      byAssignee,
+      recentTickets,
+      reportsAll,
+      resolutionByAssignee,
+      resolutionByCategory,
+      resolutionByPriority,
+    ] = await Promise.all([
+      request("/api/stats/dashboard", adminSessionId),
+      request("/api/stats/trend?days=30", adminSessionId),
+      request("/api/stats/by-status", adminSessionId),
+      request("/api/stats/by-category", adminSessionId),
+      request("/api/stats/by-location", adminSessionId),
+      request("/api/stats/by-priority", adminSessionId),
+      request("/api/stats/by-assignee", adminSessionId),
+      request("/api/stats/recent-tickets", adminSessionId),
+      request("/api/stats/reports-all", adminSessionId),
+      request("/api/stats/resolution-by-assignee", adminSessionId),
+      request("/api/stats/resolution-by-category", adminSessionId),
+      request("/api/stats/resolution-by-priority", adminSessionId),
+    ]);
     if (!address || typeof address === "string") {
       throw new Error("Test server did not expose an address");
     }
