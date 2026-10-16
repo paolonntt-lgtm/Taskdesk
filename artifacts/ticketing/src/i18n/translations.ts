@@ -971,6 +971,7 @@ const it = {
     trialExpiresToday: 'Il tuo periodo di prova scade oggi',
     trialExpired: 'Il tuo periodo di prova è scaduto',
     ctaBilling: 'Attiva un piano',
+    dismiss: 'Chiudi avviso del periodo di prova',
   },
   trialExpiredAccess: {
     title: 'La prova gratuita è scaduta',
@@ -2929,6 +2930,7 @@ const en: typeof it = {
     trialExpiresToday: 'Your free trial expires today',
     trialExpired: 'Your free trial has expired',
     ctaBilling: 'Activate a plan',
+    dismiss: 'Dismiss free trial notice',
   },
   trialExpiredAccess: {
     title: 'The free trial has expired',

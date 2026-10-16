@@ -166,10 +166,42 @@ const WidgetCustomNameContext = React.createContext('');
 function TrialBanner() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const trialKey = user?.id && user.trialEndsAt
+    ? `taskdesk:trial-banner-dismissed:${user.id}:${user.trialEndsAt}`
+    : null;
+  const [dismissedTrialKey, setDismissedTrialKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!trialKey) {
+      setDismissedTrialKey(null);
+      return;
+    }
+
+    try {
+      setDismissedTrialKey(
+        window.localStorage.getItem(trialKey) === '1' ? trialKey : null,
+      );
+    } catch {
+      setDismissedTrialKey(null);
+    }
+  }, [trialKey]);
 
   if (!user || user.role !== 'admin' || !user.trialEndsAt || user.stripeSubscriptionId) {
     return null;
   }
+  if (dismissedTrialKey === trialKey) {
+    return null;
+  }
+
+  const dismiss = () => {
+    if (!trialKey) return;
+    try {
+      window.localStorage.setItem(trialKey, '1');
+    } catch {
+      // Keep the banner dismissible for this render even when storage is unavailable.
+    }
+    setDismissedTrialKey(trialKey);
+  };
 
   const now = new Date();
   const trialEnd = new Date(user.trialEndsAt);
@@ -196,16 +228,26 @@ function TrialBanner() {
       severity={severity}
       sx={{ mb: 2, borderRadius: 2 }}
       action={
-        <Button
-          component={Link}
-          href="/billing"
-          color="inherit"
-          size="small"
-          variant="outlined"
-          sx={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.75rem' }}
-        >
-          {t.trialBanner.ctaBilling}
-        </Button>
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Button
+            component={Link}
+            href="/billing"
+            color="inherit"
+            size="small"
+            variant="outlined"
+            sx={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.75rem' }}
+          >
+            {t.trialBanner.ctaBilling}
+          </Button>
+          <IconButton
+            size="small"
+            color="inherit"
+            onClick={dismiss}
+            aria-label={t.trialBanner.dismiss}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
       }
     >
       {message}
