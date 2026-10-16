@@ -75,6 +75,7 @@ import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
 import { trackEvent } from '../lib/analytics';
+import { getAppHelpSectionId } from '../lib/appHelpSection';
 import {
   getTaskTrackAnnouncementStorageKey,
   shouldShowTaskTrackAnnouncement,
@@ -158,6 +159,10 @@ export default function Layout({ children }: LayoutProps) {
   const { t, lang, setLang } = useLanguage();
   const entityTerm = useEntityTerm();
   const [location, setLocation] = useLocation();
+  const contextualHelpSection = getAppHelpSectionId(location, {
+    isAdmin: user?.role === 'admin',
+    clientsEnabled: (user as any)?.clientsEnabled !== false,
+  });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { data: timeTrackingSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
@@ -760,6 +765,20 @@ export default function Layout({ children }: LayoutProps) {
           {!isMobile && <Box sx={{ flexGrow: 1 }} />}
 
           {/* Search button */}
+          {contextualHelpSection && (
+            <Tooltip title={t.nav.help}>
+              <IconButton
+                onClick={() => setLocation(`/help?section=${contextualHelpSection}`)}
+                size="small"
+                aria-label={t.nav.help}
+                title={t.nav.help}
+                sx={{ color: 'text.secondary', p: { xs: 0.75, sm: 1 }, '&:hover': { color: 'primary.main' } }}
+              >
+                <HelpOutlineRounded fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           <Tooltip title={t.commandPalette.tooltip}>
             <Button
               onClick={() => setCommandPaletteOpen(true)}
@@ -1013,6 +1032,19 @@ export default function Layout({ children }: LayoutProps) {
                 <Settings fontSize="small" />
               </ListItemIcon>
               <ListItemText primary={t.nav.settings} />
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                setLocation('/help');
+              }}
+              selected={isActive('/help')}
+              sx={{ fontWeight: 500 }}
+            >
+              <ListItemIcon sx={{ minWidth: 38, color: isActive('/help') ? 'primary.main' : 'text.secondary' }}>
+                <HelpOutlineRounded fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={t.nav.help} />
             </MenuItem>
             <MenuItem
               onClick={() => {

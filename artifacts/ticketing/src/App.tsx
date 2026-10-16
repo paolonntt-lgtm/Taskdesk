@@ -39,6 +39,7 @@ import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from
 import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
 import TaskTrackHelp from "./pages/TaskTrackHelp";
+import AppHelp from "./pages/AppHelp";
 import { canAccessPersonalTimeReport } from "./lib/personalTimeReportAccess";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
@@ -116,6 +117,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/tickets/:id" component={TicketDetail} />
           <Route path="/tickets" component={TicketList} />
           <Route path="/reports" component={Reports} />
+          <Route path="/help" component={AppHelp} />
           <Route path="/tasktrack-help">{() => <AdminRoute component={TaskTrackHelp} />}</Route>
           <Route path="/time-report">{() => <AdminRoute component={TimeTrackingReportPage} />}</Route>
           <Route path="/my-time-report">{() => <CollaboratorRoute component={PersonalTimeTrackingReportPage} />}</Route>
