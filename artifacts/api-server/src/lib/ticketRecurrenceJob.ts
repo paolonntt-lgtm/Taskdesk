@@ -79,6 +79,9 @@ async function checkTicketRecurrences(): Promise<void> {
         assignedTo: ticketsTable.assignedTo,
         assignedToGroup: ticketsTable.assignedToGroup,
         clientId: ticketsTable.clientId,
+        timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+        timeTrackingBillable: ticketsTable.timeTrackingBillable,
+        timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
         recurrenceRule: ticketsTable.recurrenceRule,
         recurrenceNextAt: ticketsTable.recurrenceNextAt,
         recurrenceParentId: ticketsTable.recurrenceParentId,
@@ -110,6 +113,22 @@ async function checkTicketRecurrences(): Promise<void> {
       const nextAt = computeNextAt(occurrenceAt, rule);
       const shouldContinue = !endDate || nextAt <= endDate;
 
+      const violatesTimeTrackingRequirements =
+        ticket.timeTrackingEnabled &&
+        ((ticket.timeTrackingBillable && ticket.clientId == null) ||
+          (ticket.timeTrackingCompensationOverride === true && ticket.assignedTo == null));
+      if (violatesTimeTrackingRequirements) {
+        await db
+          .update(ticketsTable)
+          .set({ recurrenceNextAt: shouldContinue ? nextAt : null })
+          .where(eq(ticketsTable.id, ticket.id));
+        logger.warn(
+          { ticketId: ticket.id },
+          "ticketRecurrenceJob: skipped invalid time-tracked recurrence"
+        );
+        continue;
+      }
+
       const [orgMax] = await db
         .select({ maxNum: sql<number>`COALESCE(MAX(ticket_number), 0)` })
         .from(ticketsTable)
@@ -137,6 +156,9 @@ async function checkTicketRecurrences(): Promise<void> {
           assignedTo: ticket.assignedTo,
           assignedToGroup: ticket.assignedToGroup,
           clientId: ticket.clientId,
+          timeTrackingEnabled: ticket.timeTrackingEnabled,
+          timeTrackingBillable: ticket.timeTrackingBillable,
+          timeTrackingCompensationOverride: ticket.timeTrackingCompensationOverride,
           recurrenceParentId: ticket.id,
         })
         .returning();
@@ -212,6 +234,10 @@ async function checkTicketRecurrences(): Promise<void> {
   } catch (err) {
     logger.warn({ err }, "ticketRecurrenceJob: check failed");
   }
+}
+
+export async function runTicketRecurrenceJob(): Promise<void> {
+  await checkTicketRecurrences();
 }
 
 export function startTicketRecurrenceJob(): void {

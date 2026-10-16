@@ -1809,6 +1809,9 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     assignedTo: existing.assignedTo,
     assignedToGroup: existing.assignedToGroup,
     clientId: existing.clientId,
+    timeTrackingEnabled: existing.timeTrackingEnabled,
+    timeTrackingBillable: existing.timeTrackingBillable,
+    timeTrackingCompensationOverride: existing.timeTrackingCompensationOverride,
     recurrenceParentId: existing.id,
   }).returning();
 

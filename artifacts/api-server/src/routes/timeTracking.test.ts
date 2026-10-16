@@ -19,6 +19,7 @@ import { eq, inArray } from "drizzle-orm";
 import app from "../app";
 import { buildBackupPayload } from "../lib/backup";
 import { createSession } from "../lib/session";
+import { runTicketRecurrenceJob } from "../lib/ticketRecurrenceJob";
 
 type HttpResult = { status: number; body: any };
 
@@ -503,6 +504,105 @@ describe("ticket time tracking", () => {
         timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
       }).from(ticketsTable).where(eq(ticketsTable.id, result.body.id));
       expect(created).toEqual(selection.expected);
+    }
+
+    const recurringTicketIds = taskTrackCreatedTicketIds.slice(0, 4);
+    const firstOccurrence = await request(`/api/tickets/${recurringTicketIds[2]}/recurrence`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ frequency: "daily" }),
+    });
+    expect(firstOccurrence.status).toBe(200);
+    const [routeGeneratedOccurrence] = await db.select({
+      id: ticketsTable.id,
+      recurrenceParentId: ticketsTable.recurrenceParentId,
+      clientId: ticketsTable.clientId,
+      assignedTo: ticketsTable.assignedTo,
+      timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+      timeTrackingBillable: ticketsTable.timeTrackingBillable,
+      timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+    }).from(ticketsTable).where(eq(ticketsTable.recurrenceParentId, recurringTicketIds[2]));
+    expect(routeGeneratedOccurrence).toMatchObject({
+      recurrenceParentId: recurringTicketIds[2],
+      clientId,
+      assignedTo: collaboratorId,
+      timeTrackingEnabled: true,
+      timeTrackingBillable: true,
+      timeTrackingCompensationOverride: true,
+    });
+    taskTrackCreatedTicketIds.push(routeGeneratedOccurrence.id);
+
+    const dueAt = new Date(Date.now() - 60_000);
+    await db.update(ticketsTable)
+      .set({ recurrenceRule: { frequency: "daily", interval: 1 }, recurrenceNextAt: dueAt })
+      .where(inArray(ticketsTable.id, recurringTicketIds));
+    await runTicketRecurrenceJob();
+    for (const parentId of recurringTicketIds) {
+      const [parent] = await db.select({
+        clientId: ticketsTable.clientId,
+        assignedTo: ticketsTable.assignedTo,
+        timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+        timeTrackingBillable: ticketsTable.timeTrackingBillable,
+        timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+      }).from(ticketsTable).where(eq(ticketsTable.id, parentId));
+      const occurrences = await db.select({
+        id: ticketsTable.id,
+        clientId: ticketsTable.clientId,
+        assignedTo: ticketsTable.assignedTo,
+        timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+        timeTrackingBillable: ticketsTable.timeTrackingBillable,
+        timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+      }).from(ticketsTable).where(eq(ticketsTable.recurrenceParentId, parentId));
+      expect(occurrences.length).toBeGreaterThan(0);
+      taskTrackCreatedTicketIds.push(...occurrences.map((occurrence) => occurrence.id));
+      for (const occurrence of occurrences) {
+        expect(occurrence).toMatchObject({
+          clientId: parent.clientId,
+          assignedTo: parent.assignedTo,
+          timeTrackingEnabled: parent.timeTrackingEnabled,
+          timeTrackingBillable: parent.timeTrackingBillable,
+          timeTrackingCompensationOverride: parent.timeTrackingCompensationOverride,
+        });
+      }
+    }
+
+    const invalidRecurringParents = await db.insert(ticketsTable).values([
+      {
+        organizationId,
+        title: `Invalid billable recurrence ${runId}`,
+        description: "Legacy invalid TaskTrack data must not create an invalid occurrence",
+        category: "Support",
+        location: "Remote",
+        status: "open",
+        createdBy: adminId,
+        timeTrackingEnabled: true,
+        timeTrackingBillable: true,
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        recurrenceNextAt: dueAt,
+      },
+      {
+        organizationId,
+        title: `Invalid recognizable recurrence ${runId}`,
+        description: "Legacy invalid TaskTrack data must not create an invalid occurrence",
+        category: "Support",
+        location: "Remote",
+        status: "open",
+        createdBy: adminId,
+        timeTrackingEnabled: true,
+        timeTrackingCompensationOverride: true,
+        assignedToGroup: "Timer test group",
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        recurrenceNextAt: dueAt,
+      },
+    ]).returning({ id: ticketsTable.id });
+    taskTrackCreatedTicketIds.push(...invalidRecurringParents.map((parent) => parent.id));
+    await runTicketRecurrenceJob();
+    for (const { id } of invalidRecurringParents) {
+      const occurrences = await db.select({ id: ticketsTable.id })
+        .from(ticketsTable).where(eq(ticketsTable.recurrenceParentId, id));
+      expect(occurrences).toHaveLength(0);
+      const [parent] = await db.select({ recurrenceNextAt: ticketsTable.recurrenceNextAt })
+        .from(ticketsTable).where(eq(ticketsTable.id, id));
+      expect(parent.recurrenceNextAt?.getTime()).toBeGreaterThan(Date.now());
     }
 
     const recognizableGroupAssignment = await request("/api/tickets", adminSessionId, {
