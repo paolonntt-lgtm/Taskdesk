@@ -13,7 +13,7 @@
 - [Dashboard navigation preferences](dashboard-navigation-preferences.md) — Keep the grouped sidebar and top-right search; put Settings in the profile menu.
 - [Feature-gated dashboard widgets](dashboard-widget-availability.md) — Hide widgets when their feature is unavailable without rewriting saved layouts, so preferences return if re-enabled.
 - [Statistics vs. daily reports](statistics-vs-daily-reports.md) — Reserve “Report” for daily-report workflows; use “Statistiche”/“Statistics” for analytics navigation.
-- [Ticket sources in statistics](stats-ticket-exclusions.md) — Exclude system-created and external-location tickets from aggregated statistics without deleting or hiding the tickets themselves.
+- [Ticket sources in statistics](stats-ticket-exclusions.md) — Exclude system-created tickets from aggregates; include external tickets in metrics but omit them from charts.
 - [Shared motivational messages](shared-motivational-messages.md) — Admin-managed organization messages rotate by day and appear to every dashboard user.
 - [TaskDesk assistant name](taskdesk-assistant-name.md) — Use “Albert” in both languages, with occasional Einstein-inspired curiosity and no invented quotes.
 - [Albert release announcements](albert-announcement-audience.md) — Announce Albert feature updates to existing signed-in customers with a concise in-app notice.

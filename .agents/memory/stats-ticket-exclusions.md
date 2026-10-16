@@ -3,8 +3,8 @@ name: Ticket source exclusions in statistics
 description: User-facing rule for whether externally generated and system-created tickets should affect aggregates.
 ---
 
-Aggregated statistics must exclude tickets created by a system user and tickets whose location is “Esterno”. Keep those tickets intact and available in normal ticket workflows.
+Ticket aggregates exclude tickets created by a system user. Tickets whose location is “Esterno” count in numeric statistics, summaries, leaderboards, and non-chart lists, but are omitted from chart series.
 
-**Why:** The user explicitly asked that external and system-created tickets not be included in statistics.
+**Why:** The user clarified that external tickets must count in statistics and only be removed from charts; the prior broader exclusion was incorrect.
 
-**How to apply:** Apply this consistently to ticket-count charts, trends, dashboards, leaderboards, and resolution aggregates; do not treat the rule as ticket deletion or a general visibility restriction.
+**How to apply:** Keep a base statistics filter for deleted, organization, visibility, and system-created rules. Add the normalized external-location exclusion only to chart endpoints and chart-series queries; keep scalar totals and list-style aggregates inclusive of external tickets.

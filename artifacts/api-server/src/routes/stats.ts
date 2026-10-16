@@ -44,7 +44,13 @@ function statsTicketFilter(orgId: number, currentUser: any) {
         .from(usersTable)
         .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true))),
     ),
-    sql`lower(trim(${ticketsTable.location})) <> 'esterno'`,
+  );
+}
+
+function statsChartTicketFilter(orgId: number, currentUser: any) {
+  return and(
+    statsTicketFilter(orgId, currentUser),
+    sql`coalesce(lower(trim(${ticketsTable.location})), '') <> 'esterno'`,
   );
 }
 
@@ -139,7 +145,7 @@ router.get("/stats/by-status", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const orgFilter = statsChartTicketFilter(orgId, currentUser);
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -175,7 +181,7 @@ router.get("/stats/by-category", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const orgFilter = statsChartTicketFilter(orgId, currentUser);
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -194,7 +200,7 @@ router.get("/stats/by-location", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const orgFilter = statsChartTicketFilter(orgId, currentUser);
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -213,7 +219,7 @@ router.get("/stats/by-priority", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const orgFilter = statsChartTicketFilter(orgId, currentUser);
 
   const validDays = parseValidDays(req.query.days);
   const conditions = validDays
@@ -238,7 +244,7 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
   const validDays = parseValidDays(req.query.days);
   const joinCondition = and(
     eq(ticketsTable.assignedTo, usersTable.id),
-    statsTicketFilter(orgId, currentUser),
+    statsChartTicketFilter(orgId, currentUser),
     validDays ? gte(ticketsTable.createdAt, sql`now() - interval '1 day' * ${validDays}`) : undefined,
   );
 
@@ -260,7 +266,7 @@ router.get("/stats/trend", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const orgFilter = statsChartTicketFilter(orgId, currentUser);
 
   const validDays = parseValidDays(req.query.days) ?? 30;
 
@@ -526,11 +532,8 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const orgFilter = and(
-    isNull(ticketsTable.deletedAt),
-    eq(ticketsTable.organizationId, orgId),
-    currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
-  );
+  const orgFilter = statsTicketFilter(orgId, currentUser);
+  const chartFilter = statsChartTicketFilter(orgId, currentUser);
   const userOrgFilter = eq(usersTable.organizationId, orgId);
 
   const [
@@ -562,16 +565,16 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
     }).from(ticketsTable).where(and(orgFilter, isNotNull(ticketsTable.closedAt))),
 
     db.select({ name: ticketsTable.status, count: sql<number>`count(*)` })
-      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.status),
+      .from(ticketsTable).where(chartFilter).groupBy(ticketsTable.status),
 
     db.select({ name: ticketsTable.category, count: sql<number>`count(*)` })
-      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.category),
+      .from(ticketsTable).where(chartFilter).groupBy(ticketsTable.category),
 
     db.select({ name: ticketsTable.location, count: sql<number>`count(*)` })
-      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.location),
+      .from(ticketsTable).where(chartFilter).groupBy(ticketsTable.location),
 
     db.select({ name: ticketsTable.priority, count: sql<number>`count(*)` })
-      .from(ticketsTable).where(orgFilter).groupBy(ticketsTable.priority),
+      .from(ticketsTable).where(chartFilter).groupBy(ticketsTable.priority),
 
     db.select({ id: usersTable.id, name: usersTable.name, count: sql<number>`count(${ticketsTable.id})` })
       .from(usersTable)
@@ -579,9 +582,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.assignedTo, usersTable.id),
-          isNull(ticketsTable.deletedAt),
-          eq(ticketsTable.organizationId, orgId),
-          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+          chartFilter,
         )
       )
       .where(userOrgFilter)
@@ -592,7 +593,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
       date: sql<string>`date_trunc('day', created_at)::date::text`,
       count: sql<number>`count(*)`,
     }).from(ticketsTable)
-      .where(and(orgFilter, gte(ticketsTable.createdAt, sql`now() - interval '30 days'`)))
+      .where(and(chartFilter, gte(ticketsTable.createdAt, sql`now() - interval '30 days'`)))
       .groupBy(sql`date_trunc('day', created_at)`)
       .orderBy(sql`date_trunc('day', created_at)`),
 
@@ -602,9 +603,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketsTable.createdBy, usersTable.id),
-          isNull(ticketsTable.deletedAt),
-          eq(ticketsTable.organizationId, orgId),
-          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+          statsTicketFilter(orgId, currentUser),
         )
       )
       .where(userOrgFilter)
@@ -618,9 +617,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
-          isNull(ticketsTable.deletedAt),
-          eq(ticketsTable.organizationId, orgId),
-          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+          statsTicketFilter(orgId, currentUser),
         )
       )
       .where(userOrgFilter)
@@ -637,9 +634,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
         ticketsTable,
         and(
           eq(ticketCommentsTable.ticketId, ticketsTable.id),
-          isNull(ticketsTable.deletedAt),
-          eq(ticketsTable.organizationId, orgId),
-          currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
+          statsTicketFilter(orgId, currentUser),
         )
       )
       .where(userOrgFilter)
@@ -823,7 +818,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
         ticketsTable,
         and(
           eq(ticketsTable.assignedTo, usersTable.id),
-          statsTicketFilter(orgId, currentUser),
+          statsChartTicketFilter(orgId, currentUser),
           isNotNull(ticketsTable.closedAt),
         )
       )
@@ -848,7 +843,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
       `,
       count: sql<number>`count(*)`,
     }).from(ticketsTable)
-      .where(and(statsTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
+      .where(and(statsChartTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
       .groupBy(sql`1`)
       .orderBy(sql`1`),
   ]);
@@ -885,7 +880,7 @@ router.get("/stats/resolution-by-category", requireAuth, requireAdmin, async (re
     maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
   })
     .from(ticketsTable)
-    .where(and(statsTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
+    .where(and(statsChartTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
     .groupBy(ticketsTable.category)
     .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`);
 
@@ -913,7 +908,7 @@ router.get("/stats/resolution-by-priority", requireAuth, requireAdmin, async (re
     maxHours: sql<number>`round(max(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)::numeric, 1)`,
   })
     .from(ticketsTable)
-    .where(and(statsTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
+    .where(and(statsChartTicketFilter(orgId, currentUser), isNotNull(ticketsTable.closedAt)))
     .groupBy(ticketsTable.priority);
 
   const sorted = rows.sort((a, b) => (PRIORITY_ORDER[a.name] ?? 99) - (PRIORITY_ORDER[b.name] ?? 99));

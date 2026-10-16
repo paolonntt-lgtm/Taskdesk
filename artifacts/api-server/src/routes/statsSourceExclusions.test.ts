@@ -31,7 +31,7 @@ async function request(path: string, sessionId: string): Promise<HttpResult> {
   return { status: response.status, body: await response.json() as any };
 }
 
-describe("statistics exclude system-created and external tickets", () => {
+describe("external tickets count in statistics but stay out of charts", () => {
   beforeAll(async () => {
     const [organization] = await db.insert(organizationsTable)
       .values({ name: `Stats source exclusions ${runId}` })
@@ -96,8 +96,11 @@ describe("statistics exclude system-created and external tickets", () => {
         category: "Regression external category",
         location: " Esterno ",
         priority: "low",
-        status: "waiting",
+        status: "resolved",
         createdBy: adminId,
+        assignedTo: adminId,
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        closedAt: new Date(),
       },
     ]).returning({ id: ticketsTable.id });
     createdTicketIds.push(...tickets.map(({ id }) => id));
@@ -146,6 +149,13 @@ describe("statistics exclude system-created and external tickets", () => {
       byCategory,
       byLocation,
       byPriority,
+      byAssignee,
+      recentTickets,
+      reportsAll,
+      leaderboard,
+      resolutionByAssignee,
+      resolutionByCategory,
+      resolutionByPriority,
     ] = await Promise.all([
       request("/api/stats/dashboard", adminSessionId),
       request("/api/stats/trend?days=30", adminSessionId),
@@ -153,19 +163,31 @@ describe("statistics exclude system-created and external tickets", () => {
       request("/api/stats/by-category", adminSessionId),
       request("/api/stats/by-location", adminSessionId),
       request("/api/stats/by-priority", adminSessionId),
+      request("/api/stats/by-assignee", adminSessionId),
+      request("/api/stats/recent-tickets", adminSessionId),
+      request("/api/stats/reports-all", adminSessionId),
+      request("/api/stats/leaderboard", adminSessionId),
+      request("/api/stats/resolution-by-assignee", adminSessionId),
+      request("/api/stats/resolution-by-category", adminSessionId),
+      request("/api/stats/resolution-by-priority", adminSessionId),
     ]);
 
-    for (const result of [dashboard, trend, byStatus, byCategory, byLocation, byPriority]) {
+    for (const result of [
+      dashboard, trend, byStatus, byCategory, byLocation, byPriority, byAssignee,
+      recentTickets, reportsAll, leaderboard, resolutionByAssignee, resolutionByCategory, resolutionByPriority,
+    ]) {
       expect(result.status).toBe(200);
     }
 
-    expect(dashboard.body.totalTickets).toBe(1);
+    expect(dashboard.body.totalTickets).toBe(2);
     expect(dashboard.body.openTickets).toBe(1);
+    expect(dashboard.body.resolvedTickets).toBe(1);
     expect(dashboard.body.waitingTickets).toBe(0);
     expect(dashboard.body.urgentTickets).toBe(0);
-    expect(dashboard.body.last7Days).toBe(1);
-    expect(dashboard.body.last30Days).toBe(1);
-    expect(dashboard.body.createdToday).toBe(1);
+    expect(dashboard.body.last7Days).toBe(2);
+    expect(dashboard.body.last30Days).toBe(2);
+    expect(dashboard.body.createdToday).toBe(2);
+    expect(dashboard.body.avgResolutionHours).toBeCloseTo(2, 1);
 
     expect(trend.body.reduce((sum: number, day: { count: number }) => sum + day.count, 0)).toBe(1);
     expect(byStatus.body).toEqual([
@@ -180,6 +202,29 @@ describe("statistics exclude system-created and external tickets", () => {
     expect(byPriority.body).toEqual([
       { name: "Alta", count: 1 },
     ]);
+    expect(byAssignee.body).toEqual([]);
+    expect(recentTickets.body).toHaveLength(2);
+    expect(recentTickets.body.some((ticket: { location: string }) => ticket.location.trim().toLowerCase() === "esterno")).toBe(true);
+
+    expect(reportsAll.body.dashboard.totalTickets).toBe(2);
+    expect(reportsAll.body.byCategory).toEqual([
+      { name: "Regression ordinary category", count: 1 },
+    ]);
+    expect(reportsAll.body.leaderboard.openers).toEqual([
+      { id: adminId, name: "Stats Source Exclusions Admin", count: 2 },
+    ]);
+    expect(leaderboard.body.openers).toEqual([
+      { id: adminId, name: "Stats Source Exclusions Admin", count: 2 },
+    ]);
+
+    expect(resolutionByAssignee.body.overall.count).toBe(1);
+    expect(resolutionByAssignee.body.byAssignee).toEqual([]);
+    expect(resolutionByAssignee.body.buckets.reduce(
+      (sum: number, bucket: { count: number }) => sum + bucket.count,
+      0,
+    )).toBe(0);
+    expect(resolutionByCategory.body).toEqual([]);
+    expect(resolutionByPriority.body).toEqual([]);
 
     const stillStoredTickets = await db.select({
       id: ticketsTable.id,
