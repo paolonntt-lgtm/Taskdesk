@@ -160,6 +160,13 @@ export default function Reports() {
     name: t.reports.bucketLabels[i] ?? b.bucket,
     count: b.count,
   })) ?? [];
+  const categoryChartData = (categoryStats ?? [])
+    .map((item) => ({
+      ...item,
+      name: item.name || t.reports.uncategorized,
+    }))
+    .sort((a, b) => b.count - a.count);
+  const categoryChartHeight = Math.max(300, categoryChartData.length * 36 + 32);
 
   return (
     <Box>
@@ -271,14 +278,14 @@ export default function Reports() {
               <Typography variant="h6" fontWeight="bold" mb={2}>
                 {t.reports.byCategory}
               </Typography>
-              <Box sx={{ height: { xs: 220, sm: 300 } }}>
+              <Box sx={{ height: categoryChartHeight }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryStats} layout="vertical" margin={{ left: 10 }}>
+                  <BarChart data={categoryChartData} layout="vertical" margin={{ left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} interval={0} />
                     <Tooltip formatter={(v) => [v, t.reports.ticketCount]} />
-                    <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} name={t.reports.ticketCount} />
+                    <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} name={t.reports.ticketCount} barSize={18} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
