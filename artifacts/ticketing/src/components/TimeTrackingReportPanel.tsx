@@ -15,7 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { AccessTime, ArrowBackIosNew, ArrowForwardIos, ArrowOutward, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
+import { AccessTime, ArrowBackIosNew, ArrowForwardIos, ArrowOutward, Download, Groups2, ReceiptLong, RestartAlt } from '@mui/icons-material';
 import {
   getGetClientQueryKey,
   getGetTimeTrackingReportQueryKey,
@@ -29,6 +29,7 @@ import type { GetTimeTrackingReportParams, TimeTrackingReportRow } from '@worksp
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { trackEvent } from '../lib/analytics';
+import { mapTimeTrackingExportRows, timeTrackingExportFileName, type TimeTrackingExportCopy, type TimeTrackingExportKind } from '../lib/timeTrackingExport';
 import TimeTrackingReportBreakdown from './TimeTrackingReportBreakdown';
 
 function formatDuration(totalMinutes: number, lang: string): string {
@@ -231,6 +232,8 @@ export default function TimeTrackingReportPanel() {
   const billingMutation = useUpdateTimeTrackingClientBillingStatus();
   const invoiceMutation = useUpdateCollaboratorInvoiceStatus();
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<TimeTrackingExportKind | null>(null);
+  const [exportError, setExportError] = useState(false);
   const isItalian = lang === 'it';
   const copy = isItalian
     ? {
@@ -265,6 +268,19 @@ export default function TimeTrackingReportPanel() {
         session: 'Sessione timer',
         month: 'Mese',
         invoiceReceived: 'Fattura ricevuta',
+        downloadCustomer: 'Scarica Excel clienti',
+        downloadCollaborator: 'Scarica Excel collaboratori',
+        exporting: 'Preparazione…',
+        exportError: 'Impossibile creare il file Excel. Riprova.',
+        date: 'Data',
+        titleField: 'Titolo',
+        source: 'Origine',
+        durationMinutes: 'Durata (minuti)',
+        durationHours: 'Durata (ore)',
+        billingStatus: 'Stato fatturazione',
+        invoiceStatus: 'Stato fattura collaboratore',
+        received: 'Fattura ricevuta',
+        pending: 'Fattura da ricevere',
       }
     : {
         title: 'Time report',
@@ -298,7 +314,38 @@ export default function TimeTrackingReportPanel() {
         session: 'Timer session',
         month: 'Month',
         invoiceReceived: 'Invoice received',
+        downloadCustomer: 'Download customer Excel',
+        downloadCollaborator: 'Download collaborator Excel',
+        exporting: 'Preparing…',
+        exportError: 'Could not create the Excel file. Please try again.',
+        date: 'Date',
+        titleField: 'Title',
+        source: 'Source',
+        durationMinutes: 'Duration (minutes)',
+        durationHours: 'Duration (hours)',
+        billingStatus: 'Billing status',
+        invoiceStatus: 'Collaborator invoice status',
+        received: 'Invoice received',
+        pending: 'Invoice pending',
       };
+  const exportCopy: TimeTrackingExportCopy = {
+    date: copy.date,
+    client: copy.client,
+    collaborator: copy.collaborator,
+    ticket: copy.ticket,
+    title: copy.titleField,
+    source: copy.source,
+    durationMinutes: copy.durationMinutes,
+    durationHours: copy.durationHours,
+    billingStatus: copy.billingStatus,
+    invoiceStatus: copy.invoiceStatus,
+    session: copy.session,
+    manual: copy.manual,
+    billed: copy.billed,
+    unbilled: copy.unbilled,
+    received: copy.received,
+    pending: copy.pending,
+  };
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -366,6 +413,52 @@ export default function TimeTrackingReportPanel() {
     ? new Date(`${selectedMonth}-01T12:00:00`).toLocaleDateString(isItalian ? 'it-IT' : 'en-GB', { month: 'long', year: 'numeric' })
     : null;
   const refreshReport = () => queryClient.invalidateQueries({ queryKey: getGetTimeTrackingReportQueryKey() });
+  const exportReport = async (kind: TimeTrackingExportKind) => {
+    const rows = kind === 'customer' ? report?.customerRows ?? [] : report?.collaboratorRows ?? [];
+    if (rows.length === 0 || exporting) return;
+
+    setExporting(kind);
+    setExportError(false);
+    try {
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(kind === 'customer' ? 'Clienti' : 'Collaboratori');
+      const exportRows = mapTimeTrackingExportRows(rows, kind, exportCopy);
+      const headers = Object.keys(exportRows[0]);
+      worksheet.columns = headers.map((header) => ({
+        header,
+        key: header,
+        width: Math.min(Math.max(header.length + 4, 16), 34),
+      }));
+      worksheet.addRows(exportRows);
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getColumn(copy.date).numFmt = 'dd/mm/yyyy';
+      worksheet.getColumn(copy.durationHours).numFmt = '0.00';
+      worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+      worksheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: headers.length },
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer as BlobPart], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = timeTrackingExportFileName(kind, new Date(), lang);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      trackEvent('time_report_exported', { report: kind, format: 'xlsx' });
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(null);
+    }
+  };
   const refreshBillingViews = (row: TimeTrackingReportRow) => Promise.all([
     refreshReport(),
     queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
@@ -531,6 +624,7 @@ export default function TimeTrackingReportPanel() {
       </Box>
 
       <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
+        {exportError && <Alert severity="error" sx={{ mb: 2 }} data-testid="status-time-report-export-error">{copy.exportError}</Alert>}
         {(billingMutation.isError || invoiceMutation.isError) && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {isItalian ? 'Impossibile aggiornare lo stato. Riprova.' : 'Could not update the status. Please try again.'}
@@ -629,11 +723,22 @@ export default function TimeTrackingReportPanel() {
               <Grid item xs={12}>
                 <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
                   <CardContent sx={{ p: { xs: 1.75, sm: 2.5 } }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.25}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-start' }} gap={1} mb={0.25}>
                       <Box>
                         <Typography variant="subtitle1" fontWeight={800} data-testid="text-customer-report-heading">{copy.customerTitle}</Typography>
                         <Typography variant="caption" color="text.secondary">{copy.customerHint}</Typography>
                       </Box>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Download fontSize="small" />}
+                        onClick={() => exportReport('customer')}
+                        disabled={!report?.customerRows.length || exporting !== null}
+                        data-testid="button-export-customer-time-report"
+                        sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                      >
+                        {exporting === 'customer' ? copy.exporting : copy.downloadCustomer}
+                      </Button>
                     </Stack>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{copy.billedScope}</Typography>
                     <ReportRows rows={report?.customerRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCustomerRows} testPrefix="customer" onToggleBilling={toggleBilling} busy={billingMutation.isPending} />
@@ -643,11 +748,22 @@ export default function TimeTrackingReportPanel() {
               <Grid item xs={12}>
                 <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, borderColor: 'divider' }}>
                   <CardContent sx={{ p: { xs: 1.75, sm: 2.5 } }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.25}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-start' }} gap={1} mb={0.25}>
                       <Box>
                         <Typography variant="subtitle1" fontWeight={800} data-testid="text-collaborator-report-heading">{copy.collaboratorTitle}</Typography>
                         <Typography variant="caption" color="text.secondary">{copy.collaboratorHint}</Typography>
                       </Box>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Download fontSize="small" />}
+                        onClick={() => exportReport('collaborator')}
+                        disabled={!report?.collaboratorRows.length || exporting !== null}
+                        data-testid="button-export-collaborator-time-report"
+                        sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                      >
+                        {exporting === 'collaborator' ? copy.exporting : copy.downloadCollaborator}
+                      </Button>
                     </Stack>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{copy.invoiceScope}</Typography>
                     <ReportRows rows={report?.collaboratorRows ?? []} lang={lang} labels={labels} emptyLabel={copy.noCollaboratorRows} testPrefix="collaborator" onToggleInvoice={toggleInvoice} busy={invoiceMutation.isPending} />
