@@ -39,8 +39,8 @@ describe('TaskTrack announcement visibility', () => {
     expect(translations.en.taskTrackAnnouncement.body).toContain('ticket');
     expect(translations.en.taskTrackAnnouncement.help).toBe('Help');
     expect(translations.en.taskTrackAnnouncement.body).toContain('report');
-    expect(translations.it.taskTrackHelp.trackingBody).toContain('In lavorazione');
-    expect(translations.en.taskTrackHelp.trackingBody).toContain('In progress');
+    expect(translations.it.taskTrackHelp.trackingItems.join(' ')).toContain('In lavorazione');
+    expect(translations.en.taskTrackHelp.trackingItems.join(' ')).toContain('In progress');
     expect(translations.it.settings.timeTrackingModuleLabel).toContain('TaskTrack');
     expect(translations.en.settings.timeTrackingModuleLabel).toContain('TaskTrack');
   });

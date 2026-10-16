@@ -21,11 +21,11 @@ export default function TaskTrackHelp() {
   const { t } = useLanguage();
   const help = t.taskTrackHelp;
   const sections = [
-    { title: help.trackingTitle, body: help.trackingBody, icon: <AccessTimeRounded color="primary" /> },
-    { title: help.classificationTitle, body: help.classificationBody, icon: <TuneRounded color="primary" /> },
-    { title: help.reportTitle, body: help.reportBody, icon: <AssessmentOutlined color="primary" /> },
-    { title: help.personalReportTitle, body: help.personalReportBody, icon: <VisibilityOutlined color="primary" /> },
-    { title: help.disabledTitle, body: help.disabledBody, icon: <SettingsOutlined color="primary" /> },
+    { title: help.trackingTitle, items: help.trackingItems, icon: <AccessTimeRounded color="primary" /> },
+    { title: help.classificationTitle, items: help.classificationItems, icon: <TuneRounded color="primary" /> },
+    { title: help.reportTitle, items: help.reportItems, icon: <AssessmentOutlined color="primary" /> },
+    { title: help.personalReportTitle, items: help.personalReportItems, icon: <VisibilityOutlined color="primary" /> },
+    { title: help.disabledTitle, items: help.disabledItems, icon: <SettingsOutlined color="primary" /> },
   ];
 
   return (
@@ -36,7 +36,7 @@ export default function TaskTrackHelp() {
           {help.title}
         </Typography>
       </Stack>
-      <Typography color="text.secondary" sx={{ mb: 3, maxWidth: 760, lineHeight: 1.7 }}>
+      <Typography color="text.secondary" sx={{ mb: 3, maxWidth: 760 }}>
         {help.intro}
       </Typography>
 
@@ -50,9 +50,13 @@ export default function TaskTrackHelp() {
                   <Typography variant="h6" fontWeight={750} sx={{ fontSize: 17, mb: 0.5 }}>
                     {section.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                    {section.body}
-                  </Typography>
+                  <Stack component="ul" spacing={0.75} sx={{ pl: 2.5, my: 0, color: 'text.secondary' }}>
+                    {section.items.map((item) => (
+                      <Typography key={item} component="li" variant="body2" sx={{ pl: 0.25, lineHeight: 1.55 }}>
+                        {item}
+                      </Typography>
+                    ))}
+                  </Stack>
                 </Box>
               </Stack>
             </CardContent>
