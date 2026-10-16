@@ -148,8 +148,8 @@ export default function NewTicketScreen() {
     if (isAdmin) requests.push(
       apiGet<UserOption[]>("/users"),
       apiGet<{ value: string[] }>("/settings/groups"),
-      apiGet<{ timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     );
+    requests.push(apiGet<{ timeTrackingModuleEnabled?: boolean }>("/settings/organization"));
     if (clientsEnabled) requests.push(apiGet<ClientOption[]>("/clients"));
     requests.push(apiGet<ChecklistTemplate[]>("/checklist-templates").catch(() => []));
 
@@ -175,8 +175,8 @@ export default function NewTicketScreen() {
         if (isAdmin) {
           setUsers((results[index++] as UserOption[]).filter((u) => u.isActive !== false));
           setGroups((results[index++] as { value: string[] }).value ?? []);
-          setTimeTrackingModuleEnabled((results[index++] as { timeTrackingModuleEnabled?: boolean }).timeTrackingModuleEnabled === true);
         }
+        setTimeTrackingModuleEnabled((results[index++] as { timeTrackingModuleEnabled?: boolean }).timeTrackingModuleEnabled === true);
         if (clientsEnabled) setClientList(results[index++] as ClientOption[]);
         setChecklistTemplates(results[index] as ChecklistTemplate[]);
       })
@@ -482,6 +482,170 @@ export default function NewTicketScreen() {
       },
     });
 
+  const assignmentField = isAdmin ? (
+    <View style={[
+      s.field,
+      timeTrackingModuleEnabled && (clientsEnabled || isAdmin) && s.taskTrackInnerField,
+    ]}>
+      <Text style={s.label}>{t.newTicket.assignment}</Text>
+      <View style={s.chips}>
+        {(["user", "group"] as const).map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            disabled={mode === "group" && timeRecognizableToCollaborator}
+            accessibilityState={{ disabled: mode === "group" && timeRecognizableToCollaborator }}
+            style={[
+              s.chip,
+              assignmentMode === mode && s.chipActive,
+              mode === "group" && timeRecognizableToCollaborator && { opacity: 0.45 },
+            ]}
+            onPress={() => setAssignmentMode(mode)}
+          >
+            <Text style={[s.chipText, assignmentMode === mode && s.chipTextActive]}>
+              {mode === "user" ? t.newTicket.assignUser : t.newTicket.assignGroup}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {assignmentMode === "user" ? (
+        <View style={[s.optionList, { maxHeight: 190 }]}>
+          <TouchableOpacity
+            style={s.optionRow}
+            onPress={() => setAssignedUserId("")}
+          >
+            <Text style={[s.optionText, !assignedUserId && s.optionTextActive]}>{t.newTicket.unassigned}</Text>
+            {!assignedUserId && <Feather name="check" size={16} color={colors.primary} />}
+          </TouchableOpacity>
+          {users.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={s.optionRow}
+              onPress={() => setAssignedUserId(String(item.id))}
+            >
+              <Text style={[s.optionText, assignedUserId === String(item.id) && s.optionTextActive]}>{item.name}</Text>
+              {assignedUserId === String(item.id) && <Feather name="check" size={16} color={colors.primary} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <View style={s.chips}>
+          <TouchableOpacity
+            style={[s.chip, !assignedGroup && s.chipActive]}
+            onPress={() => setAssignedGroup("")}
+          >
+            <Text style={[s.chipText, !assignedGroup && s.chipTextActive]}>{t.newTicket.unassigned}</Text>
+          </TouchableOpacity>
+          {groups.map((group) => (
+            <TouchableOpacity
+              key={group}
+              style={[s.chip, assignedGroup === group && s.chipActive]}
+              onPress={() => setAssignedGroup(group)}
+            >
+              <Text style={[s.chipText, assignedGroup === group && s.chipTextActive]}>{group}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  ) : (
+    <View style={[
+      s.field,
+      timeTrackingModuleEnabled && (clientsEnabled || isAdmin) && s.taskTrackInnerField,
+    ]}>
+      <Text style={s.label}>{t.newTicket.assignment}</Text>
+      <TouchableOpacity
+        style={s.optionRow}
+        onPress={() => setAssignedUserId((current) => current === String(user?.id) ? "" : String(user?.id ?? ""))}
+      >
+        <Text style={[s.optionText, assignedUserId === String(user?.id) && s.optionTextActive]}>
+          {t.newTicket.assignToMe}{user?.name ? ` · ${user.name}` : ""}
+        </Text>
+        {assignedUserId === String(user?.id) && <Feather name="check-circle" size={18} color={colors.primary} />}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const clientField = clientsEnabled ? (
+    <View style={[s.field, timeTrackingModuleEnabled && isAdmin && s.taskTrackInnerField]}>
+      <View style={s.labelRow}>
+        <Text style={[s.label, { marginBottom: 0 }]}>{t.newTicket.client}</Text>
+        {isAdmin && (
+          <TouchableOpacity
+            style={s.inlineAction}
+            onPress={() => {
+              setQuickClientName("");
+              setQuickClientEmail("");
+              setQuickClientPhone("");
+              setQuickAddClientOpen(true);
+            }}
+          >
+            <Feather name="plus" size={15} color={colors.primary} />
+            <Text style={s.inlineActionText}>{t.newTicket.quickAddClient}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <TextInput
+        style={s.input}
+        value={clientSearch}
+        onChangeText={setClientSearch}
+        placeholder={t.newTicket.searchClient}
+        placeholderTextColor={colors.mutedForeground}
+      />
+      <View style={[s.optionList, { maxHeight: 170 }]}>
+        <TouchableOpacity style={s.optionRow} onPress={() => setSelectedClientId("")}>
+          <Text style={[s.optionText, !selectedClientId && s.optionTextActive]}>{t.newTicket.noClient}</Text>
+          {!selectedClientId && <Feather name="check" size={16} color={colors.primary} />}
+        </TouchableOpacity>
+        {visibleClients.map((client) => (
+          <TouchableOpacity
+            key={client.id}
+            style={s.optionRow}
+            onPress={() => setSelectedClientId(String(client.id))}
+          >
+            <Text style={[s.optionText, selectedClientId === String(client.id) && s.optionTextActive]}>
+              {client.name}
+            </Text>
+            {selectedClientId === String(client.id) && <Feather name="check" size={16} color={colors.primary} />}
+          </TouchableOpacity>
+        ))}
+        {visibleClients.length === 0 && clientList.length > 0 && (
+          <Text style={s.helperText}>{t.newTicket.noClientFound}</Text>
+        )}
+        {clientList.length === 0 && !isAdmin && (
+          <Text style={s.helperText}>{t.newTicket.noClientsAvailable}</Text>
+        )}
+      </View>
+    </View>
+  ) : null;
+
+  const taskTrackClassificationFields = isAdmin ? (
+    <View style={s.taskTrackOptions}>
+      <TouchableOpacity style={s.toggleRow} onPress={() => setTimeBillableToClient((current) => !current)}>
+        <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.billableToClient}</Text>
+        <View style={[s.toggleBox, timeBillableToClient && s.toggleBoxActive]}>
+          {timeBillableToClient && <Feather name="check" size={14} color={colors.primaryForeground} />}
+        </View>
+      </TouchableOpacity>
+      <Text style={s.helperText}>{t.newTicket.billableToClientHint}</Text>
+      <TouchableOpacity
+        style={[s.toggleRow, { marginTop: 8 }, assignmentMode === "group" && { opacity: 0.5 }]}
+        disabled={assignmentMode === "group"}
+        accessibilityState={{ disabled: assignmentMode === "group" }}
+        onPress={() => setTimeRecognizableToCollaborator((current) => !current)}
+      >
+        <Text style={[s.optionText, { flex: 1 }]}>{t.ticketDetail.trackedTimeRecognizable}</Text>
+        <View style={[s.toggleBox, timeRecognizableToCollaborator && s.toggleBoxActive]}>
+          {timeRecognizableToCollaborator && <Feather name="check" size={14} color={colors.primaryForeground} />}
+        </View>
+      </TouchableOpacity>
+      <Text style={s.helperText}>
+        {assignmentMode === "group"
+          ? t.ticketDetail.recognitionRequiresIndividualAssignee
+          : t.ticketDetail.trackedTimeRecognizableHelp}
+      </Text>
+    </View>
+  ) : null;
+
   return (
     <KeyboardAwareScrollView
       style={s.root}
@@ -650,134 +814,11 @@ export default function NewTicketScreen() {
         />
       </View>
 
-      {isAdmin ? (
-        <View style={s.field}>
-          <Text style={s.label}>{t.newTicket.assignment}</Text>
-          <View style={s.chips}>
-            {(["user", "group"] as const).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                disabled={mode === "group" && timeRecognizableToCollaborator}
-                accessibilityState={{ disabled: mode === "group" && timeRecognizableToCollaborator }}
-                style={[
-                  s.chip,
-                  assignmentMode === mode && s.chipActive,
-                  mode === "group" && timeRecognizableToCollaborator && { opacity: 0.45 },
-                ]}
-                onPress={() => setAssignmentMode(mode)}
-              >
-                <Text style={[s.chipText, assignmentMode === mode && s.chipTextActive]}>
-                  {mode === "user" ? t.newTicket.assignUser : t.newTicket.assignGroup}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {assignmentMode === "user" ? (
-            <View style={[s.optionList, { maxHeight: 190 }]}>
-              <TouchableOpacity
-                style={s.optionRow}
-                onPress={() => setAssignedUserId("")}
-              >
-                <Text style={[s.optionText, !assignedUserId && s.optionTextActive]}>{t.newTicket.unassigned}</Text>
-                {!assignedUserId && <Feather name="check" size={16} color={colors.primary} />}
-              </TouchableOpacity>
-              {users.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={s.optionRow}
-                  onPress={() => setAssignedUserId(String(item.id))}
-                >
-                  <Text style={[s.optionText, assignedUserId === String(item.id) && s.optionTextActive]}>{item.name}</Text>
-                  {assignedUserId === String(item.id) && <Feather name="check" size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <View style={s.chips}>
-              <TouchableOpacity
-                style={[s.chip, !assignedGroup && s.chipActive]}
-                onPress={() => setAssignedGroup("")}
-              >
-                <Text style={[s.chipText, !assignedGroup && s.chipTextActive]}>{t.newTicket.unassigned}</Text>
-              </TouchableOpacity>
-              {groups.map((group) => (
-                <TouchableOpacity
-                  key={group}
-                  style={[s.chip, assignedGroup === group && s.chipActive]}
-                  onPress={() => setAssignedGroup(group)}
-                >
-                  <Text style={[s.chipText, assignedGroup === group && s.chipTextActive]}>{group}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : (
-        <View style={s.field}>
-          <Text style={s.label}>{t.newTicket.assignment}</Text>
-          <TouchableOpacity
-            style={s.optionRow}
-            onPress={() => setAssignedUserId((current) => current === String(user?.id) ? "" : String(user?.id ?? ""))}
-          >
-            <Text style={[s.optionText, assignedUserId === String(user?.id) && s.optionTextActive]}>
-              {t.newTicket.assignToMe}{user?.name ? ` · ${user.name}` : ""}
-            </Text>
-            {assignedUserId === String(user?.id) && <Feather name="check-circle" size={18} color={colors.primary} />}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {clientsEnabled && (
-        <View style={s.field}>
-          <View style={s.labelRow}>
-            <Text style={[s.label, { marginBottom: 0 }]}>{t.newTicket.client}</Text>
-            {isAdmin && (
-              <TouchableOpacity
-                style={s.inlineAction}
-                onPress={() => {
-                  setQuickClientName("");
-                  setQuickClientEmail("");
-                  setQuickClientPhone("");
-                  setQuickAddClientOpen(true);
-                }}
-              >
-                <Feather name="plus" size={15} color={colors.primary} />
-                <Text style={s.inlineActionText}>{t.newTicket.quickAddClient}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <TextInput
-            style={s.input}
-            value={clientSearch}
-            onChangeText={setClientSearch}
-            placeholder={t.newTicket.searchClient}
-            placeholderTextColor={colors.mutedForeground}
-          />
-          <View style={[s.optionList, { maxHeight: 170 }]}>
-            <TouchableOpacity style={s.optionRow} onPress={() => setSelectedClientId("")}>
-              <Text style={[s.optionText, !selectedClientId && s.optionTextActive]}>{t.newTicket.noClient}</Text>
-              {!selectedClientId && <Feather name="check" size={16} color={colors.primary} />}
-            </TouchableOpacity>
-            {visibleClients.map((client) => (
-              <TouchableOpacity
-                key={client.id}
-                style={s.optionRow}
-                onPress={() => setSelectedClientId(String(client.id))}
-              >
-                <Text style={[s.optionText, selectedClientId === String(client.id) && s.optionTextActive]}>
-                  {client.name}
-                </Text>
-                {selectedClientId === String(client.id) && <Feather name="check" size={16} color={colors.primary} />}
-              </TouchableOpacity>
-            ))}
-            {visibleClients.length === 0 && clientList.length > 0 && (
-              <Text style={s.helperText}>{t.newTicket.noClientFound}</Text>
-            )}
-            {clientList.length === 0 && !isAdmin && (
-              <Text style={s.helperText}>{t.newTicket.noClientsAvailable}</Text>
-            )}
-          </View>
-        </View>
+      {!timeTrackingModuleEnabled && (
+        <>
+          {assignmentField}
+          {clientField}
+        </>
       )}
 
       <View style={s.field}>
@@ -822,35 +863,19 @@ export default function NewTicketScreen() {
         )}
       </View>
 
+      {timeTrackingModuleEnabled && (
+        <View style={s.field}>
+          <Text style={s.label}>{t.newTicket.taskTrackSection}</Text>
+          <View style={s.taskTrackPanel}>
+            {taskTrackClassificationFields}
+            {clientField}
+            {assignmentField}
+          </View>
+        </View>
+      )}
+
       {isAdmin && (
         <View style={s.field}>
-          {timeTrackingModuleEnabled && (
-            <View style={{ marginBottom: 14 }}>
-              <TouchableOpacity style={s.toggleRow} onPress={() => setTimeBillableToClient((current) => !current)}>
-                <Text style={[s.optionText, { flex: 1 }]}>{t.newTicket.billableToClient}</Text>
-                <View style={[s.toggleBox, timeBillableToClient && s.toggleBoxActive]}>
-                  {timeBillableToClient && <Feather name="check" size={14} color={colors.primaryForeground} />}
-                </View>
-              </TouchableOpacity>
-              <Text style={s.helperText}>{t.newTicket.billableToClientHint}</Text>
-              <TouchableOpacity
-                style={[s.toggleRow, { marginTop: 8 }, assignmentMode === "group" && { opacity: 0.5 }]}
-                disabled={assignmentMode === "group"}
-                accessibilityState={{ disabled: assignmentMode === "group" }}
-                onPress={() => setTimeRecognizableToCollaborator((current) => !current)}
-              >
-                <Text style={[s.optionText, { flex: 1 }]}>{t.ticketDetail.trackedTimeRecognizable}</Text>
-                <View style={[s.toggleBox, timeRecognizableToCollaborator && s.toggleBoxActive]}>
-                  {timeRecognizableToCollaborator && <Feather name="check" size={14} color={colors.primaryForeground} />}
-                </View>
-              </TouchableOpacity>
-              <Text style={s.helperText}>
-                {assignmentMode === "group"
-                  ? t.ticketDetail.recognitionRequiresIndividualAssignee
-                  : t.ticketDetail.trackedTimeRecognizableHelp}
-              </Text>
-            </View>
-          )}
           <TouchableOpacity style={s.toggleRow} onPress={() => setPrivateTicket((current) => !current)}>
             <View style={[s.toggleBox, privateTicket && s.toggleBoxActive]}>
               {privateTicket && <Feather name="check" size={14} color={colors.primaryForeground} />}
@@ -1210,6 +1235,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "center", justifyContent: "center", backgroundColor: colors.card,
     },
     toggleBoxActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+    taskTrackPanel: {
+      paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 12, backgroundColor: colors.card,
+    },
+    taskTrackOptions: { paddingTop: 8, paddingBottom: 12 },
+    taskTrackInnerField: {
+      marginBottom: 0, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border,
+    },
     recurrencePanel: { marginTop: 10, padding: 12, gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.card },
     attachmentRow: {
       flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8, padding: 11,
