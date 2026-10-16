@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { getCurrentUserId, destroySession, getSessionId } from "../lib/session";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
+import { canUseBillingDuringExpiredTrial } from "../lib/trialAccess";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = await getCurrentUserId(req);
@@ -19,6 +21,18 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (sessionId) await destroySession(sessionId);
     res.status(401).json({ error: "Account disabled" });
     return;
+  }
+
+  if (!user.isSuperAdmin) {
+    const trialStatus = await getOrganizationTrialStatus(user);
+    const billingPath = canUseBillingDuringExpiredTrial(req.originalUrl, user.role);
+    if (trialStatus?.isExpired && !billingPath) {
+      res.status(402).json({
+        error: "TRIAL_EXPIRED",
+        message: "Il periodo di prova dell'organizzazione è scaduto. Contatta l'amministratore per attivare un abbonamento.",
+      });
+      return;
+    }
   }
 
   (req as any).currentUser = user;

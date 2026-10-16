@@ -40,6 +40,7 @@ import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
 import TaskTrackHelp from "./pages/TaskTrackHelp";
 import AppHelp from "./pages/AppHelp";
+import TrialExpiredNotice from "./pages/TrialExpiredNotice";
 import { canAccessPersonalTimeReport } from "./lib/personalTimeReportAccess";
 
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
@@ -83,14 +84,8 @@ function SuperAdminRoute({ component: Component }: { component: React.ComponentT
 
 function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => void }) {
   const [, setLocation] = useLocation();
-  const trialEndsAt: string | null = (user as any).trialEndsAt ?? null;
-  const hasSubscription = !!(user as any).stripeSubscriptionId;
   const isSuperAdmin = !!(user as any).isSuperAdmin;
-  const isTrialExpired =
-    !isSuperAdmin &&
-    trialEndsAt != null &&
-    new Date(trialEndsAt) < new Date() &&
-    !hasSubscription;
+  const isTrialExpired = !isSuperAdmin && (user as any).trialStatus?.isExpired === true;
 
   const showTour = !!(user as any).registeredViaInvite && !(user as any).tourDone;
 
@@ -104,6 +99,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
       </Layout>
     );
   }
+  if (isTrialExpired) return <TrialExpiredNotice />;
 
   return (
     <>
@@ -200,7 +196,7 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    if (isLoading || !user?.id) return;
+    if (isLoading || !user?.id || (user as any).trialStatus?.isExpired) return;
     const refreshAuth = createAuthRefreshHandler<User>({
       request: () => fetch("/api/auth/me", {
           credentials: "include",
@@ -296,7 +292,7 @@ function AppShell() {
       if (permissionEventsRetry !== undefined) window.clearTimeout(permissionEventsRetry);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [isLoading, user?.id, qc, setLocation]);
+  }, [isLoading, user?.id, (user as any)?.trialStatus?.isExpired, qc, setLocation]);
 
   useEffect(() => {
     if (isLoading) return;

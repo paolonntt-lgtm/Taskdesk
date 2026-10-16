@@ -19,3 +19,15 @@ export function getTrialStatus(
     daysLeft,
   };
 }
+
+export function getOrganizationTrialStatusFromAdmins(
+  admins: Array<{ trialEndsAt: Date | null; stripeSubscriptionId: string | null }>
+): TrialStatus | null {
+  const trialEndsAt = admins
+    .map((admin) => admin.trialEndsAt)
+    .filter((end): end is Date => end != null)
+    .sort((left, right) => left.getTime() - right.getTime())[0];
+  const subscriptionId = admins.find((admin) => admin.stripeSubscriptionId)?.stripeSubscriptionId ?? null;
+
+  return getTrialStatus(trialEndsAt, subscriptionId);
+}

@@ -960,6 +960,10 @@ const it = {
     trialExpired: 'Il tuo periodo di prova è scaduto',
     ctaBilling: 'Attiva un piano',
   },
+  trialExpiredAccess: {
+    title: 'La prova gratuita è scaduta',
+    message: 'L’accesso a TaskDesk è sospeso per tutta l’organizzazione. Chiedi all’amministratore di attivare un abbonamento per riprendere il lavoro.',
+  },
   availability: {
     available: 'Disponibile',
     unavailable: 'Non disponibile',
@@ -2900,6 +2904,10 @@ const en: typeof it = {
     trialExpiresToday: 'Your free trial expires today',
     trialExpired: 'Your free trial has expired',
     ctaBilling: 'Activate a plan',
+  },
+  trialExpiredAccess: {
+    title: 'The free trial has expired',
+    message: 'TaskDesk access is paused for the entire organization. Ask your administrator to activate a subscription to resume work.',
   },
   availability: {
     available: 'Available',

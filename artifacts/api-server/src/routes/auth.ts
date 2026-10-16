@@ -9,7 +9,8 @@ import { loginRateLimiter, registerRateLimiter } from "../lib/rateLimiter";
 import { logger } from "../lib/logger";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
-import { FREE_TRIAL_DURATION_MS, getTrialStatus } from "../lib/trialStatus";
+import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
+import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { getUserPermissionSummary } from "../lib/groupPermissions";
 import { subscribeToPermissionChanges } from "../lib/permissionEvents";
 import { requireAuth } from "../middlewares/auth";
@@ -106,7 +107,7 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
   const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
 
   const { passwordHash: _, ...safeUser } = row;
-  const trialStatus = getTrialStatus(safeUser.trialEndsAt, safeUser.stripeSubscriptionId);
+  const trialStatus = await getOrganizationTrialStatus(safeUser);
   res.json({ user: { ...safeUser, ...permissionSummary, trialStatus }, message: "Login effettuato" });
 });
 
@@ -293,7 +294,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       .catch((err: unknown) => logger.error({ err }, "Failed to refresh lastLoginAt on auth/me"));
   }
 
-  const trialStatus = getTrialStatus(row.trialEndsAt, row.stripeSubscriptionId);
+  const trialStatus = await getOrganizationTrialStatus(row);
   const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
   res.json({ ...row, ...permissionSummary, trialStatus });
 });
