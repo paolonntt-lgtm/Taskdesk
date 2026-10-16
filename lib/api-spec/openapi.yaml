@@ -2686,7 +2686,7 @@ paths:
     get:
       operationId: listAppointments
       tags: [appointments]
-      summary: List appointments for the current organization
+      summary: List events for the current organization
       parameters:
         - name: year
           in: query
@@ -2710,7 +2710,7 @@ paths:
     post:
       operationId: createAppointment
       tags: [appointments]
-      summary: Create a new appointment
+      summary: Create a new calendar event
       requestBody:
         required: true
         content:
@@ -2733,7 +2733,7 @@ paths:
     get:
       operationId: getAppointment
       tags: [appointments]
-      summary: Get a single appointment
+      summary: Get a single calendar event
       parameters:
         - name: id
           in: path
@@ -2754,7 +2754,7 @@ paths:
     put:
       operationId: updateAppointment
       tags: [appointments]
-      summary: Update an appointment (creator or admin)
+      summary: Update a calendar event (creator or admin)
       parameters:
         - name: id
           in: path
@@ -2785,7 +2785,7 @@ paths:
     delete:
       operationId: deleteAppointment
       tags: [appointments]
-      summary: Delete an appointment (creator or admin)
+      summary: Delete a calendar event (creator or admin)
       parameters:
         - name: id
           in: path
@@ -4804,6 +4804,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        isAllDay:
+          type: boolean
         createdBy:
           type: integer
         assignedTo:
@@ -4840,6 +4842,7 @@ components:
         - organizationId
         - title
         - startsAt
+        - isAllDay
         - createdBy
         - createdAt
         - updatedAt
@@ -4860,6 +4863,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        isAllDay:
+          type: boolean
         assignedTo:
           type: integer
           nullable: true
@@ -4883,6 +4888,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        isAllDay:
+          type: boolean
         assignedTo:
           type: integer
           nullable: true
@@ -4908,6 +4915,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        isAllDay:
+          type: boolean
         status:
           type: string
           nullable: true

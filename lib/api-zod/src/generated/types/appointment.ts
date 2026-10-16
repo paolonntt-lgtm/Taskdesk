@@ -15,6 +15,7 @@ export interface Appointment {
   description?: string | null;
   startsAt: Date;
   endsAt?: Date | null;
+  isAllDay: boolean;
   createdBy: number;
   assignedTo?: number | null;
   createdAt: Date;

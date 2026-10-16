@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lt, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, inArray, isNull, or } from "drizzle-orm";
 import { db, ticketsTable, usersTable, appointmentsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { getCalendarDateKeysForEvent } from "../lib/calendarDateKeys";
 
 const router: IRouter = Router();
 
@@ -96,8 +97,11 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
 
   // Fetch appointments for this month
   const apptConditions: any[] = [
-    gte(appointmentsTable.startsAt, start),
     lt(appointmentsTable.startsAt, end),
+    or(
+      gte(appointmentsTable.endsAt, start),
+      and(isNull(appointmentsTable.endsAt), gte(appointmentsTable.startsAt, start)),
+    ),
   ];
   if (orgId != null) apptConditions.push(eq(appointmentsTable.organizationId, orgId));
 
@@ -129,21 +133,22 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
   }
 
   for (const a of appts) {
-    const s = a.startsAt;
-    const date = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
-    items.push({
-      type: 'appointment',
-      date,
-      id: a.id,
-      title: a.title,
-      startsAt: a.startsAt.toISOString(),
-      endsAt: a.endsAt ? a.endsAt.toISOString() : null,
-      status: null,
-      priority: null,
-      assignee: null,
-      description: a.description,
-      createdBy: a.createdBy,
-    });
+    for (const date of getCalendarDateKeysForEvent(a.startsAt, a.endsAt, a.isAllDay, y, m)) {
+      items.push({
+        type: 'appointment',
+        date,
+        id: a.id,
+        title: a.title,
+        startsAt: a.startsAt.toISOString(),
+        endsAt: a.endsAt ? a.endsAt.toISOString() : null,
+        isAllDay: a.isAllDay,
+        status: null,
+        priority: null,
+        assignee: null,
+        description: a.description,
+        createdBy: a.createdBy,
+      });
+    }
   }
 
   // Sort by startsAt within the response

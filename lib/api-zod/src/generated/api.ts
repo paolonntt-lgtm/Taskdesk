@@ -3861,7 +3861,7 @@ export const UpdateStickyNoteStateResponse = zod.unknown()
 
 
 /**
- * @summary List appointments for the current organization
+ * @summary List events for the current organization
  */
 export const ListAppointmentsQueryParams = zod.object({
   "year": zod.coerce.number().int().optional(),
@@ -3875,6 +3875,7 @@ export const ListAppointmentsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean(),
   "createdBy": zod.int(),
   "assignedTo": zod.int().nullish(),
   "createdAt": zod.coerce.date(),
@@ -3894,7 +3895,7 @@ export const ListAppointmentsResponse = zod.array(ListAppointmentsResponseItem)
 
 
 /**
- * @summary Create a new appointment
+ * @summary Create a new calendar event
  */
 
 
@@ -3904,6 +3905,7 @@ export const CreateAppointmentBody = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean().optional(),
   "assignedTo": zod.int().nullish()
 })
 
@@ -3914,6 +3916,7 @@ export const CreateAppointmentResponse = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean(),
   "createdBy": zod.int(),
   "assignedTo": zod.int().nullish(),
   "createdAt": zod.coerce.date(),
@@ -3932,7 +3935,7 @@ export const CreateAppointmentResponse = zod.object({
 
 
 /**
- * @summary Get a single appointment
+ * @summary Get a single calendar event
  */
 export const GetAppointmentParams = zod.object({
   "id": zod.coerce.number().int()
@@ -3945,6 +3948,7 @@ export const GetAppointmentResponse = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean(),
   "createdBy": zod.int(),
   "assignedTo": zod.int().nullish(),
   "createdAt": zod.coerce.date(),
@@ -3963,7 +3967,7 @@ export const GetAppointmentResponse = zod.object({
 
 
 /**
- * @summary Update an appointment (creator or admin)
+ * @summary Update a calendar event (creator or admin)
  */
 export const UpdateAppointmentParams = zod.object({
   "id": zod.coerce.number().int()
@@ -3977,6 +3981,7 @@ export const UpdateAppointmentBody = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date().optional(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean().optional(),
   "assignedTo": zod.int().nullish()
 })
 
@@ -3987,6 +3992,7 @@ export const UpdateAppointmentResponse = zod.object({
   "description": zod.string().nullish(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean(),
   "createdBy": zod.int(),
   "assignedTo": zod.int().nullish(),
   "createdAt": zod.coerce.date(),
@@ -4005,7 +4011,7 @@ export const UpdateAppointmentResponse = zod.object({
 
 
 /**
- * @summary Delete an appointment (creator or admin)
+ * @summary Delete a calendar event (creator or admin)
  */
 export const DeleteAppointmentParams = zod.object({
   "id": zod.coerce.number().int()
@@ -4029,6 +4035,7 @@ export const GetCalendarResponseItem = zod.object({
   "title": zod.string(),
   "startsAt": zod.coerce.date().nullish(),
   "endsAt": zod.coerce.date().nullish(),
+  "isAllDay": zod.boolean().optional(),
   "status": zod.string().nullish(),
   "priority": zod.string().nullish(),
   "assignee": zod.object({

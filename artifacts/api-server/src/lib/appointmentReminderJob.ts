@@ -39,6 +39,7 @@ async function checkAppointmentReminders(): Promise<void> {
       .where(
         and(
           isNull(appointmentsTable.reminderSentAt),
+          eq(appointmentsTable.isAllDay, false),
           gt(appointmentsTable.startsAt, graceCutoff),
           sql`${appointmentsTable.startsAt} - (${appointmentsTable.reminderMinutes} * interval '1 minute') <= ${now}`
         )

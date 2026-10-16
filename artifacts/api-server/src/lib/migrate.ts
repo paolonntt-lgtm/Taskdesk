@@ -163,7 +163,8 @@ export async function runAppMigrations(): Promise<void> {
     await client.query(`
       ALTER TABLE appointments
         ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER NOT NULL DEFAULT 60,
-        ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+        ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS is_all_day BOOLEAN NOT NULL DEFAULT false;
     `);
 
     // Add notes2 column to clients for second fixed-notes block

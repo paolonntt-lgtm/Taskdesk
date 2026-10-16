@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   Box, Typography, IconButton, Paper, Chip, Divider, CircularProgress,
   Avatar, Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, MenuItem, Select, FormControl, InputLabel, Alert, Tooltip,
+  TextField, MenuItem, Select, FormControl, InputLabel, Alert, Tooltip, FormControlLabel, Switch,
 } from '@mui/material';
 import {
   ChevronLeft, ChevronRight, Add as AddIcon, Edit as EditIcon,
@@ -25,6 +25,7 @@ type CalendarItem = {
   title: string;
   startsAt: string | null;
   endsAt: string | null;
+  isAllDay?: boolean;
   status: string | null;
   priority: string | null;
   assignee: { id: number; name: string; avatarUrl?: string | null } | null;
@@ -40,6 +41,7 @@ type Appointment = {
   description: string | null;
   startsAt: string;
   endsAt: string | null;
+  isAllDay: boolean;
   createdBy: number;
   assignedTo: number | null;
   createdAt: string;
@@ -59,6 +61,20 @@ function formatDateTime(iso: string | null) {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function formatEventDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function localDateInputValue(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function toLocalDatetimeStr(iso: string | null) {
@@ -86,6 +102,9 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
   const [description, setDescription] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [assignedTo, setAssignedTo] = useState<number | ''>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,8 +118,18 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
       if (appointment) {
         setTitle(appointment.title);
         setDescription(appointment.description ?? '');
-        setStartsAt(toLocalDatetimeStr(appointment.startsAt));
-        setEndsAt(toLocalDatetimeStr(appointment.endsAt));
+        setIsAllDay(appointment.isAllDay);
+        if (appointment.isAllDay) {
+          setStartDate(new Date(appointment.startsAt).toISOString().slice(0, 10));
+          setEndDate(appointment.endsAt ? new Date(appointment.endsAt).toISOString().slice(0, 10) : new Date(appointment.startsAt).toISOString().slice(0, 10));
+          setStartsAt('');
+          setEndsAt('');
+        } else {
+          setStartsAt(toLocalDatetimeStr(appointment.startsAt));
+          setEndsAt(toLocalDatetimeStr(appointment.endsAt));
+          setStartDate(localDateInputValue(new Date(appointment.startsAt)));
+          setEndDate(appointment.endsAt ? localDateInputValue(new Date(appointment.endsAt)) : localDateInputValue(new Date(appointment.startsAt)));
+        }
         setAssignedTo(appointment.assignedTo ?? '');
       } else {
         setTitle('');
@@ -108,6 +137,10 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
         const base = defaultDate ? `${defaultDate}T09:00` : toLocalDatetimeStr(new Date().toISOString());
         setStartsAt(base);
         setEndsAt('');
+        const date = defaultDate ?? localDateInputValue(new Date());
+        setIsAllDay(false);
+        setStartDate(date);
+        setEndDate(date);
         setAssignedTo('');
       }
       setError(null);
@@ -115,7 +148,7 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
   }, [open, appointment, defaultDate]);
 
   const handleSave = async () => {
-    if (!title.trim() || !startsAt) {
+    if (!title.trim() || (isAllDay ? !startDate || !endDate || endDate < startDate : !startsAt || (endsAt && new Date(endsAt) <= new Date(startsAt)))) {
       setError(t.calendar.errorSave);
       return;
     }
@@ -125,8 +158,9 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
       const body = {
         title: title.trim(),
         description: description.trim() || null,
-        startsAt: new Date(startsAt).toISOString(),
-        endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+        startsAt: isAllDay ? new Date(`${startDate}T00:00:00.000Z`).toISOString() : new Date(startsAt).toISOString(),
+        endsAt: isAllDay ? new Date(`${endDate}T00:00:00.000Z`).toISOString() : endsAt ? new Date(endsAt).toISOString() : null,
+        isAllDay,
         assignedTo: assignedTo !== '' ? assignedTo : null,
       };
       const url = appointment ? `/api/appointments/${appointment.id}` : '/api/appointments';
@@ -173,25 +207,77 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
           rows={3}
           sx={{ mb: 2 }}
         />
-        <TextField
-          label={t.calendar.startsAtField}
-          type="datetime-local"
-          value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
-          fullWidth
-          required
-          InputLabelProps={{ shrink: true }}
-          sx={{ mb: 2 }}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={isAllDay}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsAllDay(checked);
+                if (checked) {
+                  const start = startsAt ? startsAt.slice(0, 10) : startDate;
+                  const end = endsAt ? endsAt.slice(0, 10) : (endDate || start);
+                  setStartDate(start);
+                  setEndDate(end < start ? start : end);
+                } else {
+                  setStartsAt(`${startDate}T09:00`);
+                  setEndsAt(endDate > startDate ? `${endDate}T10:00` : '');
+                }
+              }}
+            />
+          }
+          label={t.calendar.allDay}
+          sx={{ mb: 1 }}
         />
-        <TextField
-          label={t.calendar.endsAtField}
-          type="datetime-local"
-          value={endsAt}
-          onChange={(e) => setEndsAt(e.target.value)}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          sx={{ mb: 2 }}
-        />
+        {isAllDay ? (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 2 }}>
+            <TextField
+              label={t.calendar.startsAtField}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (!endDate || e.target.value > endDate) setEndDate(e.target.value);
+              }}
+              fullWidth
+              required
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label={t.calendar.endsAtField}
+              type="date"
+              value={endDate}
+              inputProps={{ min: startDate }}
+              onChange={(e) => setEndDate(e.target.value)}
+              fullWidth
+              required
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        ) : (
+          <>
+            <TextField
+              label={t.calendar.startsAtField}
+              type="datetime-local"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+              fullWidth
+              required
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label={t.calendar.endsAtField}
+              type="datetime-local"
+              value={endsAt}
+              inputProps={{ min: startsAt }}
+              onChange={(e) => setEndsAt(e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+          </>
+        )}
         {isAdmin && (
           <FormControl fullWidth sx={{ mb: 1 }}>
             <InputLabel>{t.calendar.assignedToField}</InputLabel>
@@ -270,9 +356,20 @@ function AppointmentDetailModal({ open, appointment, onClose, onEdit, onDelete, 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TimeIcon fontSize="small" color="action" />
             <Typography variant="body2">
-              <strong>{t.calendar.start}:</strong> {formatDateTime(appointment.startsAt)}
-              {appointment.endsAt && (
-                <> &nbsp;→&nbsp; <strong>{t.calendar.end}:</strong> {formatDateTime(appointment.endsAt)}</>
+              {appointment.isAllDay ? (
+                <>
+                  <strong>{t.calendar.allDay}:</strong> {formatEventDate(appointment.startsAt)}
+                  {appointment.endsAt && appointment.endsAt.slice(0, 10) !== appointment.startsAt.slice(0, 10) && (
+                    <> &nbsp;→&nbsp; {formatEventDate(appointment.endsAt)}</>
+                  )}
+                </>
+              ) : (
+                <>
+                  <strong>{t.calendar.start}:</strong> {formatDateTime(appointment.startsAt)}
+                  {appointment.endsAt && (
+                    <> &nbsp;→&nbsp; <strong>{t.calendar.end}:</strong> {formatDateTime(appointment.endsAt)}</>
+                  )}
+                </>
               )}
             </Typography>
           </Box>
@@ -705,7 +802,9 @@ export default function CalendarPage() {
                           <Box flex={1} minWidth={0}>
                             <Typography variant="body2" fontWeight={600} noWrap>{item.title}</Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {formatTime(item.startsAt)}{item.endsAt && ` – ${formatTime(item.endsAt)}`}
+                              {item.isAllDay
+                                ? t.calendar.allDay
+                                : `${formatTime(item.startsAt)}${item.endsAt ? ` – ${formatTime(item.endsAt)}` : ''}`}
                             </Typography>
                             {item.description && (
                               <Typography variant="caption" color="text.secondary" display="block" noWrap>

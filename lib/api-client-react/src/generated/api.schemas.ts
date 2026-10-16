@@ -1151,6 +1151,7 @@ export interface Appointment {
   description?: string | null;
   startsAt: string;
   endsAt?: string | null;
+  isAllDay: boolean;
   createdBy: number;
   assignedTo?: number | null;
   createdAt: string;
@@ -1165,6 +1166,7 @@ export interface CreateAppointmentBody {
   description?: string | null;
   startsAt: string;
   endsAt?: string | null;
+  isAllDay?: boolean;
   assignedTo?: number | null;
 }
 
@@ -1174,6 +1176,7 @@ export interface UpdateAppointmentBody {
   description?: string | null;
   startsAt?: string;
   endsAt?: string | null;
+  isAllDay?: boolean;
   assignedTo?: number | null;
 }
 
@@ -1198,6 +1201,7 @@ export interface CalendarItem {
   title: string;
   startsAt?: string | null;
   endsAt?: string | null;
+  isAllDay?: boolean;
   status?: string | null;
   priority?: string | null;
   assignee?: CalendarItemAssignee;

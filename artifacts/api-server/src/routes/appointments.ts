@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, inArray, isNull, or } from "drizzle-orm";
 import { db, appointmentsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { hasGroupPermission } from "../lib/groupPermissions";
@@ -12,8 +12,22 @@ const AppointmentBody = z.object({
   description: z.string().nullable().optional(),
   startsAt: z.string(),
   endsAt: z.string().nullable().optional(),
+  isAllDay: z.boolean().optional(),
   assignedTo: z.number().int().nullable().optional(),
   reminderMinutes: z.number().int().min(0).max(10080).optional(),
+}).superRefine((event, ctx) => {
+  const start = new Date(event.startsAt).getTime();
+  const end = event.endsAt ? new Date(event.endsAt).getTime() : null;
+  if (!Number.isFinite(start)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['startsAt'], message: 'Invalid start date' });
+  }
+  if (event.endsAt && !Number.isFinite(end)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'Invalid end date' });
+  } else if (event.isAllDay && !event.endsAt) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'All-day events require an end date' });
+  } else if (end != null && Number.isFinite(start) && (event.isAllDay ? end < start : end <= start)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'End must be after start' });
+  }
 });
 
 async function withUsers(appt: typeof appointmentsTable.$inferSelect) {
@@ -42,10 +56,17 @@ router.get("/appointments", requireAuth, async (req, res): Promise<void> => {
   if (year && month) {
     const y = parseInt(year, 10);
     const m = parseInt(month, 10);
+    if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) {
+      res.status(400).json({ error: "Invalid year or month" });
+      return;
+    }
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 1);
-    conditions.push(gte(appointmentsTable.startsAt, start));
-    conditions.push(lte(appointmentsTable.startsAt, end));
+    conditions.push(lt(appointmentsTable.startsAt, end));
+    conditions.push(or(
+      gte(appointmentsTable.endsAt, start),
+      and(isNull(appointmentsTable.endsAt), gte(appointmentsTable.startsAt, start)),
+    ));
   }
 
   const appts = await db
@@ -83,6 +104,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
   }
 
   const { title, description, startsAt, endsAt, assignedTo, reminderMinutes } = parsed.data;
+  const isAllDay = parsed.data.isAllDay ?? false;
 
   if (assignedTo != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
@@ -100,6 +122,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
     description: description ?? null,
     startsAt: new Date(startsAt),
     endsAt: endsAt ? new Date(endsAt) : null,
+    isAllDay,
     createdBy: currentUser.id,
     assignedTo: assignedTo ?? null,
     reminderMinutes: reminderMinutes ?? 60,
@@ -170,6 +193,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
   }
 
   const { title, description, startsAt, endsAt, assignedTo, reminderMinutes } = parsed.data;
+  const isAllDay = parsed.data.isAllDay ?? existing.isAllDay;
 
   if (assignedTo != null && orgId != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
@@ -183,8 +207,9 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
 
   const newStartsAt = new Date(startsAt);
   const startChanged = newStartsAt.getTime() !== existing.startsAt.getTime();
+  const allDayChanged = isAllDay !== existing.isAllDay;
   const reminderChanged = reminderMinutes !== undefined && reminderMinutes !== existing.reminderMinutes;
-  const resetReminder = startChanged || reminderChanged;
+  const resetReminder = startChanged || allDayChanged || reminderChanged;
 
   const [updated] = await db
     .update(appointmentsTable)
@@ -193,6 +218,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
       description: description ?? null,
       startsAt: newStartsAt,
       endsAt: endsAt ? new Date(endsAt) : null,
+      isAllDay,
       assignedTo: assignedTo ?? null,
       ...(reminderMinutes !== undefined ? { reminderMinutes } : {}),
       ...(resetReminder ? { reminderSentAt: null } : {}),

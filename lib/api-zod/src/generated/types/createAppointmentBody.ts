@@ -12,5 +12,6 @@ export interface CreateAppointmentBody {
   description?: string | null;
   startsAt: Date;
   endsAt?: Date | null;
+  isAllDay?: boolean;
   assignedTo?: number | null;
 }

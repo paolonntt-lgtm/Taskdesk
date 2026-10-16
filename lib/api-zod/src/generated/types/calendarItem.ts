@@ -15,6 +15,7 @@ export interface CalendarItem {
   title: string;
   startsAt?: Date | null;
   endsAt?: Date | null;
+  isAllDay?: boolean;
   status?: string | null;
   priority?: string | null;
   assignee?: CalendarItemAssignee;

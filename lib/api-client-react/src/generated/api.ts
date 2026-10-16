@@ -8119,7 +8119,7 @@ export const getListAppointmentsUrl = (params?: ListAppointmentsParams,) => {
 }
 
 /**
- * @summary List appointments for the current organization
+ * @summary List events for the current organization
  */
 export const listAppointments = async (params?: ListAppointmentsParams, options?: Parameters<typeof customFetch>[1]): Promise<Appointment[]> => {
 
@@ -8166,7 +8166,7 @@ export type ListAppointmentsQueryError = ErrorType<void>
 
 
 /**
- * @summary List appointments for the current organization
+ * @summary List events for the current organization
  */
 
 export function useListAppointments<TData = Awaited<ReturnType<typeof listAppointments>>, TError = ErrorType<void>>(
@@ -8196,7 +8196,7 @@ export const getCreateAppointmentUrl = () => {
 }
 
 /**
- * @summary Create a new appointment
+ * @summary Create a new calendar event
  */
 export const createAppointment = async (createAppointmentBody: CreateAppointmentBody, options?: Parameters<typeof customFetch>[1]): Promise<Appointment> => {
 
@@ -8254,7 +8254,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateAppointmentMutationVariables = {data: BodyType<CreateAppointmentBody>}
 
     /**
- * @summary Create a new appointment
+ * @summary Create a new calendar event
  */
 export const useCreateAppointment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAppointment>>, TError,CreateAppointmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -8276,7 +8276,7 @@ export const getGetAppointmentUrl = (id: number,) => {
 }
 
 /**
- * @summary Get a single appointment
+ * @summary Get a single calendar event
  */
 export const getAppointment = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Appointment> => {
 
@@ -8323,7 +8323,7 @@ export type GetAppointmentQueryError = ErrorType<void>
 
 
 /**
- * @summary Get a single appointment
+ * @summary Get a single calendar event
  */
 
 export function useGetAppointment<TData = Awaited<ReturnType<typeof getAppointment>>, TError = ErrorType<void>>(
@@ -8353,7 +8353,7 @@ export const getUpdateAppointmentUrl = (id: number,) => {
 }
 
 /**
- * @summary Update an appointment (creator or admin)
+ * @summary Update a calendar event (creator or admin)
  */
 export const updateAppointment = async (id: number,
     updateAppointmentBody: UpdateAppointmentBody, options?: Parameters<typeof customFetch>[1]): Promise<Appointment> => {
@@ -8412,7 +8412,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAppointmentMutationVariables = {id: number;data: BodyType<UpdateAppointmentBody>}
 
     /**
- * @summary Update an appointment (creator or admin)
+ * @summary Update a calendar event (creator or admin)
  */
 export const useUpdateAppointment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAppointment>>, TError,UpdateAppointmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -8434,7 +8434,7 @@ export const getDeleteAppointmentUrl = (id: number,) => {
 }
 
 /**
- * @summary Delete an appointment (creator or admin)
+ * @summary Delete a calendar event (creator or admin)
  */
 export const deleteAppointment = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
@@ -8486,7 +8486,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteAppointmentMutationVariables = {id: number}
 
     /**
- * @summary Delete an appointment (creator or admin)
+ * @summary Delete a calendar event (creator or admin)
  */
 export const useDeleteAppointment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAppointment>>, TError,DeleteAppointmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
