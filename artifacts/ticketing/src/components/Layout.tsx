@@ -30,7 +30,7 @@ import {
 } from '@mui/material';
 import {
   ArrowForwardRounded,
-  AutoAwesomeRounded,
+  HelpOutlineRounded,
   Menu as MenuIcon,
   Dashboard,
   ConfirmationNumber,
@@ -56,7 +56,6 @@ import {
   Search,
   BugReport,
   WhatsApp,
-  VisibilityOffOutlined,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,6 +75,10 @@ import NotesConsole from './NotesConsole';
 import CommandPalette from './CommandPalette';
 import ShortcutsDialog from './ShortcutsDialog';
 import { trackEvent } from '../lib/analytics';
+import {
+  getTaskTrackAnnouncementStorageKey,
+  shouldShowTaskTrackAnnouncement,
+} from '../lib/taskTrackAnnouncement';
 import AnnouncementsPopup from './AnnouncementsPopup';
 import WhatsAppAnnouncementDialog from './WhatsAppAnnouncementDialog';
 
@@ -149,6 +152,8 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
+  const canShowAnnouncements = !!user &&
+    !((user as any).registeredViaInvite && !(user as any).tourDone);
   const { mode, toggleColorMode } = useColorMode();
   const { t, lang, setLang } = useLanguage();
   const entityTerm = useEntityTerm();
@@ -320,41 +325,38 @@ export default function Layout({ children }: LayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
-  const [albertAnnouncementOpen, setAlbertAnnouncementOpen] = useState(false);
+  const taskTrackStorageKey = user ? getTaskTrackAnnouncementStorageKey(String(user.id)) : '';
+  const [taskTrackAnnouncementOpen, setTaskTrackAnnouncementOpen] = useState(() =>
+    shouldShowTaskTrackAnnouncement({
+      userId: user ? String(user.id) : undefined,
+      role: user?.role,
+      location,
+      allowed: canShowAnnouncements,
+      botOpen,
+      alreadySeen: taskTrackStorageKey ? hasSeenAnnouncement(taskTrackStorageKey) : false,
+    })
+  );
   const [whatsappAnnouncementOpen, setWhatsAppAnnouncementOpen] = useState(false);
-  const dismissedAlbertAnnouncementUsersRef = useRef(new Set<string>());
   const dismissedWhatsAppAnnouncementUsersRef = useRef(new Set<string>());
-  const canShowAlbertAnnouncement = !!user &&
-    !((user as any).registeredViaInvite && !(user as any).tourDone);
 
   useEffect(() => {
-    if (!canShowAlbertAnnouncement || !user || botOpen) return;
-    const userId = String(user.id);
-    if (dismissedAlbertAnnouncementUsersRef.current.has(userId)) return;
-
-    const storageKey = `td_albert_reports_announcement_v1:${userId}`;
-    let hasSeenAnnouncement = false;
-    try {
-      hasSeenAnnouncement = localStorage.getItem(storageKey) === 'seen';
-    } catch {
-      // Try session storage below when persistent browser storage is unavailable.
-    }
-    if (!hasSeenAnnouncement) {
-      try {
-        hasSeenAnnouncement = sessionStorage.getItem(storageKey) === 'seen';
-      } catch {
-        // The in-memory dismissal guard still prevents repeats in this session.
-      }
-    }
-    if (!hasSeenAnnouncement) setAlbertAnnouncementOpen(true);
-  }, [user?.id, canShowAlbertAnnouncement, botOpen]);
+    const shouldShow = shouldShowTaskTrackAnnouncement({
+      userId: user ? String(user.id) : undefined,
+      role: user?.role,
+      location,
+      allowed: canShowAnnouncements,
+      botOpen,
+      alreadySeen: taskTrackStorageKey ? hasSeenAnnouncement(taskTrackStorageKey) : false,
+    });
+    setTaskTrackAnnouncementOpen(shouldShow);
+  }, [user?.id, user?.role, canShowAnnouncements, botOpen, location, taskTrackStorageKey]);
 
   useEffect(() => {
     setWhatsAppAnnouncementOpen(false);
   }, [user?.id]);
 
   useEffect(() => {
-    if (!canShowAlbertAnnouncement || !user || botOpen || albertAnnouncementOpen) return;
+    if (!canShowAnnouncements || !user || botOpen || taskTrackAnnouncementOpen || location === '/tasktrack-help') return;
     const userId = String(user.id);
     if (dismissedWhatsAppAnnouncementUsersRef.current.has(userId)) return;
 
@@ -364,47 +366,27 @@ export default function Layout({ children }: LayoutProps) {
       return;
     }
 
-    const albertStorageKey = `td_albert_reports_announcement_v1:${userId}`;
-    const hasSeenAlbertAnnouncement =
-      dismissedAlbertAnnouncementUsersRef.current.has(userId) ||
-      hasSeenAnnouncement(albertStorageKey);
-    if (hasSeenAlbertAnnouncement) setWhatsAppAnnouncementOpen(true);
-  }, [user?.id, canShowAlbertAnnouncement, botOpen, albertAnnouncementOpen]);
+    const userTaskTrackStorageKey = getTaskTrackAnnouncementStorageKey(userId);
+    if (user.role === 'admin' && !hasSeenAnnouncement(userTaskTrackStorageKey)) return;
+    setWhatsAppAnnouncementOpen(true);
+  }, [user?.id, user?.role, canShowAnnouncements, botOpen, taskTrackAnnouncementOpen, location]);
 
-  const dismissAlbertAnnouncement = () => {
+  const dismissTaskTrackAnnouncement = () => {
     if (user) {
-      const userId = String(user.id);
-      dismissedAlbertAnnouncementUsersRef.current.add(userId);
-      try {
-        sessionStorage.setItem(`td_albert_reports_announcement_v1:${userId}`, 'seen');
-      } catch {
-        // The in-memory dismissal guard still keeps it closed for this session.
-      }
-    }
-    setAlbertAnnouncementOpen(false);
-  };
-
-  const neverShowAlbertAnnouncementAgain = () => {
-    if (user) {
-      const storageKey = `td_albert_reports_announcement_v1:${user.id}`;
+      const storageKey = getTaskTrackAnnouncementStorageKey(String(user.id));
       try {
         localStorage.setItem(storageKey, 'seen');
       } catch {
-        // Fall back to this browser tab when persistent storage is blocked.
+        // Fall back to session storage when persistent storage is unavailable.
       }
-      try {
-        sessionStorage.setItem(storageKey, 'seen');
-      } catch {
-        // The in-memory dismissal guard still keeps it closed for this session.
-      }
+      try { sessionStorage.setItem(storageKey, 'seen'); } catch { /* Keep it closed for this session. */ }
     }
-    dismissAlbertAnnouncement();
+    setTaskTrackAnnouncementOpen(false);
   };
 
-  const askAlbertFromAnnouncement = () => {
-    neverShowAlbertAnnouncementAgain();
-    setBotUnreadCount(0);
-    setBotOpenPersist(true);
+  const openTaskTrackHelp = () => {
+    dismissTaskTrackAnnouncement();
+    setLocation('/tasktrack-help');
   };
 
   const dismissWhatsAppAnnouncement = () => {
@@ -1140,12 +1122,12 @@ export default function Layout({ children }: LayoutProps) {
       <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
 
       <Dialog
-        open={albertAnnouncementOpen}
-        onClose={dismissAlbertAnnouncement}
+        open={taskTrackAnnouncementOpen}
+        onClose={dismissTaskTrackAnnouncement}
         fullWidth
         maxWidth="xs"
-        aria-labelledby="albert-announcement-title"
-        aria-describedby="albert-announcement-description"
+        aria-labelledby="tasktrack-announcement-title"
+        aria-describedby="tasktrack-announcement-description"
         PaperProps={{
           sx: {
             overflow: 'hidden',
@@ -1204,38 +1186,7 @@ export default function Layout({ children }: LayoutProps) {
                 boxShadow: '0 9px 20px rgba(79,70,229,.22)',
               }}
             >
-              <Box
-                sx={{
-                  width: 46,
-                  height: 46,
-                  display: 'grid',
-                  placeItems: 'center',
-                  overflow: 'hidden',
-                  borderRadius: '50%',
-                  border: '2px solid rgba(255,255,255,.9)',
-                  bgcolor: '#fff',
-                }}
-              >
-                <AlbertAvatarIcon size={42} />
-              </Box>
-              <Box
-                aria-hidden="true"
-                sx={{
-                  position: 'absolute',
-                  right: -5,
-                  bottom: -4,
-                  width: 23,
-                  height: 23,
-                  display: 'grid',
-                  placeItems: 'center',
-                  borderRadius: '50%',
-                  bgcolor: '#fff',
-                  color: '#6d28d9',
-                  boxShadow: '0 2px 7px rgba(30,41,59,.18)',
-                }}
-              >
-                <AutoAwesomeRounded sx={{ fontSize: 15 }} />
-              </Box>
+              <AccessTime sx={{ fontSize: 32, color: '#fff' }} />
             </Box>
             <Chip
               label={lang === 'it' ? 'NOVITÀ' : 'WHAT’S NEW'}
@@ -1254,7 +1205,7 @@ export default function Layout({ children }: LayoutProps) {
             />
           </Box>
           <DialogTitle
-            id="albert-announcement-title"
+            id="tasktrack-announcement-title"
             sx={{
               position: 'relative',
               zIndex: 1,
@@ -1268,27 +1219,17 @@ export default function Layout({ children }: LayoutProps) {
               letterSpacing: '-.035em',
             }}
           >
-            {lang === 'it' ? 'Albert è più conversazionale' : 'Albert is more conversational'}
+            {t.taskTrackAnnouncement.title}
           </DialogTitle>
           <DialogContent sx={{ position: 'relative', zIndex: 1, px: 0, pb: 0 }}>
             <Typography
-              id="albert-announcement-description"
+              id="tasktrack-announcement-description"
               variant="body2"
               color="text.secondary"
-              data-testid="text-albert-announcement"
+              data-testid="text-tasktrack-announcement"
               sx={{ maxWidth: 390, fontSize: 14.5, lineHeight: 1.7 }}
             >
-              {lang === 'it' ? (
-                <>
-                  <strong>Scienziato curioso (camice facoltativo).</strong>{' '}
-                  Albert indaga su ticket e commenti e ti aiuta a preparare o ritrovare i report giornalieri.
-                </>
-              ) : (
-                <>
-                  <strong>Curious scientist (lab coat optional).</strong>{' '}
-                  Albert investigates tickets and comments and helps prepare or find daily reports.
-                </>
-              )}
+              {t.taskTrackAnnouncement.body}
             </Typography>
           </DialogContent>
         </Box>
@@ -1296,63 +1237,36 @@ export default function Layout({ children }: LayoutProps) {
           sx={{
             px: { xs: 2.5, sm: 3 },
             pt: 2,
-            pb: 1.25,
-            gap: 0.5,
-            alignItems: 'stretch',
-            flexDirection: 'column',
+            pb: 2,
             borderTop: '1px solid',
             borderColor: 'divider',
             bgcolor: 'background.paper',
             '& .MuiButton-root': { minHeight: 44 },
           }}
         >
-          <Box
-            sx={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
-            }}
-          >
-            <Button
-              onClick={dismissAlbertAnnouncement}
-              data-testid="button-dismiss-albert-announcement"
-              sx={{ color: 'text.secondary', px: 1.5 }}
-            >
-              {lang === 'it' ? 'Ho capito' : 'Got it'}
-            </Button>
-            <Button
-              variant="contained"
-              endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
-              onClick={askAlbertFromAnnouncement}
-              data-testid="button-ask-albert"
-              sx={{
-                minWidth: { xs: 152, sm: 165 },
-                borderRadius: 2.5,
-                boxShadow: '0 8px 18px rgba(79,70,229,.2)',
-                '&:hover': { boxShadow: '0 10px 20px rgba(79,70,229,.27)' },
-              }}
-            >
-              {lang === 'it' ? 'Chiedi ad Albert' : 'Ask Albert'}
-            </Button>
-          </Box>
           <Button
-            onClick={neverShowAlbertAnnouncementAgain}
-            data-testid="button-never-show-albert-announcement"
-            startIcon={<VisibilityOffOutlined sx={{ fontSize: 16 }} />}
-            size="small"
+            variant="outlined"
+            startIcon={<HelpOutlineRounded />}
+            onClick={openTaskTrackHelp}
+            data-testid="button-tasktrack-help"
+            sx={{ borderRadius: 2.5 }}
+          >
+            {t.taskTrackAnnouncement.help}
+          </Button>
+          <Button
+            variant="contained"
+            endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
+            onClick={dismissTaskTrackAnnouncement}
+            data-testid="button-dismiss-tasktrack-announcement"
             sx={{
-              alignSelf: 'flex-start',
-              minHeight: 32,
-              px: 1.5,
-              color: 'text.secondary',
-              fontSize: 12,
-              fontWeight: 600,
-              '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+              minWidth: 150,
+              ml: 'auto',
+              borderRadius: 2.5,
+              boxShadow: '0 8px 18px rgba(79,70,229,.2)',
+              '&:hover': { boxShadow: '0 10px 20px rgba(79,70,229,.27)' },
             }}
           >
-            {lang === 'it' ? 'Non mostrarlo più' : "Don't show this again"}
+            {t.taskTrackAnnouncement.dismiss}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1368,7 +1282,7 @@ export default function Layout({ children }: LayoutProps) {
 
       <AnnouncementsPopup
         userId={user ? String(user.id) : undefined}
-        enabled={canShowAlbertAnnouncement && !botOpen && !albertAnnouncementOpen && !whatsappAnnouncementOpen}
+        enabled={canShowAnnouncements && !botOpen && !taskTrackAnnouncementOpen && !whatsappAnnouncementOpen && location !== '/tasktrack-help'}
         lang={lang}
       />
 

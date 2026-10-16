@@ -479,7 +479,11 @@ describe("ticket time tracking", () => {
     expect(raceTicketStates.find((ticket) => ticket.id === raceTicketIds[loserIndex])?.status).toBe("waiting");
     const raceSessions = await db.select().from(ticketTimeSessionsTable)
       .where(eq(ticketTimeSessionsTable.userId, raceCollaboratorId));
-    const activeRaceSessions = raceSessions.filter((session) => session.endedAt === null);
+    const activeRaceSessions = await db.select({
+      ticketId: ticketTimeSessionsTable.ticketId,
+      endedAt: ticketTimeSessionsTable.endedAt,
+    }).from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.userId, raceCollaboratorId));
     expect(activeRaceSessions).toHaveLength(1);
     expect(activeRaceSessions[0]?.ticketId).toBe(winnerTicketId);
     expect((await changeStatus(winnerTicketId, "waiting", raceSessionId)).status).toBe(200);
@@ -487,7 +491,8 @@ describe("ticket time tracking", () => {
     const [billableOnlyId, recognizableOnlyId, bothId, neitherId] = trackedTicketIds;
     const startFirst = await changeStatus(billableOnlyId, "in_progress");
     expect(startFirst.status).toBe(200);
-    let sessions = await db.select().from(ticketTimeSessionsTable).where(eq(ticketTimeSessionsTable.ticketId, billableOnlyId));
+    let sessions = await db.select().from(ticketTimeSessionsTable)
+      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
     expect(sessions).toHaveLength(1);
     expect(sessions[0]).toMatchObject({ clientBillable: true, collaboratorRecognizable: false, endedAt: null });
 
