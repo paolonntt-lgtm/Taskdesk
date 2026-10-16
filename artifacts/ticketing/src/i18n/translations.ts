@@ -749,6 +749,7 @@ const it = {
     uploadFileError: 'Errore nel caricamento del file',
   },
   newTicket: {
+    taskTrackSection: 'TaskTrack',
     title: 'Apri Nuovo Ticket',
     titleField: 'Titolo',
     titlePlaceholder: 'Descrivi brevemente il problema...',
@@ -764,6 +765,7 @@ const it = {
     visibilityAdmins: 'Solo amministratori',
     assignField: 'Assegna a',
     assignUser: 'Utente',
+    assignCollaborator: 'Collaboratore individuale',
     assignGroup: 'Gruppo',
     noLocation: '— Nessuna sede —',
     unassigned: 'Non assegnato',
@@ -2688,6 +2690,7 @@ const en: typeof it = {
     uploadFileError: 'Error uploading file',
   },
   newTicket: {
+    taskTrackSection: 'TaskTrack',
     title: 'Open New Ticket',
     titleField: 'Title',
     titlePlaceholder: 'Brief description of the issue...',
@@ -2703,6 +2706,7 @@ const en: typeof it = {
     visibilityAdmins: 'Admins only',
     assignField: 'Assign to',
     assignUser: 'User',
+    assignCollaborator: 'Individual collaborator',
     assignGroup: 'Group',
     noLocation: '— No location —',
     unassigned: 'Unassigned',

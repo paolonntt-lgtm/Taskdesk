@@ -15,6 +15,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
 import { trackEvent } from '../lib/analytics';
+import { buildNewTicketAssociations } from '../lib/newTicketAssociations';
 
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -312,10 +313,13 @@ export default function NewTicket() {
           location: formData.location || undefined,
           resource: formData.resource || undefined,
           priority: formData.priority as any,
-          assignedTo: assignMode === 'user' && formData.assignedTo ? parseInt(formData.assignedTo) : null,
-          assignedToGroup: assignMode === 'group' && formData.assignedToGroup ? formData.assignedToGroup : null,
+          ...buildNewTicketAssociations({
+            clientId: formData.clientId,
+            assignMode,
+            assignedTo: formData.assignedTo,
+            assignedToGroup: formData.assignedToGroup,
+          }),
           dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
-          clientId: formData.clientId ? parseInt(formData.clientId) : null,
           visibility: formData.visibility,
           ...(currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true
              ? {
@@ -407,6 +411,186 @@ export default function NewTicket() {
 
   const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
   const showClients = clientsEnabled && (clientsList.length > 0 || currentUser?.role === 'admin');
+  const taskTrackModuleEnabled = organizationSettings?.timeTrackingModuleEnabled === true;
+  const clientField = showClients ? (
+    <>
+      <SideLabel>
+        {t.clients.clientField}{timeBillableToClient ? ' *' : ''}
+      </SideLabel>
+      <Box display="flex" alignItems="center" gap={0.5}>
+        <Autocomplete
+          sx={{ flex: 1, '& input': { fontSize: 12 }, '& .MuiAutocomplete-option': { fontSize: 12 } }}
+          size="small"
+          options={clientsList}
+          getOptionLabel={(o) => o.name}
+          value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
+          onChange={(_, v) => setFormData(f => ({ ...f, clientId: v ? v.id.toString() : '' }))}
+          noOptionsText={t.newTicket.noClientFound}
+          renderInput={(params) => (
+            <TextField {...params} placeholder={t.clients.clientField} inputProps={{ ...params.inputProps, style: { fontSize: 12 } }} />
+          )}
+        />
+        {currentUser?.role === 'admin' && (
+          <Tooltip title={t.newTicket.quickAddClient}>
+            <IconButton
+              size="small"
+              onClick={() => { setQuickAddName(''); setQuickAddEmail(''); setQuickAddPhone(''); setQuickAddOpen(true); }}
+              color="primary"
+            >
+              <AddCircleIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      {timeBillableToClient && !formData.clientId && (
+        <Typography variant="caption" color="error" display="block" sx={{ mt: 0.25 }}>
+          {t.newTicket.clientRequiredForBillableTime}
+        </Typography>
+      )}
+    </>
+  ) : null;
+  const assignmentField = currentUser?.role === 'admin' ? (
+    <>
+      <SideLabel>{t.newTicket.assignField}</SideLabel>
+      <ToggleButtonGroup
+        value={assignMode}
+        exclusive
+        onChange={(_, value: 'user' | 'group' | null) => {
+          if (!value) return;
+          setAssignMode(value);
+          setFormData(f => ({
+            ...f,
+            assignedTo: value === 'group' ? '' : f.assignedTo,
+            assignedToGroup: value === 'user' ? '' : f.assignedToGroup,
+          }));
+        }}
+        size="small"
+        sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: 11 } }}
+        fullWidth
+      >
+        <ToggleButton value="user">
+          <Person sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignCollaborator}
+        </ToggleButton>
+        <ToggleButton value="group" disabled={timeRecognizableToCollaborator}>
+          <Group sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignGroup}
+        </ToggleButton>
+      </ToggleButtonGroup>
+
+      {assignMode === 'user' ? (
+        <Box display="flex" flexDirection="column" gap={0.25}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder={lang === 'it' ? 'Cerca collaboratore…' : 'Search collaborator…'}
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            inputProps={{ style: { fontSize: '0.75rem', padding: '5px 8px' } }}
+            sx={{ mb: 0.5 }}
+          />
+          <Box
+            onClick={() => setFormData(f => ({ ...f, assignedTo: '' }))}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
+              borderRadius: 1, cursor: 'pointer',
+              bgcolor: !formData.assignedTo ? 'action.selected' : 'transparent',
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'action.disabledBackground' }}>—</Avatar>
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: 11 }}>
+              {t.newTicket.unassigned}
+            </Typography>
+          </Box>
+          {users?.filter(u => (u as any).active !== false && u.name.toLowerCase().includes(userSearch.toLowerCase())).map(u => {
+            const open = openByUser[u.id];
+            const selected = formData.assignedTo === u.id.toString();
+            return (
+              <Box
+                key={u.id}
+                onClick={() => setFormData(f => ({
+                  ...f,
+                  assignedTo: selected ? '' : u.id.toString(),
+                  assignedToGroup: '',
+                }))}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
+                  borderRadius: 1, cursor: 'pointer',
+                  bgcolor: selected ? 'action.selected' : 'transparent',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'primary.main' }}>
+                  {u.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography
+                  variant="body2"
+                  fontWeight={selected ? 700 : 400}
+                  color={selected ? 'primary' : 'text.primary'}
+                  sx={{ flex: 1, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {u.name}
+                </Typography>
+                {open > 0 && (
+                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>
+                    {open}
+                  </Typography>
+                )}
+                {selected && <Typography variant="caption" color="primary" lineHeight={1}>✓</Typography>}
+              </Box>
+            );
+          })}
+        </Box>
+      ) : (
+        <TextField
+          select fullWidth size="small"
+          value={formData.assignedToGroup}
+          onChange={e => setFormData(f => ({ ...f, assignedTo: '', assignedToGroup: e.target.value }))}
+        >
+          <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
+          {groups.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+        </TextField>
+      )}
+      {assignMode === 'group' && timeRecognizableToCollaborator && (
+        <Typography variant="caption" color="warning.main" textAlign="center" display="block" sx={{ px: 1 }}>
+          {t.ticketDetail.recognitionRequiresIndividualAssignee}
+        </Typography>
+      )}
+    </>
+  ) : (
+    <Box
+      display="flex" alignItems="center" gap={1}
+      onClick={() => setFormData(f => ({
+        ...f,
+        assignedTo: f.assignedTo === String((currentUser as any)?.id)
+          ? ''
+          : String((currentUser as any)?.id),
+        assignedToGroup: '',
+      }))}
+      sx={{ cursor: 'pointer', userSelect: 'none' }}
+    >
+      <Box
+        sx={{
+          width: 36, height: 20, borderRadius: 10, flexShrink: 0, position: 'relative',
+          bgcolor: formData.assignedTo === String((currentUser as any)?.id) ? 'primary.main' : 'action.disabledBackground',
+          transition: 'background-color 0.2s',
+        }}
+      >
+        <Box sx={{
+          position: 'absolute', top: 2, left: formData.assignedTo === String((currentUser as any)?.id) ? 18 : 2,
+          width: 16, height: 16, borderRadius: '50%', bgcolor: 'white',
+          boxShadow: 1, transition: 'left 0.2s',
+        }} />
+      </Box>
+      <Box>
+        <Box sx={{ fontSize: 12, fontWeight: 600, color: 'text.primary', lineHeight: 1.2 }}>
+          {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
+        </Box>
+        <Box sx={{ fontSize: 11, color: 'text.disabled', lineHeight: 1.2 }}>
+          {currentUser?.name}
+        </Box>
+      </Box>
+    </Box>
+  );
 
   return (
     <Box maxWidth={960} mx="auto">
@@ -697,34 +881,50 @@ export default function NewTicket() {
                   />
                 </SideSection>
 
-                {/* Recurrence (admin only) */}
-                {currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true && (
+                {taskTrackModuleEnabled ? (
                   <SideSection>
-                    <SideLabel>{t.ticketDetail.trackedTimeTitle}</SideLabel>
-                    <FormControlLabel
-                      sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-                      control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
-                      data-testid="toggle-ticket-client-billable"
-                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.billableToClient}</Typography>}
-                    />
-                    <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
-                      {t.newTicket.billableToClientHint}
-                    </Typography>
-                    <FormControlLabel
-                      sx={{ mx: 0, mt: 0.75, width: '100%', justifyContent: 'center', alignItems: 'center' }}
-                      control={<Checkbox size="small" disabled={assignMode === 'group'} checked={timeRecognizableToCollaborator} onChange={(event) => setTimeRecognizableToCollaborator(event.target.checked)} />}
-                      data-testid="toggle-ticket-collaborator-recognizable"
-                      label={<Typography variant="body2" fontSize={12} textAlign="center">{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>}
-                    />
-                    <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
-                      {t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
-                    </Typography>
-                    {assignMode === 'group' && (
-                      <Typography variant="caption" color="warning.main" textAlign="center" display="block" sx={{ px: 1 }}>
-                        {t.ticketDetail.recognitionRequiresIndividualAssignee}
-                      </Typography>
+                    <SideLabel>{t.newTicket.taskTrackSection}</SideLabel>
+                    {currentUser?.role === 'admin' && (
+                      <>
+                        <FormControlLabel
+                          sx={{ mx: 0, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+                          control={<Checkbox size="small" checked={timeBillableToClient} onChange={(event) => setTimeBillableToClient(event.target.checked)} />}
+                          data-testid="toggle-ticket-client-billable"
+                          label={<Typography variant="body2" fontSize={12} textAlign="center">{t.newTicket.billableToClient}</Typography>}
+                        />
+                        <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
+                          {t.newTicket.billableToClientHint}
+                        </Typography>
+                        <FormControlLabel
+                          sx={{ mx: 0, mt: 0.75, width: '100%', justifyContent: 'center', alignItems: 'center' }}
+                          control={<Checkbox size="small" disabled={assignMode === 'group'} checked={timeRecognizableToCollaborator} onChange={(event) => setTimeRecognizableToCollaborator(event.target.checked)} />}
+                          data-testid="toggle-ticket-collaborator-recognizable"
+                          label={<Typography variant="body2" fontSize={12} textAlign="center">{t.ticketDetail.trackedTimeCollaboratorRecognizable}</Typography>}
+                        />
+                        <Typography variant="caption" color="text.secondary" textAlign="center" display="block" sx={{ px: 1, mt: -0.25 }}>
+                          {t.ticketDetail.trackedTimeCollaboratorRecognizableHelp}
+                        </Typography>
+                        {assignMode === 'group' && (
+                          <Typography variant="caption" color="warning.main" textAlign="center" display="block" sx={{ px: 1 }}>
+                            {t.ticketDetail.recognitionRequiresIndividualAssignee}
+                          </Typography>
+                        )}
+                      </>
                     )}
+                    {clientField && (
+                      <Box mt={1} pt={1} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+                        {clientField}
+                      </Box>
+                    )}
+                    <Box mt={1} pt={1} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+                      {assignmentField}
+                    </Box>
                   </SideSection>
+                ) : (
+                  <>
+                    {clientField && <SideSection>{clientField}</SideSection>}
+                    <SideSection>{assignmentField}</SideSection>
+                  </>
                 )}
 
                 {currentUser?.role === 'admin' && (
@@ -823,176 +1023,6 @@ export default function NewTicket() {
                         />
                       </Box>
                     )}
-                  </SideSection>
-                )}
-
-                {/* Client */}
-                {showClients && (
-                  <SideSection>
-                    <SideLabel>
-                      {t.clients.clientField}{timeBillableToClient ? ' *' : ''}
-                    </SideLabel>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <Autocomplete
-                        sx={{ flex: 1, '& input': { fontSize: 12 }, '& .MuiAutocomplete-option': { fontSize: 12 } }}
-                        size="small"
-                        options={clientsList}
-                        getOptionLabel={(o) => o.name}
-                        value={clientsList.find(c => c.id.toString() === formData.clientId) ?? null}
-                        onChange={(_, v) => setFormData({ ...formData, clientId: v ? v.id.toString() : '' })}
-                        noOptionsText={t.newTicket.noClientFound}
-                        renderInput={(params) => (
-                          <TextField {...params} placeholder={t.clients.clientField} inputProps={{ ...params.inputProps, style: { fontSize: 12 } }} />
-                        )}
-                      />
-                      {currentUser?.role === 'admin' && (
-                        <Tooltip title={t.newTicket.quickAddClient}>
-                          <IconButton
-                            size="small"
-                            onClick={() => { setQuickAddName(''); setQuickAddEmail(''); setQuickAddPhone(''); setQuickAddOpen(true); }}
-                            color="primary"
-                          >
-                            <AddCircleIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                    {timeBillableToClient && !formData.clientId && (
-                      <Typography variant="caption" color="error" display="block" sx={{ mt: 0.25 }}>
-                        {t.newTicket.clientRequiredForBillableTime}
-                      </Typography>
-                    )}
-                  </SideSection>
-                )}
-
-                {/* Assignee (admin only) */}
-                {currentUser?.role === 'admin' && (
-                  <SideSection>
-                    <SideLabel>{t.newTicket.assignField}</SideLabel>
-                    <ToggleButtonGroup
-                      value={assignMode}
-                      exclusive
-                      onChange={(_, v) => { if (v) setAssignMode(v); }}
-                      size="small"
-                      sx={{ mb: 1, '& .MuiToggleButton-root': { py: 0.4, px: 1, fontSize: 11 } }}
-                      fullWidth
-                    >
-                      <ToggleButton value="user">
-                        <Person sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignUser}
-                      </ToggleButton>
-                      <ToggleButton value="group" disabled={timeRecognizableToCollaborator}>
-                        <Group sx={{ mr: 0.5, fontSize: 14 }} />{t.newTicket.assignGroup}
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-
-                    {assignMode === 'user' ? (
-                      <Box display="flex" flexDirection="column" gap={0.25}>
-                        <TextField
-                          size="small"
-                          fullWidth
-                          placeholder={lang === 'it' ? 'Cerca collaboratore…' : 'Search collaborator…'}
-                          value={userSearch}
-                          onChange={e => setUserSearch(e.target.value)}
-                          inputProps={{ style: { fontSize: '0.75rem', padding: '5px 8px' } }}
-                          sx={{ mb: 0.5 }}
-                        />
-                        <Box
-                          onClick={() => setFormData({ ...formData, assignedTo: '' })}
-                          sx={{
-                            display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
-                            borderRadius: 1, cursor: 'pointer',
-                            bgcolor: !formData.assignedTo ? 'action.selected' : 'transparent',
-                            '&:hover': { bgcolor: 'action.hover' },
-                          }}
-                        >
-                          <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'action.disabledBackground' }}>—</Avatar>
-                          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, fontSize: 11 }}>
-                            {t.newTicket.unassigned}
-                          </Typography>
-                        </Box>
-                        {users?.filter(u => (u as any).active !== false && u.name.toLowerCase().includes(userSearch.toLowerCase())).map(u => {
-                          const open = openByUser[u.id];
-                          const selected = formData.assignedTo === u.id.toString();
-                          return (
-                            <Box
-                              key={u.id}
-                              onClick={() => setFormData({ ...formData, assignedTo: selected ? '' : u.id.toString() })}
-                              sx={{
-                                display: 'flex', alignItems: 'center', gap: 1, px: 0.75, py: 0.2,
-                                borderRadius: 1, cursor: 'pointer',
-                                bgcolor: selected ? 'action.selected' : 'transparent',
-                                '&:hover': { bgcolor: 'action.hover' },
-                              }}
-                            >
-                              <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'primary.main' }}>
-                                {u.name.charAt(0).toUpperCase()}
-                              </Avatar>
-                              <Typography
-                                variant="body2"
-                                fontWeight={selected ? 700 : 400}
-                                color={selected ? 'primary' : 'text.primary'}
-                                sx={{ flex: 1, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                              >
-                                {u.name}
-                              </Typography>
-                              {open > 0 && (
-                                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>
-                                  {open}
-                                </Typography>
-                              )}
-                              {selected && <Typography variant="caption" color="primary" lineHeight={1}>✓</Typography>}
-                            </Box>
-                          );
-                        })}
-                      </Box>
-                    ) : (
-                      <TextField
-                        select fullWidth size="small"
-                        value={formData.assignedToGroup}
-                        onChange={e => setFormData({ ...formData, assignedToGroup: e.target.value })}
-                      >
-                        <MenuItem value=""><em>{t.newTicket.unassigned}</em></MenuItem>
-                        {groups.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
-                      </TextField>
-                    )}
-                  </SideSection>
-                )}
-
-                {/* Auto-assign to self (non-admin only — admins use the full picker above) */}
-                {currentUser?.role !== 'admin' && (
-                  <SideSection divider={false}>
-                    <Box
-                      display="flex" alignItems="center" gap={1}
-                      onClick={() => setFormData(f => ({
-                        ...f,
-                        assignedTo: f.assignedTo === String((currentUser as any)?.id)
-                          ? ''
-                          : String((currentUser as any)?.id),
-                      }))}
-                      sx={{ cursor: 'pointer', userSelect: 'none' }}
-                    >
-                      <Box
-                        sx={{
-                          width: 36, height: 20, borderRadius: 10, flexShrink: 0, position: 'relative',
-                          bgcolor: formData.assignedTo === String((currentUser as any)?.id) ? 'primary.main' : 'action.disabledBackground',
-                          transition: 'background-color 0.2s',
-                        }}
-                      >
-                        <Box sx={{
-                          position: 'absolute', top: 2, left: formData.assignedTo === String((currentUser as any)?.id) ? 18 : 2,
-                          width: 16, height: 16, borderRadius: '50%', bgcolor: 'white',
-                          boxShadow: 1, transition: 'left 0.2s',
-                        }} />
-                      </Box>
-                      <Box>
-                        <Box sx={{ fontSize: 12, fontWeight: 600, color: 'text.primary', lineHeight: 1.2 }}>
-                          {lang === 'it' ? 'Assegna a me' : 'Assign to me'}
-                        </Box>
-                        <Box sx={{ fontSize: 11, color: 'text.disabled', lineHeight: 1.2 }}>
-                          {currentUser?.name}
-                        </Box>
-                      </Box>
-                    </Box>
                   </SideSection>
                 )}
 

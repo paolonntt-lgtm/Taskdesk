@@ -46,6 +46,7 @@ let handoffTicketId: number;
 let backupHandoffTicketId: number;
 let unassignedRecognizableTicketId: number;
 let createdUntrackedTicketId: number;
+let taskTrackCreatedTicketIds: number[] = [];
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -329,6 +330,7 @@ describe("ticket time tracking", () => {
       backupHandoffTicketId,
       unassignedRecognizableTicketId,
       createdUntrackedTicketId,
+      ...taskTrackCreatedTicketIds,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
@@ -403,6 +405,148 @@ describe("ticket time tracking", () => {
     });
     expect(recognizableWithoutAssignee.status).toBe(400);
     expect(recognizableWithoutAssignee.body.error).toBe("Collaborator-recognizable tracked tickets require an individual assignee");
+
+    const independentTaskTrackSelections = [
+      {
+        title: "Client only",
+        clientId,
+        assignedTo: null,
+        assignedToGroup: null,
+        timeTrackingEnabled: true,
+        timeTrackingBillable: true,
+        timeTrackingCompensationOverride: false,
+        expected: {
+          clientId,
+          assignedTo: null,
+          assignedToGroup: null,
+          timeTrackingEnabled: true,
+          timeTrackingBillable: true,
+          timeTrackingCompensationOverride: false,
+        },
+      },
+      {
+        title: "Collaborator only",
+        clientId: null,
+        assignedTo: collaboratorId,
+        assignedToGroup: null,
+        timeTrackingEnabled: true,
+        timeTrackingBillable: false,
+        timeTrackingCompensationOverride: true,
+        expected: {
+          clientId: null,
+          assignedTo: collaboratorId,
+          assignedToGroup: null,
+          timeTrackingEnabled: true,
+          timeTrackingBillable: false,
+          timeTrackingCompensationOverride: true,
+        },
+      },
+      {
+        title: "Client and collaborator",
+        clientId,
+        assignedTo: collaboratorId,
+        assignedToGroup: null,
+        timeTrackingEnabled: true,
+        timeTrackingBillable: true,
+        timeTrackingCompensationOverride: true,
+        expected: {
+          clientId,
+          assignedTo: collaboratorId,
+          assignedToGroup: null,
+          timeTrackingEnabled: true,
+          timeTrackingBillable: true,
+          timeTrackingCompensationOverride: true,
+        },
+      },
+      {
+        title: "Neither selection nor classification",
+        clientId: null,
+        assignedTo: null,
+        assignedToGroup: null,
+        timeTrackingEnabled: false,
+        timeTrackingBillable: false,
+        timeTrackingCompensationOverride: null,
+        expected: {
+          clientId: null,
+          assignedTo: null,
+          assignedToGroup: null,
+          timeTrackingEnabled: false,
+          timeTrackingBillable: false,
+          timeTrackingCompensationOverride: null,
+        },
+      },
+    ];
+    for (const selection of independentTaskTrackSelections) {
+      const result = await request("/api/tickets", adminSessionId, {
+        method: "POST",
+        body: JSON.stringify({
+          title: `${selection.title} ${runId}`,
+          description: "Independent TaskTrack selections",
+          category: "Support",
+          priority: "medium",
+          clientId: selection.clientId,
+          assignedTo: selection.assignedTo,
+          assignedToGroup: selection.assignedToGroup,
+          timeTrackingEnabled: selection.timeTrackingEnabled,
+          timeTrackingBillable: selection.timeTrackingBillable,
+          timeTrackingCompensationOverride: selection.timeTrackingCompensationOverride,
+        }),
+      });
+      expect(result.status).toBe(201);
+      taskTrackCreatedTicketIds.push(result.body.id);
+      const [created] = await db.select({
+        clientId: ticketsTable.clientId,
+        assignedTo: ticketsTable.assignedTo,
+        assignedToGroup: ticketsTable.assignedToGroup,
+        timeTrackingEnabled: ticketsTable.timeTrackingEnabled,
+        timeTrackingBillable: ticketsTable.timeTrackingBillable,
+        timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+      }).from(ticketsTable).where(eq(ticketsTable.id, result.body.id));
+      expect(created).toEqual(selection.expected);
+    }
+
+    const recognizableGroupAssignment = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Recognizable group assignment ${runId}`,
+        description: "Groups do not satisfy the individual assignee requirement",
+        category: "Support",
+        priority: "medium",
+        assignedToGroup: `Timer test group ${runId}`,
+        timeTrackingEnabled: true,
+        timeTrackingCompensationOverride: true,
+      }),
+    });
+    expect(recognizableGroupAssignment.status).toBe(400);
+    expect(recognizableGroupAssignment.body.error).toBe(
+      "Collaborator-recognizable tracked tickets require an individual assignee",
+    );
+
+    const nonAdminIndividualAssignment = await request("/api/tickets", collaboratorSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Forbidden individual assignment ${runId}`,
+        description: "Non-admins cannot assign a ticket to another collaborator",
+        category: "Support",
+        priority: "medium",
+        assignedTo: adminId,
+      }),
+    });
+    expect(nonAdminIndividualAssignment.status).toBe(403);
+    expect(nonAdminIndividualAssignment.body.error).toBe("Only admins can assign tickets to other users");
+
+    const nonAdminGroupAssignment = await request("/api/tickets", collaboratorSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Forbidden group assignment ${runId}`,
+        description: "Only admins can assign tickets to groups",
+        category: "Support",
+        priority: "medium",
+        assignedToGroup: `Timer test group ${runId}`,
+      }),
+    });
+    expect(nonAdminGroupAssignment.status).toBe(403);
+    expect(nonAdminGroupAssignment.body.error).toBe("Only admins can assign tickets to groups");
 
     const untrackedCreated = await request("/api/tickets", adminSessionId, {
       method: "POST",
@@ -492,7 +636,7 @@ describe("ticket time tracking", () => {
     const startFirst = await changeStatus(billableOnlyId, "in_progress");
     expect(startFirst.status).toBe(200);
     let sessions = await db.select().from(ticketTimeSessionsTable)
-      .where(eq(ticketTimeSessionsTable.ticketId, handoffTicketId));
+      .where(eq(ticketTimeSessionsTable.ticketId, billableOnlyId));
     expect(sessions).toHaveLength(1);
     expect(sessions[0]).toMatchObject({ clientBillable: true, collaboratorRecognizable: false, endedAt: null });
 

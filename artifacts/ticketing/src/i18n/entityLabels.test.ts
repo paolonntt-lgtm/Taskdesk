@@ -30,3 +30,10 @@ describe('Albert knowledge base settings labels', () => {
     expect(translations.en.settings.kbNoArticles).toContain('Albert');
   });
 });
+
+describe('TaskTrack ticket creation label', () => {
+  it('keeps the section name as TaskTrack in Italian and English', () => {
+    expect(translations.it.newTicket.taskTrackSection).toBe('TaskTrack');
+    expect(translations.en.newTicket.taskTrackSection).toBe('TaskTrack');
+  });
+});
