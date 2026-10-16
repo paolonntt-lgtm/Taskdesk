@@ -102,6 +102,16 @@ describe("external tickets count in statistics but stay out of charts", () => {
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
         closedAt: new Date(),
       },
+      {
+        organizationId,
+        title: `External open ${runId}`,
+        description: "New external ticket created by the system user",
+        category: "Regression external open category",
+        location: "Esterno",
+        priority: "medium",
+        status: "open",
+        createdBy: systemUserId,
+      },
     ]).returning({ id: ticketsTable.id });
     createdTicketIds.push(...tickets.map(({ id }) => id));
 
@@ -179,14 +189,14 @@ describe("external tickets count in statistics but stay out of charts", () => {
       expect(result.status).toBe(200);
     }
 
-    expect(dashboard.body.totalTickets).toBe(2);
-    expect(dashboard.body.openTickets).toBe(1);
+    expect(dashboard.body.totalTickets).toBe(3);
+    expect(dashboard.body.openTickets).toBe(2);
     expect(dashboard.body.resolvedTickets).toBe(1);
     expect(dashboard.body.waitingTickets).toBe(0);
     expect(dashboard.body.urgentTickets).toBe(0);
-    expect(dashboard.body.last7Days).toBe(2);
-    expect(dashboard.body.last30Days).toBe(2);
-    expect(dashboard.body.createdToday).toBe(2);
+    expect(dashboard.body.last7Days).toBe(3);
+    expect(dashboard.body.last30Days).toBe(3);
+    expect(dashboard.body.createdToday).toBe(3);
     expect(dashboard.body.avgResolutionHours).toBeCloseTo(2, 1);
 
     expect(trend.body.reduce((sum: number, day: { count: number }) => sum + day.count, 0)).toBe(1);
@@ -203,10 +213,10 @@ describe("external tickets count in statistics but stay out of charts", () => {
       { name: "Alta", count: 1 },
     ]);
     expect(byAssignee.body).toEqual([]);
-    expect(recentTickets.body).toHaveLength(2);
+    expect(recentTickets.body).toHaveLength(3);
     expect(recentTickets.body.some((ticket: { location: string }) => ticket.location.trim().toLowerCase() === "esterno")).toBe(true);
 
-    expect(reportsAll.body.dashboard.totalTickets).toBe(2);
+    expect(reportsAll.body.dashboard.totalTickets).toBe(3);
     expect(reportsAll.body.byCategory).toEqual([
       { name: "Regression ordinary category", count: 1 },
     ]);
@@ -230,6 +240,6 @@ describe("external tickets count in statistics but stay out of charts", () => {
       id: ticketsTable.id,
       title: ticketsTable.title,
     }).from(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
-    expect(stillStoredTickets).toHaveLength(3);
+    expect(stillStoredTickets).toHaveLength(4);
   });
 });
