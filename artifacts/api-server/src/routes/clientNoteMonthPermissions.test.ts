@@ -211,4 +211,50 @@ describe("client note month permissions", () => {
     expect(deniedResponse.status).toBe(403);
     await expectMonth("2026-04");
   });
+
+  it("allows authors and note editors to change checklist text while blocking other users", async () => {
+    const path = `/api/clients/${clientId}/notes/${noteId}`;
+    const authorEdit = await request(path, authorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        body: "",
+        checklist: [{ id: "author-edit", text: "Testo aggiornato dall'autore", checked: false }],
+      }),
+    });
+
+    expect(authorEdit.status).toBe(200);
+    expect(authorEdit.body.checklist).toEqual([
+      expect.objectContaining({ id: "author-edit", text: "Testo aggiornato dall'autore", checked: false }),
+    ]);
+
+    const editorEdit = await request(path, editorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        body: "",
+        checklist: [{ id: "editor-edit", text: "Testo aggiornato dall'editor", checked: false }],
+      }),
+    });
+
+    expect(editorEdit.status).toBe(200);
+    expect(editorEdit.body.checklist).toEqual([
+      expect.objectContaining({ id: "editor-edit", text: "Testo aggiornato dall'editor", checked: false }),
+    ]);
+
+    const deniedEdit = await request(path, unauthorizedSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        checklist: [{ id: "unauthorized-edit", text: "Testo non autorizzato", checked: false }],
+      }),
+    });
+
+    expect(deniedEdit.status).toBe(403);
+    const [storedNote] = await db
+      .select({ checklist: clientNotesTable.checklist })
+      .from(clientNotesTable)
+      .where(eq(clientNotesTable.id, noteId))
+      .limit(1);
+    expect(storedNote?.checklist).toEqual([
+      expect.objectContaining({ id: "editor-edit", text: "Testo aggiornato dall'editor", checked: false }),
+    ]);
+  });
 });

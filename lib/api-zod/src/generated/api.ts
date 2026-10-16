@@ -3675,7 +3675,7 @@ export const CreateClientNoteResponse = zod.object({
 
 
 /**
- * @summary Update a client note body or checklist (admin only)
+ * @summary Update a client note body, month, or checklist
  */
 export const UpdateClientNoteParams = zod.object({
   "id": zod.coerce.number().int(),
@@ -3683,7 +3683,7 @@ export const UpdateClientNoteParams = zod.object({
 })
 
 export const UpdateClientNoteBody = zod.object({
-  "body": zod.string(),
+  "body": zod.string().optional(),
   "monthOverride": zod.string().nullish().describe('YYYY-MM month override parsed from hashtag'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),

@@ -1000,6 +1000,19 @@ export interface ClientNoteInput {
   checklist?: ClientNoteInputChecklistItem[] | null;
 }
 
+export type ClientNoteUpdateChecklistItem = {
+  id: string;
+  text: string;
+  checked: boolean;
+};
+
+export interface ClientNoteUpdate {
+  body?: string;
+  /** YYYY-MM month override parsed from hashtag */
+  monthOverride?: string | null;
+  checklist?: ClientNoteUpdateChecklistItem[] | null;
+}
+
 export type ClientNoteWithClientChecklistItem = {
   id: string;
   text: string;

@@ -2466,7 +2466,7 @@ paths:
     patch:
       operationId: updateClientNote
       tags: [clientNotes]
-      summary: Update a client note body or checklist (admin only)
+      summary: Update a client note body, month, or checklist
       parameters:
         - name: id
           in: path
@@ -2483,7 +2483,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ClientNoteInput"
+              $ref: "#/components/schemas/ClientNoteUpdate"
       responses:
         "200":
           description: Note updated
@@ -4491,6 +4491,32 @@ components:
               - checked
       required:
         - body
+
+    ClientNoteUpdate:
+      type: object
+      properties:
+        body:
+          type: string
+        monthOverride:
+          type: string
+          nullable: true
+          description: "YYYY-MM month override parsed from hashtag"
+        checklist:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              checked:
+                type: boolean
+            required:
+              - id
+              - text
+              - checked
 
     ClientNoteWithClient:
       type: object

@@ -784,9 +784,13 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
   if (parsed.data.checklist !== undefined) {
     if (currentUser.role !== 'admin') {
       // Non-admins may only toggle the `checked` field on existing items.
-      // Fetch the stored checklist and validate structure is unchanged.
+      // Authors and users with edit permission can also change checklist text/structure.
       const [stored] = await db
-        .select({ checklist: clientNotesTable.checklist, organizationId: clientNotesTable.organizationId })
+        .select({
+          authorId: clientNotesTable.authorId,
+          checklist: clientNotesTable.checklist,
+          organizationId: clientNotesTable.organizationId,
+        })
         .from(clientNotesTable)
         .where(
           and(
@@ -799,35 +803,62 @@ router.patch("/clients/:id/notes/:noteId", requireClientFeature, async (req, res
 
       if (!stored) { res.status(404).json({ error: "Not found" }); return; }
 
-      const storedList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (stored.checklist as any) ?? [];
-      const incomingList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (parsed.data.checklist as any) ?? [];
+      const canEditChecklistContent =
+        stored.authorId === currentUser.id ||
+        await hasGroupPermission(currentUser.id, currentUser.organizationId ?? null, "edit_client_notes", false, req);
 
-      // Validate: same number of items, same IDs, same text — only `checked` may differ
-      const structurallyValid =
-        incomingList.length === storedList.length &&
-        incomingList.every((incoming, idx) => {
-          const existing = storedList[idx];
-          return existing && incoming.id === existing.id && incoming.text === existing.text;
-        });
+      if (!canEditChecklistContent) {
+        const storedList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (stored.checklist as any) ?? [];
+        const incomingList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (parsed.data.checklist as any) ?? [];
 
-      if (!structurallyValid) {
-        res.status(403).json({ error: "Forbidden: non-admins may only toggle checklist item state" });
-        return;
-      }
+        // Validate: same number of items, same IDs, same text — only `checked` may differ
+        const structurallyValid =
+          incomingList.length === storedList.length &&
+          incomingList.every((incoming, idx) => {
+            const existing = storedList[idx];
+            return existing && incoming.id === existing.id && incoming.text === existing.text;
+          });
 
-      // Server-side: set/clear checkedByName and checkedAt based on toggle direction
-      const [userRow] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, currentUser.id)).limit(1);
-      const userName = userRow?.name ?? null;
-      const enriched = incomingList.map((incoming, idx) => {
-        const existing = storedList[idx];
-        if (incoming.checked && !existing.checked) {
-          return { ...incoming, checkedByName: userName, checkedAt: new Date().toISOString() };
-        } else if (!incoming.checked && existing.checked) {
-          return { ...incoming, checkedByName: null, checkedAt: null };
+        if (!structurallyValid) {
+          res.status(403).json({ error: "Forbidden: checklist content can only be changed by its author or an editor" });
+          return;
         }
-        return { ...incoming, checkedByName: existing.checkedByName ?? null, checkedAt: existing.checkedAt ?? null };
-      });
-      updateData.checklist = enriched;
+
+        // Server-side: set/clear checkedByName and checkedAt based on toggle direction
+        const [userRow] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, currentUser.id)).limit(1);
+        const userName = userRow?.name ?? null;
+        const enriched = incomingList.map((incoming, idx) => {
+          const existing = storedList[idx];
+          if (incoming.checked && !existing.checked) {
+            return { ...incoming, checkedByName: userName, checkedAt: new Date().toISOString() };
+          } else if (!incoming.checked && existing.checked) {
+            return { ...incoming, checkedByName: null, checkedAt: null };
+          }
+          return { ...incoming, checkedByName: existing.checkedByName ?? null, checkedAt: existing.checkedAt ?? null };
+        });
+        updateData.checklist = enriched;
+      } else {
+        // Editors may change structure, but completion metadata remains server-owned.
+        const [userRow] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, currentUser.id)).limit(1);
+        const userName = userRow?.name ?? null;
+        const storedList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (stored.checklist as any) ?? [];
+        const incomingList: Array<{ id: string; text: string; checked: boolean; checkedByName?: string | null; checkedAt?: string | null }> = (parsed.data.checklist as any) ?? [];
+        const storedMap = new Map(storedList.map((item) => [item.id, item]));
+        updateData.checklist = incomingList.map((incoming) => {
+          const existing = storedMap.get(incoming.id);
+          if (incoming.checked && (!existing || !existing.checked)) {
+            return { ...incoming, checkedByName: userName, checkedAt: new Date().toISOString() };
+          }
+          if (!incoming.checked && existing?.checked) {
+            return { ...incoming, checkedByName: null, checkedAt: null };
+          }
+          return {
+            ...incoming,
+            checkedByName: existing?.checkedByName ?? null,
+            checkedAt: existing?.checkedAt ?? null,
+          };
+        });
+      }
     } else {
       // Admin path: also enforce server-side checkedByName/checkedAt
       const [storedNote] = await db

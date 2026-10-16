@@ -36,6 +36,8 @@ export * from './clientNote';
 export * from './clientNoteChecklistItem';
 export * from './clientNoteInput';
 export * from './clientNoteInputChecklistItem';
+export * from './clientNoteUpdate';
+export * from './clientNoteUpdateChecklistItem';
 export * from './clientNoteWithClient';
 export * from './clientNoteWithClientChecklistItem';
 export * from './cloneTicketBody';

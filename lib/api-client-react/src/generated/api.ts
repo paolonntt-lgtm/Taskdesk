@@ -35,6 +35,7 @@ import type {
   ClientInput,
   ClientNote,
   ClientNoteInput,
+  ClientNoteUpdate,
   ClientNoteWithClient,
   CloneTicketBody,
   CommentWithAuthor,
@@ -7477,11 +7478,11 @@ export const getUpdateClientNoteUrl = (id: number,
 }
 
 /**
- * @summary Update a client note body or checklist (admin only)
+ * @summary Update a client note body, month, or checklist
  */
 export const updateClientNote = async (id: number,
     noteId: number,
-    clientNoteInput: ClientNoteInput, options?: Parameters<typeof customFetch>[1]): Promise<ClientNote> => {
+    clientNoteUpdate: ClientNoteUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ClientNote> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7494,7 +7495,7 @@ return customFetch<ClientNote>(getUpdateClientNoteUrl(id,noteId),
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(clientNoteInput)
+    body: JSON.stringify(clientNoteUpdate)
   }
 );}
 
@@ -7532,12 +7533,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateClientNoteMutationResult = NonNullable<Awaited<ReturnType<typeof updateClientNote>>>
-    export type UpdateClientNoteMutationBody = BodyType<ClientNoteInput>
+    export type UpdateClientNoteMutationBody = BodyType<ClientNoteUpdate>
     export type UpdateClientNoteMutationError = ErrorType<void>
-    export type UpdateClientNoteMutationVariables = {id: number;noteId: number;data: BodyType<ClientNoteInput>}
+    export type UpdateClientNoteMutationVariables = {id: number;noteId: number;data: BodyType<ClientNoteUpdate>}
 
     /**
- * @summary Update a client note body or checklist (admin only)
+ * @summary Update a client note body, month, or checklist
  */
 export const useUpdateClientNote = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientNote>>, TError,UpdateClientNoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
