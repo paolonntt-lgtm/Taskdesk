@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   processWebhook: vi.fn(),
   processReferralInvoicePaid: vi.fn(),
+  processReferralChargeRefunded: vi.fn(),
+  processReferralDisputeCreated: vi.fn(),
 }));
 
 vi.mock("./stripeClient", () => ({
@@ -11,6 +13,8 @@ vi.mock("./stripeClient", () => ({
 
 vi.mock("./referralService", () => ({
   processReferralInvoicePaid: mocks.processReferralInvoicePaid,
+  processReferralChargeRefunded: mocks.processReferralChargeRefunded,
+  processReferralDisputeCreated: mocks.processReferralDisputeCreated,
 }));
 
 import { WebhookHandlers } from "./webhookHandlers";
@@ -53,5 +57,31 @@ describe("Stripe webhook referral dispatch", () => {
     mocks.processWebhook.mockResolvedValue(undefined);
     await WebhookHandlers.processWebhook(rawEvent("invoice.payment_failed"), "stripe-signature");
     expect(mocks.processReferralInvoicePaid).not.toHaveBeenCalled();
+    expect(mocks.processReferralChargeRefunded).not.toHaveBeenCalled();
+    expect(mocks.processReferralDisputeCreated).not.toHaveBeenCalled();
+  });
+
+  it("dispatches full-refund events to the referral invalidation handler", async () => {
+    mocks.processWebhook.mockResolvedValue(undefined);
+    const payload = rawEvent("charge.refunded");
+
+    await WebhookHandlers.processWebhook(payload, "stripe-signature");
+
+    expect(mocks.processReferralChargeRefunded).toHaveBeenCalledWith({
+      id: "in_test",
+      amount_paid: 4900,
+    });
+  });
+
+  it("dispatches dispute-created events to the referral invalidation handler", async () => {
+    mocks.processWebhook.mockResolvedValue(undefined);
+    const payload = rawEvent("charge.dispute.created");
+
+    await WebhookHandlers.processWebhook(payload, "stripe-signature");
+
+    expect(mocks.processReferralDisputeCreated).toHaveBeenCalledWith({
+      id: "in_test",
+      amount_paid: 4900,
+    });
   });
 });

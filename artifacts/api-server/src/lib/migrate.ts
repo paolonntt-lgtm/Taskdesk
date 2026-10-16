@@ -440,6 +440,10 @@ export async function runAppMigrations(): Promise<void> {
         WHERE qualifying_invoice_id IS NOT NULL;
       CREATE INDEX IF NOT EXISTS referrals_referrer_status_idx
         ON referrals (referrer_organization_id, status);
+      ALTER TABLE referrals
+        ADD COLUMN IF NOT EXISTS stripe_reward_reversal_balance_transaction_id TEXT,
+        ADD COLUMN IF NOT EXISTS reward_revocation_reason TEXT,
+        ADD COLUMN IF NOT EXISTS reward_revoked_at TIMESTAMPTZ;
     `);
 
     logger.info("App migrations completed");

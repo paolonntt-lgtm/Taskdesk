@@ -150,6 +150,11 @@ export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promi
   await applyPendingReferralCreditsForCustomer(plan.customerId);
 }
 
+function getChargeInvoiceId(charge: Stripe.Charge): string | null {
+  const invoice = (charge as any).invoice;
+  if (typeof invoice === "string") return invoice;
+  return typeof invoice?.id === "string" ? invoice.id : null;
+}
 export async function applyPendingReferralCreditsForCustomer(customerId: string): Promise<void> {
   const [admin] = await db.select({ organizationId: usersTable.organizationId })
     .from(usersTable).where(and(
@@ -168,17 +173,29 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
   if (!pending.length) return;
   const stripe = await getUncachableStripeClient();
   for (const referral of pending) {
-    const transaction = await stripe.customers.createBalanceTransaction(customerId, {
-      amount: -Math.abs(referral.rewardAmount!),
-      currency: referral.rewardCurrency!,
-      description: "TaskDesk referral reward — one month of subscription",
-      metadata: { referralId: String(referral.id), referredOrganizationId: String(referral.referredOrganizationId) },
-    }, { idempotencyKey: `taskdesk-referral-${referral.id}` });
-    await db.update(referralsTable).set({
-      status: "rewarded",
-      stripeBalanceTransactionId: transaction.id,
-      rewardedAt: new Date(),
-    }).where(and(eq(referralsTable.id, referral.id), eq(referralsTable.status, "pending_reward")));
+    await db.transaction(async (tx) => {
+      const [lockedReferral] = await tx.select().from(referralsTable)
+        .where(and(eq(referralsTable.id, referral.id), eq(referralsTable.status, "pending_reward")))
+        .for("update");
+      if (!lockedReferral) return;
+      const transaction = await stripe.customers.createBalanceTransaction(customerId, {
+        amount: -Math.abs(lockedReferral.rewardAmount!),
+        currency: lockedReferral.rewardCurrency!,
+        description: "TaskDesk referral reward — one month of subscription",
+        metadata: {
+          referralId: String(lockedReferral.id),
+          referredOrganizationId: String(lockedReferral.referredOrganizationId),
+        },
+      }, { idempotencyKey: `taskdesk-referral-${lockedReferral.id}` });
+      await tx.update(referralsTable).set({
+        status: "rewarded",
+        stripeBalanceTransactionId: transaction.id,
+        rewardedAt: new Date(),
+      }).where(and(
+        eq(referralsTable.id, lockedReferral.id),
+        eq(referralsTable.status, "pending_reward"),
+      ));
+    });
   }
 }
 
@@ -192,6 +209,7 @@ export async function getReferralOverview(organizationId: number) {
     status: referralsTable.status,
     rewardAmount: referralsTable.rewardAmount,
     rewardCurrency: referralsTable.rewardCurrency,
+    rewardRevocationReason: referralsTable.rewardRevocationReason,
     createdAt: referralsTable.createdAt,
     qualifiedAt: referralsTable.qualifiedAt,
     rewardedAt: referralsTable.rewardedAt,
@@ -201,4 +219,63 @@ export async function getReferralOverview(organizationId: number) {
     eq(organizationsTable.id, referralsTable.referredOrganizationId),
   ).where(eq(referralsTable.referrerOrganizationId, organizationId));
   return { organization, code: code?.code ?? null, referrals };
+}
+
+export async function processReferralDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
+  const stripe = await getUncachableStripeClient();
+  const charge = typeof dispute.charge === "string"
+    ? await stripe.charges.retrieve(dispute.charge)
+    : dispute.charge;
+  const invoiceId = getChargeInvoiceId(charge);
+  if (invoiceId) await revokeReferralForInvoice(invoiceId, "dispute");
+}
+
+async function revokeReferralForInvoice(
+  invoiceId: string,
+  reason: "refund" | "dispute",
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [referral] = await tx.select().from(referralsTable)
+      .where(eq(referralsTable.qualifyingInvoiceId, invoiceId))
+      .for("update");
+    if (!referral || !["pending_reward", "rewarded"].includes(referral.status)) return;
+
+    let reversalTransactionId: string | null = null;
+    if (referral.status === "rewarded") {
+      if (!referral.rewardCustomerId || !referral.rewardAmount || !referral.rewardCurrency) {
+        throw new Error(`Referral ${referral.id} is missing reward details; cannot revoke its credit`);
+      }
+      const stripe = await getUncachableStripeClient();
+      const reversal = await stripe.customers.createBalanceTransaction(
+        referral.rewardCustomerId,
+        {
+          amount: Math.abs(referral.rewardAmount),
+          currency: referral.rewardCurrency,
+          description: "TaskDesk referral reward reversal — qualifying payment invalidated",
+          metadata: {
+            referralId: String(referral.id),
+            qualifyingInvoiceId: invoiceId,
+            reason,
+          },
+        },
+        { idempotencyKey: `taskdesk-referral-reversal-${referral.id}` },
+      );
+      reversalTransactionId = reversal.id;
+    }
+
+    await tx.update(referralsTable).set({
+      status: "revoked",
+      stripeRewardReversalBalanceTransactionId: reversalTransactionId,
+      rewardRevocationReason: reason,
+      rewardRevokedAt: new Date(),
+    }).where(eq(referralsTable.id, referral.id));
+  });
+}
+
+export async function processReferralChargeRefunded(charge: Stripe.Charge): Promise<void> {
+  // A partial refund leaves the qualifying payment valid. Revoke only once the
+  // full invoice charge has been refunded.
+  if (charge.amount <= 0 || charge.amount_refunded < charge.amount) return;
+  const invoiceId = getChargeInvoiceId(charge);
+  if (invoiceId) await revokeReferralForInvoice(invoiceId, "refund");
 }

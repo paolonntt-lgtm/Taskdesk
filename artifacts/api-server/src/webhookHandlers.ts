@@ -1,5 +1,9 @@
 import { getStripeSync } from './stripeClient';
-import { processReferralInvoicePaid } from './referralService';
+import {
+  processReferralChargeRefunded,
+  processReferralDisputeCreated,
+  processReferralInvoicePaid,
+} from './referralService';
 import type Stripe from 'stripe';
 
 export class WebhookHandlers {
@@ -20,6 +24,10 @@ export class WebhookHandlers {
     const verifiedEvent = JSON.parse(payload.toString('utf8')) as Stripe.Event;
     if (verifiedEvent.type === 'invoice.paid') {
       await processReferralInvoicePaid(verifiedEvent.data.object as Stripe.Invoice);
+    } else if (verifiedEvent.type === 'charge.refunded') {
+      await processReferralChargeRefunded(verifiedEvent.data.object as Stripe.Charge);
+    } else if (verifiedEvent.type === 'charge.dispute.created') {
+      await processReferralDisputeCreated(verifiedEvent.data.object as Stripe.Dispute);
     }
   }
 }

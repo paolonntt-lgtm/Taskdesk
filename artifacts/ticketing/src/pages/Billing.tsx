@@ -99,7 +99,7 @@ export default function Billing() {
   const [error, setError] = useState<string | null>(null);
   const [stripeUnavailable, setStripeUnavailable] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [referralInfo, setReferralInfo] = useState<{ eligible: boolean; referralUrl?: string; referrals?: Array<{ id: number; status: string; referredOrganizationName: string; rewardAmount: number | null; rewardCurrency: string | null }> } | null>(null);
+  const [referralInfo, setReferralInfo] = useState<{ eligible: boolean; referralUrl?: string; referrals?: Array<{ id: number; status: string; rewardRevocationReason: string | null; referredOrganizationName: string; rewardAmount: number | null; rewardCurrency: string | null }> } | null>(null);
   const [referralCopied, setReferralCopied] = useState(false);
 
   const [upgradeTarget, setUpgradeTarget] = useState<{ product: Product; price: Price } | null>(null);
@@ -399,8 +399,20 @@ export default function Billing() {
               <Box key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="body2">{r.referredOrganizationName}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {r.status === 'rewarded' ? b.referralRewarded : r.status === 'pending_reward' ? b.referralPending : b.referralAwaitingPayment}
-                  {r.rewardAmount && r.rewardCurrency ? ` · ${(r.rewardAmount / 100).toLocaleString(undefined, { style: 'currency', currency: r.rewardCurrency })}` : ''}
+                  {r.status === 'rewarded'
+                    ? b.referralRewarded
+                    : r.status === 'pending_reward'
+                      ? b.referralPending
+                      : r.status === 'revoked'
+                        ? r.rewardRevocationReason === 'refund'
+                          ? b.referralRevokedRefund
+                          : r.rewardRevocationReason === 'dispute'
+                            ? b.referralRevokedDispute
+                            : b.referralRevoked
+                        : b.referralAwaitingPayment}
+                  {r.status !== 'revoked' && r.rewardAmount && r.rewardCurrency
+                    ? ` · ${(r.rewardAmount / 100).toLocaleString(undefined, { style: 'currency', currency: r.rewardCurrency })}`
+                    : ''}
                 </Typography>
               </Box>
             ))}
