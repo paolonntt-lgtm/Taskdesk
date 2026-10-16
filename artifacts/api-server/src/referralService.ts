@@ -13,6 +13,15 @@ export type ReferralPlan = {
   monthlyReward: number;
 };
 
+export function calculateReferralMonthlyReward(price: Stripe.Price, quantity = 1): number | null {
+  if (price.unit_amount == null || !price.recurring) return null;
+  if (price.recurring.interval !== "month" && price.recurring.interval !== "year") return null;
+  const monthlyUnitAmount = price.recurring.interval === "year"
+    ? price.unit_amount / 12
+    : price.unit_amount;
+  return Math.round(monthlyUnitAmount * quantity);
+}
+
 export async function getReferralPlan(organizationId: number, activeOnly = true): Promise<ReferralPlan | null> {
   const admins = await db.select({ stripeCustomerId: usersTable.stripeCustomerId })
     .from(usersTable).where(and(
@@ -37,10 +46,8 @@ export async function getReferralPlan(organizationId: number, activeOnly = true)
       const price = item.price as Stripe.Price;
       const productId = typeof price.product === "string" ? price.product : price.product.id;
       const product = await stripe.products.retrieve(productId);
-      if (product.metadata?.addon === "seat" || !price.recurring || price.unit_amount == null) continue;
-      const monthlyReward = Math.round(
-        (price.recurring.interval === "year" ? price.unit_amount / 12 : price.unit_amount) * (item.quantity ?? 1),
-      );
+      const monthlyReward = calculateReferralMonthlyReward(price, item.quantity ?? 1);
+      if (product.metadata?.addon === "seat" || monthlyReward == null) continue;
       return { customerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id, subscription, price, monthlyReward };
     }
   }
