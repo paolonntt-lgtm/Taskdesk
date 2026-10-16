@@ -99,6 +99,8 @@ export default function Billing() {
   const [error, setError] = useState<string | null>(null);
   const [stripeUnavailable, setStripeUnavailable] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [referralInfo, setReferralInfo] = useState<{ eligible: boolean; referralUrl?: string; referrals?: Array<{ id: number; status: string; referredOrganizationName: string; rewardAmount: number | null; rewardCurrency: string | null }> } | null>(null);
+  const [referralCopied, setReferralCopied] = useState(false);
 
   const [upgradeTarget, setUpgradeTarget] = useState<{ product: Product; price: Price } | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
@@ -131,6 +133,13 @@ export default function Billing() {
 
     refreshSeatUsage();
   }, [refreshSeatUsage]);
+
+  useEffect(() => {
+    fetch('/api/stripe/referrals', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => data && setReferralInfo(data))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/stripe/products', { credentials: 'include' })
@@ -367,6 +376,37 @@ export default function Billing() {
     <Box>
       <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em">{b.title}</Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>{b.subtitle}</Typography>
+
+      {referralInfo?.eligible && referralInfo.referralUrl && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight={800}>{b.referralTitle}</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>{b.referralDescription}</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+              <Typography component="code" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, overflowWrap: 'anywhere' }}>
+                {referralInfo.referralUrl}
+              </Typography>
+              <Button variant="outlined" onClick={async () => {
+                await navigator.clipboard.writeText(referralInfo.referralUrl!);
+                setReferralCopied(true);
+                window.setTimeout(() => setReferralCopied(false), 2000);
+              }}>{referralCopied ? b.referralCopied : b.referralCopy}</Button>
+            </Box>
+            <Typography variant="subtitle2" fontWeight={700}>{b.referralListTitle}</Typography>
+            {(referralInfo.referrals ?? []).length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{b.referralEmpty}</Typography>
+            ) : (referralInfo.referrals ?? []).map((r) => (
+              <Box key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="body2">{r.referredOrganizationName}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {r.status === 'rewarded' ? b.referralRewarded : r.status === 'pending_reward' ? b.referralPending : b.referralAwaitingPayment}
+                  {r.rewardAmount && r.rewardCurrency ? ` · ${(r.rewardAmount / 100).toLocaleString(undefined, { style: 'currency', currency: r.rewardCurrency })}` : ''}
+                </Typography>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>{error}</Alert>

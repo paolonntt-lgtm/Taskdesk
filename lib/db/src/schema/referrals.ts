@@ -6,6 +6,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organizationsTable } from "./organizations";
 
 export const referralCodesTable = pgTable("referral_codes", {
@@ -39,7 +40,9 @@ export const referralsTable = pgTable("referrals", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("referrals_referred_organization_uniq").on(table.referredOrganizationId),
-  uniqueIndex("referrals_qualifying_invoice_uniq").on(table.qualifyingInvoiceId),
+  uniqueIndex("referrals_qualifying_invoice_uniq")
+    .on(table.qualifyingInvoiceId)
+    .where(sql`${table.qualifyingInvoiceId} IS NOT NULL`),
 ]);
 
 export type ReferralCode = typeof referralCodesTable.$inferSelect;

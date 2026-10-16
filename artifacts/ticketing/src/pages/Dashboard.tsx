@@ -2982,8 +2982,46 @@ function Dashboard() {
 function DashboardWithProvider() {
   return (
     <WidgetSettingsProvider>
+      <ReferralDashboardNotice />
       <Dashboard />
     </WidgetSettingsProvider>
+  );
+}
+
+function ReferralDashboardNotice() {
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const admin = user?.role === 'admin';
+  const storageKey = `td-referral-notice-dismissed-${user?.id ?? 'unknown'}`;
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(storageKey) === '1');
+  const { data } = useQuery<{ eligible: boolean }>({
+    queryKey: ['referral-eligibility', user?.id],
+    queryFn: async () => {
+      const response = await fetch('/api/stripe/referrals', { credentials: 'include' });
+      if (!response.ok) throw new Error('Referral eligibility unavailable');
+      return response.json();
+    },
+    enabled: admin,
+    staleTime: 5 * 60_000,
+  });
+  useEffect(() => {
+    setDismissed(localStorage.getItem(storageKey) === '1');
+  }, [storageKey]);
+  if (!admin || !data?.eligible || dismissed) return null;
+  const dismiss = () => {
+    localStorage.setItem(storageKey, '1');
+    setDismissed(true);
+  };
+  return (
+    <Box sx={{ px: { xs: 2, sm: 3 }, pt: 2 }}>
+      <Alert severity="info" onClose={dismiss} action={
+        <Button color="inherit" size="small" onClick={() => { window.location.href = '/app/billing'; }}>
+          {t.dashboard.referralAction}
+        </Button>
+      }>
+        {t.dashboard.referralNotice}
+      </Alert>
+    </Box>
   );
 }
 

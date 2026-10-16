@@ -14,17 +14,12 @@ export class WebhookHandlers {
     }
 
     const sync = await getStripeSync();
-    const accountId = await sync.getAccountId();
-    const secretResult = await sync.postgresClient.query(
-      'SELECT secret FROM "stripe"."_managed_webhooks" WHERE account_id = $1 LIMIT 1',
-      [accountId],
-    );
-    const secret = secretResult.rows[0]?.secret;
-    if (!secret) throw new Error('Managed Stripe webhook secret is missing');
-    const event = await sync.stripe.webhooks.constructEventAsync(payload, signature, secret);
-    await sync.processEvent(event);
-    if (event.type === 'invoice.paid') {
-      await processReferralInvoicePaid(event.data.object as Stripe.Invoice);
+    // StripeSync validates the signature and processes the event. Only parse the
+    // same raw payload for our additional handler after that call succeeds.
+    await sync.processWebhook(payload, signature);
+    const verifiedEvent = JSON.parse(payload.toString('utf8')) as Stripe.Event;
+    if (verifiedEvent.type === 'invoice.paid') {
+      await processReferralInvoicePaid(verifiedEvent.data.object as Stripe.Invoice);
     }
   }
 }

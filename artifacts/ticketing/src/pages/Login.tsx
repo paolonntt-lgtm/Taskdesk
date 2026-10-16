@@ -68,7 +68,8 @@ const s = {
 };
 
 export default function Login() {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const initialReferralCode = new URLSearchParams(window.location.search).get('ref') ?? '';
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialReferralCode ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -81,9 +82,17 @@ export default function Login() {
   const [forgotSent, setForgotSent] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const professionalAttribution = parseProfessionalTrialAttribution(window.location.search);
-  const googleRegistrationUrl = professionalAttribution
-    ? `/api/auth/google?trial_profession=${encodeURIComponent(professionalAttribution.profession)}&trial_language=${encodeURIComponent(professionalAttribution.language)}`
-    : '/api/auth/google';
+  const googleParams = new URLSearchParams();
+  if (professionalAttribution) {
+    googleParams.set('trial_profession', professionalAttribution.profession);
+    googleParams.set('trial_language', professionalAttribution.language);
+  }
+  if (initialReferralCode) googleParams.set('ref', initialReferralCode);
+  const googleRegistrationUrl = `/api/auth/google${googleParams.size ? `?${googleParams}` : ''}`;
+
+  useEffect(() => {
+    if (initialReferralCode) sessionStorage.setItem('td_referral_code', initialReferralCode);
+  }, [initialReferralCode]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -128,7 +137,9 @@ export default function Login() {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify((() => {
-          const base: Record<string, string> = { name, email, password, organizationName: organizationName.trim() };
+           const base: Record<string, string> = { name, email, password, organizationName: organizationName.trim() };
+           const referralCode = initialReferralCode || sessionStorage.getItem('td_referral_code');
+           if (referralCode) base.referralCode = referralCode;
           try {
             const raw = sessionStorage.getItem('td_utm');
             if (raw) {
@@ -143,6 +154,7 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
+      sessionStorage.removeItem('td_referral_code');
       trackEvent('registration_succeeded', { method: 'password' });
       if (professionalAttribution && hasConfirmedTrialRegistration(res.status, data?.user)) {
         trackEvent('professional_trial_started', {

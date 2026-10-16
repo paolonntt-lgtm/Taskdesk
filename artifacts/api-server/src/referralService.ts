@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import {
   db, organizationsTable, referralCodesTable, referralsTable, usersTable,
 } from "@workspace/db";
@@ -72,7 +72,7 @@ export async function attachReferralAtSignup(
   signupEmail: string,
 ): Promise<boolean> {
   if (typeof code !== "string" || !/^[A-Za-z0-9_-]{8,40}$/.test(code)) return false;
-  const [record] = await db.select({
+  const records = await db.select({
     organizationId: referralCodesTable.organizationId,
     referrerEmail: usersTable.email,
   }).from(referralCodesTable)
@@ -82,10 +82,12 @@ export async function attachReferralAtSignup(
       eq(usersTable.isActive, true),
     ))
     .where(eq(referralCodesTable.code, code));
-  if (!record || record.organizationId === referredOrganizationId || record.referrerEmail.toLowerCase() === signupEmail.toLowerCase()) return false;
-  if (!(await getReferralPlan(record.organizationId, true))) return false;
+  const organizationId = records[0]?.organizationId;
+  if (!organizationId || organizationId === referredOrganizationId
+    || records.some((record) => record.referrerEmail.toLowerCase() === signupEmail.toLowerCase())) return false;
+  if (!(await getReferralPlan(organizationId, true))) return false;
   await db.insert(referralsTable).values({
-    referrerOrganizationId: record.organizationId,
+    referrerOrganizationId: organizationId,
     referredOrganizationId,
     status: "pending_payment",
   }).onConflictDoNothing();
@@ -96,7 +98,7 @@ export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promi
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
   const subscriptionId = (invoice as any).subscription
     ?? (invoice as any).parent?.subscription_details?.subscription;
-  if (!customerId || !subscriptionId || !invoice.paid || invoice.amount_paid <= 0) return;
+  if (!customerId || !subscriptionId || invoice.status !== "paid" || invoice.amount_paid <= 0) return;
   if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason ?? "")) return;
   const [buyer] = await db.select({ organizationId: usersTable.organizationId })
     .from(usersTable).where(and(eq(usersTable.stripeCustomerId, customerId), eq(usersTable.role, "admin")));
@@ -106,6 +108,15 @@ export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promi
     eq(referralsTable.status, "pending_payment"),
   ));
   if (!referral) {
+    const [qualifiedReferral] = await db.select({
+      rewardCustomerId: referralsTable.rewardCustomerId,
+    }).from(referralsTable).where(and(
+      eq(referralsTable.referredOrganizationId, buyer.organizationId),
+      eq(referralsTable.status, "pending_reward"),
+    ));
+    if (qualifiedReferral?.rewardCustomerId) {
+      await applyPendingReferralCreditsForCustomer(qualifiedReferral.rewardCustomerId);
+    }
     await applyPendingReferralCreditsForCustomer(customerId);
     return;
   }
