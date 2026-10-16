@@ -122,6 +122,13 @@ export default function Billing() {
       });
   }, []);
 
+  const refreshReferralInfo = useCallback(() => {
+    fetch('/api/stripe/referrals', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => data && setReferralInfo(data))
+      .catch(() => {});
+  }, []);
+
   const refreshData = useCallback(() => {
     fetch('/api/stripe/subscription', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
@@ -132,14 +139,8 @@ export default function Billing() {
       .finally(() => setLoadingSubscription(false));
 
     refreshSeatUsage();
-  }, [refreshSeatUsage]);
-
-  useEffect(() => {
-    fetch('/api/stripe/referrals', { credentials: 'include' })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => data && setReferralInfo(data))
-      .catch(() => {});
-  }, []);
+    refreshReferralInfo();
+  }, [refreshReferralInfo, refreshSeatUsage]);
 
   useEffect(() => {
     fetch('/api/stripe/products', { credentials: 'include' })
@@ -377,21 +378,25 @@ export default function Billing() {
       <Typography variant="h4" fontWeight={800} gutterBottom letterSpacing="-0.01em">{b.title}</Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>{b.subtitle}</Typography>
 
-      {referralInfo?.eligible && referralInfo.referralUrl && (
+      {referralInfo && ((referralInfo.eligible && referralInfo.referralUrl) || (referralInfo.referrals?.length ?? 0) > 0) && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" fontWeight={800}>{b.referralTitle}</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>{b.referralDescription}</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
-              <Typography component="code" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, overflowWrap: 'anywhere' }}>
-                {referralInfo.referralUrl}
-              </Typography>
-              <Button variant="outlined" onClick={async () => {
-                await navigator.clipboard.writeText(referralInfo.referralUrl!);
-                setReferralCopied(true);
-                window.setTimeout(() => setReferralCopied(false), 2000);
-              }}>{referralCopied ? b.referralCopied : b.referralCopy}</Button>
-            </Box>
+            <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+              {referralInfo.eligible ? b.referralDescription : b.referralInactiveDescription}
+            </Typography>
+            {referralInfo.eligible && referralInfo.referralUrl && (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+                <Typography component="code" sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, overflowWrap: 'anywhere' }}>
+                  {referralInfo.referralUrl}
+                </Typography>
+                <Button variant="outlined" onClick={async () => {
+                  await navigator.clipboard.writeText(referralInfo.referralUrl!);
+                  setReferralCopied(true);
+                  window.setTimeout(() => setReferralCopied(false), 2000);
+                }}>{referralCopied ? b.referralCopied : b.referralCopy}</Button>
+              </Box>
+            )}
             <Typography variant="subtitle2" fontWeight={700}>{b.referralListTitle}</Typography>
             {(referralInfo.referrals ?? []).length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{b.referralEmpty}</Typography>
@@ -402,7 +407,7 @@ export default function Billing() {
                   {r.status === 'rewarded'
                     ? b.referralRewarded
                     : r.status === 'pending_reward'
-                      ? b.referralPending
+                      ? referralInfo.eligible ? b.referralPending : b.referralPendingInactive
                       : r.status === 'revoked'
                         ? r.rewardRevocationReason === 'refund'
                           ? b.referralRevokedRefund
@@ -410,7 +415,7 @@ export default function Billing() {
                             ? b.referralRevokedDispute
                             : b.referralRevoked
                         : b.referralAwaitingPayment}
-                  {r.status !== 'revoked' && r.rewardAmount && r.rewardCurrency
+                  {r.status !== 'revoked' && r.rewardAmount != null && r.rewardCurrency
                     ? ` · ${(r.rewardAmount / 100).toLocaleString(undefined, { style: 'currency', currency: r.rewardCurrency })}`
                     : ''}
                 </Typography>

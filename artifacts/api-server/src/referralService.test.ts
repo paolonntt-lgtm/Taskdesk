@@ -64,6 +64,7 @@ vi.mock("./stripeClient", () => ({
 import {
   applyPendingReferralCreditsForCustomer,
   calculateReferralMonthlyReward,
+  getReferralOverview,
   processReferralInvoicePaid,
 } from "./referralService";
 import type Stripe from "stripe";
@@ -196,6 +197,32 @@ describe("TaskDesk referral Stripe rewards", () => {
     expect(mocks.stripeBalanceCredit).not.toHaveBeenCalled();
   });
 
+  it("retries a pending reward on a paid subscription update without qualifying a new referral", async () => {
+    let organizationLookups = 0;
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) {
+        organizationLookups++;
+        return queryReturning(organizationLookups === 1
+          ? [{ organizationId: 20 }]
+          : organizationLookups === 2
+            ? [{ organizationId: 10 }]
+            : []);
+      }
+      if (keys.includes("stripeCustomerId")) return queryReturning([{ stripeCustomerId: "cus_referrer" }]);
+      if (keys.includes("rewardCustomerId")) return queryReturning([{ rewardCustomerId: "cus_referrer" }]);
+      return queryReturning([pendingReferral]);
+    });
+
+    await processReferralInvoicePaid(makeInvoice({ billing_reason: "subscription_update" }));
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_referrer",
+      expect.objectContaining({ amount: -4900, currency: "eur" }),
+      { idempotencyKey: "taskdesk-referral-42" },
+    );
+  });
+
   it("qualifies the first actual payment but keeps the reward pending for an inactive referrer", async () => {
     const updates: Record<string, unknown>[] = [];
     mocks.select
@@ -257,6 +284,76 @@ describe("TaskDesk referral Stripe rewards", () => {
     // Stripe's idempotency behavior is represented by the keyed mock above:
     // both webhook attempts resolve to the same balance transaction.
     expect(mocks.externalCreditsCreated).toBe(1);
+  });
+
+  it("credits one month of the referrer's current plan after a plan and Stripe customer change", async () => {
+    const annualPrice = {
+      ...monthlyPrice,
+      id: "price_annual",
+      currency: "usd",
+      unit_amount: 144000,
+      recurring: { interval: "year" },
+    } as unknown as Stripe.Price;
+    const renewedSubscription = {
+      ...activeSubscription,
+      customer: "cus_renewed",
+      items: { data: [{ price: annualPrice, quantity: 1 }] },
+    };
+    const updates: Record<string, unknown>[] = [];
+    configureStripe(renewedSubscription);
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
+      if (keys.includes("stripeCustomerId")) return queryReturning([{ stripeCustomerId: "cus_renewed" }]);
+      return queryReturning([pendingReferral]);
+    });
+
+    await applyPendingReferralCreditsForCustomer("cus_referrer");
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_renewed",
+      expect.objectContaining({ amount: -12000, currency: "usd" }),
+      { idempotencyKey: "taskdesk-referral-42" },
+    );
+    expect(updates[0]).toMatchObject({
+      status: "rewarded",
+      rewardCustomerId: "cus_renewed",
+      rewardAmount: 12000,
+      rewardCurrency: "usd",
+    });
+  });
+
+  it("shows the current one-month estimate for pending rewards, not the old plan value", async () => {
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("name")) return queryReturning([{ name: "Referrer" }]);
+      if (keys.includes("code")) return queryReturning([{ code: "ReferralCode_123" }]);
+      return queryReturning([pendingReferral]);
+    });
+
+    const activePlan = {
+      customerId: "cus_referrer",
+      subscription: activeSubscription as unknown as Stripe.Subscription,
+      price: { ...monthlyPrice, unit_amount: 7500 },
+      monthlyReward: 7500,
+    };
+    const withActivePlan = await getReferralOverview(10, activePlan);
+    expect(withActivePlan.referrals[0]).toMatchObject({
+      rewardAmount: 7500,
+      rewardCurrency: "eur",
+    });
+
+    const withoutActivePlan = await getReferralOverview(10, null);
+    expect(withoutActivePlan.referrals[0]).toMatchObject({
+      rewardAmount: null,
+      rewardCurrency: null,
+    });
   });
 
   it("rejects malformed referral codes without querying storage or Stripe", async () => {

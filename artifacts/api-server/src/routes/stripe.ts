@@ -22,14 +22,14 @@ router.get('/stripe/referrals', requireAuth, requireAdmin, async (req: any, res)
   try {
     const organizationId = req.currentUser.organizationId;
     const plan = await getReferralPlan(organizationId, true);
+    const overview = await getReferralOverview(organizationId, plan);
+    res.setHeader('Cache-Control', 'no-store');
     if (!plan) {
-      res.json({ eligible: false, referrals: [] });
+      res.json({ eligible: false, referrals: overview.referrals });
       return;
     }
     const code = await getOrCreateReferralCode(organizationId);
-    const overview = await getReferralOverview(organizationId);
     const baseUrl = appBaseUrlForRequest(req.get('origin'), req.get('host'));
-    res.setHeader('Cache-Control', 'no-store');
     res.json({
       eligible: true,
       referralUrl: `${baseUrl}/app/?ref=${encodeURIComponent(code)}`,

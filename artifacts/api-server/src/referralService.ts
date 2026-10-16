@@ -108,7 +108,6 @@ export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promi
     ?? (invoice as any).parent?.subscription_details?.subscription;
   const subscriptionId = typeof rawSubscriptionId === "string" ? rawSubscriptionId : rawSubscriptionId?.id;
   if (!customerId || !subscriptionId || invoice.status !== "paid" || invoice.amount_paid <= 0) return;
-  if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason ?? "")) return;
   const stripe = await getUncachableStripeClient();
   const paidSubscription = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ["items.data.price.product"],
@@ -117,10 +116,14 @@ export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promi
   const [buyer] = await db.select({ organizationId: usersTable.organizationId })
     .from(usersTable).where(and(eq(usersTable.stripeCustomerId, customerId), eq(usersTable.role, "admin")));
   if (!buyer?.organizationId) return;
-  const [referral] = await db.select().from(referralsTable).where(and(
-    eq(referralsTable.referredOrganizationId, buyer.organizationId),
-    eq(referralsTable.status, "pending_payment"),
-  ));
+  const isQualifyingPayment = ["subscription_create", "subscription_cycle"]
+    .includes(invoice.billing_reason ?? "");
+  const [referral] = isQualifyingPayment
+    ? await db.select().from(referralsTable).where(and(
+      eq(referralsTable.referredOrganizationId, buyer.organizationId),
+      eq(referralsTable.status, "pending_payment"),
+    ))
+    : [undefined];
   if (!referral) {
     const [qualifiedReferral] = await db.select({
       rewardCustomerId: referralsTable.rewardCustomerId,
@@ -162,11 +165,15 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
       eq(usersTable.role, "admin"),
       eq(usersTable.isActive, true),
     ));
-  if (!admin?.organizationId || !(await getReferralPlan(admin.organizationId, true))) return;
+  if (!admin?.organizationId) return;
+  // The current active subscription defines the one-month reward. This is
+  // intentionally resolved at credit time, so plan changes and reactivations
+  // update pending rewards instead of applying a stale qualification-time value.
+  const activePlan = await getReferralPlan(admin.organizationId, true);
+  if (!activePlan || activePlan.monthlyReward <= 0) return;
   const pending = await db.select().from(referralsTable).where(and(
     eq(referralsTable.referrerOrganizationId, admin.organizationId),
     eq(referralsTable.status, "pending_reward"),
-    eq(referralsTable.rewardCustomerId, customerId),
     isNotNull(referralsTable.rewardAmount),
     isNotNull(referralsTable.rewardCurrency),
   ));
@@ -178,9 +185,9 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
         .where(and(eq(referralsTable.id, referral.id), eq(referralsTable.status, "pending_reward")))
         .for("update");
       if (!lockedReferral) return;
-      const transaction = await stripe.customers.createBalanceTransaction(customerId, {
-        amount: -Math.abs(lockedReferral.rewardAmount!),
-        currency: lockedReferral.rewardCurrency!,
+      const transaction = await stripe.customers.createBalanceTransaction(activePlan.customerId, {
+        amount: -Math.abs(activePlan.monthlyReward),
+        currency: activePlan.price.currency,
         description: "TaskDesk referral reward — one month of subscription",
         metadata: {
           referralId: String(lockedReferral.id),
@@ -189,6 +196,9 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
       }, { idempotencyKey: `taskdesk-referral-${lockedReferral.id}` });
       await tx.update(referralsTable).set({
         status: "rewarded",
+        rewardCustomerId: activePlan.customerId,
+        rewardAmount: activePlan.monthlyReward,
+        rewardCurrency: activePlan.price.currency,
         stripeBalanceTransactionId: transaction.id,
         rewardedAt: new Date(),
       }).where(and(
@@ -199,7 +209,7 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
   }
 }
 
-export async function getReferralOverview(organizationId: number) {
+export async function getReferralOverview(organizationId: number, activePlan: ReferralPlan | null) {
   const [organization] = await db.select({ name: organizationsTable.name })
     .from(organizationsTable).where(eq(organizationsTable.id, organizationId));
   const [code] = await db.select({ code: referralCodesTable.code })
@@ -218,7 +228,19 @@ export async function getReferralOverview(organizationId: number) {
     organizationsTable,
     eq(organizationsTable.id, referralsTable.referredOrganizationId),
   ).where(eq(referralsTable.referrerOrganizationId, organizationId));
-  return { organization, code: code?.code ?? null, referrals };
+  return {
+    organization,
+    code: code?.code ?? null,
+    referrals: referrals.map((referral) => referral.status === "pending_reward"
+      ? {
+          ...referral,
+          // Pending amounts are estimates, not a promise to preserve the
+          // plan that was active when the referred customer first paid.
+          rewardAmount: activePlan?.monthlyReward ?? null,
+          rewardCurrency: activePlan?.price.currency ?? null,
+        }
+      : referral),
+  };
 }
 
 export async function processReferralDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
