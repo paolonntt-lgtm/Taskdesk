@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   update: vi.fn(),
   stripeSubscriptionsList: vi.fn(),
+  stripeSubscriptionsRetrieve: vi.fn(),
   stripeProductsRetrieve: vi.fn(),
   stripeBalanceCredit: vi.fn(),
   externalCreditsCreated: 0,
@@ -39,7 +40,10 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("./stripeClient", () => ({
   getUncachableStripeClient: vi.fn(async () => ({
-    subscriptions: { list: mocks.stripeSubscriptionsList },
+    subscriptions: {
+      list: mocks.stripeSubscriptionsList,
+      retrieve: mocks.stripeSubscriptionsRetrieve,
+    },
     products: { retrieve: mocks.stripeProductsRetrieve },
     customers: { createBalanceTransaction: mocks.stripeBalanceCredit },
   })),
@@ -103,7 +107,10 @@ function makeInvoice(overrides: Record<string, unknown> = {}): Stripe.Invoice {
 
 function configureStripe(subscription = activeSubscription) {
   mocks.stripeSubscriptionsList.mockResolvedValue({ data: [subscription] });
-  mocks.stripeProductsRetrieve.mockResolvedValue({ id: "prod_taskdesk", metadata: {} });
+  mocks.stripeSubscriptionsRetrieve.mockResolvedValue({
+    items: { data: [{ price: { ...monthlyPrice, product: { id: "prod_taskdesk", metadata: { seats: "5" } } } }] },
+  });
+  mocks.stripeProductsRetrieve.mockResolvedValue({ id: "prod_taskdesk", metadata: { seats: "5" } });
 }
 
 describe("TaskDesk referral Stripe rewards", () => {
@@ -141,6 +148,27 @@ describe("TaskDesk referral Stripe rewards", () => {
 
   it("ignores invoices that have an amount but have not been paid", async () => {
     await processReferralInvoicePaid(makeInvoice({ status: "open" }));
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.stripeBalanceCredit).not.toHaveBeenCalled();
+  });
+
+  it("ignores a paid invoice from another Stripe product even if the customer has a TaskDesk plan", async () => {
+    mocks.stripeSubscriptionsRetrieve.mockResolvedValue({
+      items: { data: [{
+        price: {
+          ...monthlyPrice,
+          product: { id: "prod_other", metadata: {} },
+        },
+      }] },
+    });
+    mocks.stripeSubscriptionsList.mockResolvedValue({ data: [activeSubscription] });
+
+    await processReferralInvoicePaid(makeInvoice());
+
+    expect(mocks.stripeSubscriptionsRetrieve).toHaveBeenCalledWith("sub_invitee", {
+      expand: ["items.data.price.product"],
+    });
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.stripeBalanceCredit).not.toHaveBeenCalled();

@@ -12,6 +12,7 @@ import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrlForRequest } from '../lib/appUrl';
 import { getReferralOverview, getReferralPlan, getOrCreateReferralCode } from '../referralService';
+import { isTaskDeskPlanProduct } from '../lib/stripeProductRules';
 
 const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
@@ -59,9 +60,7 @@ function sendStripeError(res: any, err: any): void {
 }
 
 function isPlanProduct(product: any): boolean {
-  if (!product || product.metadata?.addon === 'seat') return false;
-  const seats = product.metadata?.seats;
-  return seats === 'unlimited' || (typeof seats === 'string' && /^[1-9]\d*$/.test(seats));
+  return isTaskDeskPlanProduct(product);
 }
 
 function isSupportedPlanPrice(price: any, product: any): boolean {

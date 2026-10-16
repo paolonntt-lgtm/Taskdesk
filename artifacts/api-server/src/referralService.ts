@@ -5,6 +5,7 @@ import {
 } from "@workspace/db";
 import type Stripe from "stripe";
 import { getUncachableStripeClient } from "./stripeClient";
+import { isTaskDeskPlanProduct, subscriptionHasTaskDeskPlan } from "./lib/stripeProductRules";
 
 export type ReferralPlan = {
   customerId: string;
@@ -47,7 +48,7 @@ export async function getReferralPlan(organizationId: number, activeOnly = true)
       const productId = typeof price.product === "string" ? price.product : price.product.id;
       const product = await stripe.products.retrieve(productId);
       const monthlyReward = calculateReferralMonthlyReward(price, item.quantity ?? 1);
-      if (product.metadata?.addon === "seat" || monthlyReward == null) continue;
+      if (!isTaskDeskPlanProduct(product) || monthlyReward == null) continue;
       return { customerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id, subscription, price, monthlyReward };
     }
   }
@@ -103,10 +104,16 @@ export async function attachReferralAtSignup(
 
 export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
-  const subscriptionId = (invoice as any).subscription
+  const rawSubscriptionId = (invoice as any).subscription
     ?? (invoice as any).parent?.subscription_details?.subscription;
+  const subscriptionId = typeof rawSubscriptionId === "string" ? rawSubscriptionId : rawSubscriptionId?.id;
   if (!customerId || !subscriptionId || invoice.status !== "paid" || invoice.amount_paid <= 0) return;
   if (!["subscription_create", "subscription_cycle"].includes(invoice.billing_reason ?? "")) return;
+  const stripe = await getUncachableStripeClient();
+  const paidSubscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["items.data.price.product"],
+  });
+  if (!(await subscriptionHasTaskDeskPlan(stripe, paidSubscription))) return;
   const [buyer] = await db.select({ organizationId: usersTable.organizationId })
     .from(usersTable).where(and(eq(usersTable.stripeCustomerId, customerId), eq(usersTable.role, "admin")));
   if (!buyer?.organizationId) return;
