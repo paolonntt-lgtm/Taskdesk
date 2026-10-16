@@ -13,6 +13,7 @@ import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { getUserPermissionSummary } from "../lib/groupPermissions";
 import { subscribeToPermissionChanges } from "../lib/permissionEvents";
+import { attachReferralAtSignup } from "../referralService";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -148,6 +149,11 @@ router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req
     utmMedium,
     utmCampaign,
   }).returning();
+  try {
+    await attachReferralAtSignup(req.body.referralCode, org.id, String(email).toLowerCase().trim());
+  } catch (err) {
+    logger.warn({ err }, "Referral attribution skipped during registration");
+  }
 
   // Seed default settings for the new organization
   await db.insert(settingsTable).values([

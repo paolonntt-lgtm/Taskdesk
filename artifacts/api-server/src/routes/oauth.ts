@@ -7,6 +7,7 @@ import { appBaseUrl } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
 import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
+import { attachReferralAtSignup } from "../referralService";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ type ProfessionalTrialAttribution = {
 type PendingOAuthState = {
   createdAt: number;
   professionalAttribution: ProfessionalTrialAttribution | null;
+  referralCode: string | null;
 };
 const pendingOAuthStates = new Map<string, PendingOAuthState>();
 
@@ -73,6 +75,7 @@ function sessionCookieValue(sessionId: string): string {
 function sendOAuthSuccessPage(
   res: import("express").Response,
   professionalAttribution: ProfessionalTrialAttribution | null = null,
+  referralCode: string | null = null,
 ): void {
   const query = new URLSearchParams();
   if (professionalAttribution) {
@@ -80,6 +83,7 @@ function sendOAuthSuccessPage(
     query.set("trial_profession", professionalAttribution.profession);
     query.set("trial_language", professionalAttribution.language);
   }
+  if (referralCode) query.set("ref", referralCode);
   const appPath = query.size > 0 ? `/app/?${query.toString()}` : "/app/";
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.status(200).send(
@@ -111,6 +115,9 @@ router.get("/auth/google", (req, res) => {
   pendingOAuthStates.set(state, {
     createdAt: Date.now(),
     professionalAttribution: parseProfessionalTrialAttribution(req.query),
+    referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
+      ? req.query.ref
+      : null,
   });
 
   const params = new URLSearchParams({
@@ -234,6 +241,11 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
         trialEndsAt,
       }).returning();
       newlyCreated = true;
+      try {
+        await attachReferralAtSignup(pendingState.referralCode, org.id, email);
+      } catch (err) {
+        logger.warn({ err }, "Referral attribution skipped during Google registration");
+      }
 
       const superadmins = await db
         .select({ email: usersTable.email })
@@ -271,6 +283,7 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
     sendOAuthSuccessPage(
       res,
       newlyCreated ? pendingState.professionalAttribution : null,
+      newlyCreated ? pendingState.referralCode : null,
     );
   } catch (err) {
     logger.error({ err }, "Google OAuth callback error");

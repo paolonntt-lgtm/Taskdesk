@@ -406,6 +406,42 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS default_visibility TEXT NOT NULL DEFAULT 'organization';
     `);
 
+    // Referral attribution and one-time Stripe reward ledger.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS referral_codes (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        code TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS referral_codes_organization_uniq
+        ON referral_codes (organization_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS referral_codes_code_uniq
+        ON referral_codes (code);
+
+      CREATE TABLE IF NOT EXISTS referrals (
+        id SERIAL PRIMARY KEY,
+        referrer_organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        referred_organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'pending_payment',
+        qualifying_invoice_id TEXT,
+        reward_customer_id TEXT,
+        reward_amount INTEGER,
+        reward_currency TEXT,
+        stripe_balance_transaction_id TEXT,
+        qualified_at TIMESTAMPTZ,
+        rewarded_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS referrals_referred_organization_uniq
+        ON referrals (referred_organization_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS referrals_qualifying_invoice_uniq
+        ON referrals (qualifying_invoice_id)
+        WHERE qualifying_invoice_id IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS referrals_referrer_status_idx
+        ON referrals (referrer_organization_id, status);
+    `);
+
     logger.info("App migrations completed");
   } catch (err) {
     logger.error({ err }, "App migration failed");

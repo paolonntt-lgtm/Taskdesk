@@ -11,10 +11,33 @@ import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripe
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrlForRequest } from '../lib/appUrl';
+import { getReferralOverview, getReferralPlan, getOrCreateReferralCode } from '../referralService';
 
 const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
+
+router.get('/stripe/referrals', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+  try {
+    const organizationId = req.currentUser.organizationId;
+    const plan = await getReferralPlan(organizationId, true);
+    if (!plan) {
+      res.json({ eligible: false, referrals: [] });
+      return;
+    }
+    const code = await getOrCreateReferralCode(organizationId);
+    const overview = await getReferralOverview(organizationId);
+    const baseUrl = appBaseUrlForRequest(req.get('origin'), req.get('host'));
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      eligible: true,
+      referralUrl: `${baseUrl}/app/?ref=${encodeURIComponent(code)}`,
+      referrals: overview.referrals,
+    });
+  } catch (err: any) {
+    sendStripeError(res, err);
+  }
+});
 
 /** Returns true when the Stripe error indicates the customer ID is stale/invalid. */
 function isNoSuchCustomer(err: any): boolean {
