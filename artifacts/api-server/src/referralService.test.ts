@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   stripeProductsRetrieve: vi.fn(),
   stripeBalanceCredit: vi.fn(),
   externalCreditsCreated: 0,
-  balanceTransactions: new Map<string, { id: string }>(),
+  balanceTransactions: new Map<string, { id: string; amount: number; currency: string; customer: string }>(),
   stripeChargeRetrieve: vi.fn(),
   notificationRows: [] as Record<string, unknown>[],
   lockedReferral: undefined as Record<string, unknown> | null | undefined,
@@ -186,12 +186,17 @@ describe("TaskDesk referral Stripe rewards", () => {
       })),
     }));
     configureStripe();
-    mocks.stripeBalanceCredit.mockImplementation(async (_customer, _params, options) => {
+    mocks.stripeBalanceCredit.mockImplementation(async (customer, params, options) => {
       const key = options.idempotencyKey;
       const existing = mocks.balanceTransactions.get(key);
       if (existing) return existing;
       mocks.externalCreditsCreated++;
-      const transaction = { id: "cbtxn_referral_42" };
+      const transaction = {
+        id: "cbtxn_referral_42",
+        amount: params.amount,
+        currency: params.currency,
+        customer,
+      };
       mocks.balanceTransactions.set(key, transaction);
       return transaction;
     });
@@ -321,6 +326,46 @@ describe("TaskDesk referral Stripe rewards", () => {
     // Stripe's idempotency behavior is represented by the keyed mock above:
     // both webhook attempts resolve to the same balance transaction.
     expect(mocks.externalCreditsCreated).toBe(1);
+  });
+
+  it("retries after a referral save failure without creating another Stripe credit", async () => {
+    const updates: Record<string, unknown>[] = [];
+    let failFirstSave = true;
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return {
+          where: vi.fn(async () => {
+            if (failFirstSave) {
+              failFirstSave = false;
+              throw new Error("Database write failed");
+            }
+            mocks.lockedReferral = null;
+          }),
+        };
+      }),
+    }));
+
+    await expect(applyPendingReferralCreditsForCustomer("cus_referrer"))
+      .rejects.toThrow("Database write failed");
+    expect(mocks.externalCreditsCreated).toBe(1);
+    expect(mocks.lockedReferral).toMatchObject({ status: "pending_reward" });
+
+    await applyPendingReferralCreditsForCustomer("cus_referrer");
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledTimes(2);
+    expect(mocks.stripeBalanceCredit.mock.calls.map((call) => call[2].idempotencyKey))
+      .toEqual(["taskdesk-referral-42", "taskdesk-referral-42"]);
+    expect(mocks.externalCreditsCreated).toBe(1);
+    expect(updates).toHaveLength(2);
+    expect(updates[1]).toMatchObject({
+      status: "rewarded",
+      rewardCustomerId: "cus_referrer",
+      rewardAmount: 4900,
+      rewardCurrency: "eur",
+      stripeBalanceTransactionId: "cbtxn_referral_42",
+    });
+    expect(mocks.notificationRows).toHaveLength(1);
   });
 
   it("notifies the referrer admin once and identifies the invited organization on webhook retries", async () => {

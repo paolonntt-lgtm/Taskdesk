@@ -43,3 +43,4 @@
 - [Pratiche in lavorazione in parallelo](parallel-active-practices.md) — Different collaborators can have distinct practices in progress simultaneously; do not add a global single-active-practice lock.
 - [Guide di aiuto TaskDesk](taskdesk-help-guides.md) — Keep the general feature guide concise and bilingual, with TaskTrack help kept as a separate focused guide.
 - [Scadenza prova per organizzazione](organization-trial-expiration.md) — After trial expiry, block all organization members while leaving billing and subscription activation to admins.
+- [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.

@@ -213,11 +213,14 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
           referredOrganizationId: String(lockedReferral.referredOrganizationId),
         },
       }, { idempotencyKey: `taskdesk-referral-${lockedReferral.id}` });
+      const creditedCustomerId = typeof transaction.customer === "string"
+        ? transaction.customer
+        : transaction.customer.id;
       await tx.update(referralsTable).set({
         status: "rewarded",
-        rewardCustomerId: activePlan.customerId,
-        rewardAmount: activePlan.monthlyReward,
-        rewardCurrency: activePlan.price.currency,
+        rewardCustomerId: creditedCustomerId,
+        rewardAmount: Math.abs(transaction.amount),
+        rewardCurrency: transaction.currency,
         stripeBalanceTransactionId: transaction.id,
         rewardedAt: new Date(),
       }).where(and(
