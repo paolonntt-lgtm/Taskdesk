@@ -43,7 +43,11 @@ vi.mock("@workspace/db", () => ({
     })),
   },
   notificationsTable: { userId: "notifications.userId" },
-  organizationsTable: { id: "organizations.id", name: "organizations.name" },
+  organizationsTable: {
+    id: "organizations.id",
+    name: "organizations.name",
+    referralAttempted: "organizations.referralAttempted",
+  },
   referralCodesTable: { code: "referral_codes.code", organizationId: "referral_codes.organizationId" },
   referralsTable: {
     id: "referrals.id",
@@ -96,6 +100,7 @@ import {
   applyPendingReferralCreditsForCustomer,
   calculateReferralMonthlyReward,
   hasReferralAttribution,
+  getReferralApplicationStatus,
   getReferralOverview,
   isTransientStripeAvailabilityError,
   processReferralChargeRefunded,
@@ -976,10 +981,16 @@ describe("TaskDesk referral Stripe rewards", () => {
     });
   });
 
-  it("rejects malformed referral codes without querying storage or Stripe", async () => {
+  it("persists a code attempt while rejecting malformed codes without referral lookups or Stripe", async () => {
+    const { organizationsTable } = await import("@workspace/db");
+    const set = vi.fn(() => ({ where: vi.fn(async () => undefined) }));
+    mocks.update.mockReturnValueOnce({ set });
+
     await expect(
       (await import("./referralService")).attachReferralAtSignup("bad", 20, "new@example.test"),
     ).resolves.toBe(false);
+    expect(mocks.update).toHaveBeenCalledWith(organizationsTable);
+    expect(set).toHaveBeenCalledWith({ referralAttempted: true });
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
   });
@@ -1002,6 +1013,17 @@ describe("TaskDesk referral Stripe rewards", () => {
     mocks.select.mockImplementationOnce(() => queryReturning([]));
 
     await expect(hasReferralAttribution(20)).resolves.toBe(false);
+  });
+
+  it("returns the organization’s attempted state without exposing referral identity", async () => {
+    mocks.select
+      .mockImplementationOnce(() => queryReturning([]))
+      .mockImplementationOnce(() => queryReturning([{ referralAttempted: true }]));
+
+    await expect(getReferralApplicationStatus(20)).resolves.toEqual({
+      applied: false,
+      attempted: true,
+    });
   });
 
   it("rejects a well-formed but unknown referral code", async () => {

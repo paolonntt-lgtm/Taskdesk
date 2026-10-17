@@ -104,7 +104,6 @@ export default function Login() {
     if (initialReferralCode) {
       try {
         sessionStorage.setItem('td_referral_code', initialReferralCode);
-        sessionStorage.setItem('td_referral_status_org', 'pending');
       } catch {}
     }
   }, [initialReferralCode]);
@@ -113,11 +112,6 @@ export default function Login() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get('oauth_error');
     if (err) {
-      try {
-        if (sessionStorage.getItem('td_referral_status_org') === 'pending') {
-          sessionStorage.removeItem('td_referral_status_org');
-        }
-      } catch {}
       const messages: Record<string, string> = {
         cancelled: t.login.oauthCancelled,
         token_exchange: t.login.oauthTokenError,
@@ -174,11 +168,6 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) { setLocalError(data.message || t.login.registerError); return; }
-      try {
-        if (data?.user?.organizationId != null && (initialReferralCode || sessionStorage.getItem('td_referral_code'))) {
-          sessionStorage.setItem('td_referral_status_org', String(data.user.organizationId));
-        }
-      } catch {}
       sessionStorage.removeItem('td_referral_code');
       trackEvent('registration_succeeded', { method: 'password' });
       if (professionalAttribution && hasConfirmedTrialRegistration(res.status, data?.user)) {

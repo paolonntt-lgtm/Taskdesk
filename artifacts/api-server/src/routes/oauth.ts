@@ -32,6 +32,7 @@ type PendingOAuthState = {
   createdAt: number;
   professionalAttribution: ProfessionalTrialAttribution | null;
   referralCode: string | null;
+  referralAttempted: boolean;
   utmAttribution: UTMAttribution;
 };
 const pendingOAuthStates = new Map<string, PendingOAuthState>();
@@ -137,6 +138,7 @@ router.get("/auth/google", (req, res) => {
     referralCode: typeof req.query.ref === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(req.query.ref)
       ? req.query.ref
       : null,
+    referralAttempted: typeof req.query.ref === "string" && req.query.ref.trim().length > 0,
     utmAttribution: parseUtmAttribution(req.query),
   });
 
@@ -268,7 +270,12 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       }).returning();
       newlyCreated = true;
       try {
-        await attachReferralAtSignup(pendingState.referralCode, org.id, email);
+        await attachReferralAtSignup(
+          pendingState.referralCode,
+          org.id,
+          email,
+          pendingState.referralAttempted,
+        );
       } catch (err) {
         logger.warn({ err }, "Referral attribution skipped during Google registration");
       }

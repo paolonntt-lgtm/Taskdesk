@@ -77,6 +77,11 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS clients_enabled BOOLEAN NOT NULL DEFAULT true;
     `);
 
+    // Persist only whether this organization tried a referral code, not the code or referrer identity.
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS referral_attempted BOOLEAN NOT NULL DEFAULT false;
+    `);
+
     // Create sticky_notes table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sticky_notes (

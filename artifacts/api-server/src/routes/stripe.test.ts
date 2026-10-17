@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   createCustomer: vi.fn(),
   createCheckoutSession: vi.fn(),
   createCustomerPortalSession: vi.fn(),
-  hasReferralAttribution: vi.fn(),
+  getReferralApplicationStatus: vi.fn(),
 }));
 
 vi.mock('../stripeClient', () => ({
@@ -42,7 +42,7 @@ vi.mock('../referralService', () => ({
   getReferralOverview: vi.fn(),
   getReferralPlan: vi.fn(),
   getOrCreateReferralCode: vi.fn(),
-  hasReferralAttribution: mocks.hasReferralAttribution,
+  getReferralApplicationStatus: mocks.getReferralApplicationStatus,
 }));
 
 vi.mock('../middlewares/auth', () => {
@@ -148,14 +148,14 @@ describe('Stripe billing routes', () => {
   });
 
   it('returns only the signed-in organization’s persisted referral status', async () => {
-    mocks.hasReferralAttribution.mockResolvedValue(true);
+    mocks.getReferralApplicationStatus.mockResolvedValue({ applied: false, attempted: true });
 
     const response = await get('referrals/status');
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.json()).toEqual({ applied: true });
-    expect(mocks.hasReferralAttribution).toHaveBeenCalledWith(20);
+    expect(await response.json()).toEqual({ applied: false, attempted: true });
+    expect(mocks.getReferralApplicationStatus).toHaveBeenCalledWith(20);
   });
 
   it('rejects an add-on price as a new subscription plan', async () => {

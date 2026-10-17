@@ -15,7 +15,7 @@ import {
   getReferralOverview,
   getReferralPlan,
   getOrCreateReferralCode,
-  hasReferralAttribution,
+  getReferralApplicationStatus,
 } from '../referralService';
 import { isTaskDeskPlanProduct } from '../lib/stripeProductRules';
 
@@ -31,9 +31,9 @@ router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: an
   }
 
   try {
-    const applied = await hasReferralAttribution(organizationId);
+    const status = await getReferralApplicationStatus(organizationId);
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ applied });
+    res.json(status);
   } catch (err: any) {
     sendStripeError(res, err);
   }

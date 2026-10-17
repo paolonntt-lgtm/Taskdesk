@@ -330,6 +330,7 @@ describe("Google OAuth callback", () => {
       "ReferralCode_123",
       org.id,
       oauthUser.email,
+      true,
     );
     const actualTrialDuration = (insertedUser?.values.trialEndsAt as Date).getTime() - Date.now();
     expect(actualTrialDuration).toBeGreaterThan(FREE_TRIAL_DURATION_MS - 1_000);

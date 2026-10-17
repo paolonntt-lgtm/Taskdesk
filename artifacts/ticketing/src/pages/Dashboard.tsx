@@ -2301,12 +2301,7 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const organizationId = (user as any)?.organizationId as number | null | undefined;
-  const referralAttemptMarker = (() => {
-    try { return window.sessionStorage.getItem('td_referral_status_org'); } catch { return null; }
-  })();
-  const referralAttempted = referralAttemptMarker === 'pending'
-    || (organizationId != null && referralAttemptMarker === String(organizationId));
-  const referralStatusQuery = useQuery<{ applied: boolean }>({
+  const referralStatusQuery = useQuery<{ applied: boolean; attempted: boolean }>({
     queryKey: ['referral-application-status', organizationId],
     queryFn: async () => {
       const response = await fetch('/api/stripe/referrals/status', {
@@ -2321,12 +2316,7 @@ function Dashboard() {
     refetchOnMount: 'always',
   });
   const referralApplied = referralStatusQuery.data?.applied === true;
-
-  useEffect(() => {
-    if (referralStatusQuery.isSuccess && referralAttemptMarker === 'pending' && organizationId != null) {
-      try { window.sessionStorage.setItem('td_referral_status_org', String(organizationId)); } catch {}
-    }
-  }, [organizationId, referralAttemptMarker, referralStatusQuery.isSuccess]);
+  const referralAttempted = referralStatusQuery.data?.attempted === true;
 
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({

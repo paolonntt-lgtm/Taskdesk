@@ -164,7 +164,13 @@ export async function attachReferralAtSignup(
   code: unknown,
   referredOrganizationId: number,
   signupEmail: string,
+  referralAttempted = typeof code === "string" && code.trim().length > 0,
 ): Promise<boolean> {
+  if (referralAttempted) {
+    await db.update(organizationsTable)
+      .set({ referralAttempted: true })
+      .where(eq(organizationsTable.id, referredOrganizationId));
+  }
   const result = await attemptReferralAtSignup(code, referredOrganizationId, signupEmail);
   if (result === "stripe_unavailable") {
     if (typeof code === "string") {
@@ -226,6 +232,22 @@ export async function hasReferralAttribution(referredOrganizationId: number): Pr
     .from(referralsTable)
     .where(eq(referralsTable.referredOrganizationId, referredOrganizationId));
   return Boolean(referral);
+}
+
+export async function getReferralApplicationStatus(referredOrganizationId: number): Promise<{
+  applied: boolean;
+  attempted: boolean;
+}> {
+  const [applied, [organization]] = await Promise.all([
+    hasReferralAttribution(referredOrganizationId),
+    db.select({ referralAttempted: organizationsTable.referralAttempted })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, referredOrganizationId)),
+  ]);
+  return {
+    applied,
+    attempted: organization?.referralAttempted === true,
+  };
 }
 
 export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
