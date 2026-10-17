@@ -257,6 +257,7 @@ describe("Google OAuth callback", () => {
       organizationName: authMeUser.organizationName,
       groupPermissions: [
         "change_status",
+        "assign_time_tracked_tickets",
         "add_notes",
         "edit_fixed_notes",
         "edit_client_notes",
