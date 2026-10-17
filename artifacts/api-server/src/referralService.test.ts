@@ -597,6 +597,76 @@ describe("TaskDesk referral Stripe rewards", () => {
     ]);
   });
 
+  it("saves the same pending reward when qualifying with admins whose plans have the same creation time", async () => {
+    const annualPrice = {
+      ...monthlyPrice,
+      id: "price_annual_usd",
+      product: "prod_taskdesk_annual",
+      currency: "usd",
+      unit_amount: 144000,
+      recurring: { interval: "year" },
+    } as unknown as Stripe.Price;
+    const subscriptionsByCustomer: Record<string, Stripe.Subscription[]> = {
+      cus_admin_a: [{
+        ...activeSubscription,
+        id: "sub_zeta",
+        customer: "cus_admin_a",
+        created: 500,
+      } as Stripe.Subscription],
+      cus_admin_b: [{
+        ...activeSubscription,
+        id: "sub_alpha",
+        customer: "cus_admin_b",
+        created: 500,
+        items: { data: [{ price: annualPrice, quantity: 1 }] },
+      } as unknown as Stripe.Subscription],
+    };
+    const adminOrders = [
+      ["cus_admin_a", "cus_admin_b"],
+      ["cus_admin_b", "cus_admin_a"],
+    ];
+    let currentAdminOrder = adminOrders[0];
+    const updates: Record<string, unknown>[] = [];
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
+      if (keys.includes("stripeCustomerId")) {
+        return queryReturning(currentAdminOrder.map((stripeCustomerId) => ({ stripeCustomerId })));
+      }
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
+      return queryReturning([pendingReferral]);
+    });
+    mocks.stripeSubscriptionsList.mockImplementation(async ({ customer }: { customer: string }) => ({
+      data: subscriptionsByCustomer[customer] ?? [],
+    }));
+    mocks.stripeProductsRetrieve.mockImplementation(async (productId: string) => ({
+      id: productId,
+      metadata: { seats: "5" },
+    }));
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    for (const order of adminOrders) {
+      currentAdminOrder = order;
+      updates.length = 0;
+      mocks.lockedReferral = { ...pendingReferral, status: "pending_payment" };
+      await processReferralInvoicePaid(makeInvoice());
+
+      const pendingUpdate = updates.find(({ status }) => status === "pending_reward");
+      expect(pendingUpdate).toMatchObject({
+        status: "pending_reward",
+        rewardCustomerId: "cus_admin_b",
+        rewardAmount: 12000,
+        rewardCurrency: "usd",
+      });
+    }
+  });
+
   it("finds an eligible TaskDesk plan on a later Stripe subscription page", async () => {
     const addonPrice = {
       ...monthlyPrice,
