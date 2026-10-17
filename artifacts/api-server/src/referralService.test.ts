@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
   stripeSubscriptionsList: vi.fn(),
   stripeSubscriptionsRetrieve: vi.fn(),
   stripeProductsRetrieve: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@workspace/db", () => ({
     select: mocks.select,
     insert: mocks.insert,
     update: mocks.update,
+    delete: mocks.delete,
     transaction: vi.fn(async (callback) => callback({
       select: mocks.select,
       insert: mocks.transactionInsert,
@@ -56,6 +58,11 @@ vi.mock("@workspace/db", () => ({
     rewardAmount: "referrals.rewardAmount",
     rewardCurrency: "referrals.rewardCurrency",
   },
+  pendingReferralAttributionsTable: {
+    id: "pending_referral_attributions.id",
+    referredOrganizationId: "pending_referral_attributions.referredOrganizationId",
+    retryAfter: "pending_referral_attributions.retryAfter",
+  },
   usersTable: {
     id: "users.id",
     organizationId: "users.organizationId",
@@ -70,6 +77,7 @@ vi.mock("drizzle-orm", () => ({
   and: vi.fn(),
   eq: vi.fn(),
   isNotNull: vi.fn(),
+  lte: vi.fn(),
 }));
 
 vi.mock("./stripeClient", () => ({
@@ -89,9 +97,11 @@ import {
   calculateReferralMonthlyReward,
   hasReferralAttribution,
   getReferralOverview,
+  isTransientStripeAvailabilityError,
   processReferralChargeRefunded,
   processReferralDisputeCreated,
   processReferralInvoicePaid,
+  retryPendingReferralAttributions,
 } from "./referralService";
 import type Stripe from "stripe";
 
@@ -100,6 +110,7 @@ function queryReturning(value: unknown) {
     from: vi.fn(() => query),
     innerJoin: vi.fn(() => query),
     where: vi.fn(() => query),
+    limit: vi.fn(() => query),
     for: vi.fn(async () => {
       if (mocks.lockedReferral === undefined) return value;
       return mocks.lockedReferral === null ? [] : [mocks.lockedReferral];
@@ -180,6 +191,9 @@ describe("TaskDesk referral Stripe rewards", () => {
     });
     mocks.update.mockImplementation(() => ({
       set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+    }));
+    mocks.delete.mockImplementation(() => ({
+      where: vi.fn(async () => undefined),
     }));
     mocks.insert.mockImplementation(() => ({
       values: vi.fn(() => ({
@@ -970,6 +984,13 @@ describe("TaskDesk referral Stripe rewards", () => {
     expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
   });
 
+  it("distinguishes transient Stripe connectivity failures from ordinary errors", () => {
+    expect(isTransientStripeAvailabilityError(
+      Object.assign(new Error("temporary network failure"), { code: "ETIMEDOUT" }),
+    )).toBe(true);
+    expect(isTransientStripeAvailabilityError(new Error("invalid referral code"))).toBe(false);
+  });
+
   it("checks referral attribution using the persisted referred-organization record", async () => {
     mocks.select.mockImplementationOnce(() => queryReturning([{ id: 42 }]));
 
@@ -989,6 +1010,69 @@ describe("TaskDesk referral Stripe rewards", () => {
 
     await expect(attachReferralAtSignup("ValidCode_123", 20, "new@example.test")).resolves.toBe(false);
     expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("queues a valid referral code when the referrer's Stripe check times out", async () => {
+    mocks.select
+      .mockImplementationOnce(() => queryReturning([{
+        organizationId: 10,
+        referrerEmail: "referrer@example.test",
+      }]))
+      .mockImplementationOnce(() => queryReturning([{ stripeCustomerId: "cus_referrer" }]));
+    mocks.stripeSubscriptionsList.mockRejectedValueOnce(
+      Object.assign(new Error("Stripe request timed out"), { code: "ETIMEDOUT" }),
+    );
+    const queuedValues = vi.fn();
+    mocks.insert.mockImplementationOnce(() => ({
+      values: vi.fn((values) => {
+        queuedValues(values);
+        return { onConflictDoNothing: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    await expect(
+      (await import("./referralService")).attachReferralAtSignup(
+        "ValidCode_123",
+        20,
+        "new@example.test",
+      ),
+    ).resolves.toBe(false);
+    expect(queuedValues).toHaveBeenCalledWith({
+      referredOrganizationId: 20,
+      code: "ValidCode_123",
+    });
+  });
+
+  it("removes a recovered retry when attribution already exists instead of creating a duplicate", async () => {
+    mocks.select
+      .mockImplementationOnce(() => queryReturning([{
+        id: 91,
+        code: "ValidCode_123",
+        referredOrganizationId: 20,
+        attempts: 0,
+      }]))
+      .mockImplementationOnce(() => queryReturning([{ email: "new@example.test" }]))
+      .mockImplementationOnce(() => queryReturning([{
+        organizationId: 10,
+        referrerEmail: "referrer@example.test",
+      }]))
+      .mockImplementationOnce(() => queryReturning([{ stripeCustomerId: "cus_referrer" }]));
+    mocks.update.mockImplementationOnce(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({ returning: vi.fn(async () => [{ id: 91 }]) })),
+      })),
+    }));
+    mocks.insert.mockImplementationOnce(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(async () => []),
+        })),
+      })),
+    }));
+
+    await expect(retryPendingReferralAttributions()).resolves.toBe(1);
+    expect(mocks.insert).toHaveBeenCalledTimes(1);
+    expect(mocks.delete).toHaveBeenCalledTimes(1);
   });
 
   it("does not create a second attribution when the referred organization already has one", async () => {

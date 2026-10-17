@@ -11,6 +11,7 @@ import { startAppointmentReminderJob } from "./lib/appointmentReminderJob";
 import { startTicketRecurrenceJob } from "./lib/ticketRecurrenceJob";
 import { startTrialReminderJob } from "./lib/trialReminderJob";
 import { startTicketTrashCleanupJob } from "./lib/ticketTrash";
+import { startReferralAttributionRetryJob } from "./lib/referralAttributionRetryJob";
 
 const rawPort = process.env["PORT"];
 
@@ -66,6 +67,7 @@ runAppMigrations()
   .then(() => startTicketRecurrenceJob())
   .then(() => startTrialReminderJob())
   .then(() => startTicketTrashCleanupJob())
+  .then(() => startReferralAttributionRetryJob())
   .catch((err) => logger.error({ err }, "Seed/migration failed"));
 initStripe().catch((err) => logger.error({ err }, "initStripe failed"));
 scheduleNightlyBackups();

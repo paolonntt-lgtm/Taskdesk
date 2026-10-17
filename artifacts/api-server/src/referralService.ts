@@ -1,11 +1,78 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, lte } from "drizzle-orm";
 import {
-  db, notificationsTable, organizationsTable, referralCodesTable, referralsTable, usersTable,
+  db, notificationsTable, organizationsTable, pendingReferralAttributionsTable,
+  referralCodesTable, referralsTable, usersTable,
 } from "@workspace/db";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { getUncachableStripeClient } from "./stripeClient";
 import { isTaskDeskPlanProduct, subscriptionHasTaskDeskPlan } from "./lib/stripeProductRules";
+import { logger } from "./lib/logger";
+
+const REFERRAL_RETRY_BASE_MS = 60_000;
+const REFERRAL_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
+const REFERRAL_RETRY_BATCH_SIZE = 50;
+
+export function isTransientStripeAvailabilityError(error: unknown): boolean {
+  if (error instanceof Stripe.errors.StripeConnectionError
+    || error instanceof Stripe.errors.StripeRateLimitError) return true;
+  if (error instanceof Stripe.errors.StripeError) {
+    return error.statusCode === 408 || error.statusCode === 429 || (error.statusCode ?? 0) >= 500;
+  }
+  const candidate = error as { name?: string; code?: string; cause?: { code?: string } } | null;
+  const code = candidate?.code ?? candidate?.cause?.code;
+  return ["AbortError", "TimeoutError"].includes(candidate?.name ?? "")
+    || ["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"].includes(code ?? "");
+}
+
+type SignupReferralResult = "attached" | "not_applicable" | "stripe_unavailable";
+
+async function attemptReferralAtSignup(
+  code: unknown,
+  referredOrganizationId: number,
+  signupEmail: string,
+): Promise<SignupReferralResult> {
+  if (typeof code !== "string" || !/^[A-Za-z0-9_-]{8,40}$/.test(code)) return "not_applicable";
+  const records = await db.select({
+    organizationId: referralCodesTable.organizationId,
+    referrerEmail: usersTable.email,
+  }).from(referralCodesTable)
+    .innerJoin(usersTable, and(
+      eq(usersTable.organizationId, referralCodesTable.organizationId),
+      eq(usersTable.role, "admin"),
+      eq(usersTable.isActive, true),
+    ))
+    .where(eq(referralCodesTable.code, code));
+  const organizationId = records[0]?.organizationId;
+  if (!organizationId || organizationId === referredOrganizationId
+    || records.some((record) => record.referrerEmail.toLowerCase() === signupEmail.toLowerCase())) {
+    return "not_applicable";
+  }
+
+  let plan: ReferralPlan | null;
+  try {
+    plan = await getReferralPlan(organizationId, true);
+  } catch (error) {
+    if (isTransientStripeAvailabilityError(error)) return "stripe_unavailable";
+    throw error;
+  }
+  if (!plan) return "not_applicable";
+
+  const inserted = await db.insert(referralsTable).values({
+    referrerOrganizationId: organizationId,
+    referredOrganizationId,
+    status: "pending_payment",
+  }).onConflictDoNothing().returning({ id: referralsTable.id });
+  return inserted.length > 0 ? "attached" : "not_applicable";
+}
+
+async function scheduleReferralRetry(retryId: number, attempts: number): Promise<void> {
+  const delay = Math.min(REFERRAL_RETRY_BASE_MS * (2 ** Math.min(attempts, 10)), REFERRAL_RETRY_MAX_MS);
+  await db.update(pendingReferralAttributionsTable).set({
+    attempts: attempts + 1,
+    retryAfter: new Date(Date.now() + delay),
+  }).where(eq(pendingReferralAttributionsTable.id, retryId));
+}
 
 export type ReferralPlan = {
   customerId: string;
@@ -98,27 +165,60 @@ export async function attachReferralAtSignup(
   referredOrganizationId: number,
   signupEmail: string,
 ): Promise<boolean> {
-  if (typeof code !== "string" || !/^[A-Za-z0-9_-]{8,40}$/.test(code)) return false;
-  const records = await db.select({
-    organizationId: referralCodesTable.organizationId,
-    referrerEmail: usersTable.email,
-  }).from(referralCodesTable)
-    .innerJoin(usersTable, and(
-      eq(usersTable.organizationId, referralCodesTable.organizationId),
-      eq(usersTable.role, "admin"),
-      eq(usersTable.isActive, true),
-    ))
-    .where(eq(referralCodesTable.code, code));
-  const organizationId = records[0]?.organizationId;
-  if (!organizationId || organizationId === referredOrganizationId
-    || records.some((record) => record.referrerEmail.toLowerCase() === signupEmail.toLowerCase())) return false;
-  if (!(await getReferralPlan(organizationId, true))) return false;
-  const inserted = await db.insert(referralsTable).values({
-    referrerOrganizationId: organizationId,
-    referredOrganizationId,
-    status: "pending_payment",
-  }).onConflictDoNothing().returning({ id: referralsTable.id });
-  return inserted.length > 0;
+  const result = await attemptReferralAtSignup(code, referredOrganizationId, signupEmail);
+  if (result === "stripe_unavailable") {
+    if (typeof code === "string") {
+      await db.insert(pendingReferralAttributionsTable).values({
+        referredOrganizationId,
+        code,
+      }).onConflictDoNothing();
+    }
+    logger.warn({ referredOrganizationId }, "Stripe unavailable; referral attribution queued for retry");
+    return false;
+  }
+  return result === "attached";
+}
+
+export async function retryPendingReferralAttributions(): Promise<number> {
+  const dueAt = new Date();
+  const pending = await db.select().from(pendingReferralAttributionsTable)
+    .where(lte(pendingReferralAttributionsTable.retryAfter, dueAt))
+    .limit(REFERRAL_RETRY_BATCH_SIZE);
+  let processed = 0;
+
+  for (const retry of pending) {
+    const [claimed] = await db.update(pendingReferralAttributionsTable).set({
+      attempts: retry.attempts + 1,
+      retryAfter: new Date(Date.now() + REFERRAL_RETRY_BASE_MS),
+    }).where(and(
+      eq(pendingReferralAttributionsTable.id, retry.id),
+      lte(pendingReferralAttributionsTable.retryAfter, dueAt),
+    )).returning({ id: pendingReferralAttributionsTable.id });
+    if (!claimed) continue;
+
+    try {
+      const [admin] = await db.select({ email: usersTable.email })
+        .from(usersTable).where(and(
+          eq(usersTable.organizationId, retry.referredOrganizationId),
+          eq(usersTable.role, "admin"),
+          eq(usersTable.isActive, true),
+        ));
+      const result = admin?.email
+        ? await attemptReferralAtSignup(retry.code, retry.referredOrganizationId, admin.email)
+        : "not_applicable";
+      if (result !== "stripe_unavailable") {
+        await db.delete(pendingReferralAttributionsTable)
+          .where(eq(pendingReferralAttributionsTable.id, retry.id));
+      } else {
+        await scheduleReferralRetry(retry.id, retry.attempts + 1);
+      }
+      processed += 1;
+    } catch (error) {
+      await scheduleReferralRetry(retry.id, retry.attempts + 1);
+      logger.warn({ err: error, referredOrganizationId: retry.referredOrganizationId }, "Referral attribution retry failed");
+    }
+  }
+  return processed;
 }
 
 export async function hasReferralAttribution(referredOrganizationId: number): Promise<boolean> {

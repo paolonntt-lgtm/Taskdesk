@@ -21,6 +21,19 @@ export const referralCodesTable = pgTable("referral_codes", {
   uniqueIndex("referral_codes_code_uniq").on(table.code),
 ]);
 
+export const pendingReferralAttributionsTable = pgTable("pending_referral_attributions", {
+  id: serial("id").primaryKey(),
+  referredOrganizationId: integer("referred_organization_id")
+    .notNull()
+    .references(() => organizationsTable.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  retryAfter: timestamp("retry_after", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("pending_referral_attributions_org_uniq").on(table.referredOrganizationId),
+]);
+
 export const referralsTable = pgTable("referrals", {
   id: serial("id").primaryKey(),
   referrerOrganizationId: integer("referrer_organization_id")

@@ -419,6 +419,17 @@ export async function runAppMigrations(): Promise<void> {
       CREATE UNIQUE INDEX IF NOT EXISTS referral_codes_code_uniq
         ON referral_codes (code);
 
+      CREATE TABLE IF NOT EXISTS pending_referral_attributions (
+        id SERIAL PRIMARY KEY,
+        referred_organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        code TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        retry_after TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS pending_referral_attributions_org_uniq
+        ON pending_referral_attributions (referred_organization_id);
+
       CREATE TABLE IF NOT EXISTS referrals (
         id SERIAL PRIMARY KEY,
         referrer_organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
