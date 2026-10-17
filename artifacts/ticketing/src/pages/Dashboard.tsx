@@ -1451,8 +1451,8 @@ function FeedGroupWidget() {
             {!selectedGroup ? (
               <Box px={2} py={3} textAlign="center">
                 <Typography variant="body2" color="text.secondary">{t.dashboard.noGroupSelected}</Typography>
-                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
-                  {t.dashboard.configureWidget}
+                <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.selectGroup}
                 </Button>
               </Box>
             ) : groups.length === 0 ? (
@@ -1614,8 +1614,8 @@ function FeedCategoryWidget() {
             {!selected ? (
               <Box px={2} py={3} textAlign="center">
                 <Typography variant="body2" color="text.secondary">{t.dashboard.noCategorySelected}</Typography>
-                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
-                  {t.dashboard.configureWidget}
+                <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.selectCategory}
                 </Button>
               </Box>
             ) : data.length === 0 ? (
@@ -1707,8 +1707,8 @@ function FeedStatusWidget() {
             {!selected ? (
               <Box px={2} py={3} textAlign="center">
                 <Typography variant="body2" color="text.secondary">{t.dashboard.noStatusSelected}</Typography>
-                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
-                  {t.dashboard.configureWidget}
+                <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.selectStatus}
                 </Button>
               </Box>
             ) : data.length === 0 ? (
