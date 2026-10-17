@@ -1350,8 +1350,8 @@ function FeedPersonWidget() {
             {!selectedId ? (
               <Box px={2} py={3} textAlign="center">
                 <Typography variant="body2" color="text.secondary">{t.dashboard.noAgentSelected}</Typography>
-                <Button size="small" startIcon={<SettingsIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
-                  {t.dashboard.configureWidget}
+                <Button size="small" startIcon={<AddIcon />} sx={{ mt: 1 }} onClick={() => setConfigOpen(true)}>
+                  {t.dashboard.selectAgent}
                 </Button>
               </Box>
             ) : displayTickets.length === 0 ? (
