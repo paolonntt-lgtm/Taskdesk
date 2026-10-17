@@ -88,6 +88,8 @@ import {
   applyPendingReferralCreditsForCustomer,
   calculateReferralMonthlyReward,
   getReferralOverview,
+  processReferralChargeRefunded,
+  processReferralDisputeCreated,
   processReferralInvoicePaid,
 } from "./referralService";
 import type Stripe from "stripe";
@@ -425,6 +427,88 @@ describe("TaskDesk referral Stripe rewards", () => {
       rewardAmount: 12000,
       rewardCurrency: "usd",
     });
+  });
+
+  it("reverses the stored reward customer, amount, and currency after the referrer changes plans", async () => {
+    const updates: Record<string, unknown>[] = [];
+    mocks.lockedReferral = {
+      ...pendingReferral,
+      status: "rewarded",
+      rewardCustomerId: "cus_renewed",
+      rewardAmount: 12000,
+      rewardCurrency: "usd",
+    };
+    // The currently active plan is deliberately different from the credited reward.
+    configureStripe(activeSubscription);
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    await processReferralDisputeCreated({
+      charge: { invoice: "in_first_paid" },
+    } as unknown as Stripe.Dispute);
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_renewed",
+      expect.objectContaining({ amount: 12000, currency: "usd" }),
+      { idempotencyKey: "taskdesk-referral-reversal-42" },
+    );
+    expect(updates).toContainEqual(expect.objectContaining({
+      status: "revoked",
+      stripeRewardReversalBalanceTransactionId: "cbtxn_referral_42",
+      rewardRevocationReason: "dispute",
+    }));
+    expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
+  });
+
+  it("does not reverse an awarded reward for a partial refund", async () => {
+    mocks.lockedReferral = { ...pendingReferral, status: "rewarded" };
+
+    await processReferralChargeRefunded({
+      amount: 12000,
+      amount_refunded: 3000,
+      invoice: "in_first_paid",
+    } as unknown as Stripe.Charge);
+
+    expect(mocks.stripeBalanceCredit).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("does not create a second reversal when a dispute retry is followed by a full refund", async () => {
+    const updates: Record<string, unknown>[] = [];
+    mocks.lockedReferral = {
+      ...pendingReferral,
+      status: "rewarded",
+      rewardCustomerId: "cus_renewed",
+      rewardAmount: 12000,
+      rewardCurrency: "usd",
+    };
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+    const charge = { invoice: "in_first_paid" };
+
+    await processReferralDisputeCreated({ charge } as unknown as Stripe.Dispute);
+    await processReferralDisputeCreated({ charge } as unknown as Stripe.Dispute);
+    await processReferralChargeRefunded({
+      amount: 12000,
+      amount_refunded: 12000,
+      invoice: "in_first_paid",
+    } as unknown as Stripe.Charge);
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledTimes(1);
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_renewed",
+      expect.objectContaining({ amount: 12000, currency: "usd" }),
+      { idempotencyKey: "taskdesk-referral-reversal-42" },
+    );
+    expect(updates).toHaveLength(1);
   });
 
   it("uses the newest active TaskDesk plan across multiple admins, not a newer add-on or canceled subscription", async () => {
