@@ -382,6 +382,172 @@ describe("TaskDesk referral Stripe rewards", () => {
     });
   });
 
+  it("uses the newest active TaskDesk plan across multiple admins, not a newer add-on or canceled subscription", async () => {
+    const annualPrice = {
+      ...monthlyPrice,
+      id: "price_annual",
+      product: "prod_taskdesk_annual",
+      currency: "eur",
+      unit_amount: 144000,
+      recurring: { interval: "year" },
+    } as unknown as Stripe.Price;
+    const addonPrice = {
+      ...monthlyPrice,
+      id: "price_seat_addon",
+      product: "prod_seat_addon",
+      unit_amount: 1000,
+    } as unknown as Stripe.Price;
+    const subscriptionsByCustomer: Record<string, Stripe.Subscription[]> = {
+      cus_admin_a: [{
+        ...activeSubscription,
+        id: "sub_monthly",
+        customer: "cus_admin_a",
+        created: 100,
+      } as Stripe.Subscription],
+      cus_admin_b: [
+        {
+          ...activeSubscription,
+          id: "sub_annual",
+          customer: "cus_admin_b",
+          created: 200,
+          items: { data: [{ price: annualPrice, quantity: 1 }] },
+        } as unknown as Stripe.Subscription,
+        {
+          ...activeSubscription,
+          id: "sub_addon_only",
+          customer: "cus_admin_b",
+          created: 300,
+          items: { data: [{ price: addonPrice, quantity: 1 }] },
+        } as unknown as Stripe.Subscription,
+        {
+          ...canceledSubscription,
+          id: "sub_canceled",
+          customer: "cus_admin_b",
+          created: 400,
+          items: { data: [{ price: annualPrice, quantity: 1 }] },
+        } as unknown as Stripe.Subscription,
+      ],
+    };
+    const updates: Record<string, unknown>[] = [];
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
+      if (keys.includes("stripeCustomerId")) return queryReturning([
+        { stripeCustomerId: "cus_admin_a" },
+        { stripeCustomerId: "cus_admin_b" },
+      ]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
+      return queryReturning([pendingReferral]);
+    });
+    mocks.stripeSubscriptionsList.mockImplementation(async ({ customer }: { customer: string }) => ({
+      data: subscriptionsByCustomer[customer] ?? [],
+    }));
+    mocks.stripeProductsRetrieve.mockImplementation(async (productId: string) => ({
+      id: productId,
+      metadata: productId === "prod_seat_addon" ? { addon: "seat" } : { seats: "5" },
+    }));
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    await applyPendingReferralCreditsForCustomer("cus_admin_a");
+
+    expect(mocks.stripeSubscriptionsList).toHaveBeenCalledTimes(2);
+    expect(mocks.stripeSubscriptionsList).toHaveBeenCalledWith(expect.objectContaining({ customer: "cus_admin_a" }));
+    expect(mocks.stripeSubscriptionsList).toHaveBeenCalledWith(expect.objectContaining({ customer: "cus_admin_b" }));
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_admin_b",
+      expect.objectContaining({ amount: -12000, currency: "eur" }),
+      { idempotencyKey: "taskdesk-referral-42" },
+    );
+    expect(updates[0]).toMatchObject({
+      rewardCustomerId: "cus_admin_b",
+      rewardAmount: 12000,
+      rewardCurrency: "eur",
+    });
+  });
+
+  it("uses the TaskDesk monthly base plan when its subscription also contains an add-on item", async () => {
+    const addonPrice = {
+      ...monthlyPrice,
+      id: "price_seat_addon",
+      product: "prod_seat_addon",
+      unit_amount: 1000,
+    } as unknown as Stripe.Price;
+    const basePrice = {
+      ...monthlyPrice,
+      id: "price_monthly_base",
+      product: "prod_taskdesk_monthly",
+      unit_amount: 4900,
+    } as unknown as Stripe.Price;
+    const subscriptionsByCustomer: Record<string, Stripe.Subscription[]> = {
+      cus_admin_a: [{
+        ...activeSubscription,
+        id: "sub_monthly_with_addon",
+        customer: "cus_admin_a",
+        created: 100,
+        items: { data: [
+          { price: addonPrice, quantity: 1 },
+          { price: basePrice, quantity: 2 },
+        ] },
+      } as unknown as Stripe.Subscription],
+      cus_admin_b: [{
+        ...activeSubscription,
+        id: "sub_addon_only",
+        customer: "cus_admin_b",
+        created: 300,
+        items: { data: [{ price: addonPrice, quantity: 1 }] },
+      } as unknown as Stripe.Subscription],
+    };
+    const updates: Record<string, unknown>[] = [];
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
+      if (keys.includes("stripeCustomerId")) return queryReturning([
+        { stripeCustomerId: "cus_admin_a" },
+        { stripeCustomerId: "cus_admin_b" },
+      ]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
+      return queryReturning([pendingReferral]);
+    });
+    mocks.stripeSubscriptionsList.mockImplementation(async ({ customer }: { customer: string }) => ({
+      data: subscriptionsByCustomer[customer] ?? [],
+    }));
+    mocks.stripeProductsRetrieve.mockImplementation(async (productId: string) => ({
+      id: productId,
+      metadata: productId === "prod_seat_addon" ? { addon: "seat" } : { seats: "5" },
+    }));
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    await applyPendingReferralCreditsForCustomer("cus_admin_a");
+
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_admin_a",
+      expect.objectContaining({ amount: -9800, currency: "eur" }),
+      { idempotencyKey: "taskdesk-referral-42" },
+    );
+    expect(mocks.stripeBalanceCredit).not.toHaveBeenCalledWith(
+      "cus_admin_b",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(updates[0]).toMatchObject({
+      rewardCustomerId: "cus_admin_a",
+      rewardAmount: 9800,
+      rewardCurrency: "eur",
+    });
+  });
+
   it("shows the current one-month estimate for pending rewards, not the old plan value", async () => {
     mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
       const keys = Object.keys(projection ?? {});
