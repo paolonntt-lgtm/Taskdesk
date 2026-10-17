@@ -56,7 +56,11 @@ export async function getReferralPlan(organizationId: number, activeOnly = true)
   }
   const candidates = subs
     .filter((sub) => activeOnly ? sub.status === "active" : !["trialing", "incomplete", "incomplete_expired"].includes(sub.status))
-    .sort((a, b) => b.created - a.created);
+    .sort((a, b) => {
+      const createdOrder = b.created - a.created;
+      if (createdOrder !== 0) return createdOrder;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
   for (const subscription of candidates) {
     for (const item of subscription.items.data) {
       const price = item.price as Stripe.Price;
