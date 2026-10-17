@@ -62,6 +62,7 @@ import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
+import { dashboardPreferenceStorageKey } from '../lib/dashboardPreferenceStorage';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -132,22 +133,41 @@ const WidgetSettingsContext = React.createContext<{
   set: (widgetId: string, s: Record<string, unknown>) => void;
 }>({ all: {}, set: () => {} });
 
-function WidgetSettingsProvider({ children }: { children: React.ReactNode }) {
+const DashboardStorageKeyContext = React.createContext<(key: string) => string>((key) => key);
+
+function useDashboardStorageKey(key: string): string {
+  return React.useContext(DashboardStorageKeyContext)(key);
+}
+
+function WidgetSettingsProvider({
+  children,
+  userId,
+}: {
+  children: React.ReactNode;
+  userId: number | string | null | undefined;
+}) {
+  const getStorageKey = React.useCallback(
+    (key: string) => dashboardPreferenceStorageKey(key, userId),
+    [userId],
+  );
+  const settingsStorageKey = getStorageKey(SETTINGS_KEY);
   const [all, setAll] = React.useState<AllWidgetSettings>(() => {
-    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') as AllWidgetSettings; }
+    try { return JSON.parse(localStorage.getItem(settingsStorageKey) || '{}') as AllWidgetSettings; }
     catch { return {}; }
   });
   const set = React.useCallback((widgetId: string, s: Record<string, unknown>) => {
     setAll((prev) => {
       const next = { ...prev, [widgetId]: s };
-      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+      try { localStorage.setItem(settingsStorageKey, JSON.stringify(next)); } catch {}
       return next;
     });
-  }, []);
+  }, [settingsStorageKey]);
   return (
-    <WidgetSettingsContext.Provider value={{ all, set }}>
-      {children}
-    </WidgetSettingsContext.Provider>
+    <DashboardStorageKeyContext.Provider value={getStorageKey}>
+      <WidgetSettingsContext.Provider value={{ all, set }}>
+        {children}
+      </WidgetSettingsContext.Provider>
+    </DashboardStorageKeyContext.Provider>
   );
 }
 
@@ -1289,8 +1309,9 @@ function FeedPersonWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
+  const personWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
   const [selectedId, setSelectedId] = useState<number | null>(() => {
-    const v = localStorage.getItem(PERSON_WIDGET_KEY);
+    const v = localStorage.getItem(personWidgetStorageKey);
     return v ? parseInt(v, 10) : null;
   });
   const [tempId, setTempId] = useState<number | ''>(selectedId ?? '');
@@ -1318,8 +1339,8 @@ function FeedPersonWidget() {
   const handleSave = () => {
     const id = typeof tempId === 'number' ? tempId : null;
     setSelectedId(id);
-    if (id != null) localStorage.setItem(PERSON_WIDGET_KEY, String(id));
-    else localStorage.removeItem(PERSON_WIDGET_KEY);
+    if (id != null) localStorage.setItem(personWidgetStorageKey, String(id));
+    else localStorage.removeItem(personWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -1395,7 +1416,8 @@ function FeedGroupWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<string>(() => localStorage.getItem(GROUP_WIDGET_KEY) ?? '');
+  const groupWidgetStorageKey = useDashboardStorageKey(GROUP_WIDGET_KEY);
+  const [selectedGroup, setSelectedGroup] = useState<string>(() => localStorage.getItem(groupWidgetStorageKey) ?? '');
   const [tempGroup, setTempGroup] = useState<string>(selectedGroup);
 
   const { data: groups = [] } = useQuery<string[]>({
@@ -1419,8 +1441,8 @@ function FeedGroupWidget() {
 
   const handleSave = () => {
     setSelectedGroup(tempGroup);
-    if (tempGroup) localStorage.setItem(GROUP_WIDGET_KEY, tempGroup);
-    else localStorage.removeItem(GROUP_WIDGET_KEY);
+    if (tempGroup) localStorage.setItem(groupWidgetStorageKey, tempGroup);
+    else localStorage.removeItem(groupWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -1564,7 +1586,8 @@ function FeedCategoryWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
-  const [selected, setSelected] = useState<string>(() => localStorage.getItem(CATEGORY_WIDGET_KEY) ?? '');
+  const categoryWidgetStorageKey = useDashboardStorageKey(CATEGORY_WIDGET_KEY);
+  const [selected, setSelected] = useState<string>(() => localStorage.getItem(categoryWidgetStorageKey) ?? '');
   const [temp, setTemp] = useState<string>(selected);
 
   const { data: categories = [] } = useQuery<string[]>({
@@ -1584,8 +1607,8 @@ function FeedCategoryWidget() {
 
   const handleSave = () => {
     setSelected(temp);
-    if (temp) localStorage.setItem(CATEGORY_WIDGET_KEY, temp);
-    else localStorage.removeItem(CATEGORY_WIDGET_KEY);
+    if (temp) localStorage.setItem(categoryWidgetStorageKey, temp);
+    else localStorage.removeItem(categoryWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -1659,7 +1682,8 @@ function FeedStatusWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
   const [configOpen, setConfigOpen] = useState(false);
-  const [selected, setSelected] = useState<string>(() => localStorage.getItem(STATUS_WIDGET_KEY) ?? '');
+  const statusWidgetStorageKey = useDashboardStorageKey(STATUS_WIDGET_KEY);
+  const [selected, setSelected] = useState<string>(() => localStorage.getItem(statusWidgetStorageKey) ?? '');
   const [temp, setTemp] = useState<string>(selected);
 
   const { statuses } = useTicketStatuses();
@@ -1677,8 +1701,8 @@ function FeedStatusWidget() {
 
   const handleSave = () => {
     setSelected(temp);
-    if (temp) localStorage.setItem(STATUS_WIDGET_KEY, temp);
-    else localStorage.removeItem(STATUS_WIDGET_KEY);
+    if (temp) localStorage.setItem(statusWidgetStorageKey, temp);
+    else localStorage.removeItem(statusWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -2249,17 +2273,18 @@ function AddWidgetDialog({
 
 const CUSTOM_NAMES_KEY = 'td_widget_custom_names';
 function useWidgetCustomNames() {
+  const customNamesStorageKey = useDashboardStorageKey(CUSTOM_NAMES_KEY);
   const [names, setNames] = React.useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) ?? '{}'); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(customNamesStorageKey) ?? '{}'); } catch { return {}; }
   });
   const setName = React.useCallback((id: string, name: string) => {
     setNames((prev) => {
       const next = { ...prev };
       if (name.trim()) next[id] = name.trim(); else delete next[id];
-      localStorage.setItem(CUSTOM_NAMES_KEY, JSON.stringify(next));
+      localStorage.setItem(customNamesStorageKey, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [customNamesStorageKey]);
   return { names, setName };
 }
 
@@ -2271,6 +2296,8 @@ function Dashboard() {
     return typeof val === 'function' ? (val as (p: string, gender: 'masculine' | 'feminine') => string)(entityTerm.plural, entityTerm.grammaticalGender) : ((val as string) || key);
   };
   const { user } = useAuth();
+  const dashboardLayoutStorageKey = useDashboardStorageKey(LAYOUT_KEY);
+  const dashboardVisibleStorageKey = useDashboardStorageKey(VISIBLE_KEY);
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
@@ -2380,14 +2407,14 @@ function Dashboard() {
 
   const [layout, setLayout] = useState<LayoutItem[]>(() => {
     try {
-      const saved = localStorage.getItem(LAYOUT_KEY);
+      const saved = localStorage.getItem(dashboardLayoutStorageKey);
       return saved ? JSON.parse(saved) as LayoutItem[] : superadminDefaultLayout();
     } catch { return superadminDefaultLayout(); }
   });
 
   const [visibleIds, setVisibleIds] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem(VISIBLE_KEY);
+      const saved = localStorage.getItem(dashboardVisibleStorageKey);
       return saved ? JSON.parse(saved) as string[] : superadminDefaultVisibleIds();
     } catch { return superadminDefaultVisibleIds(); }
   });
@@ -2401,8 +2428,8 @@ function Dashboard() {
         setLayout(data.layout as LayoutItem[]);
         setVisibleIds(data.visibleIds as string[]);
         try {
-          localStorage.setItem(LAYOUT_KEY, JSON.stringify(data.layout));
-          localStorage.setItem(VISIBLE_KEY, JSON.stringify(data.visibleIds));
+          localStorage.setItem(dashboardLayoutStorageKey, JSON.stringify(data.layout));
+          localStorage.setItem(dashboardVisibleStorageKey, JSON.stringify(data.visibleIds));
         } catch {}
       })
       .catch(() => {});
@@ -2423,14 +2450,18 @@ function Dashboard() {
     }, 1500);
   }, []);
 
+  useEffect(() => () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+  }, []);
+
   useEffect(() => {
-    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch {}
+    try { localStorage.setItem(dashboardLayoutStorageKey, JSON.stringify(layout)); } catch {}
     saveToServer(layout, visibleIds);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
 
   useEffect(() => {
-    try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleIds)); } catch {}
+    try { localStorage.setItem(dashboardVisibleStorageKey, JSON.stringify(visibleIds)); } catch {}
     saveToServer(layout, visibleIds);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds]);
@@ -2982,8 +3013,10 @@ function Dashboard() {
 }
 
 function DashboardWithProvider() {
+  const { user } = useAuth();
+  const userKey = user?.id == null ? 'anonymous' : String(user.id);
   return (
-    <WidgetSettingsProvider>
+    <WidgetSettingsProvider key={userKey} userId={user?.id}>
       <ReferralDashboardNotice />
       <Dashboard />
     </WidgetSettingsProvider>

@@ -8,7 +8,9 @@ import {
   Computer, Gavel, Campaign, Category, Add, Close, CheckCircle,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../lib/analytics';
+import { dashboardPreferenceStorageKey } from '../lib/dashboardPreferenceStorage';
 
 interface BusinessTypeOption {
   value: string;
@@ -26,11 +28,11 @@ const DASHBOARD_PRESETS: Record<string, string[]> = {
   other:               ['stat-open', 'stat-resolved', 'stat-urgent', 'stat-overdue', 'feed-my', 'feed-due', 'feed-recent'],
 };
 
-function applyDashboardPreset(businessType: string): void {
+function applyDashboardPreset(businessType: string, userId: number | string | null | undefined): void {
   try {
     const preset = DASHBOARD_PRESETS[businessType] ?? DASHBOARD_PRESETS.other;
-    localStorage.setItem(DASHBOARD_VISIBLE_KEY, JSON.stringify(preset));
-    localStorage.removeItem(DASHBOARD_LAYOUT_KEY);
+    localStorage.setItem(dashboardPreferenceStorageKey(DASHBOARD_VISIBLE_KEY, userId), JSON.stringify(preset));
+    localStorage.removeItem(dashboardPreferenceStorageKey(DASHBOARD_LAYOUT_KEY, userId));
   } catch { /* ignore quota errors */ }
 }
 
@@ -49,6 +51,7 @@ interface Props {
 
 export default function Onboarding({ onComplete }: Props) {
   const { t } = useLanguage();
+  const { user } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function Onboarding({ onComplete }: Props) {
         setGlobalError(data.message || t.onboarding.errorGeneric);
         return;
       }
-      applyDashboardPreset(selected!);
+      applyDashboardPreset(selected!, user?.id);
       trackEvent('onboarding_completed', {
         business_type: selected!,
         first_ticket_created: firstTicketCreated,
