@@ -8,26 +8,24 @@ import {
   DialogTitle,
   Typography,
 } from '@mui/material';
-import { ArrowForwardRounded, VisibilityOffOutlined, WhatsApp } from '@mui/icons-material';
+import { ArrowForwardRounded, CardGiftcardRounded, VisibilityOffOutlined } from '@mui/icons-material';
 import type { Lang } from '../i18n/translations';
 
-interface WhatsAppAnnouncementDialogProps {
+interface ReferralProgramAnnouncementDialogProps {
   open: boolean;
   lang: Lang;
-  href: string;
   onClose: () => void;
-  onContact: () => void;
+  onOpenProgram: () => void;
   onNeverShowAgain: () => void;
 }
 
-export default function WhatsAppAnnouncementDialog({
+export default function ReferralProgramAnnouncementDialog({
   open,
   lang,
-  href,
   onClose,
-  onContact,
+  onOpenProgram,
   onNeverShowAgain,
-}: WhatsAppAnnouncementDialogProps) {
+}: ReferralProgramAnnouncementDialogProps) {
   const isItalian = lang === 'it';
 
   return (
@@ -36,14 +34,14 @@ export default function WhatsAppAnnouncementDialog({
       onClose={onClose}
       fullWidth
       maxWidth="xs"
-      aria-labelledby="whatsapp-announcement-title"
-      aria-describedby="whatsapp-announcement-description"
+      aria-labelledby="referral-announcement-title"
+      aria-describedby="referral-announcement-description"
       PaperProps={{
         sx: {
           overflow: 'hidden',
           borderRadius: 4,
           border: (theme) =>
-            `1px solid ${theme.palette.mode === 'light' ? 'rgba(148,163,184,.2)' : 'rgba(148,163,184,.18)'}`,
+            `1px solid ${theme.palette.mode === 'light' ? 'rgba(99,102,241,.18)' : 'rgba(129,140,248,.2)'}`,
           boxShadow: (theme) =>
             theme.palette.mode === 'light'
               ? '0 28px 90px rgba(30,41,59,.25)'
@@ -60,8 +58,8 @@ export default function WhatsAppAnnouncementDialog({
           pb: 3,
           background: (theme) =>
             theme.palette.mode === 'light'
-              ? 'radial-gradient(circle at 100% 0%, rgba(34,197,94,.12), transparent 38%), linear-gradient(135deg, #effaf3 0%, #f1fbf8 100%)'
-              : 'radial-gradient(circle at 100% 0%, rgba(34,197,94,.2), transparent 38%), linear-gradient(135deg, #142b25 0%, #172b2b 100%)',
+              ? 'radial-gradient(circle at 100% 0%, rgba(99,102,241,.14), transparent 40%), linear-gradient(135deg, #f4f5ff 0%, #f8f6ff 100%)'
+              : 'radial-gradient(circle at 100% 0%, rgba(129,140,248,.2), transparent 40%), linear-gradient(135deg, #20233b 0%, #29233a 100%)',
           '&::before': {
             content: '""',
             position: 'absolute',
@@ -70,7 +68,7 @@ export default function WhatsAppAnnouncementDialog({
             borderRadius: '50%',
             right: -108,
             bottom: -132,
-            border: '1px solid rgba(34,197,94,.16)',
+            border: '1px solid rgba(99,102,241,.2)',
             pointerEvents: 'none',
           },
         }}
@@ -91,31 +89,31 @@ export default function WhatsAppAnnouncementDialog({
               display: 'grid',
               placeItems: 'center',
               borderRadius: '19px',
-              background: 'linear-gradient(135deg, #16a34a, #0f766e)',
-              boxShadow: '0 9px 20px rgba(15,118,110,.22)',
+              background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+              boxShadow: '0 9px 20px rgba(99,102,241,.24)',
               color: '#fff',
             }}
           >
-            <WhatsApp sx={{ fontSize: 31 }} />
+            <CardGiftcardRounded sx={{ fontSize: 31 }} />
           </Box>
           <Chip
-            label={isItalian ? 'NOVITÀ' : 'WHAT’S NEW'}
+            label={isItalian ? 'PROGRAMMA REFERRAL' : 'REFERRAL PROGRAM'}
             size="small"
             sx={{
               height: 28,
               px: 0.5,
-              color: (theme) => theme.palette.mode === 'light' ? '#15803d' : '#86efac',
+              color: (theme) => theme.palette.mode === 'light' ? '#4f46e5' : '#c4b5fd',
               bgcolor: (theme) =>
-                theme.palette.mode === 'light' ? 'rgba(255,255,255,.76)' : 'rgba(255,255,255,.08)',
-              border: '1px solid rgba(34,197,94,.22)',
+                theme.palette.mode === 'light' ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.08)',
+              border: '1px solid rgba(99,102,241,.22)',
               fontWeight: 800,
-              letterSpacing: '.05em',
+              letterSpacing: '.04em',
               fontSize: 10,
             }}
           />
         </Box>
         <DialogTitle
-          id="whatsapp-announcement-title"
+          id="referral-announcement-title"
           sx={{
             position: 'relative',
             zIndex: 1,
@@ -129,19 +127,19 @@ export default function WhatsAppAnnouncementDialog({
             letterSpacing: '-.035em',
           }}
         >
-          {isItalian ? 'Il team di sviluppo è su WhatsApp' : 'The development team is on WhatsApp'}
+          {isItalian ? 'Invita un’azienda, ricevi un premio' : 'Refer a business and earn a reward'}
         </DialogTitle>
         <DialogContent sx={{ position: 'relative', zIndex: 1, px: 0, pb: 0 }}>
           <Typography
-            id="whatsapp-announcement-description"
+            id="referral-announcement-description"
             variant="body2"
             color="text.secondary"
-            data-testid="text-whatsapp-announcement"
+            data-testid="text-referral-announcement"
             sx={{ maxWidth: 390, fontSize: 14.5, lineHeight: 1.7 }}
           >
             {isItalian
-              ? 'Per domande o feedback puoi contattarci direttamente. Trovi l’icona WhatsApp verde nella barra in alto, accanto alle notifiche.'
-              : 'For questions or feedback, you can contact us directly. The green WhatsApp icon is in the top bar, next to notifications.'}
+              ? 'Condividi il tuo link con un’altra azienda. Dopo il suo primo pagamento idoneo, riceverai un premio pari a un mese del piano attivo al momento dell’accredito.'
+              : 'Share your referral link with another business. After its first eligible payment, you’ll receive a reward equal to one month of the plan active when it is credited.'}
           </Typography>
         </DialogContent>
       </Box>
@@ -168,33 +166,28 @@ export default function WhatsAppAnnouncementDialog({
             gap: 1,
           }}
         >
-          <Button onClick={onClose} data-testid="button-dismiss-whatsapp-announcement" sx={{ color: 'text.secondary', px: 1.5 }}>
+          <Button onClick={onClose} data-testid="button-dismiss-referral-announcement" sx={{ color: 'text.secondary', px: 1.5 }}>
             {isItalian ? 'Ho capito' : 'Got it'}
           </Button>
           <Button
-            component="a"
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
             variant="contained"
-            startIcon={<WhatsApp sx={{ fontSize: 18 }} />}
             endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
-            onClick={onContact}
-            data-testid="button-contact-dev-whatsapp"
+            onClick={onOpenProgram}
+            data-testid="button-open-referral-program"
             sx={{
               minWidth: { xs: 156, sm: 174 },
               borderRadius: 2.5,
-              bgcolor: '#0f766e',
-              boxShadow: '0 8px 18px rgba(15,118,110,.2)',
-              '&:hover': { bgcolor: '#115e59', boxShadow: '0 10px 20px rgba(15,118,110,.27)' },
+              bgcolor: '#4f46e5',
+              boxShadow: '0 8px 18px rgba(79,70,229,.22)',
+              '&:hover': { bgcolor: '#4338ca', boxShadow: '0 10px 20px rgba(79,70,229,.28)' },
             }}
           >
-            {isItalian ? 'Scrivi al team' : 'Message the team'}
+            {isItalian ? 'Scopri il programma' : 'View the program'}
           </Button>
         </Box>
         <Button
           onClick={onNeverShowAgain}
-          data-testid="button-never-show-whatsapp-announcement"
+          data-testid="button-never-show-referral-announcement"
           startIcon={<VisibilityOffOutlined sx={{ fontSize: 16 }} />}
           size="small"
           sx={{

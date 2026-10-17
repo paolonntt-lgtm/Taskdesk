@@ -81,7 +81,7 @@ import {
   shouldShowTaskTrackAnnouncement,
 } from '../lib/taskTrackAnnouncement';
 import AnnouncementsPopup from './AnnouncementsPopup';
-import WhatsAppAnnouncementDialog from './WhatsAppAnnouncementDialog';
+import ReferralProgramAnnouncementDialog from './ReferralProgramAnnouncementDialog';
 
 const drawerWidth = 264;
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
@@ -341,8 +341,18 @@ export default function Layout({ children }: LayoutProps) {
       alreadySeen: taskTrackStorageKey ? hasSeenAnnouncement(taskTrackStorageKey) : false,
     })
   );
-  const [whatsappAnnouncementOpen, setWhatsAppAnnouncementOpen] = useState(false);
-  const dismissedWhatsAppAnnouncementUsersRef = useRef(new Set<string>());
+  const [referralAnnouncementOpen, setReferralAnnouncementOpen] = useState(false);
+  const dismissedReferralAnnouncementUsersRef = useRef(new Set<string>());
+  const { data: referralEligibility } = useQuery<{ eligible?: boolean }>({
+    queryKey: ['referral-eligibility', user?.id],
+    queryFn: async () => {
+      const response = await fetch('/api/stripe/referrals', { credentials: 'include' });
+      if (!response.ok) throw new Error('Referral eligibility unavailable');
+      return response.json();
+    },
+    enabled: canShowAnnouncements && user?.role === 'admin',
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     const shouldShow = shouldShowTaskTrackAnnouncement({
@@ -357,24 +367,25 @@ export default function Layout({ children }: LayoutProps) {
   }, [user?.id, user?.role, canShowAnnouncements, botOpen, location, taskTrackStorageKey]);
 
   useEffect(() => {
-    setWhatsAppAnnouncementOpen(false);
+    setReferralAnnouncementOpen(false);
   }, [user?.id]);
 
   useEffect(() => {
-    if (!canShowAnnouncements || !user || botOpen || taskTrackAnnouncementOpen || location === '/tasktrack-help') return;
+    if (!canShowAnnouncements || !user || user.role !== 'admin' || !referralEligibility?.eligible ||
+        botOpen || taskTrackAnnouncementOpen || location === '/tasktrack-help' || location === '/') return;
     const userId = String(user.id);
-    if (dismissedWhatsAppAnnouncementUsersRef.current.has(userId)) return;
+    if (dismissedReferralAnnouncementUsersRef.current.has(userId)) return;
 
-    const whatsappStorageKey = `td_whatsapp_contact_announcement_v1:${userId}`;
-    if (hasSeenAnnouncement(whatsappStorageKey)) {
-      dismissedWhatsAppAnnouncementUsersRef.current.add(userId);
+    const referralStorageKey = `td_referral_program_announcement_v1:${userId}`;
+    if (hasSeenAnnouncement(referralStorageKey)) {
+      dismissedReferralAnnouncementUsersRef.current.add(userId);
       return;
     }
 
     const userTaskTrackStorageKey = getTaskTrackAnnouncementStorageKey(userId);
     if (user.role === 'admin' && !hasSeenAnnouncement(userTaskTrackStorageKey)) return;
-    setWhatsAppAnnouncementOpen(true);
-  }, [user?.id, user?.role, canShowAnnouncements, botOpen, taskTrackAnnouncementOpen, location]);
+    setReferralAnnouncementOpen(true);
+  }, [user?.id, user?.role, canShowAnnouncements, referralEligibility?.eligible, botOpen, taskTrackAnnouncementOpen, location]);
 
   const dismissTaskTrackAnnouncement = () => {
     if (user) {
@@ -394,33 +405,34 @@ export default function Layout({ children }: LayoutProps) {
     setLocation('/tasktrack-help');
   };
 
-  const dismissWhatsAppAnnouncement = () => {
+  const dismissReferralAnnouncement = () => {
     if (user) {
       const userId = String(user.id);
-      dismissedWhatsAppAnnouncementUsersRef.current.add(userId);
+      dismissedReferralAnnouncementUsersRef.current.add(userId);
       try {
-        sessionStorage.setItem(`td_whatsapp_contact_announcement_v1:${userId}`, 'seen');
+        sessionStorage.setItem(`td_referral_program_announcement_v1:${userId}`, 'seen');
       } catch {
         // The in-memory dismissal guard still prevents repeats in this session.
       }
     }
-    setWhatsAppAnnouncementOpen(false);
+    setReferralAnnouncementOpen(false);
   };
 
-  const neverShowWhatsAppAnnouncementAgain = () => {
+  const neverShowReferralAnnouncementAgain = () => {
     if (user) {
       try {
-        localStorage.setItem(`td_whatsapp_contact_announcement_v1:${user.id}`, 'seen');
+        localStorage.setItem(`td_referral_program_announcement_v1:${user.id}`, 'seen');
       } catch {
         // Fall back to the session dismissal.
       }
     }
-    dismissWhatsAppAnnouncement();
+    dismissReferralAnnouncement();
   };
 
-  const contactTeamViaWhatsAppAnnouncement = () => {
-    trackEvent('whatsapp_contact_clicked', { location: 'announcement' });
-    neverShowWhatsAppAnnouncementAgain();
+  const openReferralProgram = () => {
+    trackEvent('referral_announcement_clicked', { location: 'announcement' });
+    neverShowReferralAnnouncementAgain();
+    setLocation('/billing');
   };
 
   const toggleSidebar = () => {
@@ -1303,18 +1315,17 @@ export default function Layout({ children }: LayoutProps) {
         </DialogActions>
       </Dialog>
 
-      <WhatsAppAnnouncementDialog
-        open={whatsappAnnouncementOpen}
+      <ReferralProgramAnnouncementDialog
+        open={referralAnnouncementOpen}
         lang={lang}
-        href={whatsappHref}
-        onClose={dismissWhatsAppAnnouncement}
-        onContact={contactTeamViaWhatsAppAnnouncement}
-        onNeverShowAgain={neverShowWhatsAppAnnouncementAgain}
+        onClose={dismissReferralAnnouncement}
+        onOpenProgram={openReferralProgram}
+        onNeverShowAgain={neverShowReferralAnnouncementAgain}
       />
 
       <AnnouncementsPopup
         userId={user ? String(user.id) : undefined}
-        enabled={canShowAnnouncements && !botOpen && !taskTrackAnnouncementOpen && !whatsappAnnouncementOpen && location !== '/tasktrack-help'}
+        enabled={canShowAnnouncements && !botOpen && !taskTrackAnnouncementOpen && !referralAnnouncementOpen && location !== '/tasktrack-help'}
         lang={lang}
       />
 
