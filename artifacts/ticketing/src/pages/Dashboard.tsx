@@ -2300,6 +2300,34 @@ function Dashboard() {
   const dashboardVisibleStorageKey = useDashboardStorageKey(VISIBLE_KEY);
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
+  const organizationId = (user as any)?.organizationId as number | null | undefined;
+  const referralAttemptMarker = (() => {
+    try { return window.sessionStorage.getItem('td_referral_status_org'); } catch { return null; }
+  })();
+  const referralAttempted = referralAttemptMarker === 'pending'
+    || (organizationId != null && referralAttemptMarker === String(organizationId));
+  const referralStatusQuery = useQuery<{ applied: boolean }>({
+    queryKey: ['referral-application-status', organizationId],
+    queryFn: async () => {
+      const response = await fetch('/api/stripe/referrals/status', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('referral status unavailable');
+      return response.json();
+    },
+    enabled: isAdmin && organizationId != null,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const referralApplied = referralStatusQuery.data?.applied === true;
+
+  useEffect(() => {
+    if (referralStatusQuery.isSuccess && referralAttemptMarker === 'pending' && organizationId != null) {
+      try { window.sessionStorage.setItem('td_referral_status_org', String(organizationId)); } catch {}
+    }
+  }, [organizationId, referralAttemptMarker, referralStatusQuery.isSuccess]);
+
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
@@ -2566,6 +2594,20 @@ function Dashboard() {
       bgcolor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.paper : 'transparent',
     }}>
       <TrialBanner />
+      {isAdmin && referralStatusQuery.isSuccess && (referralApplied || referralAttempted) && (
+        <Alert
+          severity={referralApplied ? 'success' : 'info'}
+          data-testid="status-referral-application"
+          sx={{ mb: 2, borderRadius: 2 }}
+        >
+          <Typography fontWeight={700}>
+            {referralApplied ? t.dashboard.referralAppliedTitle : t.dashboard.referralNotAppliedTitle}
+          </Typography>
+          <Typography variant="body2">
+            {referralApplied ? t.dashboard.referralAppliedMessage : t.dashboard.referralNotAppliedMessage}
+          </Typography>
+        </Alert>
+      )}
       {hasNoTickets && isAdmin && (
         <Box
           sx={{

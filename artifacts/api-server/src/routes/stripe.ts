@@ -11,12 +11,33 @@ import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripe
 import { requireAuth, requireAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrlForRequest } from '../lib/appUrl';
-import { getReferralOverview, getReferralPlan, getOrCreateReferralCode } from '../referralService';
+import {
+  getReferralOverview,
+  getReferralPlan,
+  getOrCreateReferralCode,
+  hasReferralAttribution,
+} from '../referralService';
 import { isTaskDeskPlanProduct } from '../lib/stripeProductRules';
 
 const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
+
+router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+  const organizationId = req.currentUser.organizationId;
+  if (organizationId == null) {
+    res.status(403).json({ error: 'Admin account has no organization' });
+    return;
+  }
+
+  try {
+    const applied = await hasReferralAttribution(organizationId);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ applied });
+  } catch (err: any) {
+    sendStripeError(res, err);
+  }
+});
 
 router.get('/stripe/referrals', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
   try {

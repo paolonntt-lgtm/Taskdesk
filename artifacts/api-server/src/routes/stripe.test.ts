@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createCustomer: vi.fn(),
   createCheckoutSession: vi.fn(),
   createCustomerPortalSession: vi.fn(),
+  hasReferralAttribution: vi.fn(),
 }));
 
 vi.mock('../stripeClient', () => ({
@@ -35,6 +36,13 @@ vi.mock('../stripeService', () => ({
     createCheckoutSession: mocks.createCheckoutSession,
     createCustomerPortalSession: mocks.createCustomerPortalSession,
   },
+}));
+
+vi.mock('../referralService', () => ({
+  getReferralOverview: vi.fn(),
+  getReferralPlan: vi.fn(),
+  getOrCreateReferralCode: vi.fn(),
+  hasReferralAttribution: mocks.hasReferralAttribution,
 }));
 
 vi.mock('../middlewares/auth', () => {
@@ -137,6 +145,17 @@ describe('Stripe billing routes', () => {
       'cus_taskdesk_test',
       'https://www.taskdesk.it/app/billing',
     );
+  });
+
+  it('returns only the signed-in organization’s persisted referral status', async () => {
+    mocks.hasReferralAttribution.mockResolvedValue(true);
+
+    const response = await get('referrals/status');
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({ applied: true });
+    expect(mocks.hasReferralAttribution).toHaveBeenCalledWith(20);
   });
 
   it('rejects an add-on price as a new subscription plan', async () => {

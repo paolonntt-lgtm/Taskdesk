@@ -87,6 +87,7 @@ vi.mock("./stripeClient", () => ({
 import {
   applyPendingReferralCreditsForCustomer,
   calculateReferralMonthlyReward,
+  hasReferralAttribution,
   getReferralOverview,
   processReferralChargeRefunded,
   processReferralDisputeCreated,
@@ -967,6 +968,19 @@ describe("TaskDesk referral Stripe rewards", () => {
     ).resolves.toBe(false);
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.stripeSubscriptionsList).not.toHaveBeenCalled();
+  });
+
+  it("checks referral attribution using the persisted referred-organization record", async () => {
+    mocks.select.mockImplementationOnce(() => queryReturning([{ id: 42 }]));
+
+    await expect(hasReferralAttribution(20)).resolves.toBe(true);
+    expect(mocks.select).toHaveBeenCalledWith({ id: "referrals.id" });
+  });
+
+  it("reports no referral attribution when the organization has no persisted record", async () => {
+    mocks.select.mockImplementationOnce(() => queryReturning([]));
+
+    await expect(hasReferralAttribution(20)).resolves.toBe(false);
   });
 
   it("rejects a well-formed but unknown referral code", async () => {

@@ -121,6 +121,13 @@ export async function attachReferralAtSignup(
   return inserted.length > 0;
 }
 
+export async function hasReferralAttribution(referredOrganizationId: number): Promise<boolean> {
+  const [referral] = await db.select({ id: referralsTable.id })
+    .from(referralsTable)
+    .where(eq(referralsTable.referredOrganizationId, referredOrganizationId));
+  return Boolean(referral);
+}
+
 export async function processReferralInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
   const rawSubscriptionId = (invoice as any).subscription
