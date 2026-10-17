@@ -148,6 +148,8 @@ export default function TicketDetail() {
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
   const [editDialog, setEditDialog] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '' });
+  const [editTimeTrackingBillable, setEditTimeTrackingBillable] = useState(false);
+  const [editTimeTrackingRecognizable, setEditTimeTrackingRecognizable] = useState(false);
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
@@ -722,6 +724,8 @@ export default function TicketDetail() {
       clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
       dueAt: (ticket as any).dueAt ? new Date((ticket as any).dueAt).toISOString().slice(0, 16) : '',
     });
+    setEditTimeTrackingBillable(Boolean((ticket as any).timeTrackingBillable));
+    setEditTimeTrackingRecognizable((ticket as any).timeTrackingCompensationOverride === true);
     setEditError(null);
     setEditDialog(true);
   };
@@ -732,6 +736,22 @@ export default function TicketDetail() {
     try {
       const existingClientId = (ticket as any).clientId ?? null;
       const newClientId = editForm.clientId ? parseInt(editForm.clientId) : null;
+      const shouldEnableTaskTrack =
+        isAdmin &&
+        timeTrackingModuleEnabled &&
+        !(ticket as any).timeTrackingEnabled &&
+        (editTimeTrackingBillable || editTimeTrackingRecognizable);
+
+      if (shouldEnableTaskTrack && editTimeTrackingBillable && newClientId == null) {
+        setEditError(lang === 'it'
+          ? 'Seleziona un cliente per rendere fatturabili le ore registrate.'
+          : 'Select a client to make tracked time billable.');
+        return;
+      }
+      if (shouldEnableTaskTrack && editTimeTrackingRecognizable && !(ticket as any).assignedTo) {
+        setEditError(t.ticketDetail.recognitionRequiresIndividualAssignee);
+        return;
+      }
 
       // Mirror the NewTicket behaviour: if a client is being assigned where there was none,
       // prefix the title with the client name (or alias). If the client changes, swap the prefix.
@@ -769,6 +789,10 @@ export default function TicketDetail() {
           resource: editForm.resource || undefined,
           clientId: newClientId,
           dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
+          ...(shouldEnableTaskTrack ? {
+            timeTrackingBillable: editTimeTrackingBillable,
+            timeTrackingCompensationOverride: editTimeTrackingRecognizable,
+          } : {}),
         } as any,
       });
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
@@ -1251,7 +1275,8 @@ export default function TicketDetail() {
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
 
           {timeTrackingModuleEnabled &&
-            (((ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary) || isAdmin) && (
+            Boolean((ticket as any).timeTrackingEnabled) &&
+            ((ticket as any).canViewTimeTrackingSummary || isAdmin) && (
             <Card variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 {(ticket as any).timeTrackingEnabled && (ticket as any).canViewTimeTrackingSummary && (
@@ -2295,6 +2320,48 @@ export default function TicketDetail() {
           )}
           {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
             <Autocomplete options={clientsList} getOptionLabel={(o) => o.name} value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null} onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))} disabled={editSaving} renderInput={(params) => <TextField {...params} label={t.clients.clientField} fullWidth size="small" />} />
+          )}
+          {isAdmin && timeTrackingModuleEnabled && !(ticket as any).timeTrackingEnabled && (
+            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle2" fontWeight={700} mb={0.5}>
+                {lang === 'it' ? 'Attiva TaskTrack su questo ticket' : 'Enable TaskTrack for this ticket'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={1}>
+                {lang === 'it'
+                  ? 'Seleziona almeno una classificazione per attivare TaskTrack. Potrai cambiare queste impostazioni in seguito.'
+                  : 'Select at least one classification to enable TaskTrack. You can change these settings later.'}
+              </Typography>
+              <FormControlLabel
+                sx={{ display: 'flex', mx: 0 }}
+                control={
+                  <Checkbox
+                    checked={editTimeTrackingBillable}
+                    onChange={(event) => setEditTimeTrackingBillable(event.target.checked)}
+                    disabled={editSaving}
+                    data-testid="edit-ticket-tasktrack-billable"
+                  />
+                }
+                label={t.newTicket.billableToClient}
+              />
+              <FormHelperText sx={{ mt: -0.5, mb: 0.5 }}>
+                {t.newTicket.billableToClientHint}
+              </FormHelperText>
+              <FormControlLabel
+                sx={{ display: 'flex', mx: 0 }}
+                control={
+                  <Checkbox
+                    checked={editTimeTrackingRecognizable}
+                    onChange={(event) => setEditTimeTrackingRecognizable(event.target.checked)}
+                    disabled={editSaving || !(ticket as any).assignedTo}
+                    data-testid="edit-ticket-tasktrack-recognizable"
+                  />
+                }
+                label={t.ticketDetail.trackedTimeCollaboratorRecognizable}
+              />
+              {!(ticket as any).assignedTo && (
+                <FormHelperText>{t.ticketDetail.recognitionRequiresIndividualAssignee}</FormHelperText>
+              )}
+            </Box>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
