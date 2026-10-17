@@ -36,8 +36,23 @@ export async function getReferralPlan(organizationId: number, activeOnly = true)
   const stripe = await getUncachableStripeClient();
   const subs: Stripe.Subscription[] = [];
   for (const customer of customerIds) {
-    const result = await stripe.subscriptions.list({ customer, status: "all", limit: 100, expand: ["data.items.data.price"] });
-    subs.push(...result.data);
+    let startingAfter: string | undefined;
+    while (true) {
+      const result = await stripe.subscriptions.list({
+        customer,
+        status: "all",
+        limit: 100,
+        expand: ["data.items.data.price"],
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      subs.push(...result.data);
+      if (!result.has_more) break;
+      const lastSubscription = result.data.at(-1);
+      if (!lastSubscription) {
+        throw new Error(`Stripe returned another subscription page without a cursor for customer ${customer}`);
+      }
+      startingAfter = lastSubscription.id;
+    }
   }
   const candidates = subs
     .filter((sub) => activeOnly ? sub.status === "active" : !["trialing", "incomplete", "incomplete_expired"].includes(sub.status))

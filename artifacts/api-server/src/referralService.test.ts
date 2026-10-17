@@ -471,6 +471,112 @@ describe("TaskDesk referral Stripe rewards", () => {
     });
   });
 
+  it("finds an eligible TaskDesk plan on a later Stripe subscription page", async () => {
+    const addonPrice = {
+      ...monthlyPrice,
+      id: "price_seat_addon",
+      product: "prod_seat_addon",
+    } as unknown as Stripe.Price;
+    const annualPrice = {
+      ...monthlyPrice,
+      id: "price_annual",
+      product: "prod_taskdesk_annual",
+      unit_amount: 120000,
+      recurring: { interval: "year" },
+    } as unknown as Stripe.Price;
+    const firstPageFor = (customer: string): Stripe.Subscription[] =>
+      Array.from({ length: 100 }, (_, index) => ({
+        ...activeSubscription,
+        id: `sub_${customer}_page_1_${index}`,
+        customer,
+        status: index === 99 ? "active" : "canceled",
+        created: 1000 - index,
+        items: { data: [{ price: addonPrice, quantity: 1 }] },
+      } as unknown as Stripe.Subscription));
+    const secondPageByCustomer: Record<string, Stripe.Subscription> = {
+      cus_admin_a: {
+        ...activeSubscription,
+        id: "sub_admin_a_page_2",
+        customer: "cus_admin_a",
+        created: 200,
+      } as unknown as Stripe.Subscription,
+      cus_admin_b: {
+        ...activeSubscription,
+        id: "sub_admin_b_page_2",
+        customer: "cus_admin_b",
+        created: 300,
+        items: { data: [{ price: annualPrice, quantity: 1 }] },
+      } as unknown as Stripe.Subscription,
+    };
+    const updates: Record<string, unknown>[] = [];
+    mocks.select.mockImplementation((projection?: Record<string, unknown>) => {
+      const keys = Object.keys(projection ?? {});
+      if (keys.includes("organizationId")) return queryReturning([{ organizationId: 10 }]);
+      if (keys.includes("stripeCustomerId")) return queryReturning([
+        { stripeCustomerId: "cus_admin_a" },
+        { stripeCustomerId: "cus_admin_b" },
+      ]);
+      if (keys.includes("name")) return queryReturning([{ name: "Invited Company" }]);
+      if (keys.includes("id")) return queryReturning([{ id: 101 }]);
+      return queryReturning([pendingReferral]);
+    });
+    mocks.stripeSubscriptionsList.mockImplementation(async ({
+      customer,
+      starting_after: startingAfter,
+    }: {
+      customer: string;
+      starting_after?: string;
+    }) => startingAfter
+      ? { data: [secondPageByCustomer[customer]], has_more: false }
+      : { data: firstPageFor(customer), has_more: true });
+    mocks.stripeProductsRetrieve.mockImplementation(async (productId: string) => ({
+      id: productId,
+      metadata: productId === "prod_seat_addon" ? { addon: "seat" } : { seats: "5" },
+    }));
+    mocks.update.mockImplementation(() => ({
+      set: vi.fn((values) => {
+        updates.push(values);
+        return { where: vi.fn(async () => undefined) };
+      }),
+    }));
+
+    await applyPendingReferralCreditsForCustomer("cus_admin_a");
+
+    expect(mocks.stripeSubscriptionsList).toHaveBeenCalledTimes(4);
+    expect(mocks.stripeSubscriptionsList).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      customer: "cus_admin_a",
+      limit: 100,
+      status: "all",
+    }));
+    expect(mocks.stripeSubscriptionsList).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      customer: "cus_admin_a",
+      starting_after: "sub_cus_admin_a_page_1_99",
+      limit: 100,
+      status: "all",
+    }));
+    expect(mocks.stripeSubscriptionsList).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      customer: "cus_admin_b",
+      limit: 100,
+      status: "all",
+    }));
+    expect(mocks.stripeSubscriptionsList).toHaveBeenNthCalledWith(4, expect.objectContaining({
+      customer: "cus_admin_b",
+      starting_after: "sub_cus_admin_b_page_1_99",
+      limit: 100,
+      status: "all",
+    }));
+    expect(mocks.stripeBalanceCredit).toHaveBeenCalledWith(
+      "cus_admin_b",
+      expect.objectContaining({ amount: -10000, currency: "eur" }),
+      { idempotencyKey: "taskdesk-referral-42" },
+    );
+    expect(updates[0]).toMatchObject({
+      rewardCustomerId: "cus_admin_b",
+      rewardAmount: 10000,
+      rewardCurrency: "eur",
+    });
+  });
+
   it("uses the TaskDesk monthly base plan when its subscription also contains an add-on item", async () => {
     const addonPrice = {
       ...monthlyPrice,
