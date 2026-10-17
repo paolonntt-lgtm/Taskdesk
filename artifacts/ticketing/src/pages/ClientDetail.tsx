@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  useGetClient, useUpdateClient, getListClientsQueryKey,
+  useGetClient, useUpdateClient, getGetClientQueryKey, getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import type { ClientInput } from '@workspace/api-client-react';
 import ClientNotesBlock from '../components/ClientNotesBlock';
@@ -34,6 +34,7 @@ import { useLocation, useParams } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import PermissionGateButton from '../components/PermissionGateButton';
+import { invalidateTicketDataAfterClientRename } from '../lib/clientNameCache';
 
 const STATUS_COLORS: Record<string, 'default' | 'warning' | 'success' | 'error' | 'info'> = {
   open: 'info',
@@ -650,6 +651,10 @@ export default function ClientDetail() {
       };
       await updateClient.mutateAsync({ id: clientId, data: payload });
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
+      if (data?.name !== payload.name) {
+        await invalidateTicketDataAfterClientRename(qc);
+      }
       setEditDialogOpen(false);
     } catch (err: any) {
       if (err?.response?.status === 409 || err?.status === 409) {

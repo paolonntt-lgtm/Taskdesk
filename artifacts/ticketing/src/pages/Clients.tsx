@@ -6,13 +6,14 @@ import {
   LinearProgress, Divider, Checkbox, FormControlLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, Search, OpenInNew, Upload, FileUpload } from '@mui/icons-material';
-import { useListClients, useCreateClient, useUpdateClient, useDeleteClient, getListClientsQueryKey } from '@workspace/api-client-react';
+import { useListClients, useCreateClient, useUpdateClient, useDeleteClient, getGetClientQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import type { Client, ClientInput } from '@workspace/api-client-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { readSheet, type CellValue } from 'read-excel-file/browser';
+import { invalidateTicketDataAfterClientRename } from '../lib/clientNameCache';
 
 const emptyForm: ClientInput = {
   name: '',
@@ -322,6 +323,10 @@ export default function Clients() {
       };
       if (editingClient) {
         await updateClient.mutateAsync({ id: editingClient.id, data: payload });
+        await qc.invalidateQueries({ queryKey: getGetClientQueryKey(editingClient.id) });
+        if (editingClient.name !== payload.name) {
+          await invalidateTicketDataAfterClientRename(qc);
+        }
       } else {
         await createClient.mutateAsync({ data: payload });
       }
