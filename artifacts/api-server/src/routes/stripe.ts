@@ -33,7 +33,10 @@ router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: an
   try {
     const status = await getReferralApplicationStatus(organizationId);
     res.setHeader('Cache-Control', 'no-store');
-    res.json(status);
+    res.json({
+      applied: status.applied === true,
+      attempted: status.attempted === true,
+    });
   } catch (err: any) {
     sendStripeError(res, err);
   }

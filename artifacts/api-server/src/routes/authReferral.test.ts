@@ -129,35 +129,46 @@ describe("password signup referral attribution", () => {
     }
   });
 
-  it("passes the referral code to attribution and keeps all UTM values on the new organization", async () => {
-    const response = await fetch(`${baseUrl}/api/auth/register`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: "New Admin",
-        email: "New.Admin@Example.test",
-        password: "password123",
-        organizationName: " New Organization ",
-        referralCode: "ReferralCode_123",
+  it.each([true, false])(
+    "passes the referral code to attribution when application is %s and preserves UTM attribution",
+    async (applied) => {
+      const privateReferrerEmail = "referrer.private@example.test";
+      const privateReferrerOrganization = "Private Referrer Organization";
+      mocks.attachReferralAtSignup.mockResolvedValue(applied);
+
+      const response = await fetch(`${baseUrl}/api/auth/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "New Admin",
+          email: "New.Admin@Example.test",
+          password: "password123",
+          organizationName: " New Organization ",
+          referralCode: "ReferralCode_123",
+          utmSource: "partner",
+          utmMedium: "email",
+          utmCampaign: "autumn",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const responseText = await response.text();
+      expect(responseText).not.toContain(privateReferrerEmail);
+      expect(responseText).not.toContain(privateReferrerOrganization);
+      expect(responseText).not.toContain("ReferralCode_123");
+      const { organizationsTable } = await import("@workspace/db");
+      const orgInsert = mocks.inserted.find((entry) => entry.table === organizationsTable);
+      expect(orgInsert?.values).toMatchObject({
+        name: "New Organization",
         utmSource: "partner",
         utmMedium: "email",
         utmCampaign: "autumn",
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    const { organizationsTable } = await import("@workspace/db");
-    const orgInsert = mocks.inserted.find((entry) => entry.table === organizationsTable);
-    expect(orgInsert?.values).toMatchObject({
-      name: "New Organization",
-      utmSource: "partner",
-      utmMedium: "email",
-      utmCampaign: "autumn",
-    });
-    expect(mocks.attachReferralAtSignup).toHaveBeenCalledWith(
-      "ReferralCode_123",
-      91,
-      "new.admin@example.test",
-    );
-  });
+      });
+      expect(mocks.attachReferralAtSignup).toHaveBeenCalledWith(
+        "ReferralCode_123",
+        91,
+        "new.admin@example.test",
+      );
+    },
+  );
 });

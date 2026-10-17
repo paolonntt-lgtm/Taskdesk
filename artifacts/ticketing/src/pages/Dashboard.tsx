@@ -55,6 +55,7 @@ import {
 } from '@workspace/api-client-react';
 import { isDashboardWidgetAvailable } from '../lib/dashboardWidgetUtils';
 import UnbilledHoursWidget from '../components/UnbilledHoursWidget';
+import ReferralApplicationStatus from '../components/ReferralApplicationStatus';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -2301,22 +2302,6 @@ function Dashboard() {
   const isSuperAdmin = !!(user as unknown as Record<string, unknown>)?.isSuperAdmin;
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const organizationId = (user as any)?.organizationId as number | null | undefined;
-  const referralStatusQuery = useQuery<{ applied: boolean; attempted: boolean }>({
-    queryKey: ['referral-application-status', organizationId],
-    queryFn: async () => {
-      const response = await fetch('/api/stripe/referrals/status', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('referral status unavailable');
-      return response.json();
-    },
-    enabled: isAdmin && organizationId != null,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
-  const referralApplied = referralStatusQuery.data?.applied === true;
-  const referralAttempted = referralStatusQuery.data?.attempted === true;
 
   const clientsEnabled = (user as any)?.clientsEnabled !== false;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
@@ -2584,20 +2569,16 @@ function Dashboard() {
       bgcolor: theme.palette.mode === 'light' ? CALM_OPERATIONAL.paper : 'transparent',
     }}>
       <TrialBanner />
-      {isAdmin && referralStatusQuery.isSuccess && (referralApplied || referralAttempted) && (
-        <Alert
-          severity={referralApplied ? 'success' : 'info'}
-          data-testid="status-referral-application"
-          sx={{ mb: 2, borderRadius: 2 }}
-        >
-          <Typography fontWeight={700}>
-            {referralApplied ? t.dashboard.referralAppliedTitle : t.dashboard.referralNotAppliedTitle}
-          </Typography>
-          <Typography variant="body2">
-            {referralApplied ? t.dashboard.referralAppliedMessage : t.dashboard.referralNotAppliedMessage}
-          </Typography>
-        </Alert>
-      )}
+      <ReferralApplicationStatus
+        enabled={isAdmin}
+        organizationId={organizationId}
+        messages={{
+          appliedTitle: t.dashboard.referralAppliedTitle,
+          appliedMessage: t.dashboard.referralAppliedMessage,
+          notAppliedTitle: t.dashboard.referralNotAppliedTitle,
+          notAppliedMessage: t.dashboard.referralNotAppliedMessage,
+        }}
+      />
       {hasNoTickets && isAdmin && (
         <Box
           sx={{

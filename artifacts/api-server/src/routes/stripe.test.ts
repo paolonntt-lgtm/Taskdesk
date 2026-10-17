@@ -147,14 +147,25 @@ describe('Stripe billing routes', () => {
     );
   });
 
-  it('returns only the signed-in organization’s persisted referral status', async () => {
-    mocks.getReferralApplicationStatus.mockResolvedValue({ applied: false, attempted: true });
+  it.each([
+    { applied: true, attempted: true },
+    { applied: false, attempted: true },
+  ])('returns only the signed-in organization’s persisted referral status: $applied', async (status) => {
+    mocks.getReferralApplicationStatus.mockResolvedValue({
+      ...status,
+      referrerEmail: 'referrer.private@example.test',
+      referrerName: 'Private Referrer',
+      referrerOrganization: 'Private Referrer Organization',
+    });
 
     const response = await get('referrals/status');
+    const responseText = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.json()).toEqual({ applied: false, attempted: true });
+    expect(JSON.parse(responseText)).toEqual(status);
+    expect(responseText).not.toContain('referrer.private@example.test');
+    expect(responseText).not.toContain('Private Referrer');
     expect(mocks.getReferralApplicationStatus).toHaveBeenCalledWith(20);
   });
 

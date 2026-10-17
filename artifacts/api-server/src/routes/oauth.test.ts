@@ -270,7 +270,14 @@ describe("Google OAuth callback", () => {
     });
   });
 
-  it.each(["notai", "commercio", "agenzie"])("starts a seven-day trial for %s and returns only allowlisted attribution", async (profession) => {
+  it.each(
+    ["notai", "commercio", "agenzie"].flatMap((profession) =>
+      [true, false].map((applied) => ({ profession, applied })),
+    ),
+  )("starts a seven-day trial for $profession when referral application is $applied", async ({ profession, applied }) => {
+    const privateReferrerEmail = "referrer.private@example.test";
+    const privateReferrerOrganization = "Private Referrer Organization";
+    mocks.attachReferralAtSignup.mockResolvedValue(applied);
     const { usersTable, organizationsTable } = await import("@workspace/db");
     const org = { id: 22, name: "OAuth New User" };
     const newUser = { ...oauthUser, id: 42, email: "new-google@example.test", trialEndsAt: null };
@@ -332,6 +339,8 @@ describe("Google OAuth callback", () => {
       oauthUser.email,
       true,
     );
+    expect(html).not.toContain(privateReferrerEmail);
+    expect(html).not.toContain(privateReferrerOrganization);
     const actualTrialDuration = (insertedUser?.values.trialEndsAt as Date).getTime() - Date.now();
     expect(actualTrialDuration).toBeGreaterThan(FREE_TRIAL_DURATION_MS - 1_000);
     expect(actualTrialDuration).toBeLessThanOrEqual(FREE_TRIAL_DURATION_MS);
