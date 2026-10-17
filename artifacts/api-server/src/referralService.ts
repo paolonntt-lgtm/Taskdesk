@@ -237,16 +237,22 @@ export async function hasReferralAttribution(referredOrganizationId: number): Pr
 export async function getReferralApplicationStatus(referredOrganizationId: number): Promise<{
   applied: boolean;
   attempted: boolean;
+  retryPending: boolean;
 }> {
-  const [applied, [organization]] = await Promise.all([
+  const [applied, [organization], pendingRetries] = await Promise.all([
     hasReferralAttribution(referredOrganizationId),
     db.select({ referralAttempted: organizationsTable.referralAttempted })
       .from(organizationsTable)
       .where(eq(organizationsTable.id, referredOrganizationId)),
+    db.select({ id: pendingReferralAttributionsTable.id })
+      .from(pendingReferralAttributionsTable)
+      .where(eq(pendingReferralAttributionsTable.referredOrganizationId, referredOrganizationId))
+      .limit(1),
   ]);
   return {
     applied,
     attempted: organization?.referralAttempted === true,
+    retryPending: pendingRetries.length > 0,
   };
 }
 

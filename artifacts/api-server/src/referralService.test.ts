@@ -1015,14 +1015,16 @@ describe("TaskDesk referral Stripe rewards", () => {
     await expect(hasReferralAttribution(20)).resolves.toBe(false);
   });
 
-  it("returns the organization’s attempted state without exposing referral identity", async () => {
+  it("returns the organization’s referral status and pending retry state without exposing referral identity", async () => {
     mocks.select
       .mockImplementationOnce(() => queryReturning([]))
-      .mockImplementationOnce(() => queryReturning([{ referralAttempted: true }]));
+      .mockImplementationOnce(() => queryReturning([{ referralAttempted: true }]))
+      .mockImplementationOnce(() => queryReturning([{ id: 91 }]));
 
     await expect(getReferralApplicationStatus(20)).resolves.toEqual({
       applied: false,
       attempted: true,
+      retryPending: true,
     });
   });
 

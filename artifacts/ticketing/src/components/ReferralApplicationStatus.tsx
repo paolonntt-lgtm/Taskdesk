@@ -15,12 +15,18 @@ interface ReferralApplicationStatusProps {
   messages: ReferralApplicationStatusMessages;
 }
 
+const REFERRAL_STATUS_REFRESH_INTERVAL_MS = 15_000;
+
 export default function ReferralApplicationStatus({
   enabled,
   organizationId,
   messages,
 }: ReferralApplicationStatusProps) {
-  const referralStatusQuery = useQuery<{ applied: boolean; attempted: boolean }>({
+  const referralStatusQuery = useQuery<{
+    applied: boolean;
+    attempted: boolean;
+    retryPending: boolean;
+  }>({
     queryKey: ['referral-application-status', organizationId],
     queryFn: async () => {
       const response = await fetch('/api/stripe/referrals/status', {
@@ -33,6 +39,10 @@ export default function ReferralApplicationStatus({
     enabled: enabled && organizationId != null,
     staleTime: 0,
     refetchOnMount: 'always',
+    refetchInterval: (query) => query.state.data?.retryPending
+      ? REFERRAL_STATUS_REFRESH_INTERVAL_MS
+      : false,
+    refetchIntervalInBackground: false,
   });
 
   const referralApplied = referralStatusQuery.data?.applied === true;

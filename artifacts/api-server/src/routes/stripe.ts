@@ -36,6 +36,7 @@ router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: an
     res.json({
       applied: status.applied === true,
       attempted: status.attempted === true,
+      retryPending: status.retryPending === true,
     });
   } catch (err: any) {
     sendStripeError(res, err);

@@ -148,8 +148,8 @@ describe('Stripe billing routes', () => {
   });
 
   it.each([
-    { applied: true, attempted: true },
-    { applied: false, attempted: true },
+    { applied: true, attempted: true, retryPending: false },
+    { applied: false, attempted: true, retryPending: true },
   ])('returns only the signed-in organization’s persisted referral status: $applied', async (status) => {
     mocks.getReferralApplicationStatus.mockResolvedValue({
       ...status,

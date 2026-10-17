@@ -53,6 +53,7 @@ describe('ReferralApplicationStatus', () => {
     await act(async () => root.unmount());
     queryClient.clear();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     host.remove();
   });
 
@@ -110,5 +111,39 @@ describe('ReferralApplicationStatus', () => {
     await waitForRequest();
 
     expect(host.querySelector('[data-testid="status-referral-application"]')).toBeNull();
+  });
+
+  it('refreshes the dashboard when a pending referral retry is applied', async () => {
+    vi.useFakeTimers();
+    const serverStates = [
+      { applied: false, attempted: true, retryPending: true },
+      { applied: true, attempted: true, retryPending: false },
+    ];
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => serverStates.shift(),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await renderStatus();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(host.querySelector('[data-testid="title-referral-application"]')?.textContent)
+      .toBe(messages.notAppliedTitle);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(host.querySelector('[data-testid="title-referral-application"]')?.textContent)
+        .toBe(messages.appliedTitle);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('[data-testid="message-referral-application"]')?.textContent)
+      .toBe(messages.appliedMessage);
   });
 });
