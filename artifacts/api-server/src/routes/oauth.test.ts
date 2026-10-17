@@ -270,6 +270,28 @@ describe("Google OAuth callback", () => {
     });
   });
 
+  it("does not apply or reveal a referral when an existing Google user signs in", async () => {
+    const referralCode = "ReferralCode_123";
+    const privateReferrerEmail = "referrer.private@example.test";
+    const privateReferrerOrganization = "Private Referrer Organization";
+    const { state, nonceCookie } = await startOAuth({ ref: referralCode });
+    mockGoogleSuccess();
+
+    const response = await callback(state, nonceCookie);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.getSetCookie()).toContainEqual(
+      expect.stringContaining("session_id=test-session-id"),
+    );
+    expect(html).toContain('window.location.replace("/app/")');
+    expect(html).not.toContain(referralCode);
+    expect(html).not.toContain(privateReferrerEmail);
+    expect(html).not.toContain(privateReferrerOrganization);
+    expect(mocks.attachReferralAtSignup).not.toHaveBeenCalled();
+  });
+
   it.each(
     ["notai", "commercio", "agenzie"].flatMap((profession) =>
       [true, false].map((applied) => ({ profession, applied })),
