@@ -18,6 +18,7 @@
 - [TaskDesk assistant name](taskdesk-assistant-name.md) — Use “Albert” in both languages, with occasional Einstein-inspired curiosity and no invented quotes.
 - [Albert release announcements](albert-announcement-audience.md) — Announce Albert feature updates to existing signed-in customers with a concise in-app notice.
 - [Dashboard location fallback](dashboard-location-fallback.md) — Profile location wins; browser geolocation is an explicit fallback and coordinates are never persisted.
+- [Superadmin last operation](superadmin-last-operation.md) — Show the last successful manual write operation separately from online presence, with no age cutoff.
 - [Monthly recurrence scheduling](recurrence-scheduling.md) — A selected day beyond a month’s length uses that month’s last available day.
 - [Independent time tracking and manual hours](worked-time-scope.md) — Client billing and collaborator recognition are independent; non-admins see recorded time without its classifications.
 - [Tracked ticket handoffs](tracked-ticket-handoffs.md) — Preserve each collaborator’s recorded sessions; authorized reassignment pauses work, and only admins/current assignees change status.

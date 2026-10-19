@@ -30,6 +30,21 @@ export function recordUserActivity(userId: number): void {
     });
 }
 
+function recordSuccessfulUserOperation(userId: number, req: Request, res: Response): void {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return;
+
+  res.once("finish", () => {
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
+
+    void db.update(usersTable)
+      .set({ lastOperationAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .catch((err: unknown) => {
+        logger.error({ err, userId }, "Failed to refresh lastOperationAt");
+      });
+  });
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = await getCurrentUserId(req);
   if (!userId) {
@@ -61,6 +76,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   recordUserActivity(userId);
+  recordSuccessfulUserOperation(userId, req, res);
   (req as any).currentUser = user;
   next();
 }

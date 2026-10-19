@@ -20,6 +20,7 @@ interface OrgUser {
   createdAt: string | null;
   lastLoginAt: string | null;
   lastSeenAt: string | null;
+  lastOperationAt: string | null;
   isOnline: boolean;
   avatarUrl: string | null;
 }
@@ -466,6 +467,11 @@ export default function SuperAdmin() {
                                     : sa.neverOnline}
                               </Typography>
                             </Box>
+                          </Tooltip>
+                          <Tooltip title={sa.lastOperationTooltip}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {sa.lastOperationPrefix} {formatDateTime(u.lastOperationAt, dateLocale, sa.lastOperationNever)}
+                            </Typography>
                           </Tooltip>
                         </Box>
                       </Box>

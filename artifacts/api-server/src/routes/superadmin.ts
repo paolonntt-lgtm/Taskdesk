@@ -27,6 +27,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         userCreatedAt: usersTable.createdAt,
         lastLoginAt: usersTable.lastLoginAt,
         lastSeenAt: usersTable.lastSeenAt,
+        lastOperationAt: usersTable.lastOperationAt,
         avatarUrl: usersTable.avatarUrl,
       })
       .from(organizationsTable)
@@ -73,6 +74,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       createdAt: string | null;
       lastLoginAt: string | null;
       lastSeenAt: string | null;
+      lastOperationAt: string | null;
       isOnline: boolean;
       avatarUrl: string | null;
     }>;
@@ -98,6 +100,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         createdAt: row.userCreatedAt?.toISOString() ?? null,
         lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
         lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+        lastOperationAt: row.lastOperationAt?.toISOString() ?? null,
         isOnline: !!row.lastSeenAt && Date.now() - row.lastSeenAt.getTime() <= ONLINE_WINDOW_MS,
         avatarUrl: row.avatarUrl ?? null,
       });
