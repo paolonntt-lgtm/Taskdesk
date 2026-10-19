@@ -787,7 +787,7 @@ export default function TicketDetail() {
           category: editForm.category,
           location: editForm.location,
           resource: editForm.resource || undefined,
-          clientId: newClientId,
+          ...((currentUser as any)?.clientsEnabled !== false ? { clientId: newClientId } : {}),
           dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
           ...(shouldEnableTaskTrack ? {
             timeTrackingBillable: editTimeTrackingBillable,
