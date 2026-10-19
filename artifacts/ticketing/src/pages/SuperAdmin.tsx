@@ -8,6 +8,7 @@ import {
 import {
   Business, Search, AdminPanelSettings, Person, AccessTime, ConfirmationNumber,
   BugReport, ExpandMore, ExpandLess, CheckCircle, Reply, Refresh, Visibility, VisibilityOff,
+  FiberManualRecord,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -18,6 +19,8 @@ interface OrgUser {
   role: string;
   createdAt: string | null;
   lastLoginAt: string | null;
+  lastSeenAt: string | null;
+  isOnline: boolean;
   avatarUrl: string | null;
 }
 
@@ -88,8 +91,8 @@ export default function SuperAdmin() {
 
   const dateLocale = lang === 'it' ? 'it-IT' : 'en-GB';
 
-  const loadOrganizations = useCallback(async (includeHidden: boolean) => {
-    setLoading(true);
+  const loadOrganizations = useCallback(async (includeHidden: boolean, quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(null);
     try {
       const response = await fetch(`/api/superadmin?includeHidden=${includeHidden}`, { credentials: 'include' });
@@ -100,12 +103,26 @@ export default function SuperAdmin() {
     } catch (e: any) {
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, [sa.accessDenied]);
 
   useEffect(() => {
     void loadOrganizations(showHidden);
+  }, [loadOrganizations, showHidden]);
+
+  useEffect(() => {
+    const refreshWhileVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void loadOrganizations(showHidden, true);
+      }
+    };
+    const interval = window.setInterval(refreshWhileVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhileVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhileVisible);
+    };
   }, [loadOrganizations, showHidden]);
 
   const toggleOrganizationVisibility = async (org: Organization) => {
@@ -424,6 +441,26 @@ export default function SuperAdmin() {
                                 sx={{ color: u.lastLoginAt ? 'success.main' : 'text.disabled' }}
                               >
                                 {formatDateTime(u.lastLoginAt, dateLocale, sa.lastLoginNever)}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                          <Tooltip title={sa.onlineTooltip}>
+                            <Box display="flex" alignItems="center" gap={0.5} justifyContent="flex-end">
+                              <FiberManualRecord
+                                sx={{
+                                  fontSize: 9,
+                                  color: u.isOnline ? 'success.main' : 'text.disabled',
+                                }}
+                              />
+                              <Typography
+                                variant="caption"
+                                sx={{ color: u.isOnline ? 'success.main' : 'text.secondary' }}
+                              >
+                                {u.isOnline
+                                  ? sa.onlineLabel
+                                  : u.lastSeenAt
+                                    ? `${sa.lastOnlinePrefix} ${formatDateTime(u.lastSeenAt, dateLocale, sa.neverOnline)}`
+                                    : sa.neverOnline}
                               </Typography>
                             </Box>
                           </Tooltip>

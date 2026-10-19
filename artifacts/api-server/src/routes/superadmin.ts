@@ -8,6 +8,7 @@ import nodemailer from "nodemailer";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+const ONLINE_WINDOW_MS = 5 * 60_000;
 
 router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
   const includeHidden = req.query.includeHidden === "true";
@@ -25,6 +26,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         userIsActive: usersTable.isActive,
         userCreatedAt: usersTable.createdAt,
         lastLoginAt: usersTable.lastLoginAt,
+        lastSeenAt: usersTable.lastSeenAt,
         avatarUrl: usersTable.avatarUrl,
       })
       .from(organizationsTable)
@@ -70,6 +72,8 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       role: string;
       createdAt: string | null;
       lastLoginAt: string | null;
+      lastSeenAt: string | null;
+      isOnline: boolean;
       avatarUrl: string | null;
     }>;
   }>();
@@ -93,6 +97,8 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         role: row.userRole!,
         createdAt: row.userCreatedAt?.toISOString() ?? null,
         lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+        lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+        isOnline: !!row.lastSeenAt && Date.now() - row.lastSeenAt.getTime() <= ONLINE_WINDOW_MS,
         avatarUrl: row.avatarUrl ?? null,
       });
     }

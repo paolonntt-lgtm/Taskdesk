@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --color-primary: #e4ebf5;
+  --color-secondary: #91a1b8;
+  --color-accent: #4e9bff;
+  --color-bg-light: #e7ebef;
+  --color-bg-dark: #0b1220;
+  --color-bg-muted: #121d30;
+  --color-text-primary: #edf2f9;
+  --color-text-secondary: #aab8cb;
+  --color-text-muted: #718198;
+  --color-text-inverse: #172338;
+  --color-success: #53bc91;
+  --color-warning: #e7ae65;
+  --color-error: #df7778;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-bg-light: var(--color-bg-light);
+  --color-bg-dark: var(--color-bg-dark);
+  --color-bg-muted: var(--color-bg-muted);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  color: var(--color-text-primary);
+  background: var(--color-bg-dark);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.paolo-stage {
+  isolation: isolate;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}
+
+.paolo-grid {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.075) 1px, transparent 1px);
+  background-size: 4vw 4vw;
+  mask-image: linear-gradient(90deg, transparent, black 15%, black 85%, transparent);
+}
+
+.paolo-glow {
+  position: absolute;
+  z-index: 0;
+  top: 8vh;
+  left: 8vw;
+  width: 55vw;
+  height: 55vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(44, 111, 201, 0.19), rgba(44, 111, 201, 0.045) 43%, transparent 70%);
+  filter: blur(8vmin);
+  pointer-events: none;
+}
+
+.paolo-accent-line {
+  position: absolute;
+  z-index: 1;
+  height: 2px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #317fd2, #58a8ff 75%, #93c7ff);
+  box-shadow: 0 0 22px rgba(78, 155, 255, 0.28);
+  pointer-events: none;
+}
+
+.paolo-grain {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+}
+
+.paolo-grain::before {
+  position: fixed;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");
+}
+
+.video-control {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(237, 241, 250, 0.72);
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.video-control:hover,
+.video-control.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.video-control svg {
+  width: 22px;
+  height: 22px;
+}
+
+.video-control:focus-visible {
+  outline: 2px solid #82b8f3;
+  outline-offset: 2px;
+}
+
+.video-media-frame {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.video-media-frame > :is(img, video) {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+}
+
+.video-media-frame[data-media-fit='contain'] > :is(img, video) {
+  object-fit: contain;
+}
+
+.video-media-frame[data-media-position='top'] > :is(img, video) {
+  object-position: top;
+}
+
+.video-media-frame[data-media-position='right'] > :is(img, video) {
+  object-position: right;
+}
+
+.video-media-frame[data-media-position='bottom'] > :is(img, video) {
+  object-position: bottom;
+}
+
+.video-media-frame[data-media-position='left'] > :is(img, video) {
+  object-position: left;
+}

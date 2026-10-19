@@ -1,0 +1,29 @@
+kind = "video"
+previewPath = "/studio-paolo-social-video-2/"
+title = "Studio Paolo — video social 2/3"
+description = "Secondo video social dimostrativo della serie sul ticket di Studio Paolo, con commenti e ritratti profilo sintetici."
+version = "1.0.0"
+id = "artifacts/studio-paolo-social-video-2"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/studio-paolo-social-video-2/" ]
+localPort = 18531
+
+[services.development]
+run = "pnpm --filter @workspace/studio-paolo-social-video-2 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/studio-paolo-social-video-2", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/studio-paolo-social-video-2/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18531"
+BASE_PATH = "/studio-paolo-social-video-2/"
+videoAspectRatio = "16:9"

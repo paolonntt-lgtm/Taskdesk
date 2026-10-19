@@ -4,6 +4,31 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { canUseBillingDuringExpiredTrial } from "../lib/trialAccess";
+import { logger } from "../lib/logger";
+
+const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
+const lastSeenWriteAt = new Map<number, number>();
+
+function refreshLastSeen(userId: number): void {
+  const now = Date.now();
+  const previousWriteAt = lastSeenWriteAt.get(userId) ?? 0;
+  if (now - previousWriteAt < LAST_SEEN_WRITE_INTERVAL_MS) return;
+
+  lastSeenWriteAt.set(userId, now);
+  if (lastSeenWriteAt.size > 2_000) {
+    for (const [id, writeAt] of lastSeenWriteAt) {
+      if (now - writeAt > LAST_SEEN_WRITE_INTERVAL_MS) lastSeenWriteAt.delete(id);
+    }
+  }
+
+  void db.update(usersTable)
+    .set({ lastSeenAt: new Date(now) })
+    .where(eq(usersTable.id, userId))
+    .catch((err: unknown) => {
+      if (lastSeenWriteAt.get(userId) === now) lastSeenWriteAt.delete(userId);
+      logger.error({ err, userId }, "Failed to refresh lastSeenAt");
+    });
+}
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = await getCurrentUserId(req);
@@ -35,6 +60,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
   }
 
+  refreshLastSeen(userId);
   (req as any).currentUser = user;
   next();
 }

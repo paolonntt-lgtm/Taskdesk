@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --color-primary: #e7edf5;
+  --color-secondary: #94a3b8;
+  --color-accent: #3b82f6;
+  --color-bg-light: #0b1220;
+  --color-bg-dark: #080d17;
+  --color-bg-muted: #111d31;
+  --color-text-primary: #e7edf5;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #66758b;
+  --color-text-inverse: #0b1220;
+  --color-success: #71d8b0;
+  --color-warning: #e4bd72;
+  --color-error: #ef7e86;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-bg-light: var(--color-bg-light);
+  --color-bg-dark: var(--color-bg-dark);
+  --color-bg-muted: var(--color-bg-muted);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+* { box-sizing: border-box; }
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+body {
+  background: var(--color-bg-light);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.film-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, .075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, .075) 1px, transparent 1px);
+  background-size: 4.2vw 4.2vw;
+  mask-image: linear-gradient(90deg, black 0%, rgba(0,0,0,.75) 68%, transparent 100%);
+}
+.film-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+}
+.micro-label {
+  font: 600 1.35vmin/1.2 var(--font-body);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.mono-label {
+  font-family: var(--font-mono);
+  letter-spacing: .04em;
+}
+.ticket-panel {
+  border: 1px solid rgba(148, 163, 184, .2);
+  background: linear-gradient(142deg, rgba(22, 34, 53, .98), rgba(13, 22, 37, .98));
+  box-shadow: 0 2.5vmin 8vmin rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.035);
+}
+.avatar {
+  width: 5.2vmin;
+  height: 5.2vmin;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(231,237,245,.82);
+  box-shadow: 0 .6vmin 1.5vmin rgba(0,0,0,.24);
+}
+.paper {
+  background: #e9edf1;
+  color: #162131;
+  box-shadow: 0 2vmin 5vmin rgba(0,0,0,.28);
+}
+.type-outline {
+  color: transparent !important;
+  -webkit-text-stroke: .12vmin rgba(148,163,184,.3);
+}
