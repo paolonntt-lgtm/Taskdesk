@@ -6,7 +6,7 @@ import {
   Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon } from '@mui/icons-material';
-import { useCreateTicket, useListUsers, useSaveTicketAttachment, useListClients, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
+import { useCreateTicket, useUpdateTicket, useGetTicket, useListUsers, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,11 +67,19 @@ function SideSection({ children, divider = true }: { children: React.ReactNode; 
 export default function NewTicket() {
   const [, setLocation] = useLocation();
   const search = useSearch();
+  const urlParams = new URLSearchParams(search);
+  const editTicketId = Number(urlParams.get('edit'));
+  const isEditing = Number.isInteger(editTicketId) && editTicketId > 0;
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
   const createTicket = useCreateTicket();
+  const updateTicket = useUpdateTicket();
   const saveAttachment = useSaveTicketAttachment();
+  const { data: existingTicket, isLoading: isLoadingEditTicket, isError: editTicketLoadError } = useGetTicket(
+    isEditing ? editTicketId : 0,
+    { query: { enabled: isEditing } as any },
+  );
   const { data: users } = useListUsers();
   const { user: currentUser } = useAuth();
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
@@ -114,8 +122,8 @@ export default function NewTicket() {
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
-  const urlParams = new URLSearchParams(search);
   const { data: clientsList = [] } = useListClients();
+  const hydratedTicketId = useRef<number | null>(null);
 
   const { data: workload = [] } = useQuery<{ id: number; name: string; open: number; total: number }[]>({
     queryKey: ['assignee-workload'],
@@ -175,6 +183,27 @@ export default function NewTicket() {
   });
 
   useEffect(() => {
+    if (!isEditing || !existingTicket || hydratedTicketId.current === existingTicket.id) return;
+    hydratedTicketId.current = existingTicket.id;
+    setFormData({
+      title: existingTicket.title ?? '',
+      description: existingTicket.description ?? '',
+      category: existingTicket.category ?? '',
+      location: existingTicket.location ?? '',
+      resource: (existingTicket as any).resource ?? '',
+      priority: existingTicket.priority ?? 'medium',
+      assignedTo: existingTicket.assignedTo == null ? '' : String(existingTicket.assignedTo),
+      assignedToGroup: (existingTicket as any).assignedToGroup ?? '',
+      dueAt: (existingTicket as any).dueAt ? toLocalDatetimeInput(new Date((existingTicket as any).dueAt)) : '',
+      clientId: (existingTicket as any).clientId == null ? '' : String((existingTicket as any).clientId),
+      visibility: (existingTicket as any).visibility === 'admins' ? 'admins' : 'organization',
+    });
+    setAssignMode((existingTicket as any).assignedToGroup ? 'group' : 'user');
+    setTimeBillableToClient(Boolean((existingTicket as any).timeTrackingBillable));
+    setTimeRecognizableToCollaborator((existingTicket as any).timeTrackingCompensationOverride === true);
+  }, [isEditing, existingTicket]);
+
+  useEffect(() => {
     let defaultCat: string | null = null;
     Promise.all([
       fetch('/api/settings/categories', { credentials: 'include' }).then((r) => r.json()),
@@ -184,7 +213,7 @@ export default function NewTicket() {
         const cats: string[] = catsData.value ?? [];
         defaultCat = defData.value ?? null;
         setCategories(cats);
-        if (!formData.category && cats.length > 0) {
+        if (!isEditing && !formData.category && cats.length > 0) {
           const preselect = (defaultCat && cats.includes(defaultCat)) ? defaultCat : cats[0];
           setFormData((f) => ({ ...f, category: preselect }));
         }
@@ -195,7 +224,7 @@ export default function NewTicket() {
       .then((d) => {
         const locs = d.value ?? [];
         setLocations(locs);
-        if (locs.length === 1) {
+        if (!isEditing && locs.length === 1) {
           setFormData((f) => ({ ...f, location: locs[0] }));
         }
       })
@@ -216,6 +245,7 @@ export default function NewTicket() {
   }, [formData.title]);
 
   useEffect(() => {
+    if (isEditing) return;
     const q = formData.title.trim();
     if (q.length < 3) { setTitleHistory([]); setTitleDropdownOpen(false); return; }
     let cancelled = false;
@@ -234,7 +264,7 @@ export default function NewTicket() {
         .catch(() => {});
     }, 350);
     return () => { cancelled = true; clearTimeout(timeout); };
-  }, [formData.title]);
+  }, [formData.title, isEditing]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedDescription(formData.description), 1200);
@@ -292,60 +322,122 @@ export default function NewTicket() {
     e.preventDefault();
     setChecklistError(false);
     setSubmitError(null);
-    if (timeBillableToClient && !formData.clientId) {
+    const validateTaskTrackSelection =
+      !isEditing || (!(existingTicket as any)?.timeTrackingEnabled && currentUser?.role === 'admin');
+    if (validateTaskTrackSelection && timeBillableToClient && !formData.clientId) {
       setSubmitError(t.newTicket.clientRequiredForBillableTime);
       return;
     }
-    if (timeRecognizableToCollaborator && (assignMode !== 'user' || !formData.assignedTo)) {
+    if (validateTaskTrackSelection && timeRecognizableToCollaborator && (assignMode !== 'user' || !formData.assignedTo)) {
       setSubmitError(t.ticketDetail.trackedTimeAssigneeRequired);
       return;
     }
     try {
       const selectedClient = clientsList.find(c => c.id.toString() === formData.clientId);
-      const finalTitle = selectedClient
-        ? `${(selectedClient as any).alias || selectedClient.name}: ${formData.title}`
-        : formData.title;
-      const result = await createTicket.mutateAsync({
-        data: {
+      const oldClientId = (existingTicket as any)?.clientId ?? null;
+      let finalTitle = formData.title;
+      if (selectedClient) {
+        const newPrefix = `${(selectedClient as any).alias || selectedClient.name}: `;
+        if (!isEditing || !oldClientId) {
+          finalTitle = `${newPrefix}${formData.title}`;
+        } else if (oldClientId !== Number(formData.clientId)) {
+          const oldClient = clientsList.find(c => c.id === oldClientId);
+          const oldPrefix = oldClient ? `${(oldClient as any).alias || oldClient.name}: ` : '';
+          finalTitle = formData.title.startsWith(oldPrefix)
+            ? `${newPrefix}${formData.title.slice(oldPrefix.length)}`
+            : `${newPrefix}${formData.title}`;
+        }
+      }
+
+      let ticketId: number;
+      if (isEditing) {
+        if (!existingTicket) throw new Error(t.newTicket.createError);
+        const updateData: Record<string, unknown> = {
           title: finalTitle,
           description: formData.description,
           category: formData.category,
-          location: formData.location || undefined,
-          resource: formData.resource || undefined,
-          priority: formData.priority as any,
-          ...buildNewTicketAssociations({
-            clientId: formData.clientId,
-            assignMode,
-            assignedTo: formData.assignedTo,
-            assignedToGroup: formData.assignedToGroup,
-          }),
-          dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
-          visibility: formData.visibility,
-          ...(currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true
-             ? {
-                 timeTrackingEnabled: timeBillableToClient || timeRecognizableToCollaborator,
-                 timeTrackingBillable: timeBillableToClient,
-                 timeTrackingCompensationOverride:
-                   timeBillableToClient || timeRecognizableToCollaborator
-                     ? timeRecognizableToCollaborator
-                     : null,
-               }
-            : {}),
-          ...(recurrenceEnabled && currentUser?.role === 'admin'
-            ? {
-                recurrenceRule: {
-                  frequency: recurrenceFreq,
-                  interval: recurrenceInterval,
-                  ...(recurrenceFreq === 'weekly' ? { dayOfWeek: recurrenceDayOfWeek } : {}),
-                  ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
-                  ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
-                },
-              }
-            : {}),
-        },
-      });
+          location: formData.location,
+          resource: formData.resource.trim() || null,
+          priority: formData.priority,
+        };
+        if (currentUser?.role === 'admin' || Number((existingTicket as any).assignedTo) === Number((currentUser as any)?.id)) {
+          updateData.dueAt = formData.dueAt ? new Date(formData.dueAt).toISOString() : null;
+        }
+        if (clientsEnabled) updateData.clientId = formData.clientId ? Number(formData.clientId) : null;
+
+        const oldAssignedTo = (existingTicket as any).assignedTo ?? null;
+        const oldAssignedToGroup = (existingTicket as any).assignedToGroup ?? null;
+        const newAssignedTo = assignMode === 'user' && formData.assignedTo ? Number(formData.assignedTo) : null;
+        const newAssignedToGroup = assignMode === 'group' ? formData.assignedToGroup || null : null;
+        const assignmentChanged =
+          oldAssignedTo !== newAssignedTo || oldAssignedToGroup !== newAssignedToGroup;
+        if (assignmentChanged && currentUser?.role === 'admin') {
+          updateData.assignedTo = newAssignedTo;
+          updateData.assignedToGroup = newAssignedToGroup;
+        } else if (assignmentChanged && currentUser?.role !== 'admin') {
+          updateData.assignedTo = newAssignedTo;
+        }
+
+        const enableTaskTrack = currentUser?.role === 'admin' &&
+          taskTrackModuleEnabled &&
+          !(existingTicket as any).timeTrackingEnabled &&
+          (timeBillableToClient || timeRecognizableToCollaborator);
+        if (enableTaskTrack) {
+          updateData.timeTrackingBillable = timeBillableToClient;
+          updateData.timeTrackingCompensationOverride = timeRecognizableToCollaborator;
+        }
+
+        const updated = await updateTicket.mutateAsync({
+          id: editTicketId,
+          data: updateData as any,
+        });
+        ticketId = updated.id;
+        await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(editTicketId) });
+      } else {
+        const created = await createTicket.mutateAsync({
+          data: {
+            title: finalTitle,
+            description: formData.description,
+            category: formData.category,
+            location: formData.location || undefined,
+            resource: formData.resource || undefined,
+            priority: formData.priority as any,
+            ...buildNewTicketAssociations({
+              clientId: formData.clientId,
+              assignMode,
+              assignedTo: formData.assignedTo,
+              assignedToGroup: formData.assignedToGroup,
+            }),
+            dueAt: formData.dueAt ? new Date(formData.dueAt).toISOString() : null,
+            visibility: formData.visibility,
+            ...(currentUser?.role === 'admin' && organizationSettings?.timeTrackingModuleEnabled === true
+              ? {
+                  timeTrackingEnabled: timeBillableToClient || timeRecognizableToCollaborator,
+                  timeTrackingBillable: timeBillableToClient,
+                  timeTrackingCompensationOverride:
+                    timeBillableToClient || timeRecognizableToCollaborator
+                      ? timeRecognizableToCollaborator
+                      : null,
+                }
+              : {}),
+            ...(recurrenceEnabled && currentUser?.role === 'admin'
+              ? {
+                  recurrenceRule: {
+                    frequency: recurrenceFreq,
+                    interval: recurrenceInterval,
+                    ...(recurrenceFreq === 'weekly' ? { dayOfWeek: recurrenceDayOfWeek } : {}),
+                    ...(recurrenceFreq === 'monthly' ? { dayOfMonth: recurrenceDayOfMonth } : {}),
+                    ...(recurrenceEndDate ? { endDate: recurrenceEndDate } : {}),
+                  },
+                }
+              : {}),
+          },
+        });
+        ticketId = created.id;
+      }
+
       for (const att of pendingAttachments) {
-        await saveAttachment.mutateAsync({ id: result.id, data: { ...att, commentId: null } });
+        await saveAttachment.mutateAsync({ id: ticketId, data: { ...att, commentId: null } });
       }
       const checklistReady = (() => {
         if (!checklistDraft) return false;
@@ -353,17 +445,17 @@ export default function NewTicket() {
         return checklistDraft.title.trim().length > 0 || checklistDraft.items.length > 0;
       })();
 
-      if (checklistReady && checklistDraft) {
+      if (!isEditing && checklistReady && checklistDraft) {
         try {
           if (checklistDraft.mode === 'template' && checklistDraft.templateId) {
             const tplRes = await fetch(
-              `/api/tickets/${result.id}/checklists/from-template/${checklistDraft.templateId}`,
+              `/api/tickets/${ticketId}/checklists/from-template/${checklistDraft.templateId}`,
               { method: 'POST', credentials: 'include' }
             );
             if (!tplRes.ok) throw new Error('Template checklist creation failed');
           } else {
             const clTitle = checklistDraft.title.trim() || t.checklist.sectionTitle;
-            const clRes = await fetch(`/api/tickets/${result.id}/checklists`, {
+            const clRes = await fetch(`/api/tickets/${ticketId}/checklists`, {
               method: 'POST',
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
@@ -372,7 +464,7 @@ export default function NewTicket() {
             if (!clRes.ok) throw new Error('Checklist creation failed');
             const cl = await clRes.json();
             for (const itemText of checklistDraft.items) {
-              const itemRes = await fetch(`/api/tickets/${result.id}/checklists/${cl.id}/items`, {
+              const itemRes = await fetch(`/api/tickets/${ticketId}/checklists/${cl.id}/items`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -385,15 +477,17 @@ export default function NewTicket() {
           setChecklistError(true);
         }
       }
-      trackEvent('ticket_created', {
-        priority: formData.priority,
-        visibility: formData.visibility,
-        has_attachment: pendingAttachments.length > 0,
-        has_checklist: checklistReady,
-        source: urlParams.has('title') ? 'bot' : 'form',
-      });
+      if (!isEditing) {
+        trackEvent('ticket_created', {
+          priority: formData.priority,
+          visibility: formData.visibility,
+          has_attachment: pendingAttachments.length > 0,
+          has_checklist: checklistReady,
+          source: urlParams.has('title') ? 'bot' : 'form',
+        });
+      }
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-      setLocation(`/tickets/${result.id}`);
+      setLocation(`/tickets/${ticketId}`);
     } catch (err) {
       console.error(err);
       const apiError = err as {
@@ -592,10 +686,24 @@ export default function NewTicket() {
     </Box>
   );
 
+  if (isEditing && isLoadingEditTicket) {
+    return <Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>;
+  }
+  if (isEditing && (editTicketLoadError || !existingTicket)) {
+    return (
+      <Box maxWidth={600} mx="auto">
+        <Alert severity="error">{lang === 'it' ? 'Impossibile caricare il ticket da modificare.' : 'Could not load the ticket to edit.'}</Alert>
+        <Button sx={{ mt: 2 }} onClick={() => setLocation(`/tickets/${editTicketId}`)}>{t.newTicket.cancel}</Button>
+      </Box>
+    );
+  }
+
   return (
     <Box maxWidth={960} mx="auto">
       <Typography variant="h5" fontWeight={800} mb={{ xs: 1.5, sm: 3 }}>
-        {lang === 'it' ? `Apri ${entityTerm.navNew}` : `Open ${entityTerm.navNew}`}
+        {isEditing
+          ? (lang === 'it' ? `Modifica ${entityTerm.singularLower} #${(existingTicket as any)?.ticketNumber ?? editTicketId}` : `Edit ${entityTerm.singular} #${(existingTicket as any)?.ticketNumber ?? editTicketId}`)
+          : (lang === 'it' ? `Apri ${entityTerm.navNew}` : `Open ${entityTerm.navNew}`)}
       </Typography>
 
       <form onSubmit={handleSubmit}>
@@ -691,7 +799,7 @@ export default function NewTicket() {
             )}
 
             {/* Checklist template suggestions */}
-            {suggestedTemplates.length > 0 && (
+            {!isEditing && suggestedTemplates.length > 0 && (
               <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" mt={-1.5}>
                 <PlaylistAddCheck sx={{ fontSize: 15, color: 'text.secondary', flexShrink: 0 }} />
                 <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
@@ -739,20 +847,22 @@ export default function NewTicket() {
                 value={formData.description}
                 onChange={val => setFormData({ ...formData, description: val })}
                 placeholder={t.newTicket.descriptionPlaceholder}
-                ticketId={0}
+                ticketId={isEditing ? editTicketId : 0}
                 onAttachmentsChange={setPendingAttachments}
                 minRows={6}
               />
             </Box>
 
             {/* Checklist */}
-            <NewTicketChecklistSection
-              value={checklistDraft}
-              onChange={setChecklistDraft}
-              forceExpand={checklistForceExpand}
-            />
+            {!isEditing && (
+              <NewTicketChecklistSection
+                value={checklistDraft}
+                onChange={setChecklistDraft}
+                forceExpand={checklistForceExpand}
+              />
+            )}
 
-            {checklistError && (
+            {!isEditing && checklistError && (
               <Alert severity="warning" onClose={() => setChecklistError(false)}>
                 {t.newTicket.checklistError}
               </Alert>
@@ -825,7 +935,7 @@ export default function NewTicket() {
                 </SideSection>
 
                 {/* Visibility (admin only) */}
-                {currentUser?.role === 'admin' && (
+                {!isEditing && currentUser?.role === 'admin' && (
                   <SideSection>
                     <SideLabel>{t.newTicket.visibilityField}</SideLabel>
                     <TextField
@@ -869,19 +979,23 @@ export default function NewTicket() {
                 )}
 
                 {/* Due date */}
-                <SideSection>
-                  <SideLabel>{t.newTicket.dueAtField}</SideLabel>
-                  <TextField
-                    fullWidth size="small" type="datetime-local"
-                    value={formData.dueAt}
-                    onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={{ min: toLocalDatetimeInput(new Date()), style: { fontSize: 12 } }}
-                    label=""
-                  />
-                </SideSection>
+                {(!isEditing ||
+                  currentUser?.role === 'admin' ||
+                  Number((existingTicket as any)?.assignedTo) === Number((currentUser as any)?.id)) && (
+                  <SideSection>
+                    <SideLabel>{t.newTicket.dueAtField}</SideLabel>
+                    <TextField
+                      fullWidth size="small" type="datetime-local"
+                      value={formData.dueAt}
+                      onChange={e => setFormData({ ...formData, dueAt: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ min: toLocalDatetimeInput(new Date()), style: { fontSize: 12 } }}
+                      label=""
+                    />
+                  </SideSection>
+                )}
 
-                {taskTrackModuleEnabled ? (
+                {taskTrackModuleEnabled && (!isEditing || !(existingTicket as any)?.timeTrackingEnabled) ? (
                   <SideSection>
                     <SideLabel>{t.newTicket.taskTrackSection}</SideLabel>
                     {currentUser?.role === 'admin' && (
@@ -927,7 +1041,7 @@ export default function NewTicket() {
                   </>
                 )}
 
-                {currentUser?.role === 'admin' && (
+                {!isEditing && currentUser?.role === 'admin' && (
                   <SideSection>
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <RepeatIcon sx={{ fontSize: 16, color: recurrenceEnabled ? 'primary.main' : 'text.secondary' }} />
@@ -1033,13 +1147,15 @@ export default function NewTicket() {
                     variant="contained"
                     color="primary"
                     fullWidth
-                    disabled={createTicket.isPending}
+                    disabled={createTicket.isPending || updateTicket.isPending || (isEditing && isLoadingEditTicket)}
                   >
-                    {createTicket.isPending
-                      ? t.newTicket.creating
-                      : (lang === 'it' ? `Crea ${entityTerm.singular}` : `Create ${entityTerm.singular}`)}
+                    {createTicket.isPending || updateTicket.isPending
+                      ? (isEditing ? (lang === 'it' ? 'Salvataggio…' : 'Saving…') : t.newTicket.creating)
+                      : (isEditing
+                        ? (lang === 'it' ? 'Salva modifiche' : 'Save changes')
+                        : (lang === 'it' ? `Crea ${entityTerm.singular}` : `Create ${entityTerm.singular}`))}
                   </Button>
-                  <Button variant="outlined" fullWidth onClick={() => setLocation('/tickets')}>
+                  <Button variant="outlined" fullWidth onClick={() => setLocation(isEditing ? `/tickets/${editTicketId}` : '/tickets')}>
                     {t.newTicket.cancel}
                   </Button>
                 </Box>

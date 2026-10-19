@@ -146,14 +146,8 @@ export default function TicketDetail() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [markingSolution, setMarkingSolution] = useState<number | null>(null);
-  const [editDialog, setEditDialog] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', category: '', location: '', resource: '', clientId: '', dueAt: '' });
-  const [editTimeTrackingBillable, setEditTimeTrackingBillable] = useState(false);
-  const [editTimeTrackingRecognizable, setEditTimeTrackingRecognizable] = useState(false);
   const [editCategories, setEditCategories] = useState<string[]>([]);
   const [editLocations, setEditLocations] = useState<string[]>([]);
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
   const [dueEditVal, setDueEditVal] = useState<string>('');
   const singleLocation = editLocations.length <= 1;
   const editorRef = useRef<RichCommentEditorHandle>(null);
@@ -714,97 +708,7 @@ export default function TicketDetail() {
     }
   };
 
-  const openEditDialog = () => {
-    setEditForm({
-      title: ticket.title,
-      description: ticket.description,
-      category: ticket.category,
-      location: ticket.location,
-      resource: (ticket as any).resource || '',
-      clientId: (ticket as any).clientId ? String((ticket as any).clientId) : '',
-      dueAt: (ticket as any).dueAt ? new Date((ticket as any).dueAt).toISOString().slice(0, 16) : '',
-    });
-    setEditTimeTrackingBillable(Boolean((ticket as any).timeTrackingBillable));
-    setEditTimeTrackingRecognizable((ticket as any).timeTrackingCompensationOverride === true);
-    setEditError(null);
-    setEditDialog(true);
-  };
-
-  const handleEditSave = async () => {
-    setEditSaving(true);
-    setEditError(null);
-    try {
-      const existingClientId = (ticket as any).clientId ?? null;
-      const newClientId = editForm.clientId ? parseInt(editForm.clientId) : null;
-      const shouldEnableTaskTrack =
-        isAdmin &&
-        timeTrackingModuleEnabled &&
-        !(ticket as any).timeTrackingEnabled &&
-        (editTimeTrackingBillable || editTimeTrackingRecognizable);
-
-      if (shouldEnableTaskTrack && editTimeTrackingBillable && newClientId == null) {
-        setEditError(lang === 'it'
-          ? 'Seleziona un cliente per rendere fatturabili le ore registrate.'
-          : 'Select a client to make tracked time billable.');
-        return;
-      }
-      if (shouldEnableTaskTrack && editTimeTrackingRecognizable && !(ticket as any).assignedTo) {
-        setEditError(t.ticketDetail.recognitionRequiresIndividualAssignee);
-        return;
-      }
-
-      // Mirror the NewTicket behaviour: if a client is being assigned where there was none,
-      // prefix the title with the client name (or alias). If the client changes, swap the prefix.
-      let finalTitle = editForm.title;
-      if (newClientId) {
-        const selectedClient = clientsList.find((c) => c.id === newClientId);
-        if (selectedClient) {
-          const prefix = `${(selectedClient as any).alias || selectedClient.name}: `;
-          if (!existingClientId) {
-            // No client before → add prefix
-            finalTitle = `${prefix}${editForm.title}`;
-          } else if (existingClientId !== newClientId) {
-            // Different client → replace old prefix if present, otherwise prepend
-            const oldClient = clientsList.find((c) => c.id === existingClientId);
-            if (oldClient) {
-              const oldPrefix = `${(oldClient as any).alias || oldClient.name}: `;
-              finalTitle = editForm.title.startsWith(oldPrefix)
-                ? `${prefix}${editForm.title.slice(oldPrefix.length)}`
-                : `${prefix}${editForm.title}`;
-            } else {
-              finalTitle = `${prefix}${editForm.title}`;
-            }
-          }
-          // same client → title unchanged
-        }
-      }
-
-      await updateTicket.mutateAsync({
-        id: ticketId,
-        data: {
-          title: finalTitle,
-          description: editForm.description,
-          category: editForm.category,
-          location: editForm.location,
-          resource: editForm.resource || undefined,
-          ...((currentUser as any)?.clientsEnabled !== false ? { clientId: newClientId } : {}),
-          dueAt: editForm.dueAt ? new Date(editForm.dueAt) as any : null,
-          ...(shouldEnableTaskTrack ? {
-            timeTrackingBillable: editTimeTrackingBillable,
-            timeTrackingCompensationOverride: editTimeTrackingRecognizable,
-          } : {}),
-        } as any,
-      });
-      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
-      await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
-      setEditDialog(false);
-    } catch (err: any) {
-      const msg = err?.response?.data?.error ?? err?.message ?? t.ticketDetail.editSaveError;
-      setEditError(msg);
-    } finally {
-      setEditSaving(false);
-    }
-  };
+  const openEditDialog = () => setLocation(`/tickets/new?edit=${ticketId}`);
 
   const isEmailResource = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((ticket as any)?.resource ?? '');
 
@@ -2295,79 +2199,6 @@ export default function TicketDetail() {
           <IconButton onClick={() => setLightboxSrc(null)} size="small" sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', zIndex: 1, '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>✕</IconButton>
           {lightboxSrc && <img src={lightboxSrc} alt="anteprima" style={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }} />}
         </Box>
-      </Dialog>
-
-      {/* Edit ticket dialog */}
-      <Dialog open={editDialog} onClose={() => !editSaving && setEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {lang === 'it' ? `Modifica ${entityTerm.singularLower}` : `Edit ${entityTerm.singular}`} #{ticket?.ticketNumber ?? ticket?.id}
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          {editError && <Alert severity="error" onClose={() => setEditError(null)}>{editError}</Alert>}
-          <TextField label={t.ticketDetail.editTitleField} fullWidth size="small" value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} disabled={editSaving} required />
-          <TextField label={t.ticketDetail.descriptionLabel} fullWidth multiline minRows={4} size="small" value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} disabled={editSaving} />
-          <TextField label={t.ticketDetail.categoryLabel} fullWidth size="small" select={editCategories.length > 0} value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} disabled={editSaving}>
-            {editCategories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-          </TextField>
-          {!singleLocation && (
-            <TextField label={t.ticketDetail.locationLabel} fullWidth size="small" select={editLocations.length > 0} value={editForm.location} onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))} disabled={editSaving}>
-              {editLocations.map((l) => <MenuItem key={l} value={l}>{l}</MenuItem>)}
-            </TextField>
-          )}
-          <TextField label={t.ticketDetail.resourceLabel} fullWidth size="small" value={editForm.resource} onChange={(e) => setEditForm((f) => ({ ...f, resource: e.target.value }))} disabled={editSaving} placeholder={t.ticketDetail.resourceLabel} />
-          {(isAdmin || isAssignee) && (
-            <TextField type="datetime-local" label={t.ticketDetail.dueAtLabel} fullWidth size="small" value={editForm.dueAt} onChange={(e) => setEditForm((f) => ({ ...f, dueAt: e.target.value }))} disabled={editSaving} InputLabelProps={{ shrink: true }} />
-          )}
-          {clientsList.length > 0 && (currentUser as any)?.clientsEnabled !== false && (
-            <Autocomplete options={clientsList} getOptionLabel={(o) => o.name} value={clientsList.find(c => c.id.toString() === editForm.clientId) ?? null} onChange={(_, v) => setEditForm((f) => ({ ...f, clientId: v ? v.id.toString() : '' }))} disabled={editSaving} renderInput={(params) => <TextField {...params} label={t.clients.clientField} fullWidth size="small" />} />
-          )}
-          {isAdmin && timeTrackingModuleEnabled && !(ticket as any).timeTrackingEnabled && (
-            <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'action.hover' }}>
-              <Typography variant="subtitle2" fontWeight={700} mb={0.5}>
-                {lang === 'it' ? 'Attiva TaskTrack su questo ticket' : 'Enable TaskTrack for this ticket'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
-                {lang === 'it'
-                  ? 'Seleziona almeno una classificazione per attivare TaskTrack. Potrai cambiare queste impostazioni in seguito.'
-                  : 'Select at least one classification to enable TaskTrack. You can change these settings later.'}
-              </Typography>
-              <FormControlLabel
-                sx={{ display: 'flex', mx: 0 }}
-                control={
-                  <Checkbox
-                    checked={editTimeTrackingBillable}
-                    onChange={(event) => setEditTimeTrackingBillable(event.target.checked)}
-                    disabled={editSaving}
-                    data-testid="edit-ticket-tasktrack-billable"
-                  />
-                }
-                label={t.newTicket.billableToClient}
-              />
-              <FormHelperText sx={{ mt: -0.5, mb: 0.5 }}>
-                {t.newTicket.billableToClientHint}
-              </FormHelperText>
-              <FormControlLabel
-                sx={{ display: 'flex', mx: 0 }}
-                control={
-                  <Checkbox
-                    checked={editTimeTrackingRecognizable}
-                    onChange={(event) => setEditTimeTrackingRecognizable(event.target.checked)}
-                    disabled={editSaving || !(ticket as any).assignedTo}
-                    data-testid="edit-ticket-tasktrack-recognizable"
-                  />
-                }
-                label={t.ticketDetail.trackedTimeCollaboratorRecognizable}
-              />
-              {!(ticket as any).assignedTo && (
-                <FormHelperText>{t.ticketDetail.recognitionRequiresIndividualAssignee}</FormHelperText>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setEditDialog(false)} color="inherit" disabled={editSaving}>{t.ticketDetail.editCancel}</Button>
-          <Button variant="contained" onClick={handleEditSave} disabled={editSaving || !editForm.title.trim()} startIcon={editSaving ? <CircularProgress size={16} color="inherit" /> : <EditOutlined />}>{t.ticketDetail.editSave}</Button>
-        </DialogActions>
       </Dialog>
 
       {/* Recurrence dialog */}
