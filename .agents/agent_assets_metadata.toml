@@ -44,3 +44,17 @@ mtime_ms = 1790970638748
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/e0bb43cf-09f8-45ae-9659-57ba089a6963/b79f8826-a853-4d3e-8f35-33ece4753cb6"
 storage_version_token = "1790970787899761"
 content_type = "image/png"
+
+[[outputs]]
+id = "ytDVP8rvDuFWGWtk2Pnib"
+uri = "file://artifacts/landing/public/taskdesk-logo.png"
+type = "image"
+title = "Logo TaskDesk"
+description = "Logo ufficiale di TaskDesk in formato PNG."
+logical_id = "7ae71522-66a9-4ff0-a0e1-6a2417cf101b"
+content_hash = "sha256:012d31e05cfb39165cc415bca05170d5a1792667f9e0e2791e69abcc8556f3bb"
+size = 201275
+mtime_ms = 1777900390091
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/7ae71522-66a9-4ff0-a0e1-6a2417cf101b/7e27d2b3-a5fd-461c-a39e-18fabb08505d"
+storage_version_token = "1792403056216839"
+content_type = "image/png"
