@@ -58,3 +58,45 @@ mtime_ms = 1777900390091
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/7ae71522-66a9-4ff0-a0e1-6a2417cf101b/7e27d2b3-a5fd-461c-a39e-18fabb08505d"
 storage_version_token = "1792403056216839"
 content_type = "image/png"
+
+[[outputs]]
+id = "_TCHkZ52mJmnzsMWHYVot"
+uri = "file://artifacts/landing/public/images/hero.png"
+type = "image"
+title = "Visual hero della landing"
+description = "Immagine hero attualmente conservata nella landing TaskDesk."
+logical_id = "5b9e20e3-b345-4edc-8ea9-dcd84807c52a"
+content_hash = "sha256:c6a1f1e305e5935a323a25bfc45dfa56ac9a2b98b529d417ed3867ddcf4bc240"
+size = 985204
+mtime_ms = 1777756268449
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/5b9e20e3-b345-4edc-8ea9-dcd84807c52a/12310358-ce57-41d4-972d-1b3ce86c9ee0"
+storage_version_token = "1792442460147803"
+content_type = "image/png"
+
+[[outputs]]
+id = "xqKcsqNDWLAkUsq5-ZVUr"
+uri = "file://artifacts/landing/public/images/feature-1.png"
+type = "image"
+title = "Visual funzionalità 1"
+description = "Immagine della sezione funzionalità conservata nella landing TaskDesk."
+logical_id = "43782c69-afb5-49ee-a999-21880241bd1b"
+content_hash = "sha256:accd74acaf27c6e889cc3180ecaadc7d9f3d40a01c8f36d0a719709c8ae2972a"
+size = 1203737
+mtime_ms = 1777756269454
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/43782c69-afb5-49ee-a999-21880241bd1b/72a25ae9-9df2-478b-8d74-b03d296bc61f"
+storage_version_token = "1792442461167544"
+content_type = "image/png"
+
+[[outputs]]
+id = "KyYyk0xgorTIhRLvs6cRN"
+uri = "file://artifacts/landing/public/images/feature-2.png"
+type = "image"
+title = "Visual funzionalità 2"
+description = "Immagine della sezione funzionalità conservata nella landing TaskDesk."
+logical_id = "404165c5-64cc-4002-9edf-8bbfa6c3edaa"
+content_hash = "sha256:bb15d694ae649b781dfd380780ca51e09ea36b739a6c9ddb1b13080ee63cb234"
+size = 1062661
+mtime_ms = 1777756269688
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/404165c5-64cc-4002-9edf-8bbfa6c3edaa/17d2b0a0-619f-42e0-b107-2281d3ef9918"
+storage_version_token = "1792442461796510"
+content_type = "image/png"
