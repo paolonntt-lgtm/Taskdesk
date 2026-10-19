@@ -95,7 +95,10 @@ export default function SuperAdmin() {
     if (!quiet) setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/superadmin?includeHidden=${includeHidden}`, { credentials: 'include' });
+      const response = await fetch(`/api/superadmin?includeHidden=${includeHidden}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error(sa.accessDenied);
       const data = await response.json();
       setOrgs(data.organizations);

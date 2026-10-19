@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/studio-paolo-social-video-3/"
+title = "Studio Paolo — video social 3/3"
+description = "Terzo video social dimostrativo della serie Studio Paolo, con attività di ticket fittizia e ritratti sintetici."
+version = "1.0.0"
+id = "artifacts/studio-paolo-social-video-3"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/studio-paolo-social-video-3/" ]
+localPort = 24706
+
+[services.development]
+run = "pnpm --filter @workspace/studio-paolo-social-video-3 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/studio-paolo-social-video-3", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/studio-paolo-social-video-3/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24706"
+BASE_PATH = "/studio-paolo-social-video-3/"

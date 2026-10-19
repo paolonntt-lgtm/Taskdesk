@@ -9,7 +9,7 @@ import { logger } from "../lib/logger";
 const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
 const lastSeenWriteAt = new Map<number, number>();
 
-function refreshLastSeen(userId: number): void {
+export function recordUserActivity(userId: number): void {
   const now = Date.now();
   const previousWriteAt = lastSeenWriteAt.get(userId) ?? 0;
   if (now - previousWriteAt < LAST_SEEN_WRITE_INTERVAL_MS) return;
@@ -60,7 +60,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
   }
 
-  refreshLastSeen(userId);
+  recordUserActivity(userId);
   (req as any).currentUser = user;
   next();
 }

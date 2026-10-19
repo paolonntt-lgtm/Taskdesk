@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { requireSameOrigin } from "../lib/originCheck";
 import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
+import { recordUserActivity } from "../middlewares/auth";
 import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { getUserPermissionSummary } from "../lib/groupPermissions";
 import { subscribeToPermissionChanges } from "../lib/permissionEvents";
@@ -289,6 +290,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Account disabled" });
     return;
   }
+
+  recordUserActivity(userId);
 
   // Refresh lastLoginAt at most once per day (fire-and-forget — does not block the response).
   // This covers users who stay logged in via session cookie without going through the login form.
