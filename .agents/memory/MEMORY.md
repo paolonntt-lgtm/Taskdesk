@@ -44,3 +44,4 @@
 - [Guide di aiuto TaskDesk](taskdesk-help-guides.md) — Keep the general feature guide concise and bilingual, with TaskTrack help kept as a separate focused guide.
 - [Scadenza prova per organizzazione](organization-trial-expiration.md) — After trial expiry, block all organization members while leaving billing and subscription activation to admins.
 - [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.
+- [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.

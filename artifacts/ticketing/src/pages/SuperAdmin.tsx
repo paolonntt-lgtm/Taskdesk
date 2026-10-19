@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   Business, Search, AdminPanelSettings, Person, AccessTime, ConfirmationNumber,
-  BugReport, ExpandMore, ExpandLess, CheckCircle, Reply, Refresh,
+  BugReport, ExpandMore, ExpandLess, CheckCircle, Reply, Refresh, Visibility, VisibilityOff,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -25,6 +25,7 @@ interface Organization {
   id: number;
   name: string;
   createdAt: string | null;
+  hiddenFromSuperadmin: boolean;
   totalTickets: number;
   users: OrgUser[];
 }
@@ -68,6 +69,10 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [updatingOrganizationId, setUpdatingOrganizationId] = useState<number | null>(null);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
 
   const [bugReports, setBugReports] = useState<BugReport[]>([]);
   const [bugLoading, setBugLoading] = useState(false);
@@ -83,15 +88,51 @@ export default function SuperAdmin() {
 
   const dateLocale = lang === 'it' ? 'it-IT' : 'en-GB';
 
+  const loadOrganizations = useCallback(async (includeHidden: boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/superadmin?includeHidden=${includeHidden}`, { credentials: 'include' });
+      if (!response.ok) throw new Error(sa.accessDenied);
+      const data = await response.json();
+      setOrgs(data.organizations);
+      setHiddenCount(data.hiddenCount);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sa.accessDenied]);
+
   useEffect(() => {
-    fetch('/api/superadmin', { credentials: 'include' })
-      .then((r) => {
-        if (!r.ok) throw new Error(sa.accessDenied);
-        return r.json();
-      })
-      .then((data) => { setOrgs(data.organizations); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, []);
+    void loadOrganizations(showHidden);
+  }, [loadOrganizations, showHidden]);
+
+  const toggleOrganizationVisibility = async (org: Organization) => {
+    const hiddenFromSuperadmin = !org.hiddenFromSuperadmin;
+    setUpdatingOrganizationId(org.id);
+    setVisibilityError(null);
+    try {
+      const response = await fetch(`/api/superadmin/organizations/${org.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hiddenFromSuperadmin }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || sa.visibilityUpdateError);
+      }
+      setOrgs((current) => showHidden
+        ? current.map((item) => item.id === org.id ? { ...item, hiddenFromSuperadmin } : item)
+        : hiddenFromSuperadmin ? current.filter((item) => item.id !== org.id) : current);
+      setHiddenCount((count) => Math.max(0, count + (hiddenFromSuperadmin ? 1 : -1)));
+    } catch (e: any) {
+      setVisibilityError(e.message || sa.visibilityUpdateError);
+    } finally {
+      setUpdatingOrganizationId(null);
+    }
+  };
 
   const loadBugReports = useCallback(async (page = 1) => {
     setBugLoading(true);
@@ -241,21 +282,35 @@ export default function SuperAdmin() {
                 {orgs.length} {sa.orgs} · {totalUsers} {sa.activeUsers} · {totalTickets} {sa.totalTickets}
               </Typography>
             </Box>
-            <TextField
-              size="small"
-              placeholder={sa.searchPlaceholder}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search fontSize="small" sx={{ color: 'text.secondary' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ minWidth: 260 }}
-            />
+            <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+              {(hiddenCount > 0 || showHidden) && (
+                <Button
+                  data-testid="toggle-hidden-organizations"
+                  size="small"
+                  startIcon={showHidden ? <VisibilityOff /> : <Visibility />}
+                  onClick={() => setShowHidden((current) => !current)}
+                >
+                  {showHidden ? sa.hideHiddenOrganizations : `${sa.showHiddenOrganizations} (${hiddenCount})`}
+                </Button>
+              )}
+              <TextField
+                size="small"
+                placeholder={sa.searchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 260 }}
+              />
+            </Box>
           </Box>
+
+          {visibilityError && <Alert severity="error" sx={{ mb: 2 }}>{visibilityError}</Alert>}
 
           {filtered.length === 0 && (
             <Alert severity="info">{sa.noResults}</Alert>
@@ -263,7 +318,15 @@ export default function SuperAdmin() {
 
           <Box display="flex" flexDirection="column" gap={2}>
             {filtered.map((org) => (
-              <Card key={org.id} variant="outlined" sx={{ borderRadius: 2 }}>
+              <Card
+                key={org.id}
+                data-testid={`organization-card-${org.id}`}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  ...(org.hiddenFromSuperadmin && { borderStyle: 'dashed', bgcolor: 'action.hover' }),
+                }}
+              >
                 <CardContent sx={{ pb: 1 }}>
                   <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
                     <Box
@@ -295,12 +358,26 @@ export default function SuperAdmin() {
                         />
                       </Tooltip>
                     )}
+                    {org.hiddenFromSuperadmin && <Chip label={sa.hiddenOrganization} size="small" variant="outlined" />}
                     <Chip
                       label={`#${org.id}`}
                       size="small"
                       sx={{ fontWeight: 600, fontSize: 11, color: 'text.secondary' }}
                       variant="outlined"
                     />
+                    <Tooltip title={org.hiddenFromSuperadmin ? sa.showOrganization : sa.hideOrganization}>
+                      <span>
+                        <IconButton
+                          data-testid={`toggle-organization-visibility-${org.id}`}
+                          aria-label={org.hiddenFromSuperadmin ? sa.showOrganization : sa.hideOrganization}
+                          size="small"
+                          disabled={updatingOrganizationId !== null}
+                          onClick={() => void toggleOrganizationVisibility(org)}
+                        >
+                          {org.hiddenFromSuperadmin ? <Visibility /> : <VisibilityOff />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                   </Box>
 
                   {org.users.length > 0 && <Divider sx={{ mb: 1.5 }} />}

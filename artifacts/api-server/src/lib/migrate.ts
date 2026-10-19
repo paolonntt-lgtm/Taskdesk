@@ -82,6 +82,11 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS referral_attempted BOOLEAN NOT NULL DEFAULT false;
     `);
 
+    // Hide organizations only from the superadmin list; organization data and user access remain unchanged.
+    await client.query(`
+      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hidden_from_superadmin BOOLEAN NOT NULL DEFAULT false;
+    `);
+
     // Create sticky_notes table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sticky_notes (

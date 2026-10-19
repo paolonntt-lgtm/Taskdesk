@@ -10,12 +10,14 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 
 router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const [rows, ticketCounts] = await Promise.all([
+  const includeHidden = req.query.includeHidden === "true";
+  const [rows, ticketCounts, hiddenCountRows] = await Promise.all([
     db
       .select({
         orgId: organizationsTable.id,
         orgName: organizationsTable.name,
         orgCreatedAt: organizationsTable.createdAt,
+        hiddenFromSuperadmin: organizationsTable.hiddenFromSuperadmin,
         userId: usersTable.id,
         userName: usersTable.name,
         userEmail: usersTable.email,
@@ -33,6 +35,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
           eq(usersTable.isActive, true),
         )
       )
+      .where(includeHidden ? undefined : eq(organizationsTable.hiddenFromSuperadmin, false))
       .orderBy(desc(organizationsTable.createdAt), desc(usersTable.createdAt)),
 
     db
@@ -42,6 +45,11 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       })
       .from(ticketsTable)
       .groupBy(ticketsTable.organizationId),
+
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.hiddenFromSuperadmin, true)),
   ]);
 
   const totalByOrg = new Map<number, number>();
@@ -53,6 +61,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     id: number;
     name: string;
     createdAt: string | null;
+    hiddenFromSuperadmin: boolean;
     totalTickets: number;
     users: Array<{
       id: number;
@@ -71,6 +80,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         id: row.orgId,
         name: row.orgName,
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
+        hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,
         users: [],
       });
@@ -88,7 +98,46 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     }
   }
 
-  res.json({ organizations: Array.from(orgMap.values()) });
+  res.json({
+    organizations: Array.from(orgMap.values()),
+    hiddenCount: hiddenCountRows[0]?.count ?? 0,
+  });
+});
+
+const patchOrganizationVisibilitySchema = z.object({
+  hiddenFromSuperadmin: z.boolean(),
+});
+
+router.patch("/superadmin/organizations/:id", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const parsed = patchOrganizationVisibilitySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+
+  const [organization] = await db
+    .update(organizationsTable)
+    .set({ hiddenFromSuperadmin: parsed.data.hiddenFromSuperadmin })
+    .where(eq(organizationsTable.id, id))
+    .returning({
+      id: organizationsTable.id,
+      name: organizationsTable.name,
+      hiddenFromSuperadmin: organizationsTable.hiddenFromSuperadmin,
+    });
+
+  if (!organization) {
+    res.status(404).json({ error: "Organization not found" });
+    return;
+  }
+
+  res.json({ organization });
 });
 
 router.get("/superadmin/bug-reports", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
