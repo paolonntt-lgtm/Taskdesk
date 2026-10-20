@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node ../../scripts/security-check.mjs",
+    "build": "node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node compress-static-assets.mjs && node ../../scripts/security-check.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
