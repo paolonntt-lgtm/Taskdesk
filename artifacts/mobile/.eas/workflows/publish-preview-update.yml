@@ -1,0 +1,49 @@
+name: Publish compatible preview updates
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - artifacts/mobile/app/**
+      - artifacts/mobile/assets/**
+      - '!artifacts/mobile/assets/images/icon.png'
+      - artifacts/mobile/components/**
+      - artifacts/mobile/constants/**
+      - artifacts/mobile/contexts/**
+      - artifacts/mobile/hooks/**
+      - artifacts/mobile/i18n/**
+      - artifacts/mobile/utils/**
+      - artifacts/mobile/web/**
+      - lib/api-client-react/**
+
+jobs:
+  fingerprint:
+    name: Check the native runtime
+    type: fingerprint
+    environment: preview
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+
+  get_preview_build:
+    name: Find a matching preview APK
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: preview
+      distribution: internal
+      channel: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  publish_preview_update:
+    name: Publish to the preview channel
+    needs: [get_preview_build]
+    if: ${{ needs.get_preview_build.outputs.build_id }}
+    type: update
+    environment: preview
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+    params:
+      channel: preview
+      platform: android

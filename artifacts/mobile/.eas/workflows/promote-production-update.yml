@@ -1,0 +1,44 @@
+name: Promote a compatible update to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        type: choice
+        description: Confirm the production promotion
+        options:
+          - no
+          - yes
+        required: true
+
+jobs:
+  fingerprint:
+    name: Check the production runtime
+    if: ${{ inputs.confirm_production == 'yes' }}
+    type: fingerprint
+    environment: production
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+
+  get_production_build:
+    name: Find a matching production build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      distribution: store
+      channel: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  publish_production_update:
+    name: Promote to the production channel
+    needs: [get_production_build]
+    if: ${{ needs.get_production_build.outputs.build_id }}
+    type: update
+    environment: production
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+    params:
+      channel: production
+      platform: android
