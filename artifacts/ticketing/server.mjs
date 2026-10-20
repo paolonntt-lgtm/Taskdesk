@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { enforceStagingAccess, isStagingRequest } from "../web-security.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const staticRoot = path.resolve(__dirname, "dist/public");
+const staticRoot = path.resolve(process.env.TICKETING_STATIC_ROOT ?? path.join(__dirname, "dist/public"));
 const port = Number(process.env.PORT ?? 25627);
 const basePath = (process.env.BASE_PATH ?? "/app/").replace(/\/+$/, "") || "/";
 
