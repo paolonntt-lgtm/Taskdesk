@@ -137,6 +137,7 @@ describe("ticket Google Drive folders", () => {
   let originalFetchForRequests: typeof fetch;
   let denyDriveAccess = false;
   let expireDriveAccess = false;
+  let driveFailureReason: string | null = null;
 
   beforeAll(async () => {
     process.env.GOOGLE_CLIENT_ID = "drive-test-client";
@@ -164,6 +165,7 @@ describe("ticket Google Drive folders", () => {
     mocks.nextReferenceId = 1;
     denyDriveAccess = false;
     expireDriveAccess = false;
+    driveFailureReason = null;
     driveApiRequests.length = 0;
 
     mocks.db.select.mockImplementation(() => {
@@ -245,7 +247,12 @@ describe("ticket Google Drive folders", () => {
       }
       driveApiRequests.push(url);
       if (denyDriveAccess) {
-        return new Response(JSON.stringify({ error: { message: "Permission denied" } }), { status: 403 });
+        return new Response(JSON.stringify({
+          error: {
+            message: "Permission denied",
+            ...(driveFailureReason ? { errors: [{ reason: driveFailureReason }] } : {}),
+          },
+        }), { status: 403 });
       }
       if (expireDriveAccess) {
         return new Response(JSON.stringify({ error: { message: "Invalid credentials" } }), { status: 401 });
@@ -468,6 +475,11 @@ describe("ticket Google Drive folders", () => {
     const denied = await request("/api/tickets/10/drive-folders/1/items?folderId=root-folder");
     expect(denied.status).toBe(403);
     expect(denied.body.error).toBe("DRIVE_ACCESS_DENIED");
+
+    driveFailureReason = "accessNotConfigured";
+    const apiNotEnabled = await request("/api/drive/items");
+    expect(apiNotEnabled.status).toBe(503);
+    expect(apiNotEnabled.body.error).toBe("DRIVE_API_NOT_ENABLED");
 
     denyDriveAccess = false;
     expireDriveAccess = true;
