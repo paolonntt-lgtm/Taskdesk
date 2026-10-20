@@ -53,6 +53,7 @@ import type {
   DashboardStats,
   DriveFolderItemsResponse,
   DriveFolderReference,
+  DriveItem,
   DrivePickerFolder,
   ErrorResponse,
   GetCalendarParams,
@@ -71,6 +72,7 @@ import type {
   ListAllClientNotesParams,
   ListAppointmentsParams,
   ListClientsParams,
+  ListDriveItemsParams,
   ListDrivePickerFoldersParams,
   ListTicketDriveFolderItemsParams,
   ListTicketsParams,
@@ -86,6 +88,7 @@ import type {
   SearchResults,
   SetRecurrenceBody,
   StartDriveOAuthParams,
+  StartDriveSessionOAuthParams,
   StatGroup,
   StatGroupWithName,
   StickyNote,
@@ -3548,6 +3551,174 @@ export function useListDrivePickerFolders<TData = Awaited<ReturnType<typeof list
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListDrivePickerFoldersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartDriveSessionOAuthUrl = (params: StartDriveSessionOAuthParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/drive/session/oauth/start?${stringifiedParams}` : `/api/drive/session/oauth/start`
+}
+
+/**
+ * @summary Connect the authenticated user's Google Drive for browsing or ticket creation
+ */
+export const startDriveSessionOAuth = async (params: StartDriveSessionOAuthParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getStartDriveSessionOAuthUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartDriveSessionOAuthQueryKey = (params?: StartDriveSessionOAuthParams,) => {
+    return [
+    `/api/drive/session/oauth/start`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getStartDriveSessionOAuthQueryOptions = <TData = Awaited<ReturnType<typeof startDriveSessionOAuth>>, TError = ErrorType<void>>(params: StartDriveSessionOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startDriveSessionOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStartDriveSessionOAuthQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof startDriveSessionOAuth>>> = ({ signal }) => startDriveSessionOAuth(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof startDriveSessionOAuth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StartDriveSessionOAuthQueryResult = NonNullable<Awaited<ReturnType<typeof startDriveSessionOAuth>>>
+export type StartDriveSessionOAuthQueryError = ErrorType<void>
+
+
+/**
+ * @summary Connect the authenticated user's Google Drive for browsing or ticket creation
+ */
+
+export function useStartDriveSessionOAuth<TData = Awaited<ReturnType<typeof startDriveSessionOAuth>>, TError = ErrorType<void>>(
+ params: StartDriveSessionOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startDriveSessionOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStartDriveSessionOAuthQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDriveItemsUrl = (params?: ListDriveItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/drive/items?${stringifiedParams}` : `/api/drive/items`
+}
+
+/**
+ * @summary List files and folders in the authenticated user's Google Drive
+ */
+export const listDriveItems = async (params?: ListDriveItemsParams, options?: Parameters<typeof customFetch>[1]): Promise<DriveItem[]> => {
+
+  return customFetch<DriveItem[]>(getListDriveItemsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDriveItemsQueryKey = (params?: ListDriveItemsParams,) => {
+    return [
+    `/api/drive/items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDriveItemsQueryOptions = <TData = Awaited<ReturnType<typeof listDriveItems>>, TError = ErrorType<void>>(params?: ListDriveItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDriveItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDriveItemsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDriveItems>>> = ({ signal }) => listDriveItems(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDriveItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDriveItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listDriveItems>>>
+export type ListDriveItemsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List files and folders in the authenticated user's Google Drive
+ */
+
+export function useListDriveItems<TData = Awaited<ReturnType<typeof listDriveItems>>, TError = ErrorType<void>>(
+ params?: ListDriveItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDriveItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDriveItemsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

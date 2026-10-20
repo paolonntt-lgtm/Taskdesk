@@ -1392,6 +1392,22 @@ export type ListDrivePickerFoldersParams = {
 parentId?: string;
 };
 
+export type StartDriveSessionOAuthParams = {
+context: StartDriveSessionOAuthContext;
+};
+
+export type StartDriveSessionOAuthContext = typeof StartDriveSessionOAuthContext[keyof typeof StartDriveSessionOAuthContext];
+
+
+export const StartDriveSessionOAuthContext = {
+  library: 'library',
+  'new-ticket': 'new-ticket',
+} as const;
+
+export type ListDriveItemsParams = {
+parentId?: string;
+};
+
 export type ListTicketDriveFolderItemsParams = {
 folderId: string;
 };

@@ -326,6 +326,49 @@ describe("ticket Google Drive folders", () => {
     expect(replayed.body).toContain('"status":"invalid_state"');
   }
 
+  it("connects an individual account without a ticket and browses its Drive items", async () => {
+    const sessionId = "drive-library-session";
+    const start = await request("/api/drive/session/oauth/start?context=library", sessionId);
+    expect(start.status).toBe(200);
+    const encodedUrl = start.body.match(/window\.location\.replace\(("(?:\\.|[^"])*")\)/)?.[1];
+    expect(encodedUrl).toBeTruthy();
+    const authUrl = new URL(JSON.parse(encodedUrl!) as string);
+    const state = authUrl.searchParams.get("state");
+    expect(state).toMatch(/^drive_library_/);
+
+    const callback = await request(
+      `/api/auth/google/callback?code=test-code&state=${encodeURIComponent(state!)}`,
+      sessionId,
+    );
+    expect(callback.body).toContain('"context":"library"');
+    expect(callback.body).toContain('"status":"ok"');
+
+    const rootItems = await request("/api/drive/items", sessionId);
+    expect(rootItems.status).toBe(200);
+    expect(rootItems.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        driveItemId: "shared-folder",
+        isFolder: true,
+      }),
+    ]));
+    const nestedItems = await request("/api/drive/items?parentId=child-folder", sessionId);
+    expect(nestedItems.status).toBe(200);
+    expect(nestedItems.body).toEqual([
+      expect.objectContaining({
+        driveItemId: "document-1",
+        name: "requirements.pdf",
+        isFolder: false,
+      }),
+    ]);
+
+    const unauthorized = await request("/api/drive/items", "another-drive-session");
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.body.error).toBe("DRIVE_AUTH_REQUIRED");
+
+    const invalidContext = await request("/api/drive/session/oauth/start?context=other", sessionId);
+    expect(invalidContext.status).toBe(400);
+  });
+
   it("limits navigation to the linked folder, stores references only, and removes only the reference", async () => {
     await authorize();
     const picker = await request("/api/drive/picker");

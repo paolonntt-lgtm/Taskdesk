@@ -48,3 +48,4 @@
 - [Scadenza prova per organizzazione](organization-trial-expiration.md) — After trial expiry, block all organization members while leaving billing and subscription activation to admins.
 - [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
+- [Google Drive account scope](google-drive-account-scope.md) — Drive browsing and ticket folder selection must use each signed-in user's own Google account, never a shared organization account.

@@ -1245,6 +1245,55 @@ paths:
         "403":
           description: Google Drive permission denied or revoked
 
+  /drive/session/oauth/start:
+    get:
+      operationId: startDriveSessionOAuth
+      tags: [drive]
+      summary: Connect the authenticated user's Google Drive for browsing or ticket creation
+      parameters:
+        - name: context
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [library, new-ticket]
+      responses:
+        "200":
+          description: Google OAuth authorization page
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid OAuth context
+        "401":
+          description: Authentication required
+
+  /drive/items:
+    get:
+      operationId: listDriveItems
+      tags: [drive]
+      summary: List files and folders in the authenticated user's Google Drive
+      parameters:
+        - name: parentId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drive items in the requested folder
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DriveItem"
+        "401":
+          description: Authentication required or short-lived Drive access expired
+        "403":
+          description: Google Drive permission denied or revoked
+
   /tickets/{id}/drive-folders:
     get:
       operationId: listTicketDriveFolders

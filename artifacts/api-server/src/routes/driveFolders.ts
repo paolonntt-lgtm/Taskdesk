@@ -26,14 +26,15 @@ const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly";
 const STATE_TTL_MS = 10 * 60 * 1000;
 const TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
 const MAX_ANCESTORS = 200;
-const DRIVE_STATE_PATTERN = /^drive_(\d+)_([a-f0-9]{64})$/;
+const DRIVE_STATE_PATTERN = /^drive_(?:(\d+)|(library|new-ticket))_([a-f0-9]{64})$/;
 const OAUTH_MESSAGE_TYPE = "taskdesk-drive-oauth";
 
 type PendingDriveState = {
   createdAt: number;
   userId: number;
   sessionId: string;
-  ticketId: number;
+  ticketId: number | null;
+  context: "ticket" | "library" | "new-ticket";
 };
 type TemporaryDriveToken = {
   accessToken: string;
@@ -96,21 +97,39 @@ function escapeHtmlJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-function oauthResultPage(ticketId: number | null, status: string, fallbackPath = "/app/"): string {
+function oauthResultPage(
+  ticketId: number | null,
+  status: string,
+  context: PendingDriveState["context"] = "ticket",
+): string {
   const message = {
     type: OAUTH_MESSAGE_TYPE,
     ticketId,
+    context,
     status,
   };
+  const fallbackPath = ticketId
+    ? `/app/tickets/${ticketId}`
+    : context === "library"
+      ? "/app/drive"
+      : context === "new-ticket"
+        ? "/app/tickets/new"
+        : "/app/";
   return `<!doctype html><html><head><meta charset="utf-8"></head><body>` +
     `<script>if(window.opener){window.opener.postMessage(${escapeHtmlJson(message)},location.origin);window.close()}else{location.replace(${escapeHtmlJson(fallbackPath)})}</script>` +
     `</body></html>`;
 }
 
-function sendOAuthResult(res: ExpressResponse, ticketId: number | null, status: string, httpStatus = 200): void {
+function sendOAuthResult(
+  res: ExpressResponse,
+  ticketId: number | null,
+  status: string,
+  httpStatus = 200,
+  context: PendingDriveState["context"] = "ticket",
+): void {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
-  res.status(httpStatus).send(oauthResultPage(ticketId, status, ticketId ? `/app/tickets/${ticketId}` : "/app/"));
+  res.status(httpStatus).send(oauthResultPage(ticketId, status, context));
 }
 
 function sendError(res: ExpressResponse, status: number, code: string, message: string): void {
@@ -251,8 +270,17 @@ router.get("/drive/oauth/start", requireAuth, async (req, res): Promise<void> =>
     sendError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     return;
   }
+  startDriveOAuth(req, res, parsed.data.ticketId, "ticket");
+});
+
+function startDriveOAuth(
+  req: Request,
+  res: ExpressResponse,
+  ticketId: number | null,
+  context: PendingDriveState["context"],
+): void {
   if (!getGoogleClientId() || !getGoogleClientSecret()) {
-    sendOAuthResult(res, parsed.data.ticketId, "not_configured", 503);
+    sendOAuthResult(res, ticketId, "not_configured", 503, context);
     return;
   }
 
@@ -263,12 +291,14 @@ router.get("/drive/oauth/start", requireAuth, async (req, res): Promise<void> =>
     return;
   }
   pruneTemporaryCredentials();
-  const state = `drive_${parsed.data.ticketId}_${randomBytes(32).toString("hex")}`;
+  const stateKey = ticketId ?? (context === "library" ? "library" : "new-ticket");
+  const state = `drive_${stateKey}_${randomBytes(32).toString("hex")}`;
   pendingStates.set(state, {
     createdAt: Date.now(),
     userId: user.id,
     sessionId,
-    ticketId: parsed.data.ticketId,
+    ticketId,
+    context,
   });
   const params = new URLSearchParams({
     client_id: getGoogleClientId(),
@@ -286,6 +316,15 @@ router.get("/drive/oauth/start", requireAuth, async (req, res): Promise<void> =>
     `<!doctype html><html><head><meta charset="utf-8"></head><body>` +
     `<script>window.location.replace(${escapeHtmlJson(authorizationUrl)})</script></body></html>`,
   );
+}
+
+router.get("/drive/session/oauth/start", requireAuth, (req, res): void => {
+  const context = req.query.context;
+  if (context !== "library" && context !== "new-ticket") {
+    sendError(res, 400, "INVALID_REQUEST", "A valid Drive connection context is required.");
+    return;
+  }
+  startDriveOAuth(req, res, null, context);
 });
 
 export function isDriveOAuthState(state: string): boolean {
@@ -296,7 +335,9 @@ export function isDriveOAuthState(state: string): boolean {
 async function completeDriveOAuthCallback(req: Request, res: ExpressResponse): Promise<void> {
   const state = typeof req.query.state === "string" ? req.query.state : "";
   const pending = pendingStates.get(state);
-  const stateTicketId = state.match(DRIVE_STATE_PATTERN)?.[1];
+  const stateMatch = state.match(DRIVE_STATE_PATTERN);
+  const stateTicketId = stateMatch?.[1];
+  const stateContext = (stateMatch?.[2] as "library" | "new-ticket" | undefined) ?? "ticket";
   pendingStates.delete(state);
   const sessionId = getSessionId(req);
   const userId = await getCurrentUserId(req);
@@ -307,15 +348,21 @@ async function completeDriveOAuthCallback(req: Request, res: ExpressResponse): P
     : [];
   if (!pending || Date.now() - pending.createdAt > STATE_TTL_MS ||
       !userId || pending.userId !== userId || !user?.isActive || pending.sessionId !== sessionId) {
-    sendOAuthResult(res, pending?.ticketId ?? (stateTicketId ? Number(stateTicketId) : null), "invalid_state");
+    sendOAuthResult(
+      res,
+      pending?.ticketId ?? (stateTicketId ? Number(stateTicketId) : null),
+      "invalid_state",
+      200,
+      pending?.context ?? stateContext,
+    );
     return;
   }
   if (req.query.error || typeof req.query.code !== "string") {
-    sendOAuthResult(res, pending.ticketId, req.query.error === "access_denied" ? "cancelled" : "oauth_error");
+    sendOAuthResult(res, pending.ticketId, req.query.error === "access_denied" ? "cancelled" : "oauth_error", 200, pending.context);
     return;
   }
   if (!getGoogleClientId() || !getGoogleClientSecret()) {
-    sendOAuthResult(res, pending.ticketId, "not_configured");
+    sendOAuthResult(res, pending.ticketId, "not_configured", 200, pending.context);
     return;
   }
 
@@ -336,7 +383,7 @@ async function completeDriveOAuthCallback(req: Request, res: ExpressResponse): P
       expires_in?: number;
     };
     if (!tokenResponse.ok || !tokenPayload.access_token) {
-      sendOAuthResult(res, pending.ticketId, "oauth_error");
+      sendOAuthResult(res, pending.ticketId, "oauth_error", 200, pending.context);
       return;
     }
     const expiresInMs = Math.min(
@@ -344,7 +391,7 @@ async function completeDriveOAuthCallback(req: Request, res: ExpressResponse): P
       TOKEN_MAX_AGE_MS,
     );
     if (expiresInMs <= 0) {
-      sendOAuthResult(res, pending.ticketId, "expired");
+      sendOAuthResult(res, pending.ticketId, "expired", 200, pending.context);
       return;
     }
     temporaryTokens.set(tokenKey(pending.sessionId, pending.userId), {
@@ -352,10 +399,10 @@ async function completeDriveOAuthCallback(req: Request, res: ExpressResponse): P
       expiresAt: Date.now() + expiresInMs,
       userId: pending.userId,
     });
-    sendOAuthResult(res, pending.ticketId, "ok");
+    sendOAuthResult(res, pending.ticketId, "ok", 200, pending.context);
   } catch (error) {
     req.log.warn({ err: error }, "Google Drive OAuth token exchange failed");
-    sendOAuthResult(res, pending.ticketId, "oauth_error");
+    sendOAuthResult(res, pending.ticketId, "oauth_error", 200, pending.context);
   }
 }
 
@@ -372,7 +419,46 @@ router.get("/auth/google/callback", async (req, res, next): Promise<void> => {
     const stateValue = typeof req.query.state === "string" ? req.query.state : "";
     const pending = pendingStates.get(stateValue);
     pendingStates.delete(stateValue);
-    sendOAuthResult(res, pending?.ticketId ?? null, "oauth_error");
+    const stateMatch = stateValue.match(DRIVE_STATE_PATTERN);
+    const context = pending?.context ?? (stateMatch?.[2] as "library" | "new-ticket" | undefined) ?? "ticket";
+    sendOAuthResult(res, pending?.ticketId ?? null, "oauth_error", 200, context);
+  }
+});
+
+router.get("/drive/items", requireAuth, async (req, res): Promise<void> => {
+  const parsed = ListDrivePickerFoldersQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    sendError(res, 400, "INVALID_REQUEST", "Invalid folder location.");
+    return;
+  }
+  const accessToken = getTemporaryToken(req);
+  if (!accessToken) {
+    sendError(res, 401, "DRIVE_AUTH_REQUIRED", "Connect Google Drive to browse files.");
+    return;
+  }
+  const parentId = parsed.data.parentId ?? "root";
+  if (parentId !== "root" && !/^[A-Za-z0-9_-]{1,256}$/.test(parentId)) {
+    sendError(res, 400, "INVALID_REQUEST", "Invalid folder location.");
+    return;
+  }
+  try {
+    if (parentId !== "root") {
+      const parent = await getDriveFile(accessToken, parentId);
+      if (parent.mimeType !== DRIVE_FOLDER_MIME) {
+        sendError(res, 400, "NOT_A_FOLDER", "The selected location is not a folder.");
+        return;
+      }
+    }
+    const items = await listDriveChildren(accessToken, parentId, false);
+    res.json(items.map((item) => ({
+      driveItemId: item.id,
+      name: item.name,
+      mimeType: item.mimeType,
+      isFolder: item.mimeType === DRIVE_FOLDER_MIME,
+      webViewLink: item.webViewLink ?? null,
+    })));
+  } catch (error) {
+    handleDriveFailure(req, res, error);
   }
 });
 

@@ -2038,6 +2038,33 @@ export const ListDrivePickerFoldersResponse = zod.array(ListDrivePickerFoldersRe
 
 
 /**
+ * @summary Connect the authenticated user's Google Drive for browsing or ticket creation
+ */
+export const StartDriveSessionOAuthQueryParams = zod.object({
+  "context": zod.enum(['library', 'new-ticket'])
+})
+
+export const StartDriveSessionOAuthResponse = zod.unknown()
+
+
+/**
+ * @summary List files and folders in the authenticated user's Google Drive
+ */
+export const ListDriveItemsQueryParams = zod.object({
+  "parentId": zod.coerce.string().optional()
+})
+
+export const ListDriveItemsResponseItem = zod.object({
+  "driveItemId": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "isFolder": zod.boolean(),
+  "webViewLink": zod.string().nullable()
+})
+export const ListDriveItemsResponse = zod.array(ListDriveItemsResponseItem)
+
+
+/**
  * @summary List Google Drive folder references for a ticket
  */
 export const ListTicketDriveFoldersParams = zod.object({
