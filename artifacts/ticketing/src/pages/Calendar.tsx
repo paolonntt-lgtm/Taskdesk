@@ -611,6 +611,12 @@ export default function CalendarPage() {
                     <Box
                       key={idx}
                       onClick={() => isValid && dateStr && setSelectedDate(prev => prev === dateStr ? null : dateStr)}
+                      onDoubleClick={() => {
+                        if (!isValid || !dateStr || !canCreateAppointment) return;
+                        setSelectedDate(dateStr);
+                        setEditingAppointment(null);
+                        setFormOpen(true);
+                      }}
                       sx={{
                         minHeight: { xs: 46, sm: 0 },
                         aspectRatio: { sm: '1' },
