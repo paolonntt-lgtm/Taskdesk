@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "sh -c 'if [ -n \"$REPLIT_EXPO_SESSION_SECRET\" ]; then pnpm exec create-launch login --session \"$REPLIT_EXPO_SESSION_SECRET\" || true; fi' && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
     "build": "node scripts/build.js",
+    "update:preview": "EXPO_PUBLIC_DOMAIN=www.taskdesk.it eas update --channel preview",
+    "update:production": "EXPO_PUBLIC_DOMAIN=www.taskdesk.it eas update --channel production",
     "serve": "node server/serve.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -63,6 +65,7 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "9.1.0",
     "expo-document-picker": "~57.0.3",
-    "expo-notifications": "^57.0.23"
+    "expo-notifications": "^57.0.23",
+    "expo-updates": "~57.0.26"
   }
 }

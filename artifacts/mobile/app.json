@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaskDesk",
     "slug": "workspace",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.taskdesk.mobile",
-      "versionCode": 1,
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
@@ -65,6 +65,14 @@
       "eas": {
         "projectId": "c911fc0e-5b1e-4447-9bb8-2f1154cca9e9"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c911fc0e-5b1e-4447-9bb8-2f1154cca9e9",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
