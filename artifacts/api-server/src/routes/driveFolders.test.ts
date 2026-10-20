@@ -138,6 +138,7 @@ describe("ticket Google Drive folders", () => {
   let denyDriveAccess = false;
   let expireDriveAccess = false;
   let driveFailureReason: string | null = null;
+  let driveFailureMessage: string | null = null;
 
   beforeAll(async () => {
     process.env.GOOGLE_CLIENT_ID = "drive-test-client";
@@ -166,6 +167,7 @@ describe("ticket Google Drive folders", () => {
     denyDriveAccess = false;
     expireDriveAccess = false;
     driveFailureReason = null;
+    driveFailureMessage = null;
     driveApiRequests.length = 0;
 
     mocks.db.select.mockImplementation(() => {
@@ -249,7 +251,7 @@ describe("ticket Google Drive folders", () => {
       if (denyDriveAccess) {
         return new Response(JSON.stringify({
           error: {
-            message: "Permission denied",
+            message: driveFailureMessage ?? "Permission denied",
             ...(driveFailureReason ? { errors: [{ reason: driveFailureReason }] } : {}),
           },
         }), { status: 403 });
@@ -477,9 +479,11 @@ describe("ticket Google Drive folders", () => {
     expect(denied.body.error).toBe("DRIVE_ACCESS_DENIED");
 
     driveFailureReason = "accessNotConfigured";
+    driveFailureMessage = "Google Drive API has not been used in project 123456789 before or it is disabled.";
     const apiNotEnabled = await request("/api/drive/items");
     expect(apiNotEnabled.status).toBe(503);
     expect(apiNotEnabled.body.error).toBe("DRIVE_API_NOT_ENABLED");
+    expect(apiNotEnabled.body.message).toContain("project 123456789");
 
     denyDriveAccess = false;
     expireDriveAccess = true;

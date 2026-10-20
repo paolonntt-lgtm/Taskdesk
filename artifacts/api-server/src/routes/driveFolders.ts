@@ -53,6 +53,7 @@ type DriveApiFailure = {
   code: string;
   message: string;
   googleReason?: string;
+  googleProjectNumber?: string;
 };
 
 const pendingStates = new Map<string, PendingDriveState>();
@@ -190,11 +191,15 @@ async function readGoogleError(response: globalThis.Response): Promise<DriveApiF
       googleReason === "accessNotConfigured" ||
       /drive api.*(not been used|disabled)|enable.*drive api/i.test(googleMessage);
     if (apiDisabled) {
+      const googleProjectNumber = googleMessage.match(/\bproject\s+(\d+)\b/i)?.[1];
       return {
         status: 503,
         code: "DRIVE_API_NOT_ENABLED",
-        message: "Google Drive API is not enabled for this Google Cloud project. Enable the Google Drive API, then reconnect.",
+        message: googleProjectNumber
+          ? `Google Drive API is not enabled for Google Cloud project ${googleProjectNumber}. Enable it in that exact project, then reconnect.`
+          : "Google Drive API is not enabled for this Google Cloud project. Enable the Google Drive API, then reconnect.",
         googleReason,
+        googleProjectNumber,
       };
     }
     const scopeDenied = ["insufficientPermissions", "insufficientFilePermissions", "appNotAuthorizedToFile"]
@@ -280,7 +285,11 @@ function handleDriveFailure(req: Request, res: ExpressResponse, error: unknown):
     if (failure.status === 401) clearTemporaryToken(req);
     if (failure.status === 403 || failure.code === "DRIVE_API_NOT_ENABLED") {
       req.log?.warn?.(
-        { googleReason: failure.googleReason, driveErrorCode: failure.code },
+        {
+          googleReason: failure.googleReason,
+          googleProjectNumber: failure.googleProjectNumber,
+          driveErrorCode: failure.code,
+        },
         "Google Drive rejected a request",
       );
     }
