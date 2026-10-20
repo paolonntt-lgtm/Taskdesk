@@ -5,6 +5,40 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+export interface TicketDriveFolderInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  folderId: string;
+}
+
+export interface DriveFolderReference {
+  id: number;
+  driveFolderId: string;
+  folderName: string;
+  createdAt: string;
+}
+
+export interface DrivePickerFolder {
+  driveFolderId: string;
+  folderName: string;
+}
+
+export interface DriveItem {
+  driveItemId: string;
+  name: string;
+  mimeType: string;
+  isFolder: boolean;
+  /** @nullable */
+  webViewLink: string | null;
+}
+
+export interface DriveFolderItemsResponse {
+  currentFolder: DrivePickerFolder;
+  items: DriveItem[];
+}
+
 export type StripeAddonPriceCurrency = typeof StripeAddonPriceCurrency[keyof typeof StripeAddonPriceCurrency];
 
 
@@ -1342,6 +1376,24 @@ scheduled?: boolean;
  * Return only source tickets with a recurrence rule; generated copies are not included.
  */
 recurring?: boolean;
+};
+
+export type StartDriveOAuthParams = {
+ticketId: number;
+};
+
+export type CompleteDriveOAuthParams = {
+state: string;
+code?: string;
+error?: string;
+};
+
+export type ListDrivePickerFoldersParams = {
+parentId?: string;
+};
+
+export type ListTicketDriveFolderItemsParams = {
+folderId: string;
 };
 
 export type GetTimeTrackingReportParams = {

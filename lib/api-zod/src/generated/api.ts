@@ -2002,6 +2002,122 @@ export const SaveTicketAttachmentResponse = zod.object({
 
 
 /**
+ * @summary Start a short-lived Google Drive authorization flow
+ */
+export const StartDriveOAuthQueryParams = zod.object({
+  "ticketId": zod.coerce.number().int()
+})
+
+export const StartDriveOAuthResponse = zod.unknown()
+
+
+/**
+ * @summary Complete Google login or Drive authorization
+ */
+export const CompleteDriveOAuthQueryParams = zod.object({
+  "state": zod.coerce.string(),
+  "code": zod.coerce.string().optional(),
+  "error": zod.coerce.string().optional()
+})
+
+export const CompleteDriveOAuthResponse = zod.unknown()
+
+
+/**
+ * @summary List folders available to the authenticated user for selection
+ */
+export const ListDrivePickerFoldersQueryParams = zod.object({
+  "parentId": zod.coerce.string().optional()
+})
+
+export const ListDrivePickerFoldersResponseItem = zod.object({
+  "driveFolderId": zod.string(),
+  "folderName": zod.string()
+})
+export const ListDrivePickerFoldersResponse = zod.array(ListDrivePickerFoldersResponseItem)
+
+
+/**
+ * @summary List Google Drive folder references for a ticket
+ */
+export const ListTicketDriveFoldersParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListTicketDriveFoldersResponseItem = zod.object({
+  "id": zod.int(),
+  "driveFolderId": zod.string(),
+  "folderName": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListTicketDriveFoldersResponse = zod.array(ListTicketDriveFoldersResponseItem)
+
+
+/**
+ * @summary Link a Google Drive folder to a ticket
+ */
+export const AddTicketDriveFolderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const addTicketDriveFolderBodyFolderIdMax = 256;
+
+
+
+export const AddTicketDriveFolderBody = zod.object({
+  "folderId": zod.string().min(1).max(addTicketDriveFolderBodyFolderIdMax)
+})
+
+export const AddTicketDriveFolderResponse = zod.object({
+  "id": zod.int(),
+  "driveFolderId": zod.string(),
+  "folderName": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a folder reference without changing Drive contents
+ */
+export const RemoveTicketDriveFolderParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "referenceId": zod.coerce.number().int()
+})
+
+export const RemoveTicketDriveFolderResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary List metadata for a folder inside a linked Drive folder boundary
+ */
+export const ListTicketDriveFolderItemsParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "referenceId": zod.coerce.number().int()
+})
+
+export const ListTicketDriveFolderItemsQueryParams = zod.object({
+  "folderId": zod.coerce.string()
+})
+
+export const ListTicketDriveFolderItemsResponse = zod.object({
+  "currentFolder": zod.object({
+  "driveFolderId": zod.string(),
+  "folderName": zod.string()
+}),
+  "items": zod.array(zod.object({
+  "driveItemId": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "isFolder": zod.boolean(),
+  "webViewLink": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary Request a presigned upload URL
  */
 export const RequestUploadUrlBody = zod.object({

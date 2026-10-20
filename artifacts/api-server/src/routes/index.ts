@@ -42,6 +42,7 @@ import searchRouter from "./search";
 import dailyReportsRouter from "./dailyReports";
 import announcementsRouter from "./announcements";
 import timeTrackingRouter from "./timeTracking";
+import driveFoldersRouter from "./driveFolders";
 
 const router: IRouter = Router();
 
@@ -65,6 +66,7 @@ router.use(seedDemoRouter);
 router.use(seedDemoMultiRouter);
 router.use(superadminRouter);
 router.use(passwordResetRouter);
+router.use(driveFoldersRouter);
 router.use(oauthRouter);
 router.use(botRouter);
 router.use(aiSuggestRouter);

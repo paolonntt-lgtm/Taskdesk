@@ -39,6 +39,7 @@ import type {
   ClientNoteWithClient,
   CloneTicketBody,
   CommentWithAuthor,
+  CompleteDriveOAuthParams,
   CompleteOnboarding200,
   CompleteOnboardingBody,
   CreateAppointmentBody,
@@ -50,6 +51,9 @@ import type {
   CreateUserBody,
   DailyReportDetail,
   DashboardStats,
+  DriveFolderItemsResponse,
+  DriveFolderReference,
+  DrivePickerFolder,
   ErrorResponse,
   GetCalendarParams,
   GetClient200,
@@ -67,6 +71,8 @@ import type {
   ListAllClientNotesParams,
   ListAppointmentsParams,
   ListClientsParams,
+  ListDrivePickerFoldersParams,
+  ListTicketDriveFolderItemsParams,
   ListTicketsParams,
   LoginRequest,
   LoginResponse,
@@ -79,6 +85,7 @@ import type {
   SaveAttachmentBody,
   SearchResults,
   SetRecurrenceBody,
+  StartDriveOAuthParams,
   StatGroup,
   StatGroupWithName,
   StickyNote,
@@ -88,6 +95,7 @@ import type {
   StripeAddonSeatsInput,
   StripeAddonSeatsResponse,
   SuccessResponse,
+  TicketDriveFolderInput,
   TicketTimeSessionEdit,
   TicketWithDetails,
   TimeTrackingClientBillingUpdate,
@@ -3299,6 +3307,586 @@ export const useSaveTicketAttachment = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSaveTicketAttachmentMutationOptions(options));
     }
+
+export const getStartDriveOAuthUrl = (params: StartDriveOAuthParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/drive/oauth/start?${stringifiedParams}` : `/api/drive/oauth/start`
+}
+
+/**
+ * @summary Start a short-lived Google Drive authorization flow
+ */
+export const startDriveOAuth = async (params: StartDriveOAuthParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getStartDriveOAuthUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartDriveOAuthQueryKey = (params?: StartDriveOAuthParams,) => {
+    return [
+    `/api/drive/oauth/start`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getStartDriveOAuthQueryOptions = <TData = Awaited<ReturnType<typeof startDriveOAuth>>, TError = ErrorType<void>>(params: StartDriveOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startDriveOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStartDriveOAuthQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof startDriveOAuth>>> = ({ signal }) => startDriveOAuth(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof startDriveOAuth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StartDriveOAuthQueryResult = NonNullable<Awaited<ReturnType<typeof startDriveOAuth>>>
+export type StartDriveOAuthQueryError = ErrorType<void>
+
+
+/**
+ * @summary Start a short-lived Google Drive authorization flow
+ */
+
+export function useStartDriveOAuth<TData = Awaited<ReturnType<typeof startDriveOAuth>>, TError = ErrorType<void>>(
+ params: StartDriveOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof startDriveOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStartDriveOAuthQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteDriveOAuthUrl = (params: CompleteDriveOAuthParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/google/callback?${stringifiedParams}` : `/api/auth/google/callback`
+}
+
+/**
+ * @summary Complete Google login or Drive authorization
+ */
+export const completeDriveOAuth = async (params: CompleteDriveOAuthParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getCompleteDriveOAuthUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteDriveOAuthQueryKey = (params?: CompleteDriveOAuthParams,) => {
+    return [
+    `/api/auth/google/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCompleteDriveOAuthQueryOptions = <TData = Awaited<ReturnType<typeof completeDriveOAuth>>, TError = ErrorType<unknown>>(params: CompleteDriveOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeDriveOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCompleteDriveOAuthQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof completeDriveOAuth>>> = ({ signal }) => completeDriveOAuth(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof completeDriveOAuth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CompleteDriveOAuthQueryResult = NonNullable<Awaited<ReturnType<typeof completeDriveOAuth>>>
+export type CompleteDriveOAuthQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Complete Google login or Drive authorization
+ */
+
+export function useCompleteDriveOAuth<TData = Awaited<ReturnType<typeof completeDriveOAuth>>, TError = ErrorType<unknown>>(
+ params: CompleteDriveOAuthParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeDriveOAuth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCompleteDriveOAuthQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDrivePickerFoldersUrl = (params?: ListDrivePickerFoldersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/drive/picker?${stringifiedParams}` : `/api/drive/picker`
+}
+
+/**
+ * @summary List folders available to the authenticated user for selection
+ */
+export const listDrivePickerFolders = async (params?: ListDrivePickerFoldersParams, options?: Parameters<typeof customFetch>[1]): Promise<DrivePickerFolder[]> => {
+
+  return customFetch<DrivePickerFolder[]>(getListDrivePickerFoldersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDrivePickerFoldersQueryKey = (params?: ListDrivePickerFoldersParams,) => {
+    return [
+    `/api/drive/picker`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDrivePickerFoldersQueryOptions = <TData = Awaited<ReturnType<typeof listDrivePickerFolders>>, TError = ErrorType<void>>(params?: ListDrivePickerFoldersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDrivePickerFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDrivePickerFoldersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDrivePickerFolders>>> = ({ signal }) => listDrivePickerFolders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDrivePickerFolders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDrivePickerFoldersQueryResult = NonNullable<Awaited<ReturnType<typeof listDrivePickerFolders>>>
+export type ListDrivePickerFoldersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List folders available to the authenticated user for selection
+ */
+
+export function useListDrivePickerFolders<TData = Awaited<ReturnType<typeof listDrivePickerFolders>>, TError = ErrorType<void>>(
+ params?: ListDrivePickerFoldersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDrivePickerFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDrivePickerFoldersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListTicketDriveFoldersUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/drive-folders`
+}
+
+/**
+ * @summary List Google Drive folder references for a ticket
+ */
+export const listTicketDriveFolders = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<DriveFolderReference[]> => {
+
+  return customFetch<DriveFolderReference[]>(getListTicketDriveFoldersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTicketDriveFoldersQueryKey = (id: number,) => {
+    return [
+    `/api/tickets/${id}/drive-folders`
+    ] as const;
+    }
+
+
+export const getListTicketDriveFoldersQueryOptions = <TData = Awaited<ReturnType<typeof listTicketDriveFolders>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTicketDriveFoldersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTicketDriveFolders>>> = ({ signal }) => listTicketDriveFolders(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTicketDriveFoldersQueryResult = NonNullable<Awaited<ReturnType<typeof listTicketDriveFolders>>>
+export type ListTicketDriveFoldersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List Google Drive folder references for a ticket
+ */
+
+export function useListTicketDriveFolders<TData = Awaited<ReturnType<typeof listTicketDriveFolders>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTicketDriveFoldersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddTicketDriveFolderUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/drive-folders`
+}
+
+/**
+ * @summary Link a Google Drive folder to a ticket
+ */
+export const addTicketDriveFolder = async (id: number,
+    ticketDriveFolderInput: TicketDriveFolderInput, options?: Parameters<typeof customFetch>[1]): Promise<DriveFolderReference> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<DriveFolderReference>(getAddTicketDriveFolderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ticketDriveFolderInput)
+  }
+);}
+
+
+
+
+
+export const getAddTicketDriveFolderMutationKey = () => ['addTicketDriveFolder'] as const;
+
+export const getAddTicketDriveFolderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTicketDriveFolder>>, TError,AddTicketDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTicketDriveFolder>>, TError,AddTicketDriveFolderMutationVariables, TContext> => {
+
+const mutationKey = getAddTicketDriveFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTicketDriveFolder>>, AddTicketDriveFolderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addTicketDriveFolder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTicketDriveFolderMutationResult = NonNullable<Awaited<ReturnType<typeof addTicketDriveFolder>>>
+    export type AddTicketDriveFolderMutationBody = BodyType<TicketDriveFolderInput>
+    export type AddTicketDriveFolderMutationError = ErrorType<void>
+    export type AddTicketDriveFolderMutationVariables = {id: number;data: BodyType<TicketDriveFolderInput>}
+
+    /**
+ * @summary Link a Google Drive folder to a ticket
+ */
+export const useAddTicketDriveFolder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTicketDriveFolder>>, TError,AddTicketDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTicketDriveFolder>>,
+        TError,
+        AddTicketDriveFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTicketDriveFolderMutationOptions(options));
+    }
+
+export const getRemoveTicketDriveFolderUrl = (id: number,
+    referenceId: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/drive-folders/${referenceId}`
+}
+
+/**
+ * @summary Remove a folder reference without changing Drive contents
+ */
+export const removeTicketDriveFolder = async (id: number,
+    referenceId: number, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRemoveTicketDriveFolderUrl(id,referenceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveTicketDriveFolderMutationKey = () => ['removeTicketDriveFolder'] as const;
+
+export const getRemoveTicketDriveFolderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTicketDriveFolder>>, TError,RemoveTicketDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeTicketDriveFolder>>, TError,RemoveTicketDriveFolderMutationVariables, TContext> => {
+
+const mutationKey = getRemoveTicketDriveFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeTicketDriveFolder>>, RemoveTicketDriveFolderMutationVariables> = (props) => {
+          const {id,referenceId} = props ?? {};
+
+          return  removeTicketDriveFolder(id,referenceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveTicketDriveFolderMutationResult = NonNullable<Awaited<ReturnType<typeof removeTicketDriveFolder>>>
+
+    export type RemoveTicketDriveFolderMutationError = ErrorType<void>
+    export type RemoveTicketDriveFolderMutationVariables = {id: number;referenceId: number}
+
+    /**
+ * @summary Remove a folder reference without changing Drive contents
+ */
+export const useRemoveTicketDriveFolder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTicketDriveFolder>>, TError,RemoveTicketDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeTicketDriveFolder>>,
+        TError,
+        RemoveTicketDriveFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveTicketDriveFolderMutationOptions(options));
+    }
+
+export const getListTicketDriveFolderItemsUrl = (id: number,
+    referenceId: number,
+    params: ListTicketDriveFolderItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tickets/${id}/drive-folders/${referenceId}/items?${stringifiedParams}` : `/api/tickets/${id}/drive-folders/${referenceId}/items`
+}
+
+/**
+ * @summary List metadata for a folder inside a linked Drive folder boundary
+ */
+export const listTicketDriveFolderItems = async (id: number,
+    referenceId: number,
+    params: ListTicketDriveFolderItemsParams, options?: Parameters<typeof customFetch>[1]): Promise<DriveFolderItemsResponse> => {
+
+  return customFetch<DriveFolderItemsResponse>(getListTicketDriveFolderItemsUrl(id,referenceId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTicketDriveFolderItemsQueryKey = (id: number,
+    referenceId: number,
+    params?: ListTicketDriveFolderItemsParams,) => {
+    return [
+    `/api/tickets/${id}/drive-folders/${referenceId}/items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTicketDriveFolderItemsQueryOptions = <TData = Awaited<ReturnType<typeof listTicketDriveFolderItems>>, TError = ErrorType<void>>(id: number,
+    referenceId: number,
+    params: ListTicketDriveFolderItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolderItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTicketDriveFolderItemsQueryKey(id,referenceId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTicketDriveFolderItems>>> = ({ signal }) => listTicketDriveFolderItems(id,referenceId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && referenceId !== null && referenceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolderItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTicketDriveFolderItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listTicketDriveFolderItems>>>
+export type ListTicketDriveFolderItemsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List metadata for a folder inside a linked Drive folder boundary
+ */
+
+export function useListTicketDriveFolderItems<TData = Awaited<ReturnType<typeof listTicketDriveFolderItems>>, TError = ErrorType<void>>(
+ id: number,
+    referenceId: number,
+    params: ListTicketDriveFolderItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketDriveFolderItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTicketDriveFolderItemsQueryOptions(id,referenceId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRequestUploadUrlUrl = () => {
 

@@ -33,6 +33,7 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
 import PermissionGateButton from '../components/PermissionGateButton';
+import TicketDriveFolders from '../components/TicketDriveFolders';
 import { trackEvent } from '../lib/analytics';
 
 interface TabPanelProps {
@@ -1173,6 +1174,7 @@ export default function TicketDetail() {
                 </Box>
               );
             })()}
+            <TicketDriveFolders ticketId={ticketId} />
           </Box>
 
           {/* Checklist */}

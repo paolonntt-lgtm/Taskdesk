@@ -49,6 +49,8 @@ tags:
     description: Calendar aggregation
   - name: search
     description: Global search
+  - name: drive
+    description: Google Drive folder references and metadata navigation
 
 paths:
   /stripe/addon-price:
@@ -1165,6 +1167,204 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Attachment"
+
+  /drive/oauth/start:
+    get:
+      operationId: startDriveOAuth
+      tags: [drive]
+      summary: Start a short-lived Google Drive authorization flow
+      parameters:
+        - name: ticketId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OAuth navigation page
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated
+        "503":
+          description: Google Drive integration is not configured
+
+  /auth/google/callback:
+    get:
+      operationId: completeDriveOAuth
+      tags: [drive]
+      summary: Complete Google login or Drive authorization
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth result page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /drive/picker:
+    get:
+      operationId: listDrivePickerFolders
+      tags: [drive]
+      summary: List folders available to the authenticated user for selection
+      parameters:
+        - name: parentId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drive folders under the requested picker location
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrivePickerFolder"
+        "401":
+          description: Authentication required or short-lived Drive access expired
+        "403":
+          description: Google Drive permission denied or revoked
+
+  /tickets/{id}/drive-folders:
+    get:
+      operationId: listTicketDriveFolders
+      tags: [drive]
+      summary: List Google Drive folder references for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked Drive folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DriveFolderReference"
+        "404":
+          description: Ticket not found or not visible
+    post:
+      operationId: addTicketDriveFolder
+      tags: [drive]
+      summary: Link a Google Drive folder to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketDriveFolderInput"
+      responses:
+        "201":
+          description: Linked Drive folder reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveFolderReference"
+        "200":
+          description: Folder was already linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveFolderReference"
+        "400":
+          description: Invalid request or selected item is not a folder
+        "401":
+          description: Authentication required or short-lived Drive access expired
+        "403":
+          description: Google Drive permission denied or revoked
+        "404":
+          description: Ticket not found or not visible
+
+  /tickets/{id}/drive-folders/{referenceId}:
+    delete:
+      operationId: removeTicketDriveFolder
+      tags: [drive]
+      summary: Remove a folder reference without changing Drive contents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: referenceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reference removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Ticket or reference not found
+
+  /tickets/{id}/drive-folders/{referenceId}/items:
+    get:
+      operationId: listTicketDriveFolderItems
+      tags: [drive]
+      summary: List metadata for a folder inside a linked Drive folder boundary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: referenceId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: folderId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current folder and child item metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveFolderItemsResponse"
+        "401":
+          description: Authentication required or short-lived Drive access expired
+        "403":
+          description: Google Drive permission denied or folder is outside the linked boundary
+        "404":
+          description: Ticket or folder reference not found
 
   /storage/uploads/request-url:
     post:
@@ -2832,6 +3032,59 @@ paths:
 
 components:
   schemas:
+    TicketDriveFolderInput:
+      type: object
+      required: [folderId]
+      properties:
+        folderId:
+          type: string
+          minLength: 1
+          maxLength: 256
+    DriveFolderReference:
+      type: object
+      required: [id, driveFolderId, folderName, createdAt]
+      properties:
+        id:
+          type: integer
+        driveFolderId:
+          type: string
+        folderName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    DrivePickerFolder:
+      type: object
+      required: [driveFolderId, folderName]
+      properties:
+        driveFolderId:
+          type: string
+        folderName:
+          type: string
+    DriveItem:
+      type: object
+      required: [driveItemId, name, mimeType, isFolder, webViewLink]
+      properties:
+        driveItemId:
+          type: string
+        name:
+          type: string
+        mimeType:
+          type: string
+        isFolder:
+          type: boolean
+        webViewLink:
+          type: ["string", "null"]
+    DriveFolderItemsResponse:
+      type: object
+      required: [currentFolder, items]
+      properties:
+        currentFolder:
+          $ref: "#/components/schemas/DrivePickerFolder"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveItem"
     StripeAddonPrice:
       type: object
       required: [priceId, unitAmount, currency, interval]
