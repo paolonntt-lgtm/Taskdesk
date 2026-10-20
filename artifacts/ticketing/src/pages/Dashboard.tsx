@@ -2562,7 +2562,7 @@ function Dashboard() {
       : (lang === 'it' ? 'Usa la mia posizione' : 'Use my location');
 
   return (
-    <Box className={`td-dashboard${theme.palette.mode === 'dark' ? ' td-dashboard--dark' : ''}`} sx={{
+    <Box data-testid="dashboard-root" className={`td-dashboard${theme.palette.mode === 'dark' ? ' td-dashboard--dark' : ''}`} sx={{
       overflow: 'hidden',
       maxWidth: 1440,
       mx: 'auto',
