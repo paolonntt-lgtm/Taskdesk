@@ -1,10 +1,12 @@
 ---
-name: EAS mobile API host
-description: Build-time API domain configuration for EAS native mobile builds.
+name: EAS mobile builds and OTA compatibility
+description: Build-time API host and native-runtime compatibility rules for TaskDesk mobile EAS builds and updates.
 ---
 
 Every EAS profile that produces a distributable native TaskDesk app must set `EXPO_PUBLIC_DOMAIN` to the verified public production host. Do not rely on Replit development-domain variables being available to EAS cloud builds.
 
-**Why:** The mobile API helper constructs absolute HTTPS URLs only when this build-time variable is present. Without it, native requests can target an invalid relative API path and fail before reaching the production API.
+EAS Update uses `runtimeVersion` based on `appVersion`. Bump the app version whenever native code, native modules, permissions, or native configuration changes, then increment Android `versionCode` so the new binary installs as an upgrade. OTA bundles are downloaded by compatible installed binaries when they check on launch, but source changes still need to be published to the matching EAS channel.
 
-**How to apply:** When creating or changing an EAS preview or production build, verify that its profile resolves `EXPO_PUBLIC_DOMAIN` to the current verified production domain before triggering the build.
+**Why:** The mobile API helper constructs absolute HTTPS URLs only when the build-time host is present. Also, an OTA bundle cannot add or change native code, so sharing a runtime across incompatible binaries can produce broken updates.
+
+**How to apply:** For preview and production builds, verify `EXPO_PUBLIC_DOMAIN` and channel settings. Before native changes, bump app version and Android version code; for JavaScript-only changes, publish to the matching channel with the existing update script.
