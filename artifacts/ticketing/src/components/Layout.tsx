@@ -56,7 +56,6 @@ import {
   Search,
   BugReport,
   WhatsApp,
-  FolderOpen,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -568,7 +567,6 @@ export default function Layout({ children }: LayoutProps) {
     { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
-    { text: 'Drive', icon: <FolderOpen />, path: '/drive', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
       : []),
