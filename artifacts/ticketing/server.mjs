@@ -69,7 +69,7 @@ function writeResponse(res, statusCode, headers, body) {
   else res.end();
 }
 
-function resolveStaticPath(requestPath) {
+function resolveStaticPath(requestPath, root = staticRoot) {
   let decoded;
   try {
     decoded = decodeURIComponent(requestPath);
@@ -77,8 +77,8 @@ function resolveStaticPath(requestPath) {
     return { error: "invalid" };
   }
 
-  const candidate = path.resolve(staticRoot, `.${decoded}`);
-  if (candidate !== staticRoot && !candidate.startsWith(`${staticRoot}${path.sep}`)) {
+  const candidate = path.resolve(root, `.${decoded}`);
+  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) {
     return { error: "forbidden" };
   }
   return { path: candidate };
@@ -116,47 +116,52 @@ function serveFile(filePath, req, res, staging) {
   return true;
 }
 
-const server = http.createServer((req, res) => {
-  if (enforceStagingAccess(req, res, { healthPaths: ["/healthz", `${basePath}/healthz`] })) {
-    return;
-  }
+export function createTicketingServer({ root = staticRoot, mountPath = basePath } = {}) {
+  return http.createServer((req, res) => {
+    if (enforceStagingAccess(req, res, { healthPaths: ["/healthz", `${mountPath}/healthz`] })) {
+      return;
+    }
 
-  const parsedUrl = new URL(req.url || "/", "http://localhost");
-  let pathname = parsedUrl.pathname;
-  if (basePath !== "/" && (pathname === basePath || pathname.startsWith(`${basePath}/`))) {
-    pathname = pathname.slice(basePath.length) || "/";
-  } else if (basePath !== "/" && pathname !== "/healthz") {
+    const parsedUrl = new URL(req.url || "/", "http://localhost");
+    let pathname = parsedUrl.pathname;
+    if (mountPath !== "/" && (pathname === mountPath || pathname.startsWith(`${mountPath}/`))) {
+      pathname = pathname.slice(mountPath.length) || "/";
+    } else if (mountPath !== "/" && pathname !== "/healthz") {
+      writeResponse(res, 404, { "Content-Type": "text/plain; charset=utf-8" }, "Not Found");
+      return;
+    }
+
+    if (pathname === "/healthz") {
+      writeResponse(res, 200, { "Content-Type": "text/plain; charset=utf-8" }, "ok");
+      return;
+    }
+
+    const resolved = resolveStaticPath(pathname, root);
+    if (resolved.error === "invalid") {
+      writeResponse(res, 400, { "Content-Type": "text/plain; charset=utf-8" }, "Bad Request");
+      return;
+    }
+    if (resolved.error === "forbidden") {
+      writeResponse(res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
+      return;
+    }
+
+    const staging = isStagingRequest(req);
+    if ([".map", ".br", ".gz"].includes(path.extname(resolved.path).toLowerCase())) {
+      writeResponse(res, 404, { "Content-Type": "text/plain; charset=utf-8" }, "Not Found");
+      return;
+    }
+    if (serveFile(resolved.path, req, res, staging)) return;
+
+    const indexPath = path.join(root, "index.html");
+    if (serveFile(indexPath, req, res, staging)) return;
     writeResponse(res, 404, { "Content-Type": "text/plain; charset=utf-8" }, "Not Found");
-    return;
-  }
+  });
+}
 
-  if (pathname === "/healthz") {
-    writeResponse(res, 200, { "Content-Type": "text/plain; charset=utf-8" }, "ok");
-    return;
-  }
-
-  const resolved = resolveStaticPath(pathname);
-  if (resolved.error === "invalid") {
-    writeResponse(res, 400, { "Content-Type": "text/plain; charset=utf-8" }, "Bad Request");
-    return;
-  }
-  if (resolved.error === "forbidden") {
-    writeResponse(res, 403, { "Content-Type": "text/plain; charset=utf-8" }, "Forbidden");
-    return;
-  }
-
-  const staging = isStagingRequest(req);
-  if ([".map", ".br", ".gz"].includes(path.extname(resolved.path).toLowerCase())) {
-    writeResponse(res, 404, { "Content-Type": "text/plain; charset=utf-8" }, "Not Found");
-    return;
-  }
-  if (serveFile(resolved.path, req, res, staging)) return;
-
-  const indexPath = path.join(staticRoot, "index.html");
-  if (serveFile(indexPath, req, res, staging)) return;
-  writeResponse(res, 404, { "Content-Type": "text/plain; charset=utf-8" }, "Not Found");
-});
-
-server.listen(port, "0.0.0.0", () => {
-  console.log(`Ticketing server listening on port ${port}`);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const server = createTicketingServer();
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Ticketing server listening on port ${port}`);
+  });
+}
