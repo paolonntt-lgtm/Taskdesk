@@ -301,12 +301,12 @@ function handleDriveFailure(req: Request, res: ExpressResponse, error: unknown):
 }
 
 router.get("/drive/oauth/start", requireAuth, async (req, res): Promise<void> => {
-  const parsed = StartDriveOAuthQueryParams.safeParse(req.query);
+  const parsed = ListDrivePickerFoldersQueryParams.safeParse(req.query);
   if (!parsed.success) {
     sendError(res, 400, "INVALID_REQUEST", "A valid ticket id is required.");
     return;
   }
-  const ticket = await getVisibleTicket(req, parsed.data.ticketId);
+  const ticket = await getVisibleTicket(req, params.data.id);
   if (!ticket) {
     sendError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     return;
@@ -360,7 +360,7 @@ function startDriveOAuth(
 }
 
 router.get("/drive/session/oauth/start", requireAuth, (req, res): void => {
-  const context = req.query.context;
+    const context = pending?.context ?? (stateMatch?.[2] as "library" | "new-ticket" | undefined) ?? "ticket";
   if (context !== "library" && context !== "new-ticket") {
     sendError(res, 400, "INVALID_REQUEST", "A valid Drive connection context is required.");
     return;
@@ -474,7 +474,7 @@ router.get("/drive/items", requireAuth, async (req, res): Promise<void> => {
   }
   const accessToken = getTemporaryToken(req);
   if (!accessToken) {
-    sendError(res, 401, "DRIVE_AUTH_REQUIRED", "Connect Google Drive to browse files.");
+    sendError(res, 401, "DRIVE_AUTH_REQUIRED", "Connect Google Drive to choose a folder.");
     return;
   }
   const parentId = parsed.data.parentId ?? "root";
@@ -527,7 +527,19 @@ router.get("/drive/picker", requireAuth, async (req, res): Promise<void> => {
         return;
       }
     }
-    const folders = await listDriveChildren(accessToken, parentId, true);
+  const folders = await db
+    .select({
+      id: ticketDriveFoldersTable.id,
+      driveFolderId: ticketDriveFoldersTable.driveFolderId,
+      folderName: ticketDriveFoldersTable.folderName,
+      createdAt: ticketDriveFoldersTable.createdAt,
+    })
+    .from(ticketDriveFoldersTable)
+    .where(and(
+      eq(ticketDriveFoldersTable.ticketId, ticket.id),
+      eq(ticketDriveFoldersTable.organizationId, ticket.organizationId!),
+    ))
+    .orderBy(ticketDriveFoldersTable.createdAt);
     res.json(folders.map((folder) => ({
       driveFolderId: folder.id,
       folderName: folder.name,
@@ -543,7 +555,7 @@ router.get("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<
     sendError(res, 400, "INVALID_REQUEST", "Invalid ticket id.");
     return;
   }
-  const ticket = await getVisibleTicket(req, ticketId);
+  const ticket = await getVisibleTicket(req, params.data.id);
   if (!ticket) {
     sendError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     return;
@@ -565,7 +577,7 @@ router.get("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<
 });
 
 router.post("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<void> => {
-  const params = AddTicketDriveFolderParams.safeParse(req.params);
+  const params = ListTicketDriveFolderItemsParams.safeParse(req.params);
   const body = AddTicketDriveFolderBody.safeParse(req.body);
   if (!params.success || !body.success ||
       !/^[A-Za-z0-9_-]{1,256}$/.test(body.data.folderId)) {
@@ -625,7 +637,7 @@ router.post("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise
 });
 
 router.delete("/tickets/:id/drive-folders/:referenceId", requireAuth, async (req, res): Promise<void> => {
-  const params = RemoveTicketDriveFolderParams.safeParse(req.params);
+  const params = ListTicketDriveFolderItemsParams.safeParse(req.params);
   if (!params.success) {
     sendError(res, 400, "INVALID_REQUEST", "Invalid ticket or folder reference.");
     return;

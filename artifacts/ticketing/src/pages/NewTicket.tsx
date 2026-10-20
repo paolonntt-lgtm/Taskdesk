@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, CircularProgress, Tooltip, IconButton,
   Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
 } from '@mui/material';
-import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon } from '@mui/icons-material';
+import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon, FolderOutlined } from '@mui/icons-material';
 import { useCreateTicket, useUpdateTicket, useGetTicket, useListUsers, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
+import DriveBrowser, { type SelectedDriveFolder } from '../components/DriveBrowser';
 import { trackEvent } from '../lib/analytics';
 import { buildNewTicketAssociations } from '../lib/newTicketAssociations';
 
@@ -92,6 +93,8 @@ export default function NewTicket() {
   });
 
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [driveFolders, setDriveFolders] = useState<SelectedDriveFolder[]>([]);
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
   const [checklistError, setChecklistError] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -138,6 +141,14 @@ export default function NewTicket() {
   const [quickAddEmail, setQuickAddEmail] = useState('');
   const [quickAddPhone, setQuickAddPhone] = useState('');
   const [quickAddSaving, setQuickAddSaving] = useState(false);
+
+  const addDriveFolder = (folder: SelectedDriveFolder) => {
+    setDriveFolders((previous) =>
+      previous.some((item) => item.driveFolderId === folder.driveFolderId)
+        ? previous
+        : [...previous, folder],
+    );
+  };
 
   const handleQuickAddClient = async () => {
     if (!quickAddName.trim()) return;
@@ -434,6 +445,28 @@ export default function NewTicket() {
           },
         });
         ticketId = created.id;
+      }
+
+      if (!isEditing && driveFolders.length > 0) {
+        let failedLinks = 0;
+        for (const folder of driveFolders) {
+          try {
+            const response = await fetch(`/api/tickets/${ticketId}/drive-folders`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ folderId: folder.driveFolderId }),
+            });
+            if (!response.ok) failedLinks += 1;
+          } catch {
+            failedLinks += 1;
+          }
+        }
+        if (failedLinks > 0) {
+          window.alert(lang === 'it'
+            ? 'Ticket creato, ma non è stato possibile collegare una o più cartelle Drive. Puoi riprovare dal dettaglio del ticket.'
+            : 'Ticket created, but one or more Drive folders could not be linked. You can retry from the ticket details.');
+        }
       }
 
       for (const att of pendingAttachments) {
@@ -853,6 +886,44 @@ export default function NewTicket() {
               />
             </Box>
 
+            {!isEditing && (
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    {lang === 'it' ? 'Cartelle Google Drive' : 'Google Drive folders'}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<FolderOutlined />}
+                    onClick={() => setDrivePickerOpen(true)}
+                  >
+                    {lang === 'it' ? 'Collega cartella' : 'Link folder'}
+                  </Button>
+                </Box>
+                {driveFolders.length > 0 ? (
+                  <Box display="flex" gap={0.75} flexWrap="wrap" mt={1}>
+                    {driveFolders.map((folder) => (
+                      <Chip
+                        key={folder.driveFolderId}
+                        label={folder.folderName}
+                        size="small"
+                        icon={<FolderOutlined />}
+                        onDelete={() => setDriveFolders((previous) =>
+                          previous.filter((item) => item.driveFolderId !== folder.driveFolderId))}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" mt={0.75}>
+                    {lang === 'it'
+                      ? 'Facoltativo: scegli una cartella da associare al ticket.'
+                      : 'Optional: choose a folder to link to this ticket.'}
+                  </Typography>
+                )}
+              </Paper>
+            )}
+
             {/* Checklist */}
             {!isEditing && (
               <NewTicketChecklistSection
@@ -1209,6 +1280,17 @@ export default function NewTicket() {
           </Button>
         </DialogActions>
       </Dialog>
+      {!isEditing && (
+        <Dialog open={drivePickerOpen} onClose={() => setDrivePickerOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>{lang === 'it' ? 'Scegli una cartella Google Drive' : 'Choose a Google Drive folder'}</DialogTitle>
+          <DialogContent dividers>
+            <DriveBrowser context="new-ticket" selectionMode onSelectFolder={addDriveFolder} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDrivePickerOpen(false)}>{t.newTicket.cancel}</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 }

@@ -67,8 +67,21 @@ Android push notifications are delivered via Firebase Cloud Messaging (FCM).
    ```bash
    cp ~/Downloads/google-services.json artifacts/mobile/google-services.json
    ```
-   > **Important:** Do **not** commit this file to a public repository — it contains your Firebase project credentials.
-   > Add it to `.gitignore` if you use Git.
+   > **Important:** Keep this file out of Git. It is already ignored in this repository.
+
+   For EAS cloud builds, upload it as a secret file variable for the preview
+   environment. Run this from `artifacts/mobile/`:
+   ```bash
+   eas env:create preview \
+     --name GOOGLE_SERVICES_JSON \
+     --type file \
+     --visibility secret \
+     --value ./google-services.json \
+     --non-interactive
+   ```
+   `app.config.js` uses this file variable in EAS builds and the local ignored
+   file for local native builds. Create a separate file variable for any other
+   EAS environment you build.
 
 7. Back in the Firebase Console, go to **Project Settings → Cloud Messaging** and verify that the **Firebase Cloud Messaging API (V1)** is enabled.
 

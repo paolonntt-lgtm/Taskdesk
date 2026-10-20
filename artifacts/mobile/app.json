@@ -54,8 +54,7 @@
           "androidMode": "default",
           "androidCollapsedTitle": "TaskDesk"
         }
-      ],
-      "@react-native-community/datetimepicker"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
