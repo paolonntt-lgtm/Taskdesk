@@ -17,7 +17,8 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
+        "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
+        "EXPO_PUBLIC_DOMAIN": "www.taskdesk.it"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +26,8 @@
     },
     "production": {
       "env": {
-        "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
+        "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
+        "EXPO_PUBLIC_DOMAIN": "www.taskdesk.it"
       },
       "android": {
         "buildType": "app-bundle"

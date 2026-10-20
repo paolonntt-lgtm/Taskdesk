@@ -39,6 +39,7 @@
 - [TaskDesk landing hero scope](landing-hero-visual-scope.md) — Keep hero refinements limited to the right-side visual unless the user asks for broader changes.
 - [Dependency remediation policy](dependency-remediation-policy.md) — Preserve audit visibility for locally patched, unmaintained dependencies; verify consumer behavior, not just version numbers.
 - [Expo SDK alignment in this workspace](expo-sdk-pnpm-alignment.md) — If Expo CLI's pnpm child rejects workspace patches, preserve patches and use Expo's printed versions with a scoped pnpm override.
+- [EAS mobile API host](eas-mobile-api-host.md) — Cloud Android builds need EXPO_PUBLIC_DOMAIN in each EAS profile; Replit workspace domains are not inherited.
 - [Expo web export base path](expo-web-export-base-path.md) — Static web exports need the artifact prefix, and Expo dev previews must be opened at that prefix too.
 - [Express middleware typing](express-middleware-typing.md) — Typed single middleware handlers preserve route parameter inference; passing middleware arrays may leave route handlers implicit-any.
 - [Presentazione email nei ticket](forwarded-email-cleanup.md) — Conservare il testo integrale; evidenziare il messaggio e attenuare visivamente intestazioni e firma.
