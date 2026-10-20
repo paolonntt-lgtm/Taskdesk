@@ -52,6 +52,7 @@ type DriveApiFailure = {
   status: number;
   code: string;
   message: string;
+  googleReason?: string;
 };
 
 const pendingStates = new Map<string, PendingDriveState>();
@@ -175,12 +176,37 @@ async function getVisibleTicket(req: Request, ticketId: number) {
   return ticket;
 }
 
-function readGoogleError(response: globalThis.Response): DriveApiFailure {
+async function readGoogleError(response: globalThis.Response): Promise<DriveApiFailure> {
+  const payload = await response.clone().json().catch(() => null) as
+    | { error?: { message?: string; errors?: Array<{ reason?: string }> } }
+    | null;
+  const googleMessage = payload?.error?.message ?? "";
+  const googleReason = payload?.error?.errors?.[0]?.reason;
   if (response.status === 401) {
     return { status: 401, code: "DRIVE_TOKEN_EXPIRED", message: "Google Drive authorization expired." };
   }
   if (response.status === 403) {
-    return { status: 403, code: "DRIVE_ACCESS_DENIED", message: "Google Drive denied access to this folder." };
+    const apiDisabled =
+      googleReason === "accessNotConfigured" ||
+      /drive api.*(not been used|disabled)|enable.*drive api/i.test(googleMessage);
+    if (apiDisabled) {
+      return {
+        status: 503,
+        code: "DRIVE_API_NOT_ENABLED",
+        message: "Google Drive API is not enabled for this Google Cloud project. Enable the Google Drive API, then reconnect.",
+        googleReason,
+      };
+    }
+    const scopeDenied = ["insufficientPermissions", "insufficientFilePermissions", "appNotAuthorizedToFile"]
+      .includes(googleReason ?? "");
+    return {
+      status: 403,
+      code: "DRIVE_ACCESS_DENIED",
+      message: scopeDenied
+        ? "The connected Google account or its Drive permissions do not allow this request. Reconnect with the account that can access these files."
+        : "Google Drive denied access. Check that the Drive API is enabled and the connected account has access, then reconnect.",
+      googleReason,
+    };
   }
   if (response.status === 404) {
     return { status: 403, code: "DRIVE_ACCESS_REVOKED", message: "The folder is unavailable or access was revoked." };
@@ -197,7 +223,7 @@ async function getDriveFile(accessToken: string, id: string): Promise<DriveFile>
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok) throw readGoogleError(response);
+  if (!response.ok) throw await readGoogleError(response);
   return await response.json() as DriveFile;
 }
 
@@ -220,7 +246,7 @@ async function listDriveChildren(
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok) throw readGoogleError(response);
+  if (!response.ok) throw await readGoogleError(response);
   const payload = await response.json() as { files?: DriveFile[] };
   return (payload.files ?? []).filter((file) => file.id && file.name && file.mimeType);
 }
@@ -252,6 +278,12 @@ function handleDriveFailure(req: Request, res: ExpressResponse, error: unknown):
   if (error && typeof error === "object" && "status" in error && "code" in error) {
     const failure = error as DriveApiFailure;
     if (failure.status === 401) clearTemporaryToken(req);
+    if (failure.status === 403 || failure.code === "DRIVE_API_NOT_ENABLED") {
+      req.log?.warn?.(
+        { googleReason: failure.googleReason, driveErrorCode: failure.code },
+        "Google Drive rejected a request",
+      );
+    }
     sendError(res, failure.status, failure.code, failure.message);
     return;
   }
