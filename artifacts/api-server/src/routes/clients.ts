@@ -966,7 +966,7 @@ router.delete("/clients/:id", requireClientFeature, requireAdmin, async (req, re
 
   await db
     .update(ticketsTable)
-    .set({ clientId: null })
+    .set({ clientId: null, suggestedClientId: null })
     .where(and(eq(ticketsTable.clientId, id), eq(ticketsTable.organizationId, currentUser.organizationId)));
 
   const [deleted] = await db

@@ -36,6 +36,7 @@ export const ticketsTable = pgTable("tickets", {
   emailConversationId: text("email_conversation_id"),
   inboundChannelId: integer("inbound_channel_id").references(() => inboundEmailChannelsTable.id),
   clientId: integer("client_id").references(() => clientsTable.id),
+  suggestedClientId: integer("suggested_client_id").references(() => clientsTable.id, { onDelete: "set null" }),
   recurrenceRule: jsonb("recurrence_rule"),
   recurrenceNextAt: timestamp("recurrence_next_at", { withTimezone: true }),
   recurrenceParentId: integer("recurrence_parent_id").references((): any => ticketsTable.id),
@@ -52,6 +53,7 @@ export const ticketsTable = pgTable("tickets", {
   index("tickets_organization_id_idx").on(t.organizationId),
   index("tickets_email_message_id_idx").on(t.emailMessageId),
   index("tickets_email_conversation_id_idx").on(t.emailConversationId),
+  index("tickets_suggested_client_id_idx").on(t.suggestedClientId),
 ]);
 
 export const insertTicketSchema = createInsertSchema(ticketsTable).omit({ id: true, createdAt: true, updatedAt: true });

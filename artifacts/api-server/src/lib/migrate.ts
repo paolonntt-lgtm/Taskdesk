@@ -77,6 +77,47 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS clients_enabled BOOLEAN NOT NULL DEFAULT true;
     `);
 
+    // Email tickets can keep pending client suggestions until an admin confirms them.
+    // Sender and domain rules are persisted separately and remain organization-scoped.
+    await client.query(`
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS suggested_client_id INTEGER
+        CONSTRAINT tickets_suggested_client_id_clients_id_fk
+        REFERENCES clients(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS tickets_suggested_client_id_idx
+        ON tickets (suggested_client_id);
+
+      CREATE TABLE IF NOT EXISTS email_client_sender_rules (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL
+          CONSTRAINT email_client_sender_rules_organization_id_organizations_id_fk
+          REFERENCES organizations(id) ON DELETE CASCADE,
+        sender_email TEXT NOT NULL,
+        client_id INTEGER NOT NULL
+          CONSTRAINT email_client_sender_rules_client_id_clients_id_fk
+          REFERENCES clients(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT email_client_sender_rules_org_email_uniq UNIQUE (organization_id, sender_email)
+      );
+      CREATE INDEX IF NOT EXISTS email_client_sender_rules_client_idx
+        ON email_client_sender_rules (client_id);
+
+      CREATE TABLE IF NOT EXISTS email_client_domain_rules (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL
+          CONSTRAINT email_client_domain_rules_organization_id_organizations_id_fk
+          REFERENCES organizations(id) ON DELETE CASCADE,
+        domain TEXT NOT NULL,
+        client_id INTEGER NOT NULL
+          CONSTRAINT email_client_domain_rules_client_id_clients_id_fk
+          REFERENCES clients(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT email_client_domain_rules_org_domain_uniq UNIQUE (organization_id, domain)
+      );
+      CREATE INDEX IF NOT EXISTS email_client_domain_rules_client_idx
+        ON email_client_domain_rules (client_id);
+    `);
+
     // Persist only whether this organization tried a referral code, not the code or referrer identity.
     await client.query(`
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS referral_attempted BOOLEAN NOT NULL DEFAULT false;

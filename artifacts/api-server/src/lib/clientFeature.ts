@@ -16,9 +16,17 @@ export async function isClientFeatureEnabled(organizationId: number | null | und
 export function redactClientData<T extends object>(value: T, clientsEnabled: boolean): T {
   if (clientsEnabled) return value;
 
-  const { clientId: _clientId, client: _client, ...ticketWithoutClientData } = value as T & {
+  const {
+    clientId: _clientId,
+    client: _client,
+    suggestedClientId: _suggestedClientId,
+    suggestedClient: _suggestedClient,
+    ...ticketWithoutClientData
+  } = value as T & {
     clientId?: unknown;
     client?: unknown;
+    suggestedClientId?: unknown;
+    suggestedClient?: unknown;
   };
   return ticketWithoutClientData as T;
 }

@@ -167,6 +167,8 @@ export default function TicketDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
+  const [clientSuggestionBusy, setClientSuggestionBusy] = useState(false);
+  const [clientSuggestionError, setClientSuggestionError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(false);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
@@ -865,6 +867,23 @@ export default function TicketDetail() {
   const canChangeAssignment = (ticket as any).timeTrackingEnabled
     ? isAdmin || hasGroupPerm('assign_time_tracked_tickets')
     : isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
+  const handleClientSuggestion = async (action: 'confirm' | 'dismiss') => {
+    setClientSuggestionBusy(true);
+    setClientSuggestionError(null);
+    try {
+      const response = await fetch(`/api/tickets/${ticketId}/client-suggestion/${action}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error();
+      await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
+      await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+    } catch {
+      setClientSuggestionError(t.ticketDetail.clientSuggestionActionError);
+    } finally {
+      setClientSuggestionBusy(false);
+    }
+  };
   const openDueAtEditor = (anchor: HTMLElement) => {
     const dueAt = (ticket as any).dueAt;
     setDueEditVal(dueAt ? toLocalDatetimeInput(dueAt) : '');
@@ -1135,6 +1154,48 @@ export default function TicketDetail() {
           <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
           </Box>
+
+          {isAdmin && (ticket as any).suggestedClient && (
+            <Alert
+              severity="info"
+              data-testid="client-suggestion-alert"
+              sx={{ mb: 2, alignItems: 'center' }}
+              action={
+                <Box display="flex" gap={0.75} flexWrap="wrap" justifyContent="flex-end">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<CheckCircleOutline />}
+                    disabled={clientSuggestionBusy}
+                    data-testid="button-confirm-client-suggestion"
+                    onClick={() => void handleClientSuggestion('confirm')}
+                  >
+                    {t.ticketDetail.clientSuggestionConfirm}
+                  </Button>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={clientSuggestionBusy}
+                    data-testid="button-dismiss-client-suggestion"
+                    onClick={() => void handleClientSuggestion('dismiss')}
+                  >
+                    {t.ticketDetail.clientSuggestionDismiss}
+                  </Button>
+                </Box>
+              }
+            >
+              <Typography variant="body2" data-testid="text-client-suggestion">
+                {t.ticketDetail.clientSuggestionIntro}{' '}
+                <strong>{(ticket as any).suggestedClient.alias || (ticket as any).suggestedClient.name}</strong>
+                {' — '}{t.ticketDetail.clientSuggestionDomainInfo}
+              </Typography>
+              {clientSuggestionError && (
+                <Typography variant="caption" color="error" display="block" mt={0.5}>
+                  {clientSuggestionError}
+                </Typography>
+              )}
+            </Alert>
+          )}
 
           {/* Description block — flat, no card border */}
           <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>

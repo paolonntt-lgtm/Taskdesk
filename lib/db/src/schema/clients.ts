@@ -27,3 +27,25 @@ export const clientsTable = pgTable("clients", {
 ]);
 
 export type Client = typeof clientsTable.$inferSelect;
+
+export const emailClientSenderRulesTable = pgTable("email_client_sender_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
+  senderEmail: text("sender_email").notNull(),
+  clientId: integer("client_id").notNull().references(() => clientsTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("email_client_sender_rules_org_email_uniq").on(t.organizationId, t.senderEmail),
+  index("email_client_sender_rules_client_idx").on(t.clientId),
+]);
+
+export const emailClientDomainRulesTable = pgTable("email_client_domain_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(),
+  clientId: integer("client_id").notNull().references(() => clientsTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("email_client_domain_rules_org_domain_uniq").on(t.organizationId, t.domain),
+  index("email_client_domain_rules_client_idx").on(t.clientId),
+]);

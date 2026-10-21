@@ -1,10 +1,12 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable, clientsTable, emailClientSenderRulesTable, emailClientDomainRulesTable } from "@workspace/db";
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { hasReplySubjectPrefix, normaliseEmailSubject } from "./emailSubject";
 import { randomUUID } from "crypto";
+import { domainForSender, normalizeSenderEmail, resolveEmailClientAssociation } from "./emailClientAssociation";
+import { isClientFeatureEnabled } from "./clientFeature";
 
 import type { InboundAttachment } from "./pecUtils";
 export type { InboundAttachment };
@@ -80,6 +82,62 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
     }
   } catch { /* ignore */ }
   return {};
+}
+
+async function getInboundClientAssociation(
+  orgId: number | null,
+  senderEmail: string,
+): Promise<{ clientId: number | null; suggestedClientId: number | null }> {
+  if (orgId == null) {
+    return { clientId: null, suggestedClientId: null };
+  }
+  if (!(await isClientFeatureEnabled(orgId))) {
+    return resolveEmailClientAssociation({
+      organizationId: orgId,
+      senderEmail,
+      clientsEnabled: false,
+      clients: [],
+      senderRules: [],
+      domainRules: [],
+    });
+  }
+
+  const normalizedSender = normalizeSenderEmail(senderEmail);
+  if (!normalizedSender) return { clientId: null, suggestedClientId: null };
+  const domain = domainForSender(normalizedSender);
+  const [clients, senderRules, domainRules] = await Promise.all([
+    db.select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+      alias: clientsTable.alias,
+      email: clientsTable.email,
+      pec: clientsTable.pec,
+    }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
+    db.select({
+      organizationId: emailClientSenderRulesTable.organizationId,
+      senderEmail: emailClientSenderRulesTable.senderEmail,
+      clientId: emailClientSenderRulesTable.clientId,
+    }).from(emailClientSenderRulesTable).where(and(
+      eq(emailClientSenderRulesTable.organizationId, orgId),
+      eq(emailClientSenderRulesTable.senderEmail, normalizedSender),
+    )),
+    domain ? db.select({
+      organizationId: emailClientDomainRulesTable.organizationId,
+      domain: emailClientDomainRulesTable.domain,
+      clientId: emailClientDomainRulesTable.clientId,
+    }).from(emailClientDomainRulesTable).where(and(
+      eq(emailClientDomainRulesTable.organizationId, orgId),
+      eq(emailClientDomainRulesTable.domain, domain),
+    )) : Promise.resolve([]),
+  ]);
+
+  return resolveEmailClientAssociation({
+    organizationId: orgId,
+    senderEmail: normalizedSender,
+    clients: clients.map((client) => ({ ...client, organizationId: orgId })),
+    senderRules,
+    domainRules,
+  });
 }
 
 const TICKET_NUMBER_RE = /\[#(\d+)\]/;
@@ -265,6 +323,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
+  const clientAssociation = await getInboundClientAssociation(orgId, fromEmail);
 
   const isAdminOnly = routing.defaultVisibility === "admins";
 
@@ -343,6 +402,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       emailMessageId: messageId ?? null,
       emailConversationId: conversationId ?? null,
       inboundChannelId: inboundChannelId ?? null,
+      clientId: clientAssociation.clientId,
+      suggestedClientId: clientAssociation.suggestedClientId,
     })
     .returning();
 
