@@ -82,4 +82,67 @@ describe("compactEmailDetailLinks", () => {
     expect(secondQuote.message).toContain("ti sarei grata se potessi aiutarmi.");
     expect(secondQuote.details).toContain("Tiziana Pietrolungo");
   });
+
+  it("keeps Italian replies in thread order without treating signatures or footers as replies", () => {
+    const details = [
+      "Firma e recapiti del mittente",
+      "--",
+      "Informativa sulla privacy",
+      "Il giorno 21 ottobre 2026, Paolo ha scritto:",
+      "Prima risposta citata",
+      "Cordiali saluti",
+      "Paolo",
+      "Il giorno 20 ottobre 2026, Tiziana ha scritto:",
+      "Seconda risposta citata",
+      "Grazie",
+      "Tiziana",
+    ].join("\n");
+
+    const thread = splitEmailThreadDetails(details);
+
+    expect(thread.quotedEmails.map(({ header }) => header)).toEqual([
+      "Il giorno 21 ottobre 2026, Paolo ha scritto:",
+      "Il giorno 20 ottobre 2026, Tiziana ha scritto:",
+    ]);
+    expect(thread.quotedEmails.map(({ body }) => body)).toEqual([
+      "Prima risposta citata\nCordiali saluti\nPaolo",
+      "Seconda risposta citata\nGrazie\nTiziana",
+    ]);
+    expect(thread.signatureAndFooter).toContain("Firma e recapiti del mittente");
+    expect(thread.signatureAndFooter).toContain("Informativa sulla privacy");
+  });
+
+  it("recognizes English quoted replies and preserves their original order", () => {
+    const details = [
+      "Best regards,",
+      "Current sender",
+      "On October 21, 2026, Alex wrote:",
+      "First quoted reply",
+      "Regards,",
+      "Alex",
+      "From: Jamie <jamie@example.com>",
+      "Second quoted reply",
+    ].join("\n");
+
+    const thread = splitEmailThreadDetails(details);
+
+    expect(thread.quotedEmails.map(({ header }) => header)).toEqual([
+      "On October 21, 2026, Alex wrote:",
+      "From: Jamie <jamie@example.com>",
+    ]);
+    expect(thread.quotedEmails.map(({ body }) => body)).toEqual([
+      "First quoted reply\nRegards,\nAlex",
+      "Second quoted reply",
+    ]);
+    expect(thread.signatureAndFooter).toBe("Best regards,\nCurrent sender");
+  });
+
+  it("returns no extra quoted sections for a single reply or a message without quoted replies", () => {
+    const singleReply = splitEmailThreadDetails("Sent from my phone\nIl 21 ottobre 2026, Paolo ha scritto:\nRisposta precedente");
+    const noReplies = splitEmailThreadDetails("Firma\nFooter informativo");
+
+    expect(singleReply.quotedEmails).toHaveLength(1);
+    expect(noReplies.quotedEmails).toHaveLength(0);
+    expect(noReplies.signatureAndFooter).toBe("Firma\nFooter informativo");
+  });
 });
