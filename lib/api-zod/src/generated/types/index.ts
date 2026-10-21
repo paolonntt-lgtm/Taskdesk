@@ -132,6 +132,7 @@ export * from './ticketTimeSessionEdit';
 export * from './ticketTimeSummary';
 export * from './ticketVisibility';
 export * from './ticketWithDetails';
+export * from './ticketWithDetailsClientAssociationIssue';
 export * from './ticketWorkedBillingStatus';
 export * from './timeTrackingClientBillingUpdate';
 export * from './timeTrackingClientBillingUpdateStatus';

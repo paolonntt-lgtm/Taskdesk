@@ -3637,6 +3637,9 @@ components:
             inboundChannelName:
               type: string
               nullable: true
+            clientAssociationIssue:
+              type: string
+              enum: [conflicting_exact_matches, conflicting_domain_rules]
             timeSessions:
               type: array
               items:

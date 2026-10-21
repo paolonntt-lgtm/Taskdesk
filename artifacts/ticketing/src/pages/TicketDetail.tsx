@@ -1214,7 +1214,7 @@ export default function TicketDetail() {
 
           {clientsEnabled && !hideAssociatedInboundClientSelector && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
-              {isAdmin ? (
+              {isAdmin && !hideAssociatedInboundClientSelector ? (
                 <Autocomplete
                   size="small"
                   options={clientOptions}
@@ -1251,7 +1251,7 @@ export default function TicketDetail() {
                   />
                 </Box>
               )}
-              {isAdmin && (
+              {isAdmin && !hideAssociatedInboundClientSelector && (
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"
@@ -1287,6 +1287,17 @@ export default function TicketDetail() {
               )}
               {clientAssociationError && (
                 <FormHelperText error>{clientAssociationError}</FormHelperText>
+              )}
+              {isAdmin && (ticket as any).clientAssociationIssue && (
+                <Alert
+                  severity="warning"
+                  data-testid="client-association-issue-alert"
+                  sx={{ mt: 1.5 }}
+                >
+                  {(ticket as any).clientAssociationIssue === 'conflicting_exact_matches'
+                    ? t.ticketDetail.emailClientAssociationExactConflict
+                    : t.ticketDetail.emailClientAssociationDomainConflict}
+                </Alert>
               )}
             </Box>
           )}

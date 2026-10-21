@@ -72,7 +72,11 @@ describe("email client association", () => {
 
   it("does not auto-assign conflicting contact and learned rules", () => {
     expect(resolve("billing@caffeaurora.it", [{ organizationId: 7, senderEmail: "billing@caffeaurora.it", clientId: 2 }]))
-      .toEqual({ clientId: null, suggestedClientId: null });
+      .toEqual({
+        clientId: null,
+        suggestedClientId: null,
+        clientAssociationIssue: "conflicting_exact_matches",
+      });
   });
 
   it("does not auto-assign when multiple clients claim the same email", () => {
@@ -84,14 +88,22 @@ describe("email client association", () => {
       email: "billing@caffeaurora.it",
     }];
     expect(resolve("billing@caffeaurora.it", [], [], duplicateContact))
-      .toEqual({ clientId: null, suggestedClientId: null });
+      .toEqual({
+        clientId: null,
+        suggestedClientId: null,
+        clientAssociationIssue: "conflicting_exact_matches",
+      });
   });
 
   it("does not apply conflicting confirmed domain rules", () => {
     expect(resolve("andrea@caffeaurora.it", [], [
       { organizationId: 7, domain: "caffeaurora.it", clientId: 1 },
       { organizationId: 7, domain: "caffeaurora.it", clientId: 2 },
-    ])).toEqual({ clientId: null, suggestedClientId: null });
+    ])).toEqual({
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_domain_rules",
+    });
   });
 
   it("does not apply rules or clients from another organization", () => {

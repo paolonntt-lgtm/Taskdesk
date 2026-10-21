@@ -8,6 +8,7 @@
 import type { Ticket } from './ticket';
 import type { TicketTimeSession } from './ticketTimeSession';
 import type { TicketTimeSummary } from './ticketTimeSummary';
+import type { TicketWithDetailsClientAssociationIssue } from './ticketWithDetailsClientAssociationIssue';
 import type { User } from './user';
 
 export type TicketWithDetails = Ticket & ({
@@ -16,6 +17,7 @@ export type TicketWithDetails = Ticket & ({
   commentCount: number;
   noteCount: number;
   inboundChannelName?: string | null;
+  clientAssociationIssue?: TicketWithDetailsClientAssociationIssue;
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;

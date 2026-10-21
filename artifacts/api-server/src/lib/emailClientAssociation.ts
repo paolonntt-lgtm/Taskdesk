@@ -19,6 +19,7 @@ export interface EmailClientRule {
 export interface EmailClientAssociationResult {
   clientId: number | null;
   suggestedClientId: number | null;
+  clientAssociationIssue?: "conflicting_exact_matches" | "conflicting_domain_rules";
 }
 
 const GENERIC_EMAIL_DOMAINS = new Set([
@@ -127,7 +128,13 @@ export function resolveEmailClientAssociation(input: {
   const exactIds = new Set([...exactContactIds, ...learnedExactIds]);
 
   // Conflicting contact data or learned rules are ambiguous and must never auto-assign.
-  if (exactIds.size > 1) return { clientId: null, suggestedClientId: null };
+  if (exactIds.size > 1) {
+    return {
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_exact_matches",
+    };
+  }
   if (exactIds.size === 1) return { clientId: [...exactIds][0], suggestedClientId: null };
 
   const senderDomain = domainForSender(sender);
@@ -140,7 +147,13 @@ export function resolveEmailClientAssociation(input: {
   if (confirmedDomainIds.size === 1) {
     return { clientId: [...confirmedDomainIds][0], suggestedClientId: null };
   }
-  if (confirmedDomainIds.size > 1) return { clientId: null, suggestedClientId: null };
+  if (confirmedDomainIds.size > 1) {
+    return {
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_domain_rules",
+    };
+  }
 
   const candidates = clients.filter((client) =>
     [client.name, client.alias].some((label) => normalizeCompanyName(label) === companyNameKeyForDomain(senderDomain)),

@@ -89,7 +89,7 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
 async function getInboundClientAssociation(
   orgId: number | null,
   senderEmail: string,
-): Promise<{ clientId: number | null; suggestedClientId: number | null }> {
+): Promise<ReturnType<typeof resolveEmailClientAssociation>> {
   if (orgId == null) {
     return { clientId: null, suggestedClientId: null };
   }

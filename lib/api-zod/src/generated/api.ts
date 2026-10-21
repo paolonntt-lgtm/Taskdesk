@@ -767,6 +767,7 @@ export const ListTicketsResponseItem = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -933,6 +934,7 @@ export const CreateTicketResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1071,6 +1073,7 @@ export const GetTicketResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1231,6 +1234,7 @@ export const UpdateTicketResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1428,6 +1432,7 @@ export const CloneTicketResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1581,6 +1586,7 @@ export const SetTicketRecurrenceResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1719,6 +1725,7 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3027,6 +3034,7 @@ export const GetRecentTicketsResponseItem = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3168,6 +3176,7 @@ export const GetMyTicketsResponseItem = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3303,6 +3312,7 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "commentCount": zod.int(),
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
+  "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),

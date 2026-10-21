@@ -402,6 +402,14 @@ export interface Ticket {
   scheduledAt?: string | null;
 }
 
+export type TicketWithDetailsClientAssociationIssue = typeof TicketWithDetailsClientAssociationIssue[keyof typeof TicketWithDetailsClientAssociationIssue];
+
+
+export const TicketWithDetailsClientAssociationIssue = {
+  conflicting_exact_matches: 'conflicting_exact_matches',
+  conflicting_domain_rules: 'conflicting_domain_rules',
+} as const;
+
 export interface TicketTimeSession {
   id: number;
   userId: number;
@@ -428,6 +436,7 @@ export type TicketWithDetails = Ticket & ({
   commentCount: number;
   noteCount: number;
   inboundChannelName?: string | null;
+  clientAssociationIssue?: TicketWithDetailsClientAssociationIssue;
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;
