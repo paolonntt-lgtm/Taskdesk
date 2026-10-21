@@ -169,6 +169,14 @@ export default function TicketDetail() {
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
   const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
   const [clientAssociationError, setClientAssociationError] = useState<string | null>(null);
+  const [clientAssociationDraftId, setClientAssociationDraftId] = useState<number | null>(null);
+  const [clientAssociationSaved, setClientAssociationSaved] = useState(false);
+
+  useEffect(() => {
+    setClientAssociationDraftId(null);
+    setClientAssociationSaved(false);
+    setClientAssociationError(null);
+  }, [ticketId]);
   const [clientSuggestionBusy, setClientSuggestionBusy] = useState(false);
   const [clientSuggestionError, setClientSuggestionError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(false);
@@ -882,12 +890,15 @@ export default function TicketDetail() {
   const handleClientAssociationChange = async (clientId: number) => {
     setClientAssociationBusy(true);
     setClientAssociationError(null);
+    setClientAssociationSaved(false);
     try {
       await updateTicket.mutateAsync({ id: ticketId, data: { clientId } as any });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }),
         queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() }),
       ]);
+      setClientAssociationDraftId(null);
+      setClientAssociationSaved(true);
     } catch {
       setClientAssociationError(t.ticketDetail.clientAssociationUpdateError);
     } finally {
@@ -1189,15 +1200,19 @@ export default function TicketDetail() {
                 <Autocomplete
                   size="small"
                   options={clientOptions}
-                  value={selectedTicketClient}
+                  value={
+                    clientAssociationDraftId === null
+                      ? selectedTicketClient
+                      : clientOptions.find((client: any) => client.id === clientAssociationDraftId) ?? null
+                  }
                   getOptionLabel={(client: any) =>
                     client.alias ? `${client.name} (${client.alias})` : client.name
                   }
                   isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
                   onChange={(_, client: any) => {
-                    if (client && client.id !== ticketClientId) {
-                      void handleClientAssociationChange(client.id);
-                    }
+                    setClientAssociationError(null);
+                    setClientAssociationSaved(false);
+                    setClientAssociationDraftId(client?.id ?? null);
                   }}
                   disabled={clientAssociationBusy}
                   disableClearable
@@ -1218,7 +1233,27 @@ export default function TicketDetail() {
                   />
                 </Box>
               )}
-              {ticket.inboundChannelId && selectedTicketClient && (
+              {isAdmin && clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId && (
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => void handleClientAssociationChange(clientAssociationDraftId)}
+                    disabled={clientAssociationBusy}
+                  >
+                    {clientAssociationBusy
+                      ? t.ticketDetail.clientAssociationSaving
+                      : t.ticketDetail.clientAssociationSave}
+                  </Button>
+                  <FormHelperText>{t.ticketDetail.clientAssociationSaveHint}</FormHelperText>
+                </Box>
+              )}
+              {clientAssociationSaved && (
+                <FormHelperText sx={{ color: 'success.main' }}>
+                  {t.ticketDetail.clientAssociationSaved}
+                </FormHelperText>
+              )}
+              {!clientAssociationSaved && ticket.inboundChannelId && selectedTicketClient && (
                 <FormHelperText>{t.ticketDetail.clientEmailAssociationHint}</FormHelperText>
               )}
               {clientAssociationError && (
