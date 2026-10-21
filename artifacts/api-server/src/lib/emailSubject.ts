@@ -1,5 +1,11 @@
 const SUBJECT_PREFIXES = /^(re|fwd|fw|aw|sv|vs|r|rif|ant)[\s:]+/gi;
 const REPLY_SUBJECT_PREFIX = /^(re|aw|sv|vs|r|rif|ant)[\s:]+/i;
+const FORWARD_SUBJECT_PREFIX = /^(?:(?:fwd|fw)(?:\s*:\s*|\s+))+/i;
+
+/** Removes only leading forward markers while preserving the subject's casing. */
+export function removeForwardSubjectPrefix(subject: string): string {
+  return subject.replace(FORWARD_SUBJECT_PREFIX, "");
+}
 
 /** Normalizes prefixes for matching a reply to an existing ticket. */
 export function normaliseEmailSubject(subject: string): string {

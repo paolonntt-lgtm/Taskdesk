@@ -3,7 +3,7 @@ import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTa
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
-import { hasReplySubjectPrefix, normaliseEmailSubject } from "./emailSubject";
+import { hasReplySubjectPrefix, normaliseEmailSubject, removeForwardSubjectPrefix } from "./emailSubject";
 import { randomUUID } from "crypto";
 import { domainForSender, normalizeSenderEmail, resolveEmailClientAssociation } from "./emailClientAssociation";
 import { isClientFeatureEnabled } from "./clientFeature";
@@ -308,7 +308,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     .where(orgId != null ? eq(ticketsTable.organizationId, orgId) : sql`organization_id IS NULL`);
   const nextTicketNumber = (Number(maxNum) || 0) + 1;
 
-  const title = subject.length > 120 ? subject.slice(0, 117) + "…" : subject;
+  const normalizedTitle = removeForwardSubjectPrefix(subject);
+  const title = normalizedTitle.length > 120 ? normalizedTitle.slice(0, 117) + "…" : normalizedTitle;
   const senderLabel = fromName && fromName !== fromEmail
     ? `${fromName} <${fromEmail}>`
     : fromEmail;
