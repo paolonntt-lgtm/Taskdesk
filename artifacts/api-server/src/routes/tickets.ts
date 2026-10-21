@@ -13,6 +13,7 @@ import { computeNextWeeklyRecurrence } from "../lib/weeklyRecurrence";
 import { getClosedTicketStatusKeys } from "../lib/closedTicketStatuses";
 import { isClientFeatureEnabled, redactClientData } from "../lib/clientFeature";
 import { domainForSender, normalizeSenderEmail } from "../lib/emailClientAssociation";
+import { prefixTicketTitleWithClient } from "../lib/clientTicketTitle";
 
 const router: IRouter = Router();
 
@@ -928,6 +929,7 @@ router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin,
 
     await tx.update(ticketsTable).set({
       clientId: currentClient.id,
+      title: prefixTicketTitleWithClient(currentTicket.title, currentClient.name),
       suggestedClientId: null,
       updatedAt: new Date(),
     }).where(and(
@@ -1568,18 +1570,41 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
           });
         }
       }
+      const hasInboundEmailMetadata = existing.inboundChannelId != null ||
+        existing.emailMessageId != null ||
+        existing.emailConversationId != null;
+      let updatesToSave = updates;
+      if (clientsEnabled && hasInboundEmailMetadata && "clientId" in updates && updates.clientId != null) {
+        const [newClient] = await tx.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable).where(and(
+          eq(clientsTable.id, updates.clientId as number),
+          eq(clientsTable.organizationId, orgId),
+        ));
+        if (newClient) {
+          const [previousClient] = existing.clientId != null && existing.clientId !== newClient.id
+            ? await tx.select({ name: clientsTable.name }).from(clientsTable).where(and(
+                eq(clientsTable.id, existing.clientId),
+                eq(clientsTable.organizationId, orgId),
+              ))
+            : [];
+          updatesToSave = {
+            ...updates,
+            title: prefixTicketTitleWithClient(
+              typeof updates.title === "string" ? updates.title : existing.title,
+              newClient.name,
+              previousClient?.name,
+            ),
+          };
+        }
+      }
       const [saved] = await tx
         .update(ticketsTable)
         .set({
-          ...updates,
+          ...updatesToSave,
           ...("clientId" in updates ? { suggestedClientId: null } : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
         .returning();
-      const hasInboundEmailMetadata = existing.inboundChannelId != null ||
-        existing.emailMessageId != null ||
-        existing.emailConversationId != null;
       const [creator] = !hasInboundEmailMetadata && clientsEnabled && "clientId" in updates && updates.clientId != null
         ? await tx.select({ isSystem: usersTable.isSystem })
             .from(usersTable)

@@ -1,12 +1,14 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable, clientsTable, emailClientSenderRulesTable, emailClientDomainRulesTable } from "@workspace/db";
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
+import { getInboundEmailNotificationTarget } from "./inboundEmailNotificationPolicy";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { hasReplySubjectPrefix, normaliseEmailSubject, removeForwardSubjectPrefix } from "./emailSubject";
 import { randomUUID } from "crypto";
 import { domainForSender, normalizeSenderEmail, resolveEmailClientAssociation } from "./emailClientAssociation";
 import { isClientFeatureEnabled } from "./clientFeature";
+import { prefixTicketTitleWithClient } from "./clientTicketTitle";
 
 import type { InboundAttachment } from "./pecUtils";
 export type { InboundAttachment };
@@ -309,7 +311,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const nextTicketNumber = (Number(maxNum) || 0) + 1;
 
   const normalizedTitle = removeForwardSubjectPrefix(subject);
-  const title = normalizedTitle.length > 120 ? normalizedTitle.slice(0, 117) + "…" : normalizedTitle;
+  const originalTitle = normalizedTitle.length > 120 ? normalizedTitle.slice(0, 117) + "…" : normalizedTitle;
   const senderLabel = fromName && fromName !== fromEmail
     ? `${fromName} <${fromEmail}>`
     : fromEmail;
@@ -325,6 +327,16 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
   const clientAssociation = await getInboundClientAssociation(orgId, fromEmail);
+  let title = originalTitle;
+  if (clientAssociation.clientId != null && orgId != null) {
+    const [associatedClient] = await db.select({ name: clientsTable.name }).from(clientsTable).where(and(
+      eq(clientsTable.id, clientAssociation.clientId),
+      eq(clientsTable.organizationId, orgId),
+    ));
+    if (associatedClient) {
+      title = prefixTicketTitleWithClient(originalTitle, associatedClient.name);
+    }
+  }
 
   const isAdminOnly = routing.defaultVisibility === "admins";
 
@@ -436,15 +448,16 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     actionDescription: activityDescParts.join(". "),
   });
 
-  if (autoAssignedUserId) {
+  const notificationTarget = getInboundEmailNotificationTarget(ticket.assignedTo);
+  if (notificationTarget.kind === "assignee") {
     await createNotificationForUser(
-      autoAssignedUserId,
+      notificationTarget.userId,
       ticket.id,
-      `Ti è stato assegnato automaticamente il ticket #${nextTicketNumber}: "${title}"`,
+      `Ti è stato assegnato il ticket #${nextTicketNumber}: "${title}"`,
       "ticket_assigned",
       orgId
     );
-    if (orgId != null) await subscribeUserToTicket(autoAssignedUserId, ticket.id, orgId);
+    if (orgId != null) await subscribeUserToTicket(notificationTarget.userId, ticket.id, orgId);
   } else if (!isAdminOnly) {
     await createNotificationsForTicket(
       ticket.id,
@@ -521,13 +534,26 @@ async function threadReplyAsComment(
     actionDescription: `Risposta del cliente ricevuta via email da ${fromName} <${fromEmail}>`,
   });
 
-  void createNotificationsForSubscribers(
-    ticket.id,
-    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber ?? ticket.id}: "${ticket.title}"`,
-    systemUserId,
-    "ticket_commented",
-    systemUserOrgId
-  );
+  const notificationText =
+    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber ?? ticket.id}: "${ticket.title}"`;
+  const notificationTarget = getInboundEmailNotificationTarget(ticket.assignedTo);
+  if (notificationTarget.kind === "assignee") {
+    void createNotificationForUser(
+      notificationTarget.userId,
+      ticket.id,
+      notificationText,
+      "ticket_commented",
+      systemUserOrgId,
+    );
+  } else {
+    void createNotificationsForSubscribers(
+      ticket.id,
+      notificationText,
+      systemUserId,
+      "ticket_commented",
+      systemUserOrgId,
+    );
+  }
 
   logger.info(
     { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, commentId: comment.id, from: fromEmail, matchReason },

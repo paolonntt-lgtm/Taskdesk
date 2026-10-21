@@ -880,8 +880,26 @@ export default function TicketDetail() {
   const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
   const ticketClient = (ticket as any).client ?? null;
   const ticketClientId = ticketClient?.id ?? (ticket as any).clientId ?? null;
+  const hasInboundEmailMetadata = Boolean(
+    ticket.inboundChannelId || (ticket as any).emailMessageId || (ticket as any).emailConversationId,
+  );
   const selectedTicketClient =
     clientsList.find((client: any) => client.id === ticketClientId) ?? ticketClient;
+  const clientTitlePrefix = selectedTicketClient ? `${selectedTicketClient.name} — ` : '';
+  const clientTitlePrefixApplied = Boolean(
+    selectedTicketClient && typeof ticket.title === 'string' && ticket.title.startsWith(clientTitlePrefix),
+  );
+  const hideAssociatedInboundClientSelector = Boolean(
+    hasInboundEmailMetadata && selectedTicketClient && clientTitlePrefixApplied,
+  );
+  const clientAssociationTargetId = clientAssociationDraftId ?? ticketClientId;
+  const clientAssociationNeedsSave = Boolean(
+    clientAssociationTargetId != null &&
+    (
+      (clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId) ||
+      (hasInboundEmailMetadata && selectedTicketClient && !clientTitlePrefixApplied)
+    ),
+  );
   const clientOptions =
     selectedTicketClient && !clientsList.some((client: any) => client.id === selectedTicketClient.id)
       ? [selectedTicketClient, ...clientsList]
@@ -1194,7 +1212,7 @@ export default function TicketDetail() {
             {ticket.title}
           </Box>
 
-          {clientsEnabled && (
+          {clientsEnabled && !hideAssociatedInboundClientSelector && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
               {isAdmin ? (
                 <Autocomplete
@@ -1239,14 +1257,13 @@ export default function TicketDetail() {
                     size="small"
                     variant="contained"
                     onClick={() => {
-                      if (clientAssociationDraftId !== null) {
-                        void handleClientAssociationChange(clientAssociationDraftId);
+                      if (clientAssociationTargetId !== null) {
+                        void handleClientAssociationChange(clientAssociationTargetId);
                       }
                     }}
                     disabled={
                       clientAssociationBusy ||
-                      clientAssociationDraftId === null ||
-                      clientAssociationDraftId === ticketClientId
+                      !clientAssociationNeedsSave
                     }
                   >
                     {clientAssociationBusy
@@ -1254,7 +1271,7 @@ export default function TicketDetail() {
                       : t.ticketDetail.clientAssociationSave}
                   </Button>
                   <FormHelperText>
-                    {clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId
+                    {clientAssociationNeedsSave
                       ? t.ticketDetail.clientAssociationSaveHint
                       : t.ticketDetail.clientAssociationChooseHint}
                   </FormHelperText>
