@@ -1238,7 +1238,11 @@ export default function TicketDetail() {
                   <Button
                     size="small"
                     variant="contained"
-                    onClick={() => void handleClientAssociationChange(clientAssociationDraftId)}
+                    onClick={() => {
+                      if (clientAssociationDraftId !== null) {
+                        void handleClientAssociationChange(clientAssociationDraftId);
+                      }
+                    }}
                     disabled={
                       clientAssociationBusy ||
                       clientAssociationDraftId === null ||
