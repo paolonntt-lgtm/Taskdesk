@@ -2542,20 +2542,11 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 
 
-  const activityLogs: 
-{
- actionType: string
-;
- actionDescription: string 
-}
-[] = []
-;
+  const activityLogs: Array<{ actionType: string; actionDescription: string }> = [];
 
-  let statusChangeLabel: string | undefined
-;
+  let statusChangeLabel: string | undefined;
 
-  let newIsClosed = false
-;
+  let newIsClosed = false;
 
 
   if (updates.status && updates.status !== existing.status) 
