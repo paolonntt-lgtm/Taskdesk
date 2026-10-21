@@ -6,6 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import type { Lang } from '../i18n/translations';
 import { trackEvent } from '../lib/analytics';
 import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from '../lib/professionalTrialAttribution';
+import { getInitialLoginMode } from '../lib/loginMode';
 
 function GoogleLogo() {
   return (
@@ -69,7 +70,9 @@ const s = {
 
 export default function Login() {
   const initialReferralCode = new URLSearchParams(window.location.search).get('ref') ?? '';
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialReferralCode ? 'register' : 'login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(() =>
+    getInitialLoginMode(window.location.search),
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -99,6 +102,13 @@ export default function Login() {
     }
   } catch {}
   const googleRegistrationUrl = `/api/auth/google${googleParams.size ? `?${googleParams}` : ''}`;
+
+  useEffect(() => {
+    const registrationLanguage = professionalAttribution?.language;
+    if (registrationLanguage && registrationLanguage !== lang) {
+      setLang(registrationLanguage);
+    }
+  }, [professionalAttribution?.language, lang, setLang]);
 
   useEffect(() => {
     if (initialReferralCode) {

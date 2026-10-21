@@ -93,7 +93,8 @@ export type ProfessionalTrialCtaLocation =
   | "message"
   | "pricing"
   | "final"
-  | "footer";
+  | "footer"
+  | "profession-card";
 
 export const PROFESSIONAL_CAMPAIGNS = [
   "professionals-google-search",

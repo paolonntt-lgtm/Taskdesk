@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "@/i18n";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { PROFESSION_IDS } from "../profession-routes";
 import Landing from "./Landing";
 
 describe("public visitor controls", () => {
@@ -68,6 +69,28 @@ describe("public visitor controls", () => {
     expect(container.querySelector("style")?.textContent).not.toContain("ld-float");
     expect(container.querySelector("#pricing p.text-lg")?.classList.contains("text-gray-600"))
       .toBe(true);
+  });
+
+  it.each(["it", "en"])("sends every profession card to registration with attribution in %s", async (lang) => {
+    window.history.replaceState({}, "", `/${lang}/`);
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(Landing)));
+    });
+
+    const links = container.querySelectorAll<HTMLAnchorElement>('[data-testid^="link-profession-card-"]');
+    expect(links).toHaveLength(PROFESSION_IDS.length);
+
+    for (const profession of PROFESSION_IDS) {
+      const link = container.querySelector<HTMLAnchorElement>(
+        `[data-testid="link-profession-card-${profession}"]`,
+      );
+      expect(link).not.toBeNull();
+      const destination = new URL(link!.href);
+      expect(destination.pathname).toBe("/app/");
+      expect(destination.searchParams.get("mode")).toBe("register");
+      expect(destination.searchParams.get("trial_profession")).toBe(profession);
+      expect(destination.searchParams.get("trial_language")).toBe(lang);
+    }
   });
 
   it("keeps the darker install close icon named and functional", async () => {
