@@ -21,7 +21,7 @@
       "environment": "preview",
       "env": {
         "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
-        "EXPO_PUBLIC_DOMAIN": "www.taskdesk.it"
+        "EXPO_PUBLIC_DOMAIN": "taskdesk.replit.app"
       },
       "android": {
         "buildType": "apk"
