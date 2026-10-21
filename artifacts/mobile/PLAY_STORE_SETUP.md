@@ -49,7 +49,7 @@ EAS (Expo Application Services) is the hosted build and submit service for Expo 
 
 Android push notifications are delivered via Firebase Cloud Messaging (FCM).
 
-1. Go to the [Firebase Console](https://console.firebase.google.com/) and click **Add project**.
+1. Open the [Firebase Console](https://console.firebase.google.com/) and use TaskDesk's existing Firebase project if one is already configured. Create a project only when setting up a new Firebase environment.
 
 2. Give it any name (e.g. `taskdesk-mobile`). You can disable Google Analytics — it is not needed.
 
@@ -67,25 +67,52 @@ Android push notifications are delivered via Firebase Cloud Messaging (FCM).
    ```bash
    cp ~/Downloads/google-services.json artifacts/mobile/google-services.json
    ```
-   > **Important:** Keep this file out of Git. It is already ignored in this repository.
+   > **Important:** This file is client configuration, not a server credential, but keep the downloaded file out of Git. The repository ignores it locally and EAS build archives exclude it.
 
-   For EAS cloud builds, upload it as a secret file variable for the preview
-   environment. Run this from `artifacts/mobile/`:
+   For EAS cloud builds, create a **file** environment variable named
+   `GOOGLE_SERVICES_JSON` in each environment used by an EAS build
+   (`development`, `preview`, and `production`). Run the following from
+   `artifacts/mobile/` once for each environment:
    ```bash
-   eas env:create preview \
+   eas env:create production \
      --name GOOGLE_SERVICES_JSON \
      --type file \
      --visibility secret \
      --value ./google-services.json \
      --non-interactive
    ```
-   `app.config.js` uses this file variable in EAS builds and the local ignored
-   file for local native builds. Create a separate file variable for any other
-   EAS environment you build.
+   Replace `production` with `development` and `preview` for the other
+   environments. Do not pass the JSON contents as a text variable. `app.config.js`
+   requires this file variable for EAS builds; the local ignored file is used
+   only for local native builds. If the Firebase config is renewed, replace the
+   file variable in every environment and the local copy, then rebuild the app.
 
-7. Back in the Firebase Console, go to **Project Settings → Cloud Messaging** and verify that the **Firebase Cloud Messaging API (V1)** is enabled.
+7. Restrict the Firebase Android API key used by this app:
+   - In Firebase Console, open **Project settings → General** and confirm the
+     Android app package is exactly `com.taskdesk.mobile`. Keep only the Android
+     app entries TaskDesk actually ships.
+   - In Google Cloud Console, open **APIs & Services → Credentials** and edit
+     the Android API key referenced by this app's `google-services.json`.
+   - Under **Application restrictions**, choose **Android apps** and allow
+     package `com.taskdesk.mobile` with the SHA-1 certificate fingerprints for
+     the builds that will run the app. Include the Google Play **App signing
+     key** SHA-1 for Play installs and the EAS signing certificate SHA-1 for
+     direct development/preview installs when those use a different key. Do
+     not use the Play upload-key fingerprint unless an installed build is
+     actually signed with it.
+   - Under **API restrictions**, allow only **Firebase Installations API**
+     (`firebaseinstallations.googleapis.com`) and **FCM Registration API**
+     (`fcmregistrations.googleapis.com`). These are the Firebase APIs required
+     for this app's Expo push-token registration. Do not add unrelated APIs to
+     this Firebase key.
+   - Save the restrictions, then verify push-token registration with a fresh
+     Android build for each signing certificate. A missing package/certificate
+     match can cause Firebase Installations to return `403 PERMISSION_DENIED`
+     and prevent the app from receiving a push token.
 
-8. Upload your FCM server credentials to EAS so Expo can send notifications:
+8. Back in the Firebase Console, go to **Project Settings → Cloud Messaging** and verify that the **Firebase Cloud Messaging API (V1)** is enabled.
+
+9. Upload your FCM server credentials to EAS so Expo can send notifications:
    ```bash
    cd artifacts/mobile
    eas credentials

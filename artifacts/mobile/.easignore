@@ -40,5 +40,5 @@ yarn-error.*
 
 .env
 
-# google-services.json is intentionally included in the EAS build archive only.
-# It remains excluded from Git by .gitignore.
+# Firebase configuration is supplied as an EAS file environment variable.
+google-services.json
