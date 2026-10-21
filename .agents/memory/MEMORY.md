@@ -51,3 +51,4 @@
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
 - [Google Drive account scope](google-drive-account-scope.md) — Drive browsing and ticket folder selection must use each signed-in user's own Google account, never a shared organization account.
 - [Mobile production-domain 403](mobile-production-domain-403.md) — Compare the custom domain with the direct Replit URL on-device before changing API origin protections.
+- [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.
