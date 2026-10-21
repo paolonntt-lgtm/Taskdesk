@@ -17,6 +17,19 @@ export interface EmailThreadDetails {
 const QUOTED_EMAIL_HEADER =
   /^(?:da|from):\s*.+|il .+ ha scritto:\s*|on .+ wrote:\s*|--+\s*(?:messaggio originale|original message)\s*--+$/i;
 
+function normalizeQuotedEmailHeader(line: string): string {
+  return line
+    .trim()
+    .replace(/^(?:>\s*)+/, "")
+    .replace(/^[*_`\s]+/, "")
+    .replace(/[*_`]+$/, "")
+    .trim();
+}
+
+function isQuotedEmailHeader(line: string): boolean {
+  return QUOTED_EMAIL_HEADER.test(normalizeQuotedEmailHeader(line));
+}
+
 export function splitEmailThreadDetails(details: string): EmailThreadDetails {
   const signatureLines: string[] = [];
   const quotedEmails: QuotedEmail[] = [];
@@ -24,21 +37,16 @@ export function splitEmailThreadDetails(details: string): EmailThreadDetails {
   let currentBody: string[] = [];
 
   for (const line of details.replace(/\r\n?/g, "\n").split("\n")) {
-    const normalizedHeader = line
-      .trim()
-      .replace(/^(?:>\s*)+/, "")
-      .replace(/^[*_`\s]+/, "")
-      .replace(/[*_`]+$/, "")
-      .trim();
-
-    if (QUOTED_EMAIL_HEADER.test(normalizedHeader)) {
+    if (isQuotedEmailHeader(line)) {
       if (currentHeader !== null) {
         quotedEmails.push({ header: currentHeader, body: currentBody.join("\n").trim() });
       }
-      currentHeader = line.trim();
+      currentHeader = normalizeQuotedEmailHeader(line);
       currentBody = [];
     } else if (currentHeader !== null) {
-      currentBody.push(line);
+      // Each quoted email is rendered in its own block, so retaining the
+      // mail client's nested `>` prefixes would make long threads too narrow.
+      currentBody.push(line.replace(/^\s*(?:>\s*)+/, ""));
     } else {
       signatureLines.push(line);
     }
@@ -77,17 +85,34 @@ export function splitEmailBodySections(text: string): EmailBodySections {
     }
   }
 
+  // Some mail clients put the closing phrase on the same line as the message
+  // (for example, "Sì, ... Buona giornata AV"). In that case a sign-off-only
+  // split misses the entire quoted chain. Find the first quoted-message header
+  // independently, then keep everything after it in the details section.
+  const firstQuotedHeader = bodyLines.findIndex(isQuotedEmailHeader);
+  const quotedLines = firstQuotedHeader >= 0 ? bodyLines.slice(firstQuotedHeader) : [];
+  if (firstQuotedHeader >= 0) {
+    bodyLines = bodyLines.slice(0, firstQuotedHeader);
+  }
+
   const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.,!?]?\s*$/i;
   const signOffIndex = bodyLines.findIndex((line) => signOff.test(line.trim()));
+  const quotedDetails = quotedLines.join("\n").trim();
 
   if (signOffIndex < 0) {
-    return { metadata, message: bodyLines.join("\n").trim(), details: "" };
+    return {
+      metadata,
+      message: bodyLines.join("\n").trim(),
+      details: quotedDetails,
+    };
   }
 
   return {
     metadata,
     message: bodyLines.slice(0, signOffIndex + 1).join("\n").trim(),
-    details: bodyLines.slice(signOffIndex + 1).join("\n").trim(),
+    details: [bodyLines.slice(signOffIndex + 1).join("\n").trim(), quotedDetails]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 

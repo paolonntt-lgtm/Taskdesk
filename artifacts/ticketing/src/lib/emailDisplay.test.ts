@@ -112,6 +112,42 @@ describe("compactEmailDetailLinks", () => {
     expect(thread.signatureAndFooter).toContain("Informativa sulla privacy");
   });
 
+  it("splits long nested Italian forwards even when the sign-off shares a line with the main message", () => {
+    const body = [
+      "Sì, dalle ore 8.00 alle ore 12.00 Buona giornata AV",
+      "",
+      "Il giorno lun 12 ott 2026 alle ore 21:13 Paolo Iannetti <paolo@example.com> ha scritto:",
+      "> Buonasera,",
+      "> il tecnico oggi non è venuto per via del maltempo, posso passare domani mattina a prendere le chiavi?",
+      "> grazie",
+      ">",
+      "> Il giorno ven 9 ott 2026 alle ore 08:23 STUDIO VITTIGLIO <studio@example.com> ha scritto:",
+      "> Assolutamente sì, dalle ore 8.00 alle ore 12.00. Un cordiale saluto e buon fine settimana.",
+      ">",
+      "> > Il giorno gio 8 ott 2026 alle ore 21:59 Paolo Iannetti <paolo@example.com> ha scritto:",
+      "> > Buonasera,",
+      "> > Abbiamo problemi tecnici alla parabola e un tecnico verrà a risolvere il problema lunedì pomeriggio.",
+      "> >",
+      "> > > Il Ven 18 Apr 2025, 21:21 Paolo Iannetti <paolo@example.com> ha scritto:",
+      "> > > Buonasera, Perdonate l'orario ma da questo pomeriggio abbiamo problemi con la parabola sul tetto.",
+    ].join("\n");
+
+    const sections = splitEmailBodySections(body);
+    const thread = splitEmailThreadDetails(sections.details);
+
+    expect(sections.message).toBe("Sì, dalle ore 8.00 alle ore 12.00 Buona giornata AV");
+    expect(thread.quotedEmails).toHaveLength(4);
+    expect(thread.quotedEmails.map(({ header }) => header)).toEqual([
+      "Il giorno lun 12 ott 2026 alle ore 21:13 Paolo Iannetti <paolo@example.com> ha scritto:",
+      "Il giorno ven 9 ott 2026 alle ore 08:23 STUDIO VITTIGLIO <studio@example.com> ha scritto:",
+      "Il giorno gio 8 ott 2026 alle ore 21:59 Paolo Iannetti <paolo@example.com> ha scritto:",
+      "Il Ven 18 Apr 2025, 21:21 Paolo Iannetti <paolo@example.com> ha scritto:",
+    ]);
+    expect(thread.quotedEmails[3].body).toContain("problemi con la parabola");
+    expect(thread.quotedEmails[0].body).toContain("Buonasera");
+    expect(thread.quotedEmails[0].body).not.toMatch(/^>/m);
+  });
+
   it("recognizes English quoted replies and preserves their original order", () => {
     const details = [
       "Best regards,",

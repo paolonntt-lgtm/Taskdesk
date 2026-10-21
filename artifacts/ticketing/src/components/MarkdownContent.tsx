@@ -273,6 +273,18 @@ export function MarkdownContent({
           </Box>
         )}
 
+        {bodySections.message && threadDetails.quotedEmails.length > 0 && (
+          <Divider
+            role="separator"
+            aria-orientation="horizontal"
+            sx={(theme) => ({
+              borderColor: alpha(theme.palette.primary.main, 0.4),
+              borderBottomWidth: 2,
+              mx: 0.5,
+            })}
+          />
+        )}
+
         {threadDetails.quotedEmails.map((email, index) => {
           const quoteSections = splitEmailBodySections(email.body);
           return (
