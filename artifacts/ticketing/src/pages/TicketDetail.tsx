@@ -167,7 +167,7 @@ export default function TicketDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
-  const [sendToCustomer, setSendToCustomer] = useState(true);
+  const [sendToCustomer, setSendToCustomer] = useState(false);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
   const [emailReplySending, setEmailReplySending] = useState(false);
@@ -402,6 +402,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     setTabValue(null);
+    setSendToCustomer(false);
   }, [ticketId]);
 
   useEffect(() => {
