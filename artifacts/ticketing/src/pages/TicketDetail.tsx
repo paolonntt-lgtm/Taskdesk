@@ -167,6 +167,8 @@ export default function TicketDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
+  const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
+  const [clientAssociationError, setClientAssociationError] = useState<string | null>(null);
   const [clientSuggestionBusy, setClientSuggestionBusy] = useState(false);
   const [clientSuggestionError, setClientSuggestionError] = useState<string | null>(null);
   const [sendToCustomer, setSendToCustomer] = useState(false);
@@ -867,6 +869,32 @@ export default function TicketDetail() {
   const canChangeAssignment = (ticket as any).timeTrackingEnabled
     ? isAdmin || hasGroupPerm('assign_time_tracked_tickets')
     : isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
+  const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
+  const ticketClient = (ticket as any).client ?? null;
+  const ticketClientId = ticketClient?.id ?? (ticket as any).clientId ?? null;
+  const selectedTicketClient =
+    clientsList.find((client: any) => client.id === ticketClientId) ?? ticketClient;
+  const clientOptions =
+    selectedTicketClient && !clientsList.some((client: any) => client.id === selectedTicketClient.id)
+      ? [selectedTicketClient, ...clientsList]
+      : clientsList;
+
+  const handleClientAssociationChange = async (clientId: number) => {
+    setClientAssociationBusy(true);
+    setClientAssociationError(null);
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, data: { clientId } as any });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }),
+        queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() }),
+      ]);
+    } catch {
+      setClientAssociationError(t.ticketDetail.clientAssociationUpdateError);
+    } finally {
+      setClientAssociationBusy(false);
+    }
+  };
+
   const handleClientSuggestion = async (action: 'confirm' | 'dismiss') => {
     setClientSuggestionBusy(true);
     setClientSuggestionError(null);
@@ -1154,6 +1182,50 @@ export default function TicketDetail() {
           <Box component="h1" sx={{ m: 0, mb: 1.5, fontSize: { xs: '1.25rem', sm: '1.45rem' }, fontWeight: 800, color: 'text.primary', lineHeight: 1.22, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
             {ticket.title}
           </Box>
+
+          {clientsEnabled && (
+            <Box sx={{ mb: 2, maxWidth: 420 }}>
+              {isAdmin ? (
+                <Autocomplete
+                  size="small"
+                  options={clientOptions}
+                  value={selectedTicketClient}
+                  getOptionLabel={(client: any) =>
+                    client.alias ? `${client.name} (${client.alias})` : client.name
+                  }
+                  isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
+                  onChange={(_, client: any) => {
+                    if (client && client.id !== ticketClientId) {
+                      void handleClientAssociationChange(client.id);
+                    }
+                  }}
+                  disabled={clientAssociationBusy}
+                  disableClearable
+                  noOptionsText={t.newTicket.noClientFound}
+                  renderInput={(params) => (
+                    <TextField {...params} label={t.clients.clientField} />
+                  )}
+                />
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minHeight: 32 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t.clients.clientField}:
+                  </Typography>
+                  <Chip
+                    size="small"
+                    variant={selectedTicketClient ? 'filled' : 'outlined'}
+                    label={selectedTicketClient?.name ?? (lang === 'it' ? 'Non associato' : 'Not assigned')}
+                  />
+                </Box>
+              )}
+              {ticket.inboundChannelId && selectedTicketClient && (
+                <FormHelperText>{t.ticketDetail.clientEmailAssociationHint}</FormHelperText>
+              )}
+              {clientAssociationError && (
+                <FormHelperText error>{clientAssociationError}</FormHelperText>
+              )}
+            </Box>
+          )}
 
           {isAdmin && (ticket as any).suggestedClient && (
             <Alert
