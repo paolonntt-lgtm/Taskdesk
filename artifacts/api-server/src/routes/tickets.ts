@@ -150,14 +150,10 @@ const TICKET_LIST_COLS =
   recurrenceRule: ticketsTable.recurrenceRule,
   recurrenceNextAt: ticketsTable.recurrenceNextAt,
   recurrenceParentId: ticketsTable.recurrenceParentId,
-}
- as const
-;
+} as const;
 
 
-const USER_LIST_COLS = 
-{
-
+const USER_LIST_COLS = {
   id: usersTable.id,
   name: usersTable.name,
   email: usersTable.email,
@@ -165,9 +161,7 @@ const USER_LIST_COLS =
   mainLocation: usersTable.mainLocation,
   avatarUrl: usersTable.avatarUrl,
   createdAt: usersTable.createdAt,
-}
- as const
-;
+} as const;
 
 
 function daysInMonth(year: number, month: number): number 
@@ -318,39 +312,42 @@ function computeNextRecurrence(
 }
 
 
-function buildTicketWithDetails(ticket: any, creator: any, assignee: any, commentCount: number, noteCount: number, inboundChannelName?: string | null, client?: 
-{
- id: number
-;
- name: string
-;
- alias?: string | null 
-}
- | null) 
-{
-
-  return 
-{
-
+function buildTicketWithDetails(
+  ticket: any,
+  creator: any,
+  assignee: any,
+  commentCount: number,
+  noteCount: number,
+  inboundChannelName?: string | null,
+  client?: { id: number; name: string; alias?: string | null } | null,
+) {
+  return {
     ...ticket,
-    creator: 
-{
- id: creator.id, name: creator.name, email: creator.email, role: creator.role, mainLocation: creator.mainLocation, avatarUrl: creator.avatarUrl ?? null, createdAt: creator.createdAt 
-}
-,
-    assignee: assignee ? 
-{
- id: assignee.id, name: assignee.name, email: assignee.email, role: assignee.role, mainLocation: assignee.mainLocation, avatarUrl: assignee.avatarUrl ?? null, createdAt: assignee.createdAt 
-}
- : null,
+    creator: {
+      id: creator.id,
+      name: creator.name,
+      email: creator.email,
+      role: creator.role,
+      mainLocation: creator.mainLocation,
+      avatarUrl: creator.avatarUrl ?? null,
+      createdAt: creator.createdAt,
+    },
+    assignee: assignee
+      ? {
+          id: assignee.id,
+          name: assignee.name,
+          email: assignee.email,
+          role: assignee.role,
+          mainLocation: assignee.mainLocation,
+          avatarUrl: assignee.avatarUrl ?? null,
+          createdAt: assignee.createdAt,
+        }
+      : null,
     commentCount,
     noteCount,
     inboundChannelName: inboundChannelName ?? null,
     client: client ?? null,
-  
-}
-;
-
+  };
 }
 
 
@@ -422,9 +419,8 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> =>
 }
 
 
-  // Scheduled filter: when scheduled=true show only future-scheduled tickets
-;
- otherwise hide them
+  // Scheduled filter: when scheduled=true show only future-scheduled tickets,
+  // otherwise hide them.
   if (scheduled === 'true') 
 {
 
@@ -2349,9 +2345,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     ? 
 {
 
-        // Assignees can also change priority
-;
- other edits remain limited to their existing permissions.
+        // Assignees can also change priority; other edits remain limited to their existing permissions.
         ...(parsed.data.status !== undefined && 
 {
  status: parsed.data.status 
