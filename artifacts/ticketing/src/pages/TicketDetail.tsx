@@ -1233,19 +1233,27 @@ export default function TicketDetail() {
                   />
                 </Box>
               )}
-              {isAdmin && clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId && (
+              {isAdmin && (
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"
                     variant="contained"
                     onClick={() => void handleClientAssociationChange(clientAssociationDraftId)}
-                    disabled={clientAssociationBusy}
+                    disabled={
+                      clientAssociationBusy ||
+                      clientAssociationDraftId === null ||
+                      clientAssociationDraftId === ticketClientId
+                    }
                   >
                     {clientAssociationBusy
                       ? t.ticketDetail.clientAssociationSaving
                       : t.ticketDetail.clientAssociationSave}
                   </Button>
-                  <FormHelperText>{t.ticketDetail.clientAssociationSaveHint}</FormHelperText>
+                  <FormHelperText>
+                    {clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId
+                      ? t.ticketDetail.clientAssociationSaveHint
+                      : t.ticketDetail.clientAssociationChooseHint}
+                  </FormHelperText>
                 </Box>
               )}
               {clientAssociationSaved && (
