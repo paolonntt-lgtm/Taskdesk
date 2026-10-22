@@ -49,3 +49,12 @@ them current; behavioral tests exposed the mismatch.
 **How to apply:** Run exploit regressions against installed consumer paths.
 If cached source is stale, force a frozen reinstall without lifecycle scripts,
 then verify behavior again. Never treat a patched directory name as proof.
+
+Resolve regression-test dependencies from the active application's import chain,
+not the first virtual-store directory matching a package version.
+
+**Why:** Old peer-specific snapshots can survive reinstalls and resolve obsolete
+dependencies even when the lockfile and active consumer use the fixed release.
+
+**How to apply:** Follow the application's declared consumer chain for packages
+with peer variants, and only exercise legacy versions still in the lockfile.

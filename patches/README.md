@@ -23,6 +23,17 @@ If a restored installation fails these tests, reinstall the locked packages with
 Consumer checks cover micromatch brace expansion, argparse help rendering, and
 Expo manifest signing as well as the dependency APIs directly.
 
+The Vite launch-editor advisories (GHSA-587h-7wmj-h5pm,
+GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw) are fixed by Vite 7.3.7.
+Markdown-it 14.3.3 fixes GHSA-gfr2-rv44-r23c, GHSA-r7fv-28h4-cvq7,
+and GHSA-vfgh-jcmw-g37q. Its regression checks render through TypeDoc's
+active Orval dependency path, including hostile references, smart quotes,
+and all four unterminated HTML constructs in a time-limited child process.
+Keep Markdown-it 14 on its supported Linkify-it 5 API: 5.0.2 includes the
+published denial-of-service fixes, while forcing Linkify-it 6 breaks rendering.
+Legacy sprintf and Metro patches may remain unused after framework upgrades;
+tests must use the active lockfile consumers rather than leftover store copies.
+
 The other findings are addressed through published patched versions. Workspace
 overrides are centralized in `pnpm-workspace.yaml`: root `package.json` overrides
 take precedence over that file and must not be reintroduced as a separate list.

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,12 +8,20 @@ import { test } from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
 const store = path.join(root, "node_modules/.pnpm");
+const lock = readFileSync(path.join(root, "pnpm-lock.yaml"), "utf8");
+const snapshots = lock.split("\nsnapshots:\n")[1];
+
+function lockedVersions(name) {
+  return [...snapshots.matchAll(/^  '?([^@\s][^:\n]*?)@([0-9][^(:'\n]*).*:\n/gm)]
+    .filter(([, packageName]) => packageName === name)
+    .map(([, , version]) => version);
+}
 
 // Resolve through consumers, not stale copies left in pnpm's virtual store.
 function consumerRequire(name, version) {
   const directory = `${name.replaceAll("/", "+")}@${version}`;
   const installed = readdirSync(store).find(entry => entry.startsWith(`${directory}_patch_hash=`)) ??
-    directory;
+    readdirSync(store).find(entry => entry === directory || entry.startsWith(`${directory}_`));
   assert.ok(readdirSync(store).includes(installed), `Missing consumer ${directory}`);
   return createRequire(path.join(store, installed, "node_modules", name, "package.json"));
 }
@@ -20,9 +29,18 @@ function consumerRequire(name, version) {
 const micromatch = consumerRequire("micromatch", "4.0.8")(".");
 const braces = consumerRequire("micromatch", "4.0.8")("braces");
 const forge = consumerRequire("@expo/code-signing-certificates", "0.0.6")("node-forge");
-const { sprintf, vsprintf } = consumerRequire("argparse", "1.0.10")("sprintf-js");
-const { ArgumentParser } = consumerRequire("argparse", "1.0.10")(".");
+// Old virtual-store directories can survive upgrades. Only test legacy
+// consumers when they remain in the current dependency graph.
+const hasLegacySprintf = lockedVersions("sprintf-js").includes("1.0.3");
+const { sprintf, vsprintf } = hasLegacySprintf
+  ? consumerRequire("argparse", "1.0.10")("sprintf-js") : {};
+const { ArgumentParser } = hasLegacySprintf
+  ? consumerRequire("argparse", "1.0.10")(".") : {};
 const expoCertificates = consumerRequire("@expo/code-signing-certificates", "0.0.6")(".");
+const apiSpecRequire = createRequire(path.join(root, "lib/api-spec/package.json"));
+const orvalRequire = createRequire(apiSpecRequire.resolve("orval"));
+const orvalCoreRequire = createRequire(orvalRequire.resolve("@orval/core"));
+const typedocRequire = createRequire(orvalCoreRequire.resolve("typedoc"));
 
 test("braces preserves ordinary compilation, expansion, escaping and parentheses", () => {
   assert.equal(braces.compile("a/{b,c}/d"), "a/(b|c)/d");
@@ -69,7 +87,7 @@ test("micromatch uses guarded braces for its public brace expansion API", () => 
   );
 });
 
-test("sprintf preserves ordinary formatting and bounds numeric precision", () => {
+test("sprintf preserves ordinary formatting and bounds numeric precision", { skip: !hasLegacySprintf }, () => {
   assert.equal(sprintf("%.2f", 1.234), "1.23");
   assert.equal(sprintf("%.2e", 1.234), "1.23e+0");
   assert.equal(sprintf("%.2g", 1.234), "1.2");
@@ -85,7 +103,7 @@ test("sprintf preserves ordinary formatting and bounds numeric precision", () =>
   assert.equal(sprintf("%.0g", 1.234), "1");
 });
 
-test("argparse help rendering uses bounded sprintf precision", () => {
+test("argparse help rendering uses bounded sprintf precision", { skip: !hasLegacySprintf }, () => {
   const parser = new ArgumentParser({
     prog: "taskdesk",
     description: "Help for %(prog)s",
@@ -149,7 +167,7 @@ test("Expo code signing still signs and verifies valid manifests", () => {
   assert.equal(keyPair.publicKey.verify(digest, Buffer.from(signature, "base64").toString("binary")), true);
 });
 
-test("Metro can read image assets with the patched image-size major", async () => {
+test("active Metro consumers can read image and non-image assets", async () => {
   const png = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=",
     "base64",
@@ -160,13 +178,10 @@ test("Metro can read image assets with the patched image-size major", async () =
     const text = path.join(directory, "note.txt");
     writeFileSync(image, png);
     writeFileSync(text, "not an image");
-    for (const version of ["0.83.3", "0.83.7"]) {
+    const versions = lockedVersions("metro");
+    assert.ok(versions.length > 0, "The active Metro consumer must be tested");
+    for (const version of versions) {
       const metroRequire = consumerRequire("metro", version);
-      const size = metroRequire("image-size");
-      assert.deepEqual(
-        { width: size.default(png).width, height: size.default(png).height },
-        { width: 1, height: 1 },
-      );
       const { getAssetData, getAssetSize } = metroRequire("./src/Assets.js");
       assert.deepEqual(getAssetSize("png", png, image), { width: 1, height: 1 });
       const asset = await getAssetData(image, "pixel.png", [], null, "/assets");
@@ -187,9 +202,44 @@ test("security patches are tracked and all vulnerable consumers use patched snap
     const snapshots = lock.split("\nsnapshots:\n")[1];
     assert.ok(snapshots, "Lockfile must contain snapshots");
     const dependencyLines = snapshots.split("\n").filter(line => line.startsWith(`      ${name}: `));
-    assert.ok(dependencyLines.length > 0, `${name} must have consumers`);
+    if (name !== "sprintf-js") assert.ok(dependencyLines.length > 0, `${name} must have consumers`);
     assert.ok(dependencyLines.every(line => line.includes("(patch_hash=")), `${name} consumers must all be patched`);
   }
+});
+
+test("all Vite and Markdown-it consumers resolve published security fixes", () => {
+  assert.deepEqual(lockedVersions("vite"), ["7.3.7"]);
+  assert.deepEqual(lockedVersions("markdown-it"), ["14.3.3"]);
+  const viteRequire = createRequire(path.join(root, "artifacts/landing/package.json"));
+  assert.equal(viteRequire("vite/package.json").version, "7.3.7");
+  assert.equal(typedocRequire("markdown-it/package.json").version, "14.3.3");
+});
+
+test("TypeDoc's Markdown-it preserves rendering and bounds all reported denial-of-service cases", () => {
+  const MarkdownIt = typedocRequire("markdown-it");
+  const md = new MarkdownIt({ html: true, typographer: true });
+  assert.equal(md.render("[example][ref]\n\n[ref]: /url \"Title\"\n"),
+    '<p><a href="/url" title="Title">example</a></p>\n');
+  assert.equal(md.render('"Hello"'), "<p>“Hello”</p>\n");
+  assert.equal(md.render("x <!-- comment --> <em>safe</em>"),
+    "<p>x <!-- comment --> <em>safe</em></p>\n");
+
+  // Run hostile input out of process: a regression must time out rather than
+  // block the test runner's event loop indefinitely.
+  const result = spawnSync(process.execPath, ["--input-type=commonjs", "-e", `
+    const MarkdownIt = require(process.argv[1]);
+    const md = new MarkdownIt({ html: true, typographer: true });
+    const inputs = [
+      '[a]: /u "' + 'x\\n'.repeat(200000),
+      '[' + 'a\\n'.repeat(100000),
+      '"a '.repeat(64000) + "b' ".repeat(64000),
+      "'a ".repeat(64000) + 'b" '.repeat(64000),
+      ...['<!--', '<?x', '<!A', '<![CDATA['].map(opener => 'x ' + opener.repeat(64000)),
+    ];
+    for (const input of inputs) md.render(input);
+  `, typedocRequire.resolve("markdown-it")], { timeout: 10000, encoding: "utf8" });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("native optional dependencies remain available on macOS, Windows and Linux musl", () => {
