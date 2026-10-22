@@ -977,6 +977,7 @@ export interface ClientInput {
   /** @minLength 1 */
   name: string;
   alias?: string | null;
+  /** One or more email addresses separated by semicolons. */
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
@@ -985,6 +986,21 @@ export interface ClientInput {
   pec?: string | null;
   contactPerson?: string | null;
   notes?: string | null;
+}
+
+export type ClientEmailAddressAssociationSourcesItem = typeof ClientEmailAddressAssociationSourcesItem[keyof typeof ClientEmailAddressAssociationSourcesItem];
+
+
+export const ClientEmailAddressAssociationSourcesItem = {
+  profile: 'profile',
+  sender_rule: 'sender_rule',
+} as const;
+
+export interface ClientEmailAddressAssociation {
+  address: string;
+  clientId: number;
+  clientName: string;
+  sources: ClientEmailAddressAssociationSourcesItem[];
 }
 
 export interface ClientImportRow {

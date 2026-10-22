@@ -31,6 +31,7 @@ import type {
   ChecklistItem,
   ChecklistWithItems,
   Client,
+  ClientEmailAddressAssociation,
   ClientImportResult,
   ClientInput,
   ClientNote,
@@ -7432,6 +7433,83 @@ export const useCreateClient = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateClientMutationOptions(options));
     }
+
+export const getListClientEmailAssociationsUrl = () => {
+
+
+
+
+  return `/api/clients/email-address-associations`
+}
+
+/**
+ * @summary List email addresses already associated with clients in the current organization
+ */
+export const listClientEmailAssociations = async ( options?: Parameters<typeof customFetch>[1]): Promise<ClientEmailAddressAssociation[]> => {
+
+  return customFetch<ClientEmailAddressAssociation[]>(getListClientEmailAssociationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientEmailAssociationsQueryKey = () => {
+    return [
+    `/api/clients/email-address-associations`
+    ] as const;
+    }
+
+
+export const getListClientEmailAssociationsQueryOptions = <TData = Awaited<ReturnType<typeof listClientEmailAssociations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientEmailAssociations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientEmailAssociationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientEmailAssociations>>> = ({ signal }) => listClientEmailAssociations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientEmailAssociations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientEmailAssociationsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientEmailAssociations>>>
+export type ListClientEmailAssociationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List email addresses already associated with clients in the current organization
+ */
+
+export function useListClientEmailAssociations<TData = Awaited<ReturnType<typeof listClientEmailAssociations>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientEmailAssociations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientEmailAssociationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getImportClientsUrl = () => {
 

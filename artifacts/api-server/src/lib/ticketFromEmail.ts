@@ -269,6 +269,7 @@ async function getOrCreateSystemUser(
 
 export interface EmailTicketInput {
   fromEmail: string;
+  originalSenderEmail?: string;
   fromName: string;
   subject: string;
   bodyText: string;
@@ -297,7 +298,7 @@ export interface EmailTicketResult {
 }
 
 export async function createTicketFromEmail(input: EmailTicketInput): Promise<EmailTicketResult> {
-  const { fromEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId, isPec } = input;
+  const { fromEmail, originalSenderEmail, fromName, subject, bodyText, attachments, orgId: targetOrgId, messageId, conversationId, channelId, inboundChannelId, isPec } = input;
 
   const systemUser = await getOrCreateSystemUser(targetOrgId ?? null);
   if (!systemUser) throw new Error("No system user found or created for inbound ticket");
@@ -326,7 +327,23 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
-  const clientAssociation = await getInboundClientAssociation(orgId, fromEmail);
+  const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail);
+  let clientAssociation = outerSenderAssociation;
+  if (
+    outerSenderAssociation.clientId == null &&
+    !outerSenderAssociation.clientAssociationIssue &&
+    originalSenderEmail &&
+    normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail)
+  ) {
+    const originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
+    if (
+      originalSenderAssociation.clientId != null ||
+      originalSenderAssociation.suggestedClientId != null ||
+      originalSenderAssociation.clientAssociationIssue
+    ) {
+      clientAssociation = originalSenderAssociation;
+    }
+  }
   let title = originalTitle;
   if (clientAssociation.clientId != null && orgId != null) {
     const [associatedClient] = await db.select({ name: clientsTable.name }).from(clientsTable).where(and(

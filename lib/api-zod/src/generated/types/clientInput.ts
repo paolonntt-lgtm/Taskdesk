@@ -10,6 +10,7 @@ export interface ClientInput {
   /** @minLength 1 */
   name: string;
   alias?: string | null;
+  /** One or more email addresses separated by semicolons. */
   email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;

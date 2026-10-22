@@ -2354,6 +2354,23 @@ paths:
         "401":
           description: Unauthorized
 
+  /clients/email-address-associations:
+    get:
+      operationId: listClientEmailAssociations
+      tags: [clients]
+      summary: List email addresses already associated with clients in the current organization
+      responses:
+        "200":
+          description: Client email association sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientEmailAddressAssociation"
+        "401":
+          description: Unauthorized
+
   /clients/import:
     post:
       operationId: importClients
@@ -4636,8 +4653,8 @@ components:
           nullable: true
         email:
           type: string
-          format: email
           nullable: true
+          description: One or more email addresses separated by semicolons.
         phone:
           type: string
           nullable: true
@@ -4661,6 +4678,22 @@ components:
           nullable: true
       required:
         - name
+
+    ClientEmailAddressAssociation:
+      type: object
+      properties:
+        address:
+          type: string
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        sources:
+          type: array
+          items:
+            type: string
+            enum: [profile, sender_rule]
+      required: [address, clientId, clientName, sources]
 
     ClientImportRow:
       type: object

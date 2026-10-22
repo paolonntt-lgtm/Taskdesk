@@ -3491,7 +3491,7 @@ export const ListClientsResponse = zod.array(ListClientsResponseItem)
 export const CreateClientBody = zod.object({
   "name": zod.string().min(1),
   "alias": zod.string().nullish(),
-  "email": zod.email().nullish(),
+  "email": zod.string().nullish().describe('One or more email addresses separated by semicolons.'),
   "phone": zod.string().nullish(),
   "vatNumber": zod.string().nullish(),
   "taxCode": zod.string().nullish(),
@@ -3522,6 +3522,18 @@ export const CreateClientResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary List email addresses already associated with clients in the current organization
+ */
+export const ListClientEmailAssociationsResponseItem = zod.object({
+  "address": zod.string(),
+  "clientId": zod.int(),
+  "clientName": zod.string(),
+  "sources": zod.array(zod.enum(['profile', 'sender_rule']))
+})
+export const ListClientEmailAssociationsResponse = zod.array(ListClientEmailAssociationsResponseItem)
 
 
 /**
@@ -3609,7 +3621,7 @@ export const UpdateClientParams = zod.object({
 export const UpdateClientBody = zod.object({
   "name": zod.string().min(1),
   "alias": zod.string().nullish(),
-  "email": zod.email().nullish(),
+  "email": zod.string().nullish().describe('One or more email addresses separated by semicolons.'),
   "phone": zod.string().nullish(),
   "vatNumber": zod.string().nullish(),
   "taxCode": zod.string().nullish(),

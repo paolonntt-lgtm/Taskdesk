@@ -12,6 +12,20 @@ describe("prefixTicketTitleWithClient", () => {
       .toBe("IA PAOLO SNC — Richiesta preventivo");
   });
 
+  it("collapses repeated client prefixes to exactly one", () => {
+    expect(prefixTicketTitleWithClient(
+      "IA PAOLO SNC — IA PAOLO SNC — Richiesta preventivo",
+      "IA PAOLO SNC",
+    )).toBe("IA PAOLO SNC — Richiesta preventivo");
+  });
+
+  it("normalizes prefix casing without changing the subject", () => {
+    expect(prefixTicketTitleWithClient(
+      "ia paolo snc — Richiesta preventivo",
+      "IA PAOLO SNC",
+    )).toBe("IA PAOLO SNC — Richiesta preventivo");
+  });
+
   it("replaces a previous client prefix when reassociating", () => {
     expect(prefixTicketTitleWithClient(
       "Cliente precedente — Richiesta preventivo",

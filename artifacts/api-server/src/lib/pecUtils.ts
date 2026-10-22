@@ -343,7 +343,7 @@ export interface InboundAttachment {
 export type PecUnwrapResult =
   | { isPec: false }
   | { isPec: true; isReceipt: true }
-  | { isPec: true; isReceipt: false; text: string; attachments: InboundAttachment[]; subject: string | null };
+  | { isPec: true; isReceipt: false; text: string; attachments: InboundAttachment[]; subject: string | null; originalSenderEmail: string | null };
 
 /**
  * Strips PEC infrastructure subject prefixes from a subject string.
@@ -385,7 +385,7 @@ function unwrapPostacertChain(
   rawMime: string,
   depth: number,
   maxDepth: number,
-): { text: string; rawAttachments: RawAttachment[]; subject: string | null } | null {
+): { text: string; rawAttachments: RawAttachment[]; subject: string | null; originalSenderEmail: string | null } | null {
   if (depth > maxDepth) return null;
 
   const { rawAttachments } = parseMimeMessage(rawMime);
@@ -420,7 +420,14 @@ function unwrapPostacertChain(
 
   const { text: innerText, rawAttachments: innerRawAttachments } = parseMimeMessage(postacertRaw);
 
-  return { text: innerText, rawAttachments: innerRawAttachments, subject: innerSubject };
+  return {
+    text: innerText,
+    rawAttachments: innerRawAttachments,
+    subject: innerSubject,
+    originalSenderEmail: innerBlankIdx >= 0
+      ? parseHeaders(postacertRaw.slice(0, innerBlankIdx))["from"] ?? null
+      : null,
+  };
 }
 
 /**
@@ -524,5 +531,12 @@ export function tryUnwrapPec(
     });
   }
 
-  return { isPec: true, isReceipt: false, text: unwrapped.text, attachments: innerAttachments, subject: innerSubject };
+  return {
+    isPec: true,
+    isReceipt: false,
+    text: unwrapped.text,
+    attachments: innerAttachments,
+    subject: innerSubject,
+    originalSenderEmail: unwrapped.originalSenderEmail,
+  };
 }

@@ -1,11 +1,12 @@
 import { Router, type IRouter, type RequestHandler } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable } from "@workspace/db";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable, emailClientSenderRulesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
 import { UpdateClientTicketWorkedHoursBody } from "@workspace/api-zod";
 import { z } from "zod";
+import { normalizeSenderEmail } from "../lib/emailClientAssociation";
 
 const router: IRouter = Router();
 
@@ -70,10 +71,77 @@ async function generateUniqueSlug(name: string, orgId: number, excludeId?: numbe
   }
 }
 
+function splitEmailAddresses(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return [...new Set(value.split(/[;,\s]+/).map(normalizeSenderEmail).filter(Boolean))];
+}
+
+function normalizeClientEmailField(value: string | null | undefined): string | null {
+  const addresses = splitEmailAddresses(value);
+  return addresses.length ? addresses.join("; ") : null;
+}
+
+async function findClientEmailConflicts(
+  organizationId: number,
+  addresses: string[],
+  excludeClientId?: number,
+) {
+  if (addresses.length === 0) return [];
+  const [clients, senderRules] = await Promise.all([
+    db.select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+      email: clientsTable.email,
+      pec: clientsTable.pec,
+    }).from(clientsTable).where(eq(clientsTable.organizationId, organizationId)),
+    db.select({
+      clientId: emailClientSenderRulesTable.clientId,
+      senderEmail: emailClientSenderRulesTable.senderEmail,
+    }).from(emailClientSenderRulesTable).where(eq(emailClientSenderRulesTable.organizationId, organizationId)),
+  ]);
+  const conflicts = new Map<string, { address: string; clientId: number; clientName: string; sources: Set<string> }>();
+  const addConflict = (address: string, clientId: number, clientName: string, source: string) => {
+    if (clientId === excludeClientId) return;
+    const key = `${address}:${clientId}`;
+    const conflict = conflicts.get(key) ?? { address, clientId, clientName, sources: new Set<string>() };
+    conflict.sources.add(source);
+    conflicts.set(key, conflict);
+  };
+
+  for (const client of clients) {
+    if (client.id === excludeClientId) continue;
+    for (const address of splitEmailAddresses(client.email)) {
+      if (addresses.includes(address)) addConflict(address, client.id, client.name, "profile");
+    }
+    for (const address of splitEmailAddresses(client.pec)) {
+      if (addresses.includes(address)) addConflict(address, client.id, client.name, "profile");
+    }
+  }
+  for (const rule of senderRules) {
+    const address = normalizeSenderEmail(rule.senderEmail);
+    const client = clients.find((row) => row.id === rule.clientId);
+    if (address && addresses.includes(address) && client) {
+      addConflict(address, client.id, client.name, "sender_rule");
+    }
+  }
+  return [...conflicts.values()].map((conflict) => ({
+    ...conflict,
+    sources: [...conflict.sources],
+  }));
+}
+
+const ClientEmailField = z.string().nullable().optional().superRefine((value, ctx) => {
+  if (!value?.trim()) return;
+  const pieces = value.split(/[;,\s]+/).filter(Boolean);
+  if (pieces.some((address) => !normalizeSenderEmail(address))) {
+    ctx.addIssue({ code: "custom", message: "Email addresses must be valid and separated by semicolons" });
+  }
+});
+
 const ClientBody = z.object({
   name: z.string().min(1),
   alias: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable(),
+  email: ClientEmailField,
   phone: z.string().optional().nullable(),
   vatNumber: z.string().optional().nullable(),
   taxCode: z.string().optional().nullable(),
@@ -251,6 +319,42 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
   res.json(clients);
 });
 
+router.get("/clients/email-address-associations", requireClientFeature, async (req, res): Promise<void> => {
+  const orgId = (req as any).currentUser.organizationId as number;
+  const [clients, senderRules] = await Promise.all([
+    db.select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+      email: clientsTable.email,
+      pec: clientsTable.pec,
+    }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
+    db.select({
+      clientId: emailClientSenderRulesTable.clientId,
+      senderEmail: emailClientSenderRulesTable.senderEmail,
+    }).from(emailClientSenderRulesTable).where(eq(emailClientSenderRulesTable.organizationId, orgId)),
+  ]);
+  const associations = new Map<string, { address: string; clientId: number; clientName: string; sources: Set<string> }>();
+  const add = (address: string, clientId: number, clientName: string, source: string) => {
+    const key = `${address}:${clientId}`;
+    const entry = associations.get(key) ?? { address, clientId, clientName, sources: new Set<string>() };
+    entry.sources.add(source);
+    associations.set(key, entry);
+  };
+  for (const client of clients) {
+    for (const address of splitEmailAddresses(client.email)) add(address, client.id, client.name, "profile");
+    for (const address of splitEmailAddresses(client.pec)) add(address, client.id, client.name, "profile");
+  }
+  for (const rule of senderRules) {
+    const client = clients.find((row) => row.id === rule.clientId);
+    const address = normalizeSenderEmail(rule.senderEmail);
+    if (client && address) add(address, client.id, client.name, "sender_rule");
+  }
+  res.json([...associations.values()].map((entry) => ({
+    ...entry,
+    sources: [...entry.sources],
+  })));
+});
+
 // Any authenticated organization member can create a client from the client page.
 // Bulk import and destructive/structural operations remain admin-only.
 router.post("/clients", requireClientFeature, async (req, res): Promise<void> => {
@@ -258,6 +362,16 @@ router.post("/clients", requireClientFeature, async (req, res): Promise<void> =>
   const parsed = ClientBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+    return;
+  }
+
+  const normalizedEmail = normalizeClientEmailField(parsed.data.email);
+  const conflicts = await findClientEmailConflicts(
+    currentUser.organizationId,
+    splitEmailAddresses(normalizedEmail),
+  );
+  if (conflicts.length > 0) {
+    res.status(409).json({ error: "Email address already associated with another client", conflicts });
     return;
   }
 
@@ -283,7 +397,7 @@ router.post("/clients", requireClientFeature, async (req, res): Promise<void> =>
 
   const [client] = await db
     .insert(clientsTable)
-    .values({ ...parsed.data, organizationId: currentUser.organizationId, slug })
+    .values({ ...parsed.data, email: normalizedEmail, organizationId: currentUser.organizationId, slug })
     .returning();
 
   res.status(201).json(client);
@@ -597,13 +711,33 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
   }
 
   const [client] = await db
+    .select({ id: clientsTable.id, email: clientsTable.email })
+    .from(clientsTable)
+    .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)));
+
+  if (!client) { res.status(404).json({ error: "Not found" }); return; }
+
+  const updates = { ...parsed.data };
+  if (Object.prototype.hasOwnProperty.call(parsed.data, "email")) {
+    const normalizedEmail = normalizeClientEmailField(parsed.data.email);
+    const previousAddresses = new Set(splitEmailAddresses(client.email));
+    const newAddresses = splitEmailAddresses(normalizedEmail).filter((address) => !previousAddresses.has(address));
+    const conflicts = await findClientEmailConflicts(currentUser.organizationId, newAddresses, id);
+    if (conflicts.length > 0) {
+      res.status(409).json({ error: "Email address already associated with another client", conflicts });
+      return;
+    }
+    updates.email = normalizedEmail;
+  }
+
+  const [updatedClient] = await db
     .update(clientsTable)
-    .set(parsed.data)
+    .set(updates)
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)))
     .returning();
 
-  if (!client) { res.status(404).json({ error: "Not found" }); return; }
-  res.json(client);
+  if (!updatedClient) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(updatedClient);
 });
 
 const LayoutBody = z.object({

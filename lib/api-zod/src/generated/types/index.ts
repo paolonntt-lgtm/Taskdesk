@@ -27,6 +27,8 @@ export * from './calendarItemType';
 export * from './checklistItem';
 export * from './checklistWithItems';
 export * from './client';
+export * from './clientEmailAddressAssociation';
+export * from './clientEmailAddressAssociationSourcesItem';
 export * from './clientImportResult';
 export * from './clientImportResultErrorsItem';
 export * from './clientImportRow';

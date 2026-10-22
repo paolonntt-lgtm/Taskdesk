@@ -11,12 +11,16 @@ export function prefixTicketTitleWithClient(
   const previousPrefix = previousClientName?.trim()
     ? `${previousClientName.trim()}${CLIENT_TITLE_SEPARATOR}`
     : null;
-  const originalTitle = previousPrefix && title.startsWith(previousPrefix)
-    ? title.slice(previousPrefix.length)
-    : title;
   const newPrefix = `${normalizedClientName}${CLIENT_TITLE_SEPARATOR}`;
+  let originalTitle = title;
 
-  return originalTitle.startsWith(newPrefix)
-    ? originalTitle
-    : `${newPrefix}${originalTitle}`;
+  const stripPrefix = (prefix: string) => {
+    while (originalTitle.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase())) {
+      originalTitle = originalTitle.slice(prefix.length);
+    }
+  };
+  if (previousPrefix) stripPrefix(previousPrefix);
+  stripPrefix(newPrefix);
+
+  return `${newPrefix}${originalTitle}`;
 }
