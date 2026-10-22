@@ -190,6 +190,19 @@ for (const route of routes) {
   );
   for (const card of professionCards) {
     assert.ok(card.querySelector('[data-testid="profession-mark"]'), `${route.path} profession tiles must include a mark`);
+    const profession = card.getAttribute("data-testid").replace("link-profession-card-", "");
+    const slug = PROFESSION_SLUGS[route.lang][profession];
+    assert.ok(slug, `${route.path} profession tiles must reference a known profession`);
+    assert.equal(
+      card.getAttribute("href"),
+      `/${route.lang}/${slug}`,
+      `${route.path} must link directly to the localized public ${profession} page in initial HTML`,
+    );
+    assert.ok(card.textContent.trim(), `${route.path} profession links must have descriptive text`);
+    assert.ok(
+      readFileSync(resolve(publicDir, route.lang, slug, "index.html"), "utf8").includes('id="root"'),
+      `${route.path} profession link destination must have prerendered HTML`,
+    );
   }
   assert.equal(
     document.querySelector('[data-testid="link-profession-card-commercialisti"] img')?.getAttribute("src"),

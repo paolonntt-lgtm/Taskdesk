@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "@/i18n";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { PROFESSION_IDS } from "../profession-routes";
+import { PROFESSION_IDS, PROFESSION_SLUGS } from "../profession-routes";
 import Landing from "./Landing";
 
 describe("public visitor controls", () => {
@@ -71,7 +71,7 @@ describe("public visitor controls", () => {
       .toBe(true);
   });
 
-  it.each(["it", "en"])("sends every profession card to registration with attribution in %s", async (lang) => {
+  it.each(["it", "en"] as const)("links every profession card to its localized public page in %s", async (lang) => {
     window.history.replaceState({}, "", `/${lang}/`);
     await act(async () => {
       root.render(createElement(LanguageProvider, null, createElement(Landing)));
@@ -86,10 +86,9 @@ describe("public visitor controls", () => {
       );
       expect(link).not.toBeNull();
       const destination = new URL(link!.href);
-      expect(destination.pathname).toBe("/app/");
-      expect(destination.searchParams.get("mode")).toBe("register");
-      expect(destination.searchParams.get("trial_profession")).toBe(profession);
-      expect(destination.searchParams.get("trial_language")).toBe(lang);
+      expect(destination.pathname).toBe(`/${lang}/${PROFESSION_SLUGS[lang][profession]}`);
+      expect(destination.search).toBe("");
+      expect(link!.textContent?.trim()).toBeTruthy();
     }
   });
 

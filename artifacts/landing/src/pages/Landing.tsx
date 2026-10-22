@@ -6,8 +6,6 @@ import {
   trackBillingCycle,
   trackCta,
   trackLanguageChange,
-  getProfessionalCampaign,
-  trackProfessionalTrialCta,
   trackScrollDepth,
   trackSectionView,
   type CtaLocation,
@@ -32,6 +30,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ProfessionEntryDialog } from "@/components/ProfessionEntryDialog";
 import { ProfessionMark } from "@/components/ProfessionMark";
+import { PROFESSION_SLUGS } from "@/profession-routes";
 
 const SITE_BASE = "https://taskdesk.it";
 const WHATSAPP_NUMBER = "393203177882";
@@ -857,17 +856,7 @@ export default function Landing() {
               {t.whoUses.profiles.map((profile) => (
                 <a
                   key={profile.profession}
-                  href={`${APP_URL}?${new URLSearchParams({
-                    mode: "register",
-                    trial_profession: profile.profession,
-                    trial_language: lang,
-                  }).toString()}`}
-                  onClick={() => trackProfessionalTrialCta(
-                    profile.profession,
-                    lang,
-                    "profession-card",
-                    getProfessionalCampaign(window.location.search),
-                  )}
+                  href={`/${lang}/${PROFESSION_SLUGS[lang][profile.profession]}`}
                   data-testid={`link-profession-card-${profile.profession}`}
                   className="group flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white p-5 text-center text-sm font-bold leading-tight text-gray-700 transition duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 >
