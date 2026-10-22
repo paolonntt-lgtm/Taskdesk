@@ -1,6 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment, useId, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Box, Divider } from '@mui/material';
+import { Box, Button, Collapse, Divider } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useLocation } from 'wouter';
 import {
@@ -8,6 +8,7 @@ import {
   splitEmailBodySections,
   splitEmailThreadDetails,
 } from '../lib/emailDisplay';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface MarkdownContentProps {
   content: string;
@@ -183,18 +184,76 @@ const compactHeadingSx = {
   '& h3': { fontSize: { xs: '1rem', sm: '1.1rem' } },
 };
 
+function HiddenEmailDetails({
+  children,
+  showLabel,
+  hideLabel,
+}: {
+  children: React.ReactNode;
+  showLabel: string;
+  hideLabel: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
+
+  return (
+    <Box>
+      <Button
+        size="small"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        onClick={() => setExpanded((value) => !value)}
+        sx={{ minHeight: 32, px: 0.5, fontSize: '0.75rem', textTransform: 'none' }}
+      >
+        {expanded ? hideLabel : showLabel}
+      </Button>
+      <Collapse id={contentId} in={expanded} unmountOnExit>
+        {children}
+      </Collapse>
+    </Box>
+  );
+}
+
 export function MarkdownContent({
   content,
   onTicketClick,
   forceUnorderedLists = false,
   compactHeadings = false,
 }: MarkdownContentProps) {
+  const { lang } = useLanguage();
   const emailParts = splitEmailContent(content);
   const mdComponents = getMarkdownComponents(onTicketClick, forceUnorderedLists);
 
   if (emailParts) {
     const bodySections = splitEmailBodySections(emailParts.body);
     const threadDetails = splitEmailThreadDetails(bodySections.details);
+    const signatureAndFooter = [bodySections.signature, threadDetails.signatureAndFooter]
+      .filter(Boolean)
+      .join('\n\n');
+    const showSignatureLabel = lang === 'it' ? 'Mostra firma e footer' : 'Show signature and footer';
+    const hideSignatureLabel = lang === 'it' ? 'Nascondi firma e footer' : 'Hide signature and footer';
+    const renderHiddenSignature = (text: string) => text ? (
+      <HiddenEmailDetails showLabel={showSignatureLabel} hideLabel={hideSignatureLabel}>
+        <Box
+          sx={{
+            ...emailBodySx,
+            fontSize: '0.68rem',
+            lineHeight: 1.3,
+            color: 'text.secondary',
+            fontWeight: 400,
+            '& p': { m: 0, mb: 0.25, fontSize: 'inherit', lineHeight: 'inherit' },
+            '& p:last-child': { mb: 0 },
+            '& em, & strong, & a, & li': { fontSize: 'inherit', lineHeight: 'inherit' },
+            '& a': { fontSize: '0.62rem', color: 'text.secondary' },
+            '& ul, & ol': { pl: 2, my: 0.25 },
+          }}
+        >
+          <ReactMarkdown components={mdComponents as any}>
+            {preprocessContent(compactEmailDetailLinks(text))}
+          </ReactMarkdown>
+        </Box>
+      </HiddenEmailDetails>
+    ) : null;
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.1 }}>
         {/* Styled callout for the email sender header */}
@@ -252,26 +311,7 @@ export function MarkdownContent({
           </Box>
         )}
 
-        {threadDetails.signatureAndFooter && (
-          <Box
-            sx={{
-              ...emailBodySx,
-              fontSize: '0.68rem',
-              lineHeight: 1.3,
-              color: 'text.secondary',
-              fontWeight: 400,
-              '& p': { m: 0, mb: 0.25, fontSize: 'inherit', lineHeight: 'inherit' },
-              '& p:last-child': { mb: 0 },
-              '& em, & strong, & a, & li': { fontSize: 'inherit', lineHeight: 'inherit' },
-              '& a': { fontSize: '0.62rem', color: 'text.secondary' },
-              '& ul, & ol': { pl: 2, my: 0.25 },
-            }}
-          >
-            <ReactMarkdown components={mdComponents as any}>
-              {preprocessContent(compactEmailDetailLinks(threadDetails.signatureAndFooter))}
-            </ReactMarkdown>
-          </Box>
-        )}
+        {renderHiddenSignature(signatureAndFooter)}
 
         {bodySections.message && threadDetails.quotedEmails.length > 0 && (
           <Divider
@@ -329,6 +369,7 @@ export function MarkdownContent({
                     </ReactMarkdown>
                   </Box>
                 )}
+                {quoteSections.signature && renderHiddenSignature(quoteSections.signature)}
                 {quoteSections.details && (
                   <Box sx={{ ...emailBodySx, mt: 0.45, fontSize: '0.64rem', lineHeight: 1.3, color: 'text.secondary' }}>
                     <ReactMarkdown components={mdComponents as any}>

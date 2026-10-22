@@ -42,9 +42,10 @@ describe("compactEmailDetailLinks", () => {
     const sections = splitEmailBodySections(body);
 
     expect(sections.message).toBe(
-      "Buon pomeriggio Paolo\n\nperfetto, ti confermo per domani 11.30. Saluti cordiali",
+      "Buon pomeriggio Paolo\n\nperfetto, ti confermo per domani 11.30.",
     );
-    expect(sections.details).toContain("*Tiziana Pietrolungo *");
+    expect(sections.signature).toContain("Saluti cordiali");
+    expect(sections.signature).toContain("*Tiziana Pietrolungo *");
     expect(sections.details).toContain("Messaggio originale citato");
   });
 
@@ -76,11 +77,11 @@ describe("compactEmailDetailLinks", () => {
 
     const firstQuote = splitEmailBodySections(thread.quotedEmails[0].body);
     expect(firstQuote.message).toContain("possiamo vederci domani.");
-    expect(firstQuote.details).toContain("Paolo");
+    expect(firstQuote.signature).toContain("Paolo");
 
     const secondQuote = splitEmailBodySections(thread.quotedEmails[1].body);
     expect(secondQuote.message).toContain("ti sarei grata se potessi aiutarmi.");
-    expect(secondQuote.details).toContain("Tiziana Pietrolungo");
+    expect(secondQuote.signature).toContain("Tiziana Pietrolungo");
   });
 
   it("keeps Italian replies in thread order without treating signatures or footers as replies", () => {
@@ -180,5 +181,63 @@ describe("compactEmailDetailLinks", () => {
     expect(singleReply.quotedEmails).toHaveLength(1);
     expect(noReplies.quotedEmails).toHaveLength(0);
     expect(noReplies.signatureAndFooter).toBe("Firma\nFooter informativo");
+  });
+
+  it("separates Italian and English signatures while preserving the complete message", () => {
+    const italian = splitEmailBodySections([
+      "La pratica è stata completata.",
+      "Cordiali saluti,",
+      "Giulia Rossi",
+      "Consulente del Lavoro",
+      "Cell +39 333 123 4567",
+    ].join("\n"));
+    const english = splitEmailBodySections([
+      "The request is complete.",
+      "Best regards,",
+      "Alex Morgan",
+      "Operations Manager",
+    ].join("\n"));
+
+    expect(italian.message).toBe("La pratica è stata completata.");
+    expect(italian.signature).toContain("Giulia Rossi");
+    expect(english.message).toBe("The request is complete.");
+    expect(english.signature).toContain("Alex Morgan");
+  });
+
+  it("recognizes a separated privacy footer but leaves ambiguous trailing text visible", () => {
+    const footer = splitEmailBodySections([
+      "Please review the attached document.",
+      "--",
+      "This message is confidential. Privacy notice.",
+    ].join("\n"));
+    const ambiguous = splitEmailBodySections([
+      "The next steps are below.",
+      "Contact the office if you have questions.",
+    ].join("\n"));
+
+    expect(footer.message).toBe("Please review the attached document.");
+    expect(footer.signature).toContain("Privacy notice");
+    expect(ambiguous.message).toContain("Contact the office");
+    expect(ambiguous.signature).toBe("");
+  });
+
+  it("hides common mobile mail-client signatures", () => {
+    const italian = splitEmailBodySections("Ho ricevuto tutto.\nInviato dal mio iPhone");
+    const english = splitEmailBodySections("I have received everything.\nSent from my phone");
+
+    expect(italian.message).toBe("Ho ricevuto tutto.");
+    expect(italian.signature).toBe("Inviato dal mio iPhone");
+    expect(english.message).toBe("I have received everything.");
+    expect(english.signature).toBe("Sent from my phone");
+  });
+
+  it("does not hide a message merely because it follows a polite sign-off", () => {
+    const sections = splitEmailBodySections([
+      "Regards,",
+      "I'll ask the manager to follow up tomorrow.",
+    ].join("\n"));
+
+    expect(sections.message).toBe("Regards,\nI'll ask the manager to follow up tomorrow.");
+    expect(sections.signature).toBe("");
   });
 });

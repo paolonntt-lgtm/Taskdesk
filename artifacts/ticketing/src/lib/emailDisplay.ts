@@ -1,6 +1,7 @@
 export interface EmailBodySections {
   metadata: string;
   message: string;
+  signature: string;
   details: string;
 }
 
@@ -16,6 +17,30 @@ export interface EmailThreadDetails {
 
 const QUOTED_EMAIL_HEADER =
   /^(?:da|from):\s*.+|il .+ ha scritto:\s*|on .+ wrote:\s*|--+\s*(?:messaggio originale|original message)\s*--+$/i;
+
+const SIGN_OFF_PATTERN =
+  /(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.,!?]?\s*$/i;
+
+const SIGNATURE_MARKER_PATTERN =
+  /(?:\b(?:tel|telefono|cell|mobile|phone|fax)\b\s*[:.]?\s*\+?\d|(?:\+?\d(?:[\s()./-]*\d){7,})|[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?:privacy|riservatezza|confidentiality|confidential|informativa sulla privacy)\b)/i;
+
+const SIGNATURE_ROLE_LINE_PATTERN =
+  /^\s*(?:(?:[\p{L}'’.-]+\s+){0,3})(?:consulente del lavoro|avvocato|commercialista|notaio|operations manager|manager|director|partner|accountant)\s*$/imu;
+
+const MOBILE_SIGNATURE_PATTERN =
+  /^\s*(?:sent from my (?:iphone|ipad|android|phone|mobile device)|inviato dal mio (?:iphone|ipad|android|telefono|dispositivo mobile))\s*[.!]?\s*$/i;
+
+function looksLikeSignatureTail(text: string): boolean {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  if (SIGNATURE_MARKER_PATTERN.test(text) || SIGNATURE_ROLE_LINE_PATTERN.test(text)) return true;
+  if (lines.length > 3) return false;
+  return lines.every((line) =>
+    line.length <= 80 &&
+    !/[.!?]/.test(line) &&
+    /^[A-ZÀ-ÖØ-Þ][\p{L}'’.-]*(?:\s+[A-ZÀ-ÖØ-Þ][\p{L}'’.-]*){0,5}$/u.test(line),
+  );
+}
 
 function normalizeQuotedEmailHeader(line: string): string {
   return line
@@ -95,24 +120,63 @@ export function splitEmailBodySections(text: string): EmailBodySections {
     bodyLines = bodyLines.slice(0, firstQuotedHeader);
   }
 
-  const signOff = /\b(?:cordiali saluti|saluti cordiali|distinti saluti|un cordiale saluto|un saluto|cordialmente|a presto|best regards|kind regards|regards|thank you|thanks)[.,!?]?\s*$/i;
-  const signOffIndex = bodyLines.findIndex((line) => signOff.test(line.trim()));
   const quotedDetails = quotedLines.join("\n").trim();
 
-  if (signOffIndex < 0) {
-    return {
-      metadata,
-      message: bodyLines.join("\n").trim(),
-      details: quotedDetails,
-    };
+  // Hide only a clearly marked sign-off or a signature separator followed by
+  // recognizable contact/footer text. Ambiguous trailing text stays visible.
+  let signatureStart = -1;
+  let signOffMatch: RegExpMatchArray | null = null;
+  const mobileSignatureIndex = bodyLines.findIndex(
+    (line, index) => index >= Math.max(0, bodyLines.length - 3) && MOBILE_SIGNATURE_PATTERN.test(line),
+  );
+  if (mobileSignatureIndex >= 0) signatureStart = mobileSignatureIndex;
+
+  for (let index = Math.max(0, bodyLines.length - 12); signatureStart < 0 && index < bodyLines.length; index += 1) {
+    const match = bodyLines[index].match(SIGN_OFF_PATTERN);
+    if (!match) continue;
+
+    const beforeSignOff = bodyLines[index].slice(0, match.index ?? 0).trim();
+    const followingText = bodyLines.slice(index + 1).join("\n").trim();
+    if (
+      (!beforeSignOff && !followingText) ||
+      (followingText && looksLikeSignatureTail(followingText))
+    ) {
+      signatureStart = index;
+      signOffMatch = match;
+      break;
+    }
+  }
+
+  if (signatureStart < 0) {
+    const separatorIndex = bodyLines.findIndex((line) => /^\s*--\s*$/.test(line));
+    if (separatorIndex >= 0) {
+      const tail = bodyLines.slice(separatorIndex + 1).join("\n").trim();
+      if (tail && SIGNATURE_MARKER_PATTERN.test(tail)) signatureStart = separatorIndex;
+    }
+  }
+
+  let messageLines = bodyLines;
+  let signature = "";
+  if (signatureStart >= 0) {
+    const signatureLines = bodyLines.slice(signatureStart);
+    if (signOffMatch) {
+      const line = bodyLines[signatureStart];
+      const signOffOffset = signOffMatch.index ?? 0;
+      const messagePrefix = line.slice(0, signOffOffset).trimEnd();
+      signatureLines[0] = line.slice(signOffOffset).trim();
+      messageLines = bodyLines.slice(0, signatureStart);
+      if (messagePrefix) messageLines.push(messagePrefix);
+    } else {
+      messageLines = bodyLines.slice(0, signatureStart);
+    }
+    signature = signatureLines.join("\n").trim();
   }
 
   return {
     metadata,
-    message: bodyLines.slice(0, signOffIndex + 1).join("\n").trim(),
-    details: [bodyLines.slice(signOffIndex + 1).join("\n").trim(), quotedDetails]
-      .filter(Boolean)
-      .join("\n"),
+    message: messageLines.join("\n").trim(),
+    signature,
+    details: quotedDetails,
   };
 }
 
