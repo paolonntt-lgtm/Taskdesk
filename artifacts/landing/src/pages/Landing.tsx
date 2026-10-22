@@ -989,20 +989,20 @@ export default function Landing() {
             <div className="flex items-center opacity-50">
               <img src="/taskdesk-logo.webp" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
             </div>
-            <p className="text-sm text-gray-400">{t.footer.text}</p>
+            <p className="text-sm text-gray-600">{t.footer.text}</p>
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 pt-2 border-t border-gray-100">
-            <Link href="/privacy-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</Link>
-            <Link href="/cookie-policy" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cookie Policy</Link>
+            <Link href="/privacy-policy" className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors">Privacy Policy</Link>
+            <Link href="/cookie-policy" className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors">Cookie Policy</Link>
             <button
               type="button"
               onClick={() => window.dispatchEvent(new Event("td-open-cookie-settings"))}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors"
             >
               {lang === "it" ? "Preferenze cookie" : "Cookie preferences"}
             </button>
-            <Link href="/terms" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">{t.footer.terms}</Link>
-            <Link href="/dpa" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Data Processing Agreement</Link>
+            <Link href="/terms" className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors">{t.footer.terms}</Link>
+            <Link href="/dpa" className="text-xs text-gray-600 hover:text-gray-900 focus-visible:text-gray-900 transition-colors">Data Processing Agreement</Link>
           </div>
         </div>
       </footer>

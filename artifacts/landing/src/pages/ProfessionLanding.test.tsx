@@ -25,6 +25,36 @@ describe("ProfessionLanding language switch", () => {
   });
 
   it.each(PROFESSION_IDS.flatMap((profession) => [
+    { profession, lang: "it" as const },
+    { profession, lang: "en" as const },
+  ]))("keeps mockup labels readable for $profession in $lang", async ({ profession, lang }) => {
+    window.history.replaceState({}, "", `/${lang}/${PROFESSION_SLUGS[lang][profession]}`);
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null,
+        createElement(ProfessionLanding, getProfessionPageProps(profession))));
+    });
+    const labels = lang === "it"
+      ? ["Richiesta in lavorazione", "Prossimo passaggio", "Responsabile assegnato",
+        "Un esempio illustrativo dell’organizzazione del lavoro in TaskDesk."]
+      : ["Request in progress", "Next step", "Assigned owner",
+        "An illustrative example of organising work in TaskDesk."];
+    const article = container.querySelector("article.bg-white")!;
+    expect(article).not.toBeNull();
+    for (const label of labels) {
+      const paragraph = [...article.querySelectorAll("p")].find((p) => p.textContent === label);
+      expect(paragraph, label).toBeDefined();
+      expect(paragraph!.classList.contains("text-gray-600")).toBe(true);
+      expect(paragraph!.classList.contains("text-gray-400")).toBe(false);
+    }
+    const floatingLabel = [...container.querySelectorAll("p")].find(
+      (p) => p.textContent === (lang === "it" ? "Tutto collegato" : "Connected context"),
+    );
+    expect(floatingLabel).toBeDefined();
+    expect(floatingLabel!.classList.contains("text-gray-600")).toBe(true);
+    expect(floatingLabel!.classList.contains("text-gray-400")).toBe(false);
+  });
+
+  it.each(PROFESSION_IDS.flatMap((profession) => [
     { profession, from: "it" as const, to: "en" as const },
     { profession, from: "en" as const, to: "it" as const },
   ]))(

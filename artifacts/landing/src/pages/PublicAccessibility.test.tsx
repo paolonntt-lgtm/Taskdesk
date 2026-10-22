@@ -71,6 +71,38 @@ describe("public visitor controls", () => {
       .toBe(true);
   });
 
+  it.each(["it", "en"])("keeps footer copy and legal controls readable in %s", async (lang) => {
+    window.history.replaceState({}, "", `/${lang}/`);
+    await act(async () => {
+      root.render(createElement(LanguageProvider, null, createElement(Landing)));
+    });
+    const footer = container.querySelector("footer")!;
+    const copy = footer.querySelector("p")!;
+    expect(copy.textContent?.trim()).toBeTruthy();
+    expect(copy.classList.contains("text-gray-600")).toBe(true);
+    expect(copy.classList.contains("text-gray-400")).toBe(false);
+    const controls = [...footer.querySelectorAll("a, button")];
+    expect(controls).toHaveLength(5);
+    for (const control of controls) {
+      expect(control.textContent?.trim()).toBeTruthy();
+      expect(control.classList.contains("text-gray-600")).toBe(true);
+      expect(control.classList.contains("text-gray-400")).toBe(false);
+      expect(control.classList.contains("hover:text-gray-900")).toBe(true);
+      expect(control.classList.contains("focus-visible:text-gray-900")).toBe(true);
+    }
+    const cookieButton = footer.querySelector("button")!;
+    expect(cookieButton.textContent?.trim())
+      .toBe(lang === "it" ? "Preferenze cookie" : "Cookie preferences");
+    const openSettings = vi.fn();
+    window.addEventListener("td-open-cookie-settings", openSettings);
+    try {
+      await act(async () => cookieButton.click());
+      expect(openSettings).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener("td-open-cookie-settings", openSettings);
+    }
+  });
+
   it.each(["it", "en"] as const)("links every profession card to its localized public page in %s", async (lang) => {
     window.history.replaceState({}, "", `/${lang}/`);
     await act(async () => {

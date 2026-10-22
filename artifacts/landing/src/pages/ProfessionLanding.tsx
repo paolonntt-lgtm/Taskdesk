@@ -170,7 +170,7 @@ export function ProfessionLanding({
               <article className="relative rounded-2xl border border-gray-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-7">
                 <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">{lang === "it" ? "Richiesta in lavorazione" : "Request in progress"}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-600">{lang === "it" ? "Richiesta in lavorazione" : "Request in progress"}</p>
                     <p className="mt-1 text-sm font-bold text-gray-900">{copy.examples[0].title}</p>
                   </div>
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">{lang === "it" ? "In attesa" : "Waiting"}</span>
@@ -178,7 +178,7 @@ export function ProfessionLanding({
                 <div className="space-y-4">
                   <div className="flex gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><ClipboardList aria-hidden="true" className="h-4 w-4" /></span>
-                    <div><p className="text-xs font-semibold text-gray-400">{lang === "it" ? "Prossimo passaggio" : "Next step"}</p><p className="mt-1 text-sm font-semibold text-gray-800">{copy.examples[0].description}</p></div>
+                    <div><p className="text-xs font-semibold text-gray-600">{lang === "it" ? "Prossimo passaggio" : "Next step"}</p><p className="mt-1 text-sm font-semibold text-gray-800">{copy.examples[0].description}</p></div>
                   </div>
                   <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
                     <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600"><Clock3 aria-hidden="true" className="h-4 w-4 text-blue-600" />{lang === "it" ? "Data prevista" : "Target date"}</span>
@@ -186,14 +186,14 @@ export function ProfessionLanding({
                   </div>
                   <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eaf0fa] text-xs font-black text-blue-800">{lang === "it" ? "ST" : "TM"}</span>
-                    <div className="min-w-0 flex-1"><p className="text-xs font-bold text-gray-800">{lang === "it" ? "Team dello studio" : "Practice team"}</p><p className="text-xs text-gray-400">{lang === "it" ? "Responsabile assegnato" : "Assigned owner"}</p></div>
+                    <div className="min-w-0 flex-1"><p className="text-xs font-bold text-gray-800">{lang === "it" ? "Team dello studio" : "Practice team"}</p><p className="text-xs text-gray-600">{lang === "it" ? "Responsabile assegnato" : "Assigned owner"}</p></div>
                     <MessagesSquare aria-hidden="true" className="h-4 w-4 text-gray-400" />
                   </div>
                 </div>
-                <p className="mt-5 border-t border-gray-100 pt-4 text-xs leading-5 text-gray-400">{lang === "it" ? "Un esempio illustrativo dell’organizzazione del lavoro in TaskDesk." : "An illustrative example of organising work in TaskDesk."}</p>
+                <p className="mt-5 border-t border-gray-100 pt-4 text-xs leading-5 text-gray-600">{lang === "it" ? "Un esempio illustrativo dell’organizzazione del lavoro in TaskDesk." : "An illustrative example of organising work in TaskDesk."}</p>
               </article>
               <div className="absolute -bottom-5 -left-5 hidden rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-lg sm:block">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{lang === "it" ? "Tutto collegato" : "Connected context"}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">{lang === "it" ? "Tutto collegato" : "Connected context"}</p>
                 <p className="mt-1 text-xs font-bold text-gray-800">{lang === "it" ? "Richiesta · team · conversazione" : "Request · team · conversation"}</p>
               </div>
             </div>
