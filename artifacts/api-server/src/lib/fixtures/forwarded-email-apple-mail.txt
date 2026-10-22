@@ -1,0 +1,10 @@
+Forwarding this to support.
+
+Begin forwarded message:
+
+From: Casey Example <casey@example.org>
+Date: May 12, 2026 at 9:15:00 AM PDT
+Subject: Appointment update
+To: support@example.test
+
+Could we change the appointment time?

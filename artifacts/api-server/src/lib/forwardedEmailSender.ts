@@ -18,8 +18,13 @@ export function extractForwardedSender(text: string): string | null {
   const marker = /(?:^|\n)\s*(?:-{2,}\s*(?:forwarded message|original message|messaggio inoltrato|messaggio originale)\s*-{2,}|begin forwarded message:|inizio messaggio inoltrato:)\s*(?:\r?\n)/ig;
   const match = marker.exec(text);
   if (!match) return null;
-  const forwardedBlock = text.slice(marker.lastIndex, marker.lastIndex + 5000);
-  const fromLine = /^(?:from|da):\s*(.+)$/im.exec(forwardedBlock);
+
+  const lines = text.slice(marker.lastIndex).split(/\r?\n/);
+  while (lines[0]?.trim() === "") lines.shift();
+
+  // Mail clients place the original sender in the first header line. Requiring
+  // it here prevents a later, unrelated From line in the body from being accepted.
+  const fromLine = /^(?:from|da):\s*(.+)$/i.exec(lines[0] ?? "");
   return fromLine ? validatedSender(fromLine[1]) : null;
 }
 

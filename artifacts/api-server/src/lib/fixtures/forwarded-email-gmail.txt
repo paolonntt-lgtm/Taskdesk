@@ -1,0 +1,9 @@
+Hi, could you take a look?
+
+---------- Forwarded message ---------
+From: Riley Example <riley@example.com>
+Date: Tue, 12 May 2026 at 09:15
+Subject: Access to the account
+To: support@example.test
+
+I cannot access my account.
