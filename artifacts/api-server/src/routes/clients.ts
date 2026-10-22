@@ -81,6 +81,15 @@ function normalizeClientEmailField(value: string | null | undefined): string | n
   return addresses.length ? addresses.join("; ") : null;
 }
 
+function removeClientEmailAddress(value: string | null | undefined, address: string): string | null {
+  if (!value) return null;
+  const remaining = value
+    .split(/[;,\s]+/)
+    .map((item) => item.trim())
+    .filter((item) => item && normalizeSenderEmail(item) !== address);
+  return remaining.length ? remaining.join("; ") : null;
+}
+
 async function findClientEmailConflicts(
   organizationId: number,
   addresses: string[],
@@ -354,6 +363,102 @@ router.get("/clients/email-address-associations", requireClientFeature, async (r
     sources: [...entry.sources],
   })));
 });
+
+const ResolveClientEmailAssociationBody = z.object({
+  address: z.string().email().transform(normalizeSenderEmail),
+  keepClientId: z.number().int().positive(),
+  removeClientId: z.number().int().positive(),
+}).refine((body) => body.keepClientId !== body.removeClientId, {
+  message: "The client to keep and the client to remove must be different",
+});
+
+router.patch(
+  "/clients/email-address-associations/resolve",
+  requireClientFeature,
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = ResolveClientEmailAssociationBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", message: String(parsed.error) });
+      return;
+    }
+
+    const { address, keepClientId, removeClientId } = parsed.data;
+    const organizationId = (req as any).currentUser.organizationId as number;
+    const result = await db.transaction(async (tx) => {
+      const clients = await tx
+        .select({
+          id: clientsTable.id,
+          email: clientsTable.email,
+          pec: clientsTable.pec,
+        })
+        .from(clientsTable)
+        .where(and(
+          eq(clientsTable.organizationId, organizationId),
+          inArray(clientsTable.id, [keepClientId, removeClientId]),
+        ));
+      const keepClient = clients.find((client) => client.id === keepClientId);
+      const removeClient = clients.find((client) => client.id === removeClientId);
+      if (!keepClient || !removeClient) return "not_found" as const;
+
+      const senderRules = await tx
+        .select({
+          id: emailClientSenderRulesTable.id,
+          clientId: emailClientSenderRulesTable.clientId,
+          senderEmail: emailClientSenderRulesTable.senderEmail,
+        })
+        .from(emailClientSenderRulesTable)
+        .where(and(
+          eq(emailClientSenderRulesTable.organizationId, organizationId),
+          inArray(emailClientSenderRulesTable.clientId, [keepClientId, removeClientId]),
+        ));
+      const hasAssociation = (client: typeof keepClient | typeof removeClient) =>
+        splitEmailAddresses(client.email).includes(address)
+        || splitEmailAddresses(client.pec).includes(address)
+        || senderRules.some((rule) =>
+          rule.clientId === client.id && normalizeSenderEmail(rule.senderEmail) === address,
+        );
+
+      if (!hasAssociation(keepClient) || !hasAssociation(removeClient)) {
+        return "association_changed" as const;
+      }
+
+      const profileUpdates: { email?: string | null; pec?: string | null } = {};
+      if (splitEmailAddresses(removeClient.email).includes(address)) {
+        profileUpdates.email = removeClientEmailAddress(removeClient.email, address);
+      }
+      if (splitEmailAddresses(removeClient.pec).includes(address)) {
+        profileUpdates.pec = removeClientEmailAddress(removeClient.pec, address);
+      }
+      if (Object.keys(profileUpdates).length > 0) {
+        await tx.update(clientsTable).set(profileUpdates).where(and(
+          eq(clientsTable.id, removeClientId),
+          eq(clientsTable.organizationId, organizationId),
+        ));
+      }
+
+      const rulesToDelete = senderRules
+        .filter((rule) => rule.clientId === removeClientId && normalizeSenderEmail(rule.senderEmail) === address)
+        .map((rule) => rule.id);
+      if (rulesToDelete.length > 0) {
+        await tx.delete(emailClientSenderRulesTable).where(inArray(emailClientSenderRulesTable.id, rulesToDelete));
+      }
+
+      return "resolved" as const;
+    });
+
+    if (result === "not_found") {
+      res.status(404).json({ error: "Client not found" });
+      return;
+    }
+    if (result === "association_changed") {
+      res.status(409).json({ error: "Email association changed; refresh and try again" });
+      return;
+    }
+
+    res.json({ success: true });
+  },
+);
 
 // Any authenticated organization member can create a client from the client page.
 // Bulk import and destructive/structural operations remain admin-only.

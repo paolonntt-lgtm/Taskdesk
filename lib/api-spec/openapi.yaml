@@ -2371,6 +2371,39 @@ paths:
         "401":
           description: Unauthorized
 
+  /clients/email-address-associations/resolve:
+    patch:
+      operationId: resolveClientEmailAddressAssociation
+      tags: [clients]
+      summary: Keep an email association for one client and remove it from another (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveClientEmailAddressAssociationBody"
+      responses:
+        "200":
+          description: Association resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin access required
+        "404":
+          description: Client not found
+        "409":
+          description: Association changed before resolution
+
   /clients/import:
     post:
       operationId: importClients
@@ -4694,6 +4727,18 @@ components:
             type: string
             enum: [profile, sender_rule]
       required: [address, clientId, clientName, sources]
+
+    ResolveClientEmailAddressAssociationBody:
+      type: object
+      properties:
+        address:
+          type: string
+          format: email
+        keepClientId:
+          type: integer
+        removeClientId:
+          type: integer
+      required: [address, keepClientId, removeClientId]
 
     ClientImportRow:
       type: object

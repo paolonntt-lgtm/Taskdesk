@@ -3537,6 +3537,20 @@ export const ListClientEmailAssociationsResponse = zod.array(ListClientEmailAsso
 
 
 /**
+ * @summary Keep an email association for one client and remove it from another (admin only)
+ */
+export const ResolveClientEmailAddressAssociationBody = zod.object({
+  "address": zod.email(),
+  "keepClientId": zod.int(),
+  "removeClientId": zod.int()
+})
+
+export const ResolveClientEmailAddressAssociationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary Bulk import clients from parsed rows (admin only)
  */
 export const ImportClientsBody = zod.object({

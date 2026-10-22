@@ -85,6 +85,8 @@ import type {
   RecentTicketWithActivity,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
+  ResolveClientEmailAddressAssociation200,
+  ResolveClientEmailAddressAssociationBody,
   SaveAttachmentBody,
   SearchResults,
   SetRecurrenceBody,
@@ -7510,6 +7512,86 @@ export function useListClientEmailAssociations<TData = Awaited<ReturnType<typeof
 
 
 
+
+export const getResolveClientEmailAddressAssociationUrl = () => {
+
+
+
+
+  return `/api/clients/email-address-associations/resolve`
+}
+
+/**
+ * @summary Keep an email association for one client and remove it from another (admin only)
+ */
+export const resolveClientEmailAddressAssociation = async (resolveClientEmailAddressAssociationBody: ResolveClientEmailAddressAssociationBody, options?: Parameters<typeof customFetch>[1]): Promise<ResolveClientEmailAddressAssociation200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<ResolveClientEmailAddressAssociation200>(getResolveClientEmailAddressAssociationUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resolveClientEmailAddressAssociationBody)
+  }
+);}
+
+
+
+
+
+export const getResolveClientEmailAddressAssociationMutationKey = () => ['resolveClientEmailAddressAssociation'] as const;
+
+export const getResolveClientEmailAddressAssociationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>, TError,ResolveClientEmailAddressAssociationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>, TError,ResolveClientEmailAddressAssociationMutationVariables, TContext> => {
+
+const mutationKey = getResolveClientEmailAddressAssociationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>, ResolveClientEmailAddressAssociationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  resolveClientEmailAddressAssociation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveClientEmailAddressAssociationMutationResult = NonNullable<Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>>
+    export type ResolveClientEmailAddressAssociationMutationBody = BodyType<ResolveClientEmailAddressAssociationBody>
+    export type ResolveClientEmailAddressAssociationMutationError = ErrorType<void>
+    export type ResolveClientEmailAddressAssociationMutationVariables = {data: BodyType<ResolveClientEmailAddressAssociationBody>}
+
+    /**
+ * @summary Keep an email association for one client and remove it from another (admin only)
+ */
+export const useResolveClientEmailAddressAssociation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>, TError,ResolveClientEmailAddressAssociationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveClientEmailAddressAssociation>>,
+        TError,
+        ResolveClientEmailAddressAssociationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveClientEmailAddressAssociationMutationOptions(options));
+    }
 
 export const getImportClientsUrl = () => {
 

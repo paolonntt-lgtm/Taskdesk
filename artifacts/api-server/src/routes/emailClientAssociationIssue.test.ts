@@ -22,12 +22,15 @@ let collaboratorId: number;
 let ticketId: number;
 let adminSessionId: string;
 let collaboratorSessionId: string;
+let senderEmail: string;
+let keepClientId: number;
+let removeClientId: number;
 
 async function getTicket(sessionId: string) {
   const response = await fetch(`${baseUrl}/api/tickets/${ticketId}`, {
     headers: { Cookie: `session_id=${sessionId}` },
   });
-  return { status: response.status, body: await response.json() };
+  return { status: response.status, body: await response.json() as any };
 }
 
 describe("admin-only inbound email client association warnings", () => {
@@ -56,11 +59,13 @@ describe("admin-only inbound email client association warnings", () => {
     }).returning({ id: usersTable.id });
     collaboratorId = collaborator.id;
 
-    const senderEmail = `shared-${runId}@northwind.example`;
-    await db.insert(clientsTable).values([
+    senderEmail = `shared-${runId}@northwind.example`;
+    const clients = await db.insert(clientsTable).values([
       { organizationId, name: "Private Client One", email: senderEmail },
       { organizationId, name: "Private Client Two", pec: senderEmail },
-    ]);
+    ]).returning({ id: clientsTable.id });
+    keepClientId = clients[0].id;
+    removeClientId = clients[1].id;
 
     const [ticket] = await db.insert(ticketsTable).values({
       organizationId,
@@ -117,5 +122,40 @@ describe("admin-only inbound email client association warnings", () => {
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("clientAssociationIssue");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client One");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client Two");
+  });
+
+  it("lets admins remove only the incorrect client association without changing ticket sender history", async () => {
+    const collaboratorResponse = await fetch(`${baseUrl}/api/clients/email-address-associations/resolve`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${collaboratorSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ address: senderEmail, keepClientId, removeClientId }),
+    });
+    expect(collaboratorResponse.status).toBe(403);
+
+    const response = await fetch(`${baseUrl}/api/clients/email-address-associations/resolve`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ address: senderEmail, keepClientId, removeClientId }),
+    });
+    expect(response.status).toBe(200);
+
+    const clients = await db.select({
+      id: clientsTable.id,
+      email: clientsTable.email,
+      pec: clientsTable.pec,
+    }).from(clientsTable).where(eq(clientsTable.organizationId, organizationId));
+    expect(clients.find((client) => client.id === keepClientId)?.email).toBe(senderEmail);
+    expect(clients.find((client) => client.id === removeClientId)?.pec).toBeNull();
+
+    const [ticket] = await db.select({ resource: ticketsTable.resource })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(ticket.resource).toBe(senderEmail);
   });
 });

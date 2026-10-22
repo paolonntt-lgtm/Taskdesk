@@ -286,7 +286,24 @@ export default function Clients() {
   const [snackbar, setSnackbar] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({
     open: false, msg: '', severity: 'success',
   });
+  const [keepEmailAssociationByAddress, setKeepEmailAssociationByAddress] = useState<Record<string, number>>({});
+  const [resolvingEmailAssociation, setResolvingEmailAssociation] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const conflictingEmailGroups = (() => {
+    const groups = new Map<string, typeof emailAssociations>();
+    for (const association of emailAssociations) {
+      const key = association.address.toLowerCase();
+      const group = groups.get(key) ?? [];
+      if (!group.some((item) => item.clientId === association.clientId)) {
+        group.push(association);
+      }
+      groups.set(key, group);
+    }
+    return [...groups.values()]
+      .filter((group) => group.length > 1)
+      .sort((a, b) => a[0].address.localeCompare(b[0].address));
+  })();
 
   const openCreate = useCallback(() => {
     setEditingClient(null);
@@ -368,6 +385,31 @@ export default function Clients() {
       setConfirmDeleteId(null);
     } catch {
       setDeleteError(tc.errorDeleting);
+    }
+  };
+
+  const handleResolveEmailAssociation = async (
+    address: string,
+    keepClientId: number,
+    removeClientId: number,
+  ) => {
+    const actionKey = `${address.toLowerCase()}:${removeClientId}`;
+    setResolvingEmailAssociation(actionKey);
+    try {
+      const response = await fetch('/api/clients/email-address-associations/resolve', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, keepClientId, removeClientId }),
+      });
+      if (!response.ok) throw new Error('resolve_failed');
+      void qc.invalidateQueries({ queryKey: getListClientEmailAssociationsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
+      setSnackbar({ open: true, msg: tc.emailAssociationResolved, severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, msg: tc.emailAssociationResolveError, severity: 'error' });
+    } finally {
+      setResolvingEmailAssociation(null);
     }
   };
 
@@ -487,6 +529,88 @@ export default function Clients() {
           </Button>
         </Box>
       </Box>
+
+      {isAdmin && conflictingEmailGroups.length > 0 && (
+        <Box
+          component="section"
+          aria-labelledby="conflicting-email-addresses-title"
+          sx={{ border: 1, borderColor: 'warning.light', borderRadius: 1, p: 2, mb: 2, bgcolor: 'warning.50' }}
+        >
+          <Typography id="conflicting-email-addresses-title" variant="subtitle1" fontWeight={600}>
+            {tc.conflictingEmailAddresses}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {tc.conflictingEmailAddressesHelp}
+          </Typography>
+          <Box display="flex" flexDirection="column" gap={1.5}>
+            {conflictingEmailGroups.map((group) => {
+              const address = group[0].address;
+              const addressKey = address.toLowerCase();
+              const keepClientId = keepEmailAssociationByAddress[addressKey] ?? group[0].clientId;
+              return (
+                <Box
+                  key={addressKey}
+                  sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5, bgcolor: 'background.paper' }}
+                >
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    {address}
+                  </Typography>
+                  <TextField
+                    select
+                    size="small"
+                    fullWidth
+                    label={tc.keepEmailAssociationFor}
+                    value={keepClientId}
+                    onChange={(event) => setKeepEmailAssociationByAddress((current) => ({
+                      ...current,
+                      [addressKey]: Number(event.target.value),
+                    }))}
+                    sx={{ mb: 1 }}
+                  >
+                    {group.map((association) => (
+                      <MenuItem key={association.clientId} value={association.clientId}>
+                        {association.clientName}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Box display="flex" flexDirection="column" gap={0.75}>
+                    {group.map((association) => (
+                      <Box
+                        key={association.clientId}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap={1}
+                      >
+                        <Typography variant="body2">
+                          {association.clientName}
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            {association.sources.map((source) =>
+                              source === 'profile' ? tc.emailFromProfile : tc.emailFromRule,
+                            ).join(', ')}
+                          </Typography>
+                        </Typography>
+                        {association.clientId !== keepClientId && (
+                          <Button
+                            size="small"
+                            color="error"
+                            disabled={resolvingEmailAssociation !== null}
+                            onClick={() => void handleResolveEmailAssociation(address, keepClientId, association.clientId)}
+                          >
+                            {resolvingEmailAssociation === `${addressKey}:${association.clientId}`
+                              ? tc.saving
+                              : tc.removeEmailAssociation}
+                          </Button>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
 
       <Box mb={2} display="flex" alignItems="center" gap={2} flexWrap="wrap">
         <TextField

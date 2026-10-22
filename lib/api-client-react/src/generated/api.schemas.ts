@@ -1003,6 +1003,12 @@ export interface ClientEmailAddressAssociation {
   sources: ClientEmailAddressAssociationSourcesItem[];
 }
 
+export interface ResolveClientEmailAddressAssociationBody {
+  address: string;
+  keepClientId: number;
+  removeClientId: number;
+}
+
 export interface ClientImportRow {
   name: string;
   vatNumber?: string | null;
@@ -1455,6 +1461,10 @@ search?: string;
  * Return only clients with at least one closed ticket that has worked time still marked as unbilled.
  */
 hasUnbilledWorkedTime?: boolean;
+};
+
+export type ResolveClientEmailAddressAssociation200 = {
+  success: boolean;
 };
 
 export type ImportClientsBody = {
