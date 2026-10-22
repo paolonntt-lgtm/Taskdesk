@@ -31,11 +31,25 @@ app.get("/healthz", (_req, res) => {
   res.status(200).send("ok");
 });
 
-// Redirect /<path>/index.html → /<path>/ (301 permanent — eliminates duplicate crawl paths)
+// Normalize existing localized pages before static serving. Home URLs keep
+// their slash; nested pages use the non-slash URLs advertised in their metadata.
 app.use((req, res, next) => {
+  const query = req.originalUrl.slice(req.path.length);
   if (req.path.endsWith("/index.html")) {
-    const cleanPath = req.path.slice(0, -"index.html".length) || "/";
-    return res.redirect(301, cleanPath);
+    const directory = req.path.slice(0, -"index.html".length) || "/";
+    const cleanPath = /^\/(it|en)\/[^/]+\/$/.test(directory)
+      ? directory.slice(0, -1)
+      : directory;
+    return res.redirect(301, cleanPath + query);
+  }
+  if (req.path === "/it" || req.path === "/en") {
+    return res.redirect(301, `${req.path}/${query}`);
+  }
+  if (
+    /^\/(it|en)\/[^/]+\/$/.test(req.path) &&
+    existsSync(resolve(distPublic, req.path.slice(1), "index.html"))
+  ) {
+    return res.redirect(301, req.path.slice(0, -1) + query);
   }
   next();
 });
@@ -74,6 +88,7 @@ app.use((req, res, next) => {
 // Serve static assets (JS, CSS, images, etc.)
 app.use(express.static(distPublic, {
   index: false,
+  redirect: false,
   setHeaders(res, filePath) {
     if (filePath.endsWith(".html") || filePath.endsWith(`${pathSeparator}sw.js`)) {
       setNoStoreHeaders(res);
@@ -102,6 +117,6 @@ app.use((req, res) => {
   res.status(404).send("Not Found");
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Landing server listening on port ${port}`);
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`Landing server listening on port ${server.address().port}`);
 });
