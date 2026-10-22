@@ -1,10 +1,10 @@
 ---
 name: Inbound email client titles
-description: Naming and selector behavior for email tickets associated with clients.
+description: Client prefixes on associated email-ticket titles must remain unique and preserve the subject.
 ---
 
-When an inbound email ticket is associated with a client, format its title as `Client name — original subject`. Keep the original subject intact. After an inbound email ticket is associated and its title has this prefix, show the client as read-only and hide the client selector.
+When an inbound email ticket is associated with a client, format its title with exactly one leading `Client name — original subject` prefix. Prefixing must be idempotent across repeated association attempts and reassignment; normalize repeated leading copies to one while preserving the original subject. After an inbound email ticket is associated, show the client as read-only and hide the client selector.
 
-**Why:** The user chose the client name as a title prefix to make ticket ownership clear without losing the email subject, and asked to remove the selector after matching.
+**Why:** The client name clarifies ticket ownership, but duplicated prefixes have appeared in a title and must never recur.
 
-**How to apply:** Apply consistently to automatic exact-email matches, manually saved sender associations, and confirmed domain suggestions. Legacy linked tickets without the prefix should still offer a way to apply it once.
+**How to apply:** Use the same normalization for automatic exact-email matches, manual sender associations, and confirmed domain suggestions. Replace the old client prefix on reassignment. Legacy linked tickets without the prefix should still offer a way to apply it once.
