@@ -6,7 +6,7 @@ import {
   LinearProgress, Divider, Checkbox, FormControlLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, Search, OpenInNew, Upload, FileUpload } from '@mui/icons-material';
-import { useListClients, useCreateClient, useUpdateClient, useDeleteClient, getGetClientQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
+import { useListClients, useListClientEmailAssociations, useCreateClient, useUpdateClient, useDeleteClient, getGetClientQueryKey, getListClientsQueryKey, getListClientEmailAssociationsQueryKey } from '@workspace/api-client-react';
 import type { Client, ClientInput } from '@workspace/api-client-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { readSheet, type CellValue } from 'read-excel-file/browser';
 import { invalidateTicketDataAfterClientRename } from '../lib/clientNameCache';
+import ClientEmailAddressFields, { getClientEmailAddressConflicts, parseClientEmailAddresses } from '../components/ClientEmailAddressFields';
 
 const emptyForm: ClientInput = {
   name: '',
@@ -249,6 +250,7 @@ export default function Clients() {
   const clients = clientsQuery.data ?? [];
   const isLoading = clientsQuery.isLoading;
   const { data: allClients = [] } = useListClients({});
+  const { data: emailAssociations = [] } = useListClientEmailAssociations();
 
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
@@ -257,8 +259,15 @@ export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState<ClientInput>(emptyForm);
+  const [emailAddresses, setEmailAddresses] = useState<string[]>(['']);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const existingEmailAddresses = parseClientEmailAddresses(editingClient?.email);
+  const existingEmailSet = new Set(existingEmailAddresses);
+  const newlyAddedEmails = emailAddresses.filter((address) =>
+    address.trim() && !existingEmailSet.has(address.trim().toLowerCase()),
+  );
+  const emailConflicts = getClientEmailAddressConflicts(newlyAddedEmails, emailAssociations, editingClient?.id);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState('');
@@ -282,6 +291,7 @@ export default function Clients() {
   const openCreate = useCallback(() => {
     setEditingClient(null);
     setForm(emptyForm);
+    setEmailAddresses(['']);
     setFormError('');
     setDialogOpen(true);
   }, []);
@@ -300,6 +310,7 @@ export default function Clients() {
       contactPerson: (client as any).contactPerson ?? null,
       notes: client.notes ?? null,
     });
+    setEmailAddresses(parseClientEmailAddresses(client.email));
     setFormError('');
     setDialogOpen(true);
   }, []);
@@ -312,7 +323,7 @@ export default function Clients() {
       const payload = {
         name: form.name.trim(),
         alias: (form as any).alias?.trim() || null,
-        email: form.email?.trim() || null,
+        email: emailAddresses.map((address) => address.trim()).filter(Boolean).join('; ') || null,
         phone: form.phone?.trim() || null,
         vatNumber: (form as any).vatNumber?.trim() || null,
         taxCode: (form as any).taxCode?.trim() || null,
@@ -324,16 +335,22 @@ export default function Clients() {
       if (editingClient) {
         await updateClient.mutateAsync({ id: editingClient.id, data: payload });
         await qc.invalidateQueries({ queryKey: getGetClientQueryKey(editingClient.id) });
+        await qc.invalidateQueries({ queryKey: getListClientEmailAssociationsQueryKey() });
         if (editingClient.name !== payload.name) {
           await invalidateTicketDataAfterClientRename(qc);
         }
       } else {
         await createClient.mutateAsync({ data: payload });
+        await qc.invalidateQueries({ queryKey: getListClientEmailAssociationsQueryKey() });
       }
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
       setDialogOpen(false);
     } catch (err: any) {
-      if (err?.response?.status === 409 || err?.status === 409) {
+      const conflicts = err?.data?.conflicts ?? err?.response?.data?.conflicts;
+      const errorMessage = err?.data?.error ?? err?.response?.data?.error;
+      if (Array.isArray(conflicts) && conflicts.length > 0) {
+        setFormError(`${tc.emailAddressConflict} ${conflicts.map((item: any) => item.clientName).join(', ')}`);
+      } else if (errorMessage === 'Duplicate VAT number' || err?.response?.status === 409 || err?.status === 409) {
         setFormError(tc.errorDuplicateVat);
       } else {
         setFormError(tc.errorSaving);
@@ -625,13 +642,20 @@ export default function Clients() {
               value={(form as any).contactPerson ?? ''}
               onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value || null } as any))}
             />
-            <TextField
-              label={tc.email}
-              fullWidth
-              type="email"
-              value={form.email ?? ''}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value || null }))}
-            />
+              <ClientEmailAddressFields
+                addresses={emailAddresses}
+                onChange={setEmailAddresses}
+                associations={emailAssociations}
+                clientId={editingClient?.id}
+                emailLabel={tc.email}
+                addLabel={tc.addEmailAddress}
+                removeLabel={tc.removeEmailAddress}
+                matchedLabel={tc.matchedEmailAddress}
+                profileSourceLabel={tc.emailFromProfile}
+                ruleSourceLabel={tc.emailFromRule}
+                unmatchedLabel={tc.emailNotMatched}
+                conflictLabel={tc.emailAddressConflict}
+              />
             <TextField
               label={tc.phone}
               fullWidth
@@ -650,7 +674,7 @@ export default function Clients() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>{tc.cancel}</Button>
-          <Button variant="contained" onClick={handleSave} disabled={saving}>
+          <Button variant="contained" onClick={handleSave} disabled={saving || emailConflicts.length > 0}>
             {saving ? tc.saving : tc.save}
           </Button>
         </DialogActions>

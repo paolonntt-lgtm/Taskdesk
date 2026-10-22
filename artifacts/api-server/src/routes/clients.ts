@@ -368,7 +368,10 @@ router.post("/clients", requireClientFeature, async (req, res): Promise<void> =>
   const normalizedEmail = normalizeClientEmailField(parsed.data.email);
   const conflicts = await findClientEmailConflicts(
     currentUser.organizationId,
-    splitEmailAddresses(normalizedEmail),
+    [...new Set([
+      ...splitEmailAddresses(normalizedEmail),
+      ...splitEmailAddresses(parsed.data.pec),
+    ])],
   );
   if (conflicts.length > 0) {
     res.status(409).json({ error: "Email address already associated with another client", conflicts });
@@ -711,7 +714,7 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
   }
 
   const [client] = await db
-    .select({ id: clientsTable.id, email: clientsTable.email })
+    .select({ id: clientsTable.id, email: clientsTable.email, pec: clientsTable.pec })
     .from(clientsTable)
     .where(and(eq(clientsTable.id, id), eq(clientsTable.organizationId, currentUser.organizationId)));
 
@@ -728,6 +731,15 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
       return;
     }
     updates.email = normalizedEmail;
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed.data, "pec")) {
+    const previousAddresses = new Set(splitEmailAddresses(client.pec));
+    const newAddresses = splitEmailAddresses(parsed.data.pec).filter((address) => !previousAddresses.has(address));
+    const conflicts = await findClientEmailConflicts(currentUser.organizationId, newAddresses, id);
+    if (conflicts.length > 0) {
+      res.status(409).json({ error: "Email address already associated with another client", conflicts });
+      return;
+    }
   }
 
   const [updatedClient] = await db

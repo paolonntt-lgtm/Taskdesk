@@ -12,11 +12,15 @@ import {
   decodeBodyText,
   decodeBodyBuffer,
   decodeMimeWords,
-  parseHeaders,
   tryUnwrapPec,
   cleanPecSubject,
 } from "../lib/pecUtils";
-import { normalizeSenderEmail } from "../lib/emailClientAssociation";
+import {
+  extractForwardedSender,
+  extractSenderFromRawEmail,
+  extractSenderFromEmbeddedEmail,
+  extractSenderFromProviderAttachments,
+} from "../lib/forwardedEmailSender";
 
 const router: IRouter = Router();
 
@@ -36,54 +40,6 @@ function parseEmailAddress(raw: string): { email: string; name: string } {
   const m = /^(.+?)\s*<([^>]+)>\s*$/.exec(raw.trim());
   if (m) return { name: m[1].trim(), email: m[2].trim() };
   return { name: raw.trim(), email: raw.trim() };
-}
-
-function validatedSender(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const { email } = parseEmailAddress(raw);
-  return normalizeSenderEmail(email) || null;
-}
-
-function extractSenderFromRawEmail(rawEmail: string): string | null {
-  const separator = rawEmail.search(/\r?\n\r?\n/);
-  if (separator < 0) return null;
-  const headers = parseHeaders(rawEmail.slice(0, separator));
-  return validatedSender(headers.from);
-}
-
-function extractForwardedSender(text: string): string | null {
-  const marker = /(?:^|\n)\s*(?:-{2,}\s*(?:forwarded message|original message|messaggio inoltrato|messaggio originale)\s*-{2,}|begin forwarded message:|inizio messaggio inoltrato:)\s*(?:\r?\n)/ig;
-  const match = marker.exec(text);
-  if (!match) return null;
-  const forwardedBlock = text.slice(marker.lastIndex, marker.lastIndex + 5000);
-  const fromLine = /^(?:from|da):\s*(.+)$/im.exec(forwardedBlock);
-  return fromLine ? validatedSender(fromLine[1]) : null;
-}
-
-function extractSenderFromEmbeddedEmail(rawMime: string): string | null {
-  if (!rawMime) return null;
-  const { rawAttachments } = parseMimeMessage(rawMime);
-  for (const attachment of rawAttachments) {
-    if (attachment.mimeType !== "message/rfc822" && !attachment.filename.toLowerCase().endsWith(".eml")) continue;
-    const embedded = decodeBodyText(attachment.rawBody, attachment.encoding);
-    const sender = extractSenderFromRawEmail(embedded);
-    if (sender) return sender;
-  }
-  return null;
-}
-
-function extractSenderFromProviderAttachments(attachments: any[]): string | null {
-  for (const attachment of attachments) {
-    const filename = String(attachment?.filename || attachment?.name || attachment?.FileName || "").toLowerCase();
-    const mimeType = String(attachment?.content_type || attachment?.ContentType || attachment?.type || "").toLowerCase();
-    if (!filename.endsWith(".eml") && mimeType !== "message/rfc822") continue;
-    const content = attachment?.content || attachment?.data || attachment?.Content || "";
-    if (typeof content !== "string" || !content) continue;
-    const embedded = Buffer.from(content.replace(/\s/g, ""), "base64").toString("utf8");
-    const sender = extractSenderFromRawEmail(embedded);
-    if (sender) return sender;
-  }
-  return null;
 }
 
 /** Extract all To: addresses from different provider payload shapes */
@@ -205,7 +161,10 @@ function extractTextAndAttachments(body: any): {
       text: pecResult.text,
       attachments: pecResult.attachments,
       overrideSubject: pecResult.subject ?? undefined,
-      originalSenderEmail: validatedSender(pecResult.originalSenderEmail) ?? extractForwardedSender(pecResult.text) ?? undefined,
+      originalSenderEmail:
+        extractSenderFromRawEmail(`From: ${pecResult.originalSenderEmail ?? ""}\r\n\r\n`) ??
+        extractForwardedSender(pecResult.text) ??
+        undefined,
     };
   }
 
@@ -248,7 +207,6 @@ function extractTextAndAttachments(body: any): {
         attachments.push({ filename: ra.filename, mimeType: ra.mimeType, data: oversized ? Buffer.alloc(0) : data, oversized });
       }
     }
-    const rawMime = String(body?.body || body?.rawMail || "").trim();
     return {
       text: providerText,
       attachments,
