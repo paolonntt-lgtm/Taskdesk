@@ -1,5 +1,6 @@
 - [Replit proxy X-Forwarded-Proto on healthchecks](replit-proxy-healthcheck-header.md) — Replit deployment proxy adds X-Forwarded-Proto: http to startup probes, breaks HTTPS redirect.
 - [Replit proxy strips Set-Cookie on 302 redirects](replit-proxy-cookie-on-redirect.md) — Deployment proxy removes Set-Cookie headers from 302 responses; cookies set on redirect are never received by the browser.
+- [Replit preview Safe Browsing warnings](replit-preview-safe-browsing.md) — Check both host-level and exact-path Safe Browsing status; never advise bypassing a dangerous-site warning.
 - [Canvas API action formats](canvas-api-actions.md) — Only specific action formats work; create-auto/update/delete use different field shapes (singular vs plural IDs).
 - [Private ticket visibility](private-ticket-visibility.md) — Admin-only tickets require the same access check across all derived resources and notifications.
 - [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
