@@ -10,6 +10,7 @@ import {
   encryptRefreshToken,
   exchangeMicrosoftCode,
   getMicrosoftUser,
+  inviteCollaboratorsToTaskdeskFolders,
   syncPendingOneDriveAttachments,
 } from "../lib/onedriveGraph";
 import { requireAuth } from "../middlewares/auth";
@@ -83,7 +84,7 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     code_challenge_method: "S256",
     prompt: "select_account",
   });
-  const target = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${params}`;
+  const target = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`;
   res.setHeader("Set-Cookie", stateCookie(state));
   res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
 });
@@ -114,14 +115,19 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     }).from(usersTable).where(eq(usersTable.id, current.userId)).limit(1);
     if (!user?.organizationId) throw new Error("TaskDesk account has no organization.");
 
-    // Do not mix Microsoft tenants within the same TaskDesk organization.
+    // Business accounts must share one directory. Personal Microsoft accounts
+    // use Microsoft's shared consumer tenant ID and are invited individually.
     const [tenantConnection] = await db.select({ tenantId: oneDriveConnectionsTable.tenantId })
       .from(oneDriveConnectionsTable)
       .where(eq(oneDriveConnectionsTable.organizationId, user.organizationId))
       .limit(1);
-    // The organizations authority rejects personal Microsoft accounts; the
-    // tenant check is applied before any drive folders are created.
-    if (tenantConnection && tenantConnection.tenantId !== tokens.tenantId) {
+    const consumerTenantId = "9188040d-6c67-4c5b-b112-36a304b66e";
+    if (
+      tenantConnection &&
+      tenantConnection.tenantId !== tokens.tenantId &&
+      tenantConnection.tenantId !== consumerTenantId &&
+      tokens.tenantId !== consumerTenantId
+    ) {
       throw new Error("This Microsoft account belongs to a different organization tenant.");
     }
     const microsoftUser = await getMicrosoftUser(tokens.accessToken);
@@ -149,10 +155,11 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
         updatedAt: new Date(),
       },
     });
+    const inviteFailures = await inviteCollaboratorsToTaskdeskFolders(user.organizationId);
     void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
       logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
     });
-    finish(res, "connected", current.returnTo);
+    finish(res, inviteFailures ? "sharing_partial" : "connected", current.returnTo);
   } catch (error) {
     logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
     finish(res, "connect_error", current.returnTo);

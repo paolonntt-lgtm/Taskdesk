@@ -13,6 +13,7 @@ import { logger } from "./logger";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
+const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
 
 export function getOneDriveAttachmentCopyName(ticketId: number, attachmentId: number, fileName: string): string {
   const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_").slice(0, 180);
@@ -99,7 +100,9 @@ async function graph<T>(accessToken: string, path: string, init?: RequestInit): 
     },
   });
   const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
-  if (!response.ok) throw new Error(payload.error?.message || `Microsoft Graph request failed (${response.status}).`);
+  if (!response.ok || response.status === 207) {
+    throw new Error(payload.error?.message || `Microsoft Graph request failed (${response.status}).`);
+  }
   return payload as T;
 }
 
@@ -107,7 +110,7 @@ export async function exchangeMicrosoftCode(code: string, redirectUri: string, c
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("Microsoft OneDrive OAuth is not configured.");
-  const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
+  const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -142,14 +145,14 @@ export async function exchangeMicrosoftCode(code: string, redirectUri: string, c
 }
 
 export async function createDefaultFolders(accessToken: string, operatorName: string) {
-  const rootChildren = await graph<{ value: { id: string; name: string; folder?: object }[] }>(
+  const rootChildren = await graph<{ value: { id: string; name: string; folder?: object; webUrl?: string }[] }>(
     accessToken,
-    "/me/drive/root/children?$select=id,name,folder&$top=200",
+    "/me/drive/root/children?$select=id,name,folder,webUrl&$top=200",
   );
-  let root: { id: string; name: string; folder?: object } | undefined =
+  let root: { id: string; name: string; folder?: object; webUrl?: string } | undefined =
     rootChildren.value?.find((item) => item.folder && item.name.toLocaleLowerCase() === "taskdesk");
   if (!root) {
-    root = await graph<{ id: string; name: string; folder?: object }>(accessToken, "/me/drive/root/children", {
+    root = await graph<{ id: string; name: string; folder?: object; webUrl?: string }>(accessToken, "/me/drive/root/children", {
       method: "POST",
       body: JSON.stringify({ name: "Taskdesk", folder: {}, "@microsoft.graph.conflictBehavior": "rename" }),
     });
@@ -168,12 +171,12 @@ export async function createDefaultFolders(accessToken: string, operatorName: st
     });
   }
   if (!operator?.id) throw new Error("Could not create the operator OneDrive folder.");
-  const share = await graph<{ link?: { webUrl?: string } }>(
+  const rootDetails = await graph<{ webUrl?: string }>(
     accessToken,
-    `/me/drive/items/${encodeURIComponent(root.id)}/createLink`,
-    { method: "POST", body: JSON.stringify({ type: "edit", scope: "organization" }) },
+    `/me/drive/items/${encodeURIComponent(root.id)}?$select=webUrl`,
   );
-  return { rootFolderId: root.id, operatorFolderId: operator.id, shareUrl: share.link?.webUrl ?? null };
+  if (!rootDetails.webUrl) throw new Error("Microsoft did not return a Taskdesk folder URL.");
+  return { rootFolderId: root.id, operatorFolderId: operator.id, shareUrl: rootDetails.webUrl };
 }
 
 export async function getMicrosoftUser(accessToken: string) {
@@ -187,7 +190,7 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("Microsoft OneDrive OAuth is not configured.");
-  const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
+  const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -206,6 +209,58 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
       .where(eq(oneDriveConnectionsTable.id, connection.id));
   }
   return result.access_token;
+}
+
+/**
+ * Grant each connected collaborator read access to every connected owner's
+ * Taskdesk folder. Invitation permissions are protected by Microsoft sign-in,
+ * unlike anonymous sharing links, and also work for consumer OneDrive accounts.
+ */
+export async function inviteCollaboratorsToTaskdeskFolders(organizationId: number): Promise<number> {
+  const connections = await db.select({
+    connection: oneDriveConnectionsTable,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+    ));
+  let failures = 0;
+  for (const owner of connections) {
+    let accessToken: string;
+    try {
+      accessToken = await refreshConnection(owner.connection);
+    } catch (error) {
+      failures += Math.max(0, connections.length - 1);
+      logger.warn({ err: error, userId: owner.connection.userId }, "Could not refresh OneDrive token for folder invitations");
+      continue;
+    }
+    for (const recipient of connections) {
+      if (
+        recipient.connection.userId === owner.connection.userId ||
+        recipient.connection.microsoftEmail.toLowerCase() === owner.connection.microsoftEmail.toLowerCase()
+      ) continue;
+      try {
+        await graph(accessToken, `/me/drive/items/${encodeURIComponent(owner.connection.rootFolderId)}/invite`, {
+          method: "POST",
+          body: JSON.stringify({
+            recipients: [{ email: recipient.connection.microsoftEmail }],
+            requireSignIn: true,
+            sendInvitation: false,
+            roles: ["read"],
+          }),
+        });
+      } catch (error) {
+        failures += 1;
+        logger.warn({
+          err: error,
+          ownerUserId: owner.connection.userId,
+          recipientUserId: recipient.connection.userId,
+        }, "Could not share OneDrive Taskdesk folder with collaborator");
+      }
+    }
+  }
+  return failures;
 }
 
 /**
