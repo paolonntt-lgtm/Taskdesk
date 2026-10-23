@@ -2009,6 +2009,37 @@ export const SaveTicketAttachmentResponse = zod.object({
 
 
 /**
+ * @summary List stale OneDrive attachment copies for a ticket (admin only)
+ */
+export const ListTicketOneDriveCopiesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListTicketOneDriveCopiesResponseItem = zod.object({
+  "id": zod.int(),
+  "attachmentId": zod.int(),
+  "fileName": zod.string(),
+  "ownerName": zod.string(),
+  "ownerEmail": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListTicketOneDriveCopiesResponse = zod.array(ListTicketOneDriveCopiesResponseItem)
+
+
+/**
+ * @summary Remove a stale OneDrive attachment copy (admin only)
+ */
+export const DeleteTicketOneDriveCopyParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "copyId": zod.coerce.number().int()
+})
+
+export const DeleteTicketOneDriveCopyResponse = zod.object({
+  "deleted": zod.boolean()
+})
+
+
+/**
  * @summary Start a short-lived Google Drive authorization flow
  */
 export const StartDriveOAuthQueryParams = zod.object({

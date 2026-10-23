@@ -1,8 +1,9 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { and, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import {
   db,
   oneDriveConnectionsTable,
+  ticketAttachmentOneDriveCopiesTable,
   ticketAttachmentsTable,
   ticketsTable,
   usersTable,
@@ -12,6 +13,55 @@ import { logger } from "./logger";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
+
+export function getOneDriveAttachmentCopyName(ticketId: number, attachmentId: number, fileName: string): string {
+  const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_").slice(0, 180);
+  return `ticket-${ticketId}-attachment-${attachmentId}-${safeName}`;
+}
+
+export function isExpectedOneDriveAttachmentCopy(
+  item: { id?: string; name?: string; file?: object },
+  itemId: string,
+  ticketId: number,
+  attachmentId: number,
+  fileName: string,
+): boolean {
+  return item.id === itemId &&
+    item.name === getOneDriveAttachmentCopyName(ticketId, attachmentId, fileName) &&
+    !!item.file;
+}
+
+export function isOneDriveCopyAccountMatch(
+  copy: { ownerEmail: string; ownerTenantId: string },
+  connection: { microsoftEmail: string; tenantId: string },
+): boolean {
+  return connection.microsoftEmail.toLocaleLowerCase() === copy.ownerEmail.toLocaleLowerCase() &&
+    connection.tenantId === copy.ownerTenantId;
+}
+
+export function isUploadedOneDriveCopyCurrent(input: {
+  currentAssigneeId: number | null;
+  uploaderId: number;
+  currentAccount: { microsoftEmail: string; tenantId: string } | null;
+  uploadAccount: { microsoftEmail: string; tenantId: string };
+  currentItemId: string | null;
+  uploadedItemId: string;
+}): boolean {
+  return input.currentAssigneeId === input.uploaderId &&
+    input.currentAccount != null &&
+    isOneDriveCopyAccountMatch(
+      { ownerEmail: input.uploadAccount.microsoftEmail, ownerTenantId: input.uploadAccount.tenantId },
+      input.currentAccount,
+    ) &&
+    (input.currentItemId == null || input.currentItemId === input.uploadedItemId);
+}
+
+export class OneDriveCopyRemovalError extends Error {
+  constructor(message: string, readonly statusCode: number) {
+    super(message);
+    this.name = "OneDriveCopyRemovalError";
+  }
+}
 
 function encryptionKey(): Buffer {
   const secret = process.env.SESSION_SECRET;
@@ -172,6 +222,7 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
     organizationId: ticketsTable.organizationId,
     assignedTo: ticketsTable.assignedTo,
     createdBy: ticketsTable.createdBy,
+    inboundChannelId: ticketsTable.inboundChannelId,
     deletedAt: ticketsTable.deletedAt,
   }).from(ticketsTable).where(eq(ticketsTable.id, attachment.ticketId)).limit(1);
   if (!ticket || ticket.deletedAt || !ticket.organizationId) return;
@@ -201,8 +252,7 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
     const parentId = ticket.assignedTo ? connection.operatorFolderId : connection.rootFolderId;
     const object = await storage.getObjectEntityFile(attachment.objectPath);
     const [bytes] = await object.download();
-    const safeName = attachment.fileName.replace(/[\\/:*?"<>|]/g, "_").slice(0, 180);
-    const name = `ticket-${ticket.id}-attachment-${attachment.id}-${safeName}`;
+    const name = getOneDriveAttachmentCopyName(ticket.id, attachment.id, attachment.fileName);
     const uploaded = await graph<{ id?: string }>(
       accessToken,
       `/me/drive/items/${encodeURIComponent(parentId)}:/${encodeURIComponent(name)}:/content?@microsoft.graph.conflictBehavior=replace`,
@@ -212,9 +262,93 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
         body: bytes,
       },
     );
-    await db.update(ticketAttachmentsTable)
-      .set({ oneDriveItemId: uploaded.id ?? name, oneDriveSyncError: null })
-      .where(eq(ticketAttachmentsTable.id, attachment.id));
+    if (!uploaded.id) throw new Error("Microsoft Graph did not return the OneDrive copy ID.");
+
+    const [owner] = await db.select({ name: usersTable.name }).from(usersTable)
+      .where(eq(usersTable.id, targetUserId)).limit(1);
+    await db.transaction(async (tx) => {
+      // The ticket may have been reassigned while Microsoft Graph was
+      // receiving the upload. Recheck the intended assignee under a row lock
+      // so an in-flight copy cannot become the ticket's current OneDrive item.
+      const [currentTicket] = await tx.select({
+        organizationId: ticketsTable.organizationId,
+        assignedTo: ticketsTable.assignedTo,
+        createdBy: ticketsTable.createdBy,
+        inboundChannelId: ticketsTable.inboundChannelId,
+        deletedAt: ticketsTable.deletedAt,
+      }).from(ticketsTable)
+        .where(eq(ticketsTable.id, ticket.id))
+        .for("update")
+        .limit(1);
+      if (!currentTicket || currentTicket.deletedAt || currentTicket.organizationId == null) return;
+
+      let currentTargetUserId = currentTicket.assignedTo ?? currentTicket.createdBy;
+      if (currentTicket.assignedTo == null && emailFallback && currentTicket.inboundChannelId != null) {
+        const [inboundOwner] = await tx.select({ id: usersTable.id })
+          .from(usersTable)
+          .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
+          .where(and(
+            eq(usersTable.organizationId, currentTicket.organizationId),
+            eq(usersTable.role, "admin"),
+            eq(oneDriveConnectionsTable.organizationId, currentTicket.organizationId),
+          ))
+          .orderBy(asc(usersTable.createdAt))
+          .limit(1);
+        currentTargetUserId = inboundOwner?.id ?? null;
+      }
+
+      const [currentConnection] = currentTargetUserId == null ? [] : await tx.select({
+        microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+        tenantId: oneDriveConnectionsTable.tenantId,
+      }).from(oneDriveConnectionsTable)
+        .where(and(
+          eq(oneDriveConnectionsTable.userId, currentTargetUserId),
+          eq(oneDriveConnectionsTable.organizationId, currentTicket.organizationId),
+        ))
+        .limit(1);
+      const [currentAttachment] = await tx.select({
+        oneDriveItemId: ticketAttachmentsTable.oneDriveItemId,
+      }).from(ticketAttachmentsTable)
+        .where(eq(ticketAttachmentsTable.id, attachment.id))
+        .for("update")
+        .limit(1);
+      if (!currentAttachment) return;
+
+      const isCurrent = isUploadedOneDriveCopyCurrent({
+        currentAssigneeId: currentTargetUserId,
+        uploaderId: targetUserId,
+        currentAccount: currentConnection ?? null,
+        uploadAccount: connection,
+        currentItemId: currentAttachment.oneDriveItemId,
+        uploadedItemId: uploaded.id!,
+      });
+      if (isCurrent) {
+        await tx.update(ticketAttachmentsTable)
+          .set({ oneDriveItemId: uploaded.id!, oneDriveSyncError: null })
+          .where(eq(ticketAttachmentsTable.id, attachment.id));
+      }
+      await tx.insert(ticketAttachmentOneDriveCopiesTable).values({
+        attachmentId: attachment.id,
+        ownerUserId: targetUserId,
+        ownerName: owner?.name || connection.microsoftEmail,
+        ownerEmail: connection.microsoftEmail,
+        ownerTenantId: connection.tenantId,
+        itemId: uploaded.id!,
+        isCurrent,
+      }).onConflictDoUpdate({
+        target: [
+          ticketAttachmentOneDriveCopiesTable.attachmentId,
+          ticketAttachmentOneDriveCopiesTable.ownerTenantId,
+          ticketAttachmentOneDriveCopiesTable.ownerEmail,
+          ticketAttachmentOneDriveCopiesTable.itemId,
+        ],
+        set: {
+          ownerUserId: targetUserId,
+          ownerName: owner?.name || connection.microsoftEmail,
+          isCurrent,
+        },
+      });
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "OneDrive copy failed.";
     logger.warn({ attachmentId, userId: targetUserId, message }, "OneDrive attachment sync failed");
@@ -222,6 +356,90 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
       .set({ oneDriveSyncError: message.slice(0, 500) })
       .where(eq(ticketAttachmentsTable.id, attachment.id));
   }
+}
+
+export async function removeStaleOneDriveAttachmentCopy(
+  copyId: number,
+  ticketId: number,
+  organizationId: number,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [lockedCopy] = await tx.select({ id: ticketAttachmentOneDriveCopiesTable.id })
+      .from(ticketAttachmentOneDriveCopiesTable)
+      .where(eq(ticketAttachmentOneDriveCopiesTable.id, copyId))
+      .for("update")
+      .limit(1);
+    if (!lockedCopy) throw new OneDriveCopyRemovalError("Stale OneDrive copy not found.", 404);
+
+    const [copy] = await tx.select({
+      id: ticketAttachmentOneDriveCopiesTable.id,
+      attachmentId: ticketAttachmentOneDriveCopiesTable.attachmentId,
+      ownerUserId: ticketAttachmentOneDriveCopiesTable.ownerUserId,
+      ownerEmail: ticketAttachmentOneDriveCopiesTable.ownerEmail,
+      ownerTenantId: ticketAttachmentOneDriveCopiesTable.ownerTenantId,
+      itemId: ticketAttachmentOneDriveCopiesTable.itemId,
+      isCurrent: ticketAttachmentOneDriveCopiesTable.isCurrent,
+      ticketId: ticketsTable.id,
+      assignedTo: ticketsTable.assignedTo,
+      currentItemId: ticketAttachmentsTable.oneDriveItemId,
+      fileName: ticketAttachmentsTable.fileName,
+    }).from(ticketAttachmentOneDriveCopiesTable)
+      .innerJoin(ticketAttachmentsTable, eq(ticketAttachmentsTable.id, ticketAttachmentOneDriveCopiesTable.attachmentId))
+      .innerJoin(ticketsTable, eq(ticketsTable.id, ticketAttachmentsTable.ticketId))
+      .where(and(
+        eq(ticketAttachmentOneDriveCopiesTable.id, copyId),
+        eq(ticketsTable.id, ticketId),
+        eq(ticketsTable.organizationId, organizationId),
+        isNull(ticketsTable.deletedAt),
+      ))
+      .limit(1);
+
+    if (!copy || copy.isCurrent) {
+      throw new OneDriveCopyRemovalError("Stale OneDrive copy not found.", 404);
+    }
+    if (copy.itemId === copy.currentItemId) {
+      throw new OneDriveCopyRemovalError(
+        "This copy is current for the ticket assignment. Nothing was deleted.",
+        409,
+      );
+    }
+    if (!copy.ownerUserId) {
+      throw new OneDriveCopyRemovalError("The original OneDrive account owner is no longer available.", 409);
+    }
+
+    const [connection] = await tx.select().from(oneDriveConnectionsTable)
+      .where(and(
+        eq(oneDriveConnectionsTable.userId, copy.ownerUserId),
+        eq(oneDriveConnectionsTable.organizationId, organizationId),
+      ))
+      .limit(1);
+    if (!connection || !isOneDriveCopyAccountMatch(copy, connection)) {
+      throw new OneDriveCopyRemovalError(
+        "Reconnect the original Microsoft account before removing this copy.",
+        409,
+      );
+    }
+
+    const accessToken = await refreshConnection(connection);
+    const itemPath = `/me/drive/items/${encodeURIComponent(copy.itemId)}`;
+    const item = await graph<{ id?: string; name?: string; file?: object }>(
+      accessToken,
+      `${itemPath}?$select=id,name,file`,
+    );
+    if (!isExpectedOneDriveAttachmentCopy(item, copy.itemId, copy.ticketId, copy.attachmentId, copy.fileName)) {
+      throw new OneDriveCopyRemovalError(
+        "The selected OneDrive item does not match this TaskDesk attachment. Nothing was deleted.",
+        409,
+      );
+    }
+
+    await graph(accessToken, itemPath, { method: "DELETE" });
+    await tx.delete(ticketAttachmentOneDriveCopiesTable)
+      .where(and(
+        eq(ticketAttachmentOneDriveCopiesTable.id, copy.id),
+        eq(ticketAttachmentOneDriveCopiesTable.isCurrent, false),
+      ));
+  });
 }
 
 export async function syncTicketOneDriveAttachments(ticketId: number): Promise<void> {

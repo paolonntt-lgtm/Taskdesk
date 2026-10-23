@@ -131,6 +131,8 @@ export * from './stripeAddonSeatsResponse';
 export * from './successResponse';
 export * from './ticket';
 export * from './ticketDriveFolderInput';
+export * from './ticketOneDriveCopy';
+export * from './ticketOneDriveCopyRemoval';
 export * from './ticketPriority';
 export * from './ticketStatus';
 export * from './ticketTimeSession';

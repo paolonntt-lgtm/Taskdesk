@@ -1168,6 +1168,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/Attachment"
 
+  /tickets/{id}/onedrive-copies:
+    get:
+      operationId: listTicketOneDriveCopies
+      tags: [tickets]
+      summary: List stale OneDrive attachment copies for a ticket (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stale copies and their owning OneDrive accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TicketOneDriveCopy"
+        "400":
+          description: Invalid ticket ID
+        "401":
+          description: Not authenticated
+        "403":
+          description: Admin access required
+        "404":
+          description: Ticket not found
+  /tickets/{id}/onedrive-copies/{copyId}:
+    delete:
+      operationId: deleteTicketOneDriveCopy
+      tags: [tickets]
+      summary: Remove a stale OneDrive attachment copy (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: copyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stale OneDrive copy removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketOneDriveCopyRemoval"
+        "400":
+          description: Invalid ticket or copy ID
+        "401":
+          description: Not authenticated
+        "403":
+          description: Admin access required
+        "404":
+          description: Ticket or stale copy not found
+        "409":
+          description: The account does not own this copy, or it is still current
+        "502":
+          description: OneDrive could not remove the copy
+
   /drive/oauth/start:
     get:
       operationId: startDriveOAuth
@@ -4296,6 +4360,31 @@ components:
         - fileSize
         - mimeType
         - createdAt
+
+    TicketOneDriveCopy:
+      type: object
+      properties:
+        id:
+          type: integer
+        attachmentId:
+          type: integer
+        fileName:
+          type: string
+        ownerName:
+          type: string
+        ownerEmail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, attachmentId, fileName, ownerName, ownerEmail, createdAt]
+
+    TicketOneDriveCopyRemoval:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+      required: [deleted]
 
     SaveAttachmentBody:
       type: object

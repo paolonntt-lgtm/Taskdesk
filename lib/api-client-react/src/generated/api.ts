@@ -104,6 +104,8 @@ import type {
   StripeAddonSeatsResponse,
   SuccessResponse,
   TicketDriveFolderInput,
+  TicketOneDriveCopy,
+  TicketOneDriveCopyRemoval,
   TicketTimeSessionEdit,
   TicketWithDetails,
   TimeTrackingClientBillingUpdate,
@@ -3314,6 +3316,159 @@ export const useSaveTicketAttachment = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSaveTicketAttachmentMutationOptions(options));
+    }
+
+export const getListTicketOneDriveCopiesUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/onedrive-copies`
+}
+
+/**
+ * @summary List stale OneDrive attachment copies for a ticket (admin only)
+ */
+export const listTicketOneDriveCopies = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<TicketOneDriveCopy[]> => {
+
+  return customFetch<TicketOneDriveCopy[]>(getListTicketOneDriveCopiesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTicketOneDriveCopiesQueryKey = (id: number,) => {
+    return [
+    `/api/tickets/${id}/onedrive-copies`
+    ] as const;
+    }
+
+
+export const getListTicketOneDriveCopiesQueryOptions = <TData = Awaited<ReturnType<typeof listTicketOneDriveCopies>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveCopies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTicketOneDriveCopiesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTicketOneDriveCopies>>> = ({ signal }) => listTicketOneDriveCopies(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveCopies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTicketOneDriveCopiesQueryResult = NonNullable<Awaited<ReturnType<typeof listTicketOneDriveCopies>>>
+export type ListTicketOneDriveCopiesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List stale OneDrive attachment copies for a ticket (admin only)
+ */
+
+export function useListTicketOneDriveCopies<TData = Awaited<ReturnType<typeof listTicketOneDriveCopies>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveCopies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTicketOneDriveCopiesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteTicketOneDriveCopyUrl = (id: number,
+    copyId: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/onedrive-copies/${copyId}`
+}
+
+/**
+ * @summary Remove a stale OneDrive attachment copy (admin only)
+ */
+export const deleteTicketOneDriveCopy = async (id: number,
+    copyId: number, options?: Parameters<typeof customFetch>[1]): Promise<TicketOneDriveCopyRemoval> => {
+
+  return customFetch<TicketOneDriveCopyRemoval>(getDeleteTicketOneDriveCopyUrl(id,copyId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTicketOneDriveCopyMutationKey = () => ['deleteTicketOneDriveCopy'] as const;
+
+export const getDeleteTicketOneDriveCopyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>, TError,DeleteTicketOneDriveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>, TError,DeleteTicketOneDriveCopyMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTicketOneDriveCopyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>, DeleteTicketOneDriveCopyMutationVariables> = (props) => {
+          const {id,copyId} = props ?? {};
+
+          return  deleteTicketOneDriveCopy(id,copyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTicketOneDriveCopyMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>>
+
+    export type DeleteTicketOneDriveCopyMutationError = ErrorType<void>
+    export type DeleteTicketOneDriveCopyMutationVariables = {id: number;copyId: number}
+
+    /**
+ * @summary Remove a stale OneDrive attachment copy (admin only)
+ */
+export const useDeleteTicketOneDriveCopy = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>, TError,DeleteTicketOneDriveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTicketOneDriveCopy>>,
+        TError,
+        DeleteTicketOneDriveCopyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTicketOneDriveCopyMutationOptions(options));
     }
 
 export const getStartDriveOAuthUrl = (params: StartDriveOAuthParams,) => {

@@ -12,12 +12,15 @@ import
  from "drizzle-orm"
 ;
 
-import 
-{
- db, ticketsTable, usersTable, ticketTimeSessionsTable, ticketCommentsTable, ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable, notificationsTable, settingsTable, inboundEmailChannelsTable, clientsTable, emailClientSenderRulesTable, emailClientDomainRulesTable, ticketStatusesTable, ticketChecklistsTable, ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable, checklistTemplateItemsTable, organizationsTable 
-}
- from "@workspace/db"
-;
+import {
+  db, ticketsTable, usersTable, ticketTimeSessionsTable, ticketCommentsTable,
+  ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable,
+  ticketAttachmentOneDriveCopiesTable, oneDriveConnectionsTable, notificationsTable,
+  settingsTable, inboundEmailChannelsTable, clientsTable, emailClientSenderRulesTable,
+  emailClientDomainRulesTable, ticketStatusesTable, ticketChecklistsTable,
+  ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable,
+  checklistTemplateItemsTable, organizationsTable,
+} from "@workspace/db";
 
 import 
 {
@@ -3236,6 +3239,86 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         updates.assignedTo != null &&
         updates.assignedTo !== existing.assignedTo
       ) {
+        const attachmentsToArchive = await tx.select({
+          id: ticketAttachmentsTable.id,
+          fileName: ticketAttachmentsTable.fileName,
+          oneDriveItemId: ticketAttachmentsTable.oneDriveItemId,
+        }).from(ticketAttachmentsTable)
+          .where(and(
+            eq(ticketAttachmentsTable.ticketId, id),
+            isNotNull(ticketAttachmentsTable.oneDriveItemId),
+          ));
+
+        for (const attachment of attachmentsToArchive) {
+          if (!attachment.oneDriveItemId) continue;
+          const [trackedCopy] = await tx.select({
+            id: ticketAttachmentOneDriveCopiesTable.id,
+          }).from(ticketAttachmentOneDriveCopiesTable)
+            .where(and(
+              eq(ticketAttachmentOneDriveCopiesTable.attachmentId, attachment.id),
+              eq(ticketAttachmentOneDriveCopiesTable.itemId, attachment.oneDriveItemId),
+              eq(ticketAttachmentOneDriveCopiesTable.isCurrent, true),
+            ))
+            .limit(1);
+
+          if (trackedCopy) {
+            await tx.update(ticketAttachmentOneDriveCopiesTable)
+              .set({ isCurrent: false })
+              .where(eq(ticketAttachmentOneDriveCopiesTable.id, trackedCopy.id));
+            continue;
+          }
+
+          // Preserve copies created before account ownership was tracked. The
+          // assignee is the owner for assigned tickets; unassigned inbound
+          // tickets use the same connected-admin fallback as the sync job.
+          let ownerUserId = existing.assignedTo ?? existing.createdBy;
+          if (existing.assignedTo == null && existing.inboundChannelId != null) {
+            const [inboundOwner] = await tx.select({ id: usersTable.id })
+              .from(usersTable)
+              .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
+              .where(and(
+                eq(usersTable.organizationId, orgId),
+                eq(usersTable.role, "admin"),
+                eq(oneDriveConnectionsTable.organizationId, orgId),
+              ))
+              .orderBy(asc(usersTable.createdAt))
+              .limit(1);
+            if (inboundOwner) ownerUserId = inboundOwner.id;
+          }
+
+          const [owner] = await tx.select({
+            name: usersTable.name,
+            microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+            tenantId: oneDriveConnectionsTable.tenantId,
+          }).from(usersTable)
+            .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
+            .where(and(
+              eq(usersTable.id, ownerUserId),
+              eq(usersTable.organizationId, orgId),
+              eq(oneDriveConnectionsTable.organizationId, orgId),
+            ))
+            .limit(1);
+          if (!owner) continue;
+
+          await tx.insert(ticketAttachmentOneDriveCopiesTable).values({
+            attachmentId: attachment.id,
+            ownerUserId,
+            ownerName: owner.name,
+            ownerEmail: owner.microsoftEmail,
+            ownerTenantId: owner.tenantId,
+            itemId: attachment.oneDriveItemId,
+            isCurrent: false,
+          }).onConflictDoUpdate({
+            target: [
+              ticketAttachmentOneDriveCopiesTable.attachmentId,
+              ticketAttachmentOneDriveCopiesTable.ownerTenantId,
+              ticketAttachmentOneDriveCopiesTable.ownerEmail,
+              ticketAttachmentOneDriveCopiesTable.itemId,
+            ],
+            set: { ownerUserId, ownerName: owner.name, isCurrent: false },
+          });
+        }
+
         // Reset the sync marker in the same transaction as reassignment so a
         // failed or interrupted OneDrive upload remains eligible for retry.
         await tx.update(ticketAttachmentsTable)

@@ -45,6 +45,7 @@ import timeTrackingRouter from "./timeTracking";
 import driveFoldersRouter from "./driveFolders";
 import onedriveFoldersRouter from "./onedriveFolders";
 import onedriveOAuthRouter from "./onedriveOAuth";
+import onedriveCopiesRouter from "./onedriveCopies";
 
 const router: IRouter = Router();
 
@@ -71,6 +72,7 @@ router.use(passwordResetRouter);
 router.use(driveFoldersRouter);
 router.use(onedriveFoldersRouter);
 router.use(onedriveOAuthRouter);
+router.use(onedriveCopiesRouter);
 router.use(oauthRouter);
 router.use(botRouter);
 router.use(aiSuggestRouter);

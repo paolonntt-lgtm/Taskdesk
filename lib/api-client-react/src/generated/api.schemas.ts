@@ -759,6 +759,19 @@ export interface Attachment {
   createdAt: string;
 }
 
+export interface TicketOneDriveCopy {
+  id: number;
+  attachmentId: number;
+  fileName: string;
+  ownerName: string;
+  ownerEmail: string;
+  createdAt: string;
+}
+
+export interface TicketOneDriveCopyRemoval {
+  deleted: boolean;
+}
+
 export interface SaveAttachmentBody {
   objectPath: string;
   fileName: string;
