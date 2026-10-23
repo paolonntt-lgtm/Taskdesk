@@ -6,7 +6,12 @@ import {
 } from "@mui/material";
 import { ArrowBack, FolderOutlined } from "@mui/icons-material";
 import { useLanguage } from "../contexts/LanguageContext";
-import { listOneDriveChildren, type OneDriveItem } from "../lib/onedrive";
+import {
+  getOneDriveAccessToken,
+  isOneDriveInteractionInProgress,
+  listOneDriveChildren,
+  type OneDriveItem,
+} from "../lib/onedrive";
 
 export type SelectedOneDriveFolder = { driveFolderId: string; folderName: string };
 type Crumb = { id: string; name: string };
@@ -26,15 +31,32 @@ export default function OneDriveFolderPicker({
   const [path, setPath] = useState<Crumb[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [interactionBlocked, setInteractionBlocked] = useState(false);
 
   const load = async (parentId?: string) => {
     setLoading(true);
     setError(null);
+    setInteractionBlocked(false);
     try {
       setItems(await listOneDriveChildren(parentId));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "OneDrive request failed.");
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const retryAuthentication = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await getOneDriveAccessToken(false, true);
+      setInteractionBlocked(false);
+      await load(path.at(-1)?.id);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "OneDrive request failed.");
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
       setLoading(false);
     }
   };
@@ -69,7 +91,16 @@ export default function OneDriveFolderPicker({
             {it ? "I miei file" : "My files"}{path.length ? ` / ${path.map((part) => part.name).join(" / ")}` : ""}
           </Typography>
         </Stack>
-        {error && <Typography color="error" variant="body2" role="alert">{error}</Typography>}
+        {error && (
+          <Box role="alert">
+            <Typography color="error" variant="body2">{error}</Typography>
+            {interactionBlocked && (
+              <Button size="small" onClick={() => void retryAuthentication()}>
+                {it ? "Riprova accesso Microsoft" : "Retry Microsoft sign-in"}
+              </Button>
+            )}
+          </Box>
+        )}
         {loading ? <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box> : error ? null : items.length === 0 ? (
           <Typography variant="body2" color="text.secondary">{it ? "Nessuna cartella disponibile." : "No folders available."}</Typography>
         ) : (

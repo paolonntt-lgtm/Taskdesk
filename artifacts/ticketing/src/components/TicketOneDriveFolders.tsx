@@ -20,7 +20,12 @@ import {
 } from "@mui/material";
 import { ArrowBack, DeleteOutline, FolderOutlined, InsertDriveFile, OpenInNew } from "@mui/icons-material";
 import { useLanguage } from "../contexts/LanguageContext";
-import { listOneDriveChildren, type OneDriveItem, getOneDriveAccessToken } from "../lib/onedrive";
+import {
+  getOneDriveAccessToken,
+  isOneDriveInteractionInProgress,
+  listOneDriveChildren,
+  type OneDriveItem,
+} from "../lib/onedrive";
 
 type OneDriveReference = {
   id: number;
@@ -92,6 +97,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   const [browserPath, setBrowserPath] = useState<Crumb[]>([]);
   const [browserLoading, setBrowserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [interactionBlocked, setInteractionBlocked] = useState(false);
 
   const loadReferences = useCallback(async () => {
     setLoadingReferences(true);
@@ -111,10 +117,12 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   const loadPicker = async (parentId?: string) => {
     setPickerLoading(true);
     setError(null);
+    setInteractionBlocked(false);
     try {
       setPickerItems(await listOneDriveChildren(parentId));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     } finally {
       setPickerLoading(false);
     }
@@ -138,6 +146,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
       setPickerOpen(true);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     } finally {
       setBrowserLoading(false);
     }
@@ -154,6 +163,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
       setError(null);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     }
   };
 
@@ -165,6 +175,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
       if (selectedReference?.id === reference.id) setSelectedReference(null);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     }
   };
 
@@ -184,6 +195,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
       setError(null);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     } finally {
       setPickerLoading(false);
     }
@@ -212,12 +224,14 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
 
   const switchAccount = async () => {
     try {
-      await getOneDriveAccessToken(true);
+      await getOneDriveAccessToken(true, interactionBlocked);
       setError(null);
+      setInteractionBlocked(false);
       if (pickerMode === "select") await loadPicker(pickerPath.at(-1)?.id);
       else if (selectedReference) setBrowserItems(await listOneDriveChildren(browserPath.at(-1)?.id ?? selectedReference.driveFolderId));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
+      setInteractionBlocked(isOneDriveInteractionInProgress(failure));
     }
   };
 
@@ -234,7 +248,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
           {text.add}
         </Button>
       </Stack>
-      {error && <Alert severity="warning" sx={{ mb: 1 }} action={<Button size="small" color="inherit" onClick={() => void switchAccount()}>{text.connect}</Button>}>{error}</Alert>}
+      {error && <Alert severity="warning" sx={{ mb: 1 }} action={<Button size="small" color="inherit" onClick={() => void switchAccount()}>{interactionBlocked ? (it ? "Riprova accesso Microsoft" : "Retry Microsoft sign-in") : text.connect}</Button>}>{error}</Alert>}
       {loadingReferences ? <CircularProgress size={20} /> : references.length === 0 ? (
         <Typography variant="body2" color="text.secondary">{text.noFolders}</Typography>
       ) : (

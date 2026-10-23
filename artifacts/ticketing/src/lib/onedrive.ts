@@ -1,4 +1,6 @@
 import {
+  BrowserAuthError,
+  BrowserAuthErrorCodes,
   InteractionRequiredAuthError,
   PublicClientApplication,
   type AccountInfo,
@@ -11,6 +13,11 @@ const redirectUri = new URL(import.meta.env.BASE_URL, window.location.origin).to
 let client: PublicClientApplication | null = null;
 let initialization: Promise<void> | null = null;
 let accessTokenRequest: { changeAccount: boolean; promise: Promise<string> } | null = null;
+
+export function isOneDriveInteractionInProgress(error: unknown): boolean {
+  return error instanceof BrowserAuthError
+    && error.errorCode === BrowserAuthErrorCodes.interactionInProgress;
+}
 
 function getClient(): PublicClientApplication {
   if (!clientId) throw new Error("ONEDRIVE_NOT_CONFIGURED");
@@ -28,12 +35,17 @@ function getClient(): PublicClientApplication {
   return client;
 }
 
-async function getAccount(msal: PublicClientApplication, changeAccount: boolean): Promise<AccountInfo> {
+async function getAccount(
+  msal: PublicClientApplication,
+  changeAccount: boolean,
+  recoverInteraction: boolean,
+): Promise<AccountInfo> {
   if (changeAccount) {
     const result = await msal.loginPopup({
       scopes,
       prompt: "select_account",
       redirectUri,
+      overrideInteractionInProgress: recoverInteraction,
     });
     if (result.account) {
       msal.setActiveAccount(result.account);
@@ -48,16 +60,20 @@ async function getAccount(msal: PublicClientApplication, changeAccount: boolean)
     scopes,
     prompt: "select_account",
     redirectUri,
+    overrideInteractionInProgress: recoverInteraction,
   });
   if (!result.account) throw new Error("ONEDRIVE_ACCOUNT_REQUIRED");
   msal.setActiveAccount(result.account);
   return result.account;
 }
 
-async function acquireOneDriveAccessToken(changeAccount: boolean): Promise<string> {
+async function acquireOneDriveAccessToken(
+  changeAccount: boolean,
+  recoverInteraction: boolean,
+): Promise<string> {
   const msal = getClient();
   await initialization;
-  const account = await getAccount(msal, changeAccount);
+  const account = await getAccount(msal, changeAccount, recoverInteraction);
   try {
     const result = await msal.acquireTokenSilent({ account, scopes });
     return result.accessToken;
@@ -68,20 +84,24 @@ async function acquireOneDriveAccessToken(changeAccount: boolean): Promise<strin
       scopes,
       prompt: changeAccount ? "select_account" : "consent",
       redirectUri,
+      overrideInteractionInProgress: recoverInteraction,
     });
     return result.accessToken;
   }
 }
 
-export function getOneDriveAccessToken(changeAccount = false): Promise<string> {
+export function getOneDriveAccessToken(
+  changeAccount = false,
+  recoverInteraction = false,
+): Promise<string> {
   if (accessTokenRequest) {
     if (!changeAccount || accessTokenRequest.changeAccount) return accessTokenRequest.promise;
     return accessTokenRequest.promise
       .catch(() => "")
-      .then(() => getOneDriveAccessToken(true));
+      .then(() => getOneDriveAccessToken(true, recoverInteraction));
   }
 
-  const promise = acquireOneDriveAccessToken(changeAccount).finally(() => {
+  const promise = acquireOneDriveAccessToken(changeAccount, recoverInteraction).finally(() => {
     if (accessTokenRequest?.promise === promise) accessTokenRequest = null;
   });
   accessTokenRequest = { changeAccount, promise };
