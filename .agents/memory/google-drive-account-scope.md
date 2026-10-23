@@ -27,6 +27,12 @@ Support both organizational and personal Microsoft accounts, but do not grant fo
 
 **How to apply:** Use a Microsoft authority and app registration that accept personal accounts; grant each connected collaborator sign-in-protected access to other connected Taskdesk roots.
 
+TaskDesk's Microsoft OAuth registration is a public client: use authorization code with PKCE and omit `client_secret` from both code exchange and refresh requests.
+
+**Why:** Microsoft rejected the callback with AADSTS90023 because the server sent a secret to an app registered as a public client.
+
+**How to apply:** Keep the PKCE verifier server-side and session-bound; do not reintroduce client-secret checks or parameters in the token flow.
+
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.

@@ -15,11 +15,17 @@ export default function OneDrivePage() {
   const [shares, setShares] = useState<OrganizationShare[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [sharingPartial, setSharingPartial] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    setSharingPartial(new URLSearchParams(window.location.search).get("onedrive") === "sharing_partial");
+    const currentUrl = new URL(window.location.href);
+    const result = currentUrl.searchParams.get("onedrive");
+    if (result) {
+      setOauthStatus(result);
+      currentUrl.searchParams.delete("onedrive");
+      window.history.replaceState(null, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+    }
     fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(it ? "Impossibile caricare le cartelle condivise." : "Could not load shared folders.");
@@ -50,11 +56,26 @@ export default function OneDrivePage() {
           : "Open Taskdesk folders shared with collaborators. Each folder opens in OneDrive and requires sign-in with an invited account."}
       </Typography>
 
-      {sharingPartial && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {it
-            ? "Account collegato, ma alcuni inviti ai collaboratori non sono riusciti. Ricollega OneDrive per riprovare."
-            : "Account connected, but some collaborator invitations failed. Reconnect OneDrive to retry."}
+      {oauthStatus && (
+        <Alert
+          severity={oauthStatus === "connected" ? "success" : oauthStatus === "cancelled" ? "info" : oauthStatus === "sharing_partial" ? "warning" : "error"}
+          sx={{ mb: 2 }}
+        >
+          {oauthStatus === "connected"
+            ? (it ? "Account OneDrive collegato." : "OneDrive account connected.")
+            : oauthStatus === "sharing_partial"
+              ? (it
+                ? "Account collegato, ma alcuni inviti ai collaboratori non sono riusciti. Ricollega OneDrive per riprovare."
+                : "Account connected, but some collaborator invitations failed. Reconnect OneDrive to retry.")
+              : oauthStatus === "cancelled"
+                ? (it ? "Collegamento OneDrive annullato." : "OneDrive connection cancelled.")
+                : oauthStatus === "connect_error"
+                  ? (it
+                    ? "Microsoft ha completato l’accesso, ma TaskDesk non è riuscito a salvare il collegamento. Riprova."
+                    : "Microsoft sign-in completed, but TaskDesk could not save the connection. Please try again.")
+                  : (it
+                    ? "Sessione di collegamento scaduta o non valida. Riprova."
+                    : "The connection session expired or was invalid. Please try again.")}
         </Alert>
       )}
       {loading && <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>}

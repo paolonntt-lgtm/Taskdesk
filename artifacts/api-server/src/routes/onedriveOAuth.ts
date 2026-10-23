@@ -56,7 +56,7 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     return;
   }
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
-  if (!clientId || !process.env.MICROSOFT_CLIENT_SECRET) {
+  if (!clientId) {
     res.status(503).json({ error: "Microsoft OneDrive OAuth is not configured." });
     return;
   }

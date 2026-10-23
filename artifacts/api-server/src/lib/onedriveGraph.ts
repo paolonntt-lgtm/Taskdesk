@@ -115,14 +115,12 @@ async function graph<T>(accessToken: string, path: string, init?: RequestInit): 
 
 export async function exchangeMicrosoftCode(code: string, redirectUri: string, codeVerifier: string) {
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
-  const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error("Microsoft OneDrive OAuth is not configured.");
+  if (!clientId) throw new Error("Microsoft OneDrive OAuth is not configured.");
   const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: clientId,
-      client_secret: clientSecret,
       code,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
@@ -195,14 +193,12 @@ export async function getMicrosoftUser(accessToken: string) {
 
 async function refreshConnection(connection: typeof oneDriveConnectionsTable.$inferSelect) {
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
-  const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error("Microsoft OneDrive OAuth is not configured.");
+  if (!clientId) throw new Error("Microsoft OneDrive OAuth is not configured.");
   const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: clientId,
-      client_secret: clientSecret,
       grant_type: "refresh_token",
       refresh_token: decryptRefreshToken(connection.encryptedRefreshToken, connection.userId, connection.organizationId),
       scope: "offline_access User.Read Files.ReadWrite",
