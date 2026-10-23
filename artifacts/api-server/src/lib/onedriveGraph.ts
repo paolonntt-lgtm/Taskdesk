@@ -19,17 +19,19 @@ function encryptionKey(): Buffer {
   return createHash("sha256").update(`taskdesk-onedrive:${secret}`).digest();
 }
 
-export function encryptRefreshToken(token: string): string {
+export function encryptRefreshToken(token: string, userId: number, organizationId: number): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  cipher.setAAD(Buffer.from(`${organizationId}:${userId}`));
   const encrypted = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
   return [iv, cipher.getAuthTag(), encrypted].map((part) => part.toString("base64url")).join(".");
 }
 
-function decryptRefreshToken(value: string): string {
+function decryptRefreshToken(value: string, userId: number, organizationId: number): string {
   const [ivPart, tagPart, encryptedPart] = value.split(".");
   if (!ivPart || !tagPart || !encryptedPart) throw new Error("Stored OneDrive authorization is invalid.");
   const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivPart, "base64url"));
+  decipher.setAAD(Buffer.from(`${organizationId}:${userId}`));
   decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
   return Buffer.concat([
     decipher.update(Buffer.from(encryptedPart, "base64url")),
@@ -142,7 +144,7 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: "refresh_token",
-      refresh_token: decryptRefreshToken(connection.encryptedRefreshToken),
+      refresh_token: decryptRefreshToken(connection.encryptedRefreshToken, connection.userId, connection.organizationId),
       scope: "offline_access User.Read Files.ReadWrite",
     }),
   });
@@ -150,7 +152,7 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
   if (!response.ok || !result.access_token) throw new Error(result.error_description || "OneDrive authorization expired.");
   if (result.refresh_token) {
     await db.update(oneDriveConnectionsTable)
-      .set({ encryptedRefreshToken: encryptRefreshToken(result.refresh_token) })
+      .set({ encryptedRefreshToken: encryptRefreshToken(result.refresh_token, connection.userId, connection.organizationId) })
       .where(eq(oneDriveConnectionsTable.id, connection.id));
   }
   return result.access_token;

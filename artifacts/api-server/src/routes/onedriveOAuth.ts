@@ -17,7 +17,7 @@ import { requireAuth } from "../middlewares/auth";
 const router = Router();
 const STATE_COOKIE = "taskdesk_onedrive_state";
 const STATE_TTL = 10 * 60_000;
-type Pending = { userId: number; sessionId: string; verifier: string; createdAt: number };
+type Pending = { userId: number; sessionId: string; verifier: string; returnTo: string; createdAt: number };
 const pending = new Map<string, Pending>();
 
 function getCallbackUri(req: import("express").Request): string {
@@ -39,9 +39,11 @@ function cookieValue(req: import("express").Request, name: string): string | und
   return raw.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
 }
 
-function finish(res: import("express").Response, result: string): void {
+function finish(res: import("express").Response, result: string, returnTo = "/app/"): void {
   res.setHeader("Set-Cookie", clearStateCookie());
-  const target = `/app/?onedrive=${encodeURIComponent(result)}`;
+  const targetUrl = new URL(returnTo, "https://taskdesk.invalid");
+  targetUrl.searchParams.set("onedrive", result);
+  const target = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
   res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
 }
 
@@ -65,7 +67,11 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
   const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
-  pending.set(state, { userId: user.id, sessionId, verifier, createdAt: Date.now() });
+  const rawReturnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
+  const returnTo = rawReturnTo.startsWith("/app/") && !rawReturnTo.startsWith("//") && !rawReturnTo.includes("\\")
+    ? rawReturnTo
+    : "/app/";
+  pending.set(state, { userId: user.id, sessionId, verifier, returnTo, createdAt: Date.now() });
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
@@ -87,18 +93,18 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
   const current = state ? pending.get(state) : undefined;
   if (!current || cookieValue(req, STATE_COOKIE) !== state || Date.now() - current.createdAt > STATE_TTL) {
     if (state) pending.delete(state);
-    finish(res, "invalid_state");
+    finish(res, "invalid_state", current?.returnTo);
     return;
   }
   pending.delete(state);
   const sessionId = getSessionId(req);
   const currentUserId = await getCurrentUserId(req);
   if (!sessionId || sessionId !== current.sessionId || currentUserId !== current.userId) {
-    finish(res, "invalid_session");
+    finish(res, "invalid_session", current.returnTo);
     return;
   }
   if (req.query.error || typeof req.query.code !== "string") {
-    finish(res, "cancelled");
+    finish(res, "cancelled", current.returnTo);
     return;
   }
   try {
@@ -126,7 +132,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
       organizationId: user.organizationId,
       tenantId: tokens.tenantId,
       microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
-      encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken),
+      encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken, user.id, user.organizationId),
       rootFolderId: folders.rootFolderId,
       operatorFolderId: folders.operatorFolderId,
       organizationShareUrl: shareUrl,
@@ -136,7 +142,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
         organizationId: user.organizationId,
         tenantId: tokens.tenantId,
         microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
-        encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken),
+        encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken, user.id, user.organizationId),
         rootFolderId: folders.rootFolderId,
         operatorFolderId: folders.operatorFolderId,
         organizationShareUrl: shareUrl,
@@ -146,10 +152,10 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
       logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
     });
-    finish(res, "connected");
+    finish(res, "connected", current.returnTo);
   } catch (error) {
     logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
-    finish(res, "connect_error");
+    finish(res, "connect_error", current.returnTo);
   }
 });
 
@@ -167,6 +173,22 @@ router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> 
     eq(oneDriveConnectionsTable.organizationId, user.organizationId),
   )).limit(1);
   res.json({ connected: Boolean(connection), ...connection });
+});
+
+router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { organizationId: number | null };
+  if (!user.organizationId) {
+    res.json([]);
+    return;
+  }
+  const shares = await db.select({
+    operatorName: usersTable.name,
+    microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+    url: oneDriveConnectionsTable.organizationShareUrl,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
+  res.json(shares.filter((item) => item.url));
 });
 
 export default router;

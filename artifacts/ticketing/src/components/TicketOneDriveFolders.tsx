@@ -99,10 +99,12 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   const [error, setError] = useState<string | null>(null);
   const [interactionBlocked, setInteractionBlocked] = useState(false);
   const [connection, setConnection] = useState<{ connected: boolean; microsoftEmail?: string; organizationShareUrl?: string } | null>(null);
+  const [organizationShares, setOrganizationShares] = useState<{ operatorName: string; microsoftEmail: string; url: string }[]>([]);
 
   const loadConnection = useCallback(async () => {
     try {
       setConnection(await requestJson(`/api/onedrive/connection`));
+      setOrganizationShares(await requestJson(`/api/onedrive/organization-shares`));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : text.error);
     }
@@ -137,7 +139,8 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   }, [loadConnection, it]);
 
   const connectOneDrive = () => {
-    window.location.assign("/api/onedrive/connect");
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   const loadPicker = async (parentId?: string) => {
@@ -284,6 +287,15 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
           {it ? `Account collegato: ${connection.microsoftEmail ?? ""}` : `Connected account: ${connection.microsoftEmail ?? ""}`}
           {connection.organizationShareUrl && <> · <a href={connection.organizationShareUrl} target="_blank" rel="noopener noreferrer">{it ? "Apri cartella condivisa" : "Open shared folder"}</a></>}
         </Typography>
+      )}
+      {organizationShares.length > 0 && (
+        <Stack direction="row" flexWrap="wrap" gap={0.5} mb={1}>
+          {organizationShares.map((share) => (
+            <Button key={`${share.operatorName}-${share.url}`} size="small" component="a" href={share.url} target="_blank" rel="noopener noreferrer">
+              {it ? `Taskdesk · ${share.operatorName}` : `Taskdesk · ${share.operatorName}`}
+            </Button>
+          ))}
+        </Stack>
       )}
       {error && <Alert severity="warning" sx={{ mb: 1 }} action={<Button size="small" color="inherit" onClick={() => void switchAccount()}>{interactionBlocked ? (it ? "Riprova accesso Microsoft" : "Retry Microsoft sign-in") : text.connect}</Button>}>{error}</Alert>}
       {loadingReferences ? <CircularProgress size={20} /> : references.length === 0 ? (

@@ -272,7 +272,11 @@ export default function TicketDetail() {
     staleTime: 30_000,
     enabled: currentUser?.role === 'admin',
   });
-  const { data: attachments } = useListTicketAttachments(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000 } as any });
+  const { data: attachments } = useListTicketAttachments(ticketId, { query: {
+    enabled: !!ticketId,
+    staleTime: 60_000,
+    refetchInterval: (query: any) => query.state.data?.some((item: any) => !item.oneDriveItemId && !item.oneDriveSyncError) ? 4000 : false,
+  } as any });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
@@ -1353,8 +1357,10 @@ export default function TicketDetail() {
             <MarkdownContent content={ticket.description} />
             {/* Ticket-level attachments */}
             {(() => {
-              const ticketAttachments = (attachments ?? []).filter((a: any) => a.commentId == null);
-              if (!ticketAttachments.length) return null;
+              const allAttachments = attachments ?? [];
+              const ticketAttachments = allAttachments.filter((a: any) => a.commentId == null);
+              const syncErrors = allAttachments.filter((a: any) => a.oneDriveSyncError);
+              if (!ticketAttachments.length && !syncErrors.length) return null;
               const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
               const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
               return (
@@ -1380,11 +1386,11 @@ export default function TicketDetail() {
                       })}
                     </Box>
                   )}
-                  {ticketAttachments.some((a: any) => a.oneDriveSyncError) && (
+                  {syncErrors.length > 0 && (
                     <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
                       {lang === 'it'
-                        ? `Alcuni allegati non sono ancora stati copiati su OneDrive: ${ticketAttachments.filter((a: any) => a.oneDriveSyncError).map((a: any) => a.fileName).join(', ')}. Ricollega l’account OneDrive dell’assegnatario per riprovare.`
-                        : `Some attachments have not been copied to OneDrive yet: ${ticketAttachments.filter((a: any) => a.oneDriveSyncError).map((a: any) => a.fileName).join(', ')}. Reconnect the assignee’s OneDrive account to retry.`}
+                        ? `Alcuni allegati non sono ancora stati copiati su OneDrive: ${syncErrors.map((a: any) => `${a.fileName} (${a.oneDriveSyncError})`).join(', ')}. Ricollega l’account OneDrive di destinazione per riprovare.`
+                        : `Some attachments have not been copied to OneDrive yet: ${syncErrors.map((a: any) => `${a.fileName} (${a.oneDriveSyncError})`).join(', ')}. Reconnect the destination OneDrive account to retry.`}
                     </Alert>
                   )}
                 </Box>
