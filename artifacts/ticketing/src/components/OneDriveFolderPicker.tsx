@@ -70,7 +70,7 @@ export default function OneDriveFolderPicker({
           </Typography>
         </Stack>
         {error && <Typography color="error" variant="body2" role="alert">{error}</Typography>}
-        {loading ? <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box> : items.length === 0 ? (
+        {loading ? <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box> : error ? null : items.length === 0 ? (
           <Typography variant="body2" color="text.secondary">{it ? "Nessuna cartella disponibile." : "No folders available."}</Typography>
         ) : (
           <List dense>

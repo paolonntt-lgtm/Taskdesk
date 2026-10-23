@@ -10,6 +10,7 @@ const redirectUri = new URL(import.meta.env.BASE_URL, window.location.origin).to
 
 let client: PublicClientApplication | null = null;
 let initialization: Promise<void> | null = null;
+let accessTokenRequest: { changeAccount: boolean; promise: Promise<string> } | null = null;
 
 function getClient(): PublicClientApplication {
   if (!clientId) throw new Error("ONEDRIVE_NOT_CONFIGURED");
@@ -53,7 +54,7 @@ async function getAccount(msal: PublicClientApplication, changeAccount: boolean)
   return result.account;
 }
 
-export async function getOneDriveAccessToken(changeAccount = false): Promise<string> {
+async function acquireOneDriveAccessToken(changeAccount: boolean): Promise<string> {
   const msal = getClient();
   await initialization;
   const account = await getAccount(msal, changeAccount);
@@ -70,6 +71,21 @@ export async function getOneDriveAccessToken(changeAccount = false): Promise<str
     });
     return result.accessToken;
   }
+}
+
+export function getOneDriveAccessToken(changeAccount = false): Promise<string> {
+  if (accessTokenRequest) {
+    if (!changeAccount || accessTokenRequest.changeAccount) return accessTokenRequest.promise;
+    return accessTokenRequest.promise
+      .catch(() => "")
+      .then(() => getOneDriveAccessToken(true));
+  }
+
+  const promise = acquireOneDriveAccessToken(changeAccount).finally(() => {
+    if (accessTokenRequest?.promise === promise) accessTokenRequest = null;
+  });
+  accessTokenRequest = { changeAccount, promise };
+  return promise;
 }
 
 export type OneDriveItem = {

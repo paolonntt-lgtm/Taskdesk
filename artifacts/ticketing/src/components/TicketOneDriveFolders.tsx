@@ -268,6 +268,7 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
             </Typography>
           </Stack>
           {pickerLoading || browserLoading ? <Box display="flex" justifyContent="center" py={3}><CircularProgress size={24} /></Box> :
+            error ? <Alert severity="error" role="alert">{error}</Alert> :
             visibleItems.length === 0 ? <Typography variant="body2" color="text.secondary">{text.empty}</Typography> : (
               <List dense>
                 {visibleItems.map((item) => (
