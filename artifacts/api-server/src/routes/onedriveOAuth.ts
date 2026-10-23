@@ -183,12 +183,11 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
   }
   const shares = await db.select({
     operatorName: usersTable.name,
-    microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
     url: oneDriveConnectionsTable.organizationShareUrl,
   }).from(oneDriveConnectionsTable)
     .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
     .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
-  res.json(shares.filter((item) => item.url));
+  res.json(shares.filter((item) => item.url?.startsWith("https://")));
 });
 
 export default router;

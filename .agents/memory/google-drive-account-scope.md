@@ -15,6 +15,12 @@ For OneDrive ticket attachments, each collaborator connects a Microsoft 365 work
 
 **How to apply:** Do not substitute a shared service drive. Preserve tenant matching and use the admin root only for unassigned inbound email; keep TaskDesk's stored attachment as the source copy.
 
+The main navigation's OneDrive entry should open an organization-level directory of all shared Taskdesk folders, with each link opening the native OneDrive browser.
+
+**Why:** The user requested one menu destination to navigate every organization-shared operator folder, while the storage model still has per-collaborator OneDrive roots.
+
+**How to apply:** Keep the menu entry distinct from Google Drive and aggregate only the current user's organization-scoped share links.
+
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.

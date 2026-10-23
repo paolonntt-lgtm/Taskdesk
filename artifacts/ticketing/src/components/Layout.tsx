@@ -56,7 +56,6 @@ import {
   Search,
   BugReport,
   WhatsApp,
-  FolderOpen,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,6 +82,7 @@ import {
 } from '../lib/taskTrackAnnouncement';
 import AnnouncementsPopup from './AnnouncementsPopup';
 import ReferralProgramAnnouncementDialog from './ReferralProgramAnnouncementDialog';
+import OneDriveLogo from './OneDriveLogo';
 
 const drawerWidth = 264;
 const botFabPositionStorageKey = 'td_bot_fab_position_v1';
@@ -568,7 +568,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
-    { text: 'Drive', icon: <FolderOpen />, path: '/drive', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: 'OneDrive', icon: <OneDriveLogo width={24} height={24} />, path: '/onedrive', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     ...((user as any)?.clientsEnabled !== false
       ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
       : []),

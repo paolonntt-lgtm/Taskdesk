@@ -39,6 +39,7 @@ import { hasConfirmedTrialRegistration, parseProfessionalTrialAttribution } from
 import TimeTrackingReportPage from "./pages/TimeTrackingReport";
 import PersonalTimeTrackingReportPage from "./pages/PersonalTimeTrackingReport";
 import DrivePage from "./pages/Drive";
+import OneDrivePage from "./pages/OneDrive";
 import TaskTrackHelp from "./pages/TaskTrackHelp";
 import AppHelp from "./pages/AppHelp";
 import TrialExpiredNotice from "./pages/TrialExpiredNotice";
@@ -121,6 +122,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/daily-reports/:id" component={DailyReportDetailPage} />
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/drive" component={DrivePage} />
+          <Route path="/onedrive" component={OneDrivePage} />
           <Route path="/notifications" component={NotificationsPage} />
           <Route path="/users/:id" component={UserProfile} />
           <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
