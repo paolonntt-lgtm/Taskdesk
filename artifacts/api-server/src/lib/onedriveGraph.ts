@@ -13,7 +13,14 @@ import { logger } from "./logger";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
-const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
+export const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
+
+export function canConnectMicrosoftTenant(existingTenantId: string | null, incomingTenantId: string): boolean {
+  return existingTenantId == null ||
+    existingTenantId === incomingTenantId ||
+    existingTenantId === CONSUMER_TENANT_ID ||
+    incomingTenantId === CONSUMER_TENANT_ID;
+}
 
 export function getOneDriveAttachmentCopyName(ticketId: number, attachmentId: number, fileName: string): string {
   const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_").slice(0, 180);

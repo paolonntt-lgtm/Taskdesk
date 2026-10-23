@@ -21,7 +21,7 @@ type Connection = { connected: boolean; microsoftEmail?: string };
 type Notice = { severity: "success" | "error" | "info"; text: string } | null;
 
 export default function OneDriveConnectionSettings() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const copy = t.settings;
   const [connection, setConnection] = useState<Connection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,13 @@ export default function OneDriveConnectionSettings() {
     const result = currentUrl.searchParams.get("onedrive");
     if (result === "connected") {
       setNotice({ severity: "success", text: copy.oneDriveConnectedSuccess });
+    } else if (result === "sharing_partial") {
+      setNotice({
+        severity: "info",
+        text: lang === "it"
+          ? "Account collegato, ma alcuni inviti non sono riusciti. Ricollega OneDrive per riprovare."
+          : "Account connected, but some invitations failed. Reconnect OneDrive to retry.",
+      });
     } else if (result === "cancelled") {
       setNotice({ severity: "info", text: copy.oneDriveConnectCancelled });
     } else if (result) {

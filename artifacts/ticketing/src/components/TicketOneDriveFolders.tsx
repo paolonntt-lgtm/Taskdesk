@@ -131,6 +131,11 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
     if (result === "connected") {
       setError(null);
       void loadConnection();
+    } else if (result === "sharing_partial") {
+      setError(it
+        ? "OneDrive è collegato, ma alcuni inviti ai collaboratori non sono riusciti. Ricollega l’account per riprovare."
+        : "OneDrive is connected, but some collaborator invitations failed. Reconnect the account to retry.");
+      void loadConnection();
     } else if (result) {
       setError(result === "cancelled"
         ? (it ? "Collegamento OneDrive annullato." : "OneDrive connection cancelled.")

@@ -7,6 +7,7 @@ import { appBaseUrlForRequest } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import {
   createDefaultFolders,
+  canConnectMicrosoftTenant,
   encryptRefreshToken,
   exchangeMicrosoftCode,
   getMicrosoftUser,
@@ -49,7 +50,7 @@ function finish(res: import("express").Response, result: string, returnTo = "/ap
 }
 
 router.get("/onedrive/connect", requireAuth, (req, res): void => {
-  const user = (req as any).currentUser as { organizationId: number | null };
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.status(400).json({ error: "An organization account is required." });
     return;
@@ -65,7 +66,7 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     res.status(401).json({ error: "Sign in to TaskDesk before connecting OneDrive." });
     return;
   }
-  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const rawReturnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
@@ -117,17 +118,10 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
 
     // Business accounts must share one directory. Personal Microsoft accounts
     // use Microsoft's shared consumer tenant ID and are invited individually.
-    const [tenantConnection] = await db.select({ tenantId: oneDriveConnectionsTable.tenantId })
+    const tenantConnections = await db.select({ tenantId: oneDriveConnectionsTable.tenantId })
       .from(oneDriveConnectionsTable)
       .where(eq(oneDriveConnectionsTable.organizationId, user.organizationId))
-      .limit(1);
-    const consumerTenantId = "9188040d-6c67-4c5b-b112-36a304b66e";
-    if (
-      tenantConnection &&
-      tenantConnection.tenantId !== tokens.tenantId &&
-      tenantConnection.tenantId !== consumerTenantId &&
-      tokens.tenantId !== consumerTenantId
-    ) {
+    if (!tenantConnections.every(({ tenantId }) => canConnectMicrosoftTenant(tenantId, tokens.tenantId))) {
       throw new Error("This Microsoft account belongs to a different organization tenant.");
     }
     const microsoftUser = await getMicrosoftUser(tokens.accessToken);
@@ -167,7 +161,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
 });
 
 router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
-  const user = (req as any).currentUser as { organizationId: number | null };
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.json({ connected: false });
     return;
@@ -182,7 +176,7 @@ router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> 
   res.json({ connected: Boolean(connection), ...connection });
 });
 
-router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
+router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promise<void> => {
   const user = (req as any).currentUser as { organizationId: number | null };
   if (!user.organizationId) {
     res.json([]);
@@ -195,6 +189,19 @@ router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<voi
     .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
     .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
   res.json(shares.filter((item) => item.url?.startsWith("https://")));
+});
+
+router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(400).json({ error: "An organization account is required." });
+    return;
+  }
+  await db.delete(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, user.id),
+    eq(oneDriveConnectionsTable.organizationId, user.organizationId),
+  ));
+  res.json({ connected: false });
 });
 
 export default router;

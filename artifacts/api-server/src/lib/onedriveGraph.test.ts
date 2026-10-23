@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  canConnectMicrosoftTenant,
+  CONSUMER_TENANT_ID,
   getOneDriveAttachmentCopyName,
   isExpectedOneDriveAttachmentCopy,
   isOneDriveCopyAccountMatch,
   isUploadedOneDriveCopyCurrent,
 } from "./onedriveGraph";
+
+describe("OneDrive account tenant compatibility", () => {
+  it("allows organizational accounts from one tenant and personal accounts alongside them", () => {
+    expect(canConnectMicrosoftTenant(null, "org-1")).toBe(true);
+    expect(canConnectMicrosoftTenant("org-1", "org-1")).toBe(true);
+    expect(canConnectMicrosoftTenant("org-1", CONSUMER_TENANT_ID)).toBe(true);
+    expect(canConnectMicrosoftTenant(CONSUMER_TENANT_ID, "org-1")).toBe(true);
+    expect(canConnectMicrosoftTenant("org-1", "org-2")).toBe(false);
+  });
+});
 
 describe("OneDrive attachment copy safeguards", () => {
   it("uses the same sanitized, attachment-specific name used during upload", () => {

@@ -9,11 +9,11 @@ Google Drive and OneDrive browsing and ticket-folder selection must operate on e
 
 **How to apply:** Keep provider authorization client-side and isolated per TaskDesk user. Preserve that boundary when adding browsing, ticket links, or durable connection storage.
 
-For OneDrive ticket attachments, each collaborator connects a Microsoft 365 work account in the organization tenant. Each account owns its own `Taskdesk` root shared with that tenant and its operator-named subfolder; assigned ticket files go to the assignee's subfolder. Unassigned inbound-email files go to the organization's connected admin account root.
+For OneDrive ticket attachments, collaborators may connect business or personal Microsoft accounts. Each account owns its own `Taskdesk` root and operator-named subfolder; assigned ticket files go to the assignee's subfolder. Unassigned inbound-email files go to the organization's connected admin account root.
 
-**Why:** The user chose per-collaborator ownership and confirmed the M365 tenant scope; for unassigned email tickets, the system has no human creator with a drive account, so the organization admin is the destination.
+**Why:** The user changed the OneDrive account scope to include personal Microsoft accounts while retaining per-collaborator ownership; unassigned email tickets still use a connected admin because they have no human creator.
 
-**How to apply:** Do not substitute a shared service drive. Preserve tenant matching and use the admin root only for unassigned inbound email; keep TaskDesk's stored attachment as the source copy.
+**How to apply:** Do not substitute a shared service drive or public sharing links. Preserve matching for business tenants, permit personal accounts alongside them, invite connected collaborators by identity, and keep TaskDesk's stored attachment as the source copy.
 
 The main navigation's OneDrive entry should open an organization-level directory of all shared Taskdesk folders, with each link opening the native OneDrive browser.
 
@@ -21,11 +21,11 @@ The main navigation's OneDrive entry should open an organization-level directory
 
 **How to apply:** Keep the menu entry distinct from Google Drive and aggregate only the current user's organization-scoped share links.
 
-Personal Microsoft consumer accounts are out of scope; retain work/school-only authorization.
+Support both organizational and personal Microsoft accounts, but do not grant folder access with anonymous links.
 
-**Why:** The user chose to keep OneDrive limited to company accounts because personal accounts cannot provide the tenant-wide sharing required by Taskdesk.
+**Why:** The user explicitly changed the requirement to accept personal accounts and selected individual collaborator invitations as the sharing method.
 
-**How to apply:** Do not broaden the OAuth authority to `common` or `consumers` as a workaround for missing test accounts.
+**How to apply:** Use a Microsoft authority and app registration that accept personal accounts; grant each connected collaborator sign-in-protected access to other connected Taskdesk roots.
 
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
