@@ -15,8 +15,12 @@ let initialization: Promise<void> | null = null;
 let accessTokenRequest: { changeAccount: boolean; promise: Promise<string> } | null = null;
 
 export function isOneDriveInteractionInProgress(error: unknown): boolean {
-  return error instanceof BrowserAuthError
-    && error.errorCode === BrowserAuthErrorCodes.interactionInProgress;
+  if (error instanceof BrowserAuthError
+    && error.errorCode === BrowserAuthErrorCodes.interactionInProgress) {
+    return true;
+  }
+  return error instanceof Error
+    && error.message.startsWith(`${BrowserAuthErrorCodes.interactionInProgress}:`);
 }
 
 function getClient(): PublicClientApplication {
@@ -94,6 +98,10 @@ export function getOneDriveAccessToken(
   changeAccount = false,
   recoverInteraction = false,
 ): Promise<string> {
+  // A user-triggered recovery must start a fresh MSAL call, not join a stale
+  // or pending local request that may be holding the failed interaction state.
+  if (recoverInteraction) accessTokenRequest = null;
+
   if (accessTokenRequest) {
     if (!changeAccount || accessTokenRequest.changeAccount) return accessTokenRequest.promise;
     return accessTokenRequest.promise
