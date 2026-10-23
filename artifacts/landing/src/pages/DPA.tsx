@@ -48,7 +48,7 @@ export default function DPA() {
           <Link href="/">
             <img src="/taskdesk-logo.webp" alt="TaskDesk" style={{ height: 32, width: "auto", cursor: "pointer" }} />
           </Link>
-          <span style={{ color: "#9ca3af", fontSize: 14 }}>/ Accordo sul Trattamento dei Dati</span>
+          <span style={{ color: "#4b5563", fontSize: 14 }}>/ Accordo sul Trattamento dei Dati</span>
         </div>
       </header>
 

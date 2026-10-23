@@ -242,7 +242,7 @@ function TicketChatMockup({ lang }: { lang: "it" | "en" }) {
   return (
     <div data-testid="ticket-chat-mockup" className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ maxWidth: 380 }}>
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
-        <div className="text-xs text-gray-400 font-semibold mb-1 uppercase tracking-wide">
+        <div className="text-xs text-gray-600 font-semibold mb-1 uppercase tracking-wide">
           {lang === "it" ? "Pratica" : "Request"}
         </div>
         <div className="font-bold text-gray-900 text-sm leading-snug mb-2">{title}</div>
