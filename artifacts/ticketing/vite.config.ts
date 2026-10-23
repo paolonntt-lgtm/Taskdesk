@@ -68,6 +68,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(import.meta.dirname, "index.html"),
+        redirect: path.resolve(import.meta.dirname, "msal-redirect.html"),
+      },
+    },
   },
   server: {
     port,

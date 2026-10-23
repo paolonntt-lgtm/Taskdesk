@@ -8,7 +8,10 @@ import {
 
 const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID as string | undefined;
 const scopes = ["Files.Read", "User.Read"];
-const redirectUri = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+const redirectUri = new URL(
+  "msal-redirect.html",
+  `${window.location.origin}${import.meta.env.BASE_URL}`,
+).toString();
 
 let client: PublicClientApplication | null = null;
 let initialization: Promise<void> | null = null;

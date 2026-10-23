@@ -14,3 +14,9 @@ For MSAL popup recovery, only set `overrideInteractionInProgress` after an expli
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.
 
 **How to apply:** Offer a user-triggered retry only after MSAL reports `interaction_in_progress`; bypass the stale local request on that click, but do not retry automatically or clear the whole account cache.
+
+MSAL Browser v5 popup and silent flows in Vite require a dedicated redirect-bridge page that only processes the response; do not use the main SPA/dashboard as the popup callback. Register the exact bridge URL in Entra ID.
+
+**Why:** Loading the SPA as the callback can navigate the user back to the dashboard instead of cleanly returning the auth response to the opener.
+
+**How to apply:** Build a separate Vite HTML entry that calls `broadcastResponseToMainFrame` from `@azure/msal-browser/redirect-bridge`; keep API calls and app routing off that page.
