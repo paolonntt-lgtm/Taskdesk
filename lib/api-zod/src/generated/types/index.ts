@@ -108,6 +108,7 @@ export * from './requestUploadUrlResponse';
 export * from './requestUploadUrlResponseMetadata';
 export * from './resolveClientEmailAddressAssociation200';
 export * from './resolveClientEmailAddressAssociationBody';
+export * from './retryTicketAttachmentOneDriveCopy200';
 export * from './saveAttachmentBody';
 export * from './searchResults';
 export * from './searchResultsClientsItem';

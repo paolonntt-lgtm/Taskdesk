@@ -12,6 +12,7 @@ import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
+  useRetryTicketAttachmentOneDriveCopy,
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
@@ -167,6 +168,7 @@ export default function TicketDetail() {
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [oneDriveRetryError, setOneDriveRetryError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
   const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
@@ -282,11 +284,24 @@ export default function TicketDetail() {
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
+  const retryOneDriveCopy = useRetryTicketAttachmentOneDriveCopy();
 
   const hasGroupPerm = (perm: string) =>
     ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
   const isAssignee = !!(ticket && (currentUser as any)?.id && (ticket as any).assignedTo === (currentUser as any).id);
   const canAccessNotes = currentUser?.role === 'admin' || hasGroupPerm('add_notes');
+
+  const handleRetryOneDriveCopy = async (attachmentId: number) => {
+    setOneDriveRetryError(null);
+    try {
+      await retryOneDriveCopy.mutateAsync({ id: ticketId, attachmentId });
+      await queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
+    } catch {
+      setOneDriveRetryError(lang === 'it'
+        ? 'Impossibile riprovare la copia su OneDrive. Riprova.'
+        : 'Could not retry the OneDrive copy. Please try again.');
+    }
+  };
 
   const [newNote, setNewNote] = useState('');
   const { data: notes } = useListTicketNotes(ticketId, { query: { enabled: !!ticketId && canAccessNotes, staleTime: 60_000 } as any });
@@ -1360,8 +1375,8 @@ export default function TicketDetail() {
             {(() => {
               const allAttachments = attachments ?? [];
               const ticketAttachments = allAttachments.filter((a: any) => a.commentId == null);
-              const syncErrors = allAttachments.filter((a: any) => a.oneDriveSyncError);
-              if (!ticketAttachments.length && !syncErrors.length) return null;
+              const retryCandidates = allAttachments.filter((a: any) => !a.oneDriveItemId || a.oneDriveSyncError);
+              if (!ticketAttachments.length && !retryCandidates.length) return null;
               const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
               const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
               return (
@@ -1387,13 +1402,43 @@ export default function TicketDetail() {
                       })}
                     </Box>
                   )}
-                  {syncErrors.length > 0 && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
-                      {lang === 'it'
-                        ? `Alcuni allegati non sono ancora stati copiati su OneDrive: ${syncErrors.map((a: any) => `${a.fileName} (${a.oneDriveSyncError})`).join(', ')}. Ricollega l’account OneDrive di destinazione per riprovare.`
-                        : `Some attachments have not been copied to OneDrive yet: ${syncErrors.map((a: any) => `${a.fileName} (${a.oneDriveSyncError})`).join(', ')}. Reconnect the destination OneDrive account to retry.`}
+                  {retryCandidates.length > 0 && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                      <Box sx={{ width: '100%' }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          {lang === 'it'
+                            ? 'Alcuni allegati non sono ancora stati copiati su OneDrive.'
+                            : 'Some attachments have not been copied to OneDrive yet.'}
+                        </Typography>
+                        {retryCandidates.map((attachment: any) => {
+                          const retrying = retryOneDriveCopy.isPending &&
+                            retryOneDriveCopy.variables?.attachmentId === attachment.id;
+                          return (
+                            <Box key={attachment.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, py: 0.25 }}>
+                              <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
+                                {attachment.fileName}
+                                {attachment.oneDriveSyncError ? ` — ${attachment.oneDriveSyncError}` : ` — ${lang === 'it' ? 'In attesa' : 'Pending'}`}
+                              </Typography>
+                              {(isAdmin || isAssignee || isAuthor) && (
+                                <Button
+                                  size="small"
+                                  startIcon={retrying ? <CircularProgress size={14} /> : <RepeatIcon fontSize="small" />}
+                                  disabled={retrying}
+                                  onClick={() => void handleRetryOneDriveCopy(attachment.id)}
+                                  sx={{ flexShrink: 0 }}
+                                >
+                                  {retrying
+                                    ? (lang === 'it' ? 'Riprovo…' : 'Retrying…')
+                                    : (lang === 'it' ? 'Riprova' : 'Retry')}
+                                </Button>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </Box>
                     </Alert>
                   )}
+                  {oneDriveRetryError && <Alert severity="error" sx={{ mt: 1, py: 0.5 }}>{oneDriveRetryError}</Alert>}
                 </Box>
               );
             })()}

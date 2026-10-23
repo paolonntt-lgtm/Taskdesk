@@ -1168,6 +1168,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/Attachment"
 
+  /tickets/{id}/attachments/{attachmentId}/onedrive-retry:
+    post:
+      operationId: retryTicketAttachmentOneDriveCopy
+      tags: [comments]
+      summary: Retry copying a ticket attachment to its current OneDrive destination
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Current OneDrive copy state after retry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  oneDriveItemId:
+                    type: string
+                    nullable: true
+                  oneDriveSyncError:
+                    type: string
+                    nullable: true
+                required:
+                  - oneDriveItemId
+                  - oneDriveSyncError
+        "403":
+          description: Not authorized to retry this attachment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Attachment already has a successful OneDrive copy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Ticket or attachment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /tickets/{id}/onedrive-copies:
     get:
       operationId: listTicketOneDriveCopies

@@ -6,7 +6,7 @@ import { SaveTicketAttachmentBody } from "@workspace/api-zod";
 import { consumePendingUpload } from "../lib/pendingUploads";
 import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "../lib/allowedMimeTypes";
 import { ObjectStorageService } from "../lib/objectStorage";
-import { syncOneDriveAttachment } from "../lib/onedriveGraph";
+import { retryOneDriveAttachment, syncOneDriveAttachment } from "../lib/onedriveGraph";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -30,6 +30,80 @@ router.get("/tickets/:id/attachments", requireAuth, async (req, res): Promise<vo
     .orderBy(ticketAttachmentsTable.createdAt);
 
   res.json(attachments);
+});
+
+router.post("/tickets/:id/attachments/:attachmentId/onedrive-retry", requireAuth, async (req, res): Promise<void> => {
+  const ticketId = parseInt(String(req.params.id), 10);
+  const attachmentId = parseInt(String(req.params.attachmentId), 10);
+  if (isNaN(ticketId) || isNaN(attachmentId)) {
+    res.status(400).json({ error: "Invalid ticket or attachment id" });
+    return;
+  }
+
+  const currentUser = (req as any).currentUser;
+  const organizationId = currentUser.organizationId;
+  if (organizationId == null) {
+    res.status(404).json({ error: "Ticket or attachment not found" });
+    return;
+  }
+  const [ticket] = await db.select({
+    id: ticketsTable.id,
+    organizationId: ticketsTable.organizationId,
+    assignedTo: ticketsTable.assignedTo,
+    createdBy: ticketsTable.createdBy,
+    inboundChannelId: ticketsTable.inboundChannelId,
+    visibility: ticketsTable.visibility,
+  }).from(ticketsTable).where(and(
+    eq(ticketsTable.id, ticketId),
+    isNull(ticketsTable.deletedAt),
+    eq(ticketsTable.organizationId, organizationId),
+  ));
+
+  if (!ticket || (currentUser.role !== "admin" && ticket.visibility === "admins")) {
+    res.status(404).json({ error: "Ticket or attachment not found" });
+    return;
+  }
+
+  if (
+    currentUser.role !== "admin" &&
+    ticket.assignedTo !== currentUser.id &&
+    ticket.createdBy !== currentUser.id
+  ) {
+    res.status(403).json({ error: "Not authorized to retry this attachment" });
+    return;
+  }
+
+  const [attachment] = await db.select({
+    id: ticketAttachmentsTable.id,
+    oneDriveItemId: ticketAttachmentsTable.oneDriveItemId,
+    oneDriveSyncError: ticketAttachmentsTable.oneDriveSyncError,
+  }).from(ticketAttachmentsTable).where(and(
+    eq(ticketAttachmentsTable.id, attachmentId),
+    eq(ticketAttachmentsTable.ticketId, ticket.id),
+  ));
+  if (!attachment) {
+    res.status(404).json({ error: "Ticket or attachment not found" });
+    return;
+  }
+  if (attachment.oneDriveItemId && !attachment.oneDriveSyncError) {
+    res.status(409).json({ error: "This attachment is already synced to OneDrive" });
+    return;
+  }
+
+  const isUnassignedEmailTicket = ticket.assignedTo == null && ticket.inboundChannelId != null;
+  await retryOneDriveAttachment(attachment.id, isUnassignedEmailTicket);
+
+  const [updatedAttachment] = await db.select({
+    oneDriveItemId: ticketAttachmentsTable.oneDriveItemId,
+    oneDriveSyncError: ticketAttachmentsTable.oneDriveSyncError,
+  }).from(ticketAttachmentsTable).where(eq(ticketAttachmentsTable.id, attachment.id));
+
+  if (!updatedAttachment) {
+    res.status(404).json({ error: "Ticket or attachment not found" });
+    return;
+  }
+
+  res.json(updatedAttachment);
 });
 
 router.post("/tickets/:id/attachments", requireAuth, async (req, res): Promise<void> => {

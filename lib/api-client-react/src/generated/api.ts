@@ -89,6 +89,7 @@ import type {
   RequestUploadUrlResponse,
   ResolveClientEmailAddressAssociation200,
   ResolveClientEmailAddressAssociationBody,
+  RetryTicketAttachmentOneDriveCopy200,
   SaveAttachmentBody,
   SearchResults,
   SetRecurrenceBody,
@@ -3316,6 +3317,82 @@ export const useSaveTicketAttachment = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSaveTicketAttachmentMutationOptions(options));
+    }
+
+export const getRetryTicketAttachmentOneDriveCopyUrl = (id: number,
+    attachmentId: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/attachments/${attachmentId}/onedrive-retry`
+}
+
+/**
+ * @summary Retry copying a ticket attachment to its current OneDrive destination
+ */
+export const retryTicketAttachmentOneDriveCopy = async (id: number,
+    attachmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<RetryTicketAttachmentOneDriveCopy200> => {
+
+  return customFetch<RetryTicketAttachmentOneDriveCopy200>(getRetryTicketAttachmentOneDriveCopyUrl(id,attachmentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryTicketAttachmentOneDriveCopyMutationKey = () => ['retryTicketAttachmentOneDriveCopy'] as const;
+
+export const getRetryTicketAttachmentOneDriveCopyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>, TError,RetryTicketAttachmentOneDriveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>, TError,RetryTicketAttachmentOneDriveCopyMutationVariables, TContext> => {
+
+const mutationKey = getRetryTicketAttachmentOneDriveCopyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>, RetryTicketAttachmentOneDriveCopyMutationVariables> = (props) => {
+          const {id,attachmentId} = props ?? {};
+
+          return  retryTicketAttachmentOneDriveCopy(id,attachmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryTicketAttachmentOneDriveCopyMutationResult = NonNullable<Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>>
+
+    export type RetryTicketAttachmentOneDriveCopyMutationError = ErrorType<ErrorResponse>
+    export type RetryTicketAttachmentOneDriveCopyMutationVariables = {id: number;attachmentId: number}
+
+    /**
+ * @summary Retry copying a ticket attachment to its current OneDrive destination
+ */
+export const useRetryTicketAttachmentOneDriveCopy = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>, TError,RetryTicketAttachmentOneDriveCopyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryTicketAttachmentOneDriveCopy>>,
+        TError,
+        RetryTicketAttachmentOneDriveCopyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryTicketAttachmentOneDriveCopyMutationOptions(options));
     }
 
 export const getListTicketOneDriveCopiesUrl = (id: number,) => {

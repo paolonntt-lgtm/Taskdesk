@@ -2009,6 +2009,20 @@ export const SaveTicketAttachmentResponse = zod.object({
 
 
 /**
+ * @summary Retry copying a ticket attachment to its current OneDrive destination
+ */
+export const RetryTicketAttachmentOneDriveCopyParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "attachmentId": zod.coerce.number().int()
+})
+
+export const RetryTicketAttachmentOneDriveCopyResponse = zod.object({
+  "oneDriveItemId": zod.string().nullable(),
+  "oneDriveSyncError": zod.string().nullable()
+})
+
+
+/**
  * @summary List stale OneDrive attachment copies for a ticket (admin only)
  */
 export const ListTicketOneDriveCopiesParams = zod.object({

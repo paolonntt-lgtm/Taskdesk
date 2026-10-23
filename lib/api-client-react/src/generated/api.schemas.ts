@@ -1442,6 +1442,11 @@ scheduled?: boolean;
 recurring?: boolean;
 };
 
+export type RetryTicketAttachmentOneDriveCopy200 = {
+  oneDriveItemId: string | null;
+  oneDriveSyncError: string | null;
+};
+
 export type StartDriveOAuthParams = {
 ticketId: number;
 };

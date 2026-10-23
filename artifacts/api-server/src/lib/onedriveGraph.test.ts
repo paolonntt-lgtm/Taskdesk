@@ -83,6 +83,11 @@ describe("OneDrive attachment copy safeguards", () => {
       uploadedItemId: "new-item",
     };
     expect(isUploadedOneDriveCopyCurrent(upload)).toBe(true);
+    expect(isUploadedOneDriveCopyCurrent({
+      ...upload,
+      currentItemId: "new-item",
+      uploadedItemId: "new-item",
+    })).toBe(true);
     expect(isUploadedOneDriveCopyCurrent({ ...upload, currentAssigneeId: 11 })).toBe(false);
     expect(isUploadedOneDriveCopyCurrent({
       ...upload,

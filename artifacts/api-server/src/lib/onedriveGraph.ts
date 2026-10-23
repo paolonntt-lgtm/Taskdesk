@@ -275,10 +275,14 @@ export async function inviteCollaboratorsToTaskdeskFolders(organizationId: numbe
  * use the oldest connected organization admin; unassigned standard tickets use
  * the creator's root folder.
  */
-export async function syncOneDriveAttachment(attachmentId: number, emailFallback = false): Promise<void> {
+export async function syncOneDriveAttachment(
+  attachmentId: number,
+  emailFallback = false,
+  retryExisting = false,
+): Promise<void> {
   const [attachment] = await db.select().from(ticketAttachmentsTable)
     .where(eq(ticketAttachmentsTable.id, attachmentId)).limit(1);
-  if (!attachment || attachment.oneDriveItemId) return;
+  if (!attachment || (attachment.oneDriveItemId && !retryExisting)) return;
   const [ticket] = await db.select({
     id: ticketsTable.id,
     organizationId: ticketsTable.organizationId,
@@ -289,7 +293,8 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
   }).from(ticketsTable).where(eq(ticketsTable.id, attachment.ticketId)).limit(1);
   if (!ticket || ticket.deletedAt || !ticket.organizationId) return;
 
-  const targetUserId = ticket.assignedTo ?? (emailFallback
+  const useEmailFallback = emailFallback || (retryExisting && ticket.inboundChannelId != null);
+  const targetUserId = ticket.assignedTo ?? (useEmailFallback
     ? (await db.select({ id: usersTable.id }).from(usersTable)
       .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
       .where(and(eq(usersTable.organizationId, ticket.organizationId), eq(usersTable.role, "admin")))
@@ -345,7 +350,7 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
       if (!currentTicket || currentTicket.deletedAt || currentTicket.organizationId == null) return;
 
       let currentTargetUserId = currentTicket.assignedTo ?? currentTicket.createdBy;
-      if (currentTicket.assignedTo == null && emailFallback && currentTicket.inboundChannelId != null) {
+      if (currentTicket.assignedTo == null && useEmailFallback && currentTicket.inboundChannelId != null) {
         const [inboundOwner] = await tx.select({ id: usersTable.id })
           .from(usersTable)
           .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
@@ -418,6 +423,10 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
       .set({ oneDriveSyncError: message.slice(0, 500) })
       .where(eq(ticketAttachmentsTable.id, attachment.id));
   }
+}
+
+export async function retryOneDriveAttachment(attachmentId: number, emailFallback = false): Promise<void> {
+  await syncOneDriveAttachment(attachmentId, emailFallback, true);
 }
 
 export async function removeStaleOneDriveAttachmentCopy(
