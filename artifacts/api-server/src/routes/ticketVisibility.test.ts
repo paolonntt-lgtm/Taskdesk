@@ -201,6 +201,78 @@ describe("manual ticket visibility", () => {
     await pool.end();
   });
 
+  it("queues ticket and email-comment attachments for OneDrive sync after reassignment", async () => {
+    const createResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `OneDrive reassignment ${runId}`,
+        description: "Reassignment should resync all existing attachment records.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const ticketId = createResponse.body.id as number;
+    createdTicketIds.push(ticketId);
+
+    const [comment] = await db.insert(ticketCommentsTable).values({
+      ticketId,
+      authorId: adminId,
+      commentText: "Email reply with an attachment",
+    }).returning({ id: ticketCommentsTable.id });
+
+    await db.insert(ticketAttachmentsTable).values([
+      {
+        ticketId,
+        uploadedBy: adminId,
+        objectPath: `/objects/${runId}/ticket-attachment.txt`,
+        fileName: "ticket-attachment.txt",
+        fileSize: 10,
+        mimeType: "text/plain",
+        oneDriveItemId: "previous-ticket-copy",
+      },
+      {
+        ticketId,
+        commentId: comment.id,
+        uploadedBy: adminId,
+        objectPath: `/objects/${runId}/email-comment-attachment.txt`,
+        fileName: "email-comment-attachment.txt",
+        fileSize: 10,
+        mimeType: "text/plain",
+        oneDriveItemId: "previous-email-copy",
+      },
+    ]);
+
+    const reassignment = await request(`/api/tickets/${ticketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedTo: userId }),
+    });
+    expect(reassignment.status).toBe(200);
+    expect(reassignment.body.assignedTo).toBe(userId);
+
+    const attachments = await db.select({
+      commentId: ticketAttachmentsTable.commentId,
+      objectPath: ticketAttachmentsTable.objectPath,
+      oneDriveItemId: ticketAttachmentsTable.oneDriveItemId,
+    }).from(ticketAttachmentsTable).where(eq(ticketAttachmentsTable.ticketId, ticketId));
+    expect(attachments).toHaveLength(2);
+    expect(attachments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        commentId: null,
+        objectPath: `/objects/${runId}/ticket-attachment.txt`,
+        oneDriveItemId: null,
+      }),
+      expect.objectContaining({
+        commentId: comment.id,
+        objectPath: `/objects/${runId}/email-comment-attachment.txt`,
+        oneDriveItemId: null,
+      }),
+    ]));
+
+    await db.delete(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    createdTicketIds.splice(createdTicketIds.indexOf(ticketId), 1);
+  }, 60_000);
+
   it("persists private visibility and hides the ticket plus derived data from the team", async () => {
     const privateTitle = `Private manual ticket ${runId}`;
     const privateResponse = await request("/api/tickets", adminSessionId, {

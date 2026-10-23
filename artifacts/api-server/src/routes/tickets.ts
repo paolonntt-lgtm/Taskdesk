@@ -110,6 +110,8 @@ import
  from "../lib/clientTicketTitle"
 ;
 
+import { syncTicketOneDriveAttachments } from "../lib/onedriveGraph";
+
 
 const router: IRouter = Router()
 ;
@@ -3229,6 +3231,18 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         .returning()
 ;
 
+      if (
+        saved &&
+        updates.assignedTo != null &&
+        updates.assignedTo !== existing.assignedTo
+      ) {
+        // Reset the sync marker in the same transaction as reassignment so a
+        // failed or interrupted OneDrive upload remains eligible for retry.
+        await tx.update(ticketAttachmentsTable)
+          .set({ oneDriveItemId: null, oneDriveSyncError: null })
+          .where(eq(ticketAttachmentsTable.ticketId, id));
+      }
+
       const [creator] = !hasInboundEmailMetadata && clientsEnabled && "clientId" in updates && updates.clientId != null
         ? await tx.select(
 {
@@ -3350,6 +3364,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   
 }
 
+
+  if (updated.assignedTo != null && updated.assignedTo !== existing.assignedTo) {
+    void syncTicketOneDriveAttachments(id).catch((error) => {
+      req.log.warn({ err: error, ticketId: id }, "Could not sync reassigned ticket attachments to OneDrive");
+    });
+  }
 
   for (const log of activityLogs) 
 {

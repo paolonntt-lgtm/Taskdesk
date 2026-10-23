@@ -224,6 +224,16 @@ export async function syncOneDriveAttachment(attachmentId: number, emailFallback
   }
 }
 
+export async function syncTicketOneDriveAttachments(ticketId: number): Promise<void> {
+  const attachments = await db.select({ id: ticketAttachmentsTable.id })
+    .from(ticketAttachmentsTable)
+    .where(eq(ticketAttachmentsTable.ticketId, ticketId));
+
+  for (const attachment of attachments) {
+    await syncOneDriveAttachment(attachment.id);
+  }
+}
+
 export async function syncPendingOneDriveAttachments(userId: number, organizationId: number, isAdmin: boolean): Promise<void> {
   const candidates = await db.select({
     attachmentId: ticketAttachmentsTable.id,
