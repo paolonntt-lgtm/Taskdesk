@@ -14,6 +14,8 @@ import { Link, useSearch, useLocation } from 'wouter';
 import { useTicketStatuses, type TicketStatus } from '../hooks/useTicketStatuses';
 import { useQueryClient } from '@tanstack/react-query';
 import ConsoleHistoryTab from './ConsoleHistoryTab';
+import OneDriveConnectionSettings from '../components/OneDriveConnectionSettings';
+import OneDriveLogo from '../components/OneDriveLogo';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -780,7 +782,7 @@ export default function Settings() {
   const rawSearch = useSearch();
   const [, navigate] = useLocation();
   const urlSection = new URLSearchParams(rawSearch).get('section') ?? 'profile';
-  const activeSection = !isAdmin && !['profile', 'notifications'].includes(urlSection)
+  const activeSection = !isAdmin && !['profile', 'notifications', 'onedrive'].includes(urlSection)
     ? 'profile'
     : urlSection === 'email' ? 'tickets'
       : urlSection === 'console' && !orgClientsEnabled ? 'general' : urlSection;
@@ -1157,6 +1159,7 @@ export default function Settings() {
   const personalNav = [
     { id: 'profile', label: t.settings.navProfile, icon: <Person fontSize="small" /> },
     { id: 'notifications', label: t.settings.navNotifications, icon: <NotificationsActive fontSize="small" /> },
+    { id: 'onedrive', label: t.settings.navOneDrive, icon: <OneDriveLogo width={18} height={18} /> },
   ];
   const orgNav = [
     { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
@@ -1352,6 +1355,9 @@ export default function Settings() {
 
           {/* ── NOTIFICATIONS ── */}
           {activeSection === 'notifications' && <NotificationPreferences />}
+
+          {/* ── PERSONAL ONEDRIVE CONNECTION ── */}
+          {activeSection === 'onedrive' && <OneDriveConnectionSettings />}
 
           {/* ── GENERAL (admin) ── */}
           {isAdmin && activeSection === 'general' && (

@@ -49,7 +49,7 @@ function finish(res: import("express").Response, result: string, returnTo = "/ap
 }
 
 router.get("/onedrive/connect", requireAuth, (req, res): void => {
-  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  const user = (req as any).currentUser as { organizationId: number | null };
   if (!user.organizationId) {
     res.status(400).json({ error: "An organization account is required." });
     return;
@@ -65,7 +65,7 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     res.status(401).json({ error: "Sign in to TaskDesk before connecting OneDrive." });
     return;
   }
-  const state = randomBytes(24).toString("base64url");
+  const state = typeof req.query.state === "string" ? req.query.state : "";
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const rawReturnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "";
@@ -167,7 +167,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
 });
 
 router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
-  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  const user = (req as any).currentUser as { organizationId: number | null };
   if (!user.organizationId) {
     res.json({ connected: false });
     return;
@@ -182,7 +182,7 @@ router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> 
   res.json({ connected: Boolean(connection), ...connection });
 });
 
-router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promise<void> => {
+router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
   const user = (req as any).currentUser as { organizationId: number | null };
   if (!user.organizationId) {
     res.json([]);
