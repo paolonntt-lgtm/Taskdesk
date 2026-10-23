@@ -1415,6 +1415,88 @@ paths:
         "404":
           description: Ticket or folder reference not found
 
+  /tickets/{id}/onedrive-folders:
+    get:
+      operationId: listTicketOneDriveFolders
+      tags: [drive]
+      summary: List OneDrive folder references for a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked OneDrive folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OneDriveFolderReference"
+        "404":
+          description: Ticket not found or not visible
+    post:
+      operationId: addTicketOneDriveFolder
+      tags: [drive]
+      summary: Link a OneDrive folder to a ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneDriveFolderInput"
+      responses:
+        "201":
+          description: Linked OneDrive folder reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneDriveFolderReference"
+        "200":
+          description: Folder was already linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneDriveFolderReference"
+        "400":
+          description: Invalid request
+        "404":
+          description: Ticket not found or not visible
+
+  /tickets/{id}/onedrive-folders/{referenceId}:
+    delete:
+      operationId: removeTicketOneDriveFolder
+      tags: [drive]
+      summary: Remove a OneDrive folder reference without changing OneDrive contents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: referenceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reference removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Ticket or reference not found
+
   /storage/uploads/request-url:
     post:
       operationId: requestUploadUrl
@@ -3140,6 +3222,31 @@ components:
           minLength: 1
           maxLength: 256
     DriveFolderReference:
+      type: object
+      required: [id, driveFolderId, folderName, createdAt]
+      properties:
+        id:
+          type: integer
+        driveFolderId:
+          type: string
+        folderName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    OneDriveFolderInput:
+      type: object
+      required: [folderId, folderName]
+      properties:
+        folderId:
+          type: string
+          minLength: 1
+          maxLength: 512
+        folderName:
+          type: string
+          minLength: 1
+          maxLength: 512
+    OneDriveFolderReference:
       type: object
       required: [id, driveFolderId, folderName, createdAt]
       properties:

@@ -126,7 +126,8 @@ export default function TicketDriveFolders({ ticketId }: { ticketId: number }) {
   const loadReferences = useCallback(async () => {
     setLoadingFolders(true);
     try {
-      setFolders(await requestJson<DriveReference[]>(`/api/tickets/${ticketId}/drive-folders`));
+      const references = await requestJson<DriveReference[]>(`/api/tickets/${ticketId}/drive-folders`);
+      setFolders(references.filter((reference) => !reference.driveFolderId.startsWith("onedrive:")));
     } catch (loadError) {
       setDriveError(errorCode(loadError));
     } finally {

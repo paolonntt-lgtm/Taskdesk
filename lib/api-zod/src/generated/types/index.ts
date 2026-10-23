@@ -94,6 +94,8 @@ export * from './loginRequest';
 export * from './loginResponse';
 export * from './noteWithAuthor';
 export * from './notification';
+export * from './oneDriveFolderInput';
+export * from './oneDriveFolderReference';
 export * from './personalTimeTrackingReport';
 export * from './personalTimeTrackingReportRow';
 export * from './personalTimeTrackingReportTotals';

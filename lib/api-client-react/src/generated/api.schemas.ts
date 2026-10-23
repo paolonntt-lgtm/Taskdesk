@@ -20,6 +20,26 @@ export interface DriveFolderReference {
   createdAt: string;
 }
 
+export interface OneDriveFolderInput {
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  folderId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  folderName: string;
+}
+
+export interface OneDriveFolderReference {
+  id: number;
+  driveFolderId: string;
+  folderName: string;
+  createdAt: string;
+}
+
 export interface DrivePickerFolder {
   driveFolderId: string;
   folderName: string;

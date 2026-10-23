@@ -32,6 +32,7 @@ import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
+import TicketOneDriveFolders from '../components/TicketOneDriveFolders';
 import PermissionGateButton from '../components/PermissionGateButton';
 import { trackEvent } from '../lib/analytics';
 
@@ -1386,6 +1387,7 @@ export default function TicketDetail() {
 
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
+          <TicketOneDriveFolders ticketId={ticketId} />
 
           {timeTrackingModuleEnabled &&
             Boolean((ticket as any).timeTrackingEnabled) &&

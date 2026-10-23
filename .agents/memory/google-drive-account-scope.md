@@ -1,10 +1,10 @@
 ---
-name: Google Drive account scope
-description: User-level account isolation for Google Drive browsing and ticket folder selection.
+name: Cloud-drive account scope
+description: User-level account isolation for Google Drive and OneDrive browsing and ticket folder selection.
 ---
 
-Google Drive browsing and ticket folder selection must operate on each authenticated user's own connected Google account. Do not use one shared organization-wide Drive account.
+Google Drive and OneDrive browsing and ticket-folder selection must operate on each authenticated TaskDesk user's own connected provider account. Do not use a shared organization-wide drive account or workspace connector for customer file access.
 
-**Why:** The user explicitly chose individual account connections so Drive access reflects each user's own Google permissions.
+**Why:** The user explicitly chose individual account connections so access reflects each TaskDesk user's own provider permissions.
 
-**How to apply:** Bind every Drive OAuth flow and token to the authenticated user and session. Preserve that isolation when adding browsing, ticket links, or durable connection storage.
+**How to apply:** Keep provider authorization client-side and isolated per TaskDesk user. Preserve that boundary when adding browsing, ticket links, or durable connection storage.

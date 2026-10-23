@@ -2152,6 +2152,62 @@ export const ListTicketDriveFolderItemsResponse = zod.object({
 
 
 /**
+ * @summary List OneDrive folder references for a ticket
+ */
+export const ListTicketOneDriveFoldersParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListTicketOneDriveFoldersResponseItem = zod.object({
+  "id": zod.int(),
+  "driveFolderId": zod.string(),
+  "folderName": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListTicketOneDriveFoldersResponse = zod.array(ListTicketOneDriveFoldersResponseItem)
+
+
+/**
+ * @summary Link a OneDrive folder to a ticket
+ */
+export const AddTicketOneDriveFolderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const addTicketOneDriveFolderBodyFolderIdMax = 512;
+
+export const addTicketOneDriveFolderBodyFolderNameMax = 512;
+
+
+
+export const AddTicketOneDriveFolderBody = zod.object({
+  "folderId": zod.string().min(1).max(addTicketOneDriveFolderBodyFolderIdMax),
+  "folderName": zod.string().min(1).max(addTicketOneDriveFolderBodyFolderNameMax)
+})
+
+export const AddTicketOneDriveFolderResponse = zod.object({
+  "id": zod.int(),
+  "driveFolderId": zod.string(),
+  "folderName": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a OneDrive folder reference without changing OneDrive contents
+ */
+export const RemoveTicketOneDriveFolderParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "referenceId": zod.coerce.number().int()
+})
+
+export const RemoveTicketOneDriveFolderResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
  * @summary Request a presigned upload URL
  */
 export const RequestUploadUrlBody = zod.object({

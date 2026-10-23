@@ -81,6 +81,8 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  OneDriveFolderInput,
+  OneDriveFolderReference,
   PersonalTimeTrackingReport,
   RecentTicketWithActivity,
   RequestUploadUrlBody,
@@ -4061,6 +4063,240 @@ export function useListTicketDriveFolderItems<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getListTicketOneDriveFoldersUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/onedrive-folders`
+}
+
+/**
+ * @summary List OneDrive folder references for a ticket
+ */
+export const listTicketOneDriveFolders = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<OneDriveFolderReference[]> => {
+
+  return customFetch<OneDriveFolderReference[]>(getListTicketOneDriveFoldersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTicketOneDriveFoldersQueryKey = (id: number,) => {
+    return [
+    `/api/tickets/${id}/onedrive-folders`
+    ] as const;
+    }
+
+
+export const getListTicketOneDriveFoldersQueryOptions = <TData = Awaited<ReturnType<typeof listTicketOneDriveFolders>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTicketOneDriveFoldersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTicketOneDriveFolders>>> = ({ signal }) => listTicketOneDriveFolders(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveFolders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTicketOneDriveFoldersQueryResult = NonNullable<Awaited<ReturnType<typeof listTicketOneDriveFolders>>>
+export type ListTicketOneDriveFoldersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List OneDrive folder references for a ticket
+ */
+
+export function useListTicketOneDriveFolders<TData = Awaited<ReturnType<typeof listTicketOneDriveFolders>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTicketOneDriveFolders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTicketOneDriveFoldersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddTicketOneDriveFolderUrl = (id: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/onedrive-folders`
+}
+
+/**
+ * @summary Link a OneDrive folder to a ticket
+ */
+export const addTicketOneDriveFolder = async (id: number,
+    oneDriveFolderInput: OneDriveFolderInput, options?: Parameters<typeof customFetch>[1]): Promise<OneDriveFolderReference> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<OneDriveFolderReference>(getAddTicketOneDriveFolderUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(oneDriveFolderInput)
+  }
+);}
+
+
+
+
+
+export const getAddTicketOneDriveFolderMutationKey = () => ['addTicketOneDriveFolder'] as const;
+
+export const getAddTicketOneDriveFolderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTicketOneDriveFolder>>, TError,AddTicketOneDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTicketOneDriveFolder>>, TError,AddTicketOneDriveFolderMutationVariables, TContext> => {
+
+const mutationKey = getAddTicketOneDriveFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTicketOneDriveFolder>>, AddTicketOneDriveFolderMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addTicketOneDriveFolder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTicketOneDriveFolderMutationResult = NonNullable<Awaited<ReturnType<typeof addTicketOneDriveFolder>>>
+    export type AddTicketOneDriveFolderMutationBody = BodyType<OneDriveFolderInput>
+    export type AddTicketOneDriveFolderMutationError = ErrorType<void>
+    export type AddTicketOneDriveFolderMutationVariables = {id: number;data: BodyType<OneDriveFolderInput>}
+
+    /**
+ * @summary Link a OneDrive folder to a ticket
+ */
+export const useAddTicketOneDriveFolder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTicketOneDriveFolder>>, TError,AddTicketOneDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTicketOneDriveFolder>>,
+        TError,
+        AddTicketOneDriveFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTicketOneDriveFolderMutationOptions(options));
+    }
+
+export const getRemoveTicketOneDriveFolderUrl = (id: number,
+    referenceId: number,) => {
+
+
+
+
+  return `/api/tickets/${id}/onedrive-folders/${referenceId}`
+}
+
+/**
+ * @summary Remove a OneDrive folder reference without changing OneDrive contents
+ */
+export const removeTicketOneDriveFolder = async (id: number,
+    referenceId: number, options?: Parameters<typeof customFetch>[1]): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRemoveTicketOneDriveFolderUrl(id,referenceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveTicketOneDriveFolderMutationKey = () => ['removeTicketOneDriveFolder'] as const;
+
+export const getRemoveTicketOneDriveFolderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTicketOneDriveFolder>>, TError,RemoveTicketOneDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeTicketOneDriveFolder>>, TError,RemoveTicketOneDriveFolderMutationVariables, TContext> => {
+
+const mutationKey = getRemoveTicketOneDriveFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeTicketOneDriveFolder>>, RemoveTicketOneDriveFolderMutationVariables> = (props) => {
+          const {id,referenceId} = props ?? {};
+
+          return  removeTicketOneDriveFolder(id,referenceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveTicketOneDriveFolderMutationResult = NonNullable<Awaited<ReturnType<typeof removeTicketOneDriveFolder>>>
+
+    export type RemoveTicketOneDriveFolderMutationError = ErrorType<void>
+    export type RemoveTicketOneDriveFolderMutationVariables = {id: number;referenceId: number}
+
+    /**
+ * @summary Remove a OneDrive folder reference without changing OneDrive contents
+ */
+export const useRemoveTicketOneDriveFolder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTicketOneDriveFolder>>, TError,RemoveTicketOneDriveFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeTicketOneDriveFolder>>,
+        TError,
+        RemoveTicketOneDriveFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveTicketOneDriveFolderMutationOptions(options));
+    }
 
 export const getRequestUploadUrlUrl = () => {
 

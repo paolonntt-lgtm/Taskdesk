@@ -15,6 +15,7 @@ import {
   ListTicketDriveFolderItemsQueryParams,
   RemoveTicketDriveFolderParams,
   StartDriveOAuthQueryParams,
+  StartDriveSessionOAuthQueryParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { getCurrentUserId, getSessionId } from "../lib/session";
@@ -301,12 +302,12 @@ function handleDriveFailure(req: Request, res: ExpressResponse, error: unknown):
 }
 
 router.get("/drive/oauth/start", requireAuth, async (req, res): Promise<void> => {
-  const parsed = ListDrivePickerFoldersQueryParams.safeParse(req.query);
+  const parsed = StartDriveOAuthQueryParams.safeParse(req.query);
   if (!parsed.success) {
     sendError(res, 400, "INVALID_REQUEST", "A valid ticket id is required.");
     return;
   }
-  const ticket = await getVisibleTicket(req, params.data.id);
+  const ticket = await getVisibleTicket(req, parsed.data.ticketId);
   if (!ticket) {
     sendError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     return;
@@ -360,12 +361,12 @@ function startDriveOAuth(
 }
 
 router.get("/drive/session/oauth/start", requireAuth, (req, res): void => {
-    const context = pending?.context ?? (stateMatch?.[2] as "library" | "new-ticket" | undefined) ?? "ticket";
-  if (context !== "library" && context !== "new-ticket") {
+  const parsed = StartDriveSessionOAuthQueryParams.safeParse(req.query);
+  if (!parsed.success) {
     sendError(res, 400, "INVALID_REQUEST", "A valid Drive connection context is required.");
     return;
   }
-  startDriveOAuth(req, res, null, context);
+  startDriveOAuth(req, res, null, parsed.data.context);
 });
 
 export function isDriveOAuthState(state: string): boolean {
@@ -527,19 +528,7 @@ router.get("/drive/picker", requireAuth, async (req, res): Promise<void> => {
         return;
       }
     }
-  const folders = await db
-    .select({
-      id: ticketDriveFoldersTable.id,
-      driveFolderId: ticketDriveFoldersTable.driveFolderId,
-      folderName: ticketDriveFoldersTable.folderName,
-      createdAt: ticketDriveFoldersTable.createdAt,
-    })
-    .from(ticketDriveFoldersTable)
-    .where(and(
-      eq(ticketDriveFoldersTable.ticketId, ticket.id),
-      eq(ticketDriveFoldersTable.organizationId, ticket.organizationId!),
-    ))
-    .orderBy(ticketDriveFoldersTable.createdAt);
+    const folders = await listDriveChildren(accessToken, parentId, true);
     res.json(folders.map((folder) => ({
       driveFolderId: folder.id,
       folderName: folder.name,
@@ -550,8 +539,8 @@ router.get("/drive/picker", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<void> => {
-  const ticketId = Number(req.params.id);
-  if (!Number.isInteger(ticketId) || ticketId < 1) {
+  const params = AddTicketDriveFolderParams.safeParse(req.params);
+  if (!params.success) {
     sendError(res, 400, "INVALID_REQUEST", "Invalid ticket id.");
     return;
   }
@@ -577,7 +566,7 @@ router.get("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<
 });
 
 router.post("/tickets/:id/drive-folders", requireAuth, async (req, res): Promise<void> => {
-  const params = ListTicketDriveFolderItemsParams.safeParse(req.params);
+  const params = AddTicketDriveFolderParams.safeParse(req.params);
   const body = AddTicketDriveFolderBody.safeParse(req.body);
   if (!params.success || !body.success ||
       !/^[A-Za-z0-9_-]{1,256}$/.test(body.data.folderId)) {

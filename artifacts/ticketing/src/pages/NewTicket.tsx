@@ -15,6 +15,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import { RichCommentEditor, type PendingAttachment } from '../components/RichCommentEditor';
 import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
 import DriveBrowser, { type SelectedDriveFolder } from '../components/DriveBrowser';
+import OneDriveFolderPicker, { type SelectedOneDriveFolder } from '../components/OneDriveFolderPicker';
 import { trackEvent } from '../lib/analytics';
 import { buildNewTicketAssociations } from '../lib/newTicketAssociations';
 
@@ -95,6 +96,8 @@ export default function NewTicket() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [driveFolders, setDriveFolders] = useState<SelectedDriveFolder[]>([]);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [oneDriveFolders, setOneDriveFolders] = useState<SelectedOneDriveFolder[]>([]);
+  const [oneDrivePickerOpen, setOneDrivePickerOpen] = useState(false);
   const [checklistDraft, setChecklistDraft] = useState<ChecklistDraft | null>(null);
   const [checklistError, setChecklistError] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -148,6 +151,14 @@ export default function NewTicket() {
         ? previous
         : [...previous, folder],
     );
+  };
+  const addOneDriveFolder = (folder: SelectedOneDriveFolder) => {
+    setOneDriveFolders((previous) =>
+      previous.some((item) => item.driveFolderId === folder.driveFolderId)
+        ? previous
+        : [...previous, folder],
+    );
+    setOneDrivePickerOpen(false);
   };
 
   const handleQuickAddClient = async () => {
@@ -466,6 +477,27 @@ export default function NewTicket() {
           window.alert(lang === 'it'
             ? 'Ticket creato, ma non è stato possibile collegare una o più cartelle Drive. Puoi riprovare dal dettaglio del ticket.'
             : 'Ticket created, but one or more Drive folders could not be linked. You can retry from the ticket details.');
+        }
+      }
+      if (!isEditing && oneDriveFolders.length > 0) {
+        let failedLinks = 0;
+        for (const folder of oneDriveFolders) {
+          try {
+            const response = await fetch(`/api/tickets/${ticketId}/onedrive-folders`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ folderId: folder.driveFolderId, folderName: folder.folderName }),
+            });
+            if (!response.ok) failedLinks += 1;
+          } catch {
+            failedLinks += 1;
+          }
+        }
+        if (failedLinks > 0) {
+          window.alert(lang === 'it'
+            ? 'Ticket creato, ma non è stato possibile collegare una o più cartelle OneDrive. Puoi riprovare dal dettaglio del ticket.'
+            : 'Ticket created, but one or more OneDrive folders could not be linked. You can retry from the ticket details.');
         }
       }
 
@@ -923,6 +955,43 @@ export default function NewTicket() {
                 )}
               </Paper>
             )}
+            {!isEditing && (
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    {lang === 'it' ? 'Cartelle OneDrive' : 'OneDrive folders'}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<FolderOutlined />}
+                    onClick={() => setOneDrivePickerOpen(true)}
+                  >
+                    {lang === 'it' ? 'Collega cartella' : 'Link folder'}
+                  </Button>
+                </Box>
+                {oneDriveFolders.length > 0 ? (
+                  <Box display="flex" gap={0.75} flexWrap="wrap" mt={1}>
+                    {oneDriveFolders.map((folder) => (
+                      <Chip
+                        key={folder.driveFolderId}
+                        label={folder.folderName}
+                        size="small"
+                        icon={<FolderOutlined />}
+                        onDelete={() => setOneDriveFolders((previous) =>
+                          previous.filter((item) => item.driveFolderId !== folder.driveFolderId))}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" mt={0.75}>
+                    {lang === 'it'
+                      ? 'Facoltativo: scegli una cartella OneDrive da associare al ticket.'
+                      : 'Optional: choose a OneDrive folder to link to this ticket.'}
+                  </Typography>
+                )}
+              </Paper>
+            )}
 
             {/* Checklist */}
             {!isEditing && (
@@ -1290,6 +1359,13 @@ export default function NewTicket() {
             <Button onClick={() => setDrivePickerOpen(false)}>{t.newTicket.cancel}</Button>
           </DialogActions>
         </Dialog>
+      )}
+      {!isEditing && (
+        <OneDriveFolderPicker
+          open={oneDrivePickerOpen}
+          onClose={() => setOneDrivePickerOpen(false)}
+          onSelectFolder={addOneDriveFolder}
+        />
       )}
     </Box>
   );

@@ -30,6 +30,7 @@ SMTP_HOST = "smtp.maileroo.com"
 SMTP_PORT = "587"
 INBOUND_EMAIL_ORG_ID = "3"
 INBOUND_EMAIL_DOMAIN = "taskdesk.uk"
+VITE_MICROSOFT_CLIENT_ID = "d74e049d-cb60-4f33-b88a-1b40d74c4d3b"
 
 [userenv.production]
 STAGING_PROTECTION = "1"
