@@ -42,6 +42,8 @@ function resolveUrl(
  * Build a language-specific sitemap XML string.
  * Each <url> points to the language variant of that page and includes
  * xhtml:link hreflang alternates for both languages.
+ * Omit URL-level lastmod: there are no reliable per-page content modification
+ * dates, and build time does not indicate a material change to page content.
  */
 function buildLanguageSitemapXml(
   routes: string[],
@@ -49,7 +51,6 @@ function buildLanguageSitemapXml(
   baseUrl: string,
   lang: "it" | "en",
 ): string {
-  const lastmod = new Date().toISOString().slice(0, 10);
   const otherLang: "it" | "en" = lang === "it" ? "en" : "it";
 
   const urls = routes
@@ -73,7 +74,6 @@ function buildLanguageSitemapXml(
       return [
         "  <url>",
         `    <loc>${loc}</loc>`,
-        `    <lastmod>${lastmod}</lastmod>`,
         `    <changefreq>${meta.changefreq ?? "monthly"}</changefreq>`,
         `    <priority>${(meta.priority ?? 0.5).toFixed(1)}</priority>`,
         alts,
