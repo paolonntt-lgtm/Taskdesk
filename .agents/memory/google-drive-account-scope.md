@@ -21,6 +21,12 @@ The main navigation's OneDrive entry should open an organization-level directory
 
 **How to apply:** Keep the menu entry distinct from Google Drive and aggregate only the current user's organization-scoped share links.
 
+Personal Microsoft consumer accounts are out of scope; retain work/school-only authorization.
+
+**Why:** The user chose to keep OneDrive limited to company accounts because personal accounts cannot provide the tenant-wide sharing required by Taskdesk.
+
+**How to apply:** Do not broaden the OAuth authority to `common` or `consumers` as a workaround for missing test accounts.
+
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.
