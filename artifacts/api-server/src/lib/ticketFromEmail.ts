@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 import { domainForSender, normalizeSenderEmail, resolveEmailClientAssociation } from "./emailClientAssociation";
 import { isClientFeatureEnabled } from "./clientFeature";
 import { prefixTicketTitleWithClient } from "./clientTicketTitle";
+import { syncOneDriveAttachment } from "./onedriveGraph";
 
 import type { InboundAttachment } from "./pecUtils";
 export type { InboundAttachment };
@@ -46,7 +47,7 @@ async function saveInboundAttachments(
 
       const objectPath = await objectStorage.uploadBuffer(subPath, att.data, att.mimeType);
 
-      await db.insert(ticketAttachmentsTable).values({
+      const [savedAttachment] = await db.insert(ticketAttachmentsTable).values({
         ticketId,
         commentId,
         uploadedBy: systemUserId,
@@ -54,6 +55,9 @@ async function saveInboundAttachments(
         fileName: att.filename,
         fileSize: att.data.length,
         mimeType: att.mimeType,
+      }).returning({ id: ticketAttachmentsTable.id });
+      void syncOneDriveAttachment(savedAttachment.id, true).catch((err) => {
+        logger.warn({ err, ticketId, attachmentId: savedAttachment.id }, "Could not queue inbound OneDrive attachment sync");
       });
     } catch (err) {
       logger.warn({ err, filename: att.filename, ticketId }, "Failed to save inbound attachment");

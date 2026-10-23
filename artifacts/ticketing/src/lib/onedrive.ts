@@ -7,7 +7,7 @@ import {
 } from "@azure/msal-browser";
 
 const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID as string | undefined;
-const scopes = ["Files.Read", "User.Read"];
+const scopes = ["Files.ReadWrite", "User.Read"];
 const redirectUri = new URL(
   "msal-redirect.html",
   `${window.location.origin}${import.meta.env.BASE_URL}`,

@@ -6,6 +6,7 @@ import { SaveTicketAttachmentBody } from "@workspace/api-zod";
 import { consumePendingUpload } from "../lib/pendingUploads";
 import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "../lib/allowedMimeTypes";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { syncOneDriveAttachment } from "../lib/onedriveGraph";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -102,6 +103,10 @@ router.post("/tickets/:id/attachments", requireAuth, async (req, res): Promise<v
     mimeType: actualMimeType,
   }).returning();
 
+  // Keep the existing TaskDesk copy even if Microsoft is unavailable.
+  void syncOneDriveAttachment(attachment.id).catch((error) => {
+    req.log.warn({ err: error, attachmentId: attachment.id }, "OneDrive attachment sync could not be queued");
+  });
   res.status(201).json(attachment);
 });
 

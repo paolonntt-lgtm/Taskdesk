@@ -1380,6 +1380,13 @@ export default function TicketDetail() {
                       })}
                     </Box>
                   )}
+                  {ticketAttachments.some((a: any) => a.oneDriveSyncError) && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
+                      {lang === 'it'
+                        ? `Alcuni allegati non sono ancora stati copiati su OneDrive: ${ticketAttachments.filter((a: any) => a.oneDriveSyncError).map((a: any) => a.fileName).join(', ')}. Ricollega l’account OneDrive dell’assegnatario per riprovare.`
+                        : `Some attachments have not been copied to OneDrive yet: ${ticketAttachments.filter((a: any) => a.oneDriveSyncError).map((a: any) => a.fileName).join(', ')}. Reconnect the assignee’s OneDrive account to retry.`}
+                    </Alert>
+                  )}
                 </Box>
               );
             })()}

@@ -1,0 +1,172 @@
+import { Router } from "express";
+import { and, eq } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
+import { db, oneDriveConnectionsTable, usersTable } from "@workspace/db";
+import { getCurrentUserId, getSessionId } from "../lib/session";
+import { appBaseUrlForRequest } from "../lib/appUrl";
+import { logger } from "../lib/logger";
+import {
+  createDefaultFolders,
+  encryptRefreshToken,
+  exchangeMicrosoftCode,
+  getMicrosoftUser,
+  syncPendingOneDriveAttachments,
+} from "../lib/onedriveGraph";
+import { requireAuth } from "../middlewares/auth";
+
+const router = Router();
+const STATE_COOKIE = "taskdesk_onedrive_state";
+const STATE_TTL = 10 * 60_000;
+type Pending = { userId: number; sessionId: string; verifier: string; createdAt: number };
+const pending = new Map<string, Pending>();
+
+function getCallbackUri(req: import("express").Request): string {
+  return `${appBaseUrlForRequest(req.headers.origin, req.headers.host)}/api/onedrive/callback`;
+}
+
+function stateCookie(state: string): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${STATE_COOKIE}=${state}; Path=/api/onedrive; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
+}
+
+function clearStateCookie(): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${STATE_COOKIE}=; Path=/api/onedrive; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+}
+
+function cookieValue(req: import("express").Request, name: string): string | undefined {
+  const raw = req.headers.cookie ?? "";
+  return raw.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
+}
+
+function finish(res: import("express").Response, result: string): void {
+  res.setHeader("Set-Cookie", clearStateCookie());
+  const target = `/app/?onedrive=${encodeURIComponent(result)}`;
+  res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
+}
+
+router.get("/onedrive/connect", requireAuth, (req, res): void => {
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(400).json({ error: "An organization account is required." });
+    return;
+  }
+  const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
+  if (!clientId || !process.env.MICROSOFT_CLIENT_SECRET) {
+    res.status(503).json({ error: "Microsoft OneDrive OAuth is not configured." });
+    return;
+  }
+  for (const [key, value] of pending) if (Date.now() - value.createdAt > STATE_TTL) pending.delete(key);
+  const sessionId = getSessionId(req);
+  if (!sessionId) {
+    res.status(401).json({ error: "Sign in to TaskDesk before connecting OneDrive." });
+    return;
+  }
+  const state = randomBytes(24).toString("base64url");
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  pending.set(state, { userId: user.id, sessionId, verifier, createdAt: Date.now() });
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    response_mode: "query",
+    redirect_uri: getCallbackUri(req),
+    scope: "openid profile email offline_access User.Read Files.ReadWrite",
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    prompt: "select_account",
+  });
+  const target = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${params}`;
+  res.setHeader("Set-Cookie", stateCookie(state));
+  res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
+});
+
+router.get("/onedrive/callback", async (req, res): Promise<void> => {
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const current = state ? pending.get(state) : undefined;
+  if (!current || cookieValue(req, STATE_COOKIE) !== state || Date.now() - current.createdAt > STATE_TTL) {
+    if (state) pending.delete(state);
+    finish(res, "invalid_state");
+    return;
+  }
+  pending.delete(state);
+  const sessionId = getSessionId(req);
+  const currentUserId = await getCurrentUserId(req);
+  if (!sessionId || sessionId !== current.sessionId || currentUserId !== current.userId) {
+    finish(res, "invalid_session");
+    return;
+  }
+  if (req.query.error || typeof req.query.code !== "string") {
+    finish(res, "cancelled");
+    return;
+  }
+  try {
+    const tokens = await exchangeMicrosoftCode(req.query.code, getCallbackUri(req), current.verifier);
+    const [user] = await db.select({
+      id: usersTable.id, name: usersTable.name, role: usersTable.role, organizationId: usersTable.organizationId,
+    }).from(usersTable).where(eq(usersTable.id, current.userId)).limit(1);
+    if (!user?.organizationId) throw new Error("TaskDesk account has no organization.");
+
+    // Do not mix Microsoft tenants within the same TaskDesk organization.
+    const [tenantConnection] = await db.select({ tenantId: oneDriveConnectionsTable.tenantId })
+      .from(oneDriveConnectionsTable)
+      .where(eq(oneDriveConnectionsTable.organizationId, user.organizationId))
+      .limit(1);
+    // The organizations authority rejects personal Microsoft accounts; the
+    // tenant check is applied before any drive folders are created.
+    if (tenantConnection && tenantConnection.tenantId !== tokens.tenantId) {
+      throw new Error("This Microsoft account belongs to a different organization tenant.");
+    }
+    const microsoftUser = await getMicrosoftUser(tokens.accessToken);
+    const folders = await createDefaultFolders(tokens.accessToken, user.name || microsoftUser.displayName);
+    const shareUrl = folders.shareUrl;
+    await db.insert(oneDriveConnectionsTable).values({
+      userId: user.id,
+      organizationId: user.organizationId,
+      tenantId: tokens.tenantId,
+      microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
+      encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken),
+      rootFolderId: folders.rootFolderId,
+      operatorFolderId: folders.operatorFolderId,
+      organizationShareUrl: shareUrl,
+    }).onConflictDoUpdate({
+      target: oneDriveConnectionsTable.userId,
+      set: {
+        organizationId: user.organizationId,
+        tenantId: tokens.tenantId,
+        microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
+        encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken),
+        rootFolderId: folders.rootFolderId,
+        operatorFolderId: folders.operatorFolderId,
+        organizationShareUrl: shareUrl,
+        updatedAt: new Date(),
+      },
+    });
+    void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
+      logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
+    });
+    finish(res, "connected");
+  } catch (error) {
+    logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
+    finish(res, "connect_error");
+  }
+});
+
+router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.json({ connected: false });
+    return;
+  }
+  const [connection] = await db.select({
+    microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
+    organizationShareUrl: oneDriveConnectionsTable.organizationShareUrl,
+  }).from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, user.id),
+    eq(oneDriveConnectionsTable.organizationId, user.organizationId),
+  )).limit(1);
+  res.json({ connected: Boolean(connection), ...connection });
+});
+
+export default router;

@@ -30,3 +30,4 @@ export * from "./appointments";
 export * from "./daily_reports";
 export * from "./announcements";
 export * from "./referrals";
+export * from "./onedrive_connections";

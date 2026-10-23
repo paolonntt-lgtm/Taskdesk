@@ -98,6 +98,15 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   const [browserLoading, setBrowserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [interactionBlocked, setInteractionBlocked] = useState(false);
+  const [connection, setConnection] = useState<{ connected: boolean; microsoftEmail?: string; organizationShareUrl?: string } | null>(null);
+
+  const loadConnection = useCallback(async () => {
+    try {
+      setConnection(await requestJson(`/api/onedrive/connection`));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : text.error);
+    }
+  }, [text.error]);
 
   const loadReferences = useCallback(async () => {
     setLoadingReferences(true);
@@ -113,6 +122,23 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
   useEffect(() => {
     void loadReferences();
   }, [loadReferences]);
+
+  useEffect(() => {
+    void loadConnection();
+    const result = new URLSearchParams(window.location.search).get("onedrive");
+    if (result === "connected") {
+      setError(null);
+      void loadConnection();
+    } else if (result) {
+      setError(result === "cancelled"
+        ? (it ? "Collegamento OneDrive annullato." : "OneDrive connection cancelled.")
+        : (it ? "Collegamento OneDrive non riuscito. Verifica l’account e i permessi Microsoft." : "Could not connect OneDrive. Check the Microsoft account and permissions."));
+    }
+  }, [loadConnection, it]);
+
+  const connectOneDrive = () => {
+    window.location.assign("/api/onedrive/connect");
+  };
 
   const loadPicker = async (parentId?: string) => {
     setPickerLoading(true);
@@ -244,10 +270,21 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
     <Box mt={2} aria-label={text.title}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} mb={1}>
         <Typography variant="subtitle2" fontWeight={700}>{text.title}</Typography>
-        <Button size="small" variant="outlined" startIcon={<FolderOutlined />} onClick={() => void openPicker()}>
-          {text.add}
-        </Button>
+        <Stack direction="row" gap={1}>
+          <Button size="small" variant="outlined" onClick={connectOneDrive}>
+            {connection?.connected ? (it ? "Ricollega OneDrive" : "Reconnect OneDrive") : (it ? "Collega OneDrive" : "Connect OneDrive")}
+          </Button>
+          <Button size="small" variant="outlined" startIcon={<FolderOutlined />} onClick={() => void openPicker()}>
+            {text.add}
+          </Button>
+        </Stack>
       </Stack>
+      {connection?.connected && (
+        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+          {it ? `Account collegato: ${connection.microsoftEmail ?? ""}` : `Connected account: ${connection.microsoftEmail ?? ""}`}
+          {connection.organizationShareUrl && <> · <a href={connection.organizationShareUrl} target="_blank" rel="noopener noreferrer">{it ? "Apri cartella condivisa" : "Open shared folder"}</a></>}
+        </Typography>
+      )}
       {error && <Alert severity="warning" sx={{ mb: 1 }} action={<Button size="small" color="inherit" onClick={() => void switchAccount()}>{interactionBlocked ? (it ? "Riprova accesso Microsoft" : "Retry Microsoft sign-in") : text.connect}</Button>}>{error}</Alert>}
       {loadingReferences ? <CircularProgress size={20} /> : references.length === 0 ? (
         <Typography variant="body2" color="text.secondary">{text.noFolders}</Typography>

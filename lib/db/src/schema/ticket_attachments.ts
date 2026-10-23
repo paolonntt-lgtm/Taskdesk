@@ -14,6 +14,8 @@ export const ticketAttachmentsTable = pgTable("ticket_attachments", {
   fileName: text("file_name").notNull(),
   fileSize: integer("file_size").notNull(),
   mimeType: text("mime_type").notNull(),
+  oneDriveItemId: text("onedrive_item_id"),
+  oneDriveSyncError: text("onedrive_sync_error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("ticket_attachments_ticket_id_idx").on(t.ticketId),
