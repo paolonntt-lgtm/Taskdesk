@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +33,22 @@ const localDateTimeValue = (date: Date) => {
   return local.toISOString().slice(0, 16);
 };
 
+const localDateFromKey = (key: string) => {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day, 12);
+};
+
+const dateKeyFromTimestamp = (value: string | null | undefined) => value?.slice(0, 10) ?? "";
+
+const isValidDateKey = (key: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
+  const [year, month, day] = key.split("-").map(Number);
+  const date = localDateFromKey(key);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
+
+const formatDateKey = (key: string, locale: string) => localDateFromKey(key).toLocaleDateString(locale, { dateStyle: "medium" });
+
 const itemTime = (item: CalendarItem) => new Date(item.startsAt || `${item.date}T00:00:00`).getTime();
 
 export default function CalendarScreen() {
@@ -45,6 +62,10 @@ export default function CalendarScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startsAt, setStartsAt] = useState("");
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [allDayStartDate, setAllDayStartDate] = useState(selectedDate);
+  const [allDayEndDate, setAllDayEndDate] = useState(selectedDate);
+  const [activeDateField, setActiveDateField] = useState<"start" | "end" | null>(null);
   const [saving, setSaving] = useState(false);
   const year = month.getFullYear();
   const monthNumber = month.getMonth() + 1;
@@ -91,15 +112,78 @@ export default function CalendarScreen() {
     setEditing(item ?? null);
     setTitle(item?.title ?? "");
     setDescription(item?.description ?? "");
-    const date = item?.startsAt ? new Date(item.startsAt) : new Date(`${selectedDate}T09:00:00`);
-    setStartsAt(localDateTimeValue(date));
+    const allDay = item?.isAllDay ?? false;
+    setIsAllDay(allDay);
+    setActiveDateField(null);
+    if (allDay) {
+      const startDate = dateKeyFromTimestamp(item?.startsAt) || selectedDate;
+      setAllDayStartDate(startDate);
+      setAllDayEndDate(dateKeyFromTimestamp(item?.endsAt) || startDate);
+      setStartsAt("");
+    } else {
+      const date = item?.startsAt ? new Date(item.startsAt) : new Date(`${selectedDate}T09:00:00`);
+      setStartsAt(localDateTimeValue(date));
+      setAllDayStartDate(dateKey(date));
+      setAllDayEndDate(dateKey(date));
+    }
     setFormOpen(true);
   };
+
+  const updateAllDayDate = (field: "start" | "end", date: Date) => {
+    const key = dateKey(date);
+    if (field === "start") {
+      setAllDayStartDate(key);
+      setAllDayEndDate((current) => current < key ? key : current);
+    } else {
+      setAllDayEndDate(key);
+    }
+  };
+
+  const handleAllDayPickerChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (event.type === "dismissed") {
+      if (Platform.OS !== "ios") setActiveDateField(null);
+      return;
+    }
+    if (date && activeDateField) updateAllDayDate(activeDateField, date);
+    if (Platform.OS !== "ios") setActiveDateField(null);
+  };
+
+  const toggleAllDay = (next: boolean) => {
+    setActiveDateField(null);
+    if (next) {
+      const key = startsAt.slice(0, 10) || selectedDate;
+      setAllDayStartDate(key);
+      setAllDayEndDate(key);
+    } else {
+      setStartsAt(`${allDayStartDate}T09:00`);
+    }
+    setIsAllDay(next);
+  };
+
   const save = async () => {
-    if (!title.trim() || !startsAt) return;
+    const validDates = isAllDay
+      ? isValidDateKey(allDayStartDate) && isValidDateKey(allDayEndDate) && allDayEndDate >= allDayStartDate
+      : Boolean(startsAt);
+    if (!title.trim() || !validDates) return;
     setSaving(true);
     try {
-      const body = { title: title.trim(), description: description.trim() || null, startsAt: new Date(startsAt).toISOString(), endsAt: null, assignedTo: null };
+      const body = isAllDay
+        ? {
+            title: title.trim(),
+            description: description.trim() || null,
+            startsAt: `${allDayStartDate}T00:00:00.000Z`,
+            endsAt: `${allDayEndDate}T00:00:00.000Z`,
+            isAllDay: true,
+            assignedTo: null,
+          }
+        : {
+            title: title.trim(),
+            description: description.trim() || null,
+            startsAt: new Date(startsAt).toISOString(),
+            endsAt: null,
+            isAllDay: false,
+            assignedTo: null,
+          };
       if (editing) await apiPut(`/appointments/${editing.id}`, body);
       else await apiPost("/appointments", body);
       await qc.invalidateQueries({ queryKey: ["mobile-calendar"] });
@@ -130,6 +214,10 @@ export default function CalendarScreen() {
     setMonth(nextMonth);
     setSelectedDate(dateKey(nextMonth));
   };
+  const canSave = Boolean(title.trim()) && (isAllDay
+    ? isValidDateKey(allDayStartDate) && isValidDateKey(allDayEndDate) && allDayEndDate >= allDayStartDate
+    : Boolean(startsAt));
+  const activeDateKey = activeDateField === "end" ? allDayEndDate : allDayStartDate;
   const s = styles(c);
 
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
@@ -240,10 +328,74 @@ export default function CalendarScreen() {
         <Text style={s.modalTitle}>{editing ? t.calendar.editAppointment : t.calendar.newAppointment}</Text>
         <TextInput value={title} onChangeText={setTitle} placeholder={t.calendar.titlePlaceholder} placeholderTextColor={c.mutedForeground} style={s.input} />
         <TextInput value={description} onChangeText={setDescription} placeholder={t.calendar.descriptionField} placeholderTextColor={c.mutedForeground} style={[s.input, s.multiline]} multiline />
-        <TextInput value={startsAt} onChangeText={setStartsAt} placeholder={t.calendar.dateTimePlaceholder} placeholderTextColor={c.mutedForeground} style={s.input} />
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isAllDay }}
+          testID="calendar-all-day-toggle"
+          onPress={() => toggleAllDay(!isAllDay)}
+          style={s.allDayToggle}
+        >
+          <View style={[s.checkbox, isAllDay && s.checkboxChecked]}>
+            {isAllDay && <Feather name="check" size={13} color={c.primaryForeground} />}
+          </View>
+          <Text style={s.allDayToggleText}>{t.calendar.allDayAppointment}</Text>
+        </Pressable>
+        {isAllDay ? <>
+          <View style={s.dateFields}>
+            {(["start", "end"] as const).map((field) => {
+              const key = field === "start" ? allDayStartDate : allDayEndDate;
+              const label = field === "start" ? t.calendar.startDateField : t.calendar.endDateField;
+              return <View key={field} style={s.dateField}>
+                <Text style={s.dateLabel}>{label}</Text>
+                {Platform.OS === "web"
+                  ? <TextInput
+                      accessibilityLabel={label}
+                      testID={`calendar-all-day-${field}-date`}
+                      value={key}
+                      onChangeText={(value) => {
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) updateAllDayDate(field, localDateFromKey(value));
+                        else if (field === "start") setAllDayStartDate(value);
+                        else setAllDayEndDate(value);
+                      }}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={c.mutedForeground}
+                      style={s.input}
+                    />
+                  : <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${label}: ${formatDateKey(key, it ? "it-IT" : "en-US")}`}
+                      testID={`calendar-all-day-${field}-date`}
+                      onPress={() => setActiveDateField(field)}
+                      style={s.dateButton}
+                    >
+                      <Feather name="calendar" size={16} color={c.primary} />
+                      <Text style={s.dateButtonText}>{formatDateKey(key, it ? "it-IT" : "en-US")}</Text>
+                    </Pressable>}
+              </View>;
+            })}
+          </View>
+          {activeDateField && Platform.OS !== "web" && <>
+            <DateTimePicker
+              value={localDateFromKey(activeDateKey)}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              minimumDate={activeDateField === "end" ? localDateFromKey(allDayStartDate) : undefined}
+              onChange={handleAllDayPickerChange}
+            />
+            {Platform.OS === "ios" && <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.calendar.done}
+              onPress={() => setActiveDateField(null)}
+              style={s.pickerDone}
+            >
+              <Feather name="check" size={18} color={c.primary} />
+              <Text style={s.pickerDoneText}>{t.calendar.done}</Text>
+            </Pressable>}
+          </>}
+        </> : <TextInput value={startsAt} onChangeText={setStartsAt} placeholder={t.calendar.dateTimePlaceholder} placeholderTextColor={c.mutedForeground} style={s.input} />}
         <View style={s.modalActions}>
           <Pressable onPress={() => setFormOpen(false)} style={s.secondary}><Text style={s.modalActionText}>{t.calendar.cancel}</Text></Pressable>
-          <Pressable onPress={() => void save()} disabled={saving || !title.trim() || !startsAt} style={[s.primaryButton, (saving || !title.trim() || !startsAt) && s.disabledButton]}>
+          <Pressable onPress={() => void save()} disabled={saving || !canSave} style={[s.primaryButton, (saving || !canSave) && s.disabledButton]}>
             <Text style={s.primaryText}>{saving ? t.calendar.saving : t.calendar.save}</Text>
           </Pressable>
         </View>
@@ -281,7 +433,7 @@ function AgendaItem({
     </View>
     <View style={s.main}>
       <Text style={s.itemTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={s.itemType}>{item.type === "ticket" ? t.calendar.ticket : t.calendar.appointment}</Text>
+      <Text style={s.itemType}>{item.type === "ticket" ? t.calendar.ticket : item.isAllDay ? `${t.calendar.appointment} · ${t.calendar.allDay}` : t.calendar.appointment}</Text>
     </View>
     <Feather name={item.type === "ticket" ? "tool" : "calendar"} size={17} color={item.type === "ticket" ? c.primary : c.success} />
   </Pressable>;
@@ -340,6 +492,17 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   modalTitle: { color: c.foreground, fontSize: 19, fontFamily: "Inter_700Bold" },
   input: { borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, color: c.foreground, paddingHorizontal: 12, paddingVertical: 11 },
   multiline: { minHeight: 78, textAlignVertical: "top" },
+  allDayToggle: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 3 },
+  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  checkboxChecked: { backgroundColor: c.primary, borderColor: c.primary },
+  allDayToggleText: { color: c.foreground, fontSize: 14, fontFamily: "Inter_500Medium" },
+  dateFields: { flexDirection: "row", gap: 10 },
+  dateField: { flex: 1, gap: 6 },
+  dateLabel: { color: c.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
+  dateButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, borderRadius: 10, paddingHorizontal: 10 },
+  dateButtonText: { color: c.foreground, fontSize: 13, flexShrink: 1 },
+  pickerDone: { alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5 },
+  pickerDoneText: { color: c.primary, fontFamily: "Inter_600SemiBold" },
   modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   primaryButton: { backgroundColor: c.primary, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10 },
   primaryText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold" },

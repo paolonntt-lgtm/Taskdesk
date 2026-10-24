@@ -3,6 +3,7 @@ import { eq, and, gte, lt, inArray, isNull, or } from "drizzle-orm";
 import { db, appointmentsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { hasGroupPermission } from "../lib/groupPermissions";
+import { parseAppointmentDate } from "../lib/appointmentDates";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -16,8 +17,8 @@ const AppointmentBody = z.object({
   assignedTo: z.number().int().nullable().optional(),
   reminderMinutes: z.number().int().min(0).max(10080).optional(),
 }).superRefine((event, ctx) => {
-  const start = new Date(event.startsAt).getTime();
-  const end = event.endsAt ? new Date(event.endsAt).getTime() : null;
+  const start = parseAppointmentDate(event.startsAt, event.isAllDay ?? false).getTime();
+  const end = event.endsAt ? parseAppointmentDate(event.endsAt, event.isAllDay ?? false).getTime() : null;
   if (!Number.isFinite(start)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['startsAt'], message: 'Invalid start date' });
   }
@@ -120,8 +121,8 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
     organizationId: orgId,
     title,
     description: description ?? null,
-    startsAt: new Date(startsAt),
-    endsAt: endsAt ? new Date(endsAt) : null,
+    startsAt: parseAppointmentDate(startsAt, isAllDay),
+    endsAt: endsAt ? parseAppointmentDate(endsAt, isAllDay) : null,
     isAllDay,
     createdBy: currentUser.id,
     assignedTo: assignedTo ?? null,
@@ -205,7 +206,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
     }
   }
 
-  const newStartsAt = new Date(startsAt);
+  const newStartsAt = parseAppointmentDate(startsAt, isAllDay);
   const startChanged = newStartsAt.getTime() !== existing.startsAt.getTime();
   const allDayChanged = isAllDay !== existing.isAllDay;
   const reminderChanged = reminderMinutes !== undefined && reminderMinutes !== existing.reminderMinutes;
@@ -217,7 +218,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
       title,
       description: description ?? null,
       startsAt: newStartsAt,
-      endsAt: endsAt ? new Date(endsAt) : null,
+      endsAt: endsAt ? parseAppointmentDate(endsAt, isAllDay) : null,
       isAllDay,
       assignedTo: assignedTo ?? null,
       ...(reminderMinutes !== undefined ? { reminderMinutes } : {}),
