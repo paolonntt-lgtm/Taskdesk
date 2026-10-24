@@ -26,7 +26,7 @@ interface AnnouncementsPopupProps {
 }
 
 const ONEDRIVE_COMMENT_ANNOUNCEMENT_ID = -20261024;
-const ONEDRIVE_COMMENT_ANNOUNCEMENT_VERSION = 'onedrive-comment-attachments-v1';
+const ONEDRIVE_COMMENT_ANNOUNCEMENT_VERSION = 'onedrive-comment-attachments-v2';
 
 function dismissalVersion(announcement: Announcement): string {
   return `${announcement.id}:${String(announcement.updatedAt)}`;
@@ -37,8 +37,8 @@ function oneDriveCommentAnnouncement(isItalian: boolean): Announcement {
     id: ONEDRIVE_COMMENT_ANNOUNCEMENT_ID,
     title: isItalian ? 'Novità: allegati OneDrive nei commenti' : 'New: OneDrive attachments in comments',
     body: isItalian
-      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare le cartelle e scegliere i file da allegare a un nuovo commento o a una risposta. TaskDesk salva una copia tra gli allegati del ticket: l’originale su OneDrive non viene modificato e le modifiche successive non si sincronizzano automaticamente.'
-      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Then browse folders and choose files to attach to a new comment or reply. TaskDesk saves a copy with the ticket attachments: the original in OneDrive is not changed, and later changes are not synced automatically.',
+      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare le cartelle e scegliere i file da allegare a un nuovo commento o a una risposta. Come gli altri allegati, anche il file importato viene conservato nello spazio privato di TaskDesk e collegato al ticket. L’originale su OneDrive non viene modificato e le modifiche successive non si sincronizzano automaticamente.'
+      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Then browse folders and choose files to attach to a new comment or reply. Like other ticket attachments, the imported file is stored in TaskDesk’s private attachment storage and linked to the ticket. The original in OneDrive is not changed, and later changes are not synced automatically.',
     targetType: 'all',
     targetLocation: null,
     targetGroupId: null,
@@ -116,12 +116,12 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
     ? [
         'Apri un ticket e scrivi un nuovo commento o una risposta.',
         'Seleziona l’icona OneDrive, sfoglia le cartelle e scegli i file.',
-        'TaskDesk salva una copia tra gli allegati del ticket.',
+        'Come gli altri allegati, il file viene conservato nello spazio privato di TaskDesk e collegato al ticket.',
       ]
     : [
         'Open a ticket and write a new comment or reply.',
         'Select the OneDrive icon, browse folders, and choose files.',
-        'TaskDesk saves a copy with the ticket attachments.',
+        'Like other ticket attachments, the file is stored in TaskDesk’s private attachment storage and linked to the ticket.',
       ];
 
   return (
@@ -271,8 +271,8 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, lineHeight: 1.55 }}>
                   {isItalian
-                    ? 'L’originale su OneDrive non viene modificato e le modifiche successive non si sincronizzano automaticamente.'
-                    : 'The original in OneDrive is not changed, and later changes are not synced automatically.'}
+                    ? 'L’originale su OneDrive non viene modificato né sincronizzato. L’accesso agli allegati segue i permessi del ticket.'
+                    : 'The original in OneDrive is not changed or synced. Access to attachments follows the ticket’s permissions.'}
                 </Typography>
               </Box>
             </Box>
