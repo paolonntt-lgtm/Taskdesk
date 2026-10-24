@@ -541,6 +541,111 @@ export async function inviteCollaboratorsToTaskdeskFolders(organizationId: numbe
   return failures;
 }
 
+export type DrivePermission = {
+  id?: string;
+  roles?: string[];
+  invitation?: { email?: string };
+  grantedToV2?: { user?: { email?: string } };
+  grantedTo?: { user?: { email?: string } };
+  link?: object;
+};
+
+export function shouldRevokeOneDrivePermission(
+  permission: DrivePermission,
+  targetEmails: ReadonlySet<string>,
+  ownerEmail: string,
+): boolean {
+  const email = (
+    permission.invitation?.email ??
+    permission.grantedToV2?.user?.email ??
+    permission.grantedTo?.user?.email ??
+    ""
+  ).toLocaleLowerCase();
+  return Boolean(
+    permission.id &&
+    !permission.link &&
+    permission.roles?.includes("read") &&
+    email !== ownerEmail.toLocaleLowerCase() &&
+    targetEmails.has(email)
+  );
+}
+
+async function revokeFolderInvitations(
+  accessToken: string,
+  owner: typeof oneDriveConnectionsTable.$inferSelect,
+  recipientEmails: string[],
+): Promise<void> {
+  const targets = new Set(
+    recipientEmails
+      .map((email) => email.trim().toLocaleLowerCase())
+      .filter((email) => email && email !== owner.microsoftEmail.toLocaleLowerCase()),
+  );
+  if (targets.size === 0) return;
+
+  let next: string | null =
+    `${GRAPH}/me/drive/items/${encodeURIComponent(owner.rootFolderId)}/permissions?$select=id,roles,invitation,grantedToV2,grantedTo,link&$top=200`;
+  while (next) {
+    const page: { value?: DrivePermission[]; "@odata.nextLink"?: string } = await graph(accessToken, next);
+    for (const permission of page.value ?? []) {
+      if (permission.id && shouldRevokeOneDrivePermission(permission, targets, owner.microsoftEmail)) {
+        await graph(accessToken, `/me/drive/items/${encodeURIComponent(owner.rootFolderId)}/permissions/${encodeURIComponent(permission.id)}`, {
+          method: "DELETE",
+        });
+      }
+    }
+    next = page["@odata.nextLink"] ?? null;
+  }
+}
+
+export class OneDriveAccessRevocationError extends Error {
+  constructor() {
+    super("Microsoft access to shared Taskdesk folders could not be fully revoked.");
+    this.name = "OneDriveAccessRevocationError";
+  }
+}
+
+/**
+ * Revoke direct collaborator access in both directions before an account
+ * is disconnected or deactivated. Keep the connection row if any Microsoft
+ * permission could not be removed so the operation can be retried safely.
+ */
+export async function disconnectOneDriveUser(userId: number, organizationId: number): Promise<void> {
+  const [target] = await db.select().from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, userId),
+    eq(oneDriveConnectionsTable.organizationId, organizationId),
+  )).limit(1);
+  if (!target) return;
+
+  const orgConnections = await db.select().from(oneDriveConnectionsTable)
+    .where(eq(oneDriveConnectionsTable.organizationId, organizationId));
+  let failed = false;
+
+  for (const owner of orgConnections) {
+    if (owner.userId === userId) continue;
+    try {
+      const accessToken = await refreshConnection(owner);
+      await revokeFolderInvitations(accessToken, owner, [target.microsoftEmail]);
+    } catch (error) {
+      failed = true;
+      logger.warn({ err: error, ownerUserId: owner.userId, recipientUserId: userId }, "Could not revoke OneDrive folder access");
+    }
+  }
+
+  try {
+    const accessToken = await refreshConnection(target);
+    const otherEmails = orgConnections
+      .filter((connection) => connection.userId !== userId)
+      .map((connection) => connection.microsoftEmail);
+    await revokeFolderInvitations(accessToken, target, otherEmails);
+  } catch (error) {
+    failed = true;
+    logger.warn({ err: error, userId }, "Could not revoke collaborator access to OneDrive folder");
+  }
+
+  if (failed) throw new OneDriveAccessRevocationError();
+  await db.delete(oneDriveConnectionsTable).where(eq(oneDriveConnectionsTable.id, target.id));
+}
+
 /**
  * Copies an attachment to its assignee's OneDrive. For unassigned email tickets,
  * use the oldest connected organization admin; unassigned standard tickets use

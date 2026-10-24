@@ -31,6 +31,7 @@ import {
   OneDriveGraphError,
   previewSharedOneDriveItem,
   downloadSharedOneDriveItem,
+  disconnectOneDriveUser,
   syncPendingOneDriveAttachments,
   uploadSharedOneDriveFile,
 } from "../lib/onedriveGraph";
@@ -146,12 +147,26 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     }
     const microsoftUser = await getMicrosoftUser(tokens.accessToken);
     const folders = await createDefaultFolders(tokens.accessToken, user.name || microsoftUser.displayName);
+    const microsoftEmail = microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email;
+    const [previousConnection] = await db.select().from(oneDriveConnectionsTable)
+      .where(eq(oneDriveConnectionsTable.userId, user.id))
+      .limit(1);
+    if (
+      previousConnection &&
+      (
+        previousConnection.organizationId !== user.organizationId ||
+        previousConnection.microsoftEmail.toLocaleLowerCase() !== microsoftEmail.toLocaleLowerCase() ||
+        previousConnection.rootFolderId !== folders.rootFolderId
+      )
+    ) {
+      await disconnectOneDriveUser(user.id, previousConnection.organizationId);
+    }
     const shareUrl = folders.shareUrl;
     await db.insert(oneDriveConnectionsTable).values({
       userId: user.id,
       organizationId: user.organizationId,
       tenantId: tokens.tenantId,
-      microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
+      microsoftEmail,
       encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken, user.id, user.organizationId),
       rootFolderId: folders.rootFolderId,
       operatorFolderId: folders.operatorFolderId,
@@ -161,7 +176,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
       set: {
         organizationId: user.organizationId,
         tenantId: tokens.tenantId,
-        microsoftEmail: microsoftUser.mail || microsoftUser.userPrincipalName || tokens.email,
+        microsoftEmail,
         encryptedRefreshToken: encryptRefreshToken(tokens.refreshToken, user.id, user.organizationId),
         rootFolderId: folders.rootFolderId,
         operatorFolderId: folders.operatorFolderId,
@@ -431,10 +446,13 @@ router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<voi
     res.status(400).json({ error: "An organization account is required." });
     return;
   }
-  await db.delete(oneDriveConnectionsTable).where(and(
-    eq(oneDriveConnectionsTable.userId, user.id),
-    eq(oneDriveConnectionsTable.organizationId, user.organizationId),
-  ));
+  try {
+    await disconnectOneDriveUser(user.id, user.organizationId);
+  } catch (error) {
+    req.log.error({ err: error, userId: user.id }, "Could not disconnect OneDrive safely");
+    res.status(502).json({ error: "Could not revoke shared OneDrive access. The connection was kept; please retry." });
+    return;
+  }
   res.json({ connected: false });
 });
 

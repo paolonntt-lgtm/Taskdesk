@@ -23,6 +23,7 @@ import {
   resolvePermissionSummary,
 } from "../lib/groupPermissions";
 import { notifyPermissionChanged } from "../lib/permissionEvents";
+import { disconnectOneDriveUser } from "../lib/onedriveGraph";
 
 const router: IRouter = Router();
 
@@ -287,6 +288,16 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if (updates.isActive === false) {
+    try {
+      await disconnectOneDriveUser(id, currentUser.organizationId);
+    } catch (error) {
+      req.log.error({ err: error, userId: id }, "Could not revoke OneDrive access before deactivation");
+      res.status(502).json({ error: "OneDrive access could not be revoked. The user remains active; please retry." });
+      return;
+    }
+  }
+
   const [updated] = await db
     .update(usersTable)
     .set(updates)
@@ -341,6 +352,16 @@ router.delete("/users/:id", requireAuth, requireAdmin, async (req, res): Promise
   if (!target) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (target.organizationId != null) {
+    try {
+      await disconnectOneDriveUser(id, target.organizationId);
+    } catch (error) {
+      req.log.error({ err: error, userId: id }, "Could not revoke OneDrive access before deletion");
+      res.status(502).json({ error: "OneDrive access could not be revoked. The user was not deleted; please retry." });
+      return;
+    }
   }
 
   await destroySessionsForUser(id);

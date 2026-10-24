@@ -56,3 +56,9 @@ MSAL Browser v5 popup and silent flows in Vite require a dedicated redirect-brid
 **Why:** Loading the SPA as the callback can navigate the user back to the dashboard instead of cleanly returning the auth response to the opener.
 
 **How to apply:** Build a separate Vite HTML entry that calls `broadcastResponseToMainFrame` from `@azure/msal-browser/redirect-bridge`; keep API calls and app routing off that page.
+
+When a connected user disconnects OneDrive or is deactivated/deleted, revoke their direct read permissions from organization collaborators' Taskdesk folders and revoke collaborator read permissions from the user's own Taskdesk folder before removing the connection.
+
+**Why:** The user confirmed Microsoft invitations must be revoked on disconnect or deactivation; otherwise a Microsoft account can retain direct access after TaskDesk blocks it.
+
+**How to apply:** Scope cleanup to the user's current organization and fail closed if Graph cannot confirm revocation, keeping the account connected/active so cleanup can be retried.

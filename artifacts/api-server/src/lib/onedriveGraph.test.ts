@@ -6,6 +6,7 @@ import {
   isExpectedOneDriveAttachmentCopy,
   isOneDriveCopyAccountMatch,
   isUploadedOneDriveCopyCurrent,
+  shouldRevokeOneDrivePermission,
 } from "./onedriveGraph";
 
 describe("OneDrive account tenant compatibility", () => {
@@ -94,5 +95,47 @@ describe("OneDrive attachment copy safeguards", () => {
       currentAccount: { microsoftEmail: "new@example.com", tenantId: "tenant-1" },
     })).toBe(false);
     expect(isUploadedOneDriveCopyCurrent({ ...upload, currentItemId: "another-item" })).toBe(false);
+  });
+});
+
+describe("OneDrive collaborator permission revocation", () => {
+  const targets = new Set(["former.collaborator@example.com"]);
+
+  it("matches only direct read permissions for the departing collaborator", () => {
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-1",
+      roles: ["read"],
+      invitation: { email: "Former.Collaborator@example.com" },
+    }, targets, "owner@example.com")).toBe(true);
+
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-2",
+      roles: ["read"],
+      grantedToV2: { user: { email: "former.collaborator@example.com" } },
+    }, targets, "owner@example.com")).toBe(true);
+  });
+
+  it("preserves unrelated, owner, link, and write permissions", () => {
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-3",
+      roles: ["read"],
+      invitation: { email: "another@example.com" },
+    }, targets, "owner@example.com")).toBe(false);
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-4",
+      roles: ["read"],
+      invitation: { email: "owner@example.com" },
+    }, new Set(["owner@example.com"]), "owner@example.com")).toBe(false);
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-5",
+      roles: ["read"],
+      invitation: { email: "former.collaborator@example.com" },
+      link: {},
+    }, targets, "owner@example.com")).toBe(false);
+    expect(shouldRevokeOneDrivePermission({
+      id: "permission-6",
+      roles: ["write"],
+      invitation: { email: "former.collaborator@example.com" },
+    }, targets, "owner@example.com")).toBe(false);
   });
 });
