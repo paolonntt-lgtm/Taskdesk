@@ -155,7 +155,7 @@ export default function ProfileScreen() {
       <View style={s.card}>
         <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         {[
-          { label: lang === "it" ? "Calendario" : "Calendar", icon: "calendar" as const, path: "/calendar" },
+          { label: t.tabs.reports, icon: "bar-chart-2" as const, path: "/reports" },
           ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled !== false && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
           { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
           ...(isOrganizationAdmin ? [

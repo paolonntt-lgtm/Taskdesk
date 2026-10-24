@@ -26,9 +26,9 @@ function NativeTabLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <NativeTabs.Trigger.Label>{t.tabs.new}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <NativeTabs.Trigger.Icon sf={{ default: "trophy", selected: "trophy.fill" }} />
-        <NativeTabs.Trigger.Label>{t.tabs.reports}</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="calendar">
+        <NativeTabs.Trigger.Icon sf={{ default: "calendar", selected: "calendar" }} />
+        <NativeTabs.Trigger.Label>{t.tabs.calendar}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
@@ -120,17 +120,18 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name="calendar"
         options={{
-          title: t.tabs.reports,
+          title: t.tabs.calendar,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="trophy" tintColor={color} size={22} />
+              <SymbolView name="calendar" tintColor={color} size={22} />
             ) : (
-              <Feather name="award" size={22} color={color} />
+              <Feather name="calendar" size={22} color={color} />
             ),
         }}
       />
+      <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
