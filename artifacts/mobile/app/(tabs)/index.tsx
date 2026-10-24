@@ -76,7 +76,13 @@ export default function DashboardScreen() {
           <Text style={s.greeting}>{greeting()},</Text>
           <Text style={s.name}>{user?.name?.split(" ")[0] ?? t.profile.user}</Text>
         </View>
-        <TouchableOpacity style={s.newBtn} onPress={() => router.push("/(tabs)/new")}>
+        <TouchableOpacity
+          style={s.newBtn}
+          onPress={() => router.push("/(tabs)/new")}
+          accessibilityRole="button"
+          accessibilityLabel={t.tabs.newTicket}
+          testID="dashboard-create-ticket"
+        >
           <Feather name="plus" size={20} color={colors.primaryForeground} />
         </TouchableOpacity>
       </View>
