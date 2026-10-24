@@ -7,26 +7,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/utils/api";
-
-type CalendarItem = {
-  type: "ticket" | "appointment";
-  id: number;
-  title: string;
-  date: string;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  isAllDay?: boolean;
-  description?: string | null;
-  status?: string | null;
-  priority?: string | null;
-};
-
-const dateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+import {
+  dateKey,
+  getCalendarDayMarkers,
+  getItemsForDate,
+  getMonthGridDays,
+  getMonthSelection,
+  groupCalendarItemsByDate,
+  type CalendarItem,
+} from "@/utils/calendar";
 
 const localDateTimeValue = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -48,8 +37,6 @@ const isValidDateKey = (key: string) => {
 };
 
 const formatDateKey = (key: string, locale: string) => localDateFromKey(key).toLocaleDateString(locale, { dateStyle: "medium" });
-
-const itemTime = (item: CalendarItem) => new Date(item.startsAt || `${item.date}T00:00:00`).getTime();
 
 export default function CalendarScreen() {
   const c = useColors();
@@ -75,26 +62,10 @@ export default function CalendarScreen() {
     queryKey: ["mobile-calendar", year, monthNumber],
     queryFn: () => apiGet<CalendarItem[]>(`/calendar?year=${year}&month=${monthNumber}`),
   });
-  const itemsByDate = useMemo(() => {
-    const result = new Map<string, CalendarItem[]>();
-    for (const item of data) {
-      const list = result.get(item.date) ?? [];
-      list.push(item);
-      result.set(item.date, list);
-    }
-    return result;
-  }, [data]);
-  const gridDays = useMemo(() => {
-    const firstWeekday = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
-    const daysInMonth = new Date(year, monthNumber, 0).getDate();
-    const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
-    return Array.from({ length: cellCount }, (_, index) => {
-      const day = index - firstWeekday + 1;
-      return day < 1 || day > daysInMonth ? null : day;
-    });
-  }, [year, monthNumber]);
+  const itemsByDate = useMemo(() => groupCalendarItemsByDate(data), [data]);
+  const gridDays = useMemo(() => getMonthGridDays(year, monthNumber), [year, monthNumber]);
   const selectedItems = useMemo(
-    () => [...(itemsByDate.get(selectedDate) ?? [])].sort((a, b) => itemTime(a) - itemTime(b)),
+    () => getItemsForDate(itemsByDate, selectedDate),
     [itemsByDate, selectedDate],
   );
   const selectedTickets = selectedItems.filter((item) => item.type === "ticket");
@@ -210,9 +181,9 @@ export default function CalendarScreen() {
     },
   ]);
   const changeMonth = (offset: number) => {
-    const nextMonth = new Date(year, month.getMonth() + offset, 1);
-    setMonth(nextMonth);
-    setSelectedDate(dateKey(nextMonth));
+    const next = getMonthSelection(month, offset);
+    setMonth(next.month);
+    setSelectedDate(next.selectedDate);
   };
   const canSave = Boolean(title.trim()) && (isAllDay
     ? isValidDateKey(allDayStartDate) && isValidDateKey(allDayEndDate) && allDayEndDate >= allDayStartDate
@@ -247,8 +218,7 @@ export default function CalendarScreen() {
           if (day === null) return <View key={`blank-${index}`} style={s.dayCell} />;
           const key = dateKey(new Date(year, monthNumber - 1, day));
           const dayItems = itemsByDate.get(key) ?? [];
-          const hasTickets = dayItems.some((item) => item.type === "ticket");
-          const hasAppointments = dayItems.some((item) => item.type === "appointment");
+          const { hasTickets, hasAppointments } = getCalendarDayMarkers(dayItems);
           const selected = key === selectedDate;
           const today = key === todayKey;
           const description = [
@@ -302,25 +272,33 @@ export default function CalendarScreen() {
     </View>
 
     <View style={s.section}>
-      <View style={s.sectionHeading}>
-        <View style={[s.sectionDot, { backgroundColor: c.primary }]} />
-        <Text style={s.sectionTitle}>{t.calendar.ticketsLegend}</Text>
-        <Text style={s.count}>{selectedTickets.length}</Text>
+      <View style={s.agendaCounts}>
+        <View style={s.legendItem}>
+          <View style={[s.marker, { backgroundColor: c.primary }]} />
+          <Text style={s.legendText}>{t.calendar.ticketsLegend}</Text>
+          <Text style={s.count}>{selectedTickets.length}</Text>
+        </View>
+        <View style={s.legendItem}>
+          <View style={[s.marker, { backgroundColor: c.success }]} />
+          <Text style={s.legendText}>{t.calendar.appointmentsLegend}</Text>
+          <Text style={s.count}>{selectedAppointments.length}</Text>
+        </View>
       </View>
-      {selectedTickets.length === 0
-        ? <Text style={s.empty}>{t.calendar.noTickets}</Text>
-        : selectedTickets.map((item) => <AgendaItem key={`ticket-${item.id}`} item={item} c={c} s={s} t={t} it={it} onPress={() => router.push(`/ticket/${item.id}` as any)} />)}
-    </View>
-
-    <View style={s.section}>
-      <View style={s.sectionHeading}>
-        <View style={[s.sectionDot, { backgroundColor: c.success }]} />
-        <Text style={s.sectionTitle}>{t.calendar.appointmentsLegend}</Text>
-        <Text style={s.count}>{selectedAppointments.length}</Text>
-      </View>
-      {selectedAppointments.length === 0
-        ? <Text style={s.empty}>{t.calendar.noAppointments}</Text>
-        : selectedAppointments.map((item) => <AgendaItem key={`appointment-${item.id}`} item={item} c={c} s={s} t={t} it={it} onPress={() => openForm(item)} onLongPress={() => remove(item)} />)}
+      {selectedItems.length === 0
+        ? <>
+            <Text style={s.empty}>{t.calendar.noTickets}</Text>
+            <Text style={s.empty}>{t.calendar.noAppointments}</Text>
+          </>
+        : selectedItems.map((item) => <AgendaItem
+            key={`${item.type}-${item.id}`}
+            item={item}
+            c={c}
+            s={s}
+            t={t}
+            it={it}
+            onPress={() => item.type === "ticket" ? router.push(`/ticket/${item.id}` as any) : openForm(item)}
+            onLongPress={item.type === "appointment" ? () => remove(item) : undefined}
+          />)}
     </View>
 
     <Modal visible={formOpen} transparent animationType="slide" onRequestClose={() => setFormOpen(false)}>
@@ -476,6 +454,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   agendaTitle: { color: c.mutedForeground, fontSize: 12 },
   selectedDate: { color: c.foreground, fontSize: 17, textTransform: "capitalize", fontFamily: "Inter_700Bold" },
   section: { gap: 9 },
+  agendaCounts: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
   sectionHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionDot: { width: 8, height: 8, borderRadius: 4 },
   sectionTitle: { color: c.foreground, flex: 1, fontSize: 15, fontFamily: "Inter_600SemiBold" },
