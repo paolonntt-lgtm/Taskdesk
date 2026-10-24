@@ -206,8 +206,11 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
 
 router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res): Promise<void> => {
   const params = ListSharedOneDriveFolderItemsParams.safeParse(req.params);
+  const rawPath = req.query.path;
   const query = ListSharedOneDriveFolderItemsQueryParams.safeParse({
-    path: req.query.path,
+    // Express returns a single repeated query parameter as a string, but returns
+    // an array when there are multiple path segments.
+    path: typeof rawPath === "string" ? [rawPath] : rawPath,
   });
   if (!params.success || !query.success) {
     res.status(400).json({ error: "Invalid OneDrive folder path." });
@@ -252,8 +255,9 @@ router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res)
 
 router.post("/onedrive/folders/:ownerUserId/items/:itemId/preview", requireAuth, async (req, res): Promise<void> => {
   const params = PreviewSharedOneDriveItemParams.safeParse(req.params);
+  const rawPath = req.query.path;
   const query = PreviewSharedOneDriveItemQueryParams.safeParse({
-    path: req.query.path,
+    path: typeof rawPath === "string" ? [rawPath] : rawPath,
   });
   if (!params.success || !query.success) {
     res.status(400).json({ error: "Invalid OneDrive file path." });
