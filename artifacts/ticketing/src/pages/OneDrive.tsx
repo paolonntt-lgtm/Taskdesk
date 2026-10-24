@@ -311,19 +311,51 @@ export default function OneDrivePage() {
                         : browse.items.length === 0
                           ? <Typography color="text.secondary" py={2}>{copy.emptyFolder}</Typography>
                           : (
-                            <List disablePadding>
+                            <List
+                              disablePadding
+                              sx={{
+                                display: "grid",
+                                gap: 1,
+                              }}
+                            >
                               {browse.items.map((item) => (
                                 <ListItemButton
                                   key={item.id}
                                   onClick={() => item.kind === "folder"
                                     ? void loadFolder(share.ownerUserId, [...browse.path, { id: item.id, name: item.name }])
                                     : void showPreview(share.ownerUserId, item, browse.path)}
-                                  sx={{ borderRadius: 1, px: 1.5 }}
+                                  sx={{
+                                    minWidth: 0,
+                                    border: "1px solid",
+                                    borderColor: item.kind === "folder" ? "rgba(37, 99, 235, 0.22)" : "divider",
+                                    borderRadius: 2,
+                                    px: { xs: 1.25, sm: 1.5 },
+                                    py: 1.15,
+                                    bgcolor: item.kind === "folder" ? "rgba(37, 99, 235, 0.045)" : "background.paper",
+                                    transition: "background-color 140ms ease, border-color 140ms ease, transform 140ms ease",
+                                    "&:hover": {
+                                      bgcolor: item.kind === "folder" ? "rgba(37, 99, 235, 0.09)" : "action.hover",
+                                      borderColor: item.kind === "folder" ? "primary.light" : "divider",
+                                    },
+                                  }}
                                 >
-                                  <ListItemIcon sx={{ minWidth: 38 }}>
-                                    {item.kind === "folder"
-                                      ? <FolderOutlined color="primary" />
-                                      : <DescriptionOutlined color="action" />}
+                                  <ListItemIcon sx={{ minWidth: 0, mr: 1.5 }}>
+                                    <Box
+                                      sx={{
+                                        width: 42,
+                                        height: 42,
+                                        borderRadius: 1.5,
+                                        display: "grid",
+                                        placeItems: "center",
+                                        color: item.kind === "folder" ? "primary.main" : "text.secondary",
+                                        bgcolor: item.kind === "folder" ? "rgba(37, 99, 235, 0.12)" : "action.hover",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {item.kind === "folder"
+                                        ? <FolderOutlined />
+                                        : <DescriptionOutlined />}
+                                    </Box>
                                   </ListItemIcon>
                                   <ListItemText
                                     primary={item.name}
@@ -333,7 +365,8 @@ export default function OneDrivePage() {
                                         ? new Date(item.lastModifiedDateTime).toLocaleDateString(it ? "it-IT" : "en-US")
                                         : "",
                                     ].filter(Boolean).join(" · ") || undefined}
-                                    primaryTypographyProps={{ noWrap: true }}
+                                    primaryTypographyProps={{ noWrap: true, fontWeight: item.kind === "folder" ? 650 : 500 }}
+                                    secondaryTypographyProps={{ noWrap: true, fontSize: 12 }}
                                   />
                                   {item.kind === "file"
                                     ? <PreviewOutlined fontSize="small" color="action" />
