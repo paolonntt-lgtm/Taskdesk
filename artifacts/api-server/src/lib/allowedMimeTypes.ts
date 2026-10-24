@@ -56,6 +56,9 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
  */
 export const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024;
 
+/** Maximum size accepted when importing a OneDrive file into a ticket. */
+export const MAX_TICKET_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
+
 /**
  * MIME types that browsers will render or execute as web content when
  * opened in a new tab. Files with these stored types must be served with

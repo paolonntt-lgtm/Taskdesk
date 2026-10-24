@@ -7,6 +7,7 @@ import {
 import { FolderOutlined, InsertDriveFile } from "@mui/icons-material";
 import { listSharedOneDriveFolderItems, type OneDriveBrowseItem } from "@workspace/api-client-react";
 import { useLanguage } from "../contexts/LanguageContext";
+import { getAttachmentValidationFailure, MAX_ATTACHMENT_SIZE_BYTES } from "../lib/attachmentRules";
 import OneDriveLogo from "./OneDriveLogo";
 
 type Crumb = { id: string; name: string };
@@ -72,11 +73,27 @@ export default function OneDriveAttachmentPicker({
   };
 
   const toggle = (item: OneDriveBrowseItem) => {
+    if (selected[item.id]) {
+      setSelected((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+      setError("");
+      return;
+    }
+
+    const failure = getAttachmentValidationFailure(item.mimeType, item.size);
+    if (failure) {
+      setError(`${item.name}: ${failure === "size"
+        ? copy.uploadSizeError.replace("{max}", String(MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024)))
+        : copy.uploadTypeError}`);
+      return;
+    }
+
+    setError("");
     setSelected((current) => {
-      const next = { ...current };
-      if (next[item.id]) delete next[item.id];
-      else next[item.id] = { item, path };
-      return next;
+      return { ...current, [item.id]: { item, path } };
     });
   };
 
@@ -93,7 +110,7 @@ export default function OneDriveAttachmentPicker({
         <DialogTitle>{copy.oneDriveTitle}</DialogTitle>
         <DialogContent dividers>
           {error && (
-            <Alert severity="info" action={error === copy.oneDriveNotConnected
+            <Alert severity={error === copy.oneDriveNotConnected ? "info" : "error"} action={error === copy.oneDriveNotConnected
               ? <Button color="inherit" href="/app/onedrive">{copy.oneDriveOpenSettings}</Button>
               : undefined}
             >
@@ -143,7 +160,16 @@ export default function OneDriveAttachmentPicker({
             variant="contained"
             disabled={!Object.keys(selected).length || !ownerUserId}
             onClick={() => {
-              if (ownerUserId) onSelect(Object.values(selected).map(({ item, path }) => ({ ownerUserId, item, path })));
+              const files = Object.values(selected);
+              const invalidFile = files.find(({ item }) => getAttachmentValidationFailure(item.mimeType, item.size));
+              if (invalidFile) {
+                const failure = getAttachmentValidationFailure(invalidFile.item.mimeType, invalidFile.item.size);
+                setError(`${invalidFile.item.name}: ${failure === "size"
+                  ? copy.uploadSizeError.replace("{max}", String(MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024)))
+                  : copy.uploadTypeError}`);
+                return;
+              }
+              if (ownerUserId) onSelect(files.map(({ item, path }) => ({ ownerUserId, item, path })));
               setOpen(false);
             }}
           >

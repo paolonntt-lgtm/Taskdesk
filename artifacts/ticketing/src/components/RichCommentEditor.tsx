@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
 import OneDriveAttachmentPicker, { type SelectedOneDriveFile } from './OneDriveAttachmentPicker';
+import { ALLOWED_ATTACHMENT_TYPES, getAttachmentValidationFailure, MAX_ATTACHMENT_SIZE_BYTES } from '../lib/attachmentRules';
 
 export interface PendingAttachment {
   objectPath: string;
@@ -133,16 +134,6 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-const ALLOWED_TYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-  'application/pdf',
-  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain', 'text/csv',
-  'application/zip', 'application/x-zip-compressed',
-];
-const MAX_SIZE_MB = 20;
 
 export interface RichCommentEditorHandle {
   focus: () => void;
@@ -403,12 +394,12 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     const toUpload: File[] = [];
 
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
+      if (getAttachmentValidationFailure(file.type, file.size) === 'type') {
         errors.push(`${file.name}: ${tr.uploadTypeError}`);
         continue;
       }
-      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        errors.push(`${file.name}: ${tr.uploadSizeError.replace('{max}', String(MAX_SIZE_MB))}`);
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        errors.push(`${file.name}: ${tr.uploadSizeError.replace('{max}', String(MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024)))}`);
         continue;
       }
       toUpload.push(file);
@@ -443,38 +434,49 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     setUploading(true);
     const uploaded: PendingAttachment[] = [];
     const errors: string[] = [];
-    for (const selectedFile of selected) {
-      try {
-        const query = new URLSearchParams();
-        selectedFile.path.forEach(({ id }) => query.append('path', id));
-        const suffix = query.size ? `?${query.toString()}` : '';
-        const response = await fetch(
-          `/api/onedrive/folders/${selectedFile.ownerUserId}/items/${encodeURIComponent(selectedFile.item.id)}/content${suffix}`,
-          { credentials: 'include', cache: 'no-store' },
-        );
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}));
-          throw new Error(body.error || tr.oneDriveDownloadError);
+    try {
+      for (const selectedFile of selected) {
+        try {
+          const query = new URLSearchParams();
+          selectedFile.path.forEach(({ id }) => query.append('path', id));
+          const suffix = query.size ? `?${query.toString()}` : '';
+          const response = await fetch(
+            `/api/onedrive/folders/${selectedFile.ownerUserId}/items/${encodeURIComponent(selectedFile.item.id)}/content${suffix}`,
+            { credentials: 'include', cache: 'no-store' },
+          );
+          if (!response.ok) {
+            if (response.status === 413) {
+              throw new Error(tr.uploadSizeError.replace('{max}', String(MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024))));
+            }
+            if (response.status === 415) throw new Error(tr.uploadTypeError);
+            const body = await response.json().catch(() => ({}));
+            throw new Error(body.error || tr.oneDriveDownloadError);
+          }
+          const blob = await response.blob();
+          const mimeType = response.headers.get('X-File-Content-Type')
+            || selectedFile.item.mimeType
+            || blob.type
+            || 'application/octet-stream';
+          const failure = getAttachmentValidationFailure(mimeType, blob.size);
+          if (failure === 'type') throw new Error(tr.uploadTypeError);
+          if (failure === 'size') {
+            throw new Error(tr.uploadSizeError.replace('{max}', String(MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024))));
+          }
+          const file = new File([blob], selectedFile.item.name, { type: mimeType });
+          const { uploadURL, objectPath } = await requestPresignedUrl(file, tr.uploadRequestError);
+          await uploadToPresignedUrl(file, uploadURL, tr.uploadFileError);
+          uploaded.push({ objectPath, fileName: file.name, fileSize: file.size, mimeType: file.type });
+        } catch (error) {
+          errors.push(`${selectedFile.item.name}: ${error instanceof Error ? error.message : tr.oneDriveDownloadError}`);
         }
-        const blob = await response.blob();
-        const mimeType = selectedFile.item.mimeType || blob.type || 'application/octet-stream';
-        const file = new File([blob], selectedFile.item.name, { type: mimeType });
-        if (!ALLOWED_TYPES.includes(file.type)) throw new Error(tr.uploadTypeError);
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-          throw new Error(tr.uploadSizeError.replace('{max}', String(MAX_SIZE_MB)));
-        }
-        const { uploadURL, objectPath } = await requestPresignedUrl(file, tr.uploadRequestError);
-        await uploadToPresignedUrl(file, uploadURL, tr.uploadFileError);
-        uploaded.push({ objectPath, fileName: file.name, fileSize: file.size, mimeType: file.type });
-      } catch (error) {
-        errors.push(`${selectedFile.item.name}: ${error instanceof Error ? error.message : tr.oneDriveDownloadError}`);
       }
+    } finally {
+      setUploading(false);
     }
     if (errors.length) setUploadError(errors.join('; '));
     const next = [...pendingAttachments, ...uploaded];
     setPendingAttachments(next);
     onAttachmentsChange?.(next);
-    setUploading(false);
   };
 
   const removeAttachment = (idx: number) => {
@@ -585,7 +587,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             ref={fileInputRef}
             type="file"
             multiple
-            accept={ALLOWED_TYPES.join(',')}
+            accept={ALLOWED_ATTACHMENT_TYPES.join(',')}
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />

@@ -7,7 +7,9 @@ import {
   isOneDriveCopyAccountMatch,
   isUploadedOneDriveCopyCurrent,
   shouldRevokeOneDrivePermission,
+  validateOneDriveAttachmentMetadata,
 } from "./onedriveGraph";
+import { MAX_TICKET_ATTACHMENT_SIZE_BYTES } from "./allowedMimeTypes";
 
 describe("OneDrive account tenant compatibility", () => {
   it("allows organizational accounts from one tenant and personal accounts alongside them", () => {
@@ -95,6 +97,20 @@ describe("OneDrive attachment copy safeguards", () => {
       currentAccount: { microsoftEmail: "new@example.com", tenantId: "tenant-1" },
     })).toBe(false);
     expect(isUploadedOneDriveCopyCurrent({ ...upload, currentItemId: "another-item" })).toBe(false);
+  });
+});
+
+describe("OneDrive ticket attachment validation", () => {
+  it("accepts allowed types at the 20 MB limit and normalizes MIME parameters", () => {
+    expect(validateOneDriveAttachmentMetadata("text/plain; charset=utf-8", MAX_TICKET_ATTACHMENT_SIZE_BYTES))
+      .toBe("text/plain");
+  });
+
+  it("rejects unsupported types and files over 20 MB with actionable statuses", () => {
+    expect(() => validateOneDriveAttachmentMetadata("image/svg+xml", 100))
+      .toThrow(expect.objectContaining({ statusCode: 415 }));
+    expect(() => validateOneDriveAttachmentMetadata("application/pdf", MAX_TICKET_ATTACHMENT_SIZE_BYTES + 1))
+      .toThrow(expect.objectContaining({ statusCode: 413 }));
   });
 });
 
