@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { ObjectStorageService } from "./objectStorage";
 import { logger } from "./logger";
+import { appBaseUrl } from "./appUrl";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
@@ -118,7 +119,12 @@ export async function exchangeMicrosoftCode(code: string, redirectUri: string, c
   if (!clientId) throw new Error("Microsoft OneDrive OAuth is not configured.");
   const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      // Microsoft marks this app registration as an SPA, so token redemption
+      // must carry the origin of its registered redirect URI.
+      Origin: new URL(redirectUri).origin,
+    },
     body: new URLSearchParams({
       client_id: clientId,
       code,
@@ -196,7 +202,10 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
   if (!clientId) throw new Error("Microsoft OneDrive OAuth is not configured.");
   const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Origin: appBaseUrl(),
+    },
     body: new URLSearchParams({
       client_id: clientId,
       grant_type: "refresh_token",
