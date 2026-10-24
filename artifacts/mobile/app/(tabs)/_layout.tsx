@@ -1,5 +1,5 @@
 import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -17,11 +17,13 @@ type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
 >[0] & { hiddenRoutes: string[] };
 
-type TabPosition = { left: `${number}%`; top: number };
+type TabPosition = { left: `${number}%`; width: `${number}%` };
+type NotificationBadgeItem = { isRead: boolean };
 
 function TabContent() {
   const colors = useColors();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const router = useRouter();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -32,6 +34,16 @@ function TabContent() {
     queryFn: () => apiGet<{ clientsEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
+  const notificationsQuery = useQuery({
+    queryKey: ["mobile-notifications"],
+    queryFn: () => apiGet<NotificationBadgeItem[]>("/notifications"),
+    enabled: !!user,
+    refetchInterval: 30_000,
+  });
+  const unreadCount =
+    notificationsQuery.data?.filter((notification) => !notification.isRead).length ?? 0;
+  const notificationLabel =
+    lang === "it" ? "Notifiche" : "Notifications";
   const optionalTabAccess = getMobileOptionalTabAccess({
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
@@ -48,7 +60,7 @@ function TabContent() {
 
   return (
     <Tabs
-      tabBar={(props) => <ScrollableTabBar {...props} hiddenRoutes={hiddenRoutes} />}
+      tabBar={(props) => <BottomTabBar {...props} hiddenRoutes={hiddenRoutes} />}
       screenOptions={({ navigation, route }) => ({
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
@@ -57,21 +69,48 @@ function TabContent() {
         headerTintColor: colors.foreground,
         headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
         headerShadowVisible: false,
-        headerRight:
-          route.name === "profile"
-            ? undefined
-            : () => (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t.tabs.profile}
-                  testID="profile-header-button"
-                  hitSlop={10}
-                  onPress={() => navigation.navigate("profile")}
-                  style={styles.profileHeaderButton}
+        headerRight: () => (
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadCount > 0
+                  ? `${notificationLabel}, ${unreadCount} ${lang === "it" ? "da leggere" : "unread"}`
+                  : notificationLabel
+              }
+              testID="notifications-header-button"
+              hitSlop={10}
+              onPress={() => router.push("/notifications")}
+              style={styles.headerActionButton}
+            >
+              <Feather name="bell" size={20} color={colors.foreground} />
+              {unreadCount > 0 ? (
+                <View
+                  style={[
+                    styles.notificationBadge,
+                    { backgroundColor: colors.destructive, borderColor: colors.card },
+                  ]}
                 >
-                  <Feather name="user" size={20} color={colors.foreground} />
-                </TouchableOpacity>
-              ),
+                  <Text style={[styles.notificationBadgeText, { color: colors.primaryForeground }]}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            {route.name !== "profile" ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t.tabs.profile}
+                testID="profile-header-button"
+                hitSlop={10}
+                onPress={() => navigation.navigate("profile")}
+                style={styles.headerActionButton}
+              >
+                <Feather name="user" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ),
       })}
     >
       <Tabs.Screen
@@ -166,7 +205,7 @@ function TabContent() {
   );
 }
 
-function ScrollableTabBar({
+function BottomTabBar({
   state,
   descriptors,
   navigation,
@@ -178,25 +217,27 @@ function ScrollableTabBar({
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const bottomPadding = isWeb ? 34 : Math.max(insets.bottom, 4);
-  const visibleBottomTabs = ["clients-tab", "hours-report-tab"].filter(
+  const gridHeight = 52;
+  const menuRouteNames = [
+    "index",
+    "tickets",
+    "calendar",
+    "hours-report-tab",
+    "clients-tab",
+  ];
+  const visibleMenuRoutes = menuRouteNames.filter(
     (name) =>
       !hiddenRoutes.includes(name) &&
       state.routes.some((route) => route.name === name),
   );
-  const gridHeight = visibleBottomTabs.length > 0 ? 104 : 52;
-  const tabPositions: Record<string, TabPosition> = {
-    index: { left: "3%", top: 0 },
-    tickets: { left: "22%", top: 0 },
-    calendar: { left: "79%", top: 0 },
-    "clients-tab": {
-      left: visibleBottomTabs.length === 1 ? "41%" : "22%",
-      top: 52,
-    },
-    "hours-report-tab": {
-      left: visibleBottomTabs.length === 1 ? "41%" : "60%",
-      top: 52,
-    },
-  };
+  const cellWidth = 100 / Math.max(visibleMenuRoutes.length, 1);
+  const tabPositions: Record<string, TabPosition> = {};
+  visibleMenuRoutes.forEach((name, index) => {
+    tabPositions[name] = {
+      left: `${index * cellWidth}%` as `${number}%`,
+      width: `${cellWidth}%` as `${number}%`,
+    };
+  });
 
   return (
     <View
@@ -257,8 +298,7 @@ function ScrollableTabBar({
                 styles.tabBarItem,
                 {
                   left: position.left,
-                  top: position.top,
-                  width: "18%",
+                  width: position.width,
                   height: 52,
                 },
               ]}
@@ -283,12 +323,35 @@ function ScrollableTabBar({
 }
 
 const styles = StyleSheet.create({
-  profileHeaderButton: {
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginRight: 4,
+  },
+  headerActionButton: {
+    position: "relative",
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 4,
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: 4,
+    right: 3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBadgeText: {
+    fontSize: 8,
+    lineHeight: 10,
+    fontFamily: "Inter_600SemiBold",
   },
   tabBar: {
     borderTopWidth: 1,

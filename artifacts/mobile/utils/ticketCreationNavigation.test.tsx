@@ -62,7 +62,11 @@ vi.mock("expo-router", async () => {
     "data-route": name,
     "data-href": options?.href === null ? "hidden" : "visible",
   });
-  return { Tabs, router: { push: mocks.push } };
+  return {
+    Tabs,
+    router: { push: mocks.push },
+    useRouter: () => ({ push: mocks.push }),
+  };
 });
 
 vi.mock("expo-blur", () => ({ BlurView: () => null }));
