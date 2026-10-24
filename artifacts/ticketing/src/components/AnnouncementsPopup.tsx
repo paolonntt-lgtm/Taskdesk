@@ -112,6 +112,17 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
   const endLabel = Number.isNaN(endsAt.getTime())
     ? ''
     : endsAt.toLocaleString(isItalian ? 'it-IT' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  const oneDriveSteps = isItalian
+    ? [
+        'Apri un ticket e scrivi un nuovo commento o una risposta.',
+        'Seleziona l’icona OneDrive, sfoglia le cartelle e scegli i file.',
+        'TaskDesk salva una copia tra gli allegati del ticket.',
+      ]
+    : [
+        'Open a ticket and write a new comment or reply.',
+        'Select the OneDrive icon, browse folders, and choose files.',
+        'TaskDesk saves a copy with the ticket attachments.',
+      ];
 
   return (
     <Dialog
@@ -206,15 +217,76 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
           {announcement.title}
         </DialogTitle>
         <DialogContent sx={{ position: 'relative', zIndex: 1, px: 0, pb: 0, maxHeight: 'min(55vh, 520px)', overflowY: 'auto' }}>
-          <Typography
-            id="team-announcement-body"
-            data-testid="text-team-announcement-body"
-            variant="body2"
-            color="text.secondary"
-            sx={{ maxWidth: 390, fontSize: 14.5, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-          >
-            {announcement.body}
-          </Typography>
+          {isOneDriveAnnouncement ? (
+            <Box
+              id="team-announcement-body"
+              data-testid="text-team-announcement-body"
+              sx={{ display: 'grid', gap: 1.75, maxWidth: 410 }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 14.5, lineHeight: 1.65 }}>
+                {isItalian
+                  ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per iniziare.'
+                  : 'Connect your OneDrive account in TaskDesk settings to get started.'}
+              </Typography>
+              <Box sx={{ display: 'grid', gap: 1.25 }}>
+                {oneDriveSteps.map((step, index) => (
+                  <Box key={step} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        display: 'grid',
+                        placeItems: 'center',
+                        flex: '0 0 25px',
+                        width: 25,
+                        height: 25,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        fontSize: 12,
+                        fontWeight: 800,
+                        mt: '1px',
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
+                    <Typography variant="body2" color="text.primary" sx={{ fontSize: 14, lineHeight: 1.55, pt: '2px' }}>
+                      {step}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Box
+                sx={{
+                  p: 1.5,
+                  border: '1px solid',
+                  borderLeft: '3px solid',
+                  borderColor: 'divider',
+                  borderLeftColor: 'primary.main',
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                }}
+              >
+                <Typography variant="caption" color="primary.main" sx={{ display: 'block', fontWeight: 800, mb: 0.4 }}>
+                  {isItalian ? 'Copia indipendente' : 'Independent copy'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, lineHeight: 1.55 }}>
+                  {isItalian
+                    ? 'L’originale su OneDrive non viene modificato e le modifiche successive non si sincronizzano automaticamente.'
+                    : 'The original in OneDrive is not changed, and later changes are not synced automatically.'}
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Typography
+              id="team-announcement-body"
+              data-testid="text-team-announcement-body"
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: 390, fontSize: 14.5, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+            >
+              {announcement.body}
+            </Typography>
+          )}
         </DialogContent>
       </Box>
       <DialogActions
