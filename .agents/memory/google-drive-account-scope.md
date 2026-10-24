@@ -15,6 +15,12 @@ For OneDrive ticket attachments, collaborators may connect business or personal 
 
 **How to apply:** Do not substitute a shared service drive or public sharing links. Preserve matching for business tenants, permit personal accounts alongside them, invite connected collaborators by identity, and keep TaskDesk's stored attachment as the source copy.
 
+The new-ticket OneDrive toolbar flow has been verified with a real Microsoft account: a file selected from a nested folder becomes a ticket attachment, opens from the ticket, and its OneDrive copy appears in the expected folder.
+
+**Why:** The user confirmed the end-to-end behavior in a live account; automated checks alone could not verify Microsoft sign-in and Graph access.
+
+**How to apply:** Treat this as a validated baseline, and repeat the real-account check when changing nested-folder import or attachment sync behavior.
+
 The main navigation's OneDrive entry should open an organization-level directory of all shared Taskdesk folders, with each link opening the native OneDrive browser.
 
 **Why:** The user requested one menu destination to navigate every organization-shared operator folder, while the storage model still has per-collaborator OneDrive roots.
