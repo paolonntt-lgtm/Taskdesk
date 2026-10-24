@@ -29,6 +29,8 @@ const it = {
     newTicket: 'Nuovo ticket',
     calendar: 'Calendario',
     reports: 'Report',
+    clients: 'Clienti',
+    hoursReport: 'Rendiconto',
     profile: 'Profilo',
   },
   calendar: {
@@ -462,6 +464,8 @@ const en: typeof it = {
     newTicket: 'New ticket',
     calendar: 'Calendar',
     reports: 'Reports',
+    clients: 'Clients',
+    hoursReport: 'Hours',
     profile: 'Profile',
   },
   calendar: {

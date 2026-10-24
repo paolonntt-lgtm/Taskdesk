@@ -160,8 +160,8 @@ export default function ProfileScreen() {
         <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         {[
           { label: t.tabs.reports, icon: "bar-chart-2" as const, path: "/reports" },
-          ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled !== false && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
-          ...(isOrganizationAdmin && !organizationSettings.isLoading && organizationSettings.data?.timeTrackingModuleEnabled === true ? [{ label: lang === "it" ? "Rendiconto ore" : "Hours report", icon: "clock" as const, path: "/time-report" }] : []),
+          ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/(tabs)/clients-tab" }] : []),
+          ...(isOrganizationAdmin && !organizationSettings.isLoading && organizationSettings.data?.timeTrackingModuleEnabled === true ? [{ label: lang === "it" ? "Rendiconto ore" : "Hours report", icon: "clock" as const, path: "/(tabs)/hours-report-tab" }] : []),
           { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
           ...(isOrganizationAdmin ? [
             { label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" },
