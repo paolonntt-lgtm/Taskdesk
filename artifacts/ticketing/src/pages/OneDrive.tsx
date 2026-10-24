@@ -17,6 +17,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
@@ -79,7 +80,8 @@ export default function OneDrivePage() {
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
   const [browsers, setBrowsers] = useState<Record<number, BrowseState>>({});
   const [uploadingOwnerId, setUploadingOwnerId] = useState<number | null>(null);
-  const [uploadNotices, setUploadNotices] = useState<Record<number, { severity: "success" | "error"; text: string }>>({});
+  const [uploadNotices, setUploadNotices] = useState<Record<number, string>>({});
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [preview, setPreview] = useState<{ item: OneDriveBrowseItem; result?: OneDrivePreview; error?: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -179,7 +181,7 @@ export default function OneDrivePage() {
     if (file.size > 25 * 1024 * 1024) {
       setUploadNotices((current) => ({
         ...current,
-        [ownerUserId]: { severity: "error", text: copy.uploadTooLarge },
+        [ownerUserId]: copy.uploadTooLarge,
       }));
       return;
     }
@@ -206,15 +208,12 @@ export default function OneDrivePage() {
         body: file,
       });
       if (!response.ok) throw new Error("upload failed");
-      setUploadNotices((current) => ({
-        ...current,
-        [ownerUserId]: { severity: "success", text: copy.uploadSuccess },
-      }));
+      setUploadSuccess(true);
       await loadFolder(ownerUserId, path);
     } catch {
       setUploadNotices((current) => ({
         ...current,
-        [ownerUserId]: { severity: "error", text: copy.uploadError },
+        [ownerUserId]: copy.uploadError,
       }));
     } finally {
       setUploadingOwnerId(null);
@@ -229,10 +228,6 @@ export default function OneDrivePage() {
           {copy.title}
         </Typography>
       </Stack>
-      <Typography color="text.secondary" mb={3}>
-        {copy.subtitle}
-      </Typography>
-
       {oauthStatus && (
         <Alert
           severity={oauthStatus === "connected" ? "success" : oauthStatus === "cancelled" ? "info" : oauthStatus === "sharing_partial" ? "warning" : "error"}
@@ -279,6 +274,7 @@ export default function OneDrivePage() {
       <Stack spacing={1.5}>
         {shares.map((share) => {
           const browse = browsers[share.ownerUserId];
+          const uploadNotice = uploadNotices[share.ownerUserId];
           return (
             <Card key={share.ownerUserId} variant="outlined">
               <CardContent sx={{ position: "relative", pt: 2.5 }}>
@@ -298,10 +294,7 @@ export default function OneDrivePage() {
                   <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
                     <OneDriveLogo width={30} height={30} />
                     <Box minWidth={0}>
-                      <Typography fontWeight={650} sx={{ overflowWrap: "anywhere" }}>Taskdesk · {share.operatorName}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {copy.sharedFolder}
-                      </Typography>
+                      <Typography fontWeight={650} sx={{ overflowWrap: "anywhere" }}>{share.operatorName}</Typography>
                     </Box>
                   </Stack>
                   {connected && (
@@ -323,6 +316,7 @@ export default function OneDrivePage() {
                             component="label"
                             htmlFor={`onedrive-upload-${share.ownerUserId}`}
                             variant="contained"
+                            title={copy.uploadHint}
                             disabled={uploadingOwnerId === share.ownerUserId || browse?.loading}
                             startIcon={uploadingOwnerId === share.ownerUserId
                               ? <CircularProgress size={14} color="inherit" />
@@ -347,17 +341,7 @@ export default function OneDrivePage() {
                   )}
                 </Stack>
 
-                {connected && share.canUpload && (
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
-                    {copy.uploadHint}
-                  </Typography>
-                )}
-
-                {uploadNotices[share.ownerUserId] && (
-                  <Alert severity={uploadNotices[share.ownerUserId].severity} sx={{ mt: 1.5 }}>
-                    {uploadNotices[share.ownerUserId].text}
-                  </Alert>
-                )}
+                {uploadNotice && <Alert severity="error" sx={{ mt: 1.5 }}>{uploadNotice}</Alert>}
 
                 {browse && (
                   <Box mt={2}>
@@ -514,6 +498,16 @@ export default function OneDrivePage() {
           )}
         </DialogContent>
       </Dialog>
+      <Snackbar
+        open={uploadSuccess}
+        autoHideDuration={2500}
+        onClose={() => setUploadSuccess(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="success" onClose={() => setUploadSuccess(false)} sx={{ width: "100%" }}>
+          {copy.uploadSuccess}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
