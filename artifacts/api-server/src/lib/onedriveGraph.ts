@@ -447,6 +447,48 @@ export async function previewSharedOneDriveItem(
   );
 }
 
+export async function downloadSharedOneDriveItem(
+  currentUserId: number,
+  organizationId: number,
+  ownerUserId: number,
+  itemId: string,
+  path: string[] = [],
+) {
+  const context = await getSharedFolderContext(currentUserId, organizationId, ownerUserId);
+  const folder = await resolveSharedFolder(context, path);
+  const item = (await listDriveChildren(context.accessToken, context.driveId, folder.id))
+    .find((child) => child.id === itemId && !!child.file);
+  if (!item) throw new OneDriveBrowseError("The selected file is outside this shared directory.", 404);
+  if ((item.size ?? 0) > 20 * 1024 * 1024) {
+    throw new OneDriveBrowseError("The file exceeds the 20 MB ticket attachment limit.", 413);
+  }
+
+  const response = await fetch(
+    `${GRAPH}/drives/${encodeURIComponent(context.driveId)}/items/${encodeURIComponent(item.id)}/content`,
+    { headers: { Authorization: `Bearer ${context.accessToken}` } },
+  );
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new OneDriveGraphError(
+      payload.error?.message || `Microsoft Graph download failed (${response.status}).`,
+      response.status,
+    );
+  }
+  const reportedLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(reportedLength) && reportedLength > 20 * 1024 * 1024) {
+    throw new OneDriveBrowseError("The file exceeds the 20 MB ticket attachment limit.", 413);
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > 20 * 1024 * 1024) {
+    throw new OneDriveBrowseError("The file exceeds the 20 MB ticket attachment limit.", 413);
+  }
+  return {
+    fileName: item.name,
+    mimeType: item.file?.mimeType || "application/octet-stream",
+    bytes,
+  };
+}
+
 /**
  * Grant each connected collaborator read access to every connected owner's
  * Taskdesk folder. Invitation permissions are protected by Microsoft sign-in,

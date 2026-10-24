@@ -1729,6 +1729,63 @@ paths:
         "502":
           description: Microsoft Graph could not upload the file
 
+  /onedrive/folders/{ownerUserId}/items/{itemId}/content:
+    get:
+      operationId: downloadSharedOneDriveItem
+      tags: [drive]
+      summary: Download a shared OneDrive file for attachment to a ticket
+      parameters:
+        - name: ownerUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: path
+          in: query
+          required: false
+          description: Ordered folder item IDs from the shared root to the file's parent
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 512
+            maxItems: 16
+      responses:
+        "200":
+          description: Original file bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                description: Raw OneDrive file bytes
+          headers:
+            X-File-Name:
+              schema:
+                type: string
+            X-File-Content-Type:
+              schema:
+                type: string
+        "401":
+          description: Authentication required or OneDrive is not connected
+        "403":
+          description: The current user cannot access this shared file
+        "404":
+          description: File not found
+        "413":
+          description: File exceeds the ticket attachment limit
+        "502":
+          description: Microsoft Graph could not download the file
+
   /onedrive/folders/{ownerUserId}/items/{itemId}/preview:
     post:
       operationId: previewSharedOneDriveItem

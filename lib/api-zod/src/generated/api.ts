@@ -2335,6 +2335,31 @@ export const UploadSharedOneDriveFileResponse = zod.object({
 
 
 /**
+ * @summary Download a shared OneDrive file for attachment to a ticket
+ */
+export const downloadSharedOneDriveItemPathItemIdMax = 512;
+
+
+
+export const DownloadSharedOneDriveItemParams = zod.object({
+  "ownerUserId": zod.coerce.number().int(),
+  "itemId": zod.coerce.string().min(1).max(downloadSharedOneDriveItemPathItemIdMax)
+})
+
+export const downloadSharedOneDriveItemQueryPathItemMax = 512;
+
+export const downloadSharedOneDriveItemQueryPathMax = 16;
+
+
+
+export const DownloadSharedOneDriveItemQueryParams = zod.object({
+  "path": zod.array(zod.coerce.string().min(1).max(downloadSharedOneDriveItemQueryPathItemMax)).max(downloadSharedOneDriveItemQueryPathMax).optional().describe('Ordered folder item IDs from the shared root to the file\'s parent')
+})
+
+export const DownloadSharedOneDriveItemResponse = zod.unknown()
+
+
+/**
  * @summary Get a short-lived preview URL for a shared OneDrive file
  */
 export const previewSharedOneDriveItemPathItemIdMax = 512;

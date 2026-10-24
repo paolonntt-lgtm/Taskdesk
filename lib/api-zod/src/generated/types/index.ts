@@ -61,6 +61,7 @@ export * from './createUserBody';
 export * from './createUserBodyRole';
 export * from './dailyReportDetail';
 export * from './dashboardStats';
+export * from './downloadSharedOneDriveItemParams';
 export * from './driveFolderItemsResponse';
 export * from './driveFolderReference';
 export * from './driveItem';

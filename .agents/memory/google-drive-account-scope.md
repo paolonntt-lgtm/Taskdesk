@@ -27,6 +27,12 @@ Support both organizational and personal Microsoft accounts, but do not grant fo
 
 **How to apply:** Use a Microsoft authority and app registration that accept personal accounts; grant each connected collaborator sign-in-protected access to other connected Taskdesk roots.
 
+Ticket creation should reuse the user's existing OneDrive connection. Keep cloud-drive folder sections out of the new-ticket form; provide a toolbar picker that imports selected OneDrive files as ordinary ticket attachments.
+
+**Why:** The user asked for OneDrive to connect automatically from its existing settings section and for file selection to live in the ticket description toolbar, without a separate drive section.
+
+**How to apply:** Use the authenticated user's own connected OneDrive account, preserve read-only access to collaborator folders, and route imported files through the existing ticket attachment flow.
+
 OneDrive collaborator folders remain read-only; manual uploads are allowed only into the authenticated user's own Taskdesk folder.
 
 **Why:** The user chose individual, sign-in-protected read-only invitations. Adding upload in TaskDesk must not silently expand collaborators' Microsoft permissions.

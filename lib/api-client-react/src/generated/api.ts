@@ -52,6 +52,7 @@ import type {
   CreateUserBody,
   DailyReportDetail,
   DashboardStats,
+  DownloadSharedOneDriveItemParams,
   DriveFolderItemsResponse,
   DriveFolderReference,
   DriveItem,
@@ -4804,6 +4805,106 @@ export const useUploadSharedOneDriveFile = <TError = ErrorType<void>,
       > => {
       return useMutation(getUploadSharedOneDriveFileMutationOptions(options));
     }
+
+export const getDownloadSharedOneDriveItemUrl = (ownerUserId: number,
+    itemId: string,
+    params?: DownloadSharedOneDriveItemParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["path"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/onedrive/folders/${ownerUserId}/items/${itemId}/content?${stringifiedParams}` : `/api/onedrive/folders/${ownerUserId}/items/${itemId}/content`
+}
+
+/**
+ * @summary Download a shared OneDrive file for attachment to a ticket
+ */
+export const downloadSharedOneDriveItem = async (ownerUserId: number,
+    itemId: string,
+    params?: DownloadSharedOneDriveItemParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadSharedOneDriveItemUrl(ownerUserId,itemId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadSharedOneDriveItemQueryKey = (ownerUserId: number,
+    itemId: string,
+    params?: DownloadSharedOneDriveItemParams,) => {
+    return [
+    `/api/onedrive/folders/${ownerUserId}/items/${itemId}/content`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadSharedOneDriveItemQueryOptions = <TData = Awaited<ReturnType<typeof downloadSharedOneDriveItem>>, TError = ErrorType<void>>(ownerUserId: number,
+    itemId: string,
+    params?: DownloadSharedOneDriveItemParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadSharedOneDriveItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadSharedOneDriveItemQueryKey(ownerUserId,itemId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadSharedOneDriveItem>>> = ({ signal }) => downloadSharedOneDriveItem(ownerUserId,itemId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: ownerUserId !== null && ownerUserId !== undefined && itemId !== null && itemId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadSharedOneDriveItem>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadSharedOneDriveItemQueryResult = NonNullable<Awaited<ReturnType<typeof downloadSharedOneDriveItem>>>
+export type DownloadSharedOneDriveItemQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download a shared OneDrive file for attachment to a ticket
+ */
+
+export function useDownloadSharedOneDriveItem<TData = Awaited<ReturnType<typeof downloadSharedOneDriveItem>>, TError = ErrorType<void>>(
+ ownerUserId: number,
+    itemId: string,
+    params?: DownloadSharedOneDriveItemParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadSharedOneDriveItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadSharedOneDriveItemQueryOptions(ownerUserId,itemId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getPreviewSharedOneDriveItemUrl = (ownerUserId: number,
     itemId: string,

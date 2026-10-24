@@ -11,6 +11,7 @@ import {
   AlternateEmail, Tag, Group as GroupIcon,
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import OneDriveAttachmentPicker, { type SelectedOneDriveFile } from './OneDriveAttachmentPicker';
 
 export interface PendingAttachment {
   objectPath: string;
@@ -25,6 +26,7 @@ interface RichCommentEditorProps {
   placeholder?: string;
   ticketId: number;
   onAttachmentsChange?: (attachments: PendingAttachment[]) => void;
+  enableOneDrivePicker?: boolean;
   minRows?: number;
 }
 
@@ -152,6 +154,7 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
   onChange,
   placeholder,
   onAttachmentsChange,
+  enableOneDrivePicker = false,
   minRows = 3,
   ticketId,
 }: RichCommentEditorProps, ref) {
@@ -435,6 +438,45 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
     setUploading(false);
   };
 
+  const importOneDriveFiles = async (selected: SelectedOneDriveFile[]) => {
+    setUploadError(null);
+    setUploading(true);
+    const uploaded: PendingAttachment[] = [];
+    const errors: string[] = [];
+    for (const selectedFile of selected) {
+      try {
+        const query = new URLSearchParams();
+        selectedFile.path.forEach(({ id }) => query.append('path', id));
+        const suffix = query.size ? `?${query.toString()}` : '';
+        const response = await fetch(
+          `/api/onedrive/folders/${selectedFile.ownerUserId}/items/${encodeURIComponent(selectedFile.item.id)}/content${suffix}`,
+          { credentials: 'include', cache: 'no-store' },
+        );
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || tr.oneDriveDownloadError);
+        }
+        const blob = await response.blob();
+        const mimeType = selectedFile.item.mimeType || blob.type || 'application/octet-stream';
+        const file = new File([blob], selectedFile.item.name, { type: mimeType });
+        if (!ALLOWED_TYPES.includes(file.type)) throw new Error(tr.uploadTypeError);
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          throw new Error(tr.uploadSizeError.replace('{max}', String(MAX_SIZE_MB)));
+        }
+        const { uploadURL, objectPath } = await requestPresignedUrl(file, tr.uploadRequestError);
+        await uploadToPresignedUrl(file, uploadURL, tr.uploadFileError);
+        uploaded.push({ objectPath, fileName: file.name, fileSize: file.size, mimeType: file.type });
+      } catch (error) {
+        errors.push(`${selectedFile.item.name}: ${error instanceof Error ? error.message : tr.oneDriveDownloadError}`);
+      }
+    }
+    if (errors.length) setUploadError(errors.join('; '));
+    const next = [...pendingAttachments, ...uploaded];
+    setPendingAttachments(next);
+    onAttachmentsChange?.(next);
+    setUploading(false);
+  };
+
   const removeAttachment = (idx: number) => {
     const next = pendingAttachments.filter((_, i) => i !== idx);
     setPendingAttachments(next);
@@ -536,6 +578,9 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
               <AttachFile fontSize="small" />
             </IconButton>
           </Tooltip>
+          {enableOneDrivePicker && (
+            <OneDriveAttachmentPicker onSelect={(files) => void importOneDriveFiles(files)} disabled={uploading} />
+          )}
           <input
             ref={fileInputRef}
             type="file"

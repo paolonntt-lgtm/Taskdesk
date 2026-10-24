@@ -1548,6 +1548,16 @@ export type UploadSharedOneDriveFileParams = {
 path?: string[];
 };
 
+export type DownloadSharedOneDriveItemParams = {
+/**
+ * Ordered folder item IDs from the shared root to the file's parent
+ * @maxItems 16
+ * @items.minLength 1
+ * @items.maxLength 512
+ */
+path?: string[];
+};
+
 export type PreviewSharedOneDriveItemParams = {
 /**
  * Ordered folder item IDs from the shared root to the file's parent

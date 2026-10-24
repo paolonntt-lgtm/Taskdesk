@@ -12,6 +12,8 @@ import {
   PreviewSharedOneDriveItemParams,
   PreviewSharedOneDriveItemQueryParams,
   PreviewSharedOneDriveItemResponse,
+  DownloadSharedOneDriveItemParams,
+  DownloadSharedOneDriveItemQueryParams,
   UploadSharedOneDriveFileHeader,
   UploadSharedOneDriveFileParams,
   UploadSharedOneDriveFileQueryParams,
@@ -28,6 +30,7 @@ import {
   OneDriveBrowseError,
   OneDriveGraphError,
   previewSharedOneDriveItem,
+  downloadSharedOneDriveItem,
   syncPendingOneDriveAttachments,
   uploadSharedOneDriveFile,
 } from "../lib/onedriveGraph";
@@ -374,6 +377,51 @@ router.post("/onedrive/folders/:ownerUserId/items/:itemId/preview", requireAuth,
     }
     req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file preview failed");
     res.status(502).json({ error: "Microsoft could not preview this file." });
+  }
+});
+
+router.get("/onedrive/folders/:ownerUserId/items/:itemId/content", requireAuth, async (req, res): Promise<void> => {
+  const params = DownloadSharedOneDriveItemParams.safeParse(req.params);
+  const rawPath = req.query.path;
+  const query = DownloadSharedOneDriveItemQueryParams.safeParse({
+    path: typeof rawPath === "string" ? [rawPath] : rawPath,
+  });
+  if (!params.success || !query.success) {
+    res.status(400).json({ error: "Invalid OneDrive file path." });
+    return;
+  }
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(403).json({ error: "An organization account is required." });
+    return;
+  }
+  try {
+    const result = await downloadSharedOneDriveItem(
+      user.id,
+      user.organizationId,
+      params.data.ownerUserId,
+      params.data.itemId,
+      query.data.path,
+    );
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`);
+    res.setHeader("X-File-Name", encodeURIComponent(result.fileName));
+    res.setHeader("X-File-Content-Type", result.mimeType);
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).send(result.bytes);
+  } catch (error) {
+    if (error instanceof OneDriveBrowseError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    if (error instanceof OneDriveGraphError) {
+      req.log.warn({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file download failed");
+      res.status(error.statusCode === 401 || error.statusCode === 403 || error.statusCode === 404 ? error.statusCode : 502)
+        .json({ error: "Microsoft could not download this file." });
+      return;
+    }
+    req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file download failed");
+    res.status(502).json({ error: "Microsoft could not download this file." });
   }
 });
 
