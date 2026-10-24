@@ -63,9 +63,9 @@ function TabContent() {
           title: t.tabs.dashboard,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="chart.bar" tintColor={color} size={22} />
+              <SymbolView name="chart.bar" tintColor={color} size={18} />
             ) : (
-              <Feather name="bar-chart-2" size={22} color={color} />
+              <Feather name="bar-chart-2" size={18} color={color} />
             ),
         }}
       />
@@ -75,9 +75,9 @@ function TabContent() {
           title: t.tabs.tickets,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="ticket" tintColor={color} size={22} />
+              <SymbolView name="ticket" tintColor={color} size={18} />
             ) : (
-              <Feather name="list" size={22} color={color} />
+              <Feather name="list" size={18} color={color} />
             ),
         }}
       />
@@ -88,9 +88,9 @@ function TabContent() {
           tabBarLabel: t.tabs.new,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="plus.circle" tintColor={color} size={22} />
+              <SymbolView name="plus.circle" tintColor={color} size={18} />
             ) : (
-              <Feather name="plus-circle" size={22} color={color} />
+              <Feather name="plus-circle" size={18} color={color} />
             ),
         }}
       />
@@ -100,22 +100,9 @@ function TabContent() {
           title: t.tabs.calendar,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="calendar" tintColor={color} size={22} />
+              <SymbolView name="calendar" tintColor={color} size={18} />
             ) : (
-              <Feather name="calendar" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="clients-tab"
-        options={{
-          title: t.tabs.clients,
-          href: clientsEnabled ? undefined : null,
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person.2" tintColor={color} size={18} />
-            ) : (
-              <Feather name="briefcase" size={18} color={color} />
+              <Feather name="calendar" size={18} color={color} />
             ),
         }}
       />
@@ -132,6 +119,19 @@ function TabContent() {
             ),
         }}
       />
+      <Tabs.Screen
+        name="clients-tab"
+        options={{
+          title: t.tabs.clients,
+          href: clientsEnabled ? undefined : null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.2" tintColor={color} size={18} />
+            ) : (
+              <Feather name="briefcase" size={18} color={color} />
+            ),
+        }}
+      />
       <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
@@ -139,9 +139,9 @@ function TabContent() {
           title: t.tabs.profile,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.circle" tintColor={color} size={22} />
+              <SymbolView name="person.circle" tintColor={color} size={18} />
             ) : (
-              <Feather name="user" size={22} color={color} />
+              <Feather name="user" size={18} color={color} />
             ),
         }}
       />
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   tabBarItem: {
-    width: 74,
+    width: 60,
     height: 48,
     flexShrink: 0,
     alignItems: "center",
@@ -264,8 +264,8 @@ const styles = StyleSheet.create({
   },
   tabBarLabel: {
     maxWidth: "100%",
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 9,
+    lineHeight: 11,
     textAlign: "center",
   },
 });
