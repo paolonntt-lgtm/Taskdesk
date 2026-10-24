@@ -1,7 +1,7 @@
 import React from "react";
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, ActivityIndicator, RefreshControl, Platform,
+  TouchableOpacity, ActivityIndicator, RefreshControl, Platform, useWindowDimensions,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -32,6 +32,8 @@ export default function DashboardScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const singleRowStats = width >= 360;
   const s = styles(colors);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -84,17 +86,23 @@ export default function DashboardScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
-        <View style={s.statsGrid}>
+        <View style={[s.statsGrid, singleRowStats && s.statsGridSingleRow]}>
           {statCards.map((c) => (
             <TouchableOpacity
               key={c.label}
-              style={[s.statCard, { borderLeftColor: c.color }]}
+              style={[s.statCard, singleRowStats && s.statCardSingleRow, { borderLeftColor: c.color }]}
               onPress={() => router.push(`/(tabs)/tickets?${c.filter}` as any)}
               activeOpacity={0.75}
             >
-              <Feather name={c.icon} size={18} color={c.color} />
-              <Text style={s.statValue}>{c.value}</Text>
-              <Text style={s.statLabel}>{c.label}</Text>
+              <Feather name={c.icon} size={singleRowStats ? 14 : 16} color={c.color} />
+              <Text style={[s.statValue, singleRowStats && s.statValueSingleRow]}>{c.value}</Text>
+              <Text
+                style={[s.statLabel, singleRowStats && s.statLabelSingleRow]}
+                numberOfLines={singleRowStats ? 1 : undefined}
+                adjustsFontSizeToFit={singleRowStats}
+              >
+                {c.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -150,17 +158,21 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "center", justifyContent: "center",
     },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
-    statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 22 },
+    statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+    statsGridSingleRow: { flexWrap: "nowrap", gap: 6 },
     statCard: {
       flex: 1, minWidth: "45%",
       backgroundColor: colors.card,
-      borderRadius: 10, padding: 12,
+      borderRadius: 10, padding: 10,
       borderLeftWidth: 3,
-      gap: 6,
+      gap: 5,
       borderWidth: 1, borderColor: colors.border,
     },
-    statValue: { fontSize: 24, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
+    statCardSingleRow: { minWidth: 0, paddingHorizontal: 5, paddingVertical: 8, gap: 3, alignItems: "center" },
+    statValue: { fontSize: 22, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
+    statValueSingleRow: { fontSize: 19 },
     statLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    statLabelSingleRow: { fontSize: 11, lineHeight: 13, textAlign: "center" },
     section: {},
     sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
     sectionTitle: { fontSize: 17, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
