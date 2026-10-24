@@ -11,6 +11,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
+import { getMobileOptionalTabAccess } from "@/utils/optionalTabs";
 
 type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
@@ -29,11 +30,14 @@ function TabContent() {
     queryFn: () => apiGet<{ clientsEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
-  const clientsEnabled = organizationSettings.data?.clientsEnabled === true;
-  const hoursReportEnabled =
-    user?.role === "admin" &&
-    user?.organizationId != null &&
-    organizationSettings.data?.timeTrackingModuleEnabled === true;
+  const optionalTabAccess = getMobileOptionalTabAccess({
+    settings: organizationSettings.data,
+    hasOrganization: user?.organizationId != null,
+    isOrganizationAdmin:
+      user?.role === "admin" && user.organizationId != null,
+  });
+  const clientsEnabled = optionalTabAccess.clients;
+  const hoursReportEnabled = optionalTabAccess.hoursReport;
   const hiddenRoutes = [
     "reports",
     ...(!clientsEnabled ? ["clients-tab"] : []),
