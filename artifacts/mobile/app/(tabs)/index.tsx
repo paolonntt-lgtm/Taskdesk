@@ -92,7 +92,7 @@ export default function DashboardScreen() {
               onPress={() => router.push(`/(tabs)/tickets?${c.filter}` as any)}
               activeOpacity={0.75}
             >
-              <Feather name={c.icon} size={20} color={c.color} />
+              <Feather name={c.icon} size={18} color={c.color} />
               <Text style={s.statValue}>{c.value}</Text>
               <Text style={s.statLabel}>{c.label}</Text>
             </TouchableOpacity>
@@ -150,16 +150,16 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "center", justifyContent: "center",
     },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
-    statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 28 },
+    statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 22 },
     statCard: {
       flex: 1, minWidth: "45%",
       backgroundColor: colors.card,
-      borderRadius: 12, padding: 16,
+      borderRadius: 10, padding: 12,
       borderLeftWidth: 3,
-      gap: 8,
+      gap: 6,
       borderWidth: 1, borderColor: colors.border,
     },
-    statValue: { fontSize: 28, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
+    statValue: { fontSize: 24, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
     statLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     section: {},
     sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },

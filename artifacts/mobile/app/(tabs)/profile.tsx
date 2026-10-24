@@ -14,7 +14,11 @@ import { apiPost } from "@/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/utils/api";
 
-type MobileOrganizationSettings = { clientsEnabled?: boolean; workedTimeEnabled?: boolean };
+type MobileOrganizationSettings = {
+  clientsEnabled?: boolean;
+  workedTimeEnabled?: boolean;
+  timeTrackingModuleEnabled?: boolean;
+};
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -157,6 +161,7 @@ export default function ProfileScreen() {
         {[
           { label: t.tabs.reports, icon: "bar-chart-2" as const, path: "/reports" },
           ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled !== false && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/clients" }] : []),
+          ...(isOrganizationAdmin && !organizationSettings.isLoading && organizationSettings.data?.timeTrackingModuleEnabled === true ? [{ label: lang === "it" ? "Rendiconto ore" : "Hours report", icon: "clock" as const, path: "/time-report" }] : []),
           { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
           ...(isOrganizationAdmin ? [
             { label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" },
