@@ -5,7 +5,7 @@
 - [Private ticket visibility](private-ticket-visibility.md) — Admin-only tickets require the same access check across all derived resources and notifications.
 - [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; Metro static builds currently contend for port 8081.
-- [Mobile bottom navigation](mobile-bottom-navigation.md) — Keep optional Clients and Hours report tabs in a compact, horizontally scrollable mobile bar when their modules allow access.
+- [Mobile bottom navigation](mobile-bottom-navigation.md) — Use a compact two-row 3+4 bar with a centered + spanning both rows; optional tabs remain access-gated.
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.
 - [Shared DB project refresh](db-project-reference-refresh.md) — Rebuild shared database declarations after schema changes before checking dependent services.

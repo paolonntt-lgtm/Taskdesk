@@ -3,7 +3,7 @@ import { Tabs } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
@@ -16,6 +16,8 @@ import { getMobileOptionalTabAccess } from "@/utils/optionalTabs";
 type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
 >[0] & { hiddenRoutes: string[] };
+
+type TabPosition = { left: `${number}%`; top: number; spansRows?: boolean };
 
 function TabContent() {
   const colors = useColors();
@@ -161,6 +163,16 @@ function ScrollableTabBar({
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const bottomPadding = isWeb ? 34 : Math.max(insets.bottom, 4);
+  const gridHeight = 104;
+  const tabPositions: Record<string, TabPosition> = {
+    index: { left: "3%", top: 0 },
+    tickets: { left: "22%", top: 0 },
+    calendar: { left: "79%", top: 0 },
+    "clients-tab": { left: "3%", top: 52 },
+    "hours-report-tab": { left: "60%", top: 52 },
+    profile: { left: "79%", top: 52 },
+    new: { left: "40%", top: 0, spansRows: true },
+  };
 
   return (
     <View
@@ -169,7 +181,7 @@ function ScrollableTabBar({
         {
           backgroundColor: isIOS ? "transparent" : colors.card,
           borderTopColor: colors.border,
-          height: 50 + bottomPadding,
+          height: gridHeight + bottomPadding,
           paddingBottom: bottomPadding,
         },
       ]}
@@ -183,13 +195,11 @@ function ScrollableTabBar({
       ) : isWeb ? (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
       ) : null}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabBarItems}
-      >
+      <View style={[styles.tabBarGrid, { height: gridHeight }]}>
         {state.routes.map((route, index) => {
           if (hiddenRoutes.includes(route.name)) return null;
+          const position = tabPositions[route.name];
+          if (!position) return null;
           const options = descriptors[route.key].options;
           const focused = state.index === index;
           const color = focused ? colors.primary : colors.mutedForeground;
@@ -219,54 +229,80 @@ function ScrollableTabBar({
               onPress={onPress}
               onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
               activeOpacity={0.75}
-              style={styles.tabBarItem}
+              style={[
+                styles.tabBarItem,
+                {
+                  left: position.left,
+                  top: position.top,
+                  width: position.spansRows ? "20%" : "18%",
+                  height: position.spansRows ? gridHeight : 52,
+                },
+                position.spansRows && styles.newTabItem,
+              ]}
             >
-              {icon}
+              {position.spansRows ? (
+                <View style={[styles.newTabCircle, { backgroundColor: colors.primary }]}>
+                  <Feather name="plus" size={25} color={colors.primaryForeground} />
+                </View>
+              ) : (
+                icon
+              )}
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                style={[styles.tabBarLabel, { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" }]}
+                style={[
+                  styles.tabBarLabel,
+                  { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" },
+                  position.spansRows && styles.newTabLabel,
+                ]}
               >
                 {label}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     borderTopWidth: 1,
     elevation: 0,
     overflow: "hidden",
   },
-  tabBarItems: {
-    minWidth: "100%",
-    height: 50,
-    alignItems: "center",
-    paddingHorizontal: 4,
+  tabBarGrid: {
+    position: "relative",
+    width: "100%",
   },
   tabBarItem: {
-    width: 60,
-    height: 48,
-    flexShrink: 0,
+    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
+  },
+  newTabItem: {
+    zIndex: 1,
+    gap: 4,
+  },
+  newTabCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabBarLabel: {
     maxWidth: "100%",
     fontSize: 9,
     lineHeight: 11,
     textAlign: "center",
+  },
+  newTabLabel: {
+    fontSize: 10,
+    lineHeight: 12,
   },
 });
 
