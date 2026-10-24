@@ -6,6 +6,7 @@ import {
   isExpectedOneDriveAttachmentCopy,
   isOneDriveCopyAccountMatch,
   isUploadedOneDriveCopyCurrent,
+  readOneDriveResponseBytes,
   shouldRevokeOneDrivePermission,
   validateOneDriveAttachmentMetadata,
 } from "./onedriveGraph";
@@ -111,6 +112,51 @@ describe("OneDrive ticket attachment validation", () => {
       .toThrow(expect.objectContaining({ statusCode: 415 }));
     expect(() => validateOneDriveAttachmentMetadata("application/pdf", MAX_TICKET_ATTACHMENT_SIZE_BYTES + 1))
       .toThrow(expect.objectContaining({ statusCode: 413 }));
+  });
+});
+
+describe("OneDrive response size limits", () => {
+  it("cancels a stream as soon as the bytes exceed the limit", async () => {
+    let cancelled = false;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(6));
+        controller.enqueue(new Uint8Array(5));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    }));
+
+    await expect(readOneDriveResponseBytes(response, 10))
+      .rejects.toMatchObject({ name: "OneDriveBrowseError", statusCode: 413 });
+    expect(cancelled).toBe(true);
+  });
+
+  it("returns response bytes when they are exactly at the limit", async () => {
+    const expected = new Uint8Array([1, 2, 3, 4]);
+    const response = new Response(expected);
+
+    await expect(readOneDriveResponseBytes(response, expected.byteLength))
+      .resolves.toEqual(Buffer.from(expected));
+  });
+
+  it("cancels a response immediately when Content-Length already exceeds the limit", async () => {
+    let cancelled = false;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1]));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    }), {
+      headers: { "content-length": "11" },
+    });
+
+    await expect(readOneDriveResponseBytes(response, 10))
+      .rejects.toMatchObject({ name: "OneDriveBrowseError", statusCode: 413 });
+    expect(cancelled).toBe(true);
   });
 });
 

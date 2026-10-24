@@ -260,6 +260,49 @@ export class OneDriveBrowseError extends Error {
   }
 }
 
+const ONE_DRIVE_ATTACHMENT_SIZE_ERROR = "The file exceeds the 20 MB ticket attachment limit.";
+
+export async function readOneDriveResponseBytes(
+  response: Response,
+  maxBytes = MAX_TICKET_ATTACHMENT_SIZE_BYTES,
+): Promise<Buffer> {
+  const reportedLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(reportedLength) && reportedLength > maxBytes) {
+    try {
+      await response.body?.cancel();
+    } catch {
+      // Preserve the size rejection even if the remote stream cannot be cancelled cleanly.
+    }
+    throw new OneDriveBrowseError(ONE_DRIVE_ATTACHMENT_SIZE_ERROR, 413);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (totalBytes + value.byteLength > maxBytes) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Preserve the size rejection even if the remote stream cannot be cancelled cleanly.
+        }
+        throw new OneDriveBrowseError(ONE_DRIVE_ATTACHMENT_SIZE_ERROR, 413);
+      }
+      chunks.push(value);
+      totalBytes += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, totalBytes);
+}
+
 type BrowseDriveItem = {
   id: string;
   name: string;
@@ -490,14 +533,7 @@ export async function downloadSharedOneDriveItem(
       response.status,
     );
   }
-  const reportedLength = Number(response.headers.get("content-length"));
-  if (Number.isFinite(reportedLength) && reportedLength > MAX_TICKET_ATTACHMENT_SIZE_BYTES) {
-    throw new OneDriveBrowseError("The file exceeds the 20 MB ticket attachment limit.", 413);
-  }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > MAX_TICKET_ATTACHMENT_SIZE_BYTES) {
-    throw new OneDriveBrowseError("The file exceeds the 20 MB ticket attachment limit.", 413);
-  }
+  const bytes = await readOneDriveResponseBytes(response);
   validateOneDriveAttachmentMetadata(mimeType, bytes.length);
   return {
     fileName: item.name,
