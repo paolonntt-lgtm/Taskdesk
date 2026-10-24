@@ -392,6 +392,42 @@ export async function listSharedOneDriveFolderItems(
   return { folderName: folder.name, items: children.map(toBrowseItem) };
 }
 
+export async function uploadSharedOneDriveFile(
+  currentUserId: number,
+  organizationId: number,
+  ownerUserId: number,
+  path: string[],
+  fileName: string,
+  contentType: string,
+  bytes: Buffer,
+) {
+  if (ownerUserId !== currentUserId) {
+    throw new OneDriveBrowseError("You can upload only to your own OneDrive folder.", 403);
+  }
+  const safeName = fileName.trim();
+  if (
+    !safeName ||
+    safeName.length > 255 ||
+    safeName === "." ||
+    safeName === ".." ||
+    /[<>:"/\\|?*\u0000-\u001f]/.test(safeName)
+  ) {
+    throw new OneDriveBrowseError("The file name is not valid for OneDrive.", 400);
+  }
+  const context = await getSharedFolderContext(currentUserId, organizationId, ownerUserId);
+  const folder = await resolveSharedFolder(context, path);
+  const uploaded = await graph<BrowseDriveItem>(
+    context.accessToken,
+    `/drives/${encodeURIComponent(context.driveId)}/items/${encodeURIComponent(folder.id)}:/${encodeURIComponent(safeName)}:/content?@microsoft.graph.conflictBehavior=rename`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": contentType || "application/octet-stream" },
+      body: bytes,
+    },
+  );
+  return toBrowseItem(uploaded);
+}
+
 export async function previewSharedOneDriveItem(
   currentUserId: number,
   organizationId: number,

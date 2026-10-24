@@ -82,9 +82,11 @@ import type {
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  OneDriveBrowseItem,
   OneDriveBrowseResponse,
   OneDriveFolderInput,
   OneDriveFolderReference,
+  OneDriveOrganizationShare,
   OneDrivePreview,
   PersonalTimeTrackingReport,
   PreviewSharedOneDriveItemParams,
@@ -133,6 +135,7 @@ import type {
   UpdateOrganizationSettingsBody,
   UpdateTicketBody,
   UpdateUserBody,
+  UploadSharedOneDriveFileParams,
   User,
   WaitForPermissionChanges200,
   WorkedHoursUpdate,
@@ -4534,6 +4537,83 @@ export const useRemoveTicketOneDriveFolder = <TError = ErrorType<void>,
       return useMutation(getRemoveTicketOneDriveFolderMutationOptions(options));
     }
 
+export const getListOrganizationOneDriveSharesUrl = () => {
+
+
+
+
+  return `/api/onedrive/organization-shares`
+}
+
+/**
+ * @summary List the active organization's connected OneDrive folders
+ */
+export const listOrganizationOneDriveShares = async ( options?: Parameters<typeof customFetch>[1]): Promise<OneDriveOrganizationShare[]> => {
+
+  return customFetch<OneDriveOrganizationShare[]>(getListOrganizationOneDriveSharesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrganizationOneDriveSharesQueryKey = () => {
+    return [
+    `/api/onedrive/organization-shares`
+    ] as const;
+    }
+
+
+export const getListOrganizationOneDriveSharesQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationOneDriveSharesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationOneDriveShares>>> = ({ signal }) => listOrganizationOneDriveShares({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrganizationOneDriveSharesQueryResult = NonNullable<Awaited<ReturnType<typeof listOrganizationOneDriveShares>>>
+export type ListOrganizationOneDriveSharesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the active organization's connected OneDrive folders
+ */
+
+export function useListOrganizationOneDriveShares<TData = Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrganizationOneDriveSharesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListSharedOneDriveFolderItemsUrl = (ownerUserId: number,
     params?: ListSharedOneDriveFolderItemsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -4628,6 +4708,102 @@ export function useListSharedOneDriveFolderItems<TData = Awaited<ReturnType<type
 
 
 
+
+export const getUploadSharedOneDriveFileUrl = (ownerUserId: number,
+    params?: UploadSharedOneDriveFileParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["path"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/onedrive/folders/${ownerUserId}/items?${stringifiedParams}` : `/api/onedrive/folders/${ownerUserId}/items`
+}
+
+/**
+ * @summary Upload a file to the current user's OneDrive folder
+ */
+export const uploadSharedOneDriveFile = async (ownerUserId: number,
+    uploadSharedOneDriveFileBody: Blob,
+    params?: UploadSharedOneDriveFileParams, options?: Parameters<typeof customFetch>[1]): Promise<OneDriveBrowseItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<OneDriveBrowseItem>(getUploadSharedOneDriveFileUrl(ownerUserId,params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', ...getHeaders(options?.headers) },
+    body: uploadSharedOneDriveFileBody
+  }
+);}
+
+
+
+
+
+export const getUploadSharedOneDriveFileMutationKey = () => ['uploadSharedOneDriveFile'] as const;
+
+export const getUploadSharedOneDriveFileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadSharedOneDriveFile>>, TError,UploadSharedOneDriveFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadSharedOneDriveFile>>, TError,UploadSharedOneDriveFileMutationVariables, TContext> => {
+
+const mutationKey = getUploadSharedOneDriveFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadSharedOneDriveFile>>, UploadSharedOneDriveFileMutationVariables> = (props) => {
+          const {ownerUserId,data,params} = props ?? {};
+
+          return  uploadSharedOneDriveFile(ownerUserId,data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadSharedOneDriveFileMutationResult = NonNullable<Awaited<ReturnType<typeof uploadSharedOneDriveFile>>>
+    export type UploadSharedOneDriveFileMutationBody = BodyType<Blob>
+    export type UploadSharedOneDriveFileMutationError = ErrorType<void>
+    export type UploadSharedOneDriveFileMutationVariables = {ownerUserId: number;data: BodyType<Blob>;params?: UploadSharedOneDriveFileParams}
+
+    /**
+ * @summary Upload a file to the current user's OneDrive folder
+ */
+export const useUploadSharedOneDriveFile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadSharedOneDriveFile>>, TError,UploadSharedOneDriveFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadSharedOneDriveFile>>,
+        TError,
+        UploadSharedOneDriveFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadSharedOneDriveFileMutationOptions(options));
+    }
 
 export const getPreviewSharedOneDriveItemUrl = (ownerUserId: number,
     itemId: string,

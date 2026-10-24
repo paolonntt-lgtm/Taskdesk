@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { db, oneDriveConnectionsTable, usersTable } from "@workspace/db";
@@ -12,6 +12,10 @@ import {
   PreviewSharedOneDriveItemParams,
   PreviewSharedOneDriveItemQueryParams,
   PreviewSharedOneDriveItemResponse,
+  UploadSharedOneDriveFileHeader,
+  UploadSharedOneDriveFileParams,
+  UploadSharedOneDriveFileQueryParams,
+  UploadSharedOneDriveFileResponse,
 } from "@workspace/api-zod";
 import {
   createDefaultFolders,
@@ -25,6 +29,7 @@ import {
   OneDriveGraphError,
   previewSharedOneDriveItem,
   syncPendingOneDriveAttachments,
+  uploadSharedOneDriveFile,
 } from "../lib/onedriveGraph";
 import { requireAuth } from "../middlewares/auth";
 
@@ -189,7 +194,7 @@ router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> 
 });
 
 router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promise<void> => {
-  const user = (req as any).currentUser as { organizationId: number | null };
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.json([]);
     return;
@@ -201,7 +206,9 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
   }).from(oneDriveConnectionsTable)
     .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
     .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
-  res.json(shares.filter((item) => item.url?.startsWith("https://")));
+  res.json(shares
+    .filter((item) => item.url?.startsWith("https://"))
+    .map((item) => ({ ...item, canUpload: item.ownerUserId === user.id })));
 });
 
 router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res): Promise<void> => {
@@ -252,6 +259,75 @@ router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res)
     res.status(502).json({ error: "Microsoft could not load this folder. Please try again." });
   }
 });
+
+router.post(
+  "/onedrive/folders/:ownerUserId/items/upload",
+  requireAuth,
+  express.raw({ type: "*/*", limit: "25mb" }),
+  async (req, res): Promise<void> => {
+    const params = UploadSharedOneDriveFileParams.safeParse(req.params);
+    const rawPath = req.query.path;
+    const query = UploadSharedOneDriveFileQueryParams.safeParse({
+      path: typeof rawPath === "string" ? [rawPath] : rawPath,
+    });
+    const headers = UploadSharedOneDriveFileHeader.safeParse({
+      "X-File-Name": req.get("X-File-Name"),
+      "X-File-Content-Type": req.get("X-File-Content-Type"),
+    });
+    if (!params.success || !query.success || !headers.success || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+      res.status(400).json({ error: "Invalid OneDrive upload." });
+      return;
+    }
+    if (req.body.length > 25 * 1024 * 1024) {
+      res.status(413).json({ error: "The file exceeds the 25 MB upload limit." });
+      return;
+    }
+    let fileName: string;
+    try {
+      fileName = decodeURIComponent(headers.data["X-File-Name"]);
+    } catch {
+      res.status(400).json({ error: "Invalid OneDrive file name." });
+      return;
+    }
+    const user = (req as any).currentUser as { id: number; organizationId: number | null };
+    if (!user.organizationId) {
+      res.status(403).json({ error: "An organization account is required." });
+      return;
+    }
+    try {
+      const contentType = headers.data["X-File-Content-Type"];
+      const result = await uploadSharedOneDriveFile(
+        user.id,
+        user.organizationId,
+        params.data.ownerUserId,
+        query.data.path ?? [],
+        fileName,
+        contentType && /^[\w.+-]+\/[\w.+-]+$/.test(contentType) ? contentType : "application/octet-stream",
+        req.body,
+      );
+      res.status(201).json(UploadSharedOneDriveFileResponse.parse(result));
+    } catch (error) {
+      if (error instanceof OneDriveBrowseError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      if (error instanceof OneDriveGraphError) {
+        req.log.warn({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file upload failed");
+        const status = [401, 403, 404].includes(error.statusCode) ? error.statusCode : 502;
+        res.status(status).json({ error: status === 401
+          ? "Reconnect your OneDrive account to continue."
+          : status === 403
+            ? "Microsoft does not allow uploads to this folder."
+            : status === 404
+              ? "The destination folder could not be found."
+              : "Microsoft could not upload this file." });
+        return;
+      }
+      req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file upload failed");
+      res.status(502).json({ error: "Microsoft could not upload this file." });
+    }
+  },
+);
 
 router.post("/onedrive/folders/:ownerUserId/items/:itemId/preview", requireAuth, async (req, res): Promise<void> => {
   const params = PreviewSharedOneDriveItemParams.safeParse(req.params);

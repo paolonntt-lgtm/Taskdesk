@@ -28,6 +28,7 @@ import {
   FolderOutlined,
   OpenInNew,
   PreviewOutlined,
+  UploadFileOutlined,
 } from "@mui/icons-material";
 import {
   listSharedOneDriveFolderItems,
@@ -42,6 +43,7 @@ type OrganizationShare = {
   ownerUserId: number;
   operatorName: string;
   url: string;
+  canUpload: boolean;
 };
 
 type Breadcrumb = { id: string; name: string };
@@ -76,6 +78,8 @@ export default function OneDrivePage() {
   const [error, setError] = useState("");
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
   const [browsers, setBrowsers] = useState<Record<number, BrowseState>>({});
+  const [uploadingOwnerId, setUploadingOwnerId] = useState<number | null>(null);
+  const [uploadNotices, setUploadNotices] = useState<Record<number, { severity: "success" | "error"; text: string }>>({});
   const [preview, setPreview] = useState<{ item: OneDriveBrowseItem; result?: OneDrivePreview; error?: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -171,6 +175,52 @@ export default function OneDrivePage() {
     }
   };
 
+  const uploadFile = async (ownerUserId: number, path: Breadcrumb[], file: File) => {
+    if (file.size > 25 * 1024 * 1024) {
+      setUploadNotices((current) => ({
+        ...current,
+        [ownerUserId]: { severity: "error", text: copy.uploadTooLarge },
+      }));
+      return;
+    }
+    setUploadingOwnerId(ownerUserId);
+    setUploadNotices((current) => {
+      const next = { ...current };
+      delete next[ownerUserId];
+      return next;
+    });
+    try {
+      const query = new URLSearchParams();
+      path.forEach(({ id }) => query.append("path", id));
+      const queryString = query.toString();
+      const suffix = queryString ? `?${queryString}` : "";
+      const response = await fetch(`/api/onedrive/folders/${ownerUserId}/items/upload${suffix}`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "X-File-Name": encodeURIComponent(file.name),
+          "X-File-Content-Type": file.type,
+        },
+        body: file,
+      });
+      if (!response.ok) throw new Error("upload failed");
+      setUploadNotices((current) => ({
+        ...current,
+        [ownerUserId]: { severity: "success", text: copy.uploadSuccess },
+      }));
+      await loadFolder(ownerUserId, path);
+    } catch {
+      setUploadNotices((current) => ({
+        ...current,
+        [ownerUserId]: { severity: "error", text: copy.uploadError },
+      }));
+    } finally {
+      setUploadingOwnerId(null);
+    }
+  };
+
   return (
     <Box maxWidth={1000} mx="auto">
       <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
@@ -255,18 +305,59 @@ export default function OneDrivePage() {
                     </Box>
                   </Stack>
                   {connected && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => void loadFolder(share.ownerUserId, [])}
-                      disabled={browse?.loading}
-                      startIcon={browse?.loading ? <CircularProgress size={14} color="inherit" /> : <FolderOutlined />}
-                      sx={{ alignSelf: { xs: "flex-start", sm: "center" }, whiteSpace: "nowrap" }}
-                    >
-                      {browse ? copy.refresh : copy.browse}
-                    </Button>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {share.canUpload && (
+                        <>
+                          <input
+                            id={`onedrive-upload-${share.ownerUserId}`}
+                            type="file"
+                            hidden
+                            onChange={(event) => {
+                              const file = event.currentTarget.files?.[0];
+                              event.currentTarget.value = "";
+                              if (file) void uploadFile(share.ownerUserId, browse?.path ?? [], file);
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            component="label"
+                            htmlFor={`onedrive-upload-${share.ownerUserId}`}
+                            variant="contained"
+                            disabled={uploadingOwnerId === share.ownerUserId || browse?.loading}
+                            startIcon={uploadingOwnerId === share.ownerUserId
+                              ? <CircularProgress size={14} color="inherit" />
+                              : <UploadFileOutlined />}
+                            sx={{ whiteSpace: "nowrap" }}
+                          >
+                            {uploadingOwnerId === share.ownerUserId ? copy.uploading : copy.uploadFile}
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => void loadFolder(share.ownerUserId, [])}
+                        disabled={browse?.loading}
+                        startIcon={browse?.loading ? <CircularProgress size={14} color="inherit" /> : <FolderOutlined />}
+                        sx={{ whiteSpace: "nowrap" }}
+                      >
+                        {browse ? copy.refresh : copy.browse}
+                      </Button>
+                    </Stack>
                   )}
                 </Stack>
+
+                {connected && share.canUpload && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+                    {copy.uploadHint}
+                  </Typography>
+                )}
+
+                {uploadNotices[share.ownerUserId] && (
+                  <Alert severity={uploadNotices[share.ownerUserId].severity} sx={{ mt: 1.5 }}>
+                    {uploadNotices[share.ownerUserId].text}
+                  </Alert>
+                )}
 
                 {browse && (
                   <Box mt={2}>

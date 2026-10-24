@@ -27,6 +27,12 @@ Support both organizational and personal Microsoft accounts, but do not grant fo
 
 **How to apply:** Use a Microsoft authority and app registration that accept personal accounts; grant each connected collaborator sign-in-protected access to other connected Taskdesk roots.
 
+OneDrive collaborator folders remain read-only; manual uploads are allowed only into the authenticated user's own Taskdesk folder.
+
+**Why:** The user chose individual, sign-in-protected read-only invitations. Adding upload in TaskDesk must not silently expand collaborators' Microsoft permissions.
+
+**How to apply:** Enforce the owner-only upload boundary in both the interface and API, even if the caller submits another user's folder ID.
+
 TaskDesk's Microsoft OAuth registration is a public client: use authorization code with PKCE and omit `client_secret` from both code exchange and refresh requests.
 
 **Why:** Microsoft rejected the callback with AADSTS90023 because the server sent a secret to an app registered as a public client.

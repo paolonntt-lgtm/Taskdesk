@@ -1613,6 +1613,23 @@ paths:
         "404":
           description: Ticket or reference not found
 
+  /onedrive/organization-shares:
+    get:
+      operationId: listOrganizationOneDriveShares
+      tags: [drive]
+      summary: List the active organization's connected OneDrive folders
+      responses:
+        "200":
+          description: OneDrive folders available to the current organization
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OneDriveOrganizationShare"
+        "401":
+          description: Authentication required
+
   /onedrive/folders/{ownerUserId}/items:
     get:
       operationId: listSharedOneDriveFolderItems
@@ -1652,6 +1669,65 @@ paths:
           description: Folder not found
         "502":
           description: Microsoft Graph could not list the folder
+    post:
+      operationId: uploadSharedOneDriveFile
+      tags: [drive]
+      summary: Upload a file to the current user's OneDrive folder
+      parameters:
+        - name: ownerUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: path
+          in: query
+          required: false
+          description: Ordered folder item IDs from the shared root to the destination folder
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 512
+            maxItems: 16
+        - name: X-File-Name
+          in: header
+          required: true
+          description: URL-encoded original file name
+          schema:
+            type: string
+            maxLength: 3072
+        - name: X-File-Content-Type
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              $ref: "#/components/schemas/OneDriveFileUpload"
+      responses:
+        "201":
+          description: File uploaded to OneDrive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneDriveBrowseItem"
+        "400":
+          description: Invalid file name, folder path, or upload size
+        "401":
+          description: Authentication required or OneDrive is not connected
+        "403":
+          description: Only the current user's own folder is writable
+        "413":
+          description: Upload exceeds the allowed size
+        "502":
+          description: Microsoft Graph could not upload the file
 
   /onedrive/folders/{ownerUserId}/items/{itemId}/preview:
     post:
@@ -3492,6 +3568,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OneDriveBrowseItem"
+
+    OneDriveFileUpload:
+      type: string
+      description: Raw file bytes sent as application/octet-stream
+
+    OneDriveOrganizationShare:
+      type: object
+      required: [ownerUserId, operatorName, url, canUpload]
+      properties:
+        ownerUserId:
+          type: integer
+        operatorName:
+          type: string
+        url:
+          type: string
+          format: uri
+        canUpload:
+          type: boolean
     OneDrivePreview:
       type: object
       required: [getUrl]

@@ -67,6 +67,18 @@ export interface OneDriveBrowseResponse {
   items: OneDriveBrowseItem[];
 }
 
+/**
+ * Raw file bytes sent as application/octet-stream
+ */
+export type OneDriveFileUpload = string;
+
+export interface OneDriveOrganizationShare {
+  ownerUserId: number;
+  operatorName: string;
+  url: string;
+  canUpload: boolean;
+}
+
 export interface OneDrivePreview {
   getUrl: string;
   /** @nullable */
@@ -1519,6 +1531,16 @@ folderId: string;
 export type ListSharedOneDriveFolderItemsParams = {
 /**
  * Ordered folder item IDs from the shared root to the current folder
+ * @maxItems 16
+ * @items.minLength 1
+ * @items.maxLength 512
+ */
+path?: string[];
+};
+
+export type UploadSharedOneDriveFileParams = {
+/**
+ * Ordered folder item IDs from the shared root to the destination folder
  * @maxItems 16
  * @items.minLength 1
  * @items.maxLength 512

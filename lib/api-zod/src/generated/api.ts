@@ -2253,6 +2253,18 @@ export const RemoveTicketOneDriveFolderResponse = zod.object({
 
 
 /**
+ * @summary List the active organization's connected OneDrive folders
+ */
+export const ListOrganizationOneDriveSharesResponseItem = zod.object({
+  "ownerUserId": zod.int(),
+  "operatorName": zod.string(),
+  "url": zod.url(),
+  "canUpload": zod.boolean()
+})
+export const ListOrganizationOneDriveSharesResponse = zod.array(ListOrganizationOneDriveSharesResponseItem)
+
+
+/**
  * @summary List items inside an organization-shared Taskdesk folder
  */
 export const ListSharedOneDriveFolderItemsParams = zod.object({
@@ -2280,6 +2292,45 @@ export const ListSharedOneDriveFolderItemsResponse = zod.object({
   "mimeType": zod.string().nullable(),
   "webUrl": zod.string().nullable()
 }))
+})
+
+
+/**
+ * @summary Upload a file to the current user's OneDrive folder
+ */
+export const UploadSharedOneDriveFileParams = zod.object({
+  "ownerUserId": zod.coerce.number().int()
+})
+
+export const uploadSharedOneDriveFileQueryPathItemMax = 512;
+
+export const uploadSharedOneDriveFileQueryPathMax = 16;
+
+
+
+export const UploadSharedOneDriveFileQueryParams = zod.object({
+  "path": zod.array(zod.coerce.string().min(1).max(uploadSharedOneDriveFileQueryPathItemMax)).max(uploadSharedOneDriveFileQueryPathMax).optional().describe('Ordered folder item IDs from the shared root to the destination folder')
+})
+
+export const uploadSharedOneDriveFileHeaderXFileNameMax = 3072;
+
+export const uploadSharedOneDriveFileHeaderXFileContentTypeMax = 255;
+
+
+
+export const UploadSharedOneDriveFileHeader = zod.object({
+  "X-File-Name": zod.string().max(uploadSharedOneDriveFileHeaderXFileNameMax).describe('URL-encoded original file name'),
+  "X-File-Content-Type": zod.string().max(uploadSharedOneDriveFileHeaderXFileContentTypeMax).optional()
+})
+
+export const UploadSharedOneDriveFileResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['folder', 'file']),
+  "size": zod.int().nullable(),
+  "lastModifiedDateTime": zod.coerce.date().nullable(),
+  "mimeType": zod.string().nullable(),
+  "webUrl": zod.string().nullable()
 })
 
 

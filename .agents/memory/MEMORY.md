@@ -50,7 +50,7 @@
 - [Scadenza prova per organizzazione](organization-trial-expiration.md) — After trial expiry, block all organization members while leaving billing and subscription activation to admins.
 - [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
-- [Cloud-drive account scope](google-drive-account-scope.md) — Google Drive and OneDrive access must use each signed-in user's own account, never a shared organization account.
+- [Cloud-drive account scope](google-drive-account-scope.md) — Use each signed-in user's account; keep collaborator OneDrive folders read-only and uploads on the owner's folder.
 - [Mobile production-domain 403](mobile-production-domain-403.md) — Compare the custom domain with the direct Replit URL on-device before changing API origin protections.
 - [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.
 - [Inbound email client titles](inbound-email-client-titles.md) — Prefix associated email-ticket titles, preserve the subject, and hide the client field after matching.
