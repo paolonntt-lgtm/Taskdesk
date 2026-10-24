@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
   push: vi.fn(),
+  navigate: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -50,8 +51,34 @@ vi.mock("react-native", async () => {
 
 vi.mock("expo-router", async () => {
   const ReactModule = await import("react");
-  const Tabs = ({ children }: { children: React.ReactNode }) =>
-    ReactModule.createElement("div", { "data-testid": "registered-tabs" }, children);
+  const Tabs = ({
+    children,
+    screenOptions,
+  }: {
+    children: React.ReactNode;
+    screenOptions?: (args: {
+      navigation: { navigate: typeof mocks.navigate };
+      route: { name: string };
+    }) => { headerRight?: () => React.ReactNode };
+  }) =>
+    ReactModule.createElement(
+      "div",
+      { "data-testid": "registered-tabs" },
+      ...["index", "tickets", "calendar", "clients-tab", "hours-report-tab", "profile"].map(
+        (name) => {
+          const options = screenOptions?.({
+            navigation: { navigate: mocks.navigate },
+            route: { name },
+          });
+          return ReactModule.createElement(
+            "div",
+            { key: name, "data-header-route": name },
+            options?.headerRight?.(),
+          );
+        },
+      ),
+      children,
+    );
   Tabs.Screen = ({
     name,
     options,
@@ -144,6 +171,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     mocks.push.mockReset();
+    mocks.navigate.mockReset();
   });
 
   afterEach(async () => {
@@ -193,5 +221,23 @@ describe("mobile ticket creation navigation", () => {
           .toBe("hidden");
       }
     }
+  });
+
+  it("opens Profile from multiple section headers and hides the redundant button on Profile", async () => {
+    await render(TabLayout);
+    expect(registeredRoutes().some((route) => route.dataset.route === "profile")).toBe(true);
+
+    for (const section of ["index", "tickets", "calendar"]) {
+      const profileButton = host.querySelector<HTMLButtonElement>(
+        `[data-header-route="${section}"] [data-testid="profile-header-button"]`,
+      );
+      expect(profileButton).not.toBeNull();
+      await act(async () => profileButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile");
+    }
+
+    expect(
+      host.querySelector('[data-header-route="profile"] [data-testid="profile-header-button"]'),
+    ).toBeNull();
   });
 });
