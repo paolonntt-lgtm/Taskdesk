@@ -9,8 +9,9 @@ import {
   DialogTitle,
   Typography,
 } from '@mui/material';
-import { ArrowForwardRounded, NotificationsActiveRounded } from '@mui/icons-material';
+import { ArrowForwardRounded } from '@mui/icons-material';
 import { useLocation } from 'wouter';
+import OneDriveLogo from './OneDriveLogo';
 import {
   getListActiveAnnouncementsQueryKey,
   useListActiveAnnouncements,
@@ -168,7 +169,7 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
               color: '#fff',
             }}
           >
-            <NotificationsActiveRounded sx={{ fontSize: 30 }} />
+            <OneDriveLogo width={36} height={36} />
           </Box>
           <Chip
             label={isItalian ? 'AVVISO' : 'ANNOUNCEMENT'}
