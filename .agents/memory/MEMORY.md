@@ -54,6 +54,7 @@
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
 - [Cloud-drive account scope](google-drive-account-scope.md) — Use each signed-in user's account; keep collaborator OneDrive folders read-only and uploads on the owner's folder.
 - [Mobile production-domain 403](mobile-production-domain-403.md) — Compare the custom domain with the direct Replit URL on-device before changing API origin protections.
+- [Expo web login origin](expo-web-login-origin.md) — Allow only the exact Expo preview host for mobile web login; do not widen session-origin checks to all Replit subdomains.
 - [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.
 - [Inbound email client titles](inbound-email-client-titles.md) — Prefix associated email-ticket titles, preserve the subject, and hide the client field after matching.
 - [Inbound email notifications](inbound-email-notification-routing.md) — When an email ticket has an assigned operator, send its notification only to that operator.

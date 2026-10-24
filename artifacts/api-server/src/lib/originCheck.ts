@@ -15,6 +15,10 @@ function allowedOrigins(): Set<string> {
     origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
   }
 
+  if (process.env.REPLIT_EXPO_DEV_DOMAIN) {
+    origins.add(`https://${process.env.REPLIT_EXPO_DEV_DOMAIN}`);
+  }
+
   origins.add("http://localhost:80");
   origins.add("http://localhost:3000");
   origins.add("http://localhost:5173");
