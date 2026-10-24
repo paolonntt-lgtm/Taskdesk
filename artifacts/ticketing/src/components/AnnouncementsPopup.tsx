@@ -10,6 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { ArrowForwardRounded, NotificationsActiveRounded } from '@mui/icons-material';
+import { useLocation } from 'wouter';
 import {
   getListActiveAnnouncementsQueryKey,
   useListActiveAnnouncements,
@@ -23,8 +24,28 @@ interface AnnouncementsPopupProps {
   lang: Lang;
 }
 
+const ONEDRIVE_COMMENT_ANNOUNCEMENT_ID = -20261024;
+const ONEDRIVE_COMMENT_ANNOUNCEMENT_VERSION = 'onedrive-comment-attachments-v1';
+
 function dismissalVersion(announcement: Announcement): string {
   return `${announcement.id}:${String(announcement.updatedAt)}`;
+}
+
+function oneDriveCommentAnnouncement(isItalian: boolean): Announcement {
+  return {
+    id: ONEDRIVE_COMMENT_ANNOUNCEMENT_ID,
+    title: isItalian ? 'Novità: allegati OneDrive nei commenti' : 'New: OneDrive attachments in comments',
+    body: isItalian
+      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare le cartelle e scegliere i file da allegare a un nuovo commento o a una risposta. TaskDesk salva una copia tra gli allegati del ticket: l’originale su OneDrive non viene modificato e le modifiche successive non si sincronizzano automaticamente.'
+      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Then browse folders and choose files to attach to a new comment or reply. TaskDesk saves a copy with the ticket attachments: the original in OneDrive is not changed, and later changes are not synced automatically.',
+    targetType: 'all',
+    targetLocation: null,
+    targetGroupId: null,
+    startsAt: '',
+    endsAt: '',
+    createdAt: '',
+    updatedAt: ONEDRIVE_COMMENT_ANNOUNCEMENT_VERSION,
+  };
 }
 
 function readDismissedVersions(storageKey: string): Set<string> {
@@ -38,6 +59,7 @@ function readDismissedVersions(storageKey: string): Set<string> {
 
 export default function AnnouncementsPopup({ userId, enabled, lang }: AnnouncementsPopupProps) {
   const isItalian = lang === 'it';
+  const [, setLocation] = useLocation();
   const [dismissedVersions, setDismissedVersions] = useState<Set<string>>(() => new Set());
   const [dismissalsLoadedFor, setDismissalsLoadedFor] = useState<string | undefined>();
   const storageKey = useMemo(
@@ -60,9 +82,13 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
     setDismissalsLoadedFor(userId);
   }, [storageKey]);
 
+  const availableAnnouncements = enabled && userId
+    ? [oneDriveCommentAnnouncement(isItalian), ...(announcementsQuery.data ?? [])]
+    : announcementsQuery.data ?? [];
   const announcement = enabled && userId === dismissalsLoadedFor
-    ? (announcementsQuery.data ?? []).find((item) => !dismissedVersions.has(dismissalVersion(item)))
+    ? availableAnnouncements.find((item) => !dismissedVersions.has(dismissalVersion(item)))
     : undefined;
+  const isOneDriveAnnouncement = announcement?.id === ONEDRIVE_COMMENT_ANNOUNCEMENT_ID;
 
   const dismiss = () => {
     if (!announcement) return;
@@ -204,6 +230,20 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
           '& .MuiButton-root': { minHeight: 44 },
         }}
       >
+        {isOneDriveAnnouncement && (
+          <Button
+            variant="outlined"
+            data-testid="button-open-onedrive-settings-announcement"
+            endIcon={<ArrowForwardRounded sx={{ fontSize: 17 }} />}
+            onClick={() => {
+              dismiss();
+              setLocation('/onedrive');
+            }}
+            sx={{ alignSelf: 'flex-end', minHeight: 44, borderRadius: 2.5 }}
+          >
+            {isItalian ? 'Apri OneDrive' : 'Open OneDrive'}
+          </Button>
+        )}
         {endLabel && (
           <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
             {isItalian ? 'Valido fino al' : 'Valid until'} {endLabel}
