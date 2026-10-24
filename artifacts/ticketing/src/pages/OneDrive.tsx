@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -79,6 +79,37 @@ export default function OneDrivePage() {
   const [preview, setPreview] = useState<{ item: OneDriveBrowseItem; result?: OneDrivePreview; error?: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const loadFolder = useCallback(async (ownerUserId: number, path: Breadcrumb[]) => {
+    setBrowsers((current) => ({
+      ...current,
+      [ownerUserId]: {
+        path,
+        folderName: current[ownerUserId]?.folderName ?? "",
+        items: current[ownerUserId]?.items ?? [],
+        loading: true,
+        error: "",
+      },
+    }));
+    try {
+      const result = await listSharedOneDriveFolderItems(ownerUserId, { path: path.map(({ id }) => id) });
+      setBrowsers((current) => ({
+        ...current,
+        [ownerUserId]: { path, folderName: result.folderName, items: result.items, loading: false, error: "" },
+      }));
+    } catch {
+      setBrowsers((current) => ({
+        ...current,
+        [ownerUserId]: {
+          path,
+          folderName: current[ownerUserId]?.folderName ?? "",
+          items: [],
+          loading: false,
+          error: copy.loadFolderError,
+        },
+      }));
+    }
+  }, [copy.loadFolderError]);
+
   useEffect(() => {
     let active = true;
     const currentUrl = new URL(window.location.href);
@@ -111,40 +142,16 @@ export default function OneDrivePage() {
     return () => { active = false; };
   }, [it]);
 
+  useEffect(() => {
+    if (!connected) return;
+    for (const share of shares) {
+      if (!browsers[share.ownerUserId]) void loadFolder(share.ownerUserId, []);
+    }
+  }, [browsers, connected, loadFolder, shares]);
+
   const connect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`);
-  };
-
-  const loadFolder = async (ownerUserId: number, path: Breadcrumb[]) => {
-    setBrowsers((current) => ({
-      ...current,
-      [ownerUserId]: {
-        path,
-        folderName: current[ownerUserId]?.folderName ?? "",
-        items: current[ownerUserId]?.items ?? [],
-        loading: true,
-        error: "",
-      },
-    }));
-    try {
-      const result = await listSharedOneDriveFolderItems(ownerUserId, { path: path.map(({ id }) => id) });
-      setBrowsers((current) => ({
-        ...current,
-        [ownerUserId]: { path, folderName: result.folderName, items: result.items, loading: false, error: "" },
-      }));
-    } catch (failure) {
-      setBrowsers((current) => ({
-        ...current,
-        [ownerUserId]: {
-          path,
-          folderName: current[ownerUserId]?.folderName ?? "",
-          items: [],
-          loading: false,
-          error: copy.loadFolderError,
-        },
-      }));
-    }
   };
 
   const showPreview = async (ownerUserId: number, item: OneDriveBrowseItem, path: Breadcrumb[]) => {
@@ -224,38 +231,41 @@ export default function OneDrivePage() {
           const browse = browsers[share.ownerUserId];
           return (
             <Card key={share.ownerUserId} variant="outlined">
-              <CardContent>
-                <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+              <CardContent sx={{ position: "relative", pt: 2.5 }}>
+                <IconButton
+                  component="a"
+                  href={share.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={copy.openOneDrive}
+                  title={copy.openOneDrive}
+                  size="small"
+                  sx={{ position: "absolute", top: 8, right: 8 }}
+                >
+                  <OpenInNew fontSize="small" />
+                </IconButton>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" sx={{ pr: { xs: 4, sm: 5 } }}>
                   <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
                     <OneDriveLogo width={30} height={30} />
                     <Box minWidth={0}>
-                      <Typography fontWeight={650}>Taskdesk · {share.operatorName}</Typography>
+                      <Typography fontWeight={650} sx={{ overflowWrap: "anywhere" }}>Taskdesk · {share.operatorName}</Typography>
                       <Typography variant="body2" color="text.secondary">
                         {copy.sharedFolder}
                       </Typography>
                     </Box>
                   </Stack>
-                  <Stack direction="row" spacing={1} flexShrink={0}>
-                    {connected && (
-                      <Button
-                        variant="contained"
-                        onClick={() => void loadFolder(share.ownerUserId, [])}
-                        disabled={browse?.loading}
-                        startIcon={browse?.loading ? <CircularProgress size={16} color="inherit" /> : <FolderOutlined />}
-                      >
-                        {browse ? copy.refresh : copy.browse}
-                      </Button>
-                    )}
+                  {connected && (
                     <Button
-                      component="a"
-                      href={share.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      endIcon={<OpenInNew />}
+                      size="small"
+                      variant="outlined"
+                      onClick={() => void loadFolder(share.ownerUserId, [])}
+                      disabled={browse?.loading}
+                      startIcon={browse?.loading ? <CircularProgress size={14} color="inherit" /> : <FolderOutlined />}
+                      sx={{ alignSelf: { xs: "flex-start", sm: "center" }, whiteSpace: "nowrap" }}
                     >
-                      OneDrive
+                      {browse ? copy.refresh : copy.browse}
                     </Button>
-                  </Stack>
+                  )}
                 </Stack>
 
                 {browse && (

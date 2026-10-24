@@ -295,26 +295,36 @@ async function getSharedFolderContext(
   }
 
   const accessToken = await refreshConnection(currentConnection);
-  const shared = await graph<BrowseDriveItem & {
-    remoteItem?: {
-      id?: string;
-      name?: string;
-      folder?: object;
-      parentReference?: { driveId?: string };
-    };
-  }>(
-    accessToken,
-    `/shares/${encodeURIComponent(encodeSharingUrl(owner.connection.organizationShareUrl))}/driveItem?$select=id,name,folder,parentReference,remoteItem`,
-  );
-  const rootItem = shared.remoteItem
-    ? {
-        ...shared,
-        id: shared.remoteItem.id ?? shared.id,
-        name: shared.remoteItem.name ?? shared.name,
-        folder: shared.remoteItem.folder ?? shared.folder,
-        parentReference: shared.remoteItem.parentReference ?? shared.parentReference,
-      }
-    : shared;
+  let rootItem: BrowseDriveItem;
+  if (currentUserId === ownerUserId) {
+    // The current user's own folder is already identified by its drive item ID.
+    // Resolving its webUrl through /shares can fail for personal OneDrive items.
+    rootItem = await graph<BrowseDriveItem>(
+      accessToken,
+      `/me/drive/items/${encodeURIComponent(currentConnection.rootFolderId)}?$select=id,name,folder,parentReference`,
+    );
+  } else {
+    const shared = await graph<BrowseDriveItem & {
+      remoteItem?: {
+        id?: string;
+        name?: string;
+        folder?: object;
+        parentReference?: { driveId?: string };
+      };
+    }>(
+      accessToken,
+      `/shares/${encodeURIComponent(encodeSharingUrl(owner.connection.organizationShareUrl))}/driveItem?$select=id,name,folder,parentReference,remoteItem`,
+    );
+    rootItem = shared.remoteItem
+      ? {
+          ...shared,
+          id: shared.remoteItem.id ?? shared.id,
+          name: shared.remoteItem.name ?? shared.name,
+          folder: shared.remoteItem.folder ?? shared.folder,
+          parentReference: shared.remoteItem.parentReference ?? shared.parentReference,
+        }
+      : shared;
+  }
   const driveId = rootItem.parentReference?.driveId;
   if (!rootItem.id || !rootItem.folder || !driveId) {
     throw new OneDriveBrowseError("Microsoft did not return a browsable shared folder.", 502);
