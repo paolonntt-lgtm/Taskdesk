@@ -13,12 +13,7 @@ import * as Haptics from "expo-haptics";
 import { apiPost } from "@/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/utils/api";
-
-type MobileOrganizationSettings = {
-  clientsEnabled?: boolean;
-  workedTimeEnabled?: boolean;
-  timeTrackingModuleEnabled?: boolean;
-};
+import { getOptionalProfileMenuItems, type MobileOrganizationSettings } from "@/utils/profileMenu";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -160,8 +155,12 @@ export default function ProfileScreen() {
         <Text style={s.cardTitle}>{lang === "it" ? "Altri strumenti" : "More tools"}</Text>
         {[
           { label: t.tabs.reports, icon: "bar-chart-2" as const, path: "/reports" },
-          ...(!organizationSettings.isLoading && organizationSettings.data?.clientsEnabled === true ? [{ label: lang === "it" ? "Clienti" : "Clients", icon: "briefcase" as const, path: "/(tabs)/clients-tab" }] : []),
-          ...(isOrganizationAdmin && !organizationSettings.isLoading && organizationSettings.data?.timeTrackingModuleEnabled === true ? [{ label: lang === "it" ? "Rendiconto ore" : "Hours report", icon: "clock" as const, path: "/(tabs)/hours-report-tab" }] : []),
+          ...getOptionalProfileMenuItems({
+            settings: organizationSettings.data,
+            settingsLoaded: organizationSettings.isSuccess,
+            isOrganizationAdmin,
+            lang,
+          }),
           { label: lang === "it" ? "Notifiche" : "Notifications", icon: "bell" as const, path: "/notifications" },
           ...(isOrganizationAdmin ? [
             { label: lang === "it" ? "Cestino ticket" : "Ticket trash", icon: "trash-2" as const, path: "/ticket-trash" },
