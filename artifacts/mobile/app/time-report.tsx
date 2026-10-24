@@ -67,20 +67,22 @@ export default function TimeReportScreen() {
     queryFn: () => apiGet<{ timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
+  const taskTrackEnabled = settingsQuery.data?.timeTrackingModuleEnabled === true;
+  const canLoadTimeReport = user?.role === "admin" && taskTrackEnabled;
   const reportQuery = useQuery({
     queryKey: ["mobile-time-report", queryString],
     queryFn: () => apiGet<TimeReport>(`/time-tracking/report${queryString ? `?${queryString}` : ""}`),
-    enabled: user?.role === "admin" && settingsQuery.data?.timeTrackingModuleEnabled === true,
+    enabled: canLoadTimeReport,
   });
   const clientQuery = useQuery({
     queryKey: ["mobile-time-report-clients"],
     queryFn: () => apiGet<FilterOption[]>("/clients"),
-    enabled: user?.role === "admin" && settingsQuery.data?.timeTrackingModuleEnabled === true,
+    enabled: canLoadTimeReport,
   });
   const userQuery = useQuery({
     queryKey: ["mobile-time-report-users"],
     queryFn: () => apiGet<FilterOption[]>("/users"),
-    enabled: user?.role === "admin" && settingsQuery.data?.timeTrackingModuleEnabled === true,
+    enabled: canLoadTimeReport,
   });
 
   const palette = {
@@ -125,7 +127,7 @@ export default function TimeReportScreen() {
         <Text style={styles.backText}>{english ? "Back" : "Indietro"}</Text>
       </TouchableOpacity>
       <Text style={styles.heading}>{labels.title}</Text>
-      {settingsQuery.data?.timeTrackingModuleEnabled !== true ? (
+      {!taskTrackEnabled ? (
         <View style={styles.card}><Text style={styles.mutedText}>{labels.disabled}</Text></View>
       ) : (
         <>
