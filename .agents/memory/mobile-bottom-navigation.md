@@ -3,8 +3,8 @@ name: Mobile bottom navigation
 description: The preferred mobile bottom-bar behavior when optional organization modules are enabled.
 ---
 
-Use a compact two-row bottom bar for mobile navigation: three sections on the first row, then Clients, Hours report, and Profile on the second row, with the New (+) action centered and spanning both rows. The + is one of the seven actions, not an eighth control. Keep the core tabs; show Clients only when the organization has the Clients module, and show the Hours report only to organization admins when TaskTrack is enabled. Keep the daily Report separate from the hours report.
+Keep Profile accessible from a top-right header button, not in the bottom bar. Do not show New (+) as a bottom-bar item; the dashboard retains its own create-ticket action. The bottom bar uses three core sections on the first row and any enabled optional sections (Clients and Hours report) on the second row, centered when fewer than two are available. Keep Clients visible only when its organization module is enabled, and show Hours report only to organization admins when TaskTrack is enabled. Keep daily Report separate from Hours report.
 
-**Why:** The user chose a compact 3+4 layout with a visually highlighted center +, rather than requiring horizontal swipes or placing all seven tabs in a single row.
+**Why:** The user later clarified that Profile belongs at the upper right and the ticket-add button should be removed from the horizontal menu, while preserving access to ticket creation elsewhere.
 
-**How to apply:** Preserve module and role gating, keep labels legible in Italian and English, and count the center + as part of the seven-entry layout.
+**How to apply:** Preserve module and role gating, keep labels legible in Italian and English, and keep a compact two-row layout with optional items centered in the lower row.

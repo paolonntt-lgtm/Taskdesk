@@ -17,7 +17,7 @@ type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
 >[0] & { hiddenRoutes: string[] };
 
-type TabPosition = { left: `${number}%`; top: number; spansRows?: boolean };
+type TabPosition = { left: `${number}%`; top: number };
 
 function TabContent() {
   const colors = useColors();
@@ -49,7 +49,7 @@ function TabContent() {
   return (
     <Tabs
       tabBar={(props) => <ScrollableTabBar {...props} hiddenRoutes={hiddenRoutes} />}
-      screenOptions={{
+      screenOptions={({ navigation, route }) => ({
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: true,
@@ -57,7 +57,22 @@ function TabContent() {
         headerTintColor: colors.foreground,
         headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
         headerShadowVisible: false,
-      }}
+        headerRight:
+          route.name === "profile"
+            ? undefined
+            : () => (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t.tabs.profile}
+                  testID="profile-header-button"
+                  hitSlop={10}
+                  onPress={() => navigation.navigate("profile")}
+                  style={styles.profileHeaderButton}
+                >
+                  <Feather name="user" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              ),
+      })}
     >
       <Tabs.Screen
         name="index"
@@ -163,15 +178,24 @@ function ScrollableTabBar({
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const bottomPadding = isWeb ? 34 : Math.max(insets.bottom, 4);
-  const gridHeight = 104;
+  const visibleBottomTabs = ["clients-tab", "hours-report-tab"].filter(
+    (name) =>
+      !hiddenRoutes.includes(name) &&
+      state.routes.some((route) => route.name === name),
+  );
+  const gridHeight = visibleBottomTabs.length > 0 ? 104 : 52;
   const tabPositions: Record<string, TabPosition> = {
     index: { left: "3%", top: 0 },
     tickets: { left: "22%", top: 0 },
     calendar: { left: "79%", top: 0 },
-    "clients-tab": { left: "3%", top: 52 },
-    "hours-report-tab": { left: "60%", top: 52 },
-    profile: { left: "79%", top: 52 },
-    new: { left: "40%", top: 0, spansRows: true },
+    "clients-tab": {
+      left: visibleBottomTabs.length === 1 ? "41%" : "22%",
+      top: 52,
+    },
+    "hours-report-tab": {
+      left: visibleBottomTabs.length === 1 ? "41%" : "60%",
+      top: 52,
+    },
   };
 
   return (
@@ -234,26 +258,18 @@ function ScrollableTabBar({
                 {
                   left: position.left,
                   top: position.top,
-                  width: position.spansRows ? "20%" : "18%",
-                  height: position.spansRows ? gridHeight : 52,
+                  width: "18%",
+                  height: 52,
                 },
-                position.spansRows && styles.newTabItem,
               ]}
             >
-              {position.spansRows ? (
-                <View style={[styles.newTabCircle, { backgroundColor: colors.primary }]}>
-                  <Feather name="plus" size={25} color={colors.primaryForeground} />
-                </View>
-              ) : (
-                icon
-              )}
+              {icon}
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 style={[
                   styles.tabBarLabel,
                   { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" },
-                  position.spansRows && styles.newTabLabel,
                 ]}
               >
                 {label}
@@ -267,6 +283,13 @@ function ScrollableTabBar({
 }
 
 const styles = StyleSheet.create({
+  profileHeaderButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
   tabBar: {
     borderTopWidth: 1,
     elevation: 0,
@@ -283,26 +306,11 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 2,
   },
-  newTabItem: {
-    zIndex: 1,
-    gap: 4,
-  },
-  newTabCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   tabBarLabel: {
     maxWidth: "100%",
     fontSize: 9,
     lineHeight: 11,
     textAlign: "center",
-  },
-  newTabLabel: {
-    fontSize: 10,
-    lineHeight: 12,
   },
 });
 
