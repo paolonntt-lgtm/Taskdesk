@@ -99,7 +99,9 @@ function decryptRefreshToken(value: string, userId: number, organizationId: numb
 }
 
 async function graph<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${GRAPH}${path}`, {
+  const url = path.startsWith("https://") ? path : `${GRAPH}${path}`;
+  if (new URL(url).origin !== new URL(GRAPH).origin) throw new Error("Unexpected Microsoft Graph URL.");
+  const response = await fetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -109,9 +111,19 @@ async function graph<T>(accessToken: string, path: string, init?: RequestInit): 
   });
   const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
   if (!response.ok || response.status === 207) {
-    throw new Error(payload.error?.message || `Microsoft Graph request failed (${response.status}).`);
+    throw new OneDriveGraphError(
+      payload.error?.message || `Microsoft Graph request failed (${response.status}).`,
+      response.status,
+    );
   }
   return payload as T;
+}
+
+export class OneDriveGraphError extends Error {
+  constructor(message: string, readonly statusCode: number) {
+    super(message);
+    this.name = "OneDriveGraphError";
+  }
 }
 
 export async function exchangeMicrosoftCode(code: string, redirectUri: string, codeVerifier: string) {
@@ -221,6 +233,172 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
       .where(eq(oneDriveConnectionsTable.id, connection.id));
   }
   return result.access_token;
+}
+
+export class OneDriveBrowseError extends Error {
+  constructor(message: string, readonly statusCode: number) {
+    super(message);
+    this.name = "OneDriveBrowseError";
+  }
+}
+
+type BrowseDriveItem = {
+  id: string;
+  name: string;
+  folder?: object;
+  file?: { mimeType?: string };
+  size?: number;
+  lastModifiedDateTime?: string;
+  webUrl?: string;
+  parentReference?: { driveId?: string };
+  remoteItem?: { parentReference?: { driveId?: string } };
+};
+
+type BrowseContext = {
+  accessToken: string;
+  rootItem: BrowseDriveItem;
+  driveId: string;
+};
+
+function encodeSharingUrl(url: string): string {
+  const encoded = Buffer.from(url, "utf8").toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return `u!${encoded}`;
+}
+
+async function getSharedFolderContext(
+  currentUserId: number,
+  organizationId: number,
+  ownerUserId: number,
+): Promise<BrowseContext> {
+  const [currentConnection] = await db.select().from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, currentUserId),
+    eq(oneDriveConnectionsTable.organizationId, organizationId),
+  )).limit(1);
+  if (!currentConnection) {
+    throw new OneDriveBrowseError("Connect your OneDrive account to browse shared folders.", 401);
+  }
+
+  const [owner] = await db.select({
+    connection: oneDriveConnectionsTable,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.userId, ownerUserId),
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+    )).limit(1);
+  if (!owner?.connection.organizationShareUrl?.startsWith("https://")) {
+    throw new OneDriveBrowseError("Shared OneDrive folder not found.", 404);
+  }
+
+  const accessToken = await refreshConnection(currentConnection);
+  const shared = await graph<BrowseDriveItem & {
+    remoteItem?: {
+      id?: string;
+      name?: string;
+      folder?: object;
+      parentReference?: { driveId?: string };
+    };
+  }>(
+    accessToken,
+    `/shares/${encodeURIComponent(encodeSharingUrl(owner.connection.organizationShareUrl))}/driveItem?$select=id,name,folder,parentReference,remoteItem`,
+  );
+  const rootItem = shared.remoteItem
+    ? {
+        ...shared,
+        id: shared.remoteItem.id ?? shared.id,
+        name: shared.remoteItem.name ?? shared.name,
+        folder: shared.remoteItem.folder ?? shared.folder,
+        parentReference: shared.remoteItem.parentReference ?? shared.parentReference,
+      }
+    : shared;
+  const driveId = rootItem.parentReference?.driveId;
+  if (!rootItem.id || !rootItem.folder || !driveId) {
+    throw new OneDriveBrowseError("Microsoft did not return a browsable shared folder.", 502);
+  }
+  return { accessToken, rootItem, driveId };
+}
+
+async function listDriveChildren(
+  accessToken: string,
+  driveId: string,
+  parentId: string,
+): Promise<BrowseDriveItem[]> {
+  const items: BrowseDriveItem[] = [];
+  let next: string | null =
+    `${GRAPH}/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(parentId)}/children?$select=id,name,folder,file,size,lastModifiedDateTime,webUrl,parentReference&$top=200`;
+  while (next) {
+    const page: { value?: BrowseDriveItem[]; "@odata.nextLink"?: string } =
+      await graph(accessToken, next);
+    items.push(...(page.value ?? []));
+    next = page["@odata.nextLink"] ?? null;
+  }
+  return items;
+}
+
+async function resolveSharedFolder(
+  context: BrowseContext,
+  path: string[],
+): Promise<BrowseDriveItem> {
+  let folder = context.rootItem;
+  for (const id of path) {
+    if (!folder.folder) throw new OneDriveBrowseError("The selected path is not a folder.", 404);
+    const child = (await listDriveChildren(context.accessToken, context.driveId, folder.id))
+      .find((item) => item.id === id && !!item.folder);
+    if (!child) throw new OneDriveBrowseError("The selected folder is outside this shared directory.", 404);
+    folder = child;
+  }
+  return folder;
+}
+
+function toBrowseItem(item: BrowseDriveItem) {
+  return {
+    id: item.id,
+    name: item.name,
+    kind: item.folder ? "folder" as const : "file" as const,
+    size: typeof item.size === "number" ? item.size : null,
+    lastModifiedDateTime: item.lastModifiedDateTime ?? null,
+    mimeType: item.file?.mimeType ?? null,
+    webUrl: item.webUrl ?? null,
+  };
+}
+
+export async function listSharedOneDriveFolderItems(
+  currentUserId: number,
+  organizationId: number,
+  ownerUserId: number,
+  path: string[] = [],
+) {
+  const context = await getSharedFolderContext(currentUserId, organizationId, ownerUserId);
+  const folder = await resolveSharedFolder(context, path);
+  const children = await listDriveChildren(context.accessToken, context.driveId, folder.id);
+  children.sort((a, b) =>
+    Number(!!b.folder) - Number(!!a.folder) ||
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+  return { folderName: folder.name, items: children.map(toBrowseItem) };
+}
+
+export async function previewSharedOneDriveItem(
+  currentUserId: number,
+  organizationId: number,
+  ownerUserId: number,
+  itemId: string,
+  path: string[] = [],
+) {
+  const context = await getSharedFolderContext(currentUserId, organizationId, ownerUserId);
+  const folder = await resolveSharedFolder(context, path);
+  const item = (await listDriveChildren(context.accessToken, context.driveId, folder.id))
+    .find((child) => child.id === itemId && !!child.file);
+  if (!item) throw new OneDriveBrowseError("The selected file is outside this shared directory.", 404);
+  return graph<{ getUrl: string; postUrl?: string; postParameters?: string }>(
+    context.accessToken,
+    `/drives/${encodeURIComponent(context.driveId)}/items/${encodeURIComponent(item.id)}/preview`,
+    { method: "POST", body: JSON.stringify({ viewer: "office" }) },
+  );
 }
 
 /**

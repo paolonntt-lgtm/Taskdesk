@@ -75,15 +75,19 @@ import type {
   ListClientsParams,
   ListDriveItemsParams,
   ListDrivePickerFoldersParams,
+  ListSharedOneDriveFolderItemsParams,
   ListTicketDriveFolderItemsParams,
   ListTicketsParams,
   LoginRequest,
   LoginResponse,
   NoteWithAuthor,
   Notification,
+  OneDriveBrowseResponse,
   OneDriveFolderInput,
   OneDriveFolderReference,
+  OneDrivePreview,
   PersonalTimeTrackingReport,
+  PreviewSharedOneDriveItemParams,
   RecentTicketWithActivity,
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -4528,6 +4532,192 @@ export const useRemoveTicketOneDriveFolder = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRemoveTicketOneDriveFolderMutationOptions(options));
+    }
+
+export const getListSharedOneDriveFolderItemsUrl = (ownerUserId: number,
+    params?: ListSharedOneDriveFolderItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["path"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/onedrive/folders/${ownerUserId}/items?${stringifiedParams}` : `/api/onedrive/folders/${ownerUserId}/items`
+}
+
+/**
+ * @summary List items inside an organization-shared Taskdesk folder
+ */
+export const listSharedOneDriveFolderItems = async (ownerUserId: number,
+    params?: ListSharedOneDriveFolderItemsParams, options?: Parameters<typeof customFetch>[1]): Promise<OneDriveBrowseResponse> => {
+
+  return customFetch<OneDriveBrowseResponse>(getListSharedOneDriveFolderItemsUrl(ownerUserId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSharedOneDriveFolderItemsQueryKey = (ownerUserId: number,
+    params?: ListSharedOneDriveFolderItemsParams,) => {
+    return [
+    `/api/onedrive/folders/${ownerUserId}/items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSharedOneDriveFolderItemsQueryOptions = <TData = Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>, TError = ErrorType<void>>(ownerUserId: number,
+    params?: ListSharedOneDriveFolderItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSharedOneDriveFolderItemsQueryKey(ownerUserId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>> = ({ signal }) => listSharedOneDriveFolderItems(ownerUserId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: ownerUserId !== null && ownerUserId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSharedOneDriveFolderItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>>
+export type ListSharedOneDriveFolderItemsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List items inside an organization-shared Taskdesk folder
+ */
+
+export function useListSharedOneDriveFolderItems<TData = Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>, TError = ErrorType<void>>(
+ ownerUserId: number,
+    params?: ListSharedOneDriveFolderItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSharedOneDriveFolderItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSharedOneDriveFolderItemsQueryOptions(ownerUserId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewSharedOneDriveItemUrl = (ownerUserId: number,
+    itemId: string,
+    params?: PreviewSharedOneDriveItemParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["path"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/onedrive/folders/${ownerUserId}/items/${itemId}/preview?${stringifiedParams}` : `/api/onedrive/folders/${ownerUserId}/items/${itemId}/preview`
+}
+
+/**
+ * @summary Get a short-lived preview URL for a shared OneDrive file
+ */
+export const previewSharedOneDriveItem = async (ownerUserId: number,
+    itemId: string,
+    params?: PreviewSharedOneDriveItemParams, options?: Parameters<typeof customFetch>[1]): Promise<OneDrivePreview> => {
+
+  return customFetch<OneDrivePreview>(getPreviewSharedOneDriveItemUrl(ownerUserId,itemId,params),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewSharedOneDriveItemMutationKey = () => ['previewSharedOneDriveItem'] as const;
+
+export const getPreviewSharedOneDriveItemMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewSharedOneDriveItem>>, TError,PreviewSharedOneDriveItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewSharedOneDriveItem>>, TError,PreviewSharedOneDriveItemMutationVariables, TContext> => {
+
+const mutationKey = getPreviewSharedOneDriveItemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewSharedOneDriveItem>>, PreviewSharedOneDriveItemMutationVariables> = (props) => {
+          const {ownerUserId,itemId,params} = props ?? {};
+
+          return  previewSharedOneDriveItem(ownerUserId,itemId,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewSharedOneDriveItemMutationResult = NonNullable<Awaited<ReturnType<typeof previewSharedOneDriveItem>>>
+
+    export type PreviewSharedOneDriveItemMutationError = ErrorType<void>
+    export type PreviewSharedOneDriveItemMutationVariables = {ownerUserId: number;itemId: string;params?: PreviewSharedOneDriveItemParams}
+
+    /**
+ * @summary Get a short-lived preview URL for a shared OneDrive file
+ */
+export const usePreviewSharedOneDriveItem = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewSharedOneDriveItem>>, TError,PreviewSharedOneDriveItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewSharedOneDriveItem>>,
+        TError,
+        PreviewSharedOneDriveItemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewSharedOneDriveItemMutationOptions(options));
     }
 
 export const getRequestUploadUrlUrl = () => {

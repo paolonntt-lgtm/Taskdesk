@@ -40,6 +40,41 @@ export interface OneDriveFolderReference {
   createdAt: string;
 }
 
+export type OneDriveBrowseItemKind = typeof OneDriveBrowseItemKind[keyof typeof OneDriveBrowseItemKind];
+
+
+export const OneDriveBrowseItemKind = {
+  folder: 'folder',
+  file: 'file',
+} as const;
+
+export interface OneDriveBrowseItem {
+  id: string;
+  name: string;
+  kind: OneDriveBrowseItemKind;
+  /** @nullable */
+  size: number | null;
+  /** @nullable */
+  lastModifiedDateTime: string | null;
+  /** @nullable */
+  mimeType: string | null;
+  /** @nullable */
+  webUrl: string | null;
+}
+
+export interface OneDriveBrowseResponse {
+  folderName: string;
+  items: OneDriveBrowseItem[];
+}
+
+export interface OneDrivePreview {
+  getUrl: string;
+  /** @nullable */
+  postUrl?: string | null;
+  /** @nullable */
+  postParameters?: string | null;
+}
+
 export interface DrivePickerFolder {
   driveFolderId: string;
   folderName: string;
@@ -1479,6 +1514,26 @@ parentId?: string;
 
 export type ListTicketDriveFolderItemsParams = {
 folderId: string;
+};
+
+export type ListSharedOneDriveFolderItemsParams = {
+/**
+ * Ordered folder item IDs from the shared root to the current folder
+ * @maxItems 16
+ * @items.minLength 1
+ * @items.maxLength 512
+ */
+path?: string[];
+};
+
+export type PreviewSharedOneDriveItemParams = {
+/**
+ * Ordered folder item IDs from the shared root to the file's parent
+ * @maxItems 16
+ * @items.minLength 1
+ * @items.maxLength 512
+ */
+path?: string[];
 };
 
 export type GetTimeTrackingReportParams = {

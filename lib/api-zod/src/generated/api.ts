@@ -2253,6 +2253,66 @@ export const RemoveTicketOneDriveFolderResponse = zod.object({
 
 
 /**
+ * @summary List items inside an organization-shared Taskdesk folder
+ */
+export const ListSharedOneDriveFolderItemsParams = zod.object({
+  "ownerUserId": zod.coerce.number().int()
+})
+
+export const listSharedOneDriveFolderItemsQueryPathItemMax = 512;
+
+export const listSharedOneDriveFolderItemsQueryPathMax = 16;
+
+
+
+export const ListSharedOneDriveFolderItemsQueryParams = zod.object({
+  "path": zod.array(zod.coerce.string().min(1).max(listSharedOneDriveFolderItemsQueryPathItemMax)).max(listSharedOneDriveFolderItemsQueryPathMax).optional().describe('Ordered folder item IDs from the shared root to the current folder')
+})
+
+export const ListSharedOneDriveFolderItemsResponse = zod.object({
+  "folderName": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['folder', 'file']),
+  "size": zod.int().nullable(),
+  "lastModifiedDateTime": zod.coerce.date().nullable(),
+  "mimeType": zod.string().nullable(),
+  "webUrl": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Get a short-lived preview URL for a shared OneDrive file
+ */
+export const previewSharedOneDriveItemPathItemIdMax = 512;
+
+
+
+export const PreviewSharedOneDriveItemParams = zod.object({
+  "ownerUserId": zod.coerce.number().int(),
+  "itemId": zod.coerce.string().min(1).max(previewSharedOneDriveItemPathItemIdMax)
+})
+
+export const previewSharedOneDriveItemQueryPathItemMax = 512;
+
+export const previewSharedOneDriveItemQueryPathMax = 16;
+
+
+
+export const PreviewSharedOneDriveItemQueryParams = zod.object({
+  "path": zod.array(zod.coerce.string().min(1).max(previewSharedOneDriveItemQueryPathItemMax)).max(previewSharedOneDriveItemQueryPathMax).optional().describe('Ordered folder item IDs from the shared root to the file\'s parent')
+})
+
+export const PreviewSharedOneDriveItemResponse = zod.object({
+  "getUrl": zod.url(),
+  "postUrl": zod.url().nullish(),
+  "postParameters": zod.string().nullish()
+})
+
+
+/**
  * @summary Request a presigned upload URL
  */
 export const RequestUploadUrlBody = zod.object({

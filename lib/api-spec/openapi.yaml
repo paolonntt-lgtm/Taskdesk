@@ -1613,6 +1613,93 @@ paths:
         "404":
           description: Ticket or reference not found
 
+  /onedrive/folders/{ownerUserId}/items:
+    get:
+      operationId: listSharedOneDriveFolderItems
+      tags: [drive]
+      summary: List items inside an organization-shared Taskdesk folder
+      parameters:
+        - name: ownerUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: path
+          in: query
+          required: false
+          description: Ordered folder item IDs from the shared root to the current folder
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 512
+            maxItems: 16
+      responses:
+        "200":
+          description: Current folder and its direct children
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneDriveBrowseResponse"
+        "401":
+          description: Authentication required or OneDrive is not connected
+        "403":
+          description: The current user cannot access this shared folder
+        "404":
+          description: Folder not found
+        "502":
+          description: Microsoft Graph could not list the folder
+
+  /onedrive/folders/{ownerUserId}/items/{itemId}/preview:
+    post:
+      operationId: previewSharedOneDriveItem
+      tags: [drive]
+      summary: Get a short-lived preview URL for a shared OneDrive file
+      parameters:
+        - name: ownerUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: path
+          in: query
+          required: false
+          description: Ordered folder item IDs from the shared root to the file's parent
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 512
+            maxItems: 16
+      responses:
+        "200":
+          description: Temporary Microsoft-hosted preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneDrivePreview"
+        "401":
+          description: Authentication required or OneDrive is not connected
+        "403":
+          description: The current user cannot access this shared file
+        "404":
+          description: File not found
+        "502":
+          description: Microsoft Graph could not create a preview
+
   /storage/uploads/request-url:
     post:
       operationId: requestUploadUrl
@@ -3375,6 +3462,48 @@ components:
         createdAt:
           type: string
           format: date-time
+    OneDriveBrowseItem:
+      type: object
+      required: [id, name, kind, size, lastModifiedDateTime, mimeType, webUrl]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [folder, file]
+        size:
+          type: ["integer", "null"]
+        lastModifiedDateTime:
+          type: ["string", "null"]
+          format: date-time
+        mimeType:
+          type: ["string", "null"]
+        webUrl:
+          type: ["string", "null"]
+    OneDriveBrowseResponse:
+      type: object
+      required: [folderName, items]
+      properties:
+        folderName:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OneDriveBrowseItem"
+    OneDrivePreview:
+      type: object
+      required: [getUrl]
+      properties:
+        getUrl:
+          type: string
+          format: uri
+        postUrl:
+          type: ["string", "null"]
+          format: uri
+        postParameters:
+          type: ["string", "null"]
     DrivePickerFolder:
       type: object
       required: [driveFolderId, folderName]

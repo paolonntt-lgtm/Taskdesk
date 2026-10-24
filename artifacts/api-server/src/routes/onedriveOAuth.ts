@@ -6,12 +6,24 @@ import { getCurrentUserId, getSessionId } from "../lib/session";
 import { appBaseUrlForRequest } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import {
+  ListSharedOneDriveFolderItemsParams,
+  ListSharedOneDriveFolderItemsQueryParams,
+  ListSharedOneDriveFolderItemsResponse,
+  PreviewSharedOneDriveItemParams,
+  PreviewSharedOneDriveItemQueryParams,
+  PreviewSharedOneDriveItemResponse,
+} from "@workspace/api-zod";
+import {
   createDefaultFolders,
   canConnectMicrosoftTenant,
   encryptRefreshToken,
   exchangeMicrosoftCode,
   getMicrosoftUser,
   inviteCollaboratorsToTaskdeskFolders,
+  listSharedOneDriveFolderItems,
+  OneDriveBrowseError,
+  OneDriveGraphError,
+  previewSharedOneDriveItem,
   syncPendingOneDriveAttachments,
 } from "../lib/onedriveGraph";
 import { requireAuth } from "../middlewares/auth";
@@ -183,12 +195,106 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
     return;
   }
   const shares = await db.select({
+    ownerUserId: oneDriveConnectionsTable.userId,
     operatorName: usersTable.name,
     url: oneDriveConnectionsTable.organizationShareUrl,
   }).from(oneDriveConnectionsTable)
     .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
     .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
   res.json(shares.filter((item) => item.url?.startsWith("https://")));
+});
+
+router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res): Promise<void> => {
+  const params = ListSharedOneDriveFolderItemsParams.safeParse(req.params);
+  const query = ListSharedOneDriveFolderItemsQueryParams.safeParse({
+    path: req.query.path,
+  });
+  if (!params.success || !query.success) {
+    res.status(400).json({ error: "Invalid OneDrive folder path." });
+    return;
+  }
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(403).json({ error: "An organization account is required." });
+    return;
+  }
+  try {
+    const result = await listSharedOneDriveFolderItems(
+      user.id,
+      user.organizationId,
+      params.data.ownerUserId,
+      query.data.path,
+    );
+    res.json(ListSharedOneDriveFolderItemsResponse.parse(result));
+  } catch (error) {
+    if (error instanceof OneDriveBrowseError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    if (error instanceof OneDriveGraphError) {
+      req.log.warn({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive shared folder listing failed");
+      const status = [401, 403, 404].includes(error.statusCode) ? error.statusCode : 502;
+      res.status(status).json({
+        error: status === 403
+          ? "Your Microsoft account does not have access to this shared folder."
+          : status === 404
+            ? "The shared OneDrive folder could not be found."
+            : status === 401
+              ? "Reconnect your OneDrive account to continue."
+              : "Microsoft could not load this folder. Please try again.",
+      });
+      return;
+    }
+    req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive shared folder listing failed");
+    res.status(502).json({ error: "Microsoft could not load this folder. Please try again." });
+  }
+});
+
+router.post("/onedrive/folders/:ownerUserId/items/:itemId/preview", requireAuth, async (req, res): Promise<void> => {
+  const params = PreviewSharedOneDriveItemParams.safeParse(req.params);
+  const query = PreviewSharedOneDriveItemQueryParams.safeParse({
+    path: req.query.path,
+  });
+  if (!params.success || !query.success) {
+    res.status(400).json({ error: "Invalid OneDrive file path." });
+    return;
+  }
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.status(403).json({ error: "An organization account is required." });
+    return;
+  }
+  try {
+    const result = await previewSharedOneDriveItem(
+      user.id,
+      user.organizationId,
+      params.data.ownerUserId,
+      params.data.itemId,
+      query.data.path,
+    );
+    res.json(PreviewSharedOneDriveItemResponse.parse(result));
+  } catch (error) {
+    if (error instanceof OneDriveBrowseError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    if (error instanceof OneDriveGraphError) {
+      req.log.warn({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file preview failed");
+      const status = [401, 403, 404].includes(error.statusCode) ? error.statusCode : 502;
+      res.status(status).json({
+        error: status === 403
+          ? "Your Microsoft account cannot preview this file."
+          : status === 404
+            ? "The file could not be found."
+            : status === 401
+              ? "Reconnect your OneDrive account to continue."
+              : "Microsoft could not preview this file.",
+      });
+      return;
+    }
+    req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file preview failed");
+    res.status(502).json({ error: "Microsoft could not preview this file." });
+  }
 });
 
 router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<void> => {
