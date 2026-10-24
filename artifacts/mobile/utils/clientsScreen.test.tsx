@@ -3,10 +3,13 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ClientsScreen from "../app/clients";
+import ClientDetailScreen from "../app/clients/[id]";
 
 const mocks = vi.hoisted(() => ({
   settings: { clientsEnabled: false },
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
+  client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
+  routeParams: { id: "1" },
   apiGet: vi.fn(),
   useQuery: vi.fn(),
 }));
@@ -48,7 +51,10 @@ vi.mock("react-native", async () => {
 });
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
-vi.mock("expo-router", () => ({ router: { push: vi.fn() } }));
+vi.mock("expo-router", () => ({
+  router: { push: vi.fn(), replace: vi.fn() },
+  useLocalSearchParams: () => mocks.routeParams,
+}));
 vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
 }));
@@ -58,6 +64,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/contexts/LanguageContext", () => ({ useLanguage: () => ({ lang: "it" }) }));
 vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
+  apiDelete: vi.fn(),
   apiPatch: vi.fn(),
   apiPost: vi.fn(),
 }));
@@ -74,12 +81,18 @@ describe("mobile clients screen", () => {
     await act(async () => root.render(React.createElement(ClientsScreen)));
   };
 
+  const renderDetailScreen = async () => {
+    await act(async () => root.render(React.createElement(ClientDetailScreen)));
+  };
+
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
     mocks.settings = { clientsEnabled: false };
+    mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" };
+    mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
     mocks.useQuery.mockReset().mockImplementation((options: {
       queryKey: unknown[];
@@ -89,7 +102,11 @@ describe("mobile clients screen", () => {
       if (options.enabled) void options.queryFn();
       const key = options.queryKey[0];
       return {
-        data: key === "mobile-organization-settings" ? mocks.settings : mocks.clients,
+        data: key === "mobile-organization-settings"
+          ? mocks.settings
+          : key === "mobile-client"
+            ? mocks.client
+            : mocks.clients,
         isSuccess: key === "mobile-organization-settings",
         isLoading: false,
         error: null,
@@ -125,5 +142,29 @@ describe("mobile clients screen", () => {
     ]);
     expect(host.textContent).toContain("Studio Alfa");
     expect(host.textContent).not.toContain("La gestione clienti non è attiva");
+  });
+
+  it("shows the inactive-module message without requesting client details", async () => {
+    await renderDetailScreen();
+
+    expect(host.textContent).toContain("La gestione clienti non è attiva per questa organizzazione.");
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
+
+    const clientQuery = mocks.useQuery.mock.calls
+      .map(([options]) => options)
+      .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-client");
+    expect(clientQuery?.enabled).toBe(false);
+  });
+
+  it("loads and displays client details when the module is enabled", async () => {
+    mocks.settings = { clientsEnabled: true };
+
+    await renderDetailScreen();
+
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual([
+      "/settings/organization",
+      "/clients/1",
+    ]);
+    expect(host.textContent).toContain("Studio Alfa");
   });
 });
