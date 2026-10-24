@@ -7,11 +7,13 @@ import ClientDetailScreen from "../app/clients/[id]";
 
 const mocks = vi.hoisted(() => ({
   settings: { clientsEnabled: false },
+  settingsError: false,
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
   routeParams: { id: "1" },
   apiGet: vi.fn(),
   useQuery: vi.fn(),
+  refetchSettings: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -91,6 +93,8 @@ describe("mobile clients screen", () => {
     document.body.append(host);
     root = createRoot(host);
     mocks.settings = { clientsEnabled: false };
+    mocks.settingsError = false;
+    mocks.refetchSettings.mockReset();
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" };
     mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
@@ -107,9 +111,11 @@ describe("mobile clients screen", () => {
           : key === "mobile-client"
             ? mocks.client
             : mocks.clients,
-        isSuccess: key === "mobile-organization-settings",
+        isSuccess: key === "mobile-organization-settings" && !mocks.settingsError,
+        isError: key === "mobile-organization-settings" && mocks.settingsError,
         isLoading: false,
         error: null,
+        refetch: key === "mobile-organization-settings" ? mocks.refetchSettings : vi.fn(),
       };
     });
   });
@@ -129,6 +135,28 @@ describe("mobile clients screen", () => {
       .map(([options]) => options)
       .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
     expect(clientsQuery?.enabled).toBe(false);
+  });
+
+  it("shows a distinct settings error and retry without requesting clients", async () => {
+    mocks.settingsError = true;
+
+    await renderScreen();
+
+    expect(host.textContent).toContain("Impossibile verificare se la gestione clienti è attiva.");
+    expect(host.textContent).toContain("Riprova");
+    expect(host.textContent).not.toContain("La gestione clienti non è attiva");
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
+
+    const clientsQuery = mocks.useQuery.mock.calls
+      .map(([options]) => options)
+      .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
+    expect(clientsQuery?.enabled).toBe(false);
+
+    const retryButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Riprova"));
+    expect(retryButton).toBeDefined();
+    await act(async () => retryButton?.click());
+    expect(mocks.refetchSettings).toHaveBeenCalledTimes(1);
   });
 
   it("loads and displays clients when the module is enabled", async () => {
