@@ -15,7 +15,38 @@ import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_TICKET_ATTACHMENT_SIZE_BYTES } from 
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
+export const ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT = 2;
 export const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
+
+type DownloadSlotWaiter = (release: () => void) => void;
+let activeOneDriveDownloads = 0;
+const oneDriveDownloadQueue: DownloadSlotWaiter[] = [];
+
+export function acquireOneDriveDownloadSlot(): Promise<() => void> {
+  return new Promise((resolve) => {
+    const grant = (release: () => void) => resolve(release);
+    if (activeOneDriveDownloads < ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT) {
+      activeOneDriveDownloads += 1;
+      grant(createOneDriveDownloadRelease());
+      return;
+    }
+    oneDriveDownloadQueue.push(grant);
+  });
+}
+
+function createOneDriveDownloadRelease(): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = oneDriveDownloadQueue.shift();
+    if (next) {
+      next(createOneDriveDownloadRelease());
+    } else {
+      activeOneDriveDownloads -= 1;
+    }
+  };
+}
 
 export function canConnectMicrosoftTenant(existingTenantId: string | null, incomingTenantId: string): boolean {
   return existingTenantId == null ||

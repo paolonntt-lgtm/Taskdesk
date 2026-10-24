@@ -30,6 +30,7 @@ import {
   OneDriveBrowseError,
   OneDriveGraphError,
   previewSharedOneDriveItem,
+  acquireOneDriveDownloadSlot,
   downloadSharedOneDriveItem,
   disconnectOneDriveUser,
   syncPendingOneDriveAttachments,
@@ -410,6 +411,14 @@ router.get("/onedrive/folders/:ownerUserId/items/:itemId/content", requireAuth, 
     res.status(403).json({ error: "An organization account is required." });
     return;
   }
+  const releaseDownloadSlot = await acquireOneDriveDownloadSlot();
+  let releaseOnResponseEnd = false;
+  let slotReleased = false;
+  const releaseSlotOnce = () => {
+    if (slotReleased) return;
+    slotReleased = true;
+    releaseDownloadSlot();
+  };
   try {
     const result = await downloadSharedOneDriveItem(
       user.id,
@@ -423,8 +432,13 @@ router.get("/onedrive/folders/:ownerUserId/items/:itemId/content", requireAuth, 
     res.setHeader("X-File-Name", encodeURIComponent(result.fileName));
     res.setHeader("X-File-Content-Type", result.mimeType);
     res.setHeader("Cache-Control", "no-store");
+    if (res.destroyed) return;
+    res.once("finish", releaseSlotOnce);
+    res.once("close", releaseSlotOnce);
+    releaseOnResponseEnd = true;
     res.status(200).send(result.bytes);
   } catch (error) {
+    releaseSlotOnce();
     if (error instanceof OneDriveBrowseError) {
       res.status(error.statusCode).json({ error: error.message });
       return;
@@ -437,6 +451,8 @@ router.get("/onedrive/folders/:ownerUserId/items/:itemId/content", requireAuth, 
     }
     req.log.error({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive file download failed");
     res.status(502).json({ error: "Microsoft could not download this file." });
+  } finally {
+    if (!releaseOnResponseEnd) releaseSlotOnce();
   }
 });
 

@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   canConnectMicrosoftTenant,
   CONSUMER_TENANT_ID,
+  acquireOneDriveDownloadSlot,
   getOneDriveAttachmentCopyName,
   isExpectedOneDriveAttachmentCopy,
   isOneDriveCopyAccountMatch,
   isUploadedOneDriveCopyCurrent,
   readOneDriveResponseBytes,
+  ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT,
   shouldRevokeOneDrivePermission,
   validateOneDriveAttachmentMetadata,
 } from "./onedriveGraph";
@@ -199,5 +201,26 @@ describe("OneDrive collaborator permission revocation", () => {
       roles: ["write"],
       invitation: { email: "former.collaborator@example.com" },
     }, targets, "owner@example.com")).toBe(false);
+  });
+});
+
+describe("OneDrive download concurrency", () => {
+  it("does not grant more download slots than the configured memory bound", async () => {
+    const releases = await Promise.all(
+      Array.from({ length: ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT }, () => acquireOneDriveDownloadSlot()),
+    );
+    let queuedRelease: (() => void) | undefined;
+    const queued = acquireOneDriveDownloadSlot().then((release) => {
+      queuedRelease = release;
+    });
+
+    expect(queuedRelease).toBeUndefined();
+    releases[0]();
+    await queued;
+    expect(queuedRelease).toBeTypeOf("function");
+
+    releases.slice(1).forEach((release) => release());
+    queuedRelease?.();
+    queuedRelease?.();
   });
 });

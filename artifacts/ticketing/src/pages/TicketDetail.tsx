@@ -12,7 +12,6 @@ import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
   useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
-  useRetryTicketAttachmentOneDriveCopy,
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
@@ -33,8 +32,6 @@ import { RichCommentEditor, type PendingAttachment, type RichCommentEditorHandle
 import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
-import TicketOneDriveFolders from '../components/TicketOneDriveFolders';
-import TicketOneDriveCopies from '../components/TicketOneDriveCopies';
 import PermissionGateButton from '../components/PermissionGateButton';
 import { trackEvent } from '../lib/analytics';
 
@@ -168,7 +165,6 @@ export default function TicketDetail() {
   const [hoveredCommentId, setHoveredCommentId] = useState<number | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
-  const [oneDriveRetryError, setOneDriveRetryError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
   const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
@@ -278,30 +274,16 @@ export default function TicketDetail() {
   const { data: attachments } = useListTicketAttachments(ticketId, { query: {
     enabled: !!ticketId,
     staleTime: 60_000,
-    refetchInterval: (query: any) => query.state.data?.some((item: any) => !item.oneDriveItemId && !item.oneDriveSyncError) ? 4000 : false,
   } as any });
 
   const updateTicket = useUpdateTicket();
   const addComment = useAddTicketComment();
   const saveAttachment = useSaveTicketAttachment();
-  const retryOneDriveCopy = useRetryTicketAttachmentOneDriveCopy();
 
   const hasGroupPerm = (perm: string) =>
     ((currentUser as any)?.groupPermissions as string[] | undefined ?? []).includes(perm);
   const isAssignee = !!(ticket && (currentUser as any)?.id && (ticket as any).assignedTo === (currentUser as any).id);
   const canAccessNotes = currentUser?.role === 'admin' || hasGroupPerm('add_notes');
-
-  const handleRetryOneDriveCopy = async (attachmentId: number) => {
-    setOneDriveRetryError(null);
-    try {
-      await retryOneDriveCopy.mutateAsync({ id: ticketId, attachmentId });
-      await queryClient.invalidateQueries({ queryKey: getListTicketAttachmentsQueryKey(ticketId) });
-    } catch {
-      setOneDriveRetryError(lang === 'it'
-        ? 'Impossibile riprovare la copia su OneDrive. Riprova.'
-        : 'Could not retry the OneDrive copy. Please try again.');
-    }
-  };
 
   const [newNote, setNewNote] = useState('');
   const { data: notes } = useListTicketNotes(ticketId, { query: { enabled: !!ticketId && canAccessNotes, staleTime: 60_000 } as any });
@@ -1375,8 +1357,7 @@ export default function TicketDetail() {
             {(() => {
               const allAttachments = attachments ?? [];
               const ticketAttachments = allAttachments.filter((a: any) => a.commentId == null);
-              const retryCandidates = allAttachments.filter((a: any) => !a.oneDriveItemId || a.oneDriveSyncError);
-              if (!ticketAttachments.length && !retryCandidates.length) return null;
+              if (!ticketAttachments.length) return null;
               const imgs = ticketAttachments.filter((a: any) => (a.mimeType as string).startsWith('image/'));
               const files = ticketAttachments.filter((a: any) => !(a.mimeType as string).startsWith('image/'));
               return (
@@ -1402,43 +1383,6 @@ export default function TicketDetail() {
                       })}
                     </Box>
                   )}
-                  {retryCandidates.length > 0 && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
-                      <Box sx={{ width: '100%' }}>
-                        <Typography variant="body2" sx={{ mb: 0.5 }}>
-                          {lang === 'it'
-                            ? 'Alcuni allegati non sono ancora stati copiati su OneDrive.'
-                            : 'Some attachments have not been copied to OneDrive yet.'}
-                        </Typography>
-                        {retryCandidates.map((attachment: any) => {
-                          const retrying = retryOneDriveCopy.isPending &&
-                            retryOneDriveCopy.variables?.attachmentId === attachment.id;
-                          return (
-                            <Box key={attachment.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, py: 0.25 }}>
-                              <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
-                                {attachment.fileName}
-                                {attachment.oneDriveSyncError ? ` — ${attachment.oneDriveSyncError}` : ` — ${lang === 'it' ? 'In attesa' : 'Pending'}`}
-                              </Typography>
-                              {(isAdmin || isAssignee || isAuthor) && (
-                                <Button
-                                  size="small"
-                                  startIcon={retrying ? <CircularProgress size={14} /> : <RepeatIcon fontSize="small" />}
-                                  disabled={retrying}
-                                  onClick={() => void handleRetryOneDriveCopy(attachment.id)}
-                                  sx={{ flexShrink: 0 }}
-                                >
-                                  {retrying
-                                    ? (lang === 'it' ? 'Riprovo…' : 'Retrying…')
-                                    : (lang === 'it' ? 'Riprova' : 'Retry')}
-                                </Button>
-                              )}
-                            </Box>
-                          );
-                        })}
-                      </Box>
-                    </Alert>
-                  )}
-                  {oneDriveRetryError && <Alert severity="error" sx={{ mt: 1, py: 0.5 }}>{oneDriveRetryError}</Alert>}
                 </Box>
               );
             })()}
@@ -1446,8 +1390,6 @@ export default function TicketDetail() {
 
           {/* Checklist */}
           <ChecklistSection ticketId={ticketId} isAdmin={isAdmin} />
-          <TicketOneDriveFolders ticketId={ticketId} />
-          {isAdmin && <TicketOneDriveCopies ticketId={ticketId} />}
 
           {timeTrackingModuleEnabled &&
             Boolean((ticket as any).timeTrackingEnabled) &&
@@ -1863,7 +1805,7 @@ export default function TicketDetail() {
                         <Box key={`r-${c.id}`} sx={{ pl: { xs: 3, sm: 5 }, display: 'flex', gap: { xs: 1, sm: 2 } }}>
                           <Avatar src={(currentUser as any)?.avatarUrl ?? undefined} sx={{ bgcolor: 'primary.main', width: { xs: 28, sm: 34 }, height: { xs: 28, sm: 34 }, flexShrink: 0 }}>{currentUser?.name?.charAt(0)}</Avatar>
                           <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                            <RichCommentEditor ref={inlineEditorRef} value={inlineReplyText} onChange={setInlineReplyText} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setInlinePendingAttachments} minRows={2} />
+                            <RichCommentEditor ref={inlineEditorRef} value={inlineReplyText} onChange={setInlineReplyText} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setInlinePendingAttachments} enableOneDrivePicker minRows={2} />
                             <Box display="flex" gap={1} justifyContent="flex-end">
                               <Button size="small" onClick={() => { setReplyingToCommentId(null); setInlineReplyText(''); }}>{t.ticketDetail.editCancel}</Button>
                               <Button size="small" variant="contained" onClick={submitInlineReply} disabled={(!inlineReplyText.trim() && inlinePendingAttachments.length === 0) || addComment.isPending}>
@@ -1963,7 +1905,7 @@ export default function TicketDetail() {
                       {currentUser?.name?.charAt(0)}
                     </Avatar>
                     <Box flex={1} display="flex" flexDirection="column" gap={1}>
-                      <RichCommentEditor ref={editorRef} value={newComment} onChange={setNewComment} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setPendingAttachments} />
+                      <RichCommentEditor ref={editorRef} value={newComment} onChange={setNewComment} placeholder={t.ticketDetail.addCommentPlaceholder} ticketId={ticketId} onAttachmentsChange={setPendingAttachments} enableOneDrivePicker />
                       <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
                         {isEmailResource && (
                           <Tooltip title={`${t.ticketDetail.replyWillBeSentTo} ${(ticket as any).resource}`}>

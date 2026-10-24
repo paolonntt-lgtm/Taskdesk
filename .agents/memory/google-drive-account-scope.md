@@ -39,6 +39,12 @@ Ticket creation should reuse the user's existing OneDrive connection. Keep cloud
 
 **How to apply:** Use the authenticated user's own connected OneDrive account, preserve read-only access to collaborator folders, and route imported files through the existing ticket attachment flow.
 
+Ticket details should not show OneDrive-specific folder panels, copy-management sections, or sync-status warnings. Keep only the OneDrive picker icon in the formatting toolbar for new comments and inline replies.
+
+**Why:** The user asked to remove OneDrive references from ticket details and retain file selection only in the comment formatting toolbar.
+
+**How to apply:** Reuse the existing picker and ordinary comment-attachment flow; do not restore separate OneDrive sections or expose copy-sync internals in ticket details.
+
 OneDrive collaborator folders remain read-only; manual uploads are allowed only into the authenticated user's own Taskdesk folder.
 
 **Why:** The user chose individual, sign-in-protected read-only invitations. Adding upload in TaskDesk must not silently expand collaborators' Microsoft permissions.
