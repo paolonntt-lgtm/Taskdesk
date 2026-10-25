@@ -92,7 +92,7 @@ vi.mock("expo-router", async () => {
     ReactModule.createElement(
       "div",
       { "data-testid": "registered-tabs", "data-back-behavior": backBehavior },
-      ...["index", "tickets", "calendar", "clients-tab", "hours-report-tab", "profile"].map(
+      ...["index", "tickets", "calendar", "clients-tab", "hours-report-tab", "reports", "profile"].map(
         (name) => {
           const options = screenOptions?.({
             navigation: { navigate: mocks.navigate },
@@ -156,6 +156,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         calendar: "Calendar",
         hoursReport: "Hours report",
         clients: "Clients",
+        reports: mocks.language === "it" ? "Report" : "Reports",
         profile: mocks.language === "it" ? "Profilo" : "Profile",
       },
       dashboard: {
@@ -371,6 +372,35 @@ describe("mobile ticket creation navigation", () => {
       mocks.profileReturnTo = undefined;
     }
   });
+
+  it.each([
+    { language: "en", returnLabel: "Back to Reports" },
+    { language: "it", returnLabel: "Torna a Report" },
+  ] as const)(
+    "returns to Reports from Profile and labels the back action in $language",
+    async ({ language, returnLabel }) => {
+      mocks.language = language;
+      await render(TabLayout);
+
+      const reportsRoute = registeredRoutes().find((route) => route.dataset.route === "reports");
+      expect(reportsRoute?.dataset.href).toBe("hidden");
+      const profileButton = host.querySelector<HTMLButtonElement>(
+        '[data-header-route="reports"] [data-testid="profile-header-button"]',
+      );
+      expect(profileButton).not.toBeNull();
+      await act(async () => profileButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile", { returnTo: "reports" });
+
+      mocks.profileReturnTo = "reports";
+      await render(TabLayout);
+      const backButton = host.querySelector<HTMLButtonElement>(
+        '[data-header-route="profile"] [data-testid="profile-back-button"]',
+      );
+      expect(backButton?.getAttribute("aria-label")).toBe(returnLabel);
+      await act(async () => backButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("reports");
+    },
+  );
 
   it.each([
     {
