@@ -26,7 +26,10 @@ import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { TicketEditModal } from "@/components/TicketEditModal";
-import { canEditTicketDetails, canViewTicketTrackedTime } from "@/utils/ticketDetailRules";
+import {
+  canEditTicketDetails,
+  canViewTicketTrackedTime,
+} from "@/utils/ticketDetailRules";
 
 type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -1173,7 +1176,7 @@ export default function TicketDetailScreen() {
       <TicketEditModal
         visible={editModal}
         ticket={ticket}
-        canEditTracking={isAdmin && timeTrackingModuleEnabled}
+        trackingModuleEnabled={timeTrackingModuleEnabled}
         onClose={() => setEditModal(false)}
       />
 

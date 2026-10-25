@@ -8,6 +8,7 @@ import { apiGet, apiPatch } from "@/utils/api";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { canEditTicketTracking } from "@/utils/ticketDetailRules";
 
 type ClientOption = { id: number; name: string; alias?: string | null };
 type CollaboratorOption = { id: number; name: string; isActive?: boolean };
@@ -33,12 +34,12 @@ export type EditableTicket = {
 export function TicketEditModal({
   visible,
   ticket,
-  canEditTracking,
+  trackingModuleEnabled,
   onClose,
 }: {
   visible: boolean;
   ticket: EditableTicket;
-  canEditTracking: boolean;
+  trackingModuleEnabled: boolean;
   onClose: () => void;
 }) {
   const colors = useColors();
@@ -46,6 +47,10 @@ export function TicketEditModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "admin";
+  const canEditTracking = canEditTicketTracking({
+    isAdmin,
+    trackingModuleEnabled,
+  });
   const clientsEnabled = user?.clientsEnabled === true;
   const clientsQuery = useQuery({
     queryKey: ["clients"],

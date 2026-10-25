@@ -9,7 +9,22 @@ export function canEditTicketDetails({
   currentUserId?: number;
   canChangeStatus: boolean;
 }): boolean {
-  return isAdmin || createdBy === currentUserId || canChangeStatus;
+  const isCreator =
+    createdBy != null &&
+    currentUserId != null &&
+    createdBy === currentUserId;
+
+  return isAdmin || isCreator || canChangeStatus;
+}
+
+export function canEditTicketTracking({
+  isAdmin,
+  trackingModuleEnabled,
+}: {
+  isAdmin: boolean;
+  trackingModuleEnabled: boolean;
+}): boolean {
+  return isAdmin && trackingModuleEnabled;
 }
 
 export function canViewTicketTrackedTime({

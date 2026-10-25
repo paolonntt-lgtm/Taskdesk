@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPatch: vi.fn(),
   invalidateQueries: vi.fn(),
+  authUser: { role: "admin", clientsEnabled: true },
 }));
 
 vi.mock("react-native", async () => {
@@ -72,7 +73,7 @@ vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
 }));
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { role: "admin", clientsEnabled: true } }),
+  useAuth: () => ({ user: mocks.authUser }),
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({
@@ -112,10 +113,14 @@ describe("mobile ticket edit modal", () => {
   let host: HTMLDivElement;
   let root: Root;
 
-  const renderModal = async (ticketOverrides: Partial<EditableTicket> = {}) => {
+  const renderModal = async (
+    ticketOverrides: Partial<EditableTicket> = {},
+    options: { role?: string; trackingModuleEnabled?: boolean } = {},
+  ) => {
+    mocks.authUser.role = options.role ?? "admin";
     await act(async () => root.render(React.createElement(TicketEditModal, {
       visible: true,
-      canEditTracking: true,
+      trackingModuleEnabled: options.trackingModuleEnabled ?? true,
       ticket: {
         id: 9,
         title: "Title",
@@ -169,6 +174,26 @@ describe("mobile ticket edit modal", () => {
     }));
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["ticket", "9"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["tickets"] });
+  });
+
+  it("hides timer classifications from non-admins and omits them from updates", async () => {
+    await renderModal({}, { role: "collaborator" });
+
+    expect(host.querySelector('[data-testid="edit-ticket-billable-switch"]')).toBeNull();
+    expect(host.querySelector('[data-testid="edit-ticket-recognizable-switch"]')).toBeNull();
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-save"]')?.click());
+
+    const payload = mocks.apiPatch.mock.calls[0][1];
+    expect(payload).not.toHaveProperty("timeTrackingBillable");
+    expect(payload).not.toHaveProperty("timeTrackingCompensationOverride");
+  });
+
+  it("hides timer classifications when TaskTrack is disabled, including for admins", async () => {
+    await renderModal({}, { trackingModuleEnabled: false });
+
+    expect(host.querySelector('[data-testid="edit-ticket-billable-switch"]')).toBeNull();
+    expect(host.querySelector('[data-testid="edit-ticket-recognizable-switch"]')).toBeNull();
   });
 
   it("turns off classifications when removing their required client or assignee", async () => {
