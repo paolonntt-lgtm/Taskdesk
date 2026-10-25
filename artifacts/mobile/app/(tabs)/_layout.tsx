@@ -182,35 +182,58 @@ function DashboardSearchHeader() {
                   {lang === "it" ? "Nessun ticket trovato." : "No tickets found."}
                 </Text>
               ) : (
-                matchingTickets.map((ticket) => (
-                  <Pressable
-                    key={ticket.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${ticket.title}, ${lang === "it" ? "ticket" : "ticket"} ${ticket.id}`}
-                    testID={`dashboard-ticket-result-${ticket.id}`}
-                    onPress={() => {
-                      setSearch("");
-                      router.push(`/ticket/${ticket.id}` as any);
-                    }}
-                    style={({ pressed }) => [
-                      styles.dashboardClientResult,
-                      { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
-                    ]}
-                  >
-                    <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
-                      <Feather name="file-text" size={15} color={colors.primary} />
-                    </View>
-                    <View style={styles.dashboardClientText}>
-                      <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
-                        {ticket.title}
-                      </Text>
-                      <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                        #{ticket.id}{ticket.status ? ` · ${ticket.status}` : ""}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-                  </Pressable>
-                ))
+                matchingTickets.map((ticket) => {
+                  const clientName = clientsEnabled ? ticket.client?.name : null;
+                  const assigneeName = ticket.assignee?.name;
+                  const clientLabel = lang === "it" ? "Cliente" : "Client";
+                  const assigneeLabel = lang === "it" ? "Assegnatario" : "Assigned to";
+                  const accessibilityLabel = [
+                    ticket.title,
+                    `${lang === "it" ? "ticket" : "ticket"} ${ticket.id}`,
+                    clientName ? `${clientLabel}: ${clientName}` : null,
+                    assigneeName ? `${assigneeLabel}: ${assigneeName}` : null,
+                  ].filter(Boolean).join(", ");
+
+                  return (
+                    <Pressable
+                      key={ticket.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={accessibilityLabel}
+                      testID={`dashboard-ticket-result-${ticket.id}`}
+                      onPress={() => {
+                        setSearch("");
+                        router.push(`/ticket/${ticket.id}` as any);
+                      }}
+                      style={({ pressed }) => [
+                        styles.dashboardClientResult,
+                        { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
+                      ]}
+                    >
+                      <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
+                        <Feather name="file-text" size={15} color={colors.primary} />
+                      </View>
+                      <View style={styles.dashboardClientText}>
+                        <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
+                          {ticket.title}
+                        </Text>
+                        <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                          #{ticket.id}{ticket.status ? ` · ${ticket.status}` : ""}
+                        </Text>
+                        {clientName ? (
+                          <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                            {clientLabel}: {clientName}
+                          </Text>
+                        ) : null}
+                        {assigneeName ? (
+                          <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                            {assigneeLabel}: {assigneeName}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                    </Pressable>
+                  );
+                })
               )}
             </View>
             {showClientResults ? (
@@ -283,6 +306,8 @@ type DashboardTicket = {
   id: number;
   title: string;
   status?: string | null;
+  client?: { name: string } | null;
+  assignee?: { name: string } | null;
 };
 
 function getProfileReturnRoute(

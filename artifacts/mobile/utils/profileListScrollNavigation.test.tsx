@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
   clientsEnabled: true,
   routeSearch: undefined as string | undefined,
   ticketQueryFn: undefined as (() => Promise<unknown>) | undefined,
+  dashboardTickets: [] as Array<{
+    id: number;
+    title: string;
+    status?: string;
+    client?: { name: string };
+    assignee?: { name: string };
+  }>,
   apiGet: vi.fn(() => Promise.resolve([])),
 }));
 
@@ -25,7 +32,7 @@ vi.mock("react-native", async () => {
       accessibilityState,
       onPress,
       onLongPress: _onLongPress,
-      onChangeText: _onChangeText,
+      onChangeText,
       hitSlop: _hitSlop,
       style: _style,
       contentContainerStyle: _contentContainerStyle,
@@ -39,6 +46,9 @@ vi.mock("react-native", async () => {
       ...(accessibilityLabel ? { "aria-label": accessibilityLabel } : {}),
       ...(accessibilityState ? { "aria-selected": accessibilityState.selected } : {}),
       ...(onPress ? { onClick: onPress } : {}),
+      ...(onChangeText
+        ? { onChange: (event: { currentTarget: { value: string } }) => onChangeText(event.currentTarget.value) }
+        : {}),
     }, props.children);
   };
 
@@ -50,6 +60,7 @@ vi.mock("react-native", async () => {
     },
     ActivityIndicator: () => null,
     Alert: { alert: vi.fn() },
+    Image: () => null,
     FlatList: ({
       data,
       renderItem,
@@ -77,6 +88,7 @@ vi.mock("react-native", async () => {
     TextInput: nativeComponent("input"),
     TouchableOpacity: nativeComponent("button"),
     View: nativeComponent("div"),
+    useWindowDimensions: () => ({ width: 375, height: 812, scale: 1, fontScale: 1 }),
     useColorScheme: () => "light",
   };
 });
@@ -93,7 +105,11 @@ vi.mock("expo-router", async () => {
     screenOptions?: (args: {
       navigation: { navigate: (route: string, params?: { returnTo?: string }) => void };
       route: { name: string; params?: { returnTo?: string } };
-    }) => { headerLeft?: () => React.ReactNode; headerRight?: () => React.ReactNode };
+    }) => {
+      headerLeft?: () => React.ReactNode;
+      headerRight?: () => React.ReactNode;
+      headerTitle?: () => React.ReactNode;
+    };
   }) => {
     const [activeRoute, setActiveRoute] = ReactModule.useState(mocks.initialRoute);
     const [returnTo, setReturnTo] = ReactModule.useState<string | undefined>();
@@ -122,6 +138,7 @@ vi.mock("expo-router", async () => {
         "div",
         { "data-testid": "active-route" },
         activeRoute,
+        routeOptions?.headerTitle?.(),
         routeOptions?.headerLeft?.(),
         routeOptions?.headerRight?.(),
       ),
@@ -177,6 +194,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         profile: "Profile",
         reports: "Reports",
       },
+      dashboard: { searchPlaceholder: "Search" },
       tickets: {
         search: "Search tickets",
         all: "All",
@@ -216,6 +234,14 @@ vi.mock("@tanstack/react-query", () => ({
     }
     if (queryKey[0] === "mobile-notifications") {
       return { data: [] };
+    }
+    if (queryKey[0] === "mobile-dashboard-ticket-search") {
+      return {
+        data: mocks.dashboardTickets,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+      };
     }
     if (queryKey[0] === "mobile-clients") {
       return {
@@ -262,6 +288,7 @@ describe("mobile list position after returning from Profile", () => {
     mocks.clientsEnabled = true;
     mocks.routeSearch = undefined;
     mocks.ticketQueryFn = undefined;
+    mocks.dashboardTickets = [];
     mocks.apiGet.mockClear();
   });
 
@@ -280,6 +307,38 @@ describe("mobile list position after returning from Profile", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith(
       "/tickets?search=invoice%20%26%20renewal",
     );
+  });
+
+  it("shows client and assignee on dashboard ticket suggestions at a narrow mobile width", async () => {
+    mocks.initialRoute = "index";
+    mocks.dashboardTickets = [{
+      id: 41,
+      title: "Printer outage",
+      status: "open",
+      client: { name: "Northwind" },
+      assignee: { name: "Avery Chen" },
+    }];
+
+    await act(async () => root.render(React.createElement(TabLayout)));
+
+    const searchInput = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    expect(searchInput).not.toBeNull();
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      valueSetter?.call(searchInput, "printer");
+      searchInput!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const result = host.querySelector<HTMLButtonElement>(
+      '[data-testid="dashboard-ticket-result-41"]',
+    );
+    expect(result?.textContent).toContain("Client: Northwind");
+    expect(result?.textContent).toContain("Assigned to: Avery Chen");
+    expect(result?.getAttribute("aria-label")).toContain("Client: Northwind");
+    expect(result?.getAttribute("aria-label")).toContain("Assigned to: Avery Chen");
   });
 
   it.each([
