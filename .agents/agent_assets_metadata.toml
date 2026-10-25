@@ -100,3 +100,17 @@ mtime_ms = 1777756269688
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/404165c5-64cc-4002-9edf-8bbfa6c3edaa/17d2b0a0-619f-42e0-b107-2281d3ef9918"
 storage_version_token = "1792442461796510"
 content_type = "image/png"
+
+[[outputs]]
+id = "JP_r5mEMVbtkQQoDWhQcA"
+uri = "file://artifacts/mobile/assets/images/taskdesk-app-icon.png"
+type = "image"
+title = "Nuova icona TaskDesk"
+description = "Icona quadrata 1024×1024 con il monogramma ufficiale blu e viola, pronta per iOS e Play Store."
+logical_id = "000d40f9-6f78-4790-abc1-63038fbcd265"
+content_hash = "sha256:cde7481e9aba34c863ad739b6d51bc7701b2eed081bf58def4a329c4874141a2"
+size = 149838
+mtime_ms = 1792911324389
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/000d40f9-6f78-4790-abc1-63038fbcd265/35f500e7-c5d0-4f76-a391-f1e80cd64eb6"
+storage_version_token = "1792911410046578"
+content_type = "image/png"

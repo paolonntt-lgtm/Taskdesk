@@ -4,7 +4,7 @@
     "slug": "workspace",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/taskdesk-app-icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -21,8 +21,8 @@
       "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#0f62fe"
+        "foregroundImage": "./assets/images/taskdesk-adaptive-foreground.png",
+        "backgroundColor": "#ffffff"
       },
       "permissions": [
         "android.permission.INTERNET",

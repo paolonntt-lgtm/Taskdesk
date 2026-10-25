@@ -166,7 +166,7 @@ This produces an `.apk` you can sideload for testing push notifications end-to-e
    - Full description (max 4000 chars): describe TaskDesk's features.
    - Screenshots (at least 2 phone screenshots — use your test APK to capture them).
    - **Feature graphic** (1024×500 px banner): create one in Canva or Figma.
-   - **Icon** (512×512 px): use the file at `artifacts/mobile/assets/images/icon.png` (resize to 512×512 if needed, or upload the 1024×1024 version — Play Console accepts both).
+   - **Icon** (512×512 px): use `artifacts/mobile/assets/images/taskdesk-app-icon.png` (1024×1024; Play Console accepts it directly).
 
 5. Under **App content**, complete all required declarations (privacy policy URL, content rating questionnaire, target audience, data safety form).
 
@@ -196,8 +196,9 @@ Follow the prompts. EAS will ask you to log in to your Google Play account and s
 
 | Asset | Path | Notes |
 |-------|------|-------|
-| App icon (1024×1024) | `assets/images/icon.png` | Used for adaptive icon foreground and Play Store icon |
-| Adaptive icon background color | `#0f62fe` (IBM Blue) | Set in `app.json` → `android.adaptiveIcon.backgroundColor` |
+| App icon (1024×1024) | `assets/images/taskdesk-app-icon.png` | Used for iOS and Play Store launcher icon |
+| Adaptive icon foreground (1024×1024) | `assets/images/taskdesk-adaptive-foreground.png` | Transparent official mark, sized for Android's adaptive mask |
+| Adaptive icon background color | `#ffffff` (white) | Set in `app.json` → `android.adaptiveIcon.backgroundColor` |
 | Notification icon | Same `icon.png` | Configured in `expo-notifications` plugin in `app.json` |
 | `google-services.json` | `artifacts/mobile/google-services.json` | **Not committed** — download from Firebase Console |
 
