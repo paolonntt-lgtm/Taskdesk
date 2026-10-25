@@ -193,6 +193,10 @@ const it = {
     errorCreateMsg: 'Impossibile creare il ticket.',
   },
   ticketDetail: {
+    editTicket: 'Modifica ticket',
+    save: 'Salva',
+    trackingClassificationHint: 'Seleziona almeno una classificazione per attivare il tracciamento.',
+    clientRequiredForBillableTime: 'Seleziona un cliente per rendere fatturabili le ore.',
     status: 'Stato',
     priority: 'Priorità',
     category: 'Categoria',
@@ -644,6 +648,10 @@ const en: typeof it = {
     errorCreateMsg: 'Unable to create the ticket.',
   },
   ticketDetail: {
+    editTicket: 'Edit ticket',
+    save: 'Save',
+    trackingClassificationHint: 'Choose at least one classification to enable time tracking.',
+    clientRequiredForBillableTime: 'Select a customer to make the tracked time billable.',
     status: 'Status',
     priority: 'Priority',
     category: 'Category',

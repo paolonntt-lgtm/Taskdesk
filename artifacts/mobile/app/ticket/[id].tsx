@@ -25,6 +25,8 @@ import {
 import { useTicketStatuses } from "@/hooks/useTicketStatuses";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { TicketEditModal } from "@/components/TicketEditModal";
+import { canEditTicketDetails, canViewTicketTrackedTime } from "@/utils/ticketDetailRules";
 
 type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -33,6 +35,8 @@ interface Ticket {
   category: string; location: string; resource?: string;
   priority: string; status: string;
   assignedTo?: number | null;
+  createdBy?: number;
+  clientId?: number | null;
   createdAt: string; closedAt?: string;
   resolutionNote?: string | null;
   workedMinutes?: number | null;
@@ -113,6 +117,7 @@ export default function TicketDetailScreen() {
   const [replacingAttachmentIndex, setReplacingAttachmentIndex] = useState<number | null>(null);
 
   const [resolutionModal, setResolutionModal] = useState(false);
+  const [editModal, setEditModal] = useState(false);
   const [resolutionNote, setResolutionNote] = useState("");
   const [workedHours, setWorkedHours] = useState("");
   const [workedMinutes, setWorkedMinutes] = useState("");
@@ -568,6 +573,12 @@ export default function TicketDetailScreen() {
   }
 
   const isAdmin = user?.role === "admin";
+  const canEditTicket = canEditTicketDetails({
+    isAdmin,
+    createdBy: ticket.createdBy,
+    currentUserId: user?.id,
+    canChangeStatus: user?.groupPermissions?.includes("change_status") === true,
+  });
   const canEditWorkedMinutes =
     isAdmin ||
     ticket.assignedTo === user?.id ||
@@ -616,6 +627,18 @@ export default function TicketDetailScreen() {
             <Text style={s.ticketId}>Ticket #{ticket.id}</Text>
             <Text style={s.title}>{ticket.title}</Text>
           </View>
+          {canEditTicket && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t.ticketDetail.editTicket}
+              testID="edit-ticket-button"
+              onPress={() => setEditModal(true)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10 }}
+            >
+              <Feather name="edit-2" size={16} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{t.ticketDetail.editTicket}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={s.metaCard}>
@@ -627,8 +650,12 @@ export default function TicketDetailScreen() {
           ))}
         </View>
 
-        {timeTrackingModuleEnabled &&
-          ((ticket.timeTrackingEnabled && ticket.canViewTimeTrackingSummary) || isAdmin) && (
+        {canViewTicketTrackedTime({
+          organizationTrackingEnabled: timeTrackingModuleEnabled,
+          ticketTrackingEnabled: ticket.timeTrackingEnabled === true,
+          canViewSummary: ticket.canViewTimeTrackingSummary === true,
+          isAdmin,
+        }) && (
           <View style={[s.metaCard, { marginTop: 12, padding: 14 }]}>
             <Text style={[s.sectionTitle, { marginBottom: 8 }]}>{t.ticketDetail.trackedTimeTitle}</Text>
             {ticket.timeTrackingSummary && (
@@ -1140,6 +1167,13 @@ export default function TicketDetailScreen() {
           </View>
         </View>
       </KeyboardAwareScrollView>
+
+      <TicketEditModal
+        visible={editModal}
+        ticket={ticket}
+        canEditTracking={isAdmin && timeTrackingModuleEnabled}
+        onClose={() => setEditModal(false)}
+      />
 
       {/* ── Recurrence Modal ── */}
       <Modal

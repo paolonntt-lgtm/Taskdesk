@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet } from "@/utils/api";
+import { getMonthRange, getRecentMonthOptions } from "@/utils/timeReportMonths";
 
 type ReportRow = {
   kind: "session" | "manual";
@@ -49,10 +50,13 @@ export default function TimeReportScreen() {
   const english = lang !== "it";
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [clientId, setClientId] = useState<number | null>(null);
   const [collaboratorId, setCollaboratorId] = useState<number | null>(null);
   const [showClientOptions, setShowClientOptions] = useState(false);
   const [showCollaboratorOptions, setShowCollaboratorOptions] = useState(false);
+  const [showMonthOptions, setShowMonthOptions] = useState(false);
+  const monthOptions = getRecentMonthOptions(12, new Date(), english ? "en-GB" : "it-IT");
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) params.set("dateFrom", dateFrom);
@@ -100,6 +104,8 @@ export default function TimeReportScreen() {
     disabled: english ? "The hours module is disabled for this organization." : "Il modulo di tracciamento ore è disattivato per questa organizzazione.",
     dateFrom: english ? "From (YYYY-MM-DD)" : "Dal (AAAA-MM-GG)",
     dateTo: english ? "To (YYYY-MM-DD)" : "Al (AAAA-MM-GG)",
+    month: english ? "Month" : "Mese",
+    allMonths: english ? "All periods" : "Tutti i periodi",
     allClients: english ? "All clients" : "Tutti i clienti",
     allCollaborators: english ? "All collaborators" : "Tutti i collaboratori",
     client: english ? "Client" : "Cliente",
@@ -133,9 +139,42 @@ export default function TimeReportScreen() {
         <>
           <View style={styles.card}>
             <Text style={styles.filterTitle}>{english ? "Period" : "Periodo"}</Text>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => setShowMonthOptions((value) => !value)}
+              accessibilityRole="button"
+              testID="filter-time-report-month"
+            >
+              <Text style={styles.filterValue}>
+                {selectedMonth
+                  ? monthOptions.find((option) => option.value === selectedMonth)?.label ?? selectedMonth
+                  : labels.month}
+              </Text>
+              <Feather name={showMonthOptions ? "chevron-up" : "chevron-down"} size={16} color={palette.muted} />
+            </TouchableOpacity>
+            {showMonthOptions && (
+              <View style={styles.chips}>
+                <FilterChip label={labels.allMonths} selected={selectedMonth == null} onPress={() => {
+                  setSelectedMonth(null);
+                  setDateFrom("");
+                  setDateTo("");
+                  setShowMonthOptions(false);
+                }} styles={styles} />
+                {monthOptions.map((option) => (
+                  <FilterChip key={option.value} testID={`time-report-month-${option.value}`} label={option.label} selected={selectedMonth === option.value} onPress={() => {
+                    const range = getMonthRange(option.value);
+                    if (!range) return;
+                    setSelectedMonth(option.value);
+                    setDateFrom(range.dateFrom);
+                    setDateTo(range.dateTo);
+                    setShowMonthOptions(false);
+                  }} styles={styles} />
+                ))}
+              </View>
+            )}
             <View style={styles.dateRow}>
-              <TextInput value={dateFrom} onChangeText={setDateFrom} placeholder={labels.dateFrom} placeholderTextColor={palette.muted} style={styles.dateInput} testID="input-time-report-date-from" />
-              <TextInput value={dateTo} onChangeText={setDateTo} placeholder={labels.dateTo} placeholderTextColor={palette.muted} style={styles.dateInput} testID="input-time-report-date-to" />
+              <TextInput value={dateFrom} onChangeText={(value) => { setDateFrom(value); setSelectedMonth(null); }} placeholder={labels.dateFrom} placeholderTextColor={palette.muted} style={styles.dateInput} testID="input-time-report-date-from" />
+              <TextInput value={dateTo} onChangeText={(value) => { setDateTo(value); setSelectedMonth(null); }} placeholder={labels.dateTo} placeholderTextColor={palette.muted} style={styles.dateInput} testID="input-time-report-date-to" />
             </View>
             <TouchableOpacity style={styles.filterButton} onPress={() => setShowClientOptions((value) => !value)} testID="filter-time-report-client">
               <Text style={styles.filterValue}>{clientQuery.data?.find((item) => item.id === clientId)?.name ?? labels.allClients}</Text>
@@ -191,9 +230,9 @@ export default function TimeReportScreen() {
   );
 }
 
-function FilterChip({ label, selected, onPress, styles }: any) {
+function FilterChip({ label, selected, onPress, styles, testID }: any) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipActive]} accessibilityRole="button">
+    <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipActive]} accessibilityRole="button" testID={testID}>
       <Text style={[styles.chipText, selected && styles.chipTextActive]}>{label}</Text>
     </TouchableOpacity>
   );

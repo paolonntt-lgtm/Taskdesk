@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TimeReportScreen from "../app/time-report";
+import { getRecentMonthOptions } from "./timeReportMonths";
 
 const mocks = vi.hoisted(() => ({
   settings: { timeTrackingModuleEnabled: false },
@@ -128,5 +129,26 @@ describe("mobile hours report screen", () => {
       "/users",
     ]);
     expect(host.textContent).not.toContain("Il modulo di tracciamento ore è disattivato");
+  });
+
+  it("loads the selected month without requiring manual date entry", async () => {
+    mocks.settings = { timeTrackingModuleEnabled: true };
+    await renderScreen();
+
+    const monthFilter = host.querySelector('[data-testid="filter-time-report-month"]') as HTMLButtonElement;
+    await act(async () => monthFilter.click());
+
+    const currentMonth = getRecentMonthOptions(12, new Date(), "it-IT")[0];
+    const monthOption = host.querySelector(`[data-testid="time-report-month-${currentMonth.value}"]`) as HTMLButtonElement;
+    await act(async () => monthOption.click());
+
+    const reportPaths = mocks.apiGet.mock.calls
+      .map(([path]) => path as string)
+      .filter((path) => path.startsWith("/time-tracking/report"));
+    expect(reportPaths.at(-1)).toBe(
+      `/time-tracking/report?dateFrom=${currentMonth.dateFrom}&dateTo=${currentMonth.dateTo}`,
+    );
+    expect((host.querySelector('[data-testid="input-time-report-date-from"]') as HTMLInputElement).value).toBe(currentMonth.dateFrom);
+    expect((host.querySelector('[data-testid="input-time-report-date-to"]') as HTMLInputElement).value).toBe(currentMonth.dateTo);
   });
 });
