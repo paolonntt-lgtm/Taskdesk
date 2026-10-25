@@ -596,6 +596,11 @@ describe("mobile ticket creation navigation", () => {
 
   it.each([
     {
+      section: "calendar",
+      role: "member",
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
+    },
+    {
       section: "clients-tab",
       role: "member",
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
@@ -619,9 +624,13 @@ describe("mobile ticket creation navigation", () => {
 
       await render(TabLayout);
 
-      expect(
-        registeredRoutes().find((route) => route.dataset.route === section)?.dataset.href,
-      ).toBe("hidden");
+      if (section === "calendar") {
+        expect(host.querySelector('button[aria-label="Calendar"]')).toBeNull();
+      } else {
+        expect(
+          registeredRoutes().find((route) => route.dataset.route === section)?.dataset.href,
+        ).toBe("hidden");
+      }
       expect(
         host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
       ).toBeNull();

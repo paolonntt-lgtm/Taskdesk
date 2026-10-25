@@ -285,6 +285,7 @@ type DashboardTicket = {
 function getProfileReturnRoute(
   value: unknown,
   optionalTabAccess: ReturnType<typeof getMobileOptionalTabAccess>,
+  hideCalendarTab: boolean,
 ): ProfileReturnRoute | undefined {
   if (
     typeof value !== "string" ||
@@ -295,6 +296,7 @@ function getProfileReturnRoute(
 
   if (value === "clients-tab" && !optionalTabAccess.clients) return undefined;
   if (value === "hours-report-tab" && !optionalTabAccess.hoursReport) return undefined;
+  if (value === "calendar" && hideCalendarTab) return undefined;
 
   return value as ProfileReturnRoute;
 }
@@ -401,6 +403,7 @@ function TabContent() {
             ? getProfileReturnRoute(
                 (route.params as { returnTo?: unknown } | undefined)?.returnTo,
                 optionalTabAccess,
+                hideCalendarTab,
               )
             : undefined;
         const returnLabel = returnTo
