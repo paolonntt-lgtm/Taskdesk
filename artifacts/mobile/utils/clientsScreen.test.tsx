@@ -10,10 +10,15 @@ const mocks = vi.hoisted(() => ({
   settingsError: false,
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
+  clientNotes: [] as Array<Record<string, unknown>>,
   routeParams: { id: "1" },
   apiGet: vi.fn(),
   useQuery: vi.fn(),
   refetchSettings: vi.fn(),
+  createClientNote: vi.fn(),
+  updateClientNote: vi.fn(),
+  deleteClientNote: vi.fn(),
+  invalidateQueries: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -57,6 +62,18 @@ vi.mock("expo-router", () => ({
   router: { push: vi.fn(), replace: vi.fn() },
   useLocalSearchParams: () => mocks.routeParams,
 }));
+vi.mock("@workspace/api-client-react", () => ({
+  getListClientNotesQueryKey: (id: number) => ["client-notes", id],
+  useListClientNotes: () => ({
+    data: mocks.clientNotes,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useCreateClientNote: () => ({ mutateAsync: mocks.createClientNote, isPending: false }),
+  useUpdateClientNote: () => ({ mutateAsync: mocks.updateClientNote, isPending: false }),
+  useDeleteClientNote: () => ({ mutateAsync: mocks.deleteClientNote, isPending: false }),
+}));
 vi.mock("@/hooks/useColors", () => ({
   useColors: () => new Proxy({}, { get: () => "#222222" }),
 }));
@@ -72,7 +89,7 @@ vi.mock("@/utils/api", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: mocks.useQuery,
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }));
 
 describe("mobile clients screen", () => {
@@ -96,8 +113,13 @@ describe("mobile clients screen", () => {
     mocks.settingsError = false;
     mocks.refetchSettings.mockReset();
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" };
+    mocks.clientNotes = [];
     mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
+    mocks.createClientNote.mockReset().mockResolvedValue({});
+    mocks.updateClientNote.mockReset().mockResolvedValue({});
+    mocks.deleteClientNote.mockReset().mockResolvedValue(undefined);
+    mocks.invalidateQueries.mockReset().mockResolvedValue(undefined);
     mocks.useQuery.mockReset().mockImplementation((options: {
       queryKey: unknown[];
       queryFn: () => Promise<unknown>;
@@ -194,5 +216,44 @@ describe("mobile clients screen", () => {
       "/clients/1",
     ]);
     expect(host.textContent).toContain("Studio Alfa");
+  });
+
+  it("shows the client note history and creates a note", async () => {
+    mocks.settings = { clientsEnabled: true };
+    mocks.clientNotes = [{
+      id: 12,
+      clientId: 1,
+      organizationId: 7,
+      authorId: 5,
+      authorName: "Ada Lovelace",
+      body: "Ricontattare la prossima settimana",
+      checklist: null,
+      createdAt: "2026-10-24T10:30:00.000Z",
+      updatedAt: "2026-10-24T10:30:00.000Z",
+    }];
+
+    await renderDetailScreen();
+
+    expect(host.textContent).toContain("Storico note");
+    expect(host.textContent).toContain("Ricontattare la prossima settimana");
+    expect(host.textContent).toContain("Ada Lovelace");
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="Scrivi una nota sul cliente…"]');
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Inviare il preventivo");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const addButton = Array.from(host.querySelectorAll("button"))
+      .find(button => button.textContent?.includes("Aggiungi"));
+    expect(addButton).toBeDefined();
+    await act(async () => addButton?.click());
+
+    expect(mocks.createClientNote).toHaveBeenCalledWith({
+      id: 1,
+      data: { body: "Inviare il preventivo", checklist: null },
+    });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["client-notes", 1] });
   });
 });
