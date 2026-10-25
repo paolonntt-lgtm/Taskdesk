@@ -1,3 +1,50 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">TaskDesk official monogram</title>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2860fe"/>
+      <stop offset="1" stop-color="#3466fe"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7c3fed"/>
+      <stop offset="0.25" stop-color="#7038e9"/>
+      <stop offset="0.65" stop-color="#591fd7"/>
+      <stop offset="1" stop-color="#591fd7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#fff"/>
+
+  <!-- The D-shaped stroke, including the angled lower-left terminal. -->
+  <path
+    fill="url(#purple)"
+    d="M683 219
+       C810 222 910 337 910 512
+       C910 688 810 807 665 807
+       H347
+       L442 699
+       H662
+       C742 699 790 623 790 512
+       C790 402 742 326 650 326
+       L680 236
+       Q682 228 683 219Z"
+  />
+
+  <!-- The blue T and its original slanted lower terminal. -->
+  <path
+    fill="url(#blue)"
+    d="M154 219
+       H655
+       Q670 219 664 234
+       L633 296
+       Q625 326 595 326
+       H432
+       V674
+       Q432 679 428 684
+       L316 801
+       V326
+       H122
+       V252
+       Q122 219 154 219Z"
+  />
 </svg>
