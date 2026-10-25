@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/react-query";
+
 export type MobileOptionalTabSettings = {
   clientsEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;
@@ -12,6 +14,17 @@ export function getMobileOrganizationSettingsQueryKey(
   organizationId: number | null | undefined,
 ) {
   return ["mobile-organization-settings", organizationId] as const;
+}
+
+export function cacheMobileOrganizationSettings(
+  queryClient: Pick<QueryClient, "setQueryData">,
+  organizationId: number | null | undefined,
+  settings: MobileOptionalTabSettings,
+): void {
+  queryClient.setQueryData(
+    getMobileOrganizationSettingsQueryKey(organizationId),
+    settings,
+  );
 }
 
 export function getMobileOptionalTabAccess({

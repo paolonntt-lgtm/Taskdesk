@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPut, apiPost, apiPatch } from "@/utils/api";
-import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
+import { cacheMobileOrganizationSettings } from "@/utils/optionalTabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -113,10 +113,7 @@ export default function AdminSettingsScreen() {
     try {
       const updated = await apiPatch<OrganizationSettings>("/settings/organization", organization);
       setOrganization(updated);
-      queryClient.setQueryData(
-        getMobileOrganizationSettingsQueryKey(user?.organizationId),
-        updated,
-      );
+      cacheMobileOrganizationSettings(queryClient, user?.organizationId, updated);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(t.adminSettings.saved, t.adminSettings.organizationSaved);
     } catch (err: any) {

@@ -1,11 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  cacheMobileOrganizationSettings,
   getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
   shouldHideCalendarTab,
 } from "./optionalTabs";
+import { getMobileBottomBarLayout } from "./mobileBottomBarLayout";
 
 describe("optional mobile navigation tabs", () => {
+  const queryClients: QueryClient[] = [];
+
+  afterEach(() => {
+    queryClients.splice(0).forEach((client) => client.clear());
+  });
+
   it("uses a shared organization-settings cache key", () => {
     expect(getMobileOrganizationSettingsQueryKey(7)).toEqual([
       "mobile-organization-settings",
@@ -99,5 +108,101 @@ describe("optional mobile navigation tabs", () => {
       hasOrganization: false,
       settingsLoaded: true,
     })).toBe(false);
+  });
+
+  it("updates the subscribed menu as products change without changing the current screen", () => {
+    const organizationId = 7;
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClients.push(queryClient);
+    const queryKey = getMobileOrganizationSettingsQueryKey(organizationId);
+    const observer = new QueryObserver(queryClient, {
+      queryKey,
+      queryFn: async () => ({ clientsEnabled: false, timeTrackingModuleEnabled: false }),
+      enabled: false,
+    });
+    const getMenu = () => {
+      const settings = observer.getCurrentResult().data;
+      const access = getMobileOptionalTabAccess({
+        settings,
+        hasOrganization: true,
+        isOrganizationAdmin: true,
+      });
+      const hideCalendar = shouldHideCalendarTab({
+        settings,
+        hasOrganization: true,
+        settingsLoaded: settings !== undefined,
+      });
+      const routes = [
+        "index",
+        "tickets",
+        ...(!hideCalendar ? ["calendar"] : []),
+        ...(access.hoursReport ? ["hours-report-tab"] : []),
+        ...(access.clients ? ["clients-tab"] : []),
+      ];
+
+      return {
+        routes,
+        layout: getMobileBottomBarLayout(routes, true),
+      };
+    };
+    const menuSnapshots: string[][] = [];
+    const unsubscribe = observer.subscribe((result) => {
+      if (result.data) menuSnapshots.push(getMenu().routes);
+    });
+    const currentRoute = "tickets";
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: false,
+      timeTrackingModuleEnabled: false,
+    });
+    expect(getMenu().routes).toContain("calendar");
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: true,
+      timeTrackingModuleEnabled: false,
+    });
+    expect(getMenu().routes).toContain("clients-tab");
+    expect(getMenu().routes).toContain("calendar");
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: false,
+      timeTrackingModuleEnabled: false,
+    });
+    expect(getMenu().routes).not.toContain("clients-tab");
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: false,
+      timeTrackingModuleEnabled: true,
+    });
+    expect(getMenu().routes).toContain("hours-report-tab");
+    expect(getMenu().routes).toContain("calendar");
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: false,
+      timeTrackingModuleEnabled: false,
+    });
+    expect(getMenu().routes).not.toContain("hours-report-tab");
+
+    cacheMobileOrganizationSettings(queryClient, organizationId, {
+      clientsEnabled: true,
+      timeTrackingModuleEnabled: true,
+    });
+    const enabledMenu = getMenu();
+    expect(enabledMenu.routes).toContain("clients-tab");
+    expect(enabledMenu.routes).toContain("hours-report-tab");
+    expect(enabledMenu.routes).not.toContain("calendar");
+    expect(enabledMenu.layout.find((item) => item.routeName === "new")?.left).toBe(40);
+    expect(currentRoute).toBe("tickets");
+    expect(menuSnapshots).toHaveLength(6);
+    expect(menuSnapshots[1]).toContain("clients-tab");
+    expect(menuSnapshots[2]).not.toContain("clients-tab");
+    expect(menuSnapshots[3]).toContain("hours-report-tab");
+    expect(menuSnapshots[4]).not.toContain("hours-report-tab");
+    expect(menuSnapshots[5]).not.toContain("calendar");
+
+    unsubscribe();
+    expect(currentRoute).toBe("tickets");
   });
 });
