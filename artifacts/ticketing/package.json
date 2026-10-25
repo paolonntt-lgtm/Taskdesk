@@ -8,8 +8,9 @@
     "build": "pnpm run check:wordmark && node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node compress-static-assets.mjs && node ../../scripts/security-check.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run check:wordmark && vitest run",
+    "test": "pnpm run check:wordmark && pnpm run check:wordmark-visual && vitest run",
     "check:wordmark": "node ../../scripts/check-taskdesk-wordmark.mjs",
+    "check:wordmark-visual": "node ../../scripts/check-wordmark-visual.mjs",
     "perf:check": "pnpm run build && node scripts/check-app-performance.mjs",
     "performance:dashboard": "node scripts/measure-dashboard-performance.mjs"
   },
