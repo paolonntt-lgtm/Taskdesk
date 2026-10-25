@@ -102,11 +102,21 @@ function DashboardSearchHeader() {
   );
 }
 
-function getProfileReturnRoute(value: unknown): ProfileReturnRoute | undefined {
-  return typeof value === "string" &&
-    (PROFILE_RETURN_ROUTES as readonly string[]).includes(value)
-    ? (value as ProfileReturnRoute)
-    : undefined;
+function getProfileReturnRoute(
+  value: unknown,
+  optionalTabAccess: ReturnType<typeof getMobileOptionalTabAccess>,
+): ProfileReturnRoute | undefined {
+  if (
+    typeof value !== "string" ||
+    !(PROFILE_RETURN_ROUTES as readonly string[]).includes(value)
+  ) {
+    return undefined;
+  }
+
+  if (value === "clients-tab" && !optionalTabAccess.clients) return undefined;
+  if (value === "hours-report-tab" && !optionalTabAccess.hoursReport) return undefined;
+
+  return value as ProfileReturnRoute;
 }
 
 function TabContent() {
@@ -203,6 +213,7 @@ function TabContent() {
           route.name === "profile"
             ? getProfileReturnRoute(
                 (route.params as { returnTo?: unknown } | undefined)?.returnTo,
+                optionalTabAccess,
               )
             : undefined;
         const returnLabel = returnTo

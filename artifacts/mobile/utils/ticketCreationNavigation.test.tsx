@@ -374,6 +374,41 @@ describe("mobile ticket creation navigation", () => {
   });
 
   it.each([
+    {
+      section: "clients-tab",
+      role: "member",
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+    },
+    {
+      section: "hours-report-tab",
+      role: "admin",
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+    },
+    {
+      section: "hours-report-tab",
+      role: "member",
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+    },
+  ] as const)(
+    "omits Profile back action for stale $section destinations",
+    async ({ section, role, settings }) => {
+      mocks.user = { ...mocks.user, role };
+      mocks.organizationSettings = settings;
+      mocks.profileReturnTo = section;
+
+      await render(TabLayout);
+
+      expect(
+        registeredRoutes().find((route) => route.dataset.route === section)?.dataset.href,
+      ).toBe("hidden");
+      expect(
+        host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+      ).toBeNull();
+      expect(mocks.navigate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
     { language: "en", returnLabel: "Back to Reports" },
     { language: "it", returnLabel: "Torna a Report" },
   ] as const)(
