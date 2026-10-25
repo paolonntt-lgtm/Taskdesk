@@ -20,6 +20,7 @@ function parsePng(buffer, filePath) {
   let header;
   let palette;
   let paletteAlpha;
+  let transparentColor;
   const imageData = [];
   let sawEnd = false;
 
@@ -49,7 +50,11 @@ function parsePng(buffer, filePath) {
     } else if (chunkType === "PLTE") {
       palette = Buffer.from(data);
     } else if (chunkType === "tRNS") {
-      paletteAlpha = Buffer.from(data);
+      if (header?.colorType === 3) {
+        paletteAlpha = Buffer.from(data);
+      } else {
+        transparentColor = Buffer.from(data);
+      }
     } else if (chunkType === "IDAT") {
       imageData.push(data);
     } else if (chunkType === "IEND") {
@@ -104,6 +109,9 @@ function parsePng(buffer, filePath) {
   let previousRow = Buffer.alloc(stride);
   const visibleBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
   let maxVisibleRadiusSquared = 0;
+  let transparentPixelCount = 0;
+  let partialAlphaPixelCount = 0;
+  let nonWhiteVisiblePixelCount = 0;
   const centerX = (header.width - 1) / 2;
   const centerY = (header.height - 1) / 2;
   let dataOffset = 0;
@@ -143,13 +151,54 @@ function parsePng(buffer, filePath) {
     }
 
     for (let x = 0; x < header.width; x += 1) {
+      let red;
+      let green;
+      let blue;
       let alpha = 255;
-      if (header.colorType === 4) {
+      if (header.colorType === 0) {
+        red = green = blue = row[x];
+        if (transparentColor?.length === 2 && row[x] === transparentColor.readUInt16BE(0)) {
+          alpha = 0;
+        }
+      } else if (header.colorType === 2) {
+        const pixelOffset = x * 3;
+        red = row[pixelOffset];
+        green = row[pixelOffset + 1];
+        blue = row[pixelOffset + 2];
+        if (
+          transparentColor?.length === 6 &&
+          red === transparentColor.readUInt16BE(0) &&
+          green === transparentColor.readUInt16BE(2) &&
+          blue === transparentColor.readUInt16BE(4)
+        ) {
+          alpha = 0;
+        }
+      } else if (header.colorType === 3) {
+        const paletteOffset = row[x] * 3;
+        red = palette[paletteOffset];
+        green = palette[paletteOffset + 1];
+        blue = palette[paletteOffset + 2];
+        if (paletteAlpha && row[x] < paletteAlpha.length) {
+          alpha = paletteAlpha[row[x]];
+        }
+      } else if (header.colorType === 4) {
+        red = green = blue = row[x * 2];
         alpha = row[x * 2 + 1];
       } else if (header.colorType === 6) {
-        alpha = row[x * 4 + 3];
-      } else if (header.colorType === 3 && paletteAlpha && row[x] < paletteAlpha.length) {
-        alpha = paletteAlpha[row[x]];
+        const pixelOffset = x * 4;
+        red = row[pixelOffset];
+        green = row[pixelOffset + 1];
+        blue = row[pixelOffset + 2];
+        alpha = row[pixelOffset + 3];
+      }
+
+      if (alpha === 0) {
+        transparentPixelCount += 1;
+      } else {
+        if (alpha < 255) partialAlphaPixelCount += 1;
+        if (red !== 255 || green !== 255 || blue !== 255) {
+          nonWhiteVisiblePixelCount += 1;
+        }
       }
 
       if (alpha > 0) {
@@ -173,7 +222,56 @@ function parsePng(buffer, filePath) {
     ...header,
     visibleBounds,
     maxVisibleRadius: Math.sqrt(maxVisibleRadiusSquared),
+    transparentPixelCount,
+    partialAlphaPixelCount,
+    nonWhiteVisiblePixelCount,
   };
+}
+
+function getConfiguredAsset(projectRoot, assetPath, label, configPath) {
+  if (typeof assetPath !== "string" || assetPath.trim() === "") {
+    fail(`Expo config ${configPath} must set a ${label} image path.`);
+  }
+
+  const imagePath = path.resolve(projectRoot, assetPath);
+  const relativeImagePath = path.relative(projectRoot, imagePath);
+  if (relativeImagePath.startsWith("..") || path.isAbsolute(relativeImagePath)) {
+    fail(`The configured ${label} image must be inside the mobile project: ${assetPath}.`);
+  }
+  if (!fs.existsSync(imagePath)) {
+    fail(`Configured ${label} image does not exist: ${assetPath}.`);
+  }
+
+  try {
+    return parsePng(fs.readFileSync(imagePath), assetPath);
+  } catch (error) {
+    if (error.message.startsWith("[android-adaptive-icon]")) throw error;
+    fail(`Cannot inspect ${assetPath}: ${error.message}`);
+  }
+}
+
+function checkCenteredTransparentSplash(projectRoot, imagePath, label, configPath) {
+  const image = getConfiguredAsset(projectRoot, imagePath, label, configPath);
+  if (image.transparentPixelCount === 0) {
+    fail(`${imagePath} must have a transparent background for the splash mark.`);
+  }
+  if (image.visibleBounds.maxX < 0) {
+    fail(`${imagePath} has no visible pixels; the splash mark may be missing.`);
+  }
+
+  const markCenterX = (image.visibleBounds.minX + image.visibleBounds.maxX) / 2;
+  const markCenterY = (image.visibleBounds.minY + image.visibleBounds.maxY) / 2;
+  const canvasCenterX = (image.width - 1) / 2;
+  const canvasCenterY = (image.height - 1) / 2;
+  if (Math.abs(markCenterX - canvasCenterX) > 5 || Math.abs(markCenterY - canvasCenterY) > 5) {
+    fail(
+      `${imagePath} visible mark must be centered; its center is ` +
+        `${markCenterX.toFixed(1)},${markCenterY.toFixed(1)} on a ` +
+        `${image.width}×${image.height} canvas.`,
+    );
+  }
+
+  return image;
 }
 
 function checkAdaptiveIcon(projectRoot) {
@@ -253,6 +351,52 @@ function checkAdaptiveIcon(projectRoot) {
     );
   }
 
+  const splashPlugin = config?.expo?.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
+  )?.[1];
+  const splashImagePath = splashPlugin?.image;
+  const splashImage = checkCenteredTransparentSplash(
+    projectRoot,
+    splashImagePath,
+    "expo-splash-screen",
+    configPath,
+  );
+
+  if (typeof splashPlugin?.dark?.image === "string") {
+    checkCenteredTransparentSplash(
+      projectRoot,
+      splashPlugin.dark.image,
+      "dark expo-splash-screen",
+      configPath,
+    );
+  }
+
+  const notificationsPlugin = config?.expo?.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-notifications",
+  )?.[1];
+  const notificationImagePath = notificationsPlugin?.icon;
+  const notificationImage = getConfiguredAsset(
+    projectRoot,
+    notificationImagePath,
+    "expo-notifications",
+    configPath,
+  );
+  if (notificationImage.width !== 96 || notificationImage.height !== 96) {
+    fail(
+      `${notificationImagePath} must be exactly 96×96px; received ` +
+        `${notificationImage.width}×${notificationImage.height}.`,
+    );
+  }
+  if (notificationImage.visibleBounds.maxX < 0) {
+    fail(`${notificationImagePath} has no visible pixels; the notification mark may be missing.`);
+  }
+  if (notificationImage.transparentPixelCount === 0) {
+    fail(`${notificationImagePath} must have a transparent background.`);
+  }
+  if (notificationImage.nonWhiteVisiblePixelCount > 0) {
+    fail(`${notificationImagePath} must contain only white visible pixels.`);
+  }
+
   return {
     foregroundImage,
     width: image.width,
@@ -261,6 +405,12 @@ function checkAdaptiveIcon(projectRoot) {
     requiredMargin,
     maxVisibleRadius: image.maxVisibleRadius,
     safeRadius,
+    splashImagePath,
+    splashWidth: splashImage.width,
+    splashHeight: splashImage.height,
+    notificationImagePath,
+    notificationWidth: notificationImage.width,
+    notificationHeight: notificationImage.height,
   };
 }
 
@@ -274,6 +424,11 @@ if (require.main === module) {
         `${result.margins.left}/${result.margins.top}/${result.margins.right}/${result.margins.bottom}px ` +
         `(minimum ${result.requiredMargin}px); maximum radius ` +
         `${result.maxVisibleRadius.toFixed(1)}px (safe radius ${result.safeRadius.toFixed(1)}px).`,
+    );
+    console.log(
+      `[android-adaptive-icon] Splash and notification checks passed: ${result.splashImagePath} ` +
+        `(${result.splashWidth}×${result.splashHeight}, centered with transparency); ` +
+        `${result.notificationImagePath} (${result.notificationWidth}×${result.notificationHeight}, white on transparency).`,
     );
   } catch (error) {
     console.error(error.message);

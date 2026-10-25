@@ -31,7 +31,7 @@ function pngChunk(type, data) {
   return Buffer.concat([length, typeBuffer, data, checksum]);
 }
 
-function rgbaPng(width, height, visiblePixels) {
+function rgbaPng(width, height, visiblePixels, backgroundPixel = [0, 0, 0, 0]) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
@@ -41,9 +41,12 @@ function rgbaPng(width, height, visiblePixels) {
   const rows = [];
   for (let y = 0; y < height; y += 1) {
     const row = Buffer.alloc(width * 4 + 1);
-    for (const { x, y: pixelY, alpha = 255 } of visiblePixels) {
+    for (let x = 0; x < width; x += 1) {
+      row.set(backgroundPixel, 1 + x * 4);
+    }
+    for (const { x, y: pixelY, alpha = 255, color = [255, 255, 255] } of visiblePixels) {
       if (pixelY === y) {
-        row.set([255, 255, 255, alpha], 1 + x * 4);
+        row.set([...color, alpha], 1 + x * 4);
       }
     }
     rows.push(row);
@@ -145,12 +148,24 @@ function createProject({
         android: {
           adaptiveIcon: { foregroundImage: "./assets/foreground.png" },
         },
+        plugins: [
+          ["expo-splash-screen", { image: "./assets/splash.png" }],
+          ["expo-notifications", { icon: "./assets/notification.png" }],
+        ],
       },
     }),
   );
   fs.writeFileSync(
     path.join(projectRoot, "assets/foreground.png"),
     foreground,
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, "assets/splash.png"),
+    rgbaPng(108, 108, [{ x: 54, y: 54 }]),
+  );
+  fs.writeFileSync(
+    path.join(projectRoot, "assets/notification.png"),
+    rgbaPng(96, 96, [{ x: 48, y: 48 }]),
   );
   return projectRoot;
 }
@@ -259,6 +274,82 @@ describe("Android adaptive icon safe-area check", () => {
       /unsupported\.png uses an unsupported PNG color type \(1\)/,
     );
   });
+
+  it("rejects a splash image with an opaque background", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "assets/splash.png"),
+      rgbaPng(108, 108, [{ x: 54, y: 54 }], [255, 255, 255, 255]),
+    );
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/must have a transparent background/);
+  });
+
+  it("rejects a splash mark that is not centered", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "assets/splash.png"),
+      rgbaPng(108, 108, [{ x: 20, y: 54 }]),
+    );
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/visible mark must be centered/);
+  });
+
+  it("rejects a missing notification path from the Expo config", () => {
+    const projectRoot = createProject();
+    const configPath = path.join(projectRoot, "app.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.expo.plugins[1][1].icon = "./assets/missing-notification.png";
+    fs.writeFileSync(configPath, JSON.stringify(config));
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/Configured expo-notifications image does not exist/);
+  });
+
+  it("rejects a missing splash path from the Expo config", () => {
+    const projectRoot = createProject();
+    const configPath = path.join(projectRoot, "app.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.expo.plugins[0][1].image = "./assets/missing-splash.png";
+    fs.writeFileSync(configPath, JSON.stringify(config));
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/Configured expo-splash-screen image does not exist/);
+  });
+
+  it("rejects a missing dark splash path from the Expo config", () => {
+    const projectRoot = createProject();
+    const configPath = path.join(projectRoot, "app.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.expo.plugins[0][1].dark = { image: "./assets/missing-dark-splash.png" };
+    fs.writeFileSync(configPath, JSON.stringify(config));
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/Configured dark expo-splash-screen image does not exist/);
+  });
+
+  it("rejects notification artwork with the wrong size or non-white pixels", () => {
+    const wrongSizeProject = createProject();
+    fs.writeFileSync(
+      path.join(wrongSizeProject, "assets/notification.png"),
+      rgbaPng(95, 96, [{ x: 48, y: 48 }]),
+    );
+    expect(() => checkAdaptiveIcon(wrongSizeProject)).toThrow(/must be exactly 96×96px/);
+
+    const nonWhiteProject = createProject();
+    fs.writeFileSync(
+      path.join(nonWhiteProject, "assets/notification.png"),
+      rgbaPng(96, 96, [{ x: 48, y: 48, color: [0, 0, 0] }]),
+    );
+    expect(() => checkAdaptiveIcon(nonWhiteProject)).toThrow(/only white visible pixels/);
+  });
+
+  it("rejects notification artwork without transparency", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "assets/notification.png"),
+      rgbaPng(96, 96, [{ x: 48, y: 48 }], [255, 255, 255, 255]),
+    );
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/must have a transparent background/);
+  });
 });
 
 describe("mobile splash and iOS icon assets", () => {
@@ -283,6 +374,7 @@ describe("mobile splash and iOS icon assets", () => {
     });
     expect(image.width).toBe(1024);
     expect(image.height).toBe(1024);
+    expect(image.transparentPixelCount).toBeGreaterThan(0);
     expect(Math.abs((image.visibleBounds.minX + image.visibleBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(Math.abs((image.visibleBounds.minY + image.visibleBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
   });

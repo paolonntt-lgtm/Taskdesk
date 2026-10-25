@@ -13,13 +13,13 @@ import { fileURLToPath } from "node:url";
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
-const foregroundSize = 620;
+const foregroundSize = 500;
 const targets = [
   ["artifacts/landing/public/favicon.png", 192, "opaque"],
   ["artifacts/landing/public/apple-touch-icon.png", 180, "opaque"],
   ["artifacts/landing/public/icon-192.png", 192, "opaque"],
   ["artifacts/landing/public/icon-512.png", 512, "opaque"],
-  ["artifacts/mobile/assets/images/icon.png", 1024, "opaque"],
+  ["artifacts/mobile/assets/images/icon.png", 1024, "transparent"],
   ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "opaque"],
   ["artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png", 1024, "foreground"],
 ];
@@ -65,6 +65,13 @@ function render(targetPath, size, variant, svgPath) {
     ]);
     return;
   }
+  if (variant === "transparent") {
+    runMagick([
+      "-background", "none", svgPath, "-alpha", "on",
+      "-depth", "8", "-strip", `PNG32:${targetPath}`,
+    ]);
+    return;
+  }
 
   runMagick([
     "-background", "white", svgPath, "-alpha", "remove", "-alpha", "off",
@@ -94,7 +101,7 @@ function withGeneratedAssets(callback) {
     writeFileSync(transparentSvgPath, makeTransparentMaster(svg));
     const generated = targets.map(([relativePath, size, variant], index) => {
       const outputPath = path.join(tempDirectory, `generated-${index}.png`);
-      render(outputPath, size, variant, variant === "foreground" ? transparentSvgPath : masterPath);
+      render(outputPath, size, variant, variant === "opaque" ? masterPath : transparentSvgPath);
       return { relativePath, size, variant, outputPath };
     });
     callback(generated);
@@ -133,8 +140,8 @@ function check() {
         differences.push(`${asset.relativePath} has dimensions ${actualInfo.dimensions}; expected ${expectedDimensions}`);
         continue;
       }
-      if (asset.variant === "foreground" && !actualInfo.channels.includes("a")) {
-        differences.push(`${asset.relativePath} must preserve transparency for Android adaptive icons`);
+      if (asset.variant !== "opaque" && !actualInfo.channels.includes("a")) {
+        differences.push(`${asset.relativePath} must preserve its transparent background`);
         continue;
       }
       if (!rgbaPixels(actualPath).equals(rgbaPixels(asset.outputPath))) {
