@@ -27,6 +27,10 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { TicketEditModal } from "@/components/TicketEditModal";
 import {
+  getListTicketActivityQueryKey,
+  useListTicketActivity,
+} from "@workspace/api-client-react";
+import {
   canEditTicketDetails,
   canViewTicketTrackedTime,
 } from "@/utils/ticketDetailRules";
@@ -157,6 +161,12 @@ export default function TicketDetailScreen() {
     queryKey: ["ticket", id],
     queryFn: () => apiGet<Ticket>(`/tickets/${id}`),
     enabled: !!id,
+  });
+  const ticketActivityQuery = useListTicketActivity(Number(id), {
+    query: {
+      enabled: !!id,
+      queryKey: getListTicketActivityQueryKey(Number(id)),
+    },
   });
 
   const timeSessionEditsQuery = useQuery({
@@ -340,6 +350,7 @@ export default function TicketDetailScreen() {
     try {
       await apiPatch(`/tickets/${id}`, { priority });
       qc.invalidateQueries({ queryKey: ["ticket", id] });
+      qc.invalidateQueries({ queryKey: getListTicketActivityQueryKey(Number(id)) });
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     } catch (e: any) {
@@ -653,6 +664,48 @@ export default function TicketDetailScreen() {
               <Text style={s.metaValue}>{item.value}</Text>
             </View>
           ))}
+        </View>
+
+        <View style={[s.metaCard, { marginTop: 12, padding: 14 }]} testID="ticket-field-change-history">
+          <Text style={s.sectionTitle}>{t.ticketDetail.fieldChangeHistory}</Text>
+          {ticketActivityQuery.isLoading ? (
+            <View style={s.timeEditsStatus}>
+              <ActivityIndicator color={colors.primary} size="small" />
+              <Text style={s.timeEditsMuted}>{t.ticketDetail.fieldChangeHistoryLoading}</Text>
+            </View>
+          ) : ticketActivityQuery.isError ? (
+            <View style={s.timeEditsStatus}>
+              <Text style={s.timeEditsError}>{t.ticketDetail.fieldChangeHistoryLoadError}</Text>
+              <TouchableOpacity
+                onPress={() => ticketActivityQuery.refetch()}
+                accessibilityRole="button"
+                testID="retry-ticket-field-change-history"
+              >
+                <Text style={s.timeEditsRetry}>{t.ticketDetail.fieldChangeHistoryRetry}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (() => {
+            const changes = (ticketActivityQuery.data ?? [])
+              .filter((entry) =>
+                entry.actionType.startsWith("ticket_field_") ||
+                ["priority_changed", "assigned", "reassigned", "unassigned"].includes(entry.actionType),
+              )
+              .slice()
+              .reverse();
+            if (changes.length === 0) {
+              return <Text style={s.timeEditsMuted}>{t.ticketDetail.fieldChangeHistoryEmpty}</Text>;
+            }
+            return changes.map((entry) => {
+              return (
+                <View key={entry.id} style={s.timeEditCard} testID={`ticket-field-change-${entry.id}`}>
+                  <Text style={s.timeEditMeta}>
+                    {new Date(entry.createdAt).toLocaleString(lang === "en" ? "en-GB" : "it-IT")} · {entry.user?.name ?? "–"}
+                  </Text>
+                  <Text style={s.timeEditValue}>{entry.actionDescription}</Text>
+                </View>
+              );
+            });
+          })()}
         </View>
 
         {canViewTicketTrackedTime({

@@ -3025,17 +3025,31 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     effectiveAssignee !== currentUser.id
       ? effectiveAssignee
       : currentUser.id;
+  let ticketBeforeUpdate = existing;
   try {
     updated = await db.transaction(async (tx) => {
       let timerState = existing;
-      if (shouldTrackStatus && (updates.status !== undefined || "assignedTo" in updates || hasClassificationUpdate)) {
+      const hasAuditedFieldUpdate =
+        updates.title !== undefined ||
+        updates.priority !== undefined ||
+        updates.clientId !== undefined ||
+        updates.assignedTo !== undefined ||
+        updates.assignedToGroup !== undefined;
+      if (
+        hasAuditedFieldUpdate ||
+        (shouldTrackStatus && (updates.status !== undefined || hasClassificationUpdate))
+      ) {
         const [lockedTicket] = await tx.select().from(ticketsTable)
           .where(and(
             eq(ticketsTable.id, id),
             eq(ticketsTable.organizationId, orgId),
+            isNull(ticketsTable.deletedAt),
           ))
           .for("update");
-        if (lockedTicket) timerState = lockedTicket;
+        if (lockedTicket) {
+          timerState = lockedTicket;
+          ticketBeforeUpdate = lockedTicket;
+        }
       }
 
       const timerStatusChanged = updates.status !== undefined && updates.status !== timerState.status;
@@ -3233,6 +3247,54 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         .where(and(eq(ticketsTable.id, id), eq(ticketsTable.organizationId, orgId)))
         .returning()
 ;
+
+      if (saved) {
+        const fieldChanges: Array<{ actionType: string; actionDescription: string }> = [];
+        const addFieldChange = (field: string, actionDescription: string) => {
+          fieldChanges.push({
+            actionType: `ticket_field_${field}_changed`,
+            actionDescription,
+          });
+        };
+
+        if (saved.title !== timerState.title) {
+          addFieldChange(
+            "title",
+            `Titolo modificato da ${JSON.stringify(timerState.title)} a ${JSON.stringify(saved.title)}`,
+          );
+        }
+        if (saved.clientId !== timerState.clientId) {
+          const getClientName = async (clientId: number | null) => {
+            if (clientId == null) return null;
+            const [client] = await tx.select({ name: clientsTable.name })
+              .from(clientsTable)
+              .where(and(
+                eq(clientsTable.id, clientId),
+                eq(clientsTable.organizationId, orgId),
+              ));
+            return client?.name ?? null;
+          };
+          const [previousClientName, updatedClientName] = await Promise.all([
+            getClientName(timerState.clientId),
+            getClientName(saved.clientId),
+          ]);
+          addFieldChange(
+            "client",
+            `Cliente modificato da ${JSON.stringify(previousClientName ?? "Nessun cliente")} a ${JSON.stringify(updatedClientName ?? "Nessun cliente")}`,
+          );
+        }
+
+        if (fieldChanges.length > 0) {
+          await tx.insert(ticketActivityLogsTable).values(
+            fieldChanges.map((change) => ({
+              ticketId: id,
+              userId: currentUser.id,
+              actionType: change.actionType,
+              actionDescription: change.actionDescription,
+            })),
+          );
+        }
+      }
 
       if (
         saved &&
@@ -3446,6 +3508,19 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   
 }
+
+  const persistedActivityLogs = activityLogs.filter((log) => {
+    if (log.actionType === "status_changed") return updated.status !== ticketBeforeUpdate.status;
+    if (log.actionType === "priority_changed") return updated.priority !== ticketBeforeUpdate.priority;
+    if (log.actionType === "category_changed") return updated.category !== ticketBeforeUpdate.category;
+    if (log.actionType === "location_changed") return updated.location !== ticketBeforeUpdate.location;
+    if (["assigned", "reassigned", "unassigned"].includes(log.actionType)) {
+      return updated.assignedTo !== ticketBeforeUpdate.assignedTo ||
+        updated.assignedToGroup !== ticketBeforeUpdate.assignedToGroup;
+    }
+    return true;
+  });
+  activityLogs.splice(0, activityLogs.length, ...persistedActivityLogs);
 
 
   if (updated.assignedTo != null && updated.assignedTo !== existing.assignedTo) {

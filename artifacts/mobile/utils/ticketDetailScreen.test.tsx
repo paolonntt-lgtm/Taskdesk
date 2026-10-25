@@ -8,6 +8,7 @@ import { translations } from "../i18n/translations";
 
 const mocks = vi.hoisted(() => ({
   responses: {} as Record<string, unknown>,
+  activity: [] as Array<Record<string, any>>,
   apiGet: vi.fn(),
   user: {
     id: 1,
@@ -89,6 +90,15 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({ lang: "it", t: translations.it }),
+}));
+vi.mock("@workspace/api-client-react", () => ({
+  getListTicketActivityQueryKey: (id: number) => [`/api/tickets/${id}/activity`],
+  useListTicketActivity: () => ({
+    data: mocks.activity,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
@@ -173,6 +183,7 @@ describe("mobile ticket detail client and assignee", () => {
       "/settings/organization": { workedTimeEnabled: false, timeTrackingModuleEnabled: false },
       "/settings/ticket-statuses": [],
     };
+    mocks.activity = [];
     mocks.apiGet.mockReset().mockImplementation(async (path: string) => mocks.responses[path]);
   });
 
@@ -188,6 +199,46 @@ describe("mobile ticket detail client and assignee", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9");
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
+  });
+
+  it("shows main-field changes with their author and excludes unrelated activity", async () => {
+    mocks.activity = [
+      {
+        id: 101,
+        ticketId: 9,
+        userId: 1,
+        actionType: "ticket_field_title_changed",
+        actionDescription: 'Titolo modificato da "Old title" a "New title"',
+        createdAt: "2026-10-24T11:30:00.000Z",
+        user: { id: 1, name: "Admin User" },
+      },
+      {
+        id: 102,
+        ticketId: 9,
+        userId: 1,
+        actionType: "priority_changed",
+        actionDescription: 'Priorita cambiata da "Media" a "Urgente"',
+        createdAt: "2026-10-24T11:35:00.000Z",
+        user: { id: 1, name: "Admin User" },
+      },
+      {
+        id: 103,
+        ticketId: 9,
+        userId: 1,
+        actionType: "comment_added",
+        actionDescription: "Should stay out of field history",
+        createdAt: "2026-10-24T11:40:00.000Z",
+        user: { id: 1, name: "Admin User" },
+      },
+    ];
+    await renderScreen();
+
+    const history = host.querySelector('[data-testid="ticket-field-change-history"]');
+    expect(history?.textContent).toContain(translations.it.ticketDetail.fieldChangeHistory);
+    expect(history?.textContent).toContain('Titolo modificato da "Old title" a "New title"');
+    expect(history?.textContent).toContain('Priorita cambiata da "Media" a "Urgente"');
+    expect(history?.textContent).toContain("Admin User");
+    expect(history?.textContent).not.toContain("Should stay out of field history");
   });
 
   it("shows the saved group assignment from the ticket response", async () => {

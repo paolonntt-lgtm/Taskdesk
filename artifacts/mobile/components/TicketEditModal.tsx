@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPatch } from "@/utils/api";
+import { getListTicketActivityQueryKey } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -151,6 +152,7 @@ export function TicketEditModal({
           : {}),
       });
       void queryClient.invalidateQueries({ queryKey: ["ticket", String(ticket.id)] });
+      void queryClient.invalidateQueries({ queryKey: getListTicketActivityQueryKey(ticket.id) });
       void queryClient.invalidateQueries({ queryKey: ["tickets"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       onClose();

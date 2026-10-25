@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
+  clientsTable,
   groupMembersTable,
   groupsTable,
   notificationsTable,
@@ -47,6 +48,7 @@ const privateAttachmentObjectPath = `/objects/${runId}/private.txt`;
 const objectStorageService = new ObjectStorageService();
 let privateAttachmentUploaded = false;
 const createdTicketIds: number[] = [];
+const createdClientIds: number[] = [];
 
 async function request(
   path: string,
@@ -178,6 +180,9 @@ describe("manual ticket visibility", () => {
     if (createdTicketIds.length > 0) {
       await db.delete(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
     }
+    if (createdClientIds.length > 0) {
+      await db.delete(clientsTable).where(inArray(clientsTable.id, createdClientIds));
+    }
     await db
       .delete(ticketStatusesTable)
       .where(inArray(ticketStatusesTable.organizationId, [organizationId, otherOrganizationId]));
@@ -247,7 +252,7 @@ describe("manual ticket visibility", () => {
       method: "PATCH",
       body: JSON.stringify({ assignedTo: userId }),
     });
-    expect(reassignment.status).toBe(200);
+    expect(reassignment.status, JSON.stringify(reassignment.body)).toBe(200);
     expect(reassignment.body.assignedTo).toBe(userId);
 
     const attachments = await db.select({
@@ -503,6 +508,109 @@ describe("manual ticket visibility", () => {
     const reportsResponse = await request("/api/stats/reports-all", userSessionId);
     expect(reportsResponse.status).toBe(200);
     expect(reportsResponse.body.dashboard.totalTickets).toBe(2);
+  }, 60_000);
+
+  it("records authorized main-field changes only after a successful ticket save", async () => {
+    const initialTitle = `Audited ticket ${runId}`;
+    const createResponse = await request("/api/tickets", adminSessionId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: initialTitle,
+        description: "Ticket field history test.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const ticketId = createResponse.body.id as number;
+    createdTicketIds.push(ticketId);
+
+    const unauthorizedResponse = await request(`/api/tickets/${ticketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Unauthorized title change" }),
+    });
+    expect(unauthorizedResponse.status).toBe(403);
+    const afterUnauthorized = await db.select({ actionType: ticketActivityLogsTable.actionType })
+      .from(ticketActivityLogsTable)
+      .where(eq(ticketActivityLogsTable.ticketId, ticketId));
+    expect(afterUnauthorized.map((entry) => entry.actionType)).not.toEqual(
+      expect.arrayContaining([
+        "ticket_field_title_changed",
+        "ticket_field_priority_changed",
+        "ticket_field_client_changed",
+        "ticket_field_assignee_changed",
+      ]),
+    );
+
+    const [client] = await db.insert(clientsTable).values({
+      organizationId,
+      name: `History client ${runId}`,
+    }).returning({ id: clientsTable.id, name: clientsTable.name });
+    createdClientIds.push(client.id);
+
+    const updateResponse = await request(`/api/tickets/${ticketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        title: `Updated audited ticket ${runId}`,
+        priority: "urgent",
+        clientId: client.id,
+        assignedTo: userId,
+      }),
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const historyResponse = await request(`/api/tickets/${ticketId}/activity`, adminSessionId);
+    expect(historyResponse.status).toBe(200);
+    const fieldChanges = historyResponse.body.filter((entry: { actionType: string }) =>
+      entry.actionType.startsWith("ticket_field_") ||
+      ["priority_changed", "assigned", "reassigned", "unassigned"].includes(entry.actionType),
+    );
+    expect(fieldChanges).toHaveLength(4);
+    expect(fieldChanges.map((entry: { actionType: string }) => entry.actionType)).toEqual(
+      expect.arrayContaining([
+        "ticket_field_title_changed",
+        "ticket_field_client_changed",
+        "priority_changed",
+        "assigned",
+      ]),
+    );
+    for (const entry of fieldChanges) {
+      expect(entry.user).toEqual(expect.objectContaining({ id: adminId, name: "Visibility Test Admin" }));
+      expect(Number.isNaN(Date.parse(entry.createdAt))).toBe(false);
+    }
+    const titleChange = fieldChanges.find((entry: { actionType: string }) =>
+      entry.actionType === "ticket_field_title_changed",
+    );
+    expect(titleChange.actionDescription).toContain(initialTitle);
+    expect(titleChange.actionDescription).toContain(`Updated audited ticket ${runId}`);
+    expect(fieldChanges.find((entry: { actionType: string }) =>
+      entry.actionType === "priority_changed",
+    )?.actionDescription).toContain("Media");
+    expect(fieldChanges.find((entry: { actionType: string }) =>
+      entry.actionType === "ticket_field_client_changed",
+    )?.actionDescription).toContain(client.name);
+    expect(fieldChanges.find((entry: { actionType: string }) =>
+      entry.actionType === "assigned",
+    )?.actionDescription).toContain("Visibility Test User");
+
+    const failedSaveResponse = await request(`/api/tickets/${ticketId}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Must not be saved", clientId: -999 }),
+    });
+    expect(failedSaveResponse.status).toBe(400);
+    const afterFailedSave = await db.select({
+      actionType: ticketActivityLogsTable.actionType,
+      actionDescription: ticketActivityLogsTable.actionDescription,
+    }).from(ticketActivityLogsTable)
+      .where(eq(ticketActivityLogsTable.ticketId, ticketId));
+    expect(afterFailedSave.filter((entry) =>
+      entry.actionType.startsWith("ticket_field_") ||
+      ["priority_changed", "assigned", "reassigned", "unassigned"].includes(entry.actionType),
+    )).toHaveLength(4);
+    const [storedTicket] = await db.select({ title: ticketsTable.title })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+    expect(storedTicket?.title).toBe(`Updated audited ticket ${runId}`);
   }, 60_000);
 
   it("lets a non-assignee without status group permission change status and priority only", async () => {

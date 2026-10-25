@@ -195,6 +195,11 @@ const it = {
   ticketDetail: {
     editTicket: 'Modifica ticket',
     save: 'Salva',
+    fieldChangeHistory: 'Cronologia modifiche principali',
+    fieldChangeHistoryLoading: 'Caricamento cronologia...',
+    fieldChangeHistoryEmpty: 'Nessuna modifica registrata.',
+    fieldChangeHistoryLoadError: 'Impossibile caricare la cronologia delle modifiche.',
+    fieldChangeHistoryRetry: 'Riprova',
     trackingClassificationHint: 'Seleziona almeno una classificazione per attivare il tracciamento.',
     clientRequiredForBillableTime: 'Seleziona un cliente per rendere fatturabili le ore.',
     status: 'Stato',
@@ -659,6 +664,11 @@ const en: typeof it = {
   ticketDetail: {
     editTicket: 'Edit ticket',
     save: 'Save',
+    fieldChangeHistory: 'Main field change history',
+    fieldChangeHistoryLoading: 'Loading change history...',
+    fieldChangeHistoryEmpty: 'No changes recorded.',
+    fieldChangeHistoryLoadError: 'Could not load the change history.',
+    fieldChangeHistoryRetry: 'Retry',
     trackingClassificationHint: 'Choose at least one classification to enable time tracking.',
     clientRequiredForBillableTime: 'Select a customer to make the tracked time billable.',
     status: 'Status',
