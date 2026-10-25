@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 
 const require = createRequire(import.meta.url);
-const { checkAdaptiveIcon } = require("./check-android-adaptive-icon.js");
+const { checkAdaptiveIcon, parsePng } = require("./check-android-adaptive-icon.js");
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const temporaryProjects = [];
 
@@ -41,9 +41,9 @@ function rgbaPng(width, height, visiblePixels) {
   const rows = [];
   for (let y = 0; y < height; y += 1) {
     const row = Buffer.alloc(width * 4 + 1);
-    for (const { x, y: pixelY } of visiblePixels) {
+    for (const { x, y: pixelY, alpha = 255 } of visiblePixels) {
       if (pixelY === y) {
-        row.set([255, 255, 255, 255], 1 + x * 4);
+        row.set([255, 255, 255, alpha], 1 + x * 4);
       }
     }
     rows.push(row);
@@ -57,7 +57,84 @@ function rgbaPng(width, height, visiblePixels) {
   ]);
 }
 
-function createProject({ width = 108, height = 108, visiblePixels = [{ x: 30, y: 30 }] } = {}) {
+function indexedPng(width, height, visiblePixels) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 3;
+
+  const palette = Buffer.from([
+    0, 0, 0,       // Index 0: fully transparent
+    255, 255, 255, // Index 1: opaque
+    128, 128, 128, // Index 2: partially transparent
+  ]);
+  const transparency = Buffer.from([0, 255, 1]);
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    const row = Buffer.alloc(width + 1);
+    for (const { x, y: pixelY, index } of visiblePixels) {
+      if (pixelY === y) row[x + 1] = index;
+    }
+    rows.push(row);
+  }
+
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header),
+    pngChunk("PLTE", palette),
+    pngChunk("tRNS", transparency),
+    pngChunk("IDAT", zlib.deflateSync(Buffer.concat(rows))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function grayAlphaPng(width, height, visiblePixels) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 4;
+
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    const row = Buffer.alloc(width * 2 + 1);
+    for (let x = 0; x < width; x += 1) row[1 + x * 2] = 255;
+    for (const { x, y: pixelY, gray = 255, alpha = 255 } of visiblePixels) {
+      if (pixelY === y) row.set([gray, alpha], 1 + x * 2);
+    }
+    rows.push(row);
+  }
+
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", zlib.deflateSync(Buffer.concat(rows))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function unsupportedColorTypePng(colorType) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(108, 0);
+  header.writeUInt32BE(108, 4);
+  header[8] = 8;
+  header[9] = colorType;
+
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", zlib.deflateSync(Buffer.from([0]))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function createProject({
+  width = 108,
+  height = 108,
+  visiblePixels = [{ x: 30, y: 30 }],
+  foreground = rgbaPng(width, height, visiblePixels),
+} = {}) {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "android-adaptive-icon-"));
   temporaryProjects.push(projectRoot);
   fs.mkdirSync(path.join(projectRoot, "assets"));
@@ -73,7 +150,7 @@ function createProject({ width = 108, height = 108, visiblePixels = [{ x: 30, y:
   );
   fs.writeFileSync(
     path.join(projectRoot, "assets/foreground.png"),
-    rgbaPng(width, height, visiblePixels),
+    foreground,
   );
   return projectRoot;
 }
@@ -121,5 +198,56 @@ describe("Android adaptive icon safe-area check", () => {
     const projectRoot = createProject({ visiblePixels: [] });
 
     expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/has no visible pixels/);
+  });
+
+  it("measures indexed PNG margins using palette transparency", () => {
+    const png = indexedPng(108, 108, [
+      { x: 0, y: 0, index: 0 },
+      { x: 24, y: 30, index: 1 },
+      { x: 70, y: 75, index: 2 },
+      { x: 107, y: 107, index: 0 },
+    ]);
+    const projectRoot = createProject({ foreground: png });
+    const result = checkAdaptiveIcon(projectRoot);
+
+    expect(result.margins).toEqual({ left: 24, top: 30, right: 37, bottom: 32 });
+  });
+
+  it("ignores fully transparent pixels in grayscale-alpha and RGBA PNGs", () => {
+    const grayAlpha = parsePng(
+      grayAlphaPng(108, 108, [
+        { x: 0, y: 0, alpha: 0 },
+        { x: 41, y: 46, gray: 0, alpha: 255 },
+        { x: 107, y: 107, alpha: 0 },
+      ]),
+      "gray-alpha.png",
+    );
+    const rgba = parsePng(
+      rgbaPng(108, 108, [
+        { x: 0, y: 0, alpha: 0 },
+        { x: 35, y: 42 },
+        { x: 107, y: 107, alpha: 0 },
+      ]),
+      "rgba.png",
+    );
+
+    expect(grayAlpha.visibleBounds).toEqual({
+      minX: 41,
+      minY: 46,
+      maxX: 41,
+      maxY: 46,
+    });
+    expect(rgba.visibleBounds).toEqual({
+      minX: 35,
+      minY: 42,
+      maxX: 35,
+      maxY: 42,
+    });
+  });
+
+  it("rejects unsupported PNG color types with a clear error", () => {
+    expect(() => parsePng(unsupportedColorTypePng(1), "unsupported.png")).toThrow(
+      /unsupported\.png uses an unsupported PNG color type \(1\)/,
+    );
   });
 });
