@@ -48,6 +48,7 @@ interface Ticket {
   timeTrackingSummary?: { totalMinutes: number; clientBillableMinutes: number; collaboratorRecognizableMinutes: number; activeForCurrentUser: boolean };
   canChangeStatus?: boolean;
   creator: { name: string }; assignee?: { name: string } | null;
+  client?: { id: number; name: string; alias?: string | null } | null;
   assignedToGroup?: string | null;
   commentCount: number;
   recurrenceRule?: { frequency: RecurrenceFreq; interval: number; dayOfWeek?: number | null; endDate?: string } | null;
@@ -607,6 +608,7 @@ export default function TicketDetailScreen() {
         ? `${t.ticketDetail.group}: ${ticket.assignedToGroup}`
         : ticket.assignee?.name ?? t.ticketDetail.unassigned,
     },
+    ...(ticket.client?.name ? [{ label: t.newTicket.client, value: ticket.client.name }] : []),
     { label: t.ticketDetail.date, value: formatDate(ticket.createdAt) },
     ...(ticket.resource ? [{ label: t.ticketDetail.resource, value: ticket.resource }] : []),
     ...(workedTimeEnabled && ticket.workedMinutes != null ? [{ label: t.ticketDetail.workedTime, value: formatWorkedDuration(ticket.workedMinutes, lang) }] : []),

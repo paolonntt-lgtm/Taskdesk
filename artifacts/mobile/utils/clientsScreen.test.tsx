@@ -59,6 +59,7 @@ vi.mock("react-native", async () => {
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("expo-router", () => ({
+  Stack: { Screen: () => null },
   router: { push: vi.fn(), replace: vi.fn() },
   useLocalSearchParams: () => mocks.routeParams,
 }));
