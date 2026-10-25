@@ -410,7 +410,9 @@ function TabContent() {
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
     settingsLoaded:
-      organizationSettings.isSuccess && !organizationSettings.isError,
+      organizationSettings.isSuccess &&
+      !organizationSettings.isError &&
+      !organizationSettings.isRefetchError,
     isOrganizationAdmin:
       user?.role === "admin" && user.organizationId != null,
   });
@@ -420,10 +422,13 @@ function TabContent() {
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
     settingsLoaded:
-      organizationSettings.isSuccess && !organizationSettings.isError,
+      organizationSettings.isSuccess &&
+      !organizationSettings.isError &&
+      !organizationSettings.isRefetchError,
   });
   const showOrganizationSettingsError =
-    user?.organizationId != null && organizationSettings.isError;
+    user?.organizationId != null &&
+    (organizationSettings.isError || organizationSettings.isRefetchError);
   const showNewTicketTab = true;
   const hiddenRoutes = [
     "reports",

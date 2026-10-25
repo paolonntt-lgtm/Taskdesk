@@ -20,7 +20,11 @@ export default function ClientsScreen() {
     queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
-  const clientsEnabled = organizationSettings.isSuccess && organizationSettings.data?.clientsEnabled === true;
+  const settingsUnavailable = organizationSettings.isError || organizationSettings.isRefetchError;
+  const clientsEnabled =
+    organizationSettings.isSuccess &&
+    !settingsUnavailable &&
+    organizationSettings.data?.clientsEnabled === true;
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["mobile-clients", user?.organizationId],
     queryFn: () => apiGet<Client[]>("/clients"),
@@ -43,7 +47,7 @@ export default function ClientsScreen() {
   };
   const s = styles(c);
   if (organizationSettings.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={c.primary} /></View>;
-  if (organizationSettings.isError) return <View style={[s.root, s.center]}>
+  if (settingsUnavailable) return <View style={[s.root, s.center]}>
     <Text style={s.muted}>{it ? "Impossibile verificare se la gestione clienti è attiva." : "Could not verify whether client management is enabled."}</Text>
     <Pressable style={s.retry} onPress={() => void organizationSettings.refetch()}>
       <Text style={s.retryText}>{it ? "Riprova" : "Try again"}</Text>

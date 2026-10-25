@@ -42,7 +42,11 @@ export default function ClientDetailScreen() {
     queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
-  const clientsEnabled = organizationSettings.isSuccess && organizationSettings.data?.clientsEnabled === true;
+  const settingsUnavailable = organizationSettings.isError || organizationSettings.isRefetchError;
+  const clientsEnabled =
+    organizationSettings.isSuccess &&
+    !settingsUnavailable &&
+    organizationSettings.data?.clientsEnabled === true;
   const { data, isLoading, error } = useQuery({
     queryKey: ["mobile-client", id],
     queryFn: () => apiGet<any>(`/clients/${id}`),
@@ -151,6 +155,12 @@ export default function ClientDetailScreen() {
   ]);
   const s = styles(c);
   if (organizationSettings.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={c.primary} /></View>;
+  if (settingsUnavailable) return <View style={[s.root, s.center]}>
+    <Text style={s.muted}>{it ? "Impossibile verificare se la gestione clienti è attiva." : "Could not verify whether client management is enabled."}</Text>
+    <Pressable onPress={() => void organizationSettings.refetch()} style={s.retry}>
+      <Text style={s.retryText}>{it ? "Riprova" : "Try again"}</Text>
+    </Pressable>
+  </View>;
   if (!clientsEnabled) return <View style={[s.root, s.center]}><Text style={s.muted}>{it ? "La gestione clienti non è attiva per questa organizzazione." : "Client management is not enabled for this organization."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
     <Stack.Screen options={{ title: client?.name ?? (it ? "Cliente" : "Client") }} />
@@ -304,6 +314,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   disabledButton: { opacity: 0.5 },
   error: { color: c.destructive, fontSize: 13 },
   inlineError: { gap: 6, alignItems: "flex-start" },
+  retry: { padding: 10, marginTop: 8, alignItems: "center" },
   retryText: { color: c.primary, fontFamily: "Inter_600SemiBold" },
   emptyNotes: { color: c.mutedForeground, fontSize: 13, paddingVertical: 8 },
   noteCard: { gap: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },

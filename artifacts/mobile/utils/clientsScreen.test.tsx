@@ -8,6 +8,7 @@ import ClientDetailScreen from "../app/clients/[id]";
 const mocks = vi.hoisted(() => ({
   settings: { clientsEnabled: false },
   settingsError: false,
+  settingsRefetchError: false,
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
   client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
   clientNotes: [] as Array<Record<string, unknown>>,
@@ -112,6 +113,7 @@ describe("mobile clients screen", () => {
     root = createRoot(host);
     mocks.settings = { clientsEnabled: false };
     mocks.settingsError = false;
+    mocks.settingsRefetchError = false;
     mocks.refetchSettings.mockReset();
     mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" };
     mocks.clientNotes = [];
@@ -136,6 +138,7 @@ describe("mobile clients screen", () => {
             : mocks.clients,
         isSuccess: key === "mobile-organization-settings" && !mocks.settingsError,
         isError: key === "mobile-organization-settings" && mocks.settingsError,
+        isRefetchError: key === "mobile-organization-settings" && mocks.settingsRefetchError,
         isLoading: false,
         error: null,
         refetch: key === "mobile-organization-settings" ? mocks.refetchSettings : vi.fn(),
@@ -182,6 +185,21 @@ describe("mobile clients screen", () => {
     expect(mocks.refetchSettings).toHaveBeenCalledTimes(1);
   });
 
+  it("does not expose cached clients after the settings refresh fails", async () => {
+    mocks.settings = { clientsEnabled: true };
+    mocks.settingsRefetchError = true;
+
+    await renderScreen();
+
+    expect(host.textContent).toContain("Impossibile verificare se la gestione clienti è attiva.");
+    expect(host.textContent).not.toContain("Studio Alfa");
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
+    const clientsQuery = mocks.useQuery.mock.calls
+      .map(([options]) => options)
+      .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-clients");
+    expect(clientsQuery?.enabled).toBe(false);
+  });
+
   it("loads and displays clients when the module is enabled", async () => {
     mocks.settings = { clientsEnabled: true };
 
@@ -201,6 +219,21 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("La gestione clienti non è attiva per questa organizzazione.");
     expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
 
+    const clientQuery = mocks.useQuery.mock.calls
+      .map(([options]) => options)
+      .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-client");
+    expect(clientQuery?.enabled).toBe(false);
+  });
+
+  it("does not expose a cached client detail after the settings refresh fails", async () => {
+    mocks.settings = { clientsEnabled: true };
+    mocks.settingsRefetchError = true;
+
+    await renderDetailScreen();
+
+    expect(host.textContent).toContain("Impossibile verificare se la gestione clienti è attiva.");
+    expect(host.textContent).not.toContain("Studio Alfa");
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
     const clientQuery = mocks.useQuery.mock.calls
       .map(([options]) => options)
       .find(({ queryKey }: { queryKey: unknown[] }) => queryKey[0] === "mobile-client");

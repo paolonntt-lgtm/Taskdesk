@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
   organizationSettingsError: false,
+  organizationSettingsRefetchError: false,
   organizationSettingsLoading: false,
   settingsRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
@@ -296,6 +297,8 @@ vi.mock("@tanstack/react-query", () => ({
         isOrganizationSettings
           ? mocks.organizationSettingsError
           : isTicketSearch && mocks.ticketSearchError,
+      isRefetchError:
+        isOrganizationSettings && mocks.organizationSettingsRefetchError,
       refetch: isOrganizationSettings
         ? mocks.settingsRefetch
         : isTicketSearch
@@ -324,6 +327,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     mocks.organizationSettingsError = false;
+    mocks.organizationSettingsRefetchError = false;
     mocks.organizationSettingsLoading = false;
     mocks.settingsRefetch.mockReset();
     mocks.clients = [];
@@ -664,6 +668,27 @@ describe("mobile ticket creation navigation", () => {
       ).not.toBeNull();
     },
   );
+
+  it("keeps optional routes hidden when a background settings refresh fails with cached enabled flags", async () => {
+    mocks.user = { ...mocks.user, role: "admin" };
+    mocks.organizationSettings = {
+      clientsEnabled: true,
+      timeTrackingModuleEnabled: true,
+    };
+    mocks.organizationSettingsRefetchError = true;
+    mocks.profileReturnTo = "clients-tab";
+
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-testid="organization-settings-unavailable"]')).not.toBeNull();
+    expect(host.querySelector('[data-route="clients-tab"]')?.getAttribute("data-href")).toBe("hidden");
+    expect(host.querySelector('[data-route="hours-report-tab"]')?.getAttribute("data-href")).toBe("hidden");
+    expect(host.querySelector('[aria-label="Clients"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Hours report"]')).toBeNull();
+    expect(
+      host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+    ).toBeNull();
+  });
 
   it.each([
     {

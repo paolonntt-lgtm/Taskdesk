@@ -71,7 +71,11 @@ export default function TimeReportScreen() {
     queryFn: () => apiGet<{ timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
-  const taskTrackEnabled = settingsQuery.data?.timeTrackingModuleEnabled === true;
+  const settingsUnavailable = settingsQuery.isError || settingsQuery.isRefetchError;
+  const taskTrackEnabled =
+    settingsQuery.isSuccess &&
+    !settingsUnavailable &&
+    settingsQuery.data?.timeTrackingModuleEnabled === true;
   const canLoadTimeReport = user?.role === "admin" && taskTrackEnabled;
   const reportQuery = useQuery({
     queryKey: ["mobile-time-report", queryString],
@@ -119,6 +123,10 @@ export default function TimeReportScreen() {
     loading: english ? "Loading report…" : "Caricamento rendiconto…",
     loadError: english ? "Could not load the report." : "Impossibile caricare il rendiconto.",
     retry: english ? "Retry" : "Riprova",
+    settingsUnavailable: english
+      ? "Could not verify whether TaskTrack is enabled for this organization."
+      : "Impossibile verificare se TaskTrack è attivo per questa organizzazione.",
+    checkingSettings: english ? "Checking organization access…" : "Verifica dell’accesso dell’organizzazione…",
     ticket: english ? "Ticket" : "Ticket",
   };
 
@@ -133,7 +141,21 @@ export default function TimeReportScreen() {
         <Text style={styles.backText}>{english ? "Back" : "Indietro"}</Text>
       </TouchableOpacity>
       <Text style={styles.heading}>{labels.title}</Text>
-      {!taskTrackEnabled ? (
+      {settingsQuery.isLoading ? (
+        <View style={styles.card}><Text style={styles.mutedText}>{labels.checkingSettings}</Text></View>
+      ) : settingsUnavailable ? (
+        <View style={styles.card}>
+          <Text style={styles.mutedText}>{labels.settingsUnavailable}</Text>
+          <TouchableOpacity
+            style={styles.retry}
+            onPress={() => void settingsQuery.refetch()}
+            accessibilityRole="button"
+            testID="retry-time-report-settings"
+          >
+            <Text style={styles.retryText}>{labels.retry}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !taskTrackEnabled ? (
         <View style={styles.card}><Text style={styles.mutedText}>{labels.disabled}</Text></View>
       ) : (
         <>

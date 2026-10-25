@@ -7,6 +7,9 @@ import { getRecentMonthOptions } from "./timeReportMonths";
 
 const mocks = vi.hoisted(() => ({
   settings: { timeTrackingModuleEnabled: false },
+  settingsError: false,
+  settingsRefetchError: false,
+  refetchSettings: vi.fn(),
   apiGet: vi.fn(),
   useQuery: vi.fn(),
 }));
@@ -70,6 +73,9 @@ describe("mobile hours report screen", () => {
     document.body.append(host);
     root = createRoot(host);
     mocks.settings = { timeTrackingModuleEnabled: false };
+    mocks.settingsError = false;
+    mocks.settingsRefetchError = false;
+    mocks.refetchSettings.mockReset();
     mocks.apiGet.mockReset().mockResolvedValue([]);
     mocks.useQuery.mockReset().mockImplementation((options: {
       queryKey: unknown[];
@@ -93,9 +99,11 @@ describe("mobile hours report screen", () => {
                 },
               }
             : [],
+        isSuccess: key === "mobile-organization-settings" && !mocks.settingsError,
+        isRefetchError: key === "mobile-organization-settings" && mocks.settingsRefetchError,
+        isError: key === "mobile-organization-settings" && mocks.settingsError,
         isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
+        refetch: key === "mobile-organization-settings" ? mocks.refetchSettings : vi.fn(),
       };
     });
   });
@@ -129,6 +137,29 @@ describe("mobile hours report screen", () => {
       "/users",
     ]);
     expect(host.textContent).not.toContain("Il modulo di tracciamento ore è disattivato");
+  });
+
+  it("does not expose cached TaskTrack data after the settings refresh fails", async () => {
+    mocks.settings = { timeTrackingModuleEnabled: true };
+    mocks.settingsRefetchError = true;
+
+    await renderScreen();
+
+    expect(host.textContent).toContain("Impossibile verificare se TaskTrack è attivo");
+    expect(host.textContent).not.toContain("Il modulo di tracciamento ore è disattivato");
+    expect(host.querySelector('[data-testid="filter-time-report-month"]')).toBeNull();
+    expect(mocks.apiGet.mock.calls.map(([path]) => path)).toEqual(["/settings/organization"]);
+    const reportQueries = mocks.useQuery.mock.calls
+      .map(([options]) => options)
+      .filter(({ queryKey }: { queryKey: unknown[] }) =>
+        ["mobile-time-report", "mobile-time-report-clients", "mobile-time-report-users"].includes(String(queryKey[0])),
+      );
+    expect(reportQueries.map(({ enabled }: { enabled?: boolean }) => enabled)).toEqual([false, false, false]);
+
+    const retry = host.querySelector<HTMLButtonElement>('[data-testid="retry-time-report-settings"]');
+    expect(retry).not.toBeNull();
+    await act(async () => retry!.click());
+    expect(mocks.refetchSettings).toHaveBeenCalledTimes(1);
   });
 
   it("loads the selected month without requiring manual date entry", async () => {
