@@ -62,6 +62,11 @@ export function TicketEditModal({
     queryFn: () => apiGet<CollaboratorOption[]>("/users"),
     enabled: visible && isAdmin,
   });
+  const groupsQuery = useQuery({
+    queryKey: ["ticket-assignment-groups"],
+    queryFn: () => apiGet<{ value: string[] }>("/settings/groups"),
+    enabled: visible && isAdmin,
+  });
   const [title, setTitle] = useState(ticket.title);
   const [description, setDescription] = useState(ticket.description);
   const [category, setCategory] = useState(ticket.category);
@@ -72,12 +77,18 @@ export function TicketEditModal({
   const [recognizable, setRecognizable] = useState(ticket.timeTrackingCompensationOverride === true);
   const [clientId, setClientId] = useState<number | null>(ticket.clientId ?? null);
   const [assignedTo, setAssignedTo] = useState<number | null>(ticket.assignedTo ?? null);
+  const [assignedGroup, setAssignedGroup] = useState<string | null>(ticket.assignedToGroup ?? null);
+  const [assignmentMode, setAssignmentMode] = useState<"user" | "group">(
+    ticket.assignedToGroup ? "group" : "user",
+  );
   const [clientTouched, setClientTouched] = useState(false);
   const [assigneeTouched, setAssigneeTouched] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [collaboratorSearch, setCollaboratorSearch] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
   const [showClientOptions, setShowClientOptions] = useState(false);
   const [showCollaboratorOptions, setShowCollaboratorOptions] = useState(false);
+  const [showGroupOptions, setShowGroupOptions] = useState(false);
   const [billableTouched, setBillableTouched] = useState(false);
   const [recognizableTouched, setRecognizableTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,12 +105,16 @@ export function TicketEditModal({
     setRecognizable(ticket.timeTrackingCompensationOverride === true);
     setClientId(ticket.clientId ?? null);
     setAssignedTo(ticket.assignedTo ?? null);
+    setAssignedGroup(ticket.assignedToGroup ?? null);
+    setAssignmentMode(ticket.assignedToGroup ? "group" : "user");
     setClientTouched(false);
     setAssigneeTouched(false);
     setClientSearch("");
     setCollaboratorSearch("");
+    setGroupSearch("");
     setShowClientOptions(false);
     setShowCollaboratorOptions(false);
+    setShowGroupOptions(false);
     setBillableTouched(false);
     setRecognizableTouched(false);
   }, [ticket, visible]);
@@ -129,7 +144,7 @@ export function TicketEditModal({
         resource: resource.trim() || null,
         priority,
         ...(isAdmin && clientTouched ? { clientId } : {}),
-        ...(isAdmin && assigneeTouched ? { assignedTo, assignedToGroup: null } : {}),
+        ...(isAdmin && assigneeTouched ? { assignedTo, assignedToGroup: assignedGroup } : {}),
         ...(canEditTracking && billableTouched ? { timeTrackingBillable: billable } : {}),
         ...(canEditTracking && recognizableTouched
           ? { timeTrackingCompensationOverride: recognizable }
@@ -160,16 +175,19 @@ export function TicketEditModal({
   const filteredCollaborators = collaborators.filter((collaborator) =>
     collaborator.name.toLocaleLowerCase().includes(collaboratorSearch.trim().toLocaleLowerCase()),
   );
+  const groups = groupsQuery.data?.value ?? [];
+  const filteredGroups = groups.filter((group) =>
+    group.toLocaleLowerCase().includes(groupSearch.trim().toLocaleLowerCase()),
+  );
   const selectedClient = clients.find((client) => client.id === clientId);
   const selectedCollaborator = collaborators.find((collaborator) => collaborator.id === assignedTo);
   const noClientLabel = t.newTicket.noClient;
   const unassignedLabel = t.newTicket.unassigned;
   const clientSelectionLabel = selectedClient?.name
     ?? (clientId != null ? ticket.client?.name ?? noClientLabel : noClientLabel);
-  const collaboratorSelectionLabel = selectedCollaborator?.name
-    ?? (assignedTo != null ? ticket.assignee?.name ?? unassignedLabel : !assigneeTouched && ticket.assignedToGroup
-      ? `${t.ticketDetail.group}: ${ticket.assignedToGroup}`
-      : unassignedLabel);
+  const assignmentSelectionLabel = assignmentMode === "group"
+    ? assignedGroup ?? (!assigneeTouched ? ticket.assignedToGroup : null) ?? unassignedLabel
+    : selectedCollaborator?.name ?? (assignedTo != null ? ticket.assignee?.name ?? unassignedLabel : unassignedLabel);
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.card }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -270,70 +288,176 @@ export function TicketEditModal({
           )}
           {isAdmin && (
             <View style={styles.selectionSection}>
-              <Text style={[styles.label, { color: colors.foreground }]}>{t.newTicket.assignUser}</Text>
-              <TouchableOpacity
-                style={[styles.selectionButton, { borderColor: colors.border, backgroundColor: colors.background }]}
-                onPress={() => {
-                  setShowCollaboratorOptions((value) => !value);
-                  setShowClientOptions(false);
-                }}
-                accessibilityRole="button"
-                testID="edit-ticket-collaborator-picker"
-              >
-                <Text style={[styles.selectionText, { color: colors.foreground }]}>{collaboratorSelectionLabel}</Text>
-                <Text style={{ color: colors.mutedForeground }}>{showCollaboratorOptions ? "−" : "+"}</Text>
-              </TouchableOpacity>
-              {showCollaboratorOptions && (
-                <View style={[styles.optionList, { borderColor: colors.border }]}>
-                  <TextInput
-                    value={collaboratorSearch}
-                    onChangeText={setCollaboratorSearch}
-                    placeholder={lang === "it" ? "Cerca collaboratore…" : "Search collaborators…"}
-                    placeholderTextColor={colors.mutedForeground}
-                    style={[styles.searchInput, { color: colors.foreground, borderColor: colors.border }]}
-                    testID="edit-ticket-collaborator-search"
-                  />
-                  <ScrollView style={styles.optionsScroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                    <TouchableOpacity
-                      style={[styles.optionRow, { borderBottomColor: colors.border }]}
-                      onPress={() => {
-                        setAssignedTo(null);
-                        setAssigneeTouched(true);
-                        if (recognizable) {
-                          setRecognizable(false);
-                          setRecognizableTouched(true);
-                        }
-                        setShowCollaboratorOptions(false);
-                      }}
-                      testID="edit-ticket-collaborator-option-none"
-                    >
-                      <Text style={[styles.optionText, { color: colors.foreground }]}>{unassignedLabel}</Text>
-                    </TouchableOpacity>
-                    {filteredCollaborators.map((collaborator) => (
-                      <TouchableOpacity
-                        key={collaborator.id}
-                        style={[styles.optionRow, { borderBottomColor: colors.border }]}
-                        onPress={() => {
-                          setAssignedTo(collaborator.id);
-                          setAssigneeTouched(true);
-                          setShowCollaboratorOptions(false);
-                        }}
-                        testID={`edit-ticket-collaborator-option-${collaborator.id}`}
-                      >
-                        <Text style={[styles.optionText, { color: colors.foreground }]}>{collaborator.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                    {collaboratorsQuery.isLoading && <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Caricamento collaboratori…" : "Loading collaborators…"}</Text>}
-                    {collaboratorsQuery.isError && (
-                      <TouchableOpacity onPress={() => void collaboratorsQuery.refetch()}>
-                        <Text style={[styles.hint, { color: colors.destructive }]}>{t.newTicket.loadOptionsError} · {lang === "it" ? "Riprova" : "Retry"}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {!collaboratorsQuery.isLoading && !collaboratorsQuery.isError && filteredCollaborators.length === 0 && (
-                      <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Nessun collaboratore trovato." : "No collaborators found."}</Text>
-                    )}
-                  </ScrollView>
-                </View>
+              <Text style={[styles.label, { color: colors.foreground }]}>{t.newTicket.assignment}</Text>
+              <View style={styles.assignmentModeRow}>
+                {(["user", "group"] as const).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.assignmentMode,
+                      {
+                        borderColor: assignmentMode === mode ? colors.primary : colors.border,
+                        backgroundColor: assignmentMode === mode ? colors.primary : colors.background,
+                      },
+                    ]}
+                    onPress={() => {
+                      setAssignmentMode(mode);
+                      setShowCollaboratorOptions(false);
+                      setShowGroupOptions(false);
+                    }}
+                    accessibilityRole="button"
+                    testID={`edit-ticket-assignment-mode-${mode}`}
+                  >
+                    <Text style={{ color: assignmentMode === mode ? colors.primaryForeground : colors.foreground }}>
+                      {mode === "user" ? t.newTicket.assignUser : t.newTicket.assignGroup}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {assignmentMode === "user" ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.selectionButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+                    onPress={() => {
+                      setShowCollaboratorOptions((value) => !value);
+                      setShowGroupOptions(false);
+                      setShowClientOptions(false);
+                    }}
+                    accessibilityRole="button"
+                    testID="edit-ticket-collaborator-picker"
+                  >
+                    <Text style={[styles.selectionText, { color: colors.foreground }]}>{assignmentSelectionLabel}</Text>
+                    <Text style={{ color: colors.mutedForeground }}>{showCollaboratorOptions ? "−" : "+"}</Text>
+                  </TouchableOpacity>
+                  {showCollaboratorOptions && (
+                    <View style={[styles.optionList, { borderColor: colors.border }]}>
+                      <TextInput
+                        value={collaboratorSearch}
+                        onChangeText={setCollaboratorSearch}
+                        placeholder={lang === "it" ? "Cerca collaboratore…" : "Search collaborators…"}
+                        placeholderTextColor={colors.mutedForeground}
+                        style={[styles.searchInput, { color: colors.foreground, borderColor: colors.border }]}
+                        testID="edit-ticket-collaborator-search"
+                      />
+                      <ScrollView style={styles.optionsScroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                        <TouchableOpacity
+                          style={[styles.optionRow, { borderBottomColor: colors.border }]}
+                          onPress={() => {
+                            setAssignedTo(null);
+                          setAssignedGroup(null);
+                            setAssigneeTouched(true);
+                            if (recognizable) {
+                              setRecognizable(false);
+                              setRecognizableTouched(true);
+                            }
+                            setShowCollaboratorOptions(false);
+                          }}
+                          testID="edit-ticket-collaborator-option-none"
+                        >
+                          <Text style={[styles.optionText, { color: colors.foreground }]}>{unassignedLabel}</Text>
+                        </TouchableOpacity>
+                        {filteredCollaborators.map((collaborator) => (
+                          <TouchableOpacity
+                            key={collaborator.id}
+                            style={[styles.optionRow, { borderBottomColor: colors.border }]}
+                            onPress={() => {
+                              setAssignedTo(collaborator.id);
+                              setAssignedGroup(null);
+                              setAssigneeTouched(true);
+                              setShowCollaboratorOptions(false);
+                            }}
+                            testID={`edit-ticket-collaborator-option-${collaborator.id}`}
+                          >
+                            <Text style={[styles.optionText, { color: colors.foreground }]}>{collaborator.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {collaboratorsQuery.isLoading && <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Caricamento collaboratori…" : "Loading collaborators…"}</Text>}
+                        {collaboratorsQuery.isError && (
+                          <TouchableOpacity onPress={() => void collaboratorsQuery.refetch()}>
+                            <Text style={[styles.hint, { color: colors.destructive }]}>{t.newTicket.loadOptionsError} · {lang === "it" ? "Riprova" : "Retry"}</Text>
+                          </TouchableOpacity>
+                        )}
+                        {!collaboratorsQuery.isLoading && !collaboratorsQuery.isError && filteredCollaborators.length === 0 && (
+                          <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Nessun collaboratore trovato." : "No collaborators found."}</Text>
+                        )}
+                      </ScrollView>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.selectionButton, { borderColor: colors.border, backgroundColor: colors.background }]}
+                    onPress={() => {
+                      setShowGroupOptions((value) => !value);
+                      setShowCollaboratorOptions(false);
+                      setShowClientOptions(false);
+                    }}
+                    accessibilityRole="button"
+                    testID="edit-ticket-group-picker"
+                  >
+                    <Text style={[styles.selectionText, { color: colors.foreground }]}>{assignmentSelectionLabel}</Text>
+                    <Text style={{ color: colors.mutedForeground }}>{showGroupOptions ? "−" : "+"}</Text>
+                  </TouchableOpacity>
+                  {showGroupOptions && (
+                    <View style={[styles.optionList, { borderColor: colors.border }]}>
+                      <TextInput
+                        value={groupSearch}
+                        onChangeText={setGroupSearch}
+                        placeholder={lang === "it" ? "Cerca gruppo…" : "Search groups…"}
+                        placeholderTextColor={colors.mutedForeground}
+                        style={[styles.searchInput, { color: colors.foreground, borderColor: colors.border }]}
+                        testID="edit-ticket-group-search"
+                      />
+                      <ScrollView style={styles.optionsScroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                        <TouchableOpacity
+                          style={[styles.optionRow, { borderBottomColor: colors.border }]}
+                          onPress={() => {
+                            setAssignedTo(null);
+                            setAssignedGroup(null);
+                            setAssigneeTouched(true);
+                            if (recognizable) {
+                              setRecognizable(false);
+                              setRecognizableTouched(true);
+                            }
+                            setShowGroupOptions(false);
+                          }}
+                          testID="edit-ticket-group-option-none"
+                        >
+                          <Text style={[styles.optionText, { color: colors.foreground }]}>{unassignedLabel}</Text>
+                        </TouchableOpacity>
+                        {filteredGroups.map((group) => (
+                          <TouchableOpacity
+                            key={group}
+                            style={[styles.optionRow, { borderBottomColor: colors.border }]}
+                            onPress={() => {
+                              setAssignedTo(null);
+                              setAssignedGroup(group);
+                              setAssigneeTouched(true);
+                              if (recognizable) {
+                                setRecognizable(false);
+                                setRecognizableTouched(true);
+                              }
+                              setShowGroupOptions(false);
+                            }}
+                            testID={`edit-ticket-group-option-${group}`}
+                          >
+                            <Text style={[styles.optionText, { color: colors.foreground }]}>{group}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {groupsQuery.isLoading && <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Caricamento gruppi…" : "Loading groups…"}</Text>}
+                        {groupsQuery.isError && (
+                          <TouchableOpacity onPress={() => void groupsQuery.refetch()}>
+                            <Text style={[styles.hint, { color: colors.destructive }]}>{t.newTicket.loadOptionsError} · {lang === "it" ? "Riprova" : "Retry"}</Text>
+                          </TouchableOpacity>
+                        )}
+                        {!groupsQuery.isLoading && !groupsQuery.isError && filteredGroups.length === 0 && (
+                          <Text style={[styles.hint, { color: colors.mutedForeground }]}>{lang === "it" ? "Nessun gruppo trovato." : "No groups found."}</Text>
+                        )}
+                      </ScrollView>
+                    </View>
+                  )}
+                </>
               )}
             </View>
           )}
@@ -372,6 +496,8 @@ const styles = StyleSheet.create({
   priorityRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   priority: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   selectionSection: { gap: 5 },
+  assignmentModeRow: { flexDirection: "row", gap: 8 },
+  assignmentMode: { minHeight: 38, borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
   selectionButton: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   selectionText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14 },
   optionList: { borderWidth: 1, borderRadius: 10, overflow: "hidden" },

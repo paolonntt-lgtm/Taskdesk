@@ -190,6 +190,19 @@ describe("mobile ticket detail client and assignee", () => {
     expect(host.textContent).toContain("Mario Rossi");
   });
 
+  it("shows the saved group assignment from the ticket response", async () => {
+    mocks.responses["/tickets/9"] = {
+      ...ticketResponse(),
+      assignedTo: null,
+      assignee: null,
+      assignedToGroup: "Support",
+    };
+    await renderScreen();
+
+    expect(host.textContent).toContain("Gruppo: Support");
+    expect(host.textContent).not.toContain("Mario Rossi");
+  });
+
   it("removes the client after the fresh ticket response clears it", async () => {
     await renderScreen();
     expect(host.textContent).toContain("Studio Paolo");

@@ -61,7 +61,9 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: (options: { queryKey: unknown[] }) => ({
     data: options.queryKey[0] === "clients"
       ? [{ id: 41, name: "Studio Paolo" }]
-      : [{ id: 72, name: "Mario Rossi", isActive: true }],
+      : options.queryKey[0] === "users"
+        ? [{ id: 72, name: "Mario Rossi", isActive: true }]
+        : { value: ["Support", "Operations"] },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -84,9 +86,12 @@ vi.mock("@/contexts/LanguageContext", () => ({
         unassigned: "Non assegnato",
         client: "Cliente",
         assignUser: "Collaboratore",
+        assignGroup: "Gruppo",
+        assignment: "Assegnazione",
         searchClient: "Cerca cliente...",
         noClientFound: "Nessun cliente trovato.",
         loadOptionsError: "Impossibile caricare le opzioni.",
+        noGroup: "Nessun gruppo",
       },
       ticketDetail: {
         cancel: "Annulla",
@@ -218,6 +223,40 @@ describe("mobile ticket edit modal", () => {
       assignedToGroup: null,
       timeTrackingBillable: false,
       timeTrackingCompensationOverride: false,
+    }));
+  });
+
+  it("assigns a team and clears the individual assignee", async () => {
+    await renderModal({
+      assignedTo: 72,
+      assignee: { name: "Mario Rossi" },
+    });
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-assignment-mode-group"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-group-picker"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-group-option-Support"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-save"]')?.click());
+
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/tickets/9", expect.objectContaining({
+      assignedTo: null,
+      assignedToGroup: "Support",
+    }));
+  });
+
+  it("assigns an individual collaborator and clears the team", async () => {
+    await renderModal({
+      assignedTo: null,
+      assignedToGroup: "Support",
+    });
+
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-assignment-mode-user"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-collaborator-picker"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-collaborator-option-72"]')?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="edit-ticket-save"]')?.click());
+
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/tickets/9", expect.objectContaining({
+      assignedTo: 72,
+      assignedToGroup: null,
     }));
   });
 });
