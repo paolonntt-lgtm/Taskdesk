@@ -1583,6 +1583,12 @@ dateTo?: string;
 export type ListClientsParams = {
 search?: string;
 /**
+ * Maximum number of clients to return; capped at 100.
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
  * Return only clients with at least one closed ticket that has worked time still marked as unbilled.
  */
 hasUnbilledWorkedTime?: boolean;

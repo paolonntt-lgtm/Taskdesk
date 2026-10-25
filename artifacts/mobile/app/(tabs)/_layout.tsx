@@ -73,12 +73,17 @@ function DashboardSearchHeader() {
     organizationSettings.isSuccess &&
     !organizationSettings.isError &&
     organizationSettings.data?.clientsEnabled === true;
+  const clientSearch = search.trim();
   const clientsQuery = useQuery({
-    queryKey: ["mobile-clients", user?.organizationId],
-    queryFn: () => apiGet<DashboardClient[]>("/clients"),
-    enabled: clientsEnabled && search.trim().length >= 2,
+    queryKey: ["mobile-dashboard-client-search", user?.organizationId, clientSearch, 4],
+    queryFn: () =>
+      apiGet<DashboardClient[]>(
+        `/clients?search=${encodeURIComponent(clientSearch)}&limit=4`,
+      ),
+    enabled: clientsEnabled && clientSearch.length >= 2,
+    staleTime: 10_000,
   });
-  const ticketSearch = search.trim();
+  const ticketSearch = clientSearch;
   const ticketsQuery = useQuery({
     queryKey: ["mobile-dashboard-ticket-search", user?.organizationId, ticketSearch],
     queryFn: () =>
@@ -88,17 +93,7 @@ function DashboardSearchHeader() {
     enabled: user?.organizationId != null && ticketSearch.length >= 2,
     staleTime: 10_000,
   });
-  const matchingClients = React.useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    if (query.length < 2) return [];
-    return (clientsQuery.data ?? [])
-      .filter((client) =>
-        `${client.name} ${client.alias ?? ""} ${client.email ?? ""} ${client.phone ?? ""} ${client.address ?? ""}`
-          .toLocaleLowerCase()
-          .includes(query),
-      )
-      .slice(0, 4);
-  }, [clientsQuery.data, search]);
+  const matchingClients = clientsQuery.data ?? [];
   const matchingTickets = ticketsQuery.data ?? [];
 
   const submitSearch = () => {

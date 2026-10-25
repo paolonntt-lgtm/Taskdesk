@@ -3690,8 +3690,13 @@ export const DeleteKnowledgeArticleResponse = zod.object({
 /**
  * @summary List clients for the current organization
  */
+export const listClientsQueryLimitMax = 100;
+
+
+
 export const ListClientsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
+  "limit": zod.coerce.number().int().min(1).max(listClientsQueryLimitMax).optional().describe('Maximum number of clients to return; capped at 100.'),
   "hasUnbilledWorkedTime": zod.coerce.boolean().optional().describe('Return only clients with at least one closed ticket that has worked time still marked as unbilled.')
 })
 

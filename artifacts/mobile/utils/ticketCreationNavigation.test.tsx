@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   organizationSettingsLoading: false,
   settingsRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
+  clientSearchQuery: null as null | {
+    queryKey: unknown[];
+    queryFn: () => Promise<unknown>;
+  },
+  apiGet: vi.fn(),
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
   ticketSearchLoading: false,
   ticketSearchError: false,
@@ -242,16 +247,25 @@ vi.mock("@/contexts/LanguageContext", () => ({
 }));
 vi.mock("@/utils/api", () => ({
   PRIORITY_COLORS: {},
-  apiGet: vi.fn(),
+  apiGet: mocks.apiGet,
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryKey }: { queryKey: string[] }) => {
+  useQuery: ({
+    queryKey,
+    queryFn,
+  }: {
+    queryKey: unknown[];
+    queryFn: () => Promise<unknown>;
+  }) => {
     const isOrganizationSettings = queryKey[0] === "mobile-organization-settings";
     const isTicketSearch = queryKey[0] === "mobile-dashboard-ticket-search";
+    if (queryKey[0] === "mobile-dashboard-client-search") {
+      mocks.clientSearchQuery = { queryKey, queryFn };
+    }
     return {
       data: isOrganizationSettings
         ? mocks.organizationSettings
-        : queryKey[0] === "mobile-clients"
+        : queryKey[0] === "mobile-dashboard-client-search"
           ? mocks.clients
           : isTicketSearch
             ? mocks.ticketSearchResults
@@ -295,6 +309,8 @@ describe("mobile ticket creation navigation", () => {
     mocks.organizationSettingsLoading = false;
     mocks.settingsRefetch.mockReset();
     mocks.clients = [];
+    mocks.clientSearchQuery = null;
+    mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
     mocks.ticketSearchLoading = false;
     mocks.ticketSearchError = false;
@@ -335,7 +351,6 @@ describe("mobile ticket creation navigation", () => {
     mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
     mocks.clients = [
       { id: 31, name: "Studio Aurora", alias: "Aurora", email: "hello@aurora.test" },
-      { id: 32, name: "Studio Boreale", alias: "Boreale" },
     ];
     await render(TabLayout);
 
@@ -426,6 +441,33 @@ describe("mobile ticket creation navigation", () => {
     });
 
     expect(host.querySelector('[data-testid="dashboard-client-search-results"]')).toBeNull();
+  });
+
+  it("requests dashboard client suggestions using the current server-side search", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    mocks.clients = [{ id: 31, name: "Studio Aurora", alias: "Aurora Studio" }];
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "Studio Aur");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(mocks.clientSearchQuery?.queryKey).toEqual([
+      "mobile-dashboard-client-search",
+      7,
+      "Studio Aur",
+      4,
+    ]);
+    expect(host.querySelector('[data-testid="dashboard-client-result-31"]')).not.toBeNull();
+
+    await act(async () => {
+      await mocks.clientSearchQuery?.queryFn();
+    });
+    expect(mocks.apiGet).toHaveBeenCalledWith(
+      "/clients?search=Studio%20Aur&limit=4",
+    );
   });
 
   it("keeps New Ticket registered when optional tabs are hidden by module or role", async () => {

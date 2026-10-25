@@ -84,7 +84,9 @@ describe("client worked-hours report", () => {
       .values({
         organizationId,
         name: "Worked Hours Client",
+        alias: `Shared Search Alias ${runId}`,
         email: `worked-hours-client-${runId}@example.test`,
+        phone: `+1555${runId.replaceAll("-", "").slice(0, 7)}`,
         slug: `worked-hours-${runId}`,
       })
       .returning({ id: clientsTable.id });
@@ -98,6 +100,7 @@ describe("client worked-hours report", () => {
       .values({
         organizationId: foreignOrganizationId,
         name: "Foreign Organization Client",
+        alias: `Shared Search Alias ${runId}`,
         slug: `foreign-client-${runId}`,
       })
       .returning({ id: clientsTable.id });
@@ -333,6 +336,49 @@ describe("client worked-hours report", () => {
     expect(clientList.body.map((client: any) => client.id)).toContain(clientId);
     expect(clientList.body.map((client: any) => client.id)).not.toContain(foreignClientId);
 
+    const aliasSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`Shared Search Alias ${runId}`)}&limit=4`,
+      userSessionId,
+    );
+    expect(aliasSearch.status).toBe(200);
+    expect(aliasSearch.body.map((client: any) => client.id)).toContain(clientId);
+    expect(aliasSearch.body.map((client: any) => client.id)).not.toContain(foreignClientId);
+
+    const nameSearch = await request(
+      `/api/clients?search=${encodeURIComponent("Worked Hours Client")}`,
+      userSessionId,
+    );
+    expect(nameSearch.body.map((client: any) => client.id)).toContain(clientId);
+
+    const emailSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`worked-hours-client-${runId}@example.test`)}`,
+      userSessionId,
+    );
+    expect(emailSearch.body.map((client: any) => client.id)).toContain(clientId);
+
+    const phone = `+1555${runId.replaceAll("-", "").slice(0, 7)}`;
+    const phoneSearch = await request(`/api/clients?search=${encodeURIComponent(phone)}`, userSessionId);
+    expect(phoneSearch.body.map((client: any) => client.id)).toContain(clientId);
+
+    const [secondMatchingClient] = await db.insert(clientsTable).values({
+      organizationId,
+      name: `ZZZ Shared Alias Client ${runId}`,
+      alias: `Shared Search Alias ${runId}`,
+      slug: `shared-search-${runId}`,
+    }).returning({ id: clientsTable.id });
+    createdClientIds.push(secondMatchingClient.id);
+    const limitedSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`Shared Search Alias ${runId}`)}&limit=1`,
+      userSessionId,
+    );
+    expect(limitedSearch.status).toBe(200);
+    expect(limitedSearch.body).toHaveLength(1);
+
+    const unauthenticatedSearch = await fetch(
+      `${baseUrl}/api/clients?search=${encodeURIComponent(`Shared Search Alias ${runId}`)}`,
+    );
+    expect(unauthenticatedSearch.status).toBe(401);
+
     const foreignClientDetail = await request(`/api/clients/${foreignClientId}`, userSessionId);
     expect(foreignClientDetail.status).toBe(404);
   });
@@ -351,6 +397,11 @@ describe("client worked-hours report", () => {
 
     const clientList = await request("/api/clients", adminSessionId);
     expect(clientList.status).toBe(403);
+    const clientSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`Shared Search Alias ${runId}`)}`,
+      adminSessionId,
+    );
+    expect(clientSearch.status).toBe(403);
     const clientDetail = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(clientDetail.status).toBe(403);
     const clientNotes = await request("/api/client-notes", adminSessionId);

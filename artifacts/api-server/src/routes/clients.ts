@@ -175,6 +175,7 @@ const ImportRow = z.object({
 
 const ClientsQuerySchema = z.object({
   search: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
   hasUnbilledWorkedTime: z.enum(["true", "false"]).optional(),
   sort: z.enum(["name", "createdAt"]).optional().default("name"),
   order: z.enum(["asc", "desc"]).optional().default("asc"),
@@ -264,7 +265,7 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid query parameters" });
     return;
   }
-  const { search, sort, order, hasUnbilledWorkedTime } = parsed.data;
+  const { search, limit, sort, order, hasUnbilledWorkedTime } = parsed.data;
 
   if (hasUnbilledWorkedTime === "true") {
     const canViewWorkedHours = await hasGroupPermission(
@@ -283,12 +284,16 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
   const conditions: any[] = [eq(clientsTable.organizationId, orgId)];
 
   if (search && search.trim()) {
+    const searchPattern = `%${search.trim()}%`;
     conditions.push(
       or(
-        ilike(clientsTable.name, `%${search.trim()}%`),
-        ilike(clientsTable.email, `%${search.trim()}%`),
-        ilike(clientsTable.vatNumber, `%${search.trim()}%`),
-        ilike(clientsTable.taxCode, `%${search.trim()}%`),
+        ilike(clientsTable.name, searchPattern),
+        ilike(clientsTable.alias, searchPattern),
+        ilike(clientsTable.email, searchPattern),
+        ilike(clientsTable.phone, searchPattern),
+        ilike(clientsTable.address, searchPattern),
+        ilike(clientsTable.vatNumber, searchPattern),
+        ilike(clientsTable.taxCode, searchPattern),
       )
     );
   }
@@ -319,11 +324,14 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
   const sortCol = sort === "createdAt" ? clientsTable.createdAt : clientsTable.name;
   const orderFn = order === "desc" ? desc : asc;
 
-  const clients = await db
+  const clientsQuery = db
     .select()
     .from(clientsTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(orderFn(sortCol));
+  const clients = limit == null
+    ? await clientsQuery
+    : await clientsQuery.limit(limit);
 
   res.json(clients);
 });

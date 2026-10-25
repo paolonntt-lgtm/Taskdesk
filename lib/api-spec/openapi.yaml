@@ -2733,6 +2733,14 @@ paths:
           required: false
           schema:
             type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of clients to return; capped at 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
         - name: hasUnbilledWorkedTime
           in: query
           required: false
