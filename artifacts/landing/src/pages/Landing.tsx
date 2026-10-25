@@ -586,7 +586,7 @@ export default function Landing() {
         "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
-        "logo": "https://taskdesk.it/taskdesk-logo.png",
+        "logo": "https://taskdesk.it/taskdesk-logo.svg",
         "sameAs": [
           "https://www.linkedin.com/company/taskdesk",
           "https://twitter.com/taskdesk"
@@ -663,7 +663,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <img src="/taskdesk-logo.webp" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
+            <img src="/taskdesk-logo.svg" alt="TaskDesk logo" width="120" height="32" className="h-8 w-auto" />
           </div>
           <nav aria-label={t.landmarks.mainNavigation} className="hidden md:flex gap-8 text-sm text-gray-500">
             <a href="#pain" className="hover:text-gray-900 transition-colors font-medium">
@@ -987,7 +987,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center opacity-50">
-              <img src="/taskdesk-logo.webp" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
+              <img src="/taskdesk-logo.svg" alt="TaskDesk" width="90" height="24" loading="lazy" className="h-6 w-auto" style={{ filter: 'grayscale(1)' }} />
             </div>
             <p className="text-sm text-gray-600">{t.footer.text}</p>
           </div>

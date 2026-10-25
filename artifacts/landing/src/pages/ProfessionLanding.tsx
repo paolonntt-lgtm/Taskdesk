@@ -115,7 +115,7 @@ export function ProfessionLanding({
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 md:px-8">
           <Link href={currentRoutes.home} className="inline-flex shrink-0 items-center" aria-label={copy.homeLink}>
-            <img src="/taskdesk-logo.webp" alt="TaskDesk" width="120" height="32" className="h-8 w-auto" />
+            <img src="/taskdesk-logo.svg" alt="TaskDesk" width="120" height="32" className="h-8 w-auto" />
           </Link>
           <nav aria-label={lang === "it" ? "Navigazione principale" : "Main navigation"} className="hidden items-center gap-7 text-sm font-medium text-gray-500 md:flex">
             <a href="#workflow" className="transition-colors hover:text-gray-950">{copy.workflowHeading}</a>

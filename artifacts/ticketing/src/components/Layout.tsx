@@ -604,7 +604,7 @@ export default function Layout({ children }: LayoutProps) {
           py: theme.palette.mode === 'dark' ? 0.5 : 0,
           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.92)' : 'transparent',
         }}>
-          <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk" sx={{ height: 28, width: 'auto' }} />
+          <Box component="img" src="/taskdesk-logo.svg" alt="TaskDesk" sx={{ height: 28, width: 'auto' }} />
         </Box>
         {!isMobile && (
           <IconButton size="small" onClick={toggleSidebar} sx={{ color: 'text.secondary' }}>

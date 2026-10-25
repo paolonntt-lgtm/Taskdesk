@@ -75,7 +75,7 @@ export default function ResetPassword() {
         }}>
           <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
             <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Box component="img" src="/taskdesk-logo.png" alt="TaskDesk"
+              <Box component="img" src="/taskdesk-logo.svg" alt="TaskDesk"
                 sx={{ height: 44, width: 'auto', mx: 'auto', mb: 2, display: 'block' }} />
               <Typography variant="h6" fontWeight={700} mb={0.5}>
                 {tr.title}

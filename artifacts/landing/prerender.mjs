@@ -162,7 +162,7 @@ function generateLandingJsonLd(lang) {
         "@id": "https://taskdesk.it/#organization",
         "name": "TaskDesk",
         "url": "https://taskdesk.it",
-        "logo": "https://taskdesk.it/taskdesk-logo.png",
+        "logo": "https://taskdesk.it/taskdesk-logo.svg",
         "sameAs": [
           "https://www.linkedin.com/company/taskdesk",
           "https://twitter.com/taskdesk"

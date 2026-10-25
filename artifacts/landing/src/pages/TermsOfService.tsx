@@ -46,7 +46,7 @@ export default function TermsOfService() {
       <header style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/">
-            <img src="/taskdesk-logo.webp" alt="TaskDesk" style={{ height: 32, width: "auto", cursor: "pointer" }} />
+            <img src="/taskdesk-logo.svg" alt="TaskDesk" style={{ height: 32, width: "auto", cursor: "pointer" }} />
           </Link>
           <span style={{ color: "#4b5563", fontSize: 14 }}>/ Termini di Servizio</span>
         </div>

@@ -233,7 +233,7 @@ export default function Onboarding({ onComplete }: Props) {
         <Box textAlign="center" mb={4}>
           <Box
             component="img"
-            src="/taskdesk-logo.png"
+            src="/taskdesk-logo.svg"
             alt="TaskDesk"
             sx={{ height: 44, width: 'auto', mx: 'auto', mb: 3, display: 'block' }}
           />

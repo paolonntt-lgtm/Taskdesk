@@ -238,7 +238,7 @@ export default function Login() {
 
       {/* Logo */}
       <div style={{ position: 'relative', zIndex: 10, marginBottom: 24 }}>
-        <img src="/taskdesk-logo.png" alt="TaskDesk" style={{ height: 46, width: 'auto', display: 'block' }} />
+        <img src="/taskdesk-logo.svg" alt="TaskDesk" style={{ height: 46, width: 'auto', display: 'block' }} />
       </div>
 
       {/* Glass card */}
