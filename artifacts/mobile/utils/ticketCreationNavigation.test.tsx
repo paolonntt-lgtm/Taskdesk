@@ -8,6 +8,8 @@ import TabLayout from "../app/(tabs)/_layout";
 const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+  platformOS: "ios" as "ios" | "android",
+  screenWidth: 390,
   language: "en" as "en" | "it",
   notifications: [{ id: 1, isRead: false }, { id: 2, isRead: false }] as {
     id: number;
@@ -28,18 +30,23 @@ vi.mock("react-native", async () => {
       accessibilityLabel,
       accessibilityState,
       onPress,
+      onChangeText,
       onRefresh,
       style,
       hitSlop,
       ...rest
     } = props;
+    const flattenedStyle = Array.isArray(style)
+      ? Object.assign({}, ...style.filter((item) => item && typeof item === "object"))
+      : style;
     return ReactModule.createElement(tag, {
       ...rest,
       ...(testID ? { "data-testid": testID } : {}),
-      ...(style && typeof style === "object" && !Array.isArray(style)
+      ...(flattenedStyle && typeof flattenedStyle === "object"
         ? {
-            "data-touch-width": style.width,
-            "data-touch-height": style.height,
+            "data-touch-width": flattenedStyle.width,
+            "data-touch-height": flattenedStyle.height,
+            "data-touch-left": flattenedStyle.left,
           }
         : {}),
       ...(hitSlop ? { "data-hit-slop": hitSlop } : {}),
@@ -47,12 +54,13 @@ vi.mock("react-native", async () => {
       ...(accessibilityLabel ? { "aria-label": accessibilityLabel } : {}),
       ...(accessibilityState ? { "aria-selected": accessibilityState.selected } : {}),
       ...(onPress ? { onClick: onPress } : {}),
+      ...(onChangeText ? { onChange: onChangeText } : {}),
       ...(onRefresh ? { onRefresh } : {}),
     }, props.children);
   };
   return {
     ActivityIndicator: () => null,
-    Platform: { OS: "ios" },
+    Platform: { get OS() { return mocks.platformOS; } },
     RefreshControl: () => null,
     Image: component("img"),
     TextInput: component("input"),
@@ -67,7 +75,7 @@ vi.mock("react-native", async () => {
       addEventListener: vi.fn(() => ({ remove: vi.fn() })),
     },
     useColorScheme: () => "light",
-    useWindowDimensions: () => ({ width: 390, height: 844 }),
+    useWindowDimensions: () => ({ width: mocks.screenWidth, height: 844 }),
   };
 });
 
@@ -77,9 +85,11 @@ vi.mock("expo-router", async () => {
     children,
     screenOptions,
     backBehavior,
+    tabBar,
   }: {
     children: React.ReactNode;
     backBehavior?: string;
+    tabBar?: (props: any) => React.ReactNode;
     screenOptions?: (args: {
       navigation: { navigate: typeof mocks.navigate };
       route: { name: string; params?: { returnTo?: string } };
@@ -89,7 +99,39 @@ vi.mock("expo-router", async () => {
       headerTitle?: () => React.ReactNode;
     };
   }) =>
-    ReactModule.createElement(
+    (() => {
+      const screenElements = ReactModule.Children.toArray(children).filter(
+        (child): child is React.ReactElement<{ name: string; options: Record<string, any> }> =>
+          ReactModule.isValidElement(child) &&
+          child.props != null &&
+          typeof child.props === "object" &&
+          "name" in child.props,
+      );
+      const routes = screenElements.map(({ props }) => ({
+        name: props.name,
+        key: props.name,
+        params: undefined,
+      }));
+      const navigation = {
+        navigate: mocks.navigate,
+        emit: vi.fn(() => ({ defaultPrevented: false })),
+      };
+      const descriptors = Object.fromEntries(
+        screenElements.map(({ props }) => [
+          props.name,
+          {
+            options: {
+              ...screenOptions?.({
+                navigation: { navigate: mocks.navigate },
+                route: { name: props.name },
+              }),
+              ...props.options,
+            },
+          },
+        ]),
+      );
+
+      return ReactModule.createElement(
       "div",
       { "data-testid": "registered-tabs", "data-back-behavior": backBehavior },
       ...["index", "tickets", "calendar", "clients-tab", "hours-report-tab", "reports", "profile"].map(
@@ -114,7 +156,13 @@ vi.mock("expo-router", async () => {
         },
       ),
       children,
-    );
+      tabBar?.({
+        state: { routes, index: -1 },
+        descriptors,
+        navigation,
+      }),
+      );
+    })();
   Tabs.Screen = ({
     name,
     options,
@@ -211,6 +259,8 @@ describe("mobile ticket creation navigation", () => {
     root = createRoot(host);
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    mocks.platformOS = "ios";
+    mocks.screenWidth = 390;
     mocks.language = "en";
     mocks.notifications = [{ id: 1, isRead: false }, { id: 2, isRead: false }];
     mocks.profileReturnTo = undefined;
@@ -273,6 +323,56 @@ describe("mobile ticket creation navigation", () => {
         expect(routes.find((route) => route.dataset.route === optionalRoute)?.dataset.href)
           .toBe("hidden");
       }
+    }
+  });
+
+  it.each([
+    {
+      platform: "ios" as const,
+      width: 320,
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+      hiddenRoutes: ["clients-tab", "hours-report-tab"],
+    },
+    {
+      platform: "android" as const,
+      width: 360,
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      hiddenRoutes: ["hours-report-tab"],
+    },
+    {
+      platform: "android" as const,
+      width: 412,
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      hiddenRoutes: ["clients-tab"],
+    },
+  ])("renders a centered, usable New action and remaining tabs on $platform at $width pt", async (scenario) => {
+    mocks.user = { ...mocks.user, role: "admin" };
+    mocks.platformOS = scenario.platform;
+    mocks.screenWidth = scenario.width;
+    mocks.organizationSettings = scenario.settings;
+    await render(TabLayout);
+
+    for (const route of scenario.hiddenRoutes) {
+      expect(host.querySelector(`[data-route="${route}"]`)?.getAttribute("data-href")).toBe("hidden");
+      expect(host.querySelector(`[aria-label="${route === "clients-tab" ? "Clients" : "Hours report"}"]`))
+        .toBeNull();
+    }
+
+    const newButton = host.querySelector<HTMLButtonElement>('button[aria-label="New"]');
+    expect(newButton).not.toBeNull();
+    expect(newButton?.textContent).toContain("New");
+    expect(newButton?.querySelector('[data-testid="new-ticket-tab-circle"]')).not.toBeNull();
+    expect(newButton?.getAttribute("data-touch-left")).toBe("40%");
+    expect(newButton?.getAttribute("data-touch-width")).toBe("20%");
+
+    await act(async () => newButton!.click());
+    expect(mocks.navigate).toHaveBeenCalledWith("new", undefined);
+
+    for (const [label, route] of [["Dashboard", "index"], ["Tickets", "tickets"], ["Calendar", "calendar"]]) {
+      const button = host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      expect(button).not.toBeNull();
+      await act(async () => button!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith(route, undefined);
     }
   });
 
