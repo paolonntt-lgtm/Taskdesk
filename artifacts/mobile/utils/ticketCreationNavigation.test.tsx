@@ -372,7 +372,7 @@ describe("mobile ticket creation navigation", () => {
     await render(DashboardScreen);
 
     const greeting = host.querySelector('[data-testid="dashboard-greeting-line"]');
-    expect(greeting?.textContent).toBe("Good morning, Ada");
+    expect(greeting?.textContent).toMatch(/^Good (morning|afternoon|evening), Ada$/);
     expect(greeting?.querySelectorAll("span")).toHaveLength(2);
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
   });
