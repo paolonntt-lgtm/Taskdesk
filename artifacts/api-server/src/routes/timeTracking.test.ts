@@ -47,6 +47,7 @@ let handoffTicketId: number;
 let backupHandoffTicketId: number;
 let unassignedRecognizableTicketId: number;
 let createdUntrackedTicketId: number;
+let authorizationTicketId: number;
 let taskTrackCreatedTicketIds: number[] = [];
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
@@ -331,6 +332,7 @@ describe("ticket time tracking", () => {
       backupHandoffTicketId,
       unassignedRecognizableTicketId,
       createdUntrackedTicketId,
+      authorizationTicketId,
       ...taskTrackCreatedTicketIds,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
@@ -379,6 +381,73 @@ describe("ticket time tracking", () => {
     });
     expect(enabled.status).toBe(200);
     expect(enabled.body.timeTrackingModuleEnabled).toBe(true);
+
+    const [authorizationTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Ticket edit authorization ${runId}`,
+      description: "Verify API-side ticket edit permissions",
+      category: "Support",
+      location: "Remote",
+      status: "waiting",
+      visibility: "organization",
+      createdBy: collaboratorId,
+    }).returning({ id: ticketsTable.id });
+    authorizationTicketId = authorizationTicket.id;
+
+    const adminEdit = await request(`/api/tickets/${authorizationTicket.id}`, adminSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Admin edit ${runId}` }),
+    });
+    expect(adminEdit.status).toBe(200);
+    const creatorEdit = await request(`/api/tickets/${authorizationTicket.id}`, collaboratorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Creator edit ${runId}` }),
+    });
+    expect(creatorEdit.status).toBe(200);
+    const permissionEdit = await request(`/api/tickets/${authorizationTicket.id}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Permission edit ${runId}` }),
+    });
+    expect(permissionEdit.status).toBe(200);
+
+    const unauthorizedStatusChange = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress" }),
+    });
+    expect(unauthorizedStatusChange.status).toBe(403);
+    const unauthorizedContentChange = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Unauthorized edit ${runId}` }),
+    });
+    expect(unauthorizedContentChange.status).toBe(403);
+    const persistedAuthorizationTicket = await db.select({
+      title: ticketsTable.title,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, authorizationTicket.id));
+    expect(persistedAuthorizationTicket[0]).toEqual({
+      title: `Permission edit ${runId}`,
+      status: "waiting",
+    });
+
+    const nonAdminClassificationChange = await request(`/api/tickets/${trackedTicketIds[0]}`, collaboratorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ timeTrackingBillable: false }),
+    });
+    expect(nonAdminClassificationChange.status).toBe(403);
+    expect(nonAdminClassificationChange.body.error).toBe("Only admins can configure ticket time classifications");
+    const nonAdminCompensationClassificationChange = await request(`/api/tickets/${trackedTicketIds[0]}`, collaboratorSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ timeTrackingCompensationOverride: true }),
+    });
+    expect(nonAdminCompensationClassificationChange.status).toBe(403);
+    expect(nonAdminCompensationClassificationChange.body.error).toBe("Only admins can configure ticket time classifications");
+    const persistedClassification = await db.select({
+      timeTrackingBillable: ticketsTable.timeTrackingBillable,
+      timeTrackingCompensationOverride: ticketsTable.timeTrackingCompensationOverride,
+    }).from(ticketsTable).where(eq(ticketsTable.id, trackedTicketIds[0]));
+    expect(persistedClassification[0]?.timeTrackingBillable).toBe(true);
+    expect(persistedClassification[0]?.timeTrackingCompensationOverride).toBe(false);
+
     const billableWithoutClient = await request("/api/tickets", adminSessionId, {
       method: "POST",
       body: JSON.stringify({

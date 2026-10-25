@@ -2265,7 +2265,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
-  if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !isStatusAccessUpdate && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest)) 
+  if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
 {
 
     res.status(403).json(

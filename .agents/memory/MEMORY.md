@@ -3,6 +3,7 @@
 - [Replit preview Safe Browsing warnings](replit-preview-safe-browsing.md) — Check both host-level and exact-path Safe Browsing status; never advise bypassing a dangerous-site warning.
 - [Canvas API action formats](canvas-api-actions.md) — Only specific action formats work; create-auto/update/delete use different field shapes (singular vs plural IDs).
 - [Private ticket visibility](private-ticket-visibility.md) — Admin-only tickets require the same access check across all derived resources and notifications.
+- [Ticket edit authorization](ticket-edit-authorization.md) — Require actor permission for every ticket update; a narrow status-only payload cannot grant access.
 - [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
 - [Mobile client note history](mobile-client-notes.md) — The mobile client detail should expose the separate note history, not just the client's basic Notes field.
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; Metro static builds currently contend for port 8081.
