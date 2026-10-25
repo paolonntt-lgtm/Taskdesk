@@ -233,9 +233,9 @@ function TabContent() {
           title: t.tabs.dashboard,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="chart.bar" tintColor={color} size={18} />
+              <SymbolView name="chart.bar" tintColor={color} size={24} />
             ) : (
-              <Feather name="bar-chart-2" size={18} color={color} />
+              <Feather name="bar-chart-2" size={24} color={color} />
             ),
         }}
       />
@@ -245,9 +245,9 @@ function TabContent() {
           title: t.tabs.tickets,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="ticket" tintColor={color} size={18} />
+              <SymbolView name="ticket" tintColor={color} size={24} />
             ) : (
-              <Feather name="list" size={18} color={color} />
+              <Feather name="list" size={24} color={color} />
             ),
         }}
       />
@@ -258,9 +258,9 @@ function TabContent() {
           tabBarLabel: t.tabs.new,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="plus.circle" tintColor={color} size={18} />
+              <SymbolView name="plus.circle" tintColor={color} size={24} />
             ) : (
-              <Feather name="plus-circle" size={18} color={color} />
+              <Feather name="plus-circle" size={24} color={color} />
             ),
         }}
       />
@@ -270,9 +270,9 @@ function TabContent() {
           title: t.tabs.calendar,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="calendar" tintColor={color} size={18} />
+              <SymbolView name="calendar" tintColor={color} size={24} />
             ) : (
-              <Feather name="calendar" size={18} color={color} />
+              <Feather name="calendar" size={24} color={color} />
             ),
         }}
       />
@@ -283,9 +283,9 @@ function TabContent() {
           href: hoursReportEnabled ? undefined : null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="clock" tintColor={color} size={18} />
+              <SymbolView name="clock" tintColor={color} size={24} />
             ) : (
-              <Feather name="clock" size={18} color={color} />
+              <Feather name="clock" size={24} color={color} />
             ),
         }}
       />
@@ -296,9 +296,9 @@ function TabContent() {
           href: clientsEnabled ? undefined : null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.2" tintColor={color} size={18} />
+              <SymbolView name="person.2" tintColor={color} size={24} />
             ) : (
-              <Feather name="briefcase" size={18} color={color} />
+              <Feather name="briefcase" size={24} color={color} />
             ),
         }}
       />
