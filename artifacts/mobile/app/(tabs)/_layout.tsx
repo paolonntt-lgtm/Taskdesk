@@ -45,6 +45,7 @@ type TabBarProps = Parameters<
 
 type TabPosition = { left: `${number}%`; width: `${number}%` };
 type NotificationBadgeItem = { id: number; isRead: boolean };
+const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 const PROFILE_RETURN_ROUTES = [
   "index",
   "tickets",
@@ -63,6 +64,7 @@ function DashboardSearchHeader() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [search, setSearch] = React.useState("");
+  const [debouncedClientSearch, setDebouncedClientSearch] = React.useState("");
   const organizationSettings = useQuery({
     queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
     queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
@@ -74,13 +76,28 @@ function DashboardSearchHeader() {
     !organizationSettings.isError &&
     organizationSettings.data?.clientsEnabled === true;
   const clientSearch = search.trim();
+  React.useEffect(() => {
+    if (clientSearch.length < 2) {
+      setDebouncedClientSearch(clientSearch);
+      return;
+    }
+
+    const timeout = setTimeout(
+      () => setDebouncedClientSearch(clientSearch),
+      CLIENT_SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [clientSearch]);
   const clientsQuery = useQuery({
-    queryKey: ["mobile-dashboard-client-search", user?.organizationId, clientSearch, 4],
+    queryKey: ["mobile-dashboard-client-search", user?.organizationId, debouncedClientSearch, 4],
     queryFn: () =>
       apiGet<DashboardClient[]>(
-        `/clients?search=${encodeURIComponent(clientSearch)}&limit=4`,
+        `/clients?search=${encodeURIComponent(debouncedClientSearch)}&limit=4`,
       ),
-    enabled: clientsEnabled && clientSearch.length >= 2,
+    enabled:
+      clientsEnabled &&
+      clientSearch.length >= 2 &&
+      debouncedClientSearch === clientSearch,
     staleTime: 10_000,
   });
   const ticketSearch = clientSearch;
@@ -254,8 +271,12 @@ function DashboardSearchHeader() {
                 <Text style={[styles.dashboardClientResultsHeading, { color: colors.mutedForeground }]}>
                   {lang === "it" ? "Clienti" : "Clients"}
                 </Text>
-                {clientsQuery.isLoading || clientsQuery.isFetching ? (
-                  <ActivityIndicator color={colors.primary} style={styles.dashboardClientStatus} />
+                {clientSearch !== debouncedClientSearch || clientsQuery.isLoading || clientsQuery.isFetching ? (
+                  <ActivityIndicator
+                    color={colors.primary}
+                    style={styles.dashboardClientStatus}
+                    testID="dashboard-client-search-loading"
+                  />
                 ) : clientsQuery.isError ? (
                   <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
                     {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}

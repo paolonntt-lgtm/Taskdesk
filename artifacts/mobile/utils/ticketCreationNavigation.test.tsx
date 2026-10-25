@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   clientSearchQuery: null as null | {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
+    enabled?: boolean;
   },
   apiGet: vi.fn(),
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
@@ -273,14 +274,16 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({
     queryKey,
     queryFn,
+    enabled,
   }: {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
+    enabled?: boolean;
   }) => {
     const isOrganizationSettings = queryKey[0] === "mobile-organization-settings";
     const isTicketSearch = queryKey[0] === "mobile-dashboard-ticket-search";
     if (queryKey[0] === "mobile-dashboard-client-search") {
-      mocks.clientSearchQuery = { queryKey, queryFn };
+      mocks.clientSearchQuery = { queryKey, queryFn, enabled };
     }
     if (isTicketSearch) {
       mocks.ticketSearchQuery = { queryKey, queryFn };
@@ -366,6 +369,7 @@ describe("mobile ticket creation navigation", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     host.remove();
+    vi.useRealTimers();
   });
 
   it("keeps the Dashboard greeting on one line without a duplicate create action", async () => {
@@ -391,6 +395,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.clients = [
       { id: 31, name: "Studio Aurora", alias: "Aurora", email: "hello@aurora.test" },
     ];
+    vi.useFakeTimers();
     await render(TabLayout);
 
     const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
@@ -398,6 +403,9 @@ describe("mobile ticket creation navigation", () => {
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
       input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
     });
 
     const result = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
@@ -519,12 +527,16 @@ describe("mobile ticket creation navigation", () => {
   it("requests dashboard client suggestions using the current server-side search", async () => {
     mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
     mocks.clients = [{ id: 31, name: "Studio Aurora", alias: "Aurora Studio" }];
+    vi.useFakeTimers();
     await render(TabLayout);
 
     const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "Studio Aur");
       input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
     });
 
     expect(mocks.clientSearchQuery?.queryKey).toEqual([
@@ -543,8 +555,49 @@ describe("mobile ticket creation navigation", () => {
     );
   });
 
+  it("debounces client lookups only and clears suggestions immediately", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    vi.useFakeTimers();
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    const changeSearch = async (value: string) => {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+        input!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+
+    await changeSearch("ac");
+    expect(mocks.ticketSearchQuery?.queryKey[2]).toBe("ac");
+    expect(mocks.clientSearchQuery?.enabled).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    await changeSearch("acme");
+    expect(mocks.ticketSearchQuery?.queryKey[2]).toBe("acme");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(249);
+    });
+    expect(mocks.clientSearchQuery?.queryKey[2]).toBe("");
+    expect(mocks.clientSearchQuery?.enabled).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(mocks.clientSearchQuery?.queryKey[2]).toBe("acme");
+    expect(mocks.clientSearchQuery?.enabled).toBe(true);
+
+    await changeSearch("");
+    expect(mocks.ticketSearchQuery?.queryKey[2]).toBe("");
+    expect(mocks.clientSearchQuery?.enabled).toBe(false);
+    expect(host.querySelector('[data-testid="dashboard-search-results"]')).toBeNull();
+  });
+
   it("drops previous-organization client suggestions while the dashboard header stays mounted", async () => {
     mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    vi.useFakeTimers();
     mocks.clientResultsByOrganization = {
       7: [{ id: 31, name: "Studio Aurora — previous organization" }],
       8: [{ id: 81, name: "Studio Aurora — current organization" }],
@@ -556,6 +609,9 @@ describe("mobile ticket creation navigation", () => {
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
       input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
     });
 
     const staleSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
