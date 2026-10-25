@@ -24,6 +24,11 @@ const mocks = vi.hoisted(() => ({
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
   ticketSearchLoading: false,
   ticketSearchError: false,
+  ticketSearchRefetch: vi.fn(),
+  ticketSearchQuery: null as null | {
+    queryKey: unknown[];
+    queryFn: () => Promise<unknown>;
+  },
   platformOS: "ios" as "ios" | "android",
   screenWidth: 390,
   language: "en" as "en" | "it",
@@ -266,6 +271,9 @@ vi.mock("@tanstack/react-query", () => ({
     if (queryKey[0] === "mobile-dashboard-client-search") {
       mocks.clientSearchQuery = { queryKey, queryFn };
     }
+    if (isTicketSearch) {
+      mocks.ticketSearchQuery = { queryKey, queryFn };
+    }
     return {
       data: isOrganizationSettings
         ? mocks.organizationSettings
@@ -288,7 +296,11 @@ vi.mock("@tanstack/react-query", () => ({
         isOrganizationSettings
           ? mocks.organizationSettingsError
           : isTicketSearch && mocks.ticketSearchError,
-      refetch: isOrganizationSettings ? mocks.settingsRefetch : vi.fn(),
+      refetch: isOrganizationSettings
+        ? mocks.settingsRefetch
+        : isTicketSearch
+          ? mocks.ticketSearchRefetch
+          : vi.fn(),
     };
   },
 }));
@@ -321,6 +333,8 @@ describe("mobile ticket creation navigation", () => {
     mocks.ticketSearchResults = [];
     mocks.ticketSearchLoading = false;
     mocks.ticketSearchError = false;
+    mocks.ticketSearchRefetch.mockReset();
+    mocks.ticketSearchQuery = null;
     mocks.platformOS = "ios";
     mocks.screenWidth = 390;
     mocks.language = "en";
@@ -420,6 +434,40 @@ describe("mobile ticket creation navigation", () => {
     expect(host.querySelector('[data-testid="dashboard-ticket-search-results"]')?.textContent)
       .toContain("No tickets found.");
   });
+
+  it.each([
+    { language: "en" as const, retryLabel: "Retry ticket search", retryText: "Retry" },
+    { language: "it" as const, retryLabel: "Riprova ricerca ticket", retryText: "Riprova" },
+  ])(
+    "offers an accessible ticket search retry in $language and keeps the search text",
+    async ({ language, retryLabel, retryText }) => {
+      mocks.language = language;
+      mocks.ticketSearchError = true;
+      await render(TabLayout);
+
+      const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "billing issue");
+        input!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+      const retry = host.querySelector<HTMLButtonElement>('[data-testid="retry-ticket-search"]');
+      expect(retry?.getAttribute("aria-label")).toBe(retryLabel);
+      expect(retry?.textContent).toBe(retryText);
+      expect(mocks.ticketSearchQuery?.queryKey[2]).toBe("billing issue");
+
+      await act(async () => retry?.click());
+      expect(mocks.ticketSearchRefetch).toHaveBeenCalledTimes(1);
+
+      mocks.ticketSearchError = false;
+      mocks.ticketSearchLoading = true;
+      await render(TabLayout);
+      expect(input?.value).toBe("billing issue");
+      expect(mocks.ticketSearchQuery?.queryKey[2]).toBe("billing issue");
+      expect(host.querySelector('[data-testid="dashboard-ticket-search-loading"]')).not.toBeNull();
+      expect(host.querySelector('[data-testid="retry-ticket-search"]')).toBeNull();
+    },
+  );
 
   it("keeps Enter navigation to the complete filtered ticket list", async () => {
     await render(TabLayout);

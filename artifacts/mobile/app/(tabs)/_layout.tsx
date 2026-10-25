@@ -174,9 +174,22 @@ function DashboardSearchHeader() {
                   testID="dashboard-ticket-search-loading"
                 />
               ) : ticketsQuery.isError ? (
-                <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
-                  {lang === "it" ? "Impossibile caricare i ticket." : "Could not load tickets."}
-                </Text>
+                <View style={styles.dashboardTicketSearchError}>
+                  <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                    {lang === "it" ? "Impossibile caricare i ticket." : "Could not load tickets."}
+                  </Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={lang === "it" ? "Riprova ricerca ticket" : "Retry ticket search"}
+                    testID="retry-ticket-search"
+                    onPress={() => ticketsQuery.refetch()}
+                    style={styles.dashboardTicketSearchRetry}
+                  >
+                    <Text style={[styles.dashboardTicketSearchRetryText, { color: colors.primary }]}>
+                      {lang === "it" ? "Riprova" : "Retry"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               ) : matchingTickets.length === 0 ? (
                 <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
                   {lang === "it" ? "Nessun ticket trovato." : "No tickets found."}
@@ -941,6 +954,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+  },
+  dashboardTicketSearchError: {
+    paddingBottom: 6,
+  },
+  dashboardTicketSearchRetry: {
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 6,
+  },
+  dashboardTicketSearchRetryText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
   },
   dashboardClientResult: {
     minHeight: 48,
