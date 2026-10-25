@@ -8,6 +8,7 @@ import TabLayout from "../app/(tabs)/_layout";
 const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+  clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   platformOS: "ios" as "ios" | "android",
   screenWidth: 390,
   language: "en" as "en" | "it",
@@ -31,6 +32,7 @@ vi.mock("react-native", async () => {
       accessibilityState,
       onPress,
       onChangeText,
+      onSubmitEditing,
       onRefresh,
       style,
       hitSlop,
@@ -54,7 +56,12 @@ vi.mock("react-native", async () => {
       ...(accessibilityLabel ? { "aria-label": accessibilityLabel } : {}),
       ...(accessibilityState ? { "aria-selected": accessibilityState.selected } : {}),
       ...(onPress ? { onClick: onPress } : {}),
-      ...(onChangeText ? { onChange: onChangeText } : {}),
+      ...(onChangeText
+        ? { onChange: (event: Event) => onChangeText((event.target as HTMLInputElement).value) }
+        : {}),
+      ...(onSubmitEditing
+        ? { onKeyDown: (event: KeyboardEvent) => event.key === "Enter" && onSubmitEditing() }
+        : {}),
       ...(onRefresh ? { onRefresh } : {}),
     }, props.children);
   };
@@ -64,6 +71,7 @@ vi.mock("react-native", async () => {
     RefreshControl: () => null,
     Image: component("img"),
     TextInput: component("input"),
+    Pressable: component("button"),
     ScrollView: component("div"),
     StyleSheet: { create: (styles: unknown) => styles },
     Text: component("span"),
@@ -234,9 +242,12 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     data: queryKey[0] === "mobile-organization-settings"
       ? mocks.organizationSettings
-      : mocks.notifications,
+      : queryKey[0] === "mobile-clients"
+        ? mocks.clients
+        : mocks.notifications,
     isLoading: false,
     isSuccess: queryKey[0] === "mobile-organization-settings",
+    isError: false,
     refetch: vi.fn(),
   }),
 }));
@@ -259,6 +270,7 @@ describe("mobile ticket creation navigation", () => {
     root = createRoot(host);
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    mocks.clients = [];
     mocks.platformOS = "ios";
     mocks.screenWidth = 390;
     mocks.language = "en";
@@ -290,6 +302,42 @@ describe("mobile ticket creation navigation", () => {
     expect(dashboardHeader?.querySelector('[data-testid="dashboard-taskdesk-logo"]')).not.toBeNull();
     expect(dashboardHeader?.querySelector('[data-testid="dashboard-header-search"]')).not.toBeNull();
     expect(dashboardHeader?.textContent).not.toContain("Dashboard");
+  });
+
+  it("shows organization client matches and opens the selected client", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    mocks.clients = [
+      { id: 31, name: "Studio Aurora", alias: "Aurora", email: "hello@aurora.test" },
+      { id: 32, name: "Studio Boreale", alias: "Boreale" },
+    ];
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    expect(input).not.toBeNull();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const result = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
+    expect(result?.textContent).toContain("Studio Aurora");
+    expect(host.querySelector('[data-testid="dashboard-client-result-32"]')).toBeNull();
+
+    await act(async () => result?.click());
+    expect(mocks.push).toHaveBeenCalledWith("/clients/31");
+  });
+
+  it("does not show client suggestions when client management is disabled", async () => {
+    mocks.clients = [{ id: 31, name: "Studio Aurora" }];
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(host.querySelector('[data-testid="dashboard-client-search-results"]')).toBeNull();
   });
 
   it("keeps New Ticket registered when optional tabs are hidden by module or role", async () => {

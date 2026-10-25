@@ -5,9 +5,11 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import {
   AccessibilityInfo,
+  ActivityIndicator,
   AppState,
   Image,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -51,14 +53,42 @@ function DashboardSearchHeader() {
   const colors = useColors();
   const { t, lang } = useLanguage();
   const router = useRouter();
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [search, setSearch] = React.useState("");
+  const organizationSettings = useQuery({
+    queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
+    queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
+    enabled: user?.organizationId != null,
+  });
+  const clientsEnabled =
+    user?.organizationId != null &&
+    organizationSettings.data?.clientsEnabled === true;
+  const clientsQuery = useQuery({
+    queryKey: ["mobile-clients", user?.organizationId],
+    queryFn: () => apiGet<DashboardClient[]>("/clients"),
+    enabled: clientsEnabled && search.trim().length >= 2,
+  });
+  const matchingClients = React.useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    if (query.length < 2) return [];
+    return (clientsQuery.data ?? [])
+      .filter((client) =>
+        `${client.name} ${client.alias ?? ""} ${client.email ?? ""} ${client.phone ?? ""} ${client.address ?? ""}`
+          .toLocaleLowerCase()
+          .includes(query),
+      )
+      .slice(0, 4);
+  }, [clientsQuery.data, search]);
 
   const submitSearch = () => {
     const query = search.trim();
     if (!query) return;
     router.push({ pathname: "/(tabs)/tickets", params: { search: query } });
   };
+
+  const showClientResults =
+    search.trim().length >= 2 && clientsEnabled;
 
   return (
     <View style={[styles.dashboardHeaderTitle, { width: Math.max(width - 170, 132) }]}>
@@ -99,9 +129,78 @@ function DashboardSearchHeader() {
           </TouchableOpacity>
         ) : null}
       </View>
+      {showClientResults ? (
+        <View
+          style={[
+            styles.dashboardClientResults,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.foreground,
+            },
+          ]}
+          testID="dashboard-client-search-results"
+        >
+          <Text style={[styles.dashboardClientResultsHeading, { color: colors.mutedForeground }]}>
+            {lang === "it" ? "Clienti" : "Clients"}
+          </Text>
+          {clientsQuery.isLoading ? (
+            <ActivityIndicator color={colors.primary} style={styles.dashboardClientStatus} />
+          ) : clientsQuery.isError ? (
+            <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+              {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}
+            </Text>
+          ) : matchingClients.length === 0 ? (
+            <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+              {lang === "it" ? "Nessun cliente trovato." : "No clients found."}
+            </Text>
+          ) : (
+            matchingClients.map((client) => (
+              <Pressable
+                key={client.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${client.name}${client.alias ? `, ${client.alias}` : ""}`}
+                testID={`dashboard-client-result-${client.id}`}
+                onPress={() => {
+                  setSearch("");
+                  router.push(`/clients/${client.id}`);
+                }}
+                style={({ pressed }) => [
+                  styles.dashboardClientResult,
+                  { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
+                ]}
+              >
+                <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
+                  <Feather name="briefcase" size={15} color={colors.primary} />
+                </View>
+                <View style={styles.dashboardClientText}>
+                  <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
+                    {client.name}
+                  </Text>
+                  {!!(client.alias || client.email || client.phone) ? (
+                    <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      {client.alias || client.email || client.phone}
+                    </Text>
+                  ) : null}
+                </View>
+                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
+
+type DashboardClient = {
+  id: number;
+  name: string;
+  alias?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
 
 function getProfileReturnRoute(
   value: unknown,
@@ -585,6 +684,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     minWidth: 0,
+    overflow: "visible",
+    zIndex: 10,
   },
   dashboardLogo: {
     width: 32,
@@ -607,6 +708,64 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingVertical: 0,
     fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  dashboardClientResults: {
+    position: "absolute",
+    top: 42,
+    left: 40,
+    right: 0,
+    zIndex: 20,
+    elevation: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+  },
+  dashboardClientResultsHeading: {
+    paddingHorizontal: 6,
+    paddingBottom: 5,
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+  },
+  dashboardClientStatus: {
+    paddingVertical: 10,
+  },
+  dashboardClientStatusText: {
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  dashboardClientResult: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 4,
+  },
+  dashboardClientIcon: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9,
+  },
+  dashboardClientText: {
+    flex: 1,
+    gap: 2,
+  },
+  dashboardClientName: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  dashboardClientMeta: {
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
   },
   tabBar: {
