@@ -3,7 +3,16 @@ import { Tabs, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from "react-native";
+import {
+  AccessibilityInfo,
+  AppState,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
@@ -18,7 +27,7 @@ type TabBarProps = Parameters<
 >[0] & { hiddenRoutes: string[] };
 
 type TabPosition = { left: `${number}%`; width: `${number}%` };
-type NotificationBadgeItem = { isRead: boolean };
+type NotificationBadgeItem = { id: number; isRead: boolean };
 const PROFILE_RETURN_ROUTES = [
   "index",
   "tickets",
@@ -46,6 +55,8 @@ function TabContent() {
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const [appState, setAppState] = React.useState(AppState.currentState);
+  const seenNotificationIds = React.useRef<Set<number> | null>(null);
   const organizationSettings = useQuery({
     queryKey: ["mobile-profile-organization-settings", user?.organizationId],
     queryFn: () => apiGet<{ clientsEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
@@ -59,6 +70,39 @@ function TabContent() {
   });
   const unreadCount =
     notificationsQuery.data?.filter((notification) => !notification.isRead).length ?? 0;
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener("change", setAppState);
+    return () => subscription.remove();
+  }, []);
+  React.useEffect(() => {
+    const notifications = notificationsQuery.data;
+    if (!notifications) return;
+
+    const currentIds = new Set(notifications.map((notification) => notification.id));
+    const previousIds = seenNotificationIds.current;
+    if (!previousIds) {
+      seenNotificationIds.current = currentIds;
+      return;
+    }
+
+    if (appState !== "active") return;
+
+    const newUnreadCount = notifications.filter(
+      (notification) => !notification.isRead && !previousIds.has(notification.id),
+    ).length;
+    seenNotificationIds.current = currentIds;
+
+    if (newUnreadCount === 0 || Platform.OS === "web") return;
+    const announcement =
+      lang === "it"
+        ? newUnreadCount === 1
+          ? "Hai una nuova notifica."
+          : `Hai ${newUnreadCount} nuove notifiche.`
+        : newUnreadCount === 1
+          ? "You have a new notification."
+          : `You have ${newUnreadCount} new notifications.`;
+    AccessibilityInfo.announceForAccessibility(announcement);
+  }, [appState, lang, notificationsQuery.data]);
   const notificationLabel =
     lang === "it" ? "Notifiche" : "Notifications";
   const optionalTabAccess = getMobileOptionalTabAccess({

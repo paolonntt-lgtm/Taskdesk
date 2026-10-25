@@ -9,10 +9,14 @@ const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
   language: "en" as "en" | "it",
-  notifications: [{ isRead: false }, { isRead: false }],
+  notifications: [{ id: 1, isRead: false }, { id: 2, isRead: false }] as {
+    id: number;
+    isRead: boolean;
+  }[],
   profileReturnTo: undefined as string | undefined,
   push: vi.fn(),
   navigate: vi.fn(),
+  announce: vi.fn(),
 }));
 
 vi.mock("react-native", async () => {
@@ -55,6 +59,11 @@ vi.mock("react-native", async () => {
     Text: component("span"),
     TouchableOpacity: component("button"),
     View: component("div"),
+    AccessibilityInfo: { announceForAccessibility: mocks.announce },
+    AppState: {
+      currentState: "active",
+      addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    },
     useColorScheme: () => "light",
     useWindowDimensions: () => ({ width: 390, height: 844 }),
   };
@@ -195,10 +204,11 @@ describe("mobile ticket creation navigation", () => {
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     mocks.language = "en";
-    mocks.notifications = [{ isRead: false }, { isRead: false }];
+    mocks.notifications = [{ id: 1, isRead: false }, { id: 2, isRead: false }];
     mocks.profileReturnTo = undefined;
     mocks.push.mockReset();
     mocks.navigate.mockReset();
+    mocks.announce.mockReset();
   });
 
   afterEach(async () => {
@@ -378,6 +388,34 @@ describe("mobile ticket creation navigation", () => {
         expect(Number(button?.dataset.touchHeight)).toBeGreaterThanOrEqual(44);
         expect(button?.dataset.hitSlop).toBe("10");
       }
+    },
+  );
+
+  it.each([
+    { language: "en", announcement: "You have 2 new notifications." },
+    { language: "it", announcement: "Hai 2 nuove notifiche." },
+  ] as const)(
+    "announces only newly arriving unread notifications in $language",
+    async ({ language, announcement }) => {
+      mocks.language = language;
+      await render(TabLayout);
+      expect(mocks.announce).not.toHaveBeenCalled();
+
+      await render(TabLayout);
+      expect(mocks.announce).not.toHaveBeenCalled();
+
+      mocks.notifications = [
+        ...mocks.notifications,
+        { id: 3, isRead: false },
+        { id: 4, isRead: false },
+        { id: 5, isRead: true },
+      ];
+      await render(TabLayout);
+      expect(mocks.announce).toHaveBeenCalledTimes(1);
+      expect(mocks.announce).toHaveBeenCalledWith(announcement);
+
+      await render(TabLayout);
+      expect(mocks.announce).toHaveBeenCalledTimes(1);
     },
   );
 });
