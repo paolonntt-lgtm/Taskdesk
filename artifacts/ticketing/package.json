@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node compress-static-assets.mjs && node ../../scripts/security-check.mjs",
+    "build": "pnpm run check:wordmark && node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node compress-static-assets.mjs && node ../../scripts/security-check.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "pnpm run check:wordmark && vitest run",
+    "check:wordmark": "node ../../scripts/check-taskdesk-wordmark.mjs",
     "perf:check": "pnpm run build && node scripts/check-app-performance.mjs",
     "performance:dashboard": "node scripts/measure-dashboard-performance.mjs"
   },
