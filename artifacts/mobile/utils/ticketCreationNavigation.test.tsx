@@ -23,6 +23,10 @@ const mocks = vi.hoisted(() => ({
   },
   apiGet: vi.fn(),
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
+  ticketSearchResultsByOrganization: null as null | Record<
+    number,
+    { id: number; title: string; status?: string | null }[]
+  >,
   ticketSearchLoading: false,
   ticketSearchError: false,
   ticketSearchRefetch: vi.fn(),
@@ -283,7 +287,9 @@ vi.mock("@tanstack/react-query", () => ({
             ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
             : mocks.clients
           : isTicketSearch
-            ? mocks.ticketSearchResults
+            ? typeof queryKey[1] === "number" && mocks.ticketSearchResultsByOrganization
+              ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
+              : mocks.ticketSearchResults
             : mocks.notifications,
       isLoading:
         isTicketSearch && mocks.ticketSearchLoading ||
@@ -335,6 +341,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.clientSearchQuery = null;
     mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
+    mocks.ticketSearchResultsByOrganization = null;
     mocks.ticketSearchLoading = false;
     mocks.ticketSearchError = false;
     mocks.ticketSearchRefetch.mockReset();
@@ -575,6 +582,51 @@ describe("mobile ticket creation navigation", () => {
     await act(async () => currentSuggestion?.click());
     expect(mocks.push).toHaveBeenCalledWith("/clients/81");
     expect(mocks.push).not.toHaveBeenCalledWith("/clients/31");
+  });
+
+  it("drops previous-organization ticket suggestions while the dashboard header stays mounted", async () => {
+    mocks.ticketSearchResultsByOrganization = {
+      7: [{ id: 41, title: "Aurora — previous organization", status: "open" }],
+      8: [{ id: 81, title: "Aurora — current organization", status: "open" }],
+    };
+    await render(TabLayout);
+
+    const dashboardHeader = host.querySelector('[data-header-route="index"]');
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const staleSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-ticket-result-41"]');
+    expect(staleSuggestion?.textContent).toContain("previous organization");
+    expect(mocks.ticketSearchQuery?.queryKey).toEqual([
+      "mobile-dashboard-ticket-search",
+      7,
+      "aurora",
+    ]);
+
+    mocks.user = { ...mocks.user, organizationId: 8 };
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-header-route="index"]')).toBe(dashboardHeader);
+    expect(host.querySelector('[data-testid="dashboard-header-search"]')).toBe(input);
+    expect(input?.value).toBe("aurora");
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-41"]')).toBeNull();
+    const currentSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-ticket-result-81"]');
+    expect(currentSuggestion?.textContent).toContain("current organization");
+    expect(mocks.ticketSearchQuery?.queryKey).toEqual([
+      "mobile-dashboard-ticket-search",
+      8,
+      "aurora",
+    ]);
+
+    await act(async () => staleSuggestion?.click());
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await act(async () => currentSuggestion?.click());
+    expect(mocks.push).toHaveBeenCalledWith("/ticket/81");
+    expect(mocks.push).not.toHaveBeenCalledWith("/ticket/41");
   });
 
   it("keeps New Ticket registered when optional tabs are hidden by module or role", async () => {
