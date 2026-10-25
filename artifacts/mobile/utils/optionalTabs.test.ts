@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMobileOptionalTabAccess } from "./optionalTabs";
+import { getMobileOptionalTabAccess, shouldShowNewTicketTab } from "./optionalTabs";
 
 describe("optional mobile navigation tabs", () => {
   it("shows Clients only when the organization has the Clients module", () => {
@@ -60,5 +60,33 @@ describe("optional mobile navigation tabs", () => {
         isOrganizationAdmin: false,
       }),
     ).toEqual({ clients: true, hoursReport: false });
+  });
+
+  it("shows New when at least one optional product is disabled, but not while settings load", () => {
+    expect(shouldShowNewTicketTab({
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      hasOrganization: true,
+      settingsLoaded: true,
+    })).toBe(true);
+    expect(shouldShowNewTicketTab({
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      hasOrganization: true,
+      settingsLoaded: true,
+    })).toBe(true);
+    expect(shouldShowNewTicketTab({
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
+      hasOrganization: true,
+      settingsLoaded: true,
+    })).toBe(false);
+    expect(shouldShowNewTicketTab({
+      settings: undefined,
+      hasOrganization: true,
+      settingsLoaded: false,
+    })).toBe(false);
+    expect(shouldShowNewTicketTab({
+      settings: undefined,
+      hasOrganization: false,
+      settingsLoaded: false,
+    })).toBe(true);
   });
 });

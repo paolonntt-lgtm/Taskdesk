@@ -40,6 +40,11 @@ vi.mock("react-native", async () => {
   };
 
   return {
+    AccessibilityInfo: { announceForAccessibility: vi.fn() },
+    AppState: {
+      currentState: "active",
+      addEventListener: () => ({ remove: vi.fn() }),
+    },
     ActivityIndicator: () => null,
     Alert: { alert: vi.fn() },
     FlatList: ({

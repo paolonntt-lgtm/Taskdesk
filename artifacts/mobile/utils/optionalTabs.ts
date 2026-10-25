@@ -25,3 +25,16 @@ export function getMobileOptionalTabAccess({
       settings?.timeTrackingModuleEnabled === true,
   };
 }
+
+export function shouldShowNewTicketTab({
+  settings,
+  hasOrganization,
+  settingsLoaded,
+}: {
+  settings: MobileOptionalTabSettings | undefined;
+  hasOrganization: boolean;
+  settingsLoaded: boolean;
+}): boolean {
+  if (hasOrganization && !settingsLoaded) return false;
+  return settings?.clientsEnabled !== true || settings.timeTrackingModuleEnabled !== true;
+}

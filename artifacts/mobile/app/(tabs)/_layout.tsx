@@ -20,11 +20,15 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
-import { getMobileOptionalTabAccess } from "@/utils/optionalTabs";
+import {
+  getMobileOptionalTabAccess,
+  shouldShowNewTicketTab,
+} from "@/utils/optionalTabs";
+import { getMobileBottomBarLayout } from "@/utils/mobileBottomBarLayout";
 
 type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
->[0] & { hiddenRoutes: string[] };
+>[0] & { hiddenRoutes: string[]; showNewTicketTab: boolean };
 
 type TabPosition = { left: `${number}%`; width: `${number}%` };
 type NotificationBadgeItem = { id: number; isRead: boolean };
@@ -113,6 +117,11 @@ function TabContent() {
   });
   const clientsEnabled = optionalTabAccess.clients;
   const hoursReportEnabled = optionalTabAccess.hoursReport;
+  const showNewTicketTab = shouldShowNewTicketTab({
+    settings: organizationSettings.data,
+    hasOrganization: user?.organizationId != null,
+    settingsLoaded: organizationSettings.isSuccess,
+  });
   const hiddenRoutes = [
     "reports",
     ...(!clientsEnabled ? ["clients-tab"] : []),
@@ -123,7 +132,13 @@ function TabContent() {
     <Tabs
       backBehavior="history"
       detachInactiveScreens={false}
-      tabBar={(props) => <BottomTabBar {...props} hiddenRoutes={hiddenRoutes} />}
+      tabBar={(props) => (
+        <BottomTabBar
+          {...props}
+          hiddenRoutes={hiddenRoutes}
+          showNewTicketTab={showNewTicketTab}
+        />
+      )}
       screenOptions={({ navigation, route }) => {
         const returnTo =
           route.name === "profile"
@@ -309,6 +324,7 @@ function BottomTabBar({
   descriptors,
   navigation,
   hiddenRoutes,
+  showNewTicketTab,
 }: TabBarProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -329,14 +345,16 @@ function BottomTabBar({
       !hiddenRoutes.includes(name) &&
       state.routes.some((route) => route.name === name),
   );
-  const cellWidth = 100 / Math.max(visibleMenuRoutes.length, 1);
-  const tabPositions: Record<string, TabPosition> = {};
-  visibleMenuRoutes.forEach((name, index) => {
-    tabPositions[name] = {
-      left: `${index * cellWidth}%` as `${number}%`,
-      width: `${cellWidth}%` as `${number}%`,
-    };
-  });
+  const menuLayout = getMobileBottomBarLayout(visibleMenuRoutes, showNewTicketTab);
+  const tabPositions: Record<string, TabPosition> = Object.fromEntries(
+    menuLayout.map(({ routeName, left, width }) => [
+      routeName,
+      {
+        left: `${left}%` as `${number}%`,
+        width: `${width}%` as `${number}%`,
+      },
+    ]),
+  );
 
   return (
     <View
