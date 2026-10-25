@@ -223,9 +223,36 @@ describe("mobile ticket creation navigation", () => {
     }
   });
 
-  it("opens Profile from multiple section headers and hides the redundant button on Profile", async () => {
+  it("opens Profile from core and enabled optional section headers", async () => {
+    mocks.user = { ...mocks.user, role: "admin" };
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: true };
     await render(TabLayout);
-    expect(registeredRoutes().some((route) => route.dataset.route === "profile")).toBe(true);
+    const routes = registeredRoutes();
+    expect(routes.some((route) => route.dataset.route === "profile")).toBe(true);
+
+    for (const section of ["index", "tickets", "calendar", "clients-tab", "hours-report-tab"]) {
+      expect(routes.find((route) => route.dataset.route === section)?.dataset.href).toBe("visible");
+      const profileButton = host.querySelector<HTMLButtonElement>(
+        `[data-header-route="${section}"] [data-testid="profile-header-button"]`,
+      );
+      expect(profileButton).not.toBeNull();
+      await act(async () => profileButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile");
+    }
+
+    expect(
+      host.querySelector('[data-header-route="profile"] [data-testid="profile-header-button"]'),
+    ).toBeNull();
+  });
+
+  it("keeps Profile reachable from core sections when optional sections are hidden", async () => {
+    mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    await render(TabLayout);
+
+    const routes = registeredRoutes();
+    for (const section of ["clients-tab", "hours-report-tab"]) {
+      expect(routes.find((route) => route.dataset.route === section)?.dataset.href).toBe("hidden");
+    }
 
     for (const section of ["index", "tickets", "calendar"]) {
       const profileButton = host.querySelector<HTMLButtonElement>(
