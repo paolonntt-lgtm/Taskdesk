@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   organizationSettingsRefetchError: false,
   organizationSettingsLoading: false,
   settingsRefetch: vi.fn(),
+  appStateChange: null as null | ((nextAppState: string) => void),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   clientResultsByOrganization: null as null | Record<
     number,
@@ -105,7 +106,12 @@ vi.mock("react-native", async () => {
     AccessibilityInfo: { announceForAccessibility: mocks.announce },
     AppState: {
       currentState: "active",
-      addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+      addEventListener: vi.fn(
+        (_event: string, listener: (nextAppState: string) => void) => {
+          mocks.appStateChange = listener;
+          return { remove: vi.fn() };
+        },
+      ),
     },
     useColorScheme: () => "light",
     useWindowDimensions: () => ({ width: mocks.screenWidth, height: 844 }),
@@ -336,6 +342,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.organizationSettingsRefetchError = false;
     mocks.organizationSettingsLoading = false;
     mocks.settingsRefetch.mockReset();
+    mocks.appStateChange = null;
     mocks.clients = [];
     mocks.clientResultsByOrganization = null;
     mocks.clientSearchQuery = null;
@@ -740,6 +747,53 @@ describe("mobile ticket creation navigation", () => {
     expect(
       host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
     ).toBeNull();
+  });
+
+  it("restores only refreshed modules and valid Profile returns after settings recover on resume", async () => {
+    mocks.user = { ...mocks.user, role: "admin" };
+    mocks.organizationSettings = {
+      clientsEnabled: true,
+      timeTrackingModuleEnabled: true,
+    };
+    mocks.organizationSettingsRefetchError = true;
+    mocks.profileReturnTo = "clients-tab";
+
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-testid="organization-settings-unavailable"]')).not.toBeNull();
+    expect(host.querySelector('[data-route="clients-tab"]')?.getAttribute("data-href")).toBe("hidden");
+    expect(host.querySelector('[data-route="hours-report-tab"]')?.getAttribute("data-href")).toBe("hidden");
+    expect(
+      host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+    ).toBeNull();
+
+    await act(async () => mocks.appStateChange?.("background"));
+    mocks.organizationSettings = {
+      clientsEnabled: false,
+      timeTrackingModuleEnabled: true,
+    };
+    mocks.organizationSettingsRefetchError = false;
+    await act(async () => mocks.appStateChange?.("active"));
+    expect(mocks.settingsRefetch).toHaveBeenCalledTimes(1);
+
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-testid="organization-settings-unavailable"]')).toBeNull();
+    expect(host.querySelector('[data-route="clients-tab"]')?.getAttribute("data-href")).toBe("hidden");
+    expect(host.querySelector('[data-route="hours-report-tab"]')?.getAttribute("data-href")).toBe("visible");
+    expect(host.querySelector('[data-route="calendar"]')?.getAttribute("data-href")).toBe("visible");
+    expect(
+      host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+    ).toBeNull();
+
+    mocks.profileReturnTo = "hours-report-tab";
+    await render(TabLayout);
+    const profileBackButton = host.querySelector<HTMLButtonElement>(
+      '[data-header-route="profile"] [data-testid="profile-back-button"]',
+    );
+    expect(profileBackButton?.getAttribute("aria-label")).toBe("Back to Hours report");
+    await act(async () => profileBackButton?.click());
+    expect(mocks.navigate).toHaveBeenLastCalledWith("hours-report-tab");
   });
 
   it.each([
