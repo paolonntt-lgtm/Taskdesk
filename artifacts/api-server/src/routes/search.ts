@@ -22,7 +22,8 @@ router.get("/search", requireAuth, async (req, res) => {
   const { q, limit } = parsed.data;
   const user = (req as any).currentUser;
   const orgId = user.organizationId;
-  const pattern = `%${q}%`;
+  const escapedQuery = q.replace(/[\\%_]/g, "\\$&");
+  const pattern = `%${escapedQuery}%`;
   const clientsEnabled = await isClientFeatureEnabled(orgId);
 
   const [tickets, clients, users] = await Promise.all([

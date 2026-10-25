@@ -35,6 +35,7 @@ let publicTicketId: number;
 let privateTicketId: number;
 const createdClientIds: number[] = [];
 const createdTicketIds: number[] = [];
+const createdUserIds: number[] = [];
 
 async function request(path: string, sessionId: string, init: RequestInit = {}): Promise<HttpResult> {
   const headers = new Headers(init.headers);
@@ -168,6 +169,9 @@ describe("client worked-hours report", () => {
     await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
     await db.delete(clientsTable).where(eq(clientsTable.id, foreignClientId));
     await db.delete(sessionsTable).where(inArray(sessionsTable.sessionId, [adminSessionId, userSessionId]));
+    if (createdUserIds.length > 0) {
+      await db.delete(usersTable).where(inArray(usersTable.id, createdUserIds));
+    }
     await db.delete(usersTable).where(inArray(usersTable.id, [adminId, userId]));
     await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, organizationId));
     await db.delete(organizationsTable).where(eq(organizationsTable.id, foreignOrganizationId));
@@ -456,6 +460,142 @@ describe("client worked-hours report", () => {
     expect(backslashSearch.status).toBe(200);
     expect(backslashSearch.body.map((client: any) => client.id)).toContain(backslashMatch.id);
     expect(backslashSearch.body.map((client: any) => client.id)).not.toContain(backslashEscapeDecoy.id);
+  });
+
+  it("treats SQL LIKE pattern characters as literal text in global search without changing scope or limits", async () => {
+    const originalOrganization = await db
+      .select({ clientsEnabled: organizationsTable.clientsEnabled })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, organizationId))
+      .limit(1);
+    await db
+      .update(organizationsTable)
+      .set({ clientsEnabled: true })
+      .where(eq(organizationsTable.id, organizationId));
+
+    const cases = [
+      { label: "Percent", needle: `100%search-${runId}`, decoy: `100xsearch-${runId}` },
+      { label: "Underscore", needle: `value_token-${runId}`, decoy: `valueXtoken-${runId}` },
+      { label: "Backslash", needle: `path\\segment-${runId}`, decoy: `pathsegment-${runId}` },
+    ];
+
+    try {
+      for (const { label, needle, decoy } of cases) {
+        const matchingClientNames = [1, 2].map((number) => `Global ${label} ${needle} match ${number}`);
+        const decoyClientName = `Global ${label} ${decoy} decoy`;
+        const [matchingClients, decoyClient, foreignClient] = await Promise.all([
+          db.insert(clientsTable).values(matchingClientNames.map((name, number) => ({
+            organizationId,
+            name,
+            slug: `global-${label.toLowerCase()}-${number}-${runId}`,
+          }))).returning({ id: clientsTable.id }),
+          db.insert(clientsTable).values({
+            organizationId,
+            name: decoyClientName,
+            slug: `global-${label.toLowerCase()}-decoy-${runId}`,
+          }).returning({ id: clientsTable.id }),
+          db.insert(clientsTable).values({
+            organizationId: foreignOrganizationId,
+            name: `Global ${label} ${needle} foreign`,
+            slug: `global-${label.toLowerCase()}-foreign-${runId}`,
+          }).returning({ id: clientsTable.id }),
+        ]);
+        createdClientIds.push(...matchingClients.map((client) => client.id), decoyClient[0].id, foreignClient[0].id);
+
+        const matchingTickets = await db.insert(ticketsTable).values([
+          1,
+          2,
+        ].map((number) => ({
+          organizationId,
+          clientId,
+          title: `Global ${label} ${needle} match ${number}`,
+          description: "Global-search literal matching test",
+          category: "Support",
+          location: "Remote",
+          status: "open",
+          visibility: "organization",
+          createdBy: adminId,
+        }))).returning({ id: ticketsTable.id });
+        const [decoyTicket] = await db.insert(ticketsTable).values({
+          organizationId,
+          clientId,
+          title: `Global ${label} ${decoy} decoy`,
+          description: "Global-search literal matching test",
+          category: "Support",
+          location: "Remote",
+          status: "open",
+          visibility: "organization",
+          createdBy: adminId,
+        }).returning({ id: ticketsTable.id });
+        const [foreignTicket] = await db.insert(ticketsTable).values({
+          organizationId: foreignOrganizationId,
+          title: `Global ${label} ${needle} foreign`,
+          description: "Global-search literal matching test",
+          category: "Support",
+          location: "Remote",
+          status: "open",
+          visibility: "organization",
+          createdBy: adminId,
+        }).returning({ id: ticketsTable.id });
+        createdTicketIds.push(...matchingTickets.map((ticket) => ticket.id), decoyTicket.id, foreignTicket.id);
+
+        const matchingUsers = await db.insert(usersTable).values([
+          {
+            organizationId,
+            name: `Global ${label} ${needle} match by name`,
+            email: `global-${label.toLowerCase()}-name-${runId}@example.test`,
+            passwordHash: "not-used-in-test",
+            role: "user",
+          },
+          {
+            organizationId,
+            name: `Global ${label} email-only match`,
+            email: `global.${needle}.email-${runId}@example.test`,
+            passwordHash: "not-used-in-test",
+            role: "user",
+          },
+        ]).returning({ id: usersTable.id });
+        const [decoyUser] = await db.insert(usersTable).values({
+          organizationId,
+          name: `Global ${label} ${decoy} decoy`,
+          email: `global-${label.toLowerCase()}-decoy-${runId}@example.test`,
+          passwordHash: "not-used-in-test",
+          role: "user",
+        }).returning({ id: usersTable.id });
+        const [foreignUser] = await db.insert(usersTable).values({
+          organizationId: foreignOrganizationId,
+          name: `Global ${label} ${needle} foreign`,
+          email: `global-${label.toLowerCase()}-foreign-${runId}@example.test`,
+          passwordHash: "not-used-in-test",
+          role: "user",
+        }).returning({ id: usersTable.id });
+        createdUserIds.push(...matchingUsers.map((user) => user.id), decoyUser.id, foreignUser.id);
+
+        const response = await request(
+          `/api/search?q=${encodeURIComponent(needle)}&limit=2`,
+          adminSessionId,
+        );
+        expect(response.status).toBe(200);
+
+        for (const [resultKey, matchIds, decoyId, foreignId] of [
+          ["tickets", matchingTickets.map((ticket) => ticket.id), decoyTicket.id, foreignTicket.id],
+          ["clients", matchingClients.map((client) => client.id), decoyClient[0].id, foreignClient[0].id],
+          ["users", matchingUsers.map((user) => user.id), decoyUser.id, foreignUser.id],
+        ] as const) {
+          const results = response.body[resultKey];
+          const resultIds = results.map((result: any) => result.id);
+          expect(results).toHaveLength(2);
+          expect(resultIds.every((id: number) => matchIds.includes(id))).toBe(true);
+          expect(resultIds).not.toContain(decoyId);
+          expect(resultIds).not.toContain(foreignId);
+        }
+      }
+    } finally {
+      await db
+        .update(organizationsTable)
+        .set({ clientsEnabled: originalOrganization[0]?.clientsEnabled ?? false })
+        .where(eq(organizationsTable.id, organizationId));
+    }
   });
 
   it("hides client references from ticket, search, and summary APIs while disabled, then restores them when re-enabled", async () => {
