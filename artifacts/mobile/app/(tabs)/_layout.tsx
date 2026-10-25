@@ -19,6 +19,23 @@ type TabBarProps = Parameters<
 
 type TabPosition = { left: `${number}%`; width: `${number}%` };
 type NotificationBadgeItem = { isRead: boolean };
+const PROFILE_RETURN_ROUTES = [
+  "index",
+  "tickets",
+  "new",
+  "calendar",
+  "clients-tab",
+  "hours-report-tab",
+  "reports",
+] as const;
+type ProfileReturnRoute = (typeof PROFILE_RETURN_ROUTES)[number];
+
+function getProfileReturnRoute(value: unknown): ProfileReturnRoute | undefined {
+  return typeof value === "string" &&
+    (PROFILE_RETURN_ROUTES as readonly string[]).includes(value)
+    ? (value as ProfileReturnRoute)
+    : undefined;
+}
 
 function TabContent() {
   const colors = useColors();
@@ -60,58 +77,95 @@ function TabContent() {
 
   return (
     <Tabs
+      backBehavior="history"
       tabBar={(props) => <BottomTabBar {...props} hiddenRoutes={hiddenRoutes} />}
-      screenOptions={({ navigation, route }) => ({
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
-        headerShown: true,
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.foreground,
-        headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
-        headerShadowVisible: false,
-        headerRight: () => (
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={
-                unreadCount > 0
-                  ? `${notificationLabel}, ${unreadCount} ${lang === "it" ? "da leggere" : "unread"}`
-                  : notificationLabel
-              }
-              testID="notifications-header-button"
-              hitSlop={10}
-              onPress={() => router.push("/notifications")}
-              style={styles.headerActionButton}
-            >
-              <Feather name="bell" size={20} color={colors.foreground} />
-              {unreadCount > 0 ? (
-                <View
-                  style={[
-                    styles.notificationBadge,
-                    { backgroundColor: colors.destructive, borderColor: colors.card },
-                  ]}
+      screenOptions={({ navigation, route }) => {
+        const returnTo =
+          route.name === "profile"
+            ? getProfileReturnRoute(
+                (route.params as { returnTo?: unknown } | undefined)?.returnTo,
+              )
+            : undefined;
+        const returnLabel = returnTo
+          ? {
+              index: t.tabs.dashboard,
+              tickets: t.tabs.tickets,
+              new: t.tabs.newTicket,
+              calendar: t.tabs.calendar,
+              "clients-tab": t.tabs.clients,
+              "hours-report-tab": t.tabs.hoursReport,
+              reports: t.tabs.reports,
+            }[returnTo]
+          : undefined;
+
+        return {
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.mutedForeground,
+          headerShown: true,
+          headerStyle: { backgroundColor: colors.card },
+          headerTintColor: colors.foreground,
+          headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+          headerShadowVisible: false,
+          headerLeft: returnTo
+            ? () => (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    lang === "it" ? `Torna a ${returnLabel}` : `Back to ${returnLabel}`
+                  }
+                  testID="profile-back-button"
+                  hitSlop={10}
+                  onPress={() => navigation.navigate(returnTo)}
+                  style={styles.headerActionButton}
                 >
-                  <Text style={[styles.notificationBadgeText, { color: colors.primaryForeground }]}>
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-            {route.name !== "profile" ? (
+                  <Feather name="arrow-left" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              )
+            : undefined,
+          headerRight: () => (
+            <View style={styles.headerActions}>
               <TouchableOpacity
                 accessibilityRole="button"
-                accessibilityLabel={t.tabs.profile}
-                testID="profile-header-button"
+                accessibilityLabel={
+                  unreadCount > 0
+                    ? `${notificationLabel}, ${unreadCount} ${lang === "it" ? "da leggere" : "unread"}`
+                    : notificationLabel
+                }
+                testID="notifications-header-button"
                 hitSlop={10}
-                onPress={() => navigation.navigate("profile")}
+                onPress={() => router.push("/notifications")}
                 style={styles.headerActionButton}
               >
-                <Feather name="user" size={20} color={colors.foreground} />
+                <Feather name="bell" size={20} color={colors.foreground} />
+                {unreadCount > 0 ? (
+                  <View
+                    style={[
+                      styles.notificationBadge,
+                      { backgroundColor: colors.destructive, borderColor: colors.card },
+                    ]}
+                  >
+                    <Text style={[styles.notificationBadgeText, { color: colors.primaryForeground }]}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
-            ) : null}
-          </View>
-        ),
-      })}
+              {route.name !== "profile" ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t.tabs.profile}
+                  testID="profile-header-button"
+                  hitSlop={10}
+                  onPress={() => navigation.navigate("profile", { returnTo: route.name })}
+                  style={styles.headerActionButton}
+                >
+                  <Feather name="user" size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ),
+        };
+      }}
     >
       <Tabs.Screen
         name="index"

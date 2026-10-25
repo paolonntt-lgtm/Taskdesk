@@ -8,6 +8,7 @@ import TabLayout from "../app/(tabs)/_layout";
 const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+  profileReturnTo: undefined as string | undefined,
   push: vi.fn(),
   navigate: vi.fn(),
 }));
@@ -54,25 +55,37 @@ vi.mock("expo-router", async () => {
   const Tabs = ({
     children,
     screenOptions,
+    backBehavior,
   }: {
     children: React.ReactNode;
+    backBehavior?: string;
     screenOptions?: (args: {
       navigation: { navigate: typeof mocks.navigate };
-      route: { name: string };
-    }) => { headerRight?: () => React.ReactNode };
+      route: { name: string; params?: { returnTo?: string } };
+    }) => {
+      headerLeft?: () => React.ReactNode;
+      headerRight?: () => React.ReactNode;
+    };
   }) =>
     ReactModule.createElement(
       "div",
-      { "data-testid": "registered-tabs" },
+      { "data-testid": "registered-tabs", "data-back-behavior": backBehavior },
       ...["index", "tickets", "calendar", "clients-tab", "hours-report-tab", "profile"].map(
         (name) => {
           const options = screenOptions?.({
             navigation: { navigate: mocks.navigate },
-            route: { name },
+            route: {
+              name,
+              params:
+                name === "profile" && mocks.profileReturnTo
+                  ? { returnTo: mocks.profileReturnTo }
+                  : undefined,
+            },
           });
           return ReactModule.createElement(
             "div",
             { key: name, "data-header-route": name },
+            options?.headerLeft?.(),
             options?.headerRight?.(),
           );
         },
@@ -170,6 +183,7 @@ describe("mobile ticket creation navigation", () => {
     root = createRoot(host);
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    mocks.profileReturnTo = undefined;
     mocks.push.mockReset();
     mocks.navigate.mockReset();
   });
@@ -237,7 +251,7 @@ describe("mobile ticket creation navigation", () => {
       );
       expect(profileButton).not.toBeNull();
       await act(async () => profileButton!.click());
-      expect(mocks.navigate).toHaveBeenLastCalledWith("profile");
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile", { returnTo: section });
     }
 
     expect(
@@ -260,11 +274,36 @@ describe("mobile ticket creation navigation", () => {
       );
       expect(profileButton).not.toBeNull();
       await act(async () => profileButton!.click());
-      expect(mocks.navigate).toHaveBeenLastCalledWith("profile");
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile", { returnTo: section });
     }
 
     expect(
       host.querySelector('[data-header-route="profile"] [data-testid="profile-header-button"]'),
     ).toBeNull();
+  });
+
+  it("returns to the originating tab from Profile for Tickets and Calendar", async () => {
+    await render(TabLayout);
+    expect(host.querySelector('[data-testid="registered-tabs"]')?.getAttribute("data-back-behavior"))
+      .toBe("history");
+
+    for (const section of ["tickets", "calendar"]) {
+      const profileButton = host.querySelector<HTMLButtonElement>(
+        `[data-header-route="${section}"] [data-testid="profile-header-button"]`,
+      );
+      expect(profileButton).not.toBeNull();
+      await act(async () => profileButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith("profile", { returnTo: section });
+
+      mocks.profileReturnTo = section;
+      await render(TabLayout);
+      const backButton = host.querySelector<HTMLButtonElement>(
+        '[data-header-route="profile"] [data-testid="profile-back-button"]',
+      );
+      expect(backButton).not.toBeNull();
+      await act(async () => backButton!.click());
+      expect(mocks.navigate).toHaveBeenLastCalledWith(section);
+      mocks.profileReturnTo = undefined;
+    }
   });
 });
