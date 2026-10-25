@@ -50,22 +50,15 @@ export default function TicketsScreen() {
     if (statusFilter) parts.push(`status=${statusFilter}`);
     if (priorityFilter) parts.push(`priority=${priorityFilter}`);
     if (recurringFilter) parts.push(`recurring=true`);
+    if (search.trim()) parts.push(`search=${encodeURIComponent(search.trim())}`);
     return parts.length > 0 ? `?${parts.join("&")}` : "";
   };
 
   const { data: tickets = [], isLoading, refetch } = useQuery({
-    queryKey: ["tickets", statusFilter, priorityFilter, recurringFilter],
+    queryKey: ["tickets", statusFilter, priorityFilter, recurringFilter, search.trim()],
     queryFn: () => apiGet<Ticket[]>(`/tickets${buildQuery()}`),
     enabled: !!user,
   });
-
-  const q = search.toLowerCase();
-  const filtered = tickets.filter((ticket) =>
-    !search ||
-    ticket.title.toLowerCase().includes(q) ||
-    ticket.description?.toLowerCase().includes(q) ||
-    String(ticket.id).includes(search)
-  );
 
   const renderTicket = ({ item }: { item: Ticket }) => {
     const hasNote = !!(item.resolutionNote && (item.status === "resolved" || item.status === "closed"));
@@ -188,7 +181,7 @@ export default function TicketsScreen() {
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={filtered}
+          data={tickets}
           keyExtractor={(ticket) => String(ticket.id)}
           renderItem={renderTicket}
           contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 0 }]}

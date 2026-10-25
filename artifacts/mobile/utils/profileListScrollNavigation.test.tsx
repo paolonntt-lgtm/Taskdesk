@@ -9,6 +9,9 @@ import TicketsScreen from "../app/(tabs)/tickets";
 const mocks = vi.hoisted(() => ({
   initialRoute: "tickets",
   clientsEnabled: true,
+  routeSearch: undefined as string | undefined,
+  ticketQueryFn: undefined as (() => Promise<unknown>) | undefined,
+  apiGet: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("react-native", async () => {
@@ -141,7 +144,7 @@ vi.mock("expo-router", async () => {
 
   return {
     Tabs,
-    useLocalSearchParams: () => ({}),
+    useLocalSearchParams: () => ({ search: mocks.routeSearch }),
     useRouter: () => ({ push: vi.fn() }),
     router: { push: vi.fn() },
   };
@@ -192,12 +195,18 @@ vi.mock("@/hooks/useTicketStatuses", () => ({
 }));
 vi.mock("@/utils/api", () => ({
   PRIORITY_COLORS: { urgent: "#f00", high: "#f80", normal: "#08f", low: "#888" },
-  apiGet: vi.fn(),
+  apiGet: mocks.apiGet,
   apiPatch: vi.fn(),
   apiPost: vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryKey }: { queryKey: (string | number | boolean)[] }) => {
+  useQuery: ({
+    queryKey,
+    queryFn,
+  }: {
+    queryKey: (string | number | boolean)[];
+    queryFn?: () => Promise<unknown>;
+  }) => {
     if (queryKey[0] === "mobile-organization-settings") {
       return {
         data: { clientsEnabled: mocks.clientsEnabled, timeTrackingModuleEnabled: false },
@@ -219,6 +228,7 @@ vi.mock("@tanstack/react-query", () => ({
       };
     }
     if (queryKey[0] === "tickets") {
+      mocks.ticketQueryFn = queryFn;
       return {
         data: Array.from({ length: 30 }, (_, index) => ({
           id: index + 1,
@@ -250,11 +260,26 @@ describe("mobile list position after returning from Profile", () => {
     root = createRoot(host);
     mocks.initialRoute = "tickets";
     mocks.clientsEnabled = true;
+    mocks.routeSearch = undefined;
+    mocks.ticketQueryFn = undefined;
+    mocks.apiGet.mockClear();
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     host.remove();
+  });
+
+  it("uses the complete server-side search when opening a filtered ticket list", async () => {
+    mocks.routeSearch = "invoice & renewal";
+    await act(async () => root.render(React.createElement(TicketsScreen)));
+
+    expect(mocks.ticketQueryFn).toBeTypeOf("function");
+    await mocks.ticketQueryFn?.();
+
+    expect(mocks.apiGet).toHaveBeenCalledWith(
+      "/tickets?search=invoice%20%26%20renewal",
+    );
   });
 
   it.each([

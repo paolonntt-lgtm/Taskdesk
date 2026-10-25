@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
+  ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
+  ticketSearchLoading: false,
+  ticketSearchError: false,
   platformOS: "ios" as "ios" | "android",
   screenWidth: 390,
   language: "en" as "en" | "it",
@@ -66,7 +69,7 @@ vi.mock("react-native", async () => {
     }, props.children);
   };
   return {
-    ActivityIndicator: () => null,
+    ActivityIndicator: component("div"),
     Platform: { get OS() { return mocks.platformOS; } },
     RefreshControl: () => null,
     Image: component("img"),
@@ -239,17 +242,23 @@ vi.mock("@/utils/api", () => ({
   apiGet: vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: ({ queryKey }: { queryKey: string[] }) => ({
-    data: queryKey[0] === "mobile-organization-settings"
-      ? mocks.organizationSettings
-      : queryKey[0] === "mobile-clients"
-        ? mocks.clients
-        : mocks.notifications,
-    isLoading: false,
-    isSuccess: queryKey[0] === "mobile-organization-settings",
-    isError: false,
-    refetch: vi.fn(),
-  }),
+  useQuery: ({ queryKey }: { queryKey: string[] }) => {
+    const isTicketSearch = queryKey[0] === "mobile-dashboard-ticket-search";
+    return {
+      data: queryKey[0] === "mobile-organization-settings"
+        ? mocks.organizationSettings
+        : queryKey[0] === "mobile-clients"
+          ? mocks.clients
+          : isTicketSearch
+            ? mocks.ticketSearchResults
+            : mocks.notifications,
+      isLoading: isTicketSearch && mocks.ticketSearchLoading,
+      isFetching: false,
+      isSuccess: queryKey[0] === "mobile-organization-settings",
+      isError: isTicketSearch && mocks.ticketSearchError,
+      refetch: vi.fn(),
+    };
+  },
 }));
 
 describe("mobile ticket creation navigation", () => {
@@ -271,6 +280,9 @@ describe("mobile ticket creation navigation", () => {
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     mocks.clients = [];
+    mocks.ticketSearchResults = [];
+    mocks.ticketSearchLoading = false;
+    mocks.ticketSearchError = false;
     mocks.platformOS = "ios";
     mocks.screenWidth = 390;
     mocks.language = "en";
@@ -325,6 +337,67 @@ describe("mobile ticket creation navigation", () => {
 
     await act(async () => result?.click());
     expect(mocks.push).toHaveBeenCalledWith("/clients/31");
+  });
+
+  it("shows matching ticket suggestions and opens the selected ticket", async () => {
+    mocks.ticketSearchResults = [
+      { id: 41, title: "Aurora installation", status: "open" },
+      { id: 42, title: "Aurora follow-up", status: "in_progress" },
+    ];
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const result = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-ticket-result-41"]');
+    expect(result?.textContent).toContain("Aurora installation");
+    expect(result?.textContent).toContain("#41");
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-42"]')).not.toBeNull();
+
+    await act(async () => result?.click());
+    expect(mocks.push).toHaveBeenCalledWith("/ticket/41");
+  });
+
+  it("shows loading and empty states for ticket suggestions", async () => {
+    mocks.ticketSearchLoading = true;
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "missing");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(host.querySelector('[data-testid="dashboard-ticket-search-results"]')?.textContent)
+      .not.toContain("No tickets found.");
+    expect(host.querySelector('[data-testid="dashboard-ticket-search-loading"]')).not.toBeNull();
+
+    mocks.ticketSearchLoading = false;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "unknown");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(host.querySelector('[data-testid="dashboard-ticket-search-results"]')?.textContent)
+      .toContain("No tickets found.");
+  });
+
+  it("keeps Enter navigation to the complete filtered ticket list", async () => {
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "invoice");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      pathname: "/(tabs)/tickets",
+      params: { search: "invoice" },
+    });
   });
 
   it("does not show client suggestions when client management is disabled", async () => {

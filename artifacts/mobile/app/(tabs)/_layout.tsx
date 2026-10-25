@@ -10,6 +10,7 @@ import {
   Image,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -69,6 +70,16 @@ function DashboardSearchHeader() {
     queryFn: () => apiGet<DashboardClient[]>("/clients"),
     enabled: clientsEnabled && search.trim().length >= 2,
   });
+  const ticketSearch = search.trim();
+  const ticketsQuery = useQuery({
+    queryKey: ["mobile-dashboard-ticket-search", user?.organizationId, ticketSearch],
+    queryFn: () =>
+      apiGet<DashboardTicket[]>(
+        `/tickets?search=${encodeURIComponent(ticketSearch)}&limit=4`,
+      ),
+    enabled: user?.organizationId != null && ticketSearch.length >= 2,
+    staleTime: 10_000,
+  });
   const matchingClients = React.useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     if (query.length < 2) return [];
@@ -80,6 +91,7 @@ function DashboardSearchHeader() {
       )
       .slice(0, 4);
   }, [clientsQuery.data, search]);
+  const matchingTickets = ticketsQuery.data ?? [];
 
   const submitSearch = () => {
     const query = search.trim();
@@ -89,6 +101,8 @@ function DashboardSearchHeader() {
 
   const showClientResults =
     search.trim().length >= 2 && clientsEnabled;
+  const showSearchResults =
+    search.trim().length >= 2 && user?.organizationId != null;
 
   return (
     <View style={[styles.dashboardHeaderTitle, { width: Math.max(width - 170, 132) }]}>
@@ -129,7 +143,7 @@ function DashboardSearchHeader() {
           </TouchableOpacity>
         ) : null}
       </View>
-      {showClientResults ? (
+      {showSearchResults ? (
         <View
           style={[
             styles.dashboardClientResults,
@@ -139,54 +153,114 @@ function DashboardSearchHeader() {
               shadowColor: colors.foreground,
             },
           ]}
-          testID="dashboard-client-search-results"
+          testID="dashboard-search-results"
         >
-          <Text style={[styles.dashboardClientResultsHeading, { color: colors.mutedForeground }]}>
-            {lang === "it" ? "Clienti" : "Clients"}
-          </Text>
-          {clientsQuery.isLoading ? (
-            <ActivityIndicator color={colors.primary} style={styles.dashboardClientStatus} />
-          ) : clientsQuery.isError ? (
-            <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
-              {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}
-            </Text>
-          ) : matchingClients.length === 0 ? (
-            <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
-              {lang === "it" ? "Nessun cliente trovato." : "No clients found."}
-            </Text>
-          ) : (
-            matchingClients.map((client) => (
-              <Pressable
-                key={client.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${client.name}${client.alias ? `, ${client.alias}` : ""}`}
-                testID={`dashboard-client-result-${client.id}`}
-                onPress={() => {
-                  setSearch("");
-                  router.push(`/clients/${client.id}`);
-                }}
-                style={({ pressed }) => [
-                  styles.dashboardClientResult,
-                  { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
-                ]}
-              >
-                <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
-                  <Feather name="briefcase" size={15} color={colors.primary} />
-                </View>
-                <View style={styles.dashboardClientText}>
-                  <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
-                    {client.name}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            style={styles.dashboardSearchResultsScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View testID="dashboard-ticket-search-results">
+              <Text style={[styles.dashboardClientResultsHeading, { color: colors.mutedForeground }]}>
+                {lang === "it" ? "Ticket" : "Tickets"}
+              </Text>
+              {ticketsQuery.isLoading || ticketsQuery.isFetching ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={styles.dashboardClientStatus}
+                  testID="dashboard-ticket-search-loading"
+                />
+              ) : ticketsQuery.isError ? (
+                <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                  {lang === "it" ? "Impossibile caricare i ticket." : "Could not load tickets."}
+                </Text>
+              ) : matchingTickets.length === 0 ? (
+                <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                  {lang === "it" ? "Nessun ticket trovato." : "No tickets found."}
+                </Text>
+              ) : (
+                matchingTickets.map((ticket) => (
+                  <Pressable
+                    key={ticket.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${ticket.title}, ${lang === "it" ? "ticket" : "ticket"} ${ticket.id}`}
+                    testID={`dashboard-ticket-result-${ticket.id}`}
+                    onPress={() => {
+                      setSearch("");
+                      router.push(`/ticket/${ticket.id}` as any);
+                    }}
+                    style={({ pressed }) => [
+                      styles.dashboardClientResult,
+                      { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
+                    ]}
+                  >
+                    <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
+                      <Feather name="file-text" size={15} color={colors.primary} />
+                    </View>
+                    <View style={styles.dashboardClientText}>
+                      <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
+                        {ticket.title}
+                      </Text>
+                      <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                        #{ticket.id}{ticket.status ? ` · ${ticket.status}` : ""}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+            {showClientResults ? (
+              <View testID="dashboard-client-search-results">
+                <Text style={[styles.dashboardClientResultsHeading, { color: colors.mutedForeground }]}>
+                  {lang === "it" ? "Clienti" : "Clients"}
+                </Text>
+                {clientsQuery.isLoading || clientsQuery.isFetching ? (
+                  <ActivityIndicator color={colors.primary} style={styles.dashboardClientStatus} />
+                ) : clientsQuery.isError ? (
+                  <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                    {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}
                   </Text>
-                  {!!(client.alias || client.email || client.phone) ? (
-                    <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {client.alias || client.email || client.phone}
-                    </Text>
-                  ) : null}
-                </View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-              </Pressable>
-            ))
-          )}
+                ) : matchingClients.length === 0 ? (
+                  <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                    {lang === "it" ? "Nessun cliente trovato." : "No clients found."}
+                  </Text>
+                ) : (
+                  matchingClients.map((client) => (
+                    <Pressable
+                      key={client.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${client.name}${client.alias ? `, ${client.alias}` : ""}`}
+                      testID={`dashboard-client-result-${client.id}`}
+                      onPress={() => {
+                        setSearch("");
+                        router.push(`/clients/${client.id}`);
+                      }}
+                      style={({ pressed }) => [
+                        styles.dashboardClientResult,
+                        { borderBottomColor: colors.border, opacity: pressed ? 0.65 : 1 },
+                      ]}
+                    >
+                      <View style={[styles.dashboardClientIcon, { backgroundColor: colors.muted }]}>
+                        <Feather name="briefcase" size={15} color={colors.primary} />
+                      </View>
+                      <View style={styles.dashboardClientText}>
+                        <Text style={[styles.dashboardClientName, { color: colors.foreground }]} numberOfLines={1}>
+                          {client.name}
+                        </Text>
+                        {!!(client.alias || client.email || client.phone) ? (
+                          <Text style={[styles.dashboardClientMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                            {client.alias || client.email || client.phone}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </ScrollView>
         </View>
       ) : null}
     </View>
@@ -200,6 +274,12 @@ type DashboardClient = {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+};
+
+type DashboardTicket = {
+  id: number;
+  title: string;
+  status?: string | null;
 };
 
 function getProfileReturnRoute(
@@ -724,6 +804,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14,
     shadowRadius: 10,
+  },
+  dashboardSearchResultsScroll: {
+    maxHeight: 340,
   },
   dashboardClientResultsHeading: {
     paddingHorizontal: 6,
