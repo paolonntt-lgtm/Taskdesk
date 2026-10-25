@@ -2,6 +2,7 @@ import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   cacheMobileOrganizationSettings,
+  getMobileOrganizationSettingsRefetchInterval,
   getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
   shouldHideCalendarTab,
@@ -20,6 +21,11 @@ describe("optional mobile navigation tabs", () => {
       "mobile-organization-settings",
       7,
     ]);
+  });
+
+  it("polls organization settings only while the app is active", () => {
+    expect(getMobileOrganizationSettingsRefetchInterval(true)).toBe(30_000);
+    expect(getMobileOrganizationSettingsRefetchInterval(false)).toBe(false);
   });
 
   it("shows Clients only when the organization has the Clients module", () => {

@@ -23,6 +23,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
 import {
+  getMobileOrganizationSettingsRefetchInterval,
   getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
   shouldHideCalendarTab,
@@ -132,6 +133,8 @@ function TabContent() {
     queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
     queryFn: () => apiGet<{ clientsEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
+    refetchInterval: getMobileOrganizationSettingsRefetchInterval(appState === "active"),
+    refetchIntervalInBackground: false,
   });
   const notificationsQuery = useQuery({
     queryKey: ["mobile-notifications"],
@@ -142,9 +145,14 @@ function TabContent() {
   const unreadCount =
     notificationsQuery.data?.filter((notification) => !notification.isRead).length ?? 0;
   React.useEffect(() => {
-    const subscription = AppState.addEventListener("change", setAppState);
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      setAppState(nextAppState);
+      if (nextAppState === "active") {
+        void organizationSettings.refetch();
+      }
+    });
     return () => subscription.remove();
-  }, []);
+  }, [organizationSettings.refetch]);
   React.useEffect(() => {
     const notifications = notificationsQuery.data;
     if (!notifications) return;

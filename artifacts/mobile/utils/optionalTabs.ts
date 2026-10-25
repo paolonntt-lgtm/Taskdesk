@@ -1,5 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+export const MOBILE_ORGANIZATION_SETTINGS_REFETCH_INTERVAL_MS = 30_000;
+
 export type MobileOptionalTabSettings = {
   clientsEnabled?: boolean;
   timeTrackingModuleEnabled?: boolean;
@@ -9,6 +11,14 @@ export type MobileOptionalTabAccess = {
   clients: boolean;
   hoursReport: boolean;
 };
+
+export function getMobileOrganizationSettingsRefetchInterval(
+  isAppActive: boolean,
+): number | false {
+  return isAppActive
+    ? MOBILE_ORGANIZATION_SETTINGS_REFETCH_INTERVAL_MS
+    : false;
+}
 
 export function getMobileOrganizationSettingsQueryKey(
   organizationId: number | null | undefined,
