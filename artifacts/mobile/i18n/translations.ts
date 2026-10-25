@@ -96,6 +96,7 @@ const it = {
     goodMorning: 'Buongiorno',
     goodAfternoon: 'Buon pomeriggio',
     goodEvening: 'Buonasera',
+    searchPlaceholder: 'Cerca su Taskdesk',
   },
   tickets: {
     search: 'Cerca ticket...',
@@ -546,6 +547,7 @@ const en: typeof it = {
     goodMorning: 'Good morning',
     goodAfternoon: 'Good afternoon',
     goodEvening: 'Good evening',
+    searchPlaceholder: 'Search Taskdesk',
   },
   tickets: {
     search: 'Search tickets...',

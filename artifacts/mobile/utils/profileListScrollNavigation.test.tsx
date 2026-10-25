@@ -198,11 +198,12 @@ vi.mock("@/utils/api", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: (string | number | boolean)[] }) => {
-    if (queryKey[0] === "mobile-profile-organization-settings") {
-      return { data: { clientsEnabled: mocks.clientsEnabled, timeTrackingModuleEnabled: false } };
-    }
     if (queryKey[0] === "mobile-organization-settings") {
-      return { data: { clientsEnabled: true }, isSuccess: true, isLoading: false };
+      return {
+        data: { clientsEnabled: mocks.clientsEnabled, timeTrackingModuleEnabled: false },
+        isSuccess: true,
+        isLoading: false,
+      };
     }
     if (queryKey[0] === "mobile-notifications") {
       return { data: [] };

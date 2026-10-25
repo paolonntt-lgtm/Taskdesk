@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet, apiPatch, apiPost } from "@/utils/api";
+import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
 
 type Client = { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null; address?: string | null };
 export default function ClientsScreen() {
@@ -15,7 +16,7 @@ export default function ClientsScreen() {
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState<Client | null>(null);
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [phone, setPhone] = useState(""); const [saving, setSaving] = useState(false);
   const organizationSettings = useQuery({
-    queryKey: ["mobile-organization-settings", user?.organizationId],
+    queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
     queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });

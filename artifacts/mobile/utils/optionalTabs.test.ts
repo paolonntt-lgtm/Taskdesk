@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { getMobileOptionalTabAccess, shouldShowNewTicketTab } from "./optionalTabs";
+import {
+  getMobileOrganizationSettingsQueryKey,
+  getMobileOptionalTabAccess,
+  shouldHideCalendarTab,
+} from "./optionalTabs";
 
 describe("optional mobile navigation tabs", () => {
+  it("uses a shared organization-settings cache key", () => {
+    expect(getMobileOrganizationSettingsQueryKey(7)).toEqual([
+      "mobile-organization-settings",
+      7,
+    ]);
+  });
+
   it("shows Clients only when the organization has the Clients module", () => {
     const enabled = getMobileOptionalTabAccess({
       settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
@@ -62,31 +73,31 @@ describe("optional mobile navigation tabs", () => {
     ).toEqual({ clients: true, hoursReport: false });
   });
 
-  it("shows New when at least one optional product is disabled, but not while settings load", () => {
-    expect(shouldShowNewTicketTab({
-      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
-      hasOrganization: true,
-      settingsLoaded: true,
-    })).toBe(true);
-    expect(shouldShowNewTicketTab({
-      settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
-      hasOrganization: true,
-      settingsLoaded: true,
-    })).toBe(true);
-    expect(shouldShowNewTicketTab({
+  it("hides Calendar only when both organization products are enabled", () => {
+    expect(shouldHideCalendarTab({
       settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
       hasOrganization: true,
       settingsLoaded: true,
+    })).toBe(true);
+    expect(shouldHideCalendarTab({
+      settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      hasOrganization: true,
+      settingsLoaded: true,
     })).toBe(false);
-    expect(shouldShowNewTicketTab({
+    expect(shouldHideCalendarTab({
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      hasOrganization: true,
+      settingsLoaded: true,
+    })).toBe(false);
+    expect(shouldHideCalendarTab({
       settings: undefined,
       hasOrganization: true,
       settingsLoaded: false,
     })).toBe(false);
-    expect(shouldShowNewTicketTab({
-      settings: undefined,
+    expect(shouldHideCalendarTab({
+      settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
       hasOrganization: false,
-      settingsLoaded: false,
-    })).toBe(true);
+      settingsLoaded: true,
+    })).toBe(false);
   });
 });

@@ -15,6 +15,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiDelete, apiGet } from "@/utils/api";
+import { getMobileOrganizationSettingsQueryKey } from "@/utils/optionalTabs";
 
 type ClientNoteChecklistItem = {
   id: string;
@@ -37,7 +38,7 @@ export default function ClientDetailScreen() {
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
   const organizationSettings = useQuery({
-    queryKey: ["mobile-organization-settings", user?.organizationId],
+    queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
     queryFn: () => apiGet<{ clientsEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });

@@ -2116,7 +2116,7 @@ const it = {
     monthsLong: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
   },
   commandPalette: {
-    placeholder: 'Cerca pratiche, clienti, utenti...',
+    placeholder: 'Cerca su Taskdesk',
     hint: 'Scrivi per cercare pratiche, clienti e utenti',
     noResults: (q: string) => `Nessun risultato per "${q}"`,
     groupTickets: 'Pratiche',
@@ -4242,7 +4242,7 @@ const en: typeof it = {
     monthsLong: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   },
   commandPalette: {
-    placeholder: 'Search tickets, clients, users...',
+    placeholder: 'Search Taskdesk',
     hint: 'Type to search tickets, clients and users',
     noResults: (q: string) => `No results for "${q}"`,
     groupTickets: 'Tickets',

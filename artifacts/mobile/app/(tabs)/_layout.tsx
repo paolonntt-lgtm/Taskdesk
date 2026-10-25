@@ -6,12 +6,14 @@ import React from "react";
 import {
   AccessibilityInfo,
   AppState,
+  Image,
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -21,8 +23,9 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
 import {
+  getMobileOrganizationSettingsQueryKey,
   getMobileOptionalTabAccess,
-  shouldShowNewTicketTab,
+  shouldHideCalendarTab,
 } from "@/utils/optionalTabs";
 import { getMobileBottomBarLayout } from "@/utils/mobileBottomBarLayout";
 
@@ -43,6 +46,62 @@ const PROFILE_RETURN_ROUTES = [
 ] as const;
 type ProfileReturnRoute = (typeof PROFILE_RETURN_ROUTES)[number];
 
+function DashboardSearchHeader() {
+  const colors = useColors();
+  const { t, lang } = useLanguage();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const [search, setSearch] = React.useState("");
+
+  const submitSearch = () => {
+    const query = search.trim();
+    if (!query) return;
+    router.push({ pathname: "/(tabs)/tickets", params: { search: query } });
+  };
+
+  return (
+    <View style={[styles.dashboardHeaderTitle, { width: Math.max(width - 170, 132) }]}>
+      <Image
+        source={require("../../assets/images/taskdesk-app-icon.png")}
+        style={styles.dashboardLogo}
+        accessibilityLabel="TaskDesk"
+        testID="dashboard-taskdesk-logo"
+      />
+      <View
+        style={[
+          styles.dashboardSearch,
+          { backgroundColor: colors.background, borderColor: colors.border },
+        ]}
+      >
+        <Feather name="search" size={16} color={colors.mutedForeground} />
+        <TextInput
+          accessibilityLabel={t.dashboard.searchPlaceholder}
+          testID="dashboard-header-search"
+          style={[styles.dashboardSearchInput, { color: colors.foreground }]}
+          value={search}
+          onChangeText={setSearch}
+          onSubmitEditing={submitSearch}
+          placeholder={t.dashboard.searchPlaceholder}
+          placeholderTextColor={colors.mutedForeground}
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {search.length > 0 ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={lang === "it" ? "Cancella ricerca" : "Clear search"}
+            onPress={() => setSearch("")}
+            hitSlop={8}
+          >
+            <Feather name="x" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function getProfileReturnRoute(value: unknown): ProfileReturnRoute | undefined {
   return typeof value === "string" &&
     (PROFILE_RETURN_ROUTES as readonly string[]).includes(value)
@@ -55,14 +114,12 @@ function TabContent() {
   const { t, lang } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const [appState, setAppState] = React.useState(AppState.currentState);
   const seenNotificationIds = React.useRef<Set<number> | null>(null);
   const organizationSettings = useQuery({
-    queryKey: ["mobile-profile-organization-settings", user?.organizationId],
+    queryKey: getMobileOrganizationSettingsQueryKey(user?.organizationId),
     queryFn: () => apiGet<{ clientsEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>("/settings/organization"),
     enabled: user?.organizationId != null,
   });
@@ -117,13 +174,15 @@ function TabContent() {
   });
   const clientsEnabled = optionalTabAccess.clients;
   const hoursReportEnabled = optionalTabAccess.hoursReport;
-  const showNewTicketTab = shouldShowNewTicketTab({
+  const hideCalendarTab = shouldHideCalendarTab({
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
     settingsLoaded: organizationSettings.isSuccess,
   });
+  const showNewTicketTab = true;
   const hiddenRoutes = [
     "reports",
+    ...(hideCalendarTab ? ["calendar"] : []),
     ...(!clientsEnabled ? ["clients-tab"] : []),
     ...(!hoursReportEnabled ? ["hours-report-tab"] : []),
   ];
@@ -165,6 +224,9 @@ function TabContent() {
           headerStyle: { backgroundColor: colors.card },
           headerTintColor: colors.foreground,
           headerTitleStyle: { fontFamily: "Inter_600SemiBold", fontSize: 17 },
+          headerTitle:
+            route.name === "index" ? () => <DashboardSearchHeader /> : undefined,
+          headerTitleAlign: route.name === "index" ? "left" : undefined,
           headerShadowVisible: false,
           headerLeft: returnTo
             ? () => (
@@ -258,9 +320,9 @@ function TabContent() {
           tabBarLabel: t.tabs.new,
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="plus.circle" tintColor={color} size={24} />
+              <SymbolView name="plus" tintColor={color} size={28} />
             ) : (
-              <Feather name="plus-circle" size={24} color={color} />
+              <Feather name="plus" size={28} color={color} />
             ),
         }}
       />
@@ -328,7 +390,6 @@ function BottomTabBar({
 }: TabBarProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const bottomPadding = isWeb ? 34 : Math.max(insets.bottom, 4);
@@ -371,7 +432,7 @@ function BottomTabBar({
       {isIOS ? (
         <BlurView
           intensity={100}
-          tint={colorScheme === "dark" ? "dark" : "light"}
+          tint="light"
           style={StyleSheet.absoluteFill}
         />
       ) : isWeb ? (
@@ -383,13 +444,15 @@ function BottomTabBar({
           const position = tabPositions[route.name];
           if (!position) return null;
           const options = descriptors[route.key].options;
+          const isNewAction = route.name === "new";
           const focused = state.index === index;
           const color = focused ? colors.primary : colors.mutedForeground;
+          const iconColor = isNewAction ? colors.primaryForeground : color;
           const label =
             typeof options.tabBarLabel === "string"
               ? options.tabBarLabel
               : options.title ?? route.name;
-          const icon = options.tabBarIcon?.({ focused, color, size: 18 });
+          const icon = options.tabBarIcon?.({ focused, color: iconColor, size: isNewAction ? 28 : 24 });
 
           const onPress = () => {
             const event = navigation.emit({
@@ -418,19 +481,47 @@ function BottomTabBar({
                   width: position.width,
                   height: 52,
                 },
+                isNewAction && styles.newActionTabItem,
               ]}
             >
-              {icon}
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                style={[
-                  styles.tabBarLabel,
-                  { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" },
-                ]}
-              >
-                {label}
-              </Text>
+              {isNewAction ? (
+                <>
+                  <View
+                    testID="new-ticket-tab-circle"
+                    style={[
+                      styles.newActionCircle,
+                      { backgroundColor: colors.primary, borderColor: colors.card },
+                    ]}
+                  >
+                    {icon}
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={[
+                      styles.tabBarLabel,
+                      styles.newActionLabel,
+                      { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  {icon}
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={[
+                      styles.tabBarLabel,
+                      { color, fontFamily: focused ? "Inter_600SemiBold" : "Inter_500Medium" },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -470,10 +561,39 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     fontFamily: "Inter_600SemiBold",
   },
+  dashboardHeaderTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  },
+  dashboardLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 7,
+  },
+  dashboardSearch: {
+    flex: 1,
+    minWidth: 0,
+    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 10,
+  },
+  dashboardSearchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
   tabBar: {
     borderTopWidth: 1,
     elevation: 0,
-    overflow: "hidden",
+    overflow: "visible",
   },
   tabBarGrid: {
     position: "relative",
@@ -485,6 +605,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2,
     paddingHorizontal: 2,
+  },
+  newActionTabItem: {
+    top: -14,
+    height: 66,
+    justifyContent: "flex-start",
+    overflow: "visible",
+  },
+  newActionCircle: {
+    position: "absolute",
+    top: 0,
+    alignSelf: "center",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  newActionLabel: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   tabBarLabel: {
     maxWidth: "100%",

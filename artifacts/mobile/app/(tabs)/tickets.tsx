@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, FlatList, StyleSheet,
   TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Platform,
@@ -34,12 +34,16 @@ export default function TicketsScreen() {
   const { t } = useLanguage();
   const { statuses: orgStatuses, getLabelForKey } = useTicketStatuses();
   const s = styles(colors);
-  const params = useLocalSearchParams<{ status?: string; priority?: string }>();
+  const params = useLocalSearchParams<{ status?: string; priority?: string; search?: string }>();
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(params.search ?? "");
   const [statusFilter, setStatusFilter] = useState(params.status ?? "");
   const [priorityFilter, setPriorityFilter] = useState(params.priority ?? "");
   const [recurringFilter, setRecurringFilter] = useState(false);
+
+  useEffect(() => {
+    setSearch(params.search ?? "");
+  }, [params.search]);
 
   const buildQuery = () => {
     const parts: string[] = [];

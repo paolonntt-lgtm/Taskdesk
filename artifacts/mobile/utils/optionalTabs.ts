@@ -8,6 +8,12 @@ export type MobileOptionalTabAccess = {
   hoursReport: boolean;
 };
 
+export function getMobileOrganizationSettingsQueryKey(
+  organizationId: number | null | undefined,
+) {
+  return ["mobile-organization-settings", organizationId] as const;
+}
+
 export function getMobileOptionalTabAccess({
   settings,
   hasOrganization,
@@ -26,7 +32,7 @@ export function getMobileOptionalTabAccess({
   };
 }
 
-export function shouldShowNewTicketTab({
+export function shouldHideCalendarTab({
   settings,
   hasOrganization,
   settingsLoaded,
@@ -35,6 +41,10 @@ export function shouldShowNewTicketTab({
   hasOrganization: boolean;
   settingsLoaded: boolean;
 }): boolean {
-  if (hasOrganization && !settingsLoaded) return false;
-  return settings?.clientsEnabled !== true || settings.timeTrackingModuleEnabled !== true;
+  return (
+    hasOrganization &&
+    settingsLoaded &&
+    settings?.clientsEnabled === true &&
+    settings.timeTrackingModuleEnabled === true
+  );
 }

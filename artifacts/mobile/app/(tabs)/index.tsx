@@ -72,19 +72,12 @@ export default function DashboardScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={s.header}>
-        <View>
-          <Text style={s.greeting}>{greeting()},</Text>
-          <Text style={s.name}>{user?.name?.split(" ")[0] ?? t.profile.user}</Text>
+        <View style={s.greetingRow} testID="dashboard-greeting-line">
+          <Text style={s.greeting} numberOfLines={1}>{greeting()}, </Text>
+          <Text style={s.name} numberOfLines={1}>
+            {user?.name?.split(" ")[0] ?? t.profile.user}
+          </Text>
         </View>
-        <TouchableOpacity
-          style={s.newBtn}
-          onPress={() => router.push("/(tabs)/new")}
-          accessibilityRole="button"
-          accessibilityLabel={t.tabs.newTicket}
-          testID="dashboard-create-ticket"
-        >
-          <Feather name="plus" size={20} color={colors.primaryForeground} />
-        </TouchableOpacity>
       </View>
 
       {statsLoading ? (
@@ -155,14 +148,10 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20 },
-    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-    greeting: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    name: { fontSize: 24, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
-    newBtn: {
-      width: 40, height: 40, borderRadius: 20,
-      backgroundColor: colors.primary,
-      alignItems: "center", justifyContent: "center",
-    },
+    header: { marginBottom: 24 },
+    greetingRow: { flexDirection: "row", alignItems: "center", minWidth: 0 },
+    greeting: { fontSize: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    name: { flexShrink: 1, fontSize: 22, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
     statsGridSingleRow: { flexWrap: "nowrap", gap: 6 },

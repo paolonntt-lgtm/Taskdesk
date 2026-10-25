@@ -815,7 +815,7 @@ export default function Layout({ children }: LayoutProps) {
                 '&:hover': { borderColor: 'primary.light', color: 'text.primary', bgcolor: 'background.paper' },
               }}
             >
-              {location === '/' && <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: '0.72rem', fontWeight: 500 }}>{lang === 'it' ? 'Cerca ticket' : 'Search tickets'}</Box>}
+              {location === '/' && <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: '0.72rem', fontWeight: 500 }}>{lang === 'it' ? 'Cerca su Taskdesk' : 'Search Taskdesk'}</Box>}
             </Button>
           </Tooltip>
 

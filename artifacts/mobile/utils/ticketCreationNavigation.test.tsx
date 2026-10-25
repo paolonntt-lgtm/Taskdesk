@@ -54,6 +54,8 @@ vi.mock("react-native", async () => {
     ActivityIndicator: () => null,
     Platform: { OS: "ios" },
     RefreshControl: () => null,
+    Image: component("img"),
+    TextInput: component("input"),
     ScrollView: component("div"),
     StyleSheet: { create: (styles: unknown) => styles },
     Text: component("span"),
@@ -84,6 +86,7 @@ vi.mock("expo-router", async () => {
     }) => {
       headerLeft?: () => React.ReactNode;
       headerRight?: () => React.ReactNode;
+      headerTitle?: () => React.ReactNode;
     };
   }) =>
     ReactModule.createElement(
@@ -105,6 +108,7 @@ vi.mock("expo-router", async () => {
             "div",
             { key: name, "data-header-route": name },
             options?.headerLeft?.(),
+            options?.headerTitle?.(),
             options?.headerRight?.(),
           );
         },
@@ -158,6 +162,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         goodMorning: "Good morning",
         goodAfternoon: "Good afternoon",
         goodEvening: "Good evening",
+        searchPlaceholder: "Search Taskdesk",
         open: "Open",
         inProgress: "In progress",
         urgent: "Urgent",
@@ -167,6 +172,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         noRecentTickets: "No recent tickets",
       },
       profile: { user: "User" },
+      tickets: { search: "Search tickets" },
       status: {},
     },
   }),
@@ -177,10 +183,11 @@ vi.mock("@/utils/api", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
-    data: queryKey[0] === "mobile-profile-organization-settings"
+    data: queryKey[0] === "mobile-organization-settings"
       ? mocks.organizationSettings
       : mocks.notifications,
     isLoading: false,
+    isSuccess: queryKey[0] === "mobile-organization-settings",
     refetch: vi.fn(),
   }),
 }));
@@ -216,14 +223,22 @@ describe("mobile ticket creation navigation", () => {
     host.remove();
   });
 
-  it("opens the New Ticket route from the Dashboard action", async () => {
+  it("keeps the Dashboard greeting on one line without a duplicate create action", async () => {
     await render(DashboardScreen);
 
-    const createButton = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-create-ticket"]');
-    expect(createButton).not.toBeNull();
-    await act(async () => createButton!.click());
+    const greeting = host.querySelector('[data-testid="dashboard-greeting-line"]');
+    expect(greeting?.textContent).toBe("Good morning, Ada");
+    expect(greeting?.querySelectorAll("span")).toHaveLength(2);
+    expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
+  });
 
-    expect(mocks.push).toHaveBeenCalledWith("/(tabs)/new");
+  it("shows the TaskDesk logo and search field in the Dashboard header", async () => {
+    await render(TabLayout);
+
+    const dashboardHeader = host.querySelector('[data-header-route="index"]');
+    expect(dashboardHeader?.querySelector('[data-testid="dashboard-taskdesk-logo"]')).not.toBeNull();
+    expect(dashboardHeader?.querySelector('[data-testid="dashboard-header-search"]')).not.toBeNull();
+    expect(dashboardHeader?.textContent).not.toContain("Dashboard");
   });
 
   it("keeps New Ticket registered when optional tabs are hidden by module or role", async () => {
