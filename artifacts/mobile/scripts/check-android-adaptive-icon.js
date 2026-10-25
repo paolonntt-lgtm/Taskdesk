@@ -103,6 +103,9 @@ function parsePng(buffer, filePath) {
 
   let previousRow = Buffer.alloc(stride);
   const visibleBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
+  let maxVisibleRadiusSquared = 0;
+  const centerX = (header.width - 1) / 2;
+  const centerY = (header.height - 1) / 2;
   let dataOffset = 0;
 
   for (let y = 0; y < header.height; y += 1) {
@@ -154,13 +157,23 @@ function parsePng(buffer, filePath) {
         visibleBounds.minY = Math.min(visibleBounds.minY, y);
         visibleBounds.maxX = Math.max(visibleBounds.maxX, x);
         visibleBounds.maxY = Math.max(visibleBounds.maxY, y);
+        const distanceX = x - centerX;
+        const distanceY = y - centerY;
+        maxVisibleRadiusSquared = Math.max(
+          maxVisibleRadiusSquared,
+          distanceX * distanceX + distanceY * distanceY,
+        );
       }
     }
 
     previousRow = row;
   }
 
-  return { ...header, visibleBounds };
+  return {
+    ...header,
+    visibleBounds,
+    maxVisibleRadius: Math.sqrt(maxVisibleRadiusSquared),
+  };
 }
 
 function checkAdaptiveIcon(projectRoot) {
@@ -231,12 +244,23 @@ function checkAdaptiveIcon(projectRoot) {
     );
   }
 
+  const safeRadius = (SAFE_ZONE_RATIO * image.width) / 2;
+  if (image.maxVisibleRadius > safeRadius) {
+    fail(
+      `${foregroundImage} visible content exceeds Android's central 66/108 circular safe zone. ` +
+        `Maximum visible radius: ${image.maxVisibleRadius.toFixed(1)}px; ` +
+        `safe radius: ${safeRadius.toFixed(1)}px.`,
+    );
+  }
+
   return {
     foregroundImage,
     width: image.width,
     height: image.height,
     margins,
     requiredMargin,
+    maxVisibleRadius: image.maxVisibleRadius,
+    safeRadius,
   };
 }
 
@@ -248,7 +272,8 @@ if (require.main === module) {
       `[android-adaptive-icon] Safe-area check passed: ${result.foregroundImage} ` +
         `(${result.width}×${result.height}); margins L/T/R/B ` +
         `${result.margins.left}/${result.margins.top}/${result.margins.right}/${result.margins.bottom}px ` +
-        `(minimum ${result.requiredMargin}px).`,
+        `(minimum ${result.requiredMargin}px); maximum radius ` +
+        `${result.maxVisibleRadius.toFixed(1)}px (safe radius ${result.safeRadius.toFixed(1)}px).`,
     );
   } catch (error) {
     console.error(error.message);

@@ -47,7 +47,7 @@
           "backgroundColor": "#ffffff",
           "dark": {
             "image": "./assets/images/icon.png",
-            "backgroundColor": "#161616"
+            "backgroundColor": "#ffffff"
           }
         }
       ],

@@ -6,8 +6,8 @@
 background. Its visible mark is centered in the 1024×1024 canvas and has a
 788×588 pixel content bound. The `expo-splash-screen` plugin renders it in
 `contain` mode at 220 dp, so neither iOS nor Android crops the horizontal mark.
-The matching background is white in light appearance and `#161616` in dark
-appearance; the mark's internal negative spaces remain transparent in both.
+The background stays white in both light and dark appearances; the mark's
+internal negative spaces remain transparent.
 
 The plugin generates Android night resources for dark appearance and iOS
 appearance-specific launch-screen assets on iOS 13 and later. Older Android or
@@ -30,6 +30,14 @@ notification banners or the notification center; iOS displays the app's
 system-managed icon. The launcher icons remain separate:
 `taskdesk-app-icon.png` for the standard app icon and
 `taskdesk-adaptive-foreground.png` for Android adaptive launchers.
+
+## Launcher icon masks
+
+The iOS launcher source is a square, opaque 1024×1024 PNG with the mark
+centered inside the rounded-square mask. The Android adaptive foreground is
+transparent and checked against both the central 66/108 safe-zone bounds and
+its circular radius, so the monogram stays intact in circular and rounded
+launcher masks.
 
 ## Verification scope
 

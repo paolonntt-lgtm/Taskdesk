@@ -132,7 +132,7 @@ function unsupportedColorTypePng(colorType) {
 function createProject({
   width = 108,
   height = 108,
-  visiblePixels = [{ x: 30, y: 30 }],
+  visiblePixels = [{ x: 35, y: 35 }],
   foreground = rgbaPng(width, height, visiblePixels),
 } = {}) {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "android-adaptive-icon-"));
@@ -168,6 +168,7 @@ describe("Android adaptive icon safe-area check", () => {
     expect(result.foregroundImage).toBe("./assets/images/taskdesk-adaptive-foreground.png");
     expect(result.width).toBe(1024);
     expect(result.requiredMargin).toBe(200);
+    expect(result.maxVisibleRadius).toBeLessThanOrEqual(result.safeRadius);
     expect(result.margins.left).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.right).toBeGreaterThanOrEqual(result.requiredMargin);
     expect(result.margins.top).toBeGreaterThanOrEqual(result.requiredMargin);
@@ -179,6 +180,14 @@ describe("Android adaptive icon safe-area check", () => {
 
     expect(() => checkAdaptiveIcon(projectRoot)).toThrow(
       /outside Android's central 66\/108 safe zone.*left 5px/,
+    );
+  });
+
+  it("rejects content that fits the safe-zone bounds but crosses the circular mask", () => {
+    const projectRoot = createProject({ visiblePixels: [{ x: 30, y: 30 }] });
+
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(
+      /exceeds Android's central 66\/108 circular safe zone/,
     );
   });
 
@@ -203,14 +212,14 @@ describe("Android adaptive icon safe-area check", () => {
   it("measures indexed PNG margins using palette transparency", () => {
     const png = indexedPng(108, 108, [
       { x: 0, y: 0, index: 0 },
-      { x: 24, y: 30, index: 1 },
+      { x: 35, y: 40, index: 1 },
       { x: 70, y: 75, index: 2 },
       { x: 107, y: 107, index: 0 },
     ]);
     const projectRoot = createProject({ foreground: png });
     const result = checkAdaptiveIcon(projectRoot);
 
-    expect(result.margins).toEqual({ left: 24, top: 30, right: 37, bottom: 32 });
+    expect(result.margins).toEqual({ left: 35, top: 40, right: 37, bottom: 32 });
   });
 
   it("ignores fully transparent pixels in grayscale-alpha and RGBA PNGs", () => {
@@ -249,5 +258,44 @@ describe("Android adaptive icon safe-area check", () => {
     expect(() => parsePng(unsupportedColorTypePng(1), "unsupported.png")).toThrow(
       /unsupported\.png uses an unsupported PNG color type \(1\)/,
     );
+  });
+});
+
+describe("mobile splash and iOS icon assets", () => {
+  it("keeps the splash monogram centered on a white background in both appearances", () => {
+    const projectRoot = path.resolve(scriptDirectory, "..");
+    const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
+    const splash = config.plugins.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
+    )[1];
+    const imagePath = path.join(projectRoot, splash.image);
+    const image = parsePng(fs.readFileSync(imagePath), splash.image);
+
+    expect(splash).toMatchObject({
+      image: "./assets/images/icon.png",
+      imageWidth: 220,
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
+      dark: {
+        image: "./assets/images/icon.png",
+        backgroundColor: "#ffffff",
+      },
+    });
+    expect(image.width).toBe(1024);
+    expect(image.height).toBe(1024);
+    expect(Math.abs((image.visibleBounds.minX + image.visibleBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
+    expect(Math.abs((image.visibleBounds.minY + image.visibleBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
+  });
+
+  it("uses a square 1024-pixel iOS app icon source to avoid aspect-ratio distortion", () => {
+    const projectRoot = path.resolve(scriptDirectory, "..");
+    const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
+    const iconPath = path.join(projectRoot, config.icon);
+    const icon = parsePng(fs.readFileSync(iconPath), config.icon);
+
+    expect(config.icon).toBe("./assets/images/taskdesk-app-icon.png");
+    expect(icon.width).toBe(1024);
+    expect(icon.height).toBe(1024);
+    expect(icon.colorType).toBe(2);
   });
 });
