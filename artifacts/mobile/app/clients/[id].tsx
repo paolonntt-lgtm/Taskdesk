@@ -1,6 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getListClientNotesQueryKey,
@@ -153,6 +153,7 @@ export default function ClientDetailScreen() {
   if (organizationSettings.isLoading) return <View style={[s.root, s.center]}><ActivityIndicator color={c.primary} /></View>;
   if (!clientsEnabled) return <View style={[s.root, s.center]}><Text style={s.muted}>{it ? "La gestione clienti non è attiva per questa organizzazione." : "Client management is not enabled for this organization."}</Text></View>;
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
+    <Stack.Screen options={{ title: client?.name ?? (it ? "Cliente" : "Client") }} />
     {isLoading && <ActivityIndicator color={c.primary} />}
     {error || !client ? (!isLoading && <Text style={s.muted}>{it ? "Cliente non disponibile." : "Client unavailable."}</Text>) : <>
       <Text style={s.title}>{client.name}</Text>
