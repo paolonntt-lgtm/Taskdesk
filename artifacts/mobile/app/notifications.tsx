@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,9 +15,8 @@ type NotificationItem = {
 
 export default function NotificationsScreen() {
   const colors = useColors();
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const qc = useQueryClient();
-  const t = lang === "it";
   const [filter, setFilter] = React.useState<"all" | "unread" | "read">("all");
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["mobile-notifications"],
@@ -25,6 +24,18 @@ export default function NotificationsScreen() {
     refetchInterval: 30_000,
   });
   const visible = data.filter(item => filter === "all" || (filter === "unread" ? !item.isRead : item.isRead));
+  const inboxState = isLoading ? "loading" : error ? "error" : visible.length === 0 ? "empty" : null;
+
+  React.useEffect(() => {
+    if (!inboxState) return;
+    const announcement = inboxState === "loading"
+      ? t.notifications.loading
+      : inboxState === "error"
+        ? t.notifications.loadError
+        : t.notifications.empty;
+    AccessibilityInfo.announceForAccessibility(announcement);
+  }, [inboxState, t.notifications]);
+
   const markAllRead = async () => {
     try { await apiPatch("/notifications/read-all", {}); await qc.invalidateQueries({ queryKey: ["mobile-notifications"] }); }
     catch {}
@@ -33,6 +44,12 @@ export default function NotificationsScreen() {
     if (!item.isRead) {
       try {
         await apiPatch(`/notifications/${item.id}/read`, {});
+        qc.setQueryData<NotificationItem[]>(["mobile-notifications"], (current) =>
+          current?.map((notification) =>
+            notification.id === item.id ? { ...notification, isRead: true } : notification,
+          ),
+        );
+        AccessibilityInfo.announceForAccessibility(t.notifications.markedRead);
         await qc.invalidateQueries({ queryKey: ["mobile-notifications"] });
       } catch {}
     }
@@ -41,15 +58,26 @@ export default function NotificationsScreen() {
   };
   const s = styles(colors);
   return <ScrollView style={s.root} contentContainerStyle={s.content}>
-    <View style={s.heading}><Text style={s.title}>{t ? "Notifiche" : "Notifications"}</Text><Pressable onPress={() => void markAllRead()}><Text style={s.link}>{t ? "Segna tutte lette" : "Mark all read"}</Text></Pressable></View>
-    <View style={s.filters}>{(["all", "unread", "read"] as const).map(value => <Pressable key={value} onPress={() => setFilter(value)} style={[s.filter, filter === value && s.filterActive]}><Text style={[s.filterText, filter === value && s.filterTextActive]}>{value === "all" ? (t ? "Tutte" : "All") : value === "unread" ? (t ? "Da leggere" : "Unread") : (t ? "Lette" : "Read")}</Text></Pressable>)}</View>
-    {isLoading ? <ActivityIndicator color={colors.primary} /> : null}
-    {error ? <Text style={s.error}>{t ? "Impossibile caricare le notifiche." : "Could not load notifications."}</Text> : null}
-    {!isLoading && visible.length === 0 ? <Text style={s.muted}>{t ? "Nessuna notifica." : "No notifications."}</Text> : null}
-    {visible.map((item) => <Pressable key={item.id} onPress={() => void open(item)} style={s.card}>
+    <View style={s.heading}><Text style={s.title}>{t.notifications.title}</Text><Pressable onPress={() => void markAllRead()}><Text style={s.link}>{t.notifications.markAllRead}</Text></Pressable></View>
+    <View style={s.filters}>{(["all", "unread", "read"] as const).map(value => <Pressable key={value} onPress={() => setFilter(value)} style={[s.filter, filter === value && s.filterActive]}><Text style={[s.filterText, filter === value && s.filterTextActive]}>{t.notifications[value]}</Text></Pressable>)}</View>
+    {isLoading ? <View accessible={false} style={s.state}>
+      <ActivityIndicator color={colors.primary} />
+      <Text accessibilityRole="progressbar" accessibilityLabel={t.notifications.loading} accessibilityLiveRegion="polite" style={s.muted}>{t.notifications.loading}</Text>
+    </View> : null}
+    {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{t.notifications.loadError}</Text> : null}
+    {!isLoading && !error && visible.length === 0 ? <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={s.muted}>{t.notifications.empty}</Text> : null}
+    {visible.map((item) => <Pressable
+      key={item.id}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`${item.notificationText}. ${item.isRead ? t.notifications.itemRead : t.notifications.itemUnread}`}
+      accessibilityHint={item.isRead ? t.notifications.openNotification : t.notifications.openUnreadNotification}
+      onPress={() => void open(item)}
+      style={s.card}
+    >
       <View style={[s.dot, item.isRead && s.readDot]} />
       <View style={s.main}>
-        {!!item.ticketId && <Text style={s.itemTitle}>{t ? "Ticket" : "Ticket"}{item.ticketNumber ? ` #${item.ticketNumber}` : ""}</Text>}
+        {!!item.ticketId && <Text style={s.itemTitle}>Ticket{item.ticketNumber ? ` #${item.ticketNumber}` : ""}</Text>}
         <Text style={s.message}>{item.notificationText}</Text>
         <Text style={s.date}>{new Date(item.createdAt).toLocaleString()}</Text>
       </View>
@@ -59,7 +87,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 }, heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  root: { flex: 1, backgroundColor: c.background }, content: { padding: 18, gap: 12, paddingBottom: 100 }, state: { alignItems: "center", gap: 8 }, heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold", marginBottom: 6 },
   link: { color: c.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }, filters: { flexDirection: "row", gap: 7 }, filter: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
   filterActive: { backgroundColor: c.primary + "20", borderColor: c.primary }, filterText: { color: c.mutedForeground, fontSize: 12 }, filterTextActive: { color: c.primary },
