@@ -295,12 +295,39 @@ describe("mobile ticket creation navigation", () => {
     ).toBeNull();
   });
 
-  it("returns to the originating tab from Profile for Tickets and Calendar", async () => {
-    await render(TabLayout);
-    expect(host.querySelector('[data-testid="registered-tabs"]')?.getAttribute("data-back-behavior"))
-      .toBe("history");
+  it("returns to the originating tab from Profile for core and enabled optional sections", async () => {
+    const scenarios = [
+      {
+        section: "tickets",
+        role: "member",
+        settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+      },
+      {
+        section: "calendar",
+        role: "member",
+        settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+      },
+      {
+        section: "clients-tab",
+        role: "member",
+        settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      },
+      {
+        section: "hours-report-tab",
+        role: "admin",
+        settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      },
+    ] as const;
 
-    for (const section of ["tickets", "calendar"]) {
+    for (const { section, role, settings } of scenarios) {
+      mocks.user = { ...mocks.user, role };
+      mocks.organizationSettings = settings;
+      await render(TabLayout);
+      expect(host.querySelector('[data-testid="registered-tabs"]')?.getAttribute("data-back-behavior"))
+        .toBe("history");
+
+      const sectionRoute = registeredRoutes().find((route) => route.dataset.route === section);
+      expect(sectionRoute?.dataset.href).toBe("visible");
       const profileButton = host.querySelector<HTMLButtonElement>(
         `[data-header-route="${section}"] [data-testid="profile-header-button"]`,
       );
