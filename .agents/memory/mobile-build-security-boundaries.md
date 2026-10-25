@@ -7,4 +7,4 @@ Expo native manifests and Firebase client configuration can contain public clien
 
 **Why:** Treating every Firebase client key as a server secret blocked valid mobile builds, while ignoring the whole file would hide a real credential if one were accidentally added.
 
-**How to apply:** Keep the scanner narrowly scoped to the public configuration fields and keep provider-side application/API restrictions. The mobile static build currently uses Metro port 8081; running it while the mockup preview owns that port makes Expo prompt for another port and time out in non-interactive mode.
+**How to apply:** Keep the scanner narrowly scoped to the public configuration fields and keep provider-side application/API restrictions.

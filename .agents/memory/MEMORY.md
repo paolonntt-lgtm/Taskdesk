@@ -6,7 +6,7 @@
 - [Ticket edit authorization](ticket-edit-authorization.md) — Require actor permission for every ticket update; a narrow status-only payload cannot grant access.
 - [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
 - [Mobile client note history](mobile-client-notes.md) — The mobile client detail should expose the separate note history, not just the client's basic Notes field.
-- [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; Metro static builds currently contend for port 8081.
+- [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; keep provider-side restrictions and credential scans.
 - [Mobile bottom navigation](mobile-bottom-navigation.md) — Use one bottom row, keep Profile and unread-notification bell in the header, and omit New from the bar.
 - [OpenAPI client generation compatibility](openapi-codegen-compatibility.md) — Current Orval output expects Zod 4 and DOM iterable types; keep generator and package/compiler settings aligned.
 - [Web analytics instrumentation](analytics-instrumentation.md) — Use safe Umami wrappers for meaningful web events; Replit handles pageviews and mobile is not collected.

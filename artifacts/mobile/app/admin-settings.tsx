@@ -16,6 +16,7 @@ import Constants from "expo-constants";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SectionKey = "groups" | "locations" | "categories";
+type SettingsTabKey = "organization" | "tickets" | "notifications";
 type OrganizationSettings = {
   name: string;
   businessType: string | null;
@@ -59,13 +60,16 @@ export default function AdminSettingsScreen() {
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState<SectionKey | null>(null);
   const [modal, setModal] = useState<ModalState>(EMPTY_MODAL);
   const [nameError, setNameError] = useState("");
   const [testPushLoading, setTestPushLoading] = useState(false);
   const [organization, setOrganization] = useState<OrganizationSettings | null>(null);
+  const [savedOrganization, setSavedOrganization] = useState<OrganizationSettings | null>(null);
   const [organizationSaving, setOrganizationSaving] = useState(false);
   const [organizationError, setOrganizationError] = useState("");
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>("organization");
 
   const dataMap: Record<SectionKey, string[]> = {
     groups,
@@ -78,9 +82,23 @@ export default function AdminSettingsScreen() {
     locations: setLocations,
     categories: setCategories,
   };
+  const organizationDirty = Boolean(
+    organization &&
+    savedOrganization &&
+    (
+      organization.name !== savedOrganization.name ||
+      organization.businessType !== savedOrganization.businessType ||
+      organization.clientsEnabled !== savedOrganization.clientsEnabled ||
+      organization.workedTimeEnabled !== savedOrganization.workedTimeEnabled ||
+      organization.timeTrackingModuleEnabled !== savedOrganization.timeTrackingModuleEnabled ||
+      organization.entitySingular !== savedOrganization.entitySingular ||
+      organization.entityPlural !== savedOrganization.entityPlural
+    ),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [g, l, c, org] = await Promise.all([
         apiGet<{ value: string[] }>(API_PATH.groups),
@@ -93,8 +111,9 @@ export default function AdminSettingsScreen() {
       const cats = c.value ?? [];
       setCategories([...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })));
       setOrganization(org);
+      setSavedOrganization(org);
     } catch {
-      Alert.alert(t.adminSettings.error, t.adminSettings.errorSave);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -113,6 +132,7 @@ export default function AdminSettingsScreen() {
     try {
       const updated = await apiPatch<OrganizationSettings>("/settings/organization", organization);
       setOrganization(updated);
+      setSavedOrganization(updated);
       cacheMobileOrganizationSettings(queryClient, user?.organizationId, updated);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(t.adminSettings.saved, t.adminSettings.organizationSaved);
@@ -244,14 +264,62 @@ export default function AdminSettingsScreen() {
     );
   }
 
+  if (loadError) {
+    return (
+      <View style={[s.center, s.loadErrorPanel]}>
+        <Feather name="alert-circle" size={28} color={colors.destructive} />
+        <Text style={s.loadErrorText}>{t.adminSettings.loadError}</Text>
+        <TouchableOpacity
+          style={s.retryButton}
+          onPress={() => void load()}
+          accessibilityRole="button"
+          testID="admin-settings-retry-load"
+        >
+          <Feather name="refresh-cw" size={15} color={colors.primaryForeground} />
+          <Text style={s.retryText}>{t.adminSettings.retry}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={s.root}>
       <ScrollView
         contentContainerStyle={[s.content, { paddingBottom: Platform.OS === "web" ? 100 : 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        {organization && (
-          <View style={s.section}>
+        <View style={s.intro}>
+          <Text style={s.pageTitle}>{t.adminSettings.title}</Text>
+          <Text style={s.pageDescription}>{t.adminSettings.mobileIntro}</Text>
+        </View>
+
+        <View style={s.tabBar} accessibilityRole="tablist">
+          {([
+            ["organization", t.adminSettings.organizationTab, "home"],
+            ["tickets", t.adminSettings.ticketDataTab, "tag"],
+            ["notifications", t.adminSettings.notificationsTab, "bell"],
+          ] as const).map(([key, label, icon]) => {
+            const selected = activeTab === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                accessibilityLabel={label}
+                testID={`admin-settings-tab-${key}`}
+                onPress={() => setActiveTab(key)}
+                style={[s.tab, selected && s.tabActive]}
+                activeOpacity={0.8}
+              >
+                <Feather name={icon} size={15} color={selected ? colors.primary : colors.mutedForeground} />
+                <Text style={[s.tabText, selected && s.tabTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {activeTab === "organization" && organization && (
+          <View style={s.section} testID="admin-settings-panel-organization">
             <View style={s.sectionTitleRow}>
               <View style={[s.sectionIcon, { backgroundColor: colors.primary + "18" }]}>
                 <Feather name="home" size={16} color={colors.primary} />
@@ -263,6 +331,7 @@ export default function AdminSettingsScreen() {
                 <Text style={s.orgLabel}>{t.adminSettings.organizationName}</Text>
                 <TextInput
                   style={s.orgInput}
+                  testID="admin-settings-org-name"
                   value={organization.name}
                   onChangeText={(name) => setOrganization((current) => current ? { ...current, name } : current)}
                   placeholder={t.adminSettings.organizationName}
@@ -350,8 +419,18 @@ export default function AdminSettingsScreen() {
                   trackColor={{ true: colors.primary }}
                 />
               </View>
+              {organizationDirty ? (
+                <Text style={s.orgUnsaved} testID="admin-settings-unsaved">
+                  {t.adminSettings.unsavedChanges}
+                </Text>
+              ) : null}
               {organizationError ? <Text style={s.orgError}>{organizationError}</Text> : null}
-              <TouchableOpacity style={s.orgSaveBtn} onPress={() => void saveOrganization()} disabled={organizationSaving} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={[s.orgSaveBtn, !organizationDirty && s.orgSaveBtnDisabled]}
+                onPress={() => void saveOrganization()}
+                disabled={organizationSaving || !organizationDirty}
+                activeOpacity={0.8}
+              >
                 {organizationSaving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={15} color="#fff" />}
                 <Text style={s.addBtnText}>{organizationSaving ? t.adminSettings.saving : t.adminSettings.saveOrganization}</Text>
               </TouchableOpacity>
@@ -371,13 +450,14 @@ export default function AdminSettingsScreen() {
           </View>
         )}
 
-        <View style={s.testPushSection}>
+        {activeTab === "notifications" && <View style={s.notificationPanel} testID="admin-settings-panel-notifications">
           <View style={s.sectionTitleRow}>
             <View style={[s.sectionIcon, { backgroundColor: "#f59e0b18" }]}>
               <Feather name="bell" size={16} color="#f59e0b" />
             </View>
             <Text style={s.sectionTitle}>{t.adminSettings.testPushBtn}</Text>
           </View>
+          <Text style={s.panelDescription}>{t.adminSettings.notificationDescription}</Text>
           <TouchableOpacity
             style={[s.testPushBtn, testPushLoading && { opacity: 0.6 }]}
             onPress={handleTestPush}
@@ -393,9 +473,12 @@ export default function AdminSettingsScreen() {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </View>}
 
-        {SECTIONS.map((section) => {
+        {activeTab === "tickets" && (
+        <View style={s.ticketSettings} testID="admin-settings-panel-tickets">
+          <Text style={s.panelDescription}>{t.adminSettings.ticketDataDescription}</Text>
+          {SECTIONS.map((section) => {
           const items = dataMap[section.key];
           const isSaving = saving === section.key;
           return (
@@ -460,7 +543,9 @@ export default function AdminSettingsScreen() {
               </View>
             </View>
           );
-        })}
+          })}
+        </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -525,7 +610,41 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    content: { padding: 16, gap: 24 },
+    loadErrorPanel: { padding: 24, gap: 12 },
+    loadErrorText: { color: colors.foreground, fontSize: 15, lineHeight: 22, textAlign: "center", fontFamily: "Inter_500Medium" },
+    retryButton: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
+    retryText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+    content: { padding: 16, gap: 18 },
+    intro: { gap: 5 },
+    pageTitle: { color: colors.foreground, fontSize: 22, fontFamily: "Inter_700Bold" },
+    pageDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular" },
+    tabBar: {
+      flexDirection: "row",
+      backgroundColor: colors.muted,
+      borderRadius: 12,
+      padding: 4,
+      gap: 3,
+    },
+    tab: {
+      flex: 1,
+      minHeight: 42,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 6,
+      borderRadius: 9,
+    },
+    tabActive: {
+      backgroundColor: colors.card,
+      shadowColor: colors.foreground,
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    tabText: { color: colors.mutedForeground, fontSize: 12, fontFamily: "Inter_500Medium" },
+    tabTextActive: { color: colors.primary, fontFamily: "Inter_600SemiBold" },
     orgField: { gap: 6 },
     orgLabel: { color: colors.foreground, fontSize: 13, fontFamily: "Inter_500Medium" },
     orgDescription: { color: colors.mutedForeground, fontSize: 11, lineHeight: 16, fontFamily: "Inter_400Regular" },
@@ -538,9 +657,20 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     orgSwitchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
     orgSwitchText: { flex: 1, gap: 3 },
     orgError: { color: colors.destructive, fontSize: 12, fontFamily: "Inter_400Regular" },
+    orgUnsaved: { color: colors.primary, fontSize: 12, fontFamily: "Inter_500Medium" },
     orgSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 9, paddingVertical: 11 },
+    orgSaveBtnDisabled: { opacity: 0.45 },
 
-    testPushSection: { gap: 10 },
+    notificationPanel: {
+      gap: 12,
+      padding: 16,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+    },
+    panelDescription: { color: colors.mutedForeground, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular" },
+    ticketSettings: { gap: 22 },
     testPushBtn: {
       flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const,
       gap: 8, backgroundColor: "#f59e0b",

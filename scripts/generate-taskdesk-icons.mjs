@@ -19,7 +19,6 @@ const targets = [
   ["artifacts/landing/public/apple-touch-icon.png", 180, "opaque"],
   ["artifacts/landing/public/icon-192.png", 192, "opaque"],
   ["artifacts/landing/public/icon-512.png", 512, "opaque"],
-  ["artifacts/mobile/assets/images/icon.png", 1024, "transparent"],
   ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "opaque"],
   ["artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png", 1024, "foreground"],
 ];

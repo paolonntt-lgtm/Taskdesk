@@ -161,7 +161,7 @@ function createProject({
   );
   fs.writeFileSync(
     path.join(projectRoot, "assets/splash.png"),
-    rgbaPng(108, 108, [{ x: 54, y: 54 }]),
+    rgbaPng(108, 108, [{ x: 54, y: 54, color: [0, 0, 0] }], [255, 255, 255, 255]),
   );
   fs.writeFileSync(
     path.join(projectRoot, "assets/notification.png"),
@@ -275,21 +275,21 @@ describe("Android adaptive icon safe-area check", () => {
     );
   });
 
-  it("rejects a splash image with an opaque background", () => {
+  it("rejects a splash image with a transparent background", () => {
     const projectRoot = createProject();
     fs.writeFileSync(
       path.join(projectRoot, "assets/splash.png"),
-      rgbaPng(108, 108, [{ x: 54, y: 54 }], [255, 255, 255, 255]),
+      rgbaPng(108, 108, [{ x: 54, y: 54 }]),
     );
 
-    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/must have a transparent background/);
+    expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/must have an opaque background/);
   });
 
   it("rejects a splash mark that is not centered", () => {
     const projectRoot = createProject();
     fs.writeFileSync(
       path.join(projectRoot, "assets/splash.png"),
-      rgbaPng(108, 108, [{ x: 20, y: 54 }]),
+      rgbaPng(108, 108, [{ x: 20, y: 54, color: [0, 0, 0] }], [255, 255, 255, 255]),
     );
 
     expect(() => checkAdaptiveIcon(projectRoot)).toThrow(/visible mark must be centered/);
@@ -352,8 +352,8 @@ describe("Android adaptive icon safe-area check", () => {
   });
 });
 
-describe("mobile splash and iOS icon assets", () => {
-  it("keeps the splash monogram centered on a white background in both appearances", () => {
+describe("mobile shared app icon, splash, and favicon asset", () => {
+  it("uses the same square opaque image for app icon, splash, and favicon", () => {
     const projectRoot = path.resolve(scriptDirectory, "..");
     const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
     const splash = config.plugins.find(
@@ -362,21 +362,23 @@ describe("mobile splash and iOS icon assets", () => {
     const imagePath = path.join(projectRoot, splash.image);
     const image = parsePng(fs.readFileSync(imagePath), splash.image);
 
+    expect(config.icon).toBe("./assets/images/taskdesk-app-icon.png");
     expect(splash).toMatchObject({
-      image: "./assets/images/icon.png",
+      image: config.icon,
       imageWidth: 220,
       resizeMode: "contain",
       backgroundColor: "#ffffff",
       dark: {
-        image: "./assets/images/icon.png",
+        image: config.icon,
         backgroundColor: "#ffffff",
       },
     });
+    expect(config.web.favicon).toBe(config.icon);
     expect(image.width).toBe(1024);
     expect(image.height).toBe(1024);
-    expect(image.transparentPixelCount).toBeGreaterThan(0);
-    expect(Math.abs((image.visibleBounds.minX + image.visibleBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
-    expect(Math.abs((image.visibleBounds.minY + image.visibleBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
+    expect(image.transparentPixelCount).toBe(0);
+    expect(Math.abs((image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
+    expect(Math.abs((image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
   });
 
   it("uses a square 1024-pixel iOS app icon source to avoid aspect-ratio distortion", () => {

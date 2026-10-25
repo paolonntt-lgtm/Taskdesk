@@ -108,6 +108,7 @@ function parsePng(buffer, filePath) {
 
   let previousRow = Buffer.alloc(stride);
   const visibleBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
+  const nonWhiteBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
   let maxVisibleRadiusSquared = 0;
   let transparentPixelCount = 0;
   let partialAlphaPixelCount = 0;
@@ -198,6 +199,10 @@ function parsePng(buffer, filePath) {
         if (alpha < 255) partialAlphaPixelCount += 1;
         if (red !== 255 || green !== 255 || blue !== 255) {
           nonWhiteVisiblePixelCount += 1;
+          nonWhiteBounds.minX = Math.min(nonWhiteBounds.minX, x);
+          nonWhiteBounds.minY = Math.min(nonWhiteBounds.minY, y);
+          nonWhiteBounds.maxX = Math.max(nonWhiteBounds.maxX, x);
+          nonWhiteBounds.maxY = Math.max(nonWhiteBounds.maxY, y);
         }
       }
 
@@ -221,6 +226,7 @@ function parsePng(buffer, filePath) {
   return {
     ...header,
     visibleBounds,
+    nonWhiteBounds,
     maxVisibleRadius: Math.sqrt(maxVisibleRadiusSquared),
     transparentPixelCount,
     partialAlphaPixelCount,
@@ -250,17 +256,20 @@ function getConfiguredAsset(projectRoot, assetPath, label, configPath) {
   }
 }
 
-function checkCenteredTransparentSplash(projectRoot, imagePath, label, configPath) {
+function checkCenteredSplash(projectRoot, imagePath, label, configPath) {
   const image = getConfiguredAsset(projectRoot, imagePath, label, configPath);
-  if (image.transparentPixelCount === 0) {
-    fail(`${imagePath} must have a transparent background for the splash mark.`);
+  if (image.width !== image.height) {
+    fail(`${imagePath} must be square for the shared app icon and splash image.`);
   }
-  if (image.visibleBounds.maxX < 0) {
-    fail(`${imagePath} has no visible pixels; the splash mark may be missing.`);
+  if (image.transparentPixelCount > 0) {
+    fail(`${imagePath} must have an opaque background to share the app icon source.`);
+  }
+  if (image.nonWhiteBounds.maxX < 0) {
+    fail(`${imagePath} has no non-white pixels; the splash mark may be missing.`);
   }
 
-  const markCenterX = (image.visibleBounds.minX + image.visibleBounds.maxX) / 2;
-  const markCenterY = (image.visibleBounds.minY + image.visibleBounds.maxY) / 2;
+  const markCenterX = (image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2;
+  const markCenterY = (image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2;
   const canvasCenterX = (image.width - 1) / 2;
   const canvasCenterY = (image.height - 1) / 2;
   if (Math.abs(markCenterX - canvasCenterX) > 5 || Math.abs(markCenterY - canvasCenterY) > 5) {
@@ -355,7 +364,7 @@ function checkAdaptiveIcon(projectRoot) {
     (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
   )?.[1];
   const splashImagePath = splashPlugin?.image;
-  const splashImage = checkCenteredTransparentSplash(
+  const splashImage = checkCenteredSplash(
     projectRoot,
     splashImagePath,
     "expo-splash-screen",
@@ -363,7 +372,7 @@ function checkAdaptiveIcon(projectRoot) {
   );
 
   if (typeof splashPlugin?.dark?.image === "string") {
-    checkCenteredTransparentSplash(
+    checkCenteredSplash(
       projectRoot,
       splashPlugin.dark.image,
       "dark expo-splash-screen",
@@ -427,7 +436,7 @@ if (require.main === module) {
     );
     console.log(
       `[android-adaptive-icon] Splash and notification checks passed: ${result.splashImagePath} ` +
-        `(${result.splashWidth}×${result.splashHeight}, centered with transparency); ` +
+        `(${result.splashWidth}×${result.splashHeight}, centered on opaque background); ` +
         `${result.notificationImagePath} (${result.notificationWidth}×${result.notificationHeight}, white on transparency).`,
     );
   } catch (error) {
