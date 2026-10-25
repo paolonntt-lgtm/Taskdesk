@@ -35,7 +35,13 @@ import { getMobileBottomBarLayout } from "@/utils/mobileBottomBarLayout";
 
 type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>
->[0] & { hiddenRoutes: string[]; showNewTicketTab: boolean };
+>[0] & {
+  hiddenRoutes: string[];
+  showNewTicketTab: boolean;
+  showOrganizationSettingsError: boolean;
+  organizationSettingsRetrying: boolean;
+  onRetryOrganizationSettings: () => void;
+};
 
 type TabPosition = { left: `${number}%`; width: `${number}%` };
 type NotificationBadgeItem = { id: number; isRead: boolean };
@@ -64,6 +70,8 @@ function DashboardSearchHeader() {
   });
   const clientsEnabled =
     user?.organizationId != null &&
+    organizationSettings.isSuccess &&
+    !organizationSettings.isError &&
     organizationSettings.data?.clientsEnabled === true;
   const clientsQuery = useQuery({
     queryKey: ["mobile-clients", user?.organizationId],
@@ -368,6 +376,8 @@ function TabContent() {
   const optionalTabAccess = getMobileOptionalTabAccess({
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
+    settingsLoaded:
+      organizationSettings.isSuccess && !organizationSettings.isError,
     isOrganizationAdmin:
       user?.role === "admin" && user.organizationId != null,
   });
@@ -376,8 +386,11 @@ function TabContent() {
   const hideCalendarTab = shouldHideCalendarTab({
     settings: organizationSettings.data,
     hasOrganization: user?.organizationId != null,
-    settingsLoaded: organizationSettings.isSuccess,
+    settingsLoaded:
+      organizationSettings.isSuccess && !organizationSettings.isError,
   });
+  const showOrganizationSettingsError =
+    user?.organizationId != null && organizationSettings.isError;
   const showNewTicketTab = true;
   const hiddenRoutes = [
     "reports",
@@ -395,6 +408,11 @@ function TabContent() {
           {...props}
           hiddenRoutes={hiddenRoutes}
           showNewTicketTab={showNewTicketTab}
+          showOrganizationSettingsError={showOrganizationSettingsError}
+          organizationSettingsRetrying={organizationSettings.isFetching}
+          onRetryOrganizationSettings={() => {
+            void organizationSettings.refetch();
+          }}
         />
       )}
       screenOptions={({ navigation, route }) => {
@@ -588,13 +606,18 @@ function BottomTabBar({
   navigation,
   hiddenRoutes,
   showNewTicketTab,
+  showOrganizationSettingsError,
+  organizationSettingsRetrying,
+  onRetryOrganizationSettings,
 }: TabBarProps) {
   const colors = useColors();
+  const { lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const bottomPadding = isWeb ? 34 : Math.max(insets.bottom, 4);
   const gridHeight = 52;
+  const settingsNoticeHeight = showOrganizationSettingsError ? 72 : 0;
   const menuRouteNames = [
     "index",
     "tickets",
@@ -625,7 +648,7 @@ function BottomTabBar({
         {
           backgroundColor: isIOS ? "transparent" : colors.card,
           borderTopColor: colors.border,
-          height: gridHeight + bottomPadding,
+          height: gridHeight + bottomPadding + settingsNoticeHeight,
           paddingBottom: bottomPadding,
         },
       ]}
@@ -638,6 +661,52 @@ function BottomTabBar({
         />
       ) : isWeb ? (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
+      ) : null}
+      {showOrganizationSettingsError ? (
+        <View
+          accessibilityRole="alert"
+          testID="organization-settings-unavailable"
+          style={[
+            styles.settingsUnavailableNotice,
+            { backgroundColor: colors.muted, borderBottomColor: colors.border },
+          ]}
+        >
+          <Feather name="alert-circle" size={17} color={colors.destructive} />
+          <Text
+            style={[styles.settingsUnavailableText, { color: colors.foreground }]}
+          >
+            {lang === "it"
+              ? "Impossibile caricare le impostazioni. Le sezioni opzionali restano nascoste finché l’accesso non è verificato."
+              : "Organization settings couldn’t load. Optional sections stay hidden until access can be verified."}
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={lang === "it" ? "Riprova" : "Retry"}
+            testID="retry-organization-settings"
+            disabled={organizationSettingsRetrying}
+            onPress={onRetryOrganizationSettings}
+            style={styles.settingsRetryButton}
+          >
+            <Text
+              style={[
+                styles.settingsRetryText,
+                {
+                  color: organizationSettingsRetrying
+                    ? colors.mutedForeground
+                    : colors.primary,
+                },
+              ]}
+            >
+              {organizationSettingsRetrying
+                ? lang === "it"
+                  ? "Caricamento…"
+                  : "Loading…"
+                : lang === "it"
+                  ? "Riprova"
+                  : "Retry"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : null}
       <View style={[styles.tabBarGrid, { height: gridHeight }]}>
         {state.routes.map((route, index) => {
@@ -732,6 +801,32 @@ function BottomTabBar({
 }
 
 const styles = StyleSheet.create({
+  settingsUnavailableNotice: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  settingsUnavailableText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: "Inter_500Medium",
+  },
+  settingsRetryButton: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  settingsRetryText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",

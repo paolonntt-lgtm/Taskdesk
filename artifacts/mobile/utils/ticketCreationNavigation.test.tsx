@@ -8,6 +8,9 @@ import TabLayout from "../app/(tabs)/_layout";
 const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+  organizationSettingsError: false,
+  organizationSettingsLoading: false,
+  settingsRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
   ticketSearchLoading: false,
@@ -243,20 +246,29 @@ vi.mock("@/utils/api", () => ({
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => {
+    const isOrganizationSettings = queryKey[0] === "mobile-organization-settings";
     const isTicketSearch = queryKey[0] === "mobile-dashboard-ticket-search";
     return {
-      data: queryKey[0] === "mobile-organization-settings"
+      data: isOrganizationSettings
         ? mocks.organizationSettings
         : queryKey[0] === "mobile-clients"
           ? mocks.clients
           : isTicketSearch
             ? mocks.ticketSearchResults
             : mocks.notifications,
-      isLoading: isTicketSearch && mocks.ticketSearchLoading,
-      isFetching: false,
-      isSuccess: queryKey[0] === "mobile-organization-settings",
-      isError: isTicketSearch && mocks.ticketSearchError,
-      refetch: vi.fn(),
+      isLoading:
+        isTicketSearch && mocks.ticketSearchLoading ||
+        isOrganizationSettings && mocks.organizationSettingsLoading,
+      isFetching: isOrganizationSettings && mocks.organizationSettingsLoading,
+      isSuccess:
+        isOrganizationSettings &&
+        !mocks.organizationSettingsError &&
+        !mocks.organizationSettingsLoading,
+      isError:
+        isOrganizationSettings
+          ? mocks.organizationSettingsError
+          : isTicketSearch && mocks.ticketSearchError,
+      refetch: isOrganizationSettings ? mocks.settingsRefetch : vi.fn(),
     };
   },
 }));
@@ -279,6 +291,9 @@ describe("mobile ticket creation navigation", () => {
     root = createRoot(host);
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    mocks.organizationSettingsError = false;
+    mocks.organizationSettingsLoading = false;
+    mocks.settingsRefetch.mockReset();
     mocks.clients = [];
     mocks.ticketSearchResults = [];
     mocks.ticketSearchLoading = false;
@@ -445,7 +460,65 @@ describe("mobile ticket creation navigation", () => {
           .toBe("hidden");
       }
     }
+    expect(host.querySelector('[data-testid="organization-settings-unavailable"]')).toBeNull();
   });
+
+  it.each([
+    {
+      language: "en" as const,
+      expectedMessage: "Organization settings couldn’t load.",
+      retryLabel: "Retry",
+    },
+    {
+      language: "it" as const,
+      expectedMessage: "Impossibile caricare le impostazioni.",
+      retryLabel: "Riprova",
+    },
+  ])(
+    "explains unavailable organization settings in $language and offers a safe retry",
+    async ({ language, expectedMessage, retryLabel }) => {
+      mocks.language = language;
+      mocks.user = { ...mocks.user, role: "admin" };
+      // Even cached enabled flags must not expose sections after a settings-fetch error.
+      mocks.organizationSettings = {
+        clientsEnabled: true,
+        timeTrackingModuleEnabled: true,
+      };
+      mocks.organizationSettingsError = true;
+      mocks.profileReturnTo = "clients-tab";
+
+      await render(TabLayout);
+
+      const notice = host.querySelector('[data-testid="organization-settings-unavailable"]');
+      expect(notice?.textContent).toContain(expectedMessage);
+      const retry = host.querySelector<HTMLButtonElement>(
+        '[data-testid="retry-organization-settings"]',
+      );
+      expect(retry?.getAttribute("aria-label")).toBe(retryLabel);
+      expect(host.querySelector('[data-route="clients-tab"]')?.getAttribute("data-href"))
+        .toBe("hidden");
+      expect(host.querySelector('[data-route="hours-report-tab"]')?.getAttribute("data-href"))
+        .toBe("hidden");
+      expect(host.querySelector('[aria-label="Clients"]')).toBeNull();
+      expect(
+        host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+      ).toBeNull();
+
+      await act(async () => retry?.click());
+      expect(mocks.settingsRefetch).toHaveBeenCalledTimes(1);
+
+      mocks.organizationSettingsError = false;
+      await render(TabLayout);
+      expect(
+        host.querySelector('[data-testid="organization-settings-unavailable"]'),
+      ).toBeNull();
+      expect(host.querySelector('[data-route="clients-tab"]')?.getAttribute("data-href"))
+        .toBe("visible");
+      expect(
+        host.querySelector('[data-header-route="profile"] [data-testid="profile-back-button"]'),
+      ).not.toBeNull();
+    },
+  );
 
   it.each([
     {

@@ -39,17 +39,23 @@ export function cacheMobileOrganizationSettings(
 
 export function getMobileOptionalTabAccess({
   settings,
+  settingsLoaded,
   hasOrganization,
   isOrganizationAdmin,
 }: {
   settings: MobileOptionalTabSettings | undefined;
+  settingsLoaded: boolean;
   hasOrganization: boolean;
   isOrganizationAdmin: boolean;
 }): MobileOptionalTabAccess {
   return {
-    clients: hasOrganization && settings?.clientsEnabled === true,
+    clients:
+      hasOrganization &&
+      settingsLoaded &&
+      settings?.clientsEnabled === true,
     hoursReport:
       hasOrganization &&
+      settingsLoaded &&
       isOrganizationAdmin &&
       settings?.timeTrackingModuleEnabled === true,
   };

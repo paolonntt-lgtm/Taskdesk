@@ -31,16 +31,19 @@ describe("optional mobile navigation tabs", () => {
   it("shows Clients only when the organization has the Clients module", () => {
     const enabled = getMobileOptionalTabAccess({
       settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      settingsLoaded: true,
       hasOrganization: true,
       isOrganizationAdmin: false,
     });
     const disabled = getMobileOptionalTabAccess({
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+      settingsLoaded: true,
       hasOrganization: true,
       isOrganizationAdmin: false,
     });
     const noOrganization = getMobileOptionalTabAccess({
       settings: { clientsEnabled: true, timeTrackingModuleEnabled: false },
+      settingsLoaded: true,
       hasOrganization: false,
       isOrganizationAdmin: false,
     });
@@ -53,21 +56,25 @@ describe("optional mobile navigation tabs", () => {
   it("shows Hours only to organization admins when TaskTrack is enabled", () => {
     const adminWithTaskTrack = getMobileOptionalTabAccess({
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      settingsLoaded: true,
       hasOrganization: true,
       isOrganizationAdmin: true,
     });
     const adminWithoutTaskTrack = getMobileOptionalTabAccess({
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+      settingsLoaded: true,
       hasOrganization: true,
       isOrganizationAdmin: true,
     });
     const memberWithTaskTrack = getMobileOptionalTabAccess({
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      settingsLoaded: true,
       hasOrganization: true,
       isOrganizationAdmin: false,
     });
     const adminWithoutOrganization = getMobileOptionalTabAccess({
       settings: { clientsEnabled: false, timeTrackingModuleEnabled: true },
+      settingsLoaded: true,
       hasOrganization: false,
       isOrganizationAdmin: true,
     });
@@ -82,10 +89,22 @@ describe("optional mobile navigation tabs", () => {
     expect(
       getMobileOptionalTabAccess({
         settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
+        settingsLoaded: true,
         hasOrganization: true,
         isOrganizationAdmin: false,
       }),
     ).toEqual({ clients: true, hoursReport: false });
+  });
+
+  it("hides optional navigation whenever organization settings are unavailable", () => {
+    expect(
+      getMobileOptionalTabAccess({
+        settings: { clientsEnabled: true, timeTrackingModuleEnabled: true },
+        settingsLoaded: false,
+        hasOrganization: true,
+        isOrganizationAdmin: true,
+      }),
+    ).toEqual({ clients: false, hoursReport: false });
   });
 
   it("hides Calendar only when both organization products are enabled", () => {
@@ -132,6 +151,7 @@ describe("optional mobile navigation tabs", () => {
       const settings = observer.getCurrentResult().data;
       const access = getMobileOptionalTabAccess({
         settings,
+        settingsLoaded: settings !== undefined,
         hasOrganization: true,
         isOrganizationAdmin: true,
       });
