@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +32,7 @@ interface Ticket {
 export default function DashboardScreen() {
   const colors = useColors();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { width } = useWindowDimensions();
   const singleRowStats = width >= 360;
   const s = styles(colors);
@@ -50,12 +51,16 @@ export default function DashboardScreen() {
 
   const onRefresh = () => { refetchStats(); refetchTickets(); };
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return t.dashboard.goodMorning;
-    if (h < 18) return t.dashboard.goodAfternoon;
-    return t.dashboard.goodEvening;
-  };
+  const greetingHour = new Date().getHours();
+  const greeting =
+    greetingHour < 12
+      ? t.dashboard.goodMorning
+      : greetingHour < 18
+        ? t.dashboard.goodAfternoon
+        : t.dashboard.goodEvening;
+  const greetingIcon =
+    greetingHour < 12 ? "sunrise" : greetingHour < 18 ? "sun" : "moon";
+  const firstName = user?.name?.split(" ")[0] ?? t.profile.user;
 
   const statCards = [
     { label: t.dashboard.open, value: stats?.openTickets ?? 0, color: colors.primary, icon: "inbox" as const, filter: "status=open" },
@@ -71,14 +76,36 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
-      <View style={s.header}>
-        <View style={s.greetingRow} testID="dashboard-greeting-line">
-          <Text style={s.greeting} numberOfLines={1}>{greeting()}, </Text>
-          <Text style={s.name} numberOfLines={1}>
-            {user?.name?.split(" ")[0] ?? t.profile.user}
-          </Text>
+      <LinearGradient
+        colors={[colors.primary, colors.accent]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.header}
+      >
+        <View style={s.greetingCopy}>
+          <View style={s.greetingLine} testID="dashboard-greeting-line">
+            <Text style={s.greeting} numberOfLines={1} adjustsFontSizeToFit>
+              {greeting}, {firstName}
+            </Text>
+          </View>
+          <View style={s.greetingSubtitleRow}>
+            <Feather name="activity" size={14} color={colors.primaryForeground} />
+            <Text style={s.greetingSubtitle}>
+              {lang === "it" ? "Il riepilogo della giornata" : "Your day at a glance"}
+            </Text>
+          </View>
         </View>
-      </View>
+        <View style={s.greetingArtwork} pointerEvents="none">
+          <View style={s.greetingOrbLarge} />
+          <View style={s.greetingOrbSmall} />
+          <Feather
+            name={greetingIcon as "sunrise" | "sun" | "moon"}
+            size={38}
+            color={colors.primaryForeground}
+            style={s.greetingArtworkIcon}
+          />
+        </View>
+      </LinearGradient>
 
       {statsLoading ? (
         <View style={s.loadingRow}>
@@ -148,10 +175,60 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20 },
-    header: { marginBottom: 24 },
-    greetingRow: { flexDirection: "row", alignItems: "center", minWidth: 0 },
-    greeting: { fontSize: 16, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    name: { flexShrink: 1, fontSize: 22, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
+    header: {
+      minHeight: 122,
+      marginBottom: 20,
+      paddingHorizontal: 18,
+      paddingVertical: 18,
+      borderRadius: colors.radius * 2,
+      flexDirection: "row",
+      alignItems: "center",
+      overflow: "hidden",
+    },
+    greetingCopy: { flex: 1, gap: 10, zIndex: 1 },
+    greetingLine: { minWidth: 0 },
+    greeting: {
+      fontSize: 20,
+      fontWeight: "600" as const,
+      color: colors.primaryForeground,
+      fontFamily: "Inter_600SemiBold",
+    },
+    greetingSubtitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+    greetingSubtitle: {
+      fontSize: 13,
+      color: colors.primaryForeground,
+      opacity: 0.9,
+      fontFamily: "Inter_500Medium",
+    },
+    greetingArtwork: {
+      width: 74,
+      height: 74,
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: 8,
+    },
+    greetingOrbLarge: {
+      position: "absolute",
+      right: -28,
+      top: -30,
+      width: 124,
+      height: 124,
+      borderRadius: 62,
+      borderWidth: 1,
+      borderColor: colors.primaryForeground,
+      opacity: 0.2,
+    },
+    greetingOrbSmall: {
+      position: "absolute",
+      right: 2,
+      bottom: -34,
+      width: 82,
+      height: 82,
+      borderRadius: 41,
+      backgroundColor: colors.primaryForeground,
+      opacity: 0.1,
+    },
+    greetingArtworkIcon: { opacity: 0.95 },
     loadingRow: { height: 120, alignItems: "center", justifyContent: "center" },
     statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
     statsGridSingleRow: { flexWrap: "nowrap", gap: 6 },

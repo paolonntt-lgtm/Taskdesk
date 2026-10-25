@@ -10,6 +10,10 @@ import { normalizeSenderEmail } from "../lib/emailClientAssociation";
 
 const router: IRouter = Router();
 
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 const requireClientsEnabled: RequestHandler = async (req, res, next): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const organizationId = currentUser?.organizationId;
@@ -284,7 +288,7 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
   const conditions: any[] = [eq(clientsTable.organizationId, orgId)];
 
   if (search && search.trim()) {
-    const searchPattern = `%${search.trim()}%`;
+    const searchPattern = `%${escapeLikePattern(search.trim())}%`;
     conditions.push(
       or(
         ilike(clientsTable.name, searchPattern),

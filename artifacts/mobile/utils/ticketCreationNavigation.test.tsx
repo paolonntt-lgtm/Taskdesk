@@ -221,6 +221,13 @@ vi.mock("expo-router", async () => {
 });
 
 vi.mock("expo-blur", () => ({ BlurView: () => null }));
+vi.mock("expo-linear-gradient", async () => {
+  const ReactModule = await import("react");
+  return {
+    LinearGradient: ({ children }: { children: React.ReactNode }) =>
+      ReactModule.createElement("div", { "data-testid": "dashboard-greeting-card" }, children),
+  };
+});
 vi.mock("expo-symbols", () => ({ SymbolView: () => null }));
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("react-native-safe-area-context", () => ({
@@ -377,7 +384,8 @@ describe("mobile ticket creation navigation", () => {
 
     const greeting = host.querySelector('[data-testid="dashboard-greeting-line"]');
     expect(greeting?.textContent).toMatch(/^Good (morning|afternoon|evening), Ada$/);
-    expect(greeting?.querySelectorAll("span")).toHaveLength(2);
+    expect(greeting?.querySelectorAll("span")).toHaveLength(1);
+    expect(host.querySelector('[data-testid="dashboard-greeting-card"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="dashboard-create-ticket"]')).toBeNull();
   });
 

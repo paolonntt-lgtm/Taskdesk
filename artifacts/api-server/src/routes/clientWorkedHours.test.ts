@@ -383,6 +383,81 @@ describe("client worked-hours report", () => {
     expect(foreignClientDetail.status).toBe(404);
   });
 
+  it("treats SQL LIKE pattern characters as literal client-search text", async () => {
+    const [
+      percentMatch,
+      percentWildcardDecoy,
+      underscoreMatch,
+      underscoreWildcardDecoy,
+      backslashMatch,
+      backslashEscapeDecoy,
+    ] =
+      await db.insert(clientsTable).values([
+        {
+          organizationId,
+          name: `PercentLiteral 100% literal ${runId}`,
+          slug: `percent-literal-${runId}`,
+        },
+        {
+          organizationId,
+          name: `PercentLiteral 100x literal ${runId}`,
+          slug: `percent-decoy-${runId}`,
+        },
+        {
+          organizationId,
+          name: `UnderscoreLiteral value_token ${runId}`,
+          slug: `underscore-literal-${runId}`,
+        },
+        {
+          organizationId,
+          name: `UnderscoreLiteral valueXtoken ${runId}`,
+          slug: `underscore-decoy-${runId}`,
+        },
+        {
+          organizationId,
+          name: `BackslashLiteral path\\segment ${runId}`,
+          slug: `backslash-literal-${runId}`,
+        },
+        {
+          organizationId,
+          name: `BackslashLiteral pathsegment ${runId}`,
+          slug: `backslash-decoy-${runId}`,
+        },
+      ]).returning({ id: clientsTable.id });
+    createdClientIds.push(
+      percentMatch.id,
+      percentWildcardDecoy.id,
+      underscoreMatch.id,
+      underscoreWildcardDecoy.id,
+      backslashMatch.id,
+      backslashEscapeDecoy.id,
+    );
+
+    const percentSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`100% literal ${runId}`)}`,
+      userSessionId,
+    );
+    expect(percentSearch.status).toBe(200);
+    expect(percentSearch.body.map((client: any) => client.id)).toContain(percentMatch.id);
+    expect(percentSearch.body.map((client: any) => client.id)).not.toContain(percentWildcardDecoy.id);
+
+    const underscoreSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`value_token ${runId}`)}`,
+      userSessionId,
+    );
+    expect(underscoreSearch.status).toBe(200);
+    expect(underscoreSearch.body.map((client: any) => client.id)).toContain(underscoreMatch.id);
+    expect(underscoreSearch.body.map((client: any) => client.id)).not.toContain(underscoreWildcardDecoy.id);
+
+    const backslashSearch = await request(
+      `/api/clients?search=${encodeURIComponent(`path\\segment ${runId}`)}`,
+      userSessionId,
+    );
+    expect(backslashSearch.status).toBe(200);
+    expect(backslashSearch.body.map((client: any) => client.id)).toContain(backslashMatch.id);
+    expect(backslashSearch.body.map((client: any) => client.id)).not.toContain(backslashEscapeDecoy.id);
+  });
+
   it("hides client references from ticket, search, and summary APIs while disabled, then restores them when re-enabled", async () => {
     const disabledSettings = await request("/api/settings/organization", adminSessionId, {
       method: "PATCH",
