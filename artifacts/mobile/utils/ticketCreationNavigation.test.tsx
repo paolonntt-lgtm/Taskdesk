@@ -8,6 +8,8 @@ import TabLayout from "../app/(tabs)/_layout";
 const mocks = vi.hoisted(() => ({
   user: { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 },
   organizationSettings: { clientsEnabled: false, timeTrackingModuleEnabled: false },
+  language: "en" as "en" | "it",
+  notifications: [{ isRead: false }, { isRead: false }],
   profileReturnTo: undefined as string | undefined,
   push: vi.fn(),
   navigate: vi.fn(),
@@ -23,12 +25,20 @@ vi.mock("react-native", async () => {
       accessibilityState,
       onPress,
       onRefresh,
-      style: _style,
+      style,
+      hitSlop,
       ...rest
     } = props;
     return ReactModule.createElement(tag, {
       ...rest,
       ...(testID ? { "data-testid": testID } : {}),
+      ...(style && typeof style === "object" && !Array.isArray(style)
+        ? {
+            "data-touch-width": style.width,
+            "data-touch-height": style.height,
+          }
+        : {}),
+      ...(hitSlop ? { "data-hit-slop": hitSlop } : {}),
       ...(accessibilityRole ? { role: accessibilityRole } : {}),
       ...(accessibilityLabel ? { "aria-label": accessibilityLabel } : {}),
       ...(accessibilityState ? { "aria-selected": accessibilityState.selected } : {}),
@@ -123,6 +133,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({
+    lang: mocks.language,
     t: {
       tabs: {
         dashboard: "Dashboard",
@@ -132,7 +143,7 @@ vi.mock("@/contexts/LanguageContext", () => ({
         calendar: "Calendar",
         hoursReport: "Hours report",
         clients: "Clients",
-        profile: "Profile",
+        profile: mocks.language === "it" ? "Profilo" : "Profile",
       },
       dashboard: {
         goodMorning: "Good morning",
@@ -159,7 +170,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => ({
     data: queryKey[0] === "mobile-profile-organization-settings"
       ? mocks.organizationSettings
-      : undefined,
+      : mocks.notifications,
     isLoading: false,
     refetch: vi.fn(),
   }),
@@ -183,6 +194,8 @@ describe("mobile ticket creation navigation", () => {
     root = createRoot(host);
     mocks.user = { id: 5, name: "Ada Lovelace", role: "member", organizationId: 7 };
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    mocks.language = "en";
+    mocks.notifications = [{ isRead: false }, { isRead: false }];
     mocks.profileReturnTo = undefined;
     mocks.push.mockReset();
     mocks.navigate.mockReset();
@@ -306,4 +319,38 @@ describe("mobile ticket creation navigation", () => {
       mocks.profileReturnTo = undefined;
     }
   });
+
+  it.each([
+    {
+      language: "en",
+      notificationsLabel: "Notifications, 2 unread",
+      profileLabel: "Profile",
+    },
+    {
+      language: "it",
+      notificationsLabel: "Notifiche, 2 da leggere",
+      profileLabel: "Profilo",
+    },
+  ] as const)(
+    "keeps header actions accessible in $language",
+    async ({ language, notificationsLabel, profileLabel }) => {
+      mocks.language = language;
+      await render(TabLayout);
+
+      const notificationsButton = host.querySelector<HTMLButtonElement>(
+        '[data-header-route="index"] [data-testid="notifications-header-button"]',
+      );
+      const profileButton = host.querySelector<HTMLButtonElement>(
+        '[data-header-route="index"] [data-testid="profile-header-button"]',
+      );
+
+      expect(notificationsButton?.getAttribute("aria-label")).toBe(notificationsLabel);
+      expect(profileButton?.getAttribute("aria-label")).toBe(profileLabel);
+      for (const button of [notificationsButton, profileButton]) {
+        expect(Number(button?.dataset.touchWidth)).toBeGreaterThanOrEqual(44);
+        expect(Number(button?.dataset.touchHeight)).toBeGreaterThanOrEqual(44);
+        expect(button?.dataset.hitSlop).toBe("10");
+      }
+    },
+  );
 });

@@ -385,8 +385,8 @@ const styles = StyleSheet.create({
   },
   headerActionButton: {
     position: "relative",
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
