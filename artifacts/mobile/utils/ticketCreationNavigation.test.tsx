@@ -424,6 +424,45 @@ describe("mobile ticket creation navigation", () => {
     expect(mocks.push).toHaveBeenCalledWith("/clients/31");
   });
 
+  it("hides client suggestions and blocks client navigation when access is disabled in place", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    mocks.clients = [
+      { id: 31, name: "Studio Aurora", alias: "Aurora" },
+    ];
+    mocks.ticketSearchResults = [
+      { id: 41, title: "Aurora installation", status: "open" },
+    ];
+    vi.useFakeTimers();
+    await render(TabLayout);
+
+    const dashboardHeader = host.querySelector('[data-header-route="index"]');
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    const staleSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
+    expect(staleSuggestion?.textContent).toContain("Studio Aurora");
+    expect(mocks.clientSearchQuery?.enabled).toBe(true);
+
+    mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-header-route="index"]')).toBe(dashboardHeader);
+    expect(host.querySelector('[data-testid="dashboard-header-search"]')).toBe(input);
+    expect(host.querySelector('[data-testid="dashboard-client-search-results"]')).toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-client-result-31"]')).toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-41"]')).not.toBeNull();
+    expect(mocks.clientSearchQuery?.enabled).toBe(false);
+
+    await act(async () => staleSuggestion?.click());
+    expect(mocks.push).not.toHaveBeenCalledWith("/clients/31");
+  });
+
   it("shows matching ticket suggestions and opens the selected ticket", async () => {
     mocks.ticketSearchResults = [
       { id: 41, title: "Aurora installation", status: "open" },
