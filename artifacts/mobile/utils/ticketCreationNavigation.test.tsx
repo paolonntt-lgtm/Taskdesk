@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   organizationSettingsLoading: false,
   settingsRefetch: vi.fn(),
   clients: [] as { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[],
+  clientResultsByOrganization: null as null | Record<
+    number,
+    { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[]
+  >,
   clientSearchQuery: null as null | {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
@@ -266,7 +270,9 @@ vi.mock("@tanstack/react-query", () => ({
       data: isOrganizationSettings
         ? mocks.organizationSettings
         : queryKey[0] === "mobile-dashboard-client-search"
-          ? mocks.clients
+          ? typeof queryKey[1] === "number" && mocks.clientResultsByOrganization
+            ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
+            : mocks.clients
           : isTicketSearch
             ? mocks.ticketSearchResults
             : mocks.notifications,
@@ -309,6 +315,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.organizationSettingsLoading = false;
     mocks.settingsRefetch.mockReset();
     mocks.clients = [];
+    mocks.clientResultsByOrganization = null;
     mocks.clientSearchQuery = null;
     mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
@@ -468,6 +475,54 @@ describe("mobile ticket creation navigation", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith(
       "/clients?search=Studio%20Aur&limit=4",
     );
+  });
+
+  it("drops previous-organization client suggestions while the dashboard header stays mounted", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    mocks.clientResultsByOrganization = {
+      7: [{ id: 31, name: "Studio Aurora — previous organization" }],
+      8: [{ id: 81, name: "Studio Aurora — current organization" }],
+    };
+    await render(TabLayout);
+
+    const dashboardHeader = host.querySelector('[data-header-route="index"]');
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const staleSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
+    expect(staleSuggestion?.textContent).toContain("previous organization");
+    expect(mocks.clientSearchQuery?.queryKey).toEqual([
+      "mobile-dashboard-client-search",
+      7,
+      "aurora",
+      4,
+    ]);
+
+    mocks.user = { ...mocks.user, organizationId: 8 };
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-header-route="index"]')).toBe(dashboardHeader);
+    expect(host.querySelector('[data-testid="dashboard-header-search"]')).toBe(input);
+    expect(input?.value).toBe("aurora");
+    expect(host.querySelector('[data-testid="dashboard-client-result-31"]')).toBeNull();
+    const currentSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-81"]');
+    expect(currentSuggestion?.textContent).toContain("current organization");
+    expect(mocks.clientSearchQuery?.queryKey).toEqual([
+      "mobile-dashboard-client-search",
+      8,
+      "aurora",
+      4,
+    ]);
+
+    await act(async () => staleSuggestion?.click());
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await act(async () => currentSuggestion?.click());
+    expect(mocks.push).toHaveBeenCalledWith("/clients/81");
+    expect(mocks.push).not.toHaveBeenCalledWith("/clients/31");
   });
 
   it("keeps New Ticket registered when optional tabs are hidden by module or role", async () => {
