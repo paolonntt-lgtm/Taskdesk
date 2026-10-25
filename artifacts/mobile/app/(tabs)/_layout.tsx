@@ -78,6 +78,7 @@ function TabContent() {
   return (
     <Tabs
       backBehavior="history"
+      detachInactiveScreens={false}
       tabBar={(props) => <BottomTabBar {...props} hiddenRoutes={hiddenRoutes} />}
       screenOptions={({ navigation, route }) => {
         const returnTo =
