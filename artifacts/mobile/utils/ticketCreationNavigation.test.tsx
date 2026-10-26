@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
     number,
     { id: number; name: string; alias?: string | null; email?: string | null; phone?: string | null }[]
   >,
+  clientSearchLoading: false,
+  clientSearchError: false,
+  clientSearchRefetch: vi.fn(),
   clientSearchQuery: null as null | {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
@@ -308,9 +311,12 @@ vi.mock("@tanstack/react-query", () => ({
               : mocks.ticketSearchResults
             : mocks.notifications,
       isLoading:
+        (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
         isTicketSearch && mocks.ticketSearchLoading ||
         isOrganizationSettings && mocks.organizationSettingsLoading,
-      isFetching: isOrganizationSettings && mocks.organizationSettingsLoading,
+      isFetching:
+        (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
+        isOrganizationSettings && mocks.organizationSettingsLoading,
       isSuccess:
         isOrganizationSettings &&
         !mocks.organizationSettingsError &&
@@ -318,13 +324,17 @@ vi.mock("@tanstack/react-query", () => ({
       isError:
         isOrganizationSettings
           ? mocks.organizationSettingsError
-          : isTicketSearch && mocks.ticketSearchError,
+          : isTicketSearch
+            ? mocks.ticketSearchError
+            : queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchError,
       isRefetchError:
         isOrganizationSettings && mocks.organizationSettingsRefetchError,
       refetch: isOrganizationSettings
         ? mocks.settingsRefetch
         : isTicketSearch
           ? mocks.ticketSearchRefetch
+          : queryKey[0] === "mobile-dashboard-client-search"
+            ? mocks.clientSearchRefetch
           : vi.fn(),
     };
   },
@@ -356,6 +366,9 @@ describe("mobile ticket creation navigation", () => {
     mocks.clients = [];
     mocks.clientResultsByOrganization = null;
     mocks.clientSearchQuery = null;
+    mocks.clientSearchLoading = false;
+    mocks.clientSearchError = false;
+    mocks.clientSearchRefetch.mockReset();
     mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
     mocks.ticketSearchResultsByOrganization = null;
@@ -541,6 +554,80 @@ describe("mobile ticket creation navigation", () => {
       expect(host.querySelector('[data-testid="retry-ticket-search"]')).toBeNull();
     },
   );
+
+  it.each([
+    { language: "en" as const, retryLabel: "Retry client search", retryText: "Retry" },
+    { language: "it" as const, retryLabel: "Riprova ricerca clienti", retryText: "Riprova" },
+  ])(
+    "offers an accessible client search retry in $language and preserves the query through a failed retry",
+    async ({ language, retryLabel, retryText }) => {
+      mocks.language = language;
+      mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+      mocks.clientSearchError = true;
+      vi.useFakeTimers();
+      await render(TabLayout);
+
+      const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "client outage");
+        input!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+
+      const retry = host.querySelector<HTMLButtonElement>('[data-testid="retry-client-search"]');
+      expect(retry?.getAttribute("aria-label")).toBe(retryLabel);
+      expect(retry?.textContent).toBe(retryText);
+      expect(mocks.clientSearchQuery?.queryKey[2]).toBe("client outage");
+
+      await act(async () => retry?.click());
+      expect(mocks.clientSearchRefetch).toHaveBeenCalledTimes(1);
+
+      mocks.clientSearchError = false;
+      mocks.clientSearchLoading = true;
+      await render(TabLayout);
+      expect(input?.value).toBe("client outage");
+      expect(mocks.clientSearchQuery?.queryKey[2]).toBe("client outage");
+      expect(host.querySelector('[data-testid="dashboard-client-search-loading"]')).not.toBeNull();
+      expect(host.querySelector('[data-testid="retry-client-search"]')).toBeNull();
+
+      mocks.clientSearchLoading = false;
+      mocks.clientSearchError = true;
+      await render(TabLayout);
+      expect(host.querySelector('[data-testid="retry-client-search"]')).not.toBeNull();
+      expect(input?.value).toBe("client outage");
+    },
+  );
+
+  it("shows client results after a successful search retry", async () => {
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    mocks.clientSearchError = true;
+    vi.useFakeTimers();
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "aurora");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="retry-client-search"]')?.click());
+
+    mocks.clientSearchError = false;
+    mocks.clientSearchLoading = true;
+    await render(TabLayout);
+    expect(host.querySelector('[data-testid="dashboard-client-search-loading"]')).not.toBeNull();
+
+    mocks.clientSearchLoading = false;
+    mocks.clients = [{ id: 52, name: "Studio Aurora" }];
+    await render(TabLayout);
+    expect(host.querySelector('[data-testid="dashboard-client-result-52"]')?.textContent)
+      .toContain("Studio Aurora");
+    expect(input?.value).toBe("aurora");
+  });
 
   it("keeps Enter navigation to the complete filtered ticket list", async () => {
     await render(TabLayout);

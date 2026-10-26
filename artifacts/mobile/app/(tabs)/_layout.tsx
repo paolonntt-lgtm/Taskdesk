@@ -278,9 +278,22 @@ function DashboardSearchHeader() {
                     testID="dashboard-client-search-loading"
                   />
                 ) : clientsQuery.isError ? (
-                  <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
-                    {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}
-                  </Text>
+                  <View style={styles.dashboardTicketSearchError}>
+                    <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
+                      {lang === "it" ? "Impossibile caricare i clienti." : "Could not load clients."}
+                    </Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={lang === "it" ? "Riprova ricerca clienti" : "Retry client search"}
+                      testID="retry-client-search"
+                      onPress={() => clientsQuery.refetch()}
+                      style={styles.dashboardTicketSearchRetry}
+                    >
+                      <Text style={[styles.dashboardTicketSearchRetryText, { color: colors.primary }]}>
+                        {lang === "it" ? "Riprova" : "Retry"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : matchingClients.length === 0 ? (
                   <Text style={[styles.dashboardClientStatusText, { color: colors.mutedForeground }]}>
                     {lang === "it" ? "Nessun cliente trovato." : "No clients found."}
