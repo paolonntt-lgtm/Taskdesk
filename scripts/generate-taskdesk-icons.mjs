@@ -14,13 +14,16 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterPath = path.join(workspaceRoot, "artifacts/landing/public/favicon.svg");
 const foregroundSize = 500;
+const faviconArtworkSize = 900;
+const adaptiveForegroundPath = "artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png";
 const targets = [
   ["artifacts/landing/public/favicon.png", 192, "opaque"],
   ["artifacts/landing/public/apple-touch-icon.png", 180, "opaque"],
   ["artifacts/landing/public/icon-192.png", 192, "opaque"],
   ["artifacts/landing/public/icon-512.png", 512, "opaque"],
   ["artifacts/mobile/assets/images/taskdesk-app-icon.png", 1024, "opaque"],
-  ["artifacts/mobile/assets/images/taskdesk-adaptive-foreground.png", 1024, "foreground"],
+  [adaptiveForegroundPath, 1024, "foreground"],
+  ["artifacts/mobile/assets/images/taskdesk-favicon.png", 1024, "favicon"],
 ];
 
 function runMagick(args, options = {}) {
@@ -53,12 +56,21 @@ function makeTransparentMaster(svg) {
   return svg.replace(background, "");
 }
 
-function render(targetPath, size, variant, svgPath) {
+function render(targetPath, size, variant, sourcePath) {
   mkdirSync(path.dirname(targetPath), { recursive: true });
   if (variant === "foreground") {
     runMagick([
-      "-background", "none", svgPath, "-alpha", "on", "-trim", "+repage",
+      "-background", "none", sourcePath, "-alpha", "on", "-trim", "+repage",
       "-resize", `${foregroundSize}x${foregroundSize}`,
+      "-gravity", "center", "-background", "none", "-extent", `${size}x${size}`,
+      "-depth", "8", "-strip", `PNG32:${targetPath}`,
+    ]);
+    return;
+  }
+  if (variant === "favicon") {
+    runMagick([
+      sourcePath, "-alpha", "on", "-trim", "+repage",
+      "-resize", `${faviconArtworkSize}x${faviconArtworkSize}`,
       "-gravity", "center", "-background", "none", "-extent", `${size}x${size}`,
       "-depth", "8", "-strip", `PNG32:${targetPath}`,
     ]);
@@ -66,14 +78,14 @@ function render(targetPath, size, variant, svgPath) {
   }
   if (variant === "transparent") {
     runMagick([
-      "-background", "none", svgPath, "-alpha", "on",
+      "-background", "none", sourcePath, "-alpha", "on",
       "-depth", "8", "-strip", `PNG32:${targetPath}`,
     ]);
     return;
   }
 
   runMagick([
-    "-background", "white", svgPath, "-alpha", "remove", "-alpha", "off",
+    "-background", "white", sourcePath, "-alpha", "remove", "-alpha", "off",
     "-filter", "Lanczos", "-resize", `${size}x${size}!`,
     "-depth", "8", "-strip", `PNG24:${targetPath}`,
   ]);
@@ -98,10 +110,21 @@ function withGeneratedAssets(callback) {
     validateMaster(svg);
     const transparentSvgPath = path.join(tempDirectory, "monogram-transparent.svg");
     writeFileSync(transparentSvgPath, makeTransparentMaster(svg));
+    const generatedByPath = new Map();
     const generated = targets.map(([relativePath, size, variant], index) => {
       const outputPath = path.join(tempDirectory, `generated-${index}.png`);
-      render(outputPath, size, variant, variant === "opaque" ? masterPath : transparentSvgPath);
-      return { relativePath, size, variant, outputPath };
+      const sourcePath = variant === "favicon"
+        ? generatedByPath.get(adaptiveForegroundPath)
+        : variant === "foreground" || variant === "transparent"
+          ? transparentSvgPath
+          : masterPath;
+      if (!sourcePath) {
+        throw new Error(`Could not find generated source ${adaptiveForegroundPath} for ${relativePath}.`);
+      }
+      render(outputPath, size, variant, sourcePath);
+      const asset = { relativePath, size, variant, outputPath };
+      generatedByPath.set(relativePath, outputPath);
+      return asset;
     });
     callback(generated);
   } finally {
@@ -144,7 +167,10 @@ function check() {
         continue;
       }
       if (!rgbaPixels(actualPath).equals(rgbaPixels(asset.outputPath))) {
-        differences.push(`${asset.relativePath} differs from ${path.relative(workspaceRoot, masterPath)}`);
+        const sourceDescription = asset.variant === "favicon"
+          ? "the generated transparent Android foreground"
+          : path.relative(workspaceRoot, masterPath);
+        differences.push(`${asset.relativePath} differs from ${sourceDescription}`);
       }
     }
 
