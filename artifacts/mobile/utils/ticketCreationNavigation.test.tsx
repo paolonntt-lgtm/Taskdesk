@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   clientSearchLoading: false,
   clientSearchError: false,
   clientSearchRefetch: vi.fn(),
+  queryCacheKeys: [] as unknown[][],
+  removeQueries: vi.fn(),
   clientSearchQuery: null as null | {
     queryKey: unknown[];
     queryFn: () => Promise<unknown>;
@@ -282,6 +284,7 @@ vi.mock("@/utils/api", () => ({
   apiGet: mocks.apiGet,
 }));
 vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({ removeQueries: mocks.removeQueries }),
   useQuery: ({
     queryKey,
     queryFn,
@@ -378,6 +381,13 @@ describe("mobile ticket creation navigation", () => {
     mocks.clientSearchLoading = false;
     mocks.clientSearchError = false;
     mocks.clientSearchRefetch.mockReset();
+    mocks.queryCacheKeys = [];
+    mocks.removeQueries.mockReset();
+    mocks.removeQueries.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
+      mocks.queryCacheKeys = mocks.queryCacheKeys.filter(
+        (cachedKey) => !queryKey.every((part, index) => cachedKey[index] === part),
+      );
+    });
     mocks.searchResultsByQuery = {};
     mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
@@ -472,6 +482,13 @@ describe("mobile ticket creation navigation", () => {
     expect(staleSuggestion?.textContent).toContain("Studio Aurora");
     expect(mocks.clientSearchQuery?.enabled).toBe(true);
 
+    mocks.queryCacheKeys = [
+      ["mobile-dashboard-client-search", 7, "aurora", 4],
+      ["mobile-dashboard-client-search", 7, "studio", 4],
+      ["mobile-dashboard-client-search", 8, "aurora", 4],
+      ["mobile-dashboard-ticket-search", 7, "aurora"],
+      ["mobile-organization-settings", 7],
+    ];
     mocks.organizationSettings = { clientsEnabled: false, timeTrackingModuleEnabled: false };
     await render(TabLayout);
 
@@ -484,6 +501,14 @@ describe("mobile ticket creation navigation", () => {
 
     await act(async () => staleSuggestion?.click());
     expect(mocks.push).not.toHaveBeenCalledWith("/clients/31");
+    expect(mocks.removeQueries).toHaveBeenCalledWith({
+      queryKey: ["mobile-dashboard-client-search", 7],
+    });
+    expect(mocks.queryCacheKeys).toEqual([
+      ["mobile-dashboard-client-search", 8, "aurora", 4],
+      ["mobile-dashboard-ticket-search", 7, "aurora"],
+      ["mobile-organization-settings", 7],
+    ]);
 
     mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
     await render(TabLayout);

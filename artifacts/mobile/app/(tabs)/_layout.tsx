@@ -19,7 +19,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -63,6 +63,7 @@ function DashboardSearchHeader() {
   const router = useRouter();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
   const [debouncedClientSearch, setDebouncedClientSearch] = React.useState("");
   const organizationSettings = useQuery({
@@ -75,6 +76,28 @@ function DashboardSearchHeader() {
     organizationSettings.isSuccess &&
     !organizationSettings.isError &&
     organizationSettings.data?.clientsEnabled === true;
+  React.useEffect(() => {
+    const organizationId = user?.organizationId;
+    if (
+      organizationId == null ||
+      !organizationSettings.isSuccess ||
+      organizationSettings.isError
+    ) {
+      return;
+    }
+
+    if (organizationSettings.data?.clientsEnabled !== true) {
+      queryClient.removeQueries({
+        queryKey: ["mobile-dashboard-client-search", organizationId],
+      });
+    }
+  }, [
+    organizationSettings.data?.clientsEnabled,
+    organizationSettings.isError,
+    organizationSettings.isSuccess,
+    queryClient,
+    user?.organizationId,
+  ]);
   const clientSearch = search.trim();
   React.useEffect(() => {
     if (clientSearch.length < 2) {
