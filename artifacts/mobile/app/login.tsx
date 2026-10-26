@@ -137,6 +137,8 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.mutedForeground}
                   autoCapitalize="words"
                   autoComplete="name"
+                  textContentType="name"
+                  importantForAutofill="yes"
                   onFocus={() => setFocusedField("name")}
                   onBlur={() => setFocusedField(null)}
                   returnKeyType="next"
@@ -158,7 +160,10 @@ export default function LoginScreen() {
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                autoComplete="email"
+                  autoCorrect={false}
+                  autoComplete={mode === "login" ? "username" : "email"}
+                  textContentType={mode === "login" ? "username" : "emailAddress"}
+                  importantForAutofill="yes"
                 onFocus={() => setFocusedField("email")}
                 onBlur={() => setFocusedField(null)}
                 returnKeyType="next"
@@ -179,6 +184,11 @@ export default function LoginScreen() {
                 placeholderTextColor={colors.mutedForeground}
                 secureTextEntry={!showPass}
                 autoComplete={mode === "register" ? "new-password" : "current-password"}
+                  textContentType={mode === "register" ? "newPassword" : "password"}
+                  passwordRules={mode === "register" ? "minlength: 6;" : undefined}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  importantForAutofill="yes"
                 onFocus={() => setFocusedField("password")}
                 onBlur={() => setFocusedField(null)}
                 returnKeyType={mode === "login" ? "done" : "next"}
@@ -215,6 +225,11 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.mutedForeground}
                   secureTextEntry={!showPass}
                   autoComplete="new-password"
+                  textContentType="newPassword"
+                  passwordRules="minlength: 6;"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  importantForAutofill="yes"
                   onFocus={() => setFocusedField("confirm")}
                   onBlur={() => setFocusedField(null)}
                   returnKeyType="done"
