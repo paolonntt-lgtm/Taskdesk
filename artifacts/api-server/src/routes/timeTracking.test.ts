@@ -336,7 +336,10 @@ describe("ticket time tracking", () => {
       ...taskTrackCreatedTicketIds,
     ].filter(Number.isInteger);
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
-    if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
+    if (clientId) {
+      await db.delete(ticketsTable).where(eq(ticketsTable.clientId, clientId));
+      await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
+    }
     if (statusGroupId) {
       await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, statusGroupId));
       await db.delete(groupsTable).where(eq(groupsTable.id, statusGroupId));
@@ -1030,6 +1033,82 @@ describe("ticket time tracking", () => {
     const manualHistory = await request(`/api/clients/${clientId}`, adminSessionId);
     expect(manualHistory.body.tickets.find((ticket: any) => ticket.id === manualTicketId)?.workedMinutes).toBe(45);
   }, 120_000);
+
+  it("only lets a collaborator self-assign organization tickets that are not already assigned", async () => {
+    const [unassigned, assignedToColleague, assignedToGroup] = await db.insert(ticketsTable).values([
+      {
+        organizationId,
+        title: `Self-assignment unassigned ${runId}`,
+        description: "A collaborator may take an unassigned ticket.",
+        category: "Support",
+        location: "Remote",
+        status: "open",
+        visibility: "organization",
+        createdBy: adminId,
+        assignedTo: null,
+        assignedToGroup: null,
+      },
+      {
+        organizationId,
+        title: `Self-assignment colleague-owned ${runId}`,
+        description: "A collaborator may not take another collaborator's ticket.",
+        category: "Support",
+        location: "Remote",
+        status: "open",
+        visibility: "organization",
+        createdBy: adminId,
+        assignedTo: raceCollaboratorId,
+        assignedToGroup: null,
+      },
+      {
+        organizationId,
+        title: `Self-assignment group-owned ${runId}`,
+        description: "A collaborator may not take a group-assigned ticket.",
+        category: "Support",
+        location: "Remote",
+        status: "open",
+        visibility: "organization",
+        createdBy: adminId,
+        assignedTo: null,
+        assignedToGroup: `Existing queue ${runId}`,
+      },
+    ]).returning({ id: ticketsTable.id });
+    taskTrackCreatedTicketIds.push(unassigned.id, assignedToColleague.id, assignedToGroup.id);
+
+    const selfAssign = (ticketId: number) =>
+      request(`/api/tickets/${ticketId}`, collaboratorSessionId, {
+        method: "PATCH",
+        body: JSON.stringify({ assignedTo: collaboratorId }),
+      });
+
+    const allowedSelfAssignment = await selfAssign(unassigned.id);
+    expect(allowedSelfAssignment.status).toBe(200);
+    expect(allowedSelfAssignment.body.assignedTo).toBe(collaboratorId);
+
+    const attemptsToTakeAssignedTickets = await Promise.all([
+      selfAssign(assignedToColleague.id),
+      selfAssign(assignedToGroup.id),
+    ]);
+    expect(attemptsToTakeAssignedTickets.map(({ status }) => status)).toEqual([403, 403]);
+
+    const unchangedAssignments = await db.select({
+      id: ticketsTable.id,
+      assignedTo: ticketsTable.assignedTo,
+      assignedToGroup: ticketsTable.assignedToGroup,
+    }).from(ticketsTable).where(inArray(ticketsTable.id, [assignedToColleague.id, assignedToGroup.id]));
+    expect(unchangedAssignments).toEqual(expect.arrayContaining([
+      {
+        id: assignedToColleague.id,
+        assignedTo: raceCollaboratorId,
+        assignedToGroup: null,
+      },
+      {
+        id: assignedToGroup.id,
+        assignedTo: null,
+        assignedToGroup: `Existing queue ${runId}`,
+      },
+    ]));
+  });
 
   it("pauses an active tracked ticket on reassignment and preserves each collaborator's session", async () => {
     await request("/api/settings/organization", adminSessionId, {
