@@ -1,7 +1,15 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and } from "drizzle-orm";
 import { db, usersTable, organizationsTable, settingsTable, groupMembersTable, groupsTable } from "@workspace/db";
-import { createSession, destroySession, getSessionId, getCurrentUserId, SESSION_COOKIE_MAX_AGE } from "../lib/session";
+import {
+  createSession,
+  destroySession,
+  getSessionId,
+  getCurrentUserId,
+  SESSION_COOKIE_MAX_AGE,
+  SESSION_COOKIE_SHORT_MAX_AGE,
+  SESSION_SHORT_TTL_MS,
+} from "../lib/session";
 import { LoginBody } from "@workspace/api-zod";
 import bcrypt from "bcryptjs";
 import { sendEmail, buildRegistrationNotificationEmail } from "../lib/email";
@@ -46,6 +54,8 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
   }
 
   const { email, password } = parsed.data;
+  // Keep the existing 30-day behavior for clients that have not sent rememberMe.
+  const rememberMe = parsed.data.rememberMe ?? true;
 
   const [row] = await db
     .select({
@@ -97,13 +107,16 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
 
   await db.update(usersTable).set({ lastLoginAt: sql`now()` }).where(eq(usersTable.id, row.id));
 
-  const sessionId = await createSession(row.id);
+  const sessionId = await createSession(
+    row.id,
+    rememberMe ? undefined : SESSION_SHORT_TTL_MS,
+  );
 
   const isProduction = process.env.NODE_ENV === "production";
   const secureFlag = isProduction ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}${secureFlag}`
+    `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${rememberMe ? SESSION_COOKIE_MAX_AGE : SESSION_COOKIE_SHORT_MAX_AGE}${secureFlag}`
   );
 
   const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);

@@ -17,13 +17,13 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import * as Haptics from "expo-haptics";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 type Field = "name" | "email" | "password" | "confirm";
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login, register } = useAuth();
+  const { login, register, requestPasswordReset } = useAuth();
   const { t } = useLanguage();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -35,18 +35,34 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showPass, setShowPass] = useState(false);
   const [focusedField, setFocusedField] = useState<Field | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const switchMode = (m: Mode) => {
     setMode(m);
     setError(null);
+    setResetSent(false);
     setName("");
     setEmail("");
     setPassword("");
     setConfirm("");
   };
 
+  const openForgotPassword = () => {
+    setMode("forgot");
+    setError(null);
+    setResetSent(false);
+    setName("");
+    setPassword("");
+    setConfirm("");
+  };
+
   const handleSubmit = async () => {
     setError(null);
+    if (mode === "forgot" && !email.trim()) {
+      setError(t.login.errorEmail);
+      return;
+    }
     if (mode === "register") {
       if (!name.trim()) { setError(t.login.errorName); return; }
       if (password.length < 6) { setError(t.login.errorPasswordMin); return; }
@@ -56,9 +72,12 @@ export default function LoginScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       if (mode === "login") {
-        await login(email, password);
-      } else {
+        await login(email, password, rememberMe);
+      } else if (mode === "register") {
         await register(name, email, password);
+      } else {
+        await requestPasswordReset(email.trim());
+        setResetSent(true);
       }
     } catch (e: any) {
       setError(e.message || t.login.errorGeneric);
@@ -109,10 +128,18 @@ export default function LoginScreen() {
         <View style={s.intro}>
           <Text style={s.eyebrow}>{t.login.eyebrow}</Text>
           <Text style={s.title}>
-            {mode === "login" ? t.login.signIn : t.login.register}
+            {mode === "login"
+              ? t.login.signIn
+              : mode === "register"
+                ? t.login.register
+                : t.login.forgotTitle}
           </Text>
           <Text style={s.subtitle}>
-            {mode === "login" ? t.login.loginIntro : t.login.registerIntro}
+            {mode === "login"
+              ? t.login.loginIntro
+              : mode === "register"
+                ? t.login.registerIntro
+                : t.login.forgotIntro}
           </Text>
         </View>
 
@@ -124,6 +151,20 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {mode === "forgot" && resetSent ? (
+            <View style={s.successBox}>
+              <View style={s.successIcon}>
+                <Feather name="mail" size={22} color={colors.success} />
+              </View>
+              <Text style={s.successTitle}>{t.login.resetSentTitle}</Text>
+              <Text style={s.successText}>{t.login.resetSentBody}</Text>
+              <Pressable onPress={() => switchMode("login")} style={s.backLinkButton}>
+                <Feather name="arrow-left" size={16} color={colors.primary} />
+                <Text style={s.backLinkText}>{t.login.backToLogin}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
           {mode === "register" && (
             <View style={s.field}>
               <Text style={s.label}>{t.login.name}</Text>
@@ -172,39 +213,41 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          <View style={s.field}>
-            <Text style={s.label}>{t.login.password}</Text>
-            <View style={[s.inputWrap, focusedField === "password" && s.inputWrapFocused]}>
-              <Feather name="lock" size={18} color={colors.mutedForeground} />
-              <TextInput
-                style={s.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder={mode === "register" ? t.login.passwordMin : "••••••••"}
-                placeholderTextColor={colors.mutedForeground}
-                secureTextEntry={!showPass}
-                autoComplete={mode === "register" ? "new-password" : "current-password"}
+          {mode !== "forgot" && (
+            <View style={s.field}>
+              <Text style={s.label}>{t.login.password}</Text>
+              <View style={[s.inputWrap, focusedField === "password" && s.inputWrapFocused]}>
+                <Feather name="lock" size={18} color={colors.mutedForeground} />
+                <TextInput
+                  style={s.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={mode === "register" ? t.login.passwordMin : "••••••••"}
+                  placeholderTextColor={colors.mutedForeground}
+                  secureTextEntry={!showPass}
+                  autoComplete={mode === "register" ? "new-password" : "current-password"}
                   textContentType={mode === "register" ? "newPassword" : "password"}
                   passwordRules={mode === "register" ? "minlength: 6;" : undefined}
                   autoCapitalize="none"
                   autoCorrect={false}
                   importantForAutofill="yes"
-                onFocus={() => setFocusedField("password")}
-                onBlur={() => setFocusedField(null)}
-                returnKeyType={mode === "login" ? "done" : "next"}
-                accessibilityLabel={t.login.password}
-              />
-              <Pressable
-                onPress={() => setShowPass(!showPass)}
-                style={s.eyeBtn}
-                accessibilityRole="button"
-                accessibilityLabel={showPass ? t.login.hidePassword : t.login.showPassword}
-                hitSlop={8}
-              >
-                <Feather name={showPass ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
-              </Pressable>
+                  onFocus={() => setFocusedField("password")}
+                  onBlur={() => setFocusedField(null)}
+                  returnKeyType={mode === "login" ? "done" : "next"}
+                  accessibilityLabel={t.login.password}
+                />
+                <Pressable
+                  onPress={() => setShowPass(!showPass)}
+                  style={s.eyeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPass ? t.login.hidePassword : t.login.showPassword}
+                  hitSlop={8}
+                >
+                  <Feather name={showPass ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
             </View>
-          </View>
+          )}
 
           {mode === "register" && (
             <View style={s.field}>
@@ -239,6 +282,28 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {mode === "login" && (
+            <View style={s.rememberRow}>
+              <Pressable
+                onPress={() => setRememberMe((value) => !value)}
+                style={s.rememberToggle}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: rememberMe }}
+                testID="remember-me-toggle"
+              >
+                <Feather
+                  name={rememberMe ? "check-square" : "square"}
+                  size={18}
+                  color={rememberMe ? colors.primary : colors.mutedForeground}
+                />
+                <Text style={s.rememberText}>{t.login.rememberMe}</Text>
+              </Pressable>
+              <Pressable onPress={openForgotPassword} hitSlop={8} testID="forgot-password-link">
+                <Text style={s.forgotLink}>{t.login.forgotLink}</Text>
+              </Pressable>
+            </View>
+          )}
+
           <Pressable
             style={({ pressed }) => [
               s.btn,
@@ -248,29 +313,43 @@ export default function LoginScreen() {
             onPress={handleSubmit}
             disabled={loading}
             accessibilityRole="button"
+            testID={mode === "forgot" ? "send-reset-link" : "auth-submit"}
           >
             {loading ? (
               <ActivityIndicator color={colors.primaryForeground} size="small" />
             ) : (
               <>
                 <Text style={s.btnText}>
-                  {mode === "login" ? t.login.submit : t.login.registerSubmit}
+                  {mode === "login"
+                    ? t.login.submit
+                    : mode === "register"
+                      ? t.login.registerSubmit
+                      : t.login.sendResetLink}
                 </Text>
                 <Feather name="arrow-right" size={18} color={colors.primaryForeground} />
               </>
             )}
           </Pressable>
 
-          <View style={s.switchRow}>
-            <Text style={s.switchText}>
-              {mode === "login" ? t.login.noAccount : t.login.hasAccount}
-            </Text>
-            <Pressable onPress={() => switchMode(mode === "login" ? "register" : "login")}>
-              <Text style={s.switchLink}>
-                {mode === "login" ? t.login.registerLink : t.login.loginLink}
+          {mode !== "forgot" ? (
+            <View style={s.switchRow}>
+              <Text style={s.switchText}>
+                {mode === "login" ? t.login.noAccount : t.login.hasAccount}
               </Text>
+              <Pressable onPress={() => switchMode(mode === "login" ? "register" : "login")}>
+                <Text style={s.switchLink}>
+                  {mode === "login" ? t.login.registerLink : t.login.loginLink}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={() => switchMode("login")} style={s.backLinkButton}>
+              <Feather name="arrow-left" size={16} color={colors.primary} />
+              <Text style={s.backLinkText}>{t.login.backToLogin}</Text>
             </Pressable>
-          </View>
+          )}
+            </>
+          )}
         </View>
 
         <View style={s.footer}>
@@ -405,6 +484,34 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       padding: 12,
       marginBottom: 16,
     },
+    successBox: {
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    successIcon: {
+      width: 52,
+      height: 52,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 18,
+      backgroundColor: colors.success + "18",
+      marginBottom: 14,
+    },
+    successTitle: {
+      color: colors.foreground,
+      fontSize: 18,
+      fontFamily: "Inter_700Bold",
+      marginBottom: 7,
+      textAlign: "center",
+    },
+    successText: {
+      color: colors.mutedForeground,
+      fontSize: 14,
+      lineHeight: 21,
+      fontFamily: "Inter_400Regular",
+      textAlign: "center",
+      marginBottom: 12,
+    },
     errorText: {
       color: colors.destructive,
       fontSize: 13,
@@ -450,6 +557,31 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "center",
       justifyContent: "center",
     },
+    rememberRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      marginTop: -4,
+      marginBottom: 6,
+    },
+    rememberToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minHeight: 38,
+    },
+    rememberText: {
+      color: colors.mutedForeground,
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+    },
+    forgotLink: {
+      color: colors.primary,
+      fontSize: 13,
+      fontFamily: "Inter_600SemiBold",
+      paddingVertical: 8,
+    },
     btn: {
       minHeight: 54,
       flexDirection: "row",
@@ -494,6 +626,19 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: "Inter_600SemiBold",
       paddingVertical: 4,
       paddingHorizontal: 3,
+    },
+    backLinkButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      paddingVertical: 10,
+      marginTop: 8,
+    },
+    backLinkText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
     },
     footer: {
       flexDirection: "row",

@@ -4,11 +4,16 @@ import { db, sessionsTable } from "@workspace/db";
 import { eq, and, ne, lt } from "drizzle-orm";
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const SESSION_SHORT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+export const SESSION_COOKIE_SHORT_MAX_AGE = 24 * 60 * 60; // 24 hours in seconds
 
-export async function createSession(userId: number): Promise<string> {
+export async function createSession(
+  userId: number,
+  ttlMs: number = SESSION_TTL_MS,
+): Promise<string> {
   const sessionId = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const expiresAt = new Date(Date.now() + ttlMs);
   await db.insert(sessionsTable).values({ sessionId, userId, expiresAt });
   return sessionId;
 }

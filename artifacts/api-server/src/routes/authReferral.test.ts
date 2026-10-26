@@ -33,6 +33,8 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("../lib/session", () => ({
   SESSION_COOKIE_MAX_AGE: 2_592_000,
+  SESSION_COOKIE_SHORT_MAX_AGE: 86_400,
+  SESSION_SHORT_TTL_MS: 86_400_000,
   createSession: mocks.createSession,
   destroySession: vi.fn(),
   getSessionId: vi.fn(),

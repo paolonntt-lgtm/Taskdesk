@@ -299,7 +299,8 @@ export const HealthCheckResponse = zod.object({
  */
 export const LoginBody = zod.object({
   "email": zod.string(),
-  "password": zod.string()
+  "password": zod.string(),
+  "rememberMe": zod.boolean().optional().describe('Keep the session active for an extended period.')
 })
 
 export const LoginResponse = zod.object({
@@ -335,6 +336,18 @@ export const LoginResponse = zod.object({
   "permissionOverrides": zod.record(zod.string(), zod.enum(['inherit', 'grant', 'deny'])).optional()
 }),
   "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Request a password reset email
+ */
+export const ForgotPasswordBody = zod.object({
+  "email": zod.string()
+})
+
+export const ForgotPasswordResponse = zod.object({
+  "message": zod.string()
 })
 
 

@@ -202,6 +202,8 @@ export interface AcquisitionStats {
 export interface LoginRequest {
   email: string;
   password: string;
+  /** Keep the session active for an extended period. */
+  rememberMe?: boolean;
 }
 
 export type UserRole = typeof UserRole[keyof typeof UserRole];
@@ -1414,6 +1416,14 @@ export const UpdateGroupPermissions200PermissionsItem = {
 export type UpdateGroupPermissions200 = {
   id?: number;
   permissions?: UpdateGroupPermissions200PermissionsItem[];
+};
+
+export type ForgotPasswordBody = {
+  email: string;
+};
+
+export type ForgotPassword200 = {
+  message: string;
 };
 
 export type CompleteOnboardingBodyBusinessType = typeof CompleteOnboardingBodyBusinessType[keyof typeof CompleteOnboardingBodyBusinessType];

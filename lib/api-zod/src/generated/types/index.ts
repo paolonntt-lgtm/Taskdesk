@@ -67,6 +67,8 @@ export * from './driveFolderReference';
 export * from './driveItem';
 export * from './drivePickerFolder';
 export * from './errorResponse';
+export * from './forgotPassword200';
+export * from './forgotPasswordBody';
 export * from './getCalendarParams';
 export * from './getClient200';
 export * from './getClient200TicketsItem';

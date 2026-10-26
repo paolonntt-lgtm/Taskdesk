@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { createAuthRefreshHandler, startAuthRefreshPolling } from "@workspace/api-client-react";
+import {
+  createAuthRefreshHandler,
+  forgotPassword,
+  startAuthRefreshPolling,
+} from "@workspace/api-client-react";
 import { apiFetch, apiPost } from "@/utils/api";
 
 interface User {
@@ -25,7 +29,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -138,9 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isLoading, user?.id, queryClient]);
 
-  const login = async (email: string, password: string) => {
-    const data = await apiPost<{ user: User }>("/auth/login", { email, password });
+  const login = async (email: string, password: string, rememberMe: boolean) => {
+    const data = await apiPost<{ user: User }>("/auth/login", { email, password, rememberMe });
     setUser(data.user);
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    await forgotPassword({ email });
   };
 
   const register = async (name: string, email: string, password: string) => {
@@ -154,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+      <AuthContext.Provider value={{ user, isLoading, login, requestPasswordReset, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

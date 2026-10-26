@@ -9,4 +9,6 @@
 export interface LoginRequest {
   email: string;
   password: string;
+  /** Keep the session active for an extended period. */
+  rememberMe?: boolean;
 }

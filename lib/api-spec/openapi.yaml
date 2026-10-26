@@ -369,6 +369,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      summary: Request a password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+              required: [email]
+      responses:
+        "200":
+          description: A generic response that does not reveal whether the email is registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                required: [message]
+
   /auth/logout:
     post:
       operationId: logout
@@ -3837,6 +3864,9 @@ components:
           type: string
         password:
           type: string
+        rememberMe:
+          type: boolean
+          description: Keep the session active for an extended period.
       required:
         - email
         - password
