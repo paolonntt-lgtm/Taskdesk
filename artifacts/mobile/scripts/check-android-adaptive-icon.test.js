@@ -353,7 +353,7 @@ describe("Android adaptive icon safe-area check", () => {
 });
 
 describe("mobile shared app icon, splash, and favicon asset", () => {
-  it("uses the same square opaque image for app icon, splash, and favicon", () => {
+  it("uses the shared square app icon for splash and a transparent favicon derivative", () => {
     const projectRoot = path.resolve(scriptDirectory, "..");
     const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "app.json"), "utf8")).expo;
     const splash = config.plugins.find(
@@ -361,8 +361,11 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
     )[1];
     const imagePath = path.join(projectRoot, splash.image);
     const image = parsePng(fs.readFileSync(imagePath), splash.image);
+    const faviconPath = path.join(projectRoot, config.web.favicon);
+    const favicon = parsePng(fs.readFileSync(faviconPath), config.web.favicon);
 
     expect(config.icon).toBe("./assets/images/taskdesk-app-icon.png");
+    expect(config.web.favicon).toBe("./assets/images/taskdesk-favicon.png");
     expect(splash).toMatchObject({
       image: config.icon,
       imageWidth: 220,
@@ -373,12 +376,14 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
         backgroundColor: "#ffffff",
       },
     });
-    expect(config.web.favicon).toBe(config.icon);
     expect(image.width).toBe(1024);
     expect(image.height).toBe(1024);
     expect(image.transparentPixelCount).toBe(0);
     expect(Math.abs((image.nonWhiteBounds.minX + image.nonWhiteBounds.maxX) / 2 - 511.5)).toBeLessThanOrEqual(5);
     expect(Math.abs((image.nonWhiteBounds.minY + image.nonWhiteBounds.maxY) / 2 - 511.5)).toBeLessThanOrEqual(5);
+    expect(favicon.width).toBe(1024);
+    expect(favicon.height).toBe(1024);
+    expect(favicon.transparentPixelCount).toBeGreaterThan(0);
   });
 
   it("uses a square 1024-pixel iOS app icon source to avoid aspect-ratio distortion", () => {

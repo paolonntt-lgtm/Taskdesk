@@ -27,7 +27,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/taskdesk-app-icon.png",
+      "favicon": "./assets/images/taskdesk-favicon.png",
       "output": "single"
     },
     "plugins": [

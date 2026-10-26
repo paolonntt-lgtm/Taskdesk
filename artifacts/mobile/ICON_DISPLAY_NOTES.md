@@ -3,10 +3,10 @@
 ## Splash screen
 
 `assets/images/taskdesk-app-icon.png` is the single opaque 1024×1024 source for
-the Expo app icon, splash image, and web favicon. The splash plugin renders it
-in `contain` mode at 220 dp on a white background in both appearances. Its
-white image background matches the splash background, so it does not introduce
-a visible box or crop the mark.
+the Expo app icon and splash image. The splash plugin renders it in `contain`
+mode at 220 dp on a white background in both appearances. Its white image
+background matches the splash background, so it does not introduce a visible
+box or crop the mark.
 
 The plugin generates Android night resources for dark appearance and iOS
 appearance-specific launch-screen assets on iOS 13 and later. Older Android or
@@ -36,11 +36,23 @@ foreground is transparent and checked against both the central 66/108 safe-zone
 bounds and its circular radius, so the monogram stays intact in circular and
 rounded launcher masks.
 
+## Browser favicon
+
+The browser favicon is the one platform-specific exception to the shared opaque
+app icon. That icon produces a visible white square in dark browser tabs, so
+`assets/images/taskdesk-favicon.png` uses the same monogram cropped from the
+transparent `taskdesk-adaptive-foreground.png` source. This keeps one mark
+source while allowing the browser tab background to show through, including
+inside the monogram. Keep this derivative limited to the web favicon; do not
+replace the app icon or splash source with it.
+
 ## Verification scope
 
-The shared source asset and Expo configuration were checked for both
-appearances. The mark is centered within the splash image's `contain` bounds;
-the Android notification image has the required dimensions, white foreground,
-and transparent background. A native build and physical device screenshot
-are still needed to confirm manufacturer-specific Android status-bar and
+The Expo web export produces 16, 32, and 48 px favicon variants with
+transparency. The 16 px version was composited over light and dark tab
+backgrounds; the monogram remains recognizable without a white square. The
+shared app source and splash configuration remain unchanged. The Android
+notification image has the required dimensions, white foreground, and
+transparent background. A native build and physical device screenshot are
+still needed to confirm manufacturer-specific Android status-bar and
 notification-tray rendering on installed devices.
