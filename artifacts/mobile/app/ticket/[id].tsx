@@ -120,6 +120,7 @@ export default function TicketDetailScreen() {
 
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingTicketAttachment[]>([]);
   const [retryingAttachments, setRetryingAttachments] = useState(false);
   const [replacingAttachmentIndex, setReplacingAttachmentIndex] = useState<number | null>(null);
@@ -610,11 +611,13 @@ export default function TicketDetailScreen() {
     : orgStatuses;
   const priorityColor = PRIORITY_COLORS[ticket.priority] ?? colors.muted;
 
-  const metaRows = [
+  const primaryMetaRows = [
     { label: t.ticketDetail.status, value: t.status[ticket.status] ?? ticket.status },
     { label: t.ticketDetail.priority, value: t.priority[ticket.priority] ?? ticket.priority },
     { label: t.ticketDetail.category, value: ticket.category },
     ...(ticket.location ? [{ label: t.ticketDetail.location, value: ticket.location }] : []),
+  ];
+  const additionalMetaRows = [
     { label: t.ticketDetail.createdBy, value: ticket.creator?.name ?? "–" },
     {
       label: t.ticketDetail.assignedTo,
@@ -657,13 +660,54 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
-        <View style={s.metaCard}>
-          {metaRows.map((item, i, arr) => (
-            <View key={item.label} style={[s.metaRow, i < arr.length - 1 && s.metaRowBorder]}>
-              <Text style={s.metaLabel}>{item.label}</Text>
-              <Text style={s.metaValue}>{item.value}</Text>
+        <View style={[s.section, s.descriptionSection]} testID="ticket-description-section">
+          <View style={s.descriptionHeading}>
+            <Feather name="file-text" size={17} color={colors.primary} />
+            <Text style={s.descriptionTitle}>{t.ticketDetail.description}</Text>
+          </View>
+          <View style={s.descBox} testID="ticket-description-card">
+            <Text style={s.desc}>{ticket.description}</Text>
+          </View>
+        </View>
+
+        <View style={s.primaryMetaCard} testID="ticket-primary-details">
+          <View style={s.metaGrid}>
+            {primaryMetaRows.map((item) => (
+              <View key={item.label} style={s.metaTile}>
+                <Text style={s.metaTileLabel}>{item.label}</Text>
+                <Text style={s.metaTileValue}>{item.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={s.additionalDetailsSection}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showAdditionalDetails }}
+            testID="ticket-additional-details-toggle"
+            onPress={() => setShowAdditionalDetails((expanded) => !expanded)}
+            style={s.additionalDetailsToggle}
+          >
+            <Text style={s.additionalDetailsToggleText}>
+              {showAdditionalDetails ? t.ticketDetail.hideDetails : t.ticketDetail.moreDetails}
+            </Text>
+            <Feather
+              name={showAdditionalDetails ? "chevron-up" : "chevron-down"}
+              size={17}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+          {showAdditionalDetails && (
+            <View style={s.metaCard} testID="ticket-additional-details">
+              {additionalMetaRows.map((item, i, arr) => (
+                <View key={item.label} style={[s.metaRow, i < arr.length - 1 && s.metaRowBorder]}>
+                  <Text style={s.metaLabel}>{item.label}</Text>
+                  <Text style={s.metaValue}>{item.value}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          )}
         </View>
 
         <View style={[s.metaCard, { marginTop: 12, padding: 14 }]} testID="ticket-field-change-history">
@@ -829,13 +873,6 @@ export default function TicketDetailScreen() {
             )}
           </View>
         )}
-
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>{t.ticketDetail.description}</Text>
-          <View style={s.descBox}>
-            <Text style={s.desc}>{ticket.description}</Text>
-          </View>
-        </View>
 
         {pendingAttachments.length > 0 && (
           <View style={s.pendingAttachmentsCard}>
@@ -1476,6 +1513,17 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     ticketId: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     title: { fontSize: 17, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold", lineHeight: 22 },
     metaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    descriptionSection: { gap: 8 },
+    descriptionHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
+    descriptionTitle: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    primaryMetaCard: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    metaGrid: { flexDirection: "row", flexWrap: "wrap", paddingVertical: 4, paddingHorizontal: 6 },
+    metaTile: { width: "50%", paddingVertical: 6, paddingHorizontal: 8, gap: 3 },
+    metaTileLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
+    metaTileValue: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    additionalDetailsSection: { gap: 4 },
+    additionalDetailsToggle: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
+    additionalDetailsToggleText: { fontSize: 13, color: colors.primary, fontFamily: "Inter_600SemiBold" },
     metaRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 9 },
     metaRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
     metaLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
@@ -1490,8 +1538,8 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     timeEditValue: { fontSize: 12, lineHeight: 17, color: colors.foreground, fontFamily: "Inter_400Regular" },
     section: {},
     sectionTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, marginBottom: 6, fontFamily: "Inter_600SemiBold" },
-    descBox: { backgroundColor: colors.card, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.border },
-    desc: { fontSize: 13, color: colors.foreground, lineHeight: 19, fontFamily: "Inter_400Regular" },
+    descBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "66" },
+    desc: { fontSize: 15, color: colors.foreground, lineHeight: 22, fontFamily: "Inter_400Regular" },
     pendingAttachmentsCard: {
       gap: 8, padding: 12, borderRadius: 12, borderWidth: 1,
       borderColor: colors.destructive + "55", backgroundColor: colors.card,

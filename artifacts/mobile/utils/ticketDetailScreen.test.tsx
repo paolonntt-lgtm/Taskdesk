@@ -154,6 +154,13 @@ describe("mobile ticket detail client and assignee", () => {
     });
   };
 
+  const expandAdditionalDetails = async () => {
+    const toggle = host.querySelector<HTMLButtonElement>(
+      '[data-testid="ticket-additional-details-toggle"]',
+    );
+    await act(async () => toggle?.click());
+  };
+
   const refetchTicketDetail = async () => {
     await act(async () => {
       await queryClient.refetchQueries({ queryKey: ["ticket", "9"] });
@@ -195,10 +202,40 @@ describe("mobile ticket detail client and assignee", () => {
 
   it("shows the client and individual assignee from a freshly loaded ticket response", async () => {
     await renderScreen();
+    await expandAdditionalDetails();
 
     expect(mocks.apiGet).toHaveBeenCalledWith("/tickets/9");
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
+  });
+
+  it("puts the description first and keeps secondary ticket details collapsed", async () => {
+    await renderScreen();
+
+    const description = host.querySelector('[data-testid="ticket-description-section"]');
+    const primaryDetails = host.querySelector('[data-testid="ticket-primary-details"]');
+    const moreDetailsButton = host.querySelector<HTMLButtonElement>(
+      '[data-testid="ticket-additional-details-toggle"]',
+    );
+    expect(description).not.toBeNull();
+    expect(primaryDetails).not.toBeNull();
+    expect(description?.textContent).toContain("Review the latest service contract.");
+    expect(
+      description!.compareDocumentPosition(primaryDetails!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(primaryDetails?.textContent).toContain(translations.it.ticketDetail.status);
+    expect(primaryDetails?.textContent).toContain(translations.it.ticketDetail.priority);
+    expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
+    expect(host.textContent).not.toContain("Admin User");
+
+    await act(async () => moreDetailsButton?.click());
+    const additionalDetails = host.querySelector('[data-testid="ticket-additional-details"]');
+    expect(additionalDetails?.textContent).toContain("Admin User");
+    expect(additionalDetails?.textContent).toContain("Mario Rossi");
+    expect(additionalDetails?.textContent).toContain("Studio Paolo");
+
+    await act(async () => moreDetailsButton?.click());
+    expect(host.querySelector('[data-testid="ticket-additional-details"]')).toBeNull();
   });
 
   it("shows main-field changes with their author and excludes unrelated activity", async () => {
@@ -249,6 +286,7 @@ describe("mobile ticket detail client and assignee", () => {
       assignedToGroup: "Support",
     };
     await renderScreen();
+    await expandAdditionalDetails();
 
     expect(host.textContent).toContain("Gruppo: Support");
     expect(host.textContent).not.toContain("Mario Rossi");
@@ -256,6 +294,7 @@ describe("mobile ticket detail client and assignee", () => {
 
   it("removes the client after the fresh ticket response clears it", async () => {
     await renderScreen();
+    await expandAdditionalDetails();
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
 
@@ -273,6 +312,7 @@ describe("mobile ticket detail client and assignee", () => {
 
   it("removes the assignee after the fresh ticket response clears it", async () => {
     await renderScreen();
+    await expandAdditionalDetails();
     expect(host.textContent).toContain("Studio Paolo");
     expect(host.textContent).toContain("Mario Rossi");
 
