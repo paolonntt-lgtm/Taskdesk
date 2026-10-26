@@ -46,12 +46,26 @@ source while allowing the browser tab background to show through, including
 inside the monogram. Keep this derivative limited to the web favicon; do not
 replace the app icon or splash source with it.
 
-## Verification scope
+## Browser favicon verification
 
-The Expo web export produces 16, 32, and 48 px favicon variants with
-transparency. The 16 px version was composited over light and dark tab
-backgrounds; the monogram remains recognizable without a white square. The
-shared app source and splash configuration remain unchanged. The Android
+The exported `static-build/favicon.ico` contains 16×16, 32×32, and 48×48
+frames. On 2026-10-26 it was opened with Chromium 152.0.7977.64 in headless
+mode and displayed at 16×16 and 32×32 against light (`#f1f3f4`) and dark
+(`#202124`) tab-like backgrounds. The monogram remains recognizable at both
+sizes, and transparent corners show the background rather than a white square.
+No Chromium-specific difference or additional workaround was observed; the
+transparent favicon derived from `taskdesk-adaptive-foreground.png` is the
+solution.
+
+This environment has Chromium only. Firefox is not installed, and Safari is
+unavailable on this Linux environment, so their native tab rendering has not
+been verified. Chromium was headless, so this check exercised its ICO decoding
+and image scaling in a tab-like preview, not a screenshot of the native browser
+tab bar. Do not treat this as confirmation for Firefox or Safari.
+
+## Other icon checks
+
+The shared app source and splash configuration remain unchanged. The Android
 notification image has the required dimensions, white foreground, and
 transparent background. A native build and physical device screenshot are
 still needed to confirm manufacturer-specific Android status-bar and
