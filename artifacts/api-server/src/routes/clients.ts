@@ -218,7 +218,10 @@ router.get("/client-notes", requireClientFeature, async (req, res): Promise<void
   const dateTo = typeof req.query.dateTo === 'string' && req.query.dateTo ? req.query.dateTo : undefined;
 
   const conditions: ReturnType<typeof eq>[] = [eq(clientNotesTable.organizationId, orgId) as ReturnType<typeof eq>];
-  if (search) conditions.push(ilike(clientNotesTable.body, `%${search}%`) as ReturnType<typeof eq>);
+  if (search) {
+    const searchPattern = `%${escapeLikePattern(search)}%`;
+    conditions.push(ilike(clientNotesTable.body, searchPattern) as ReturnType<typeof eq>);
+  }
   if (authorId != null) conditions.push(eq(clientNotesTable.authorId, authorId));
   if (dateFrom) conditions.push(gte(clientNotesTable.createdAt, new Date(dateFrom)) as ReturnType<typeof eq>);
   if (dateTo) {

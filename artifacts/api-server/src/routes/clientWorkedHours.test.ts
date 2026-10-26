@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   db,
   clientsTable,
+  clientNotesTable,
   groupsTable,
   groupMembersTable,
   organizationsTable,
@@ -34,6 +35,7 @@ let userSessionId: string;
 let publicTicketId: number;
 let privateTicketId: number;
 const createdClientIds: number[] = [];
+const createdClientNoteIds: number[] = [];
 const createdTicketIds: number[] = [];
 const createdUserIds: number[] = [];
 
@@ -160,6 +162,9 @@ describe("client worked-hours report", () => {
     await db.delete(ticketsTable).where(inArray(ticketsTable.id, [publicTicketId, privateTicketId]));
     if (createdTicketIds.length > 0) {
       await db.delete(ticketsTable).where(inArray(ticketsTable.id, createdTicketIds));
+    }
+    if (createdClientNoteIds.length > 0) {
+      await db.delete(clientNotesTable).where(inArray(clientNotesTable.id, createdClientNoteIds));
     }
     await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
     await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
@@ -460,6 +465,70 @@ describe("client worked-hours report", () => {
     expect(backslashSearch.status).toBe(200);
     expect(backslashSearch.body.map((client: any) => client.id)).toContain(backslashMatch.id);
     expect(backslashSearch.body.map((client: any) => client.id)).not.toContain(backslashEscapeDecoy.id);
+  });
+
+  it("treats SQL LIKE pattern characters as literal client-note search text within the authorized organization", async () => {
+    const noteRows = await db.insert(clientNotesTable).values([
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `percent note 100% token ${runId}`,
+      },
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `percent note 100x token ${runId}`,
+      },
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `underscore note value_token ${runId}`,
+      },
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `underscore note valueXtoken ${runId}`,
+      },
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `backslash note path\\segment ${runId}`,
+      },
+      {
+        clientId,
+        organizationId,
+        authorId: userId,
+        body: `backslash note pathsegment ${runId}`,
+      },
+      {
+        clientId: foreignClientId,
+        organizationId: foreignOrganizationId,
+        authorId: userId,
+        body: `percent note 100% token ${runId}`,
+      },
+    ]).returning({ id: clientNotesTable.id, clientId: clientNotesTable.clientId });
+    createdClientNoteIds.push(...noteRows.map(({ id }) => id));
+
+    const cases = [
+      { query: `100% token ${runId}`, matchIndex: 0, decoyIndex: 1 },
+      { query: `value_token ${runId}`, matchIndex: 2, decoyIndex: 3 },
+      { query: `path\\segment ${runId}`, matchIndex: 4, decoyIndex: 5 },
+    ];
+    for (const { query, matchIndex, decoyIndex } of cases) {
+      const response = await request(`/api/client-notes?search=${encodeURIComponent(query)}`, userSessionId);
+      const resultIds = response.body.map((note: any) => note.id);
+      expect(response.status).toBe(200);
+      expect(resultIds).toContain(noteRows[matchIndex]!.id);
+      expect(resultIds).not.toContain(noteRows[decoyIndex]!.id);
+      expect(resultIds).not.toContain(noteRows[6]!.id);
+      expect(response.body.every((note: any) => note.organizationId === organizationId)).toBe(true);
+      expect(response.body.every((note: any) => note.clientId === clientId)).toBe(true);
+    }
   });
 
   it("treats SQL LIKE pattern characters as literal text in global search without changing scope or limits", async () => {
