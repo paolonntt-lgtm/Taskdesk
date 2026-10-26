@@ -1,20 +1,13 @@
 name: Promote a compatible update to production
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm_production:
-        type: choice
-        description: Confirm the production promotion
-        options:
-          - no
-          - yes
-        required: true
+  push:
+    branches:
+      - ota-production
 
 jobs:
   fingerprint:
     name: Check the production runtime
-    if: ${{ inputs.confirm_production == 'yes' }}
     type: fingerprint
     environment: production
     env:

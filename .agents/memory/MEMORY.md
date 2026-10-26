@@ -46,6 +46,7 @@
 - [EAS mobile build and OTA compatibility](eas-mobile-api-host.md) — Keep EAS API hosts, update channels, and native runtime versions aligned.
 - [Android push credentials](android-push-credentials.md) — Keep the bundled Firebase client config separate from Expo’s private FCM V1 sender key.
 - [Expo web export base path](expo-web-export-base-path.md) — Static web exports need the artifact prefix, and Expo dev previews must be opened at that prefix too.
+- [EAS OTA production promotion](eas-ota-production-promotion.md) — Keep preview OTA automatic on `main`; release production OTA intentionally by pushing reviewed code to a dedicated branch.
 - [Express middleware typing](express-middleware-typing.md) — Typed single middleware handlers preserve route parameter inference; passing middleware arrays may leave route handlers implicit-any.
 - [Presentazione email nei ticket](forwarded-email-cleanup.md) — Conservare il testo integrale; evidenziare il messaggio e attenuare visivamente intestazioni e firma.
 - [Effective permission contract](effective-permission-contract.md) — Keep auth payload permissions aligned with final server access; expose group-only inheritance separately.
