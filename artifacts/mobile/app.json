@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TaskDesk",
-    "slug": "workspace",
+    "slug": "taskdesk",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/taskdesk-app-icon.png",
