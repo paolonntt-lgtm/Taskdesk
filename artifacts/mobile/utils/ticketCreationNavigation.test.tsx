@@ -447,7 +447,7 @@ describe("mobile ticket creation navigation", () => {
     expect(mocks.push).toHaveBeenCalledWith("/clients/31");
   });
 
-  it("hides client suggestions and blocks client navigation when access is disabled in place", async () => {
+  it("hides and restores client suggestions when access is toggled in place", async () => {
     mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
     mocks.clients = [
       { id: 31, name: "Studio Aurora", alias: "Aurora" },
@@ -484,6 +484,20 @@ describe("mobile ticket creation navigation", () => {
 
     await act(async () => staleSuggestion?.click());
     expect(mocks.push).not.toHaveBeenCalledWith("/clients/31");
+
+    mocks.organizationSettings = { clientsEnabled: true, timeTrackingModuleEnabled: false };
+    await render(TabLayout);
+
+    const restoredSuggestion = host.querySelector<HTMLButtonElement>('[data-testid="dashboard-client-result-31"]');
+    expect(host.querySelector('[data-header-route="index"]')).toBe(dashboardHeader);
+    expect(host.querySelector('[data-testid="dashboard-header-search"]')).toBe(input);
+    expect(input?.value).toBe("aurora");
+    expect(mocks.clientSearchQuery?.queryKey[2]).toBe("aurora");
+    expect(mocks.clientSearchQuery?.enabled).toBe(true);
+    expect(restoredSuggestion?.textContent).toContain("Studio Aurora");
+
+    await act(async () => restoredSuggestion?.click());
+    expect(mocks.push).toHaveBeenCalledWith("/clients/31");
   });
 
   it("shows matching ticket suggestions and opens the selected ticket", async () => {
