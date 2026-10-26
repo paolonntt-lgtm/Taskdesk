@@ -2,8 +2,14 @@ export type Lang = 'it' | 'en';
 
 const it = {
   login: {
+    eyebrow: 'IL TUO SPAZIO DI LAVORO',
     signIn: 'Accedi al tuo account',
     register: 'Crea un account gratuito',
+    loginIntro: 'Riprendi da dove avevi lasciato.',
+    registerIntro: 'Crea il tuo accesso e organizza il lavoro.',
+    secureNote: 'Accesso sicuro al tuo spazio di lavoro',
+    showPassword: 'Mostra password',
+    hidePassword: 'Nascondi password',
     email: 'Email',
     password: 'Password',
     name: 'Nome e Cognome',
@@ -473,8 +479,14 @@ const it = {
 
 const en: typeof it = {
   login: {
+    eyebrow: 'YOUR WORKSPACE',
     signIn: 'Sign in to your account',
     register: 'Create a free account',
+    loginIntro: 'Pick up where you left off.',
+    registerIntro: 'Create your account and organize your work.',
+    secureNote: 'Secure access to your workspace',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     email: 'Email',
     password: 'Password',
     name: 'Full Name',
