@@ -237,7 +237,10 @@ vi.mock("@tanstack/react-query", () => ({
     }
     if (queryKey[0] === "mobile-dashboard-ticket-search") {
       return {
-        data: mocks.dashboardTickets,
+        data: {
+          search: String(queryKey[2] ?? ""),
+          results: mocks.dashboardTickets,
+        },
         isLoading: false,
         isFetching: false,
         isError: false,

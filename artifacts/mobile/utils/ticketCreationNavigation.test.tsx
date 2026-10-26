@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     queryFn: () => Promise<unknown>;
     enabled?: boolean;
   },
+  searchResultsByQuery: {} as Record<string, { search: string; results: unknown[] }>,
   apiGet: vi.fn(),
   ticketSearchResults: [] as { id: number; title: string; status?: string | null }[],
   ticketSearchResultsByOrganization: null as null | Record<
@@ -302,13 +303,21 @@ vi.mock("@tanstack/react-query", () => ({
       data: isOrganizationSettings
         ? mocks.organizationSettings
         : queryKey[0] === "mobile-dashboard-client-search"
-          ? typeof queryKey[1] === "number" && mocks.clientResultsByOrganization
-            ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
-            : mocks.clients
+          ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
+              search: String(queryKey[2] ?? ""),
+              results:
+                typeof queryKey[1] === "number" && mocks.clientResultsByOrganization
+                  ? mocks.clientResultsByOrganization[queryKey[1]] ?? []
+                  : mocks.clients,
+            }
           : isTicketSearch
-            ? typeof queryKey[1] === "number" && mocks.ticketSearchResultsByOrganization
-              ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
-              : mocks.ticketSearchResults
+            ? mocks.searchResultsByQuery[JSON.stringify(queryKey)] ?? {
+                search: String(queryKey[2] ?? ""),
+                results:
+                  typeof queryKey[1] === "number" && mocks.ticketSearchResultsByOrganization
+                    ? mocks.ticketSearchResultsByOrganization[queryKey[1]] ?? []
+                    : mocks.ticketSearchResults,
+              }
             : mocks.notifications,
       isLoading:
         (queryKey[0] === "mobile-dashboard-client-search" && mocks.clientSearchLoading) ||
@@ -369,6 +378,7 @@ describe("mobile ticket creation navigation", () => {
     mocks.clientSearchLoading = false;
     mocks.clientSearchError = false;
     mocks.clientSearchRefetch.mockReset();
+    mocks.searchResultsByQuery = {};
     mocks.apiGet.mockReset();
     mocks.ticketSearchResults = [];
     mocks.ticketSearchResultsByOrganization = null;
@@ -496,6 +506,86 @@ describe("mobile ticket creation navigation", () => {
 
     await act(async () => result?.click());
     expect(mocks.push).toHaveBeenCalledWith("/ticket/41");
+  });
+
+  it("keeps the newest ticket suggestions when searches resolve out of order", async () => {
+    type TicketResult = { id: number; title: string; status?: string | null };
+    const pendingRequests = new Map<string, (results: TicketResult[]) => void>();
+    mocks.apiGet.mockImplementation((path: string) => {
+      const search = new URLSearchParams(path.split("?")[1]).get("search") ?? "";
+      return new Promise<TicketResult[]>((resolve) => pendingRequests.set(search, resolve));
+    });
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    const changeSearch = async (value: string) => {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+        input!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+
+    await changeSearch("older");
+    const olderQuery = mocks.ticketSearchQuery!;
+    const olderRequest = olderQuery.queryFn();
+    await changeSearch("newer");
+    const newerQuery = mocks.ticketSearchQuery!;
+    const newerRequest = newerQuery.queryFn();
+
+    let newerData: unknown;
+    await act(async () => {
+      pendingRequests.get("newer")?.([{ id: 52, title: "Newer result" }]);
+      newerData = await newerRequest;
+    });
+    mocks.searchResultsByQuery[JSON.stringify(newerQuery.queryKey)] =
+      newerData as { search: string; results: unknown[] };
+    await render(TabLayout);
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-52"]')).not.toBeNull();
+
+    let olderData: unknown;
+    await act(async () => {
+      pendingRequests.get("older")?.([{ id: 51, title: "Older result" }]);
+      olderData = await olderRequest;
+    });
+    mocks.searchResultsByQuery[JSON.stringify(olderQuery.queryKey)] =
+      olderData as { search: string; results: unknown[] };
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-52"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-51"]')).toBeNull();
+  });
+
+  it("does not restore ticket suggestions when a pending search resolves after clearing", async () => {
+    type TicketResult = { id: number; title: string; status?: string | null };
+    let resolveRequest: ((results: TicketResult[]) => void) | undefined;
+    mocks.apiGet.mockImplementation(() => new Promise<TicketResult[]>((resolve) => {
+      resolveRequest = resolve;
+    }));
+    await render(TabLayout);
+
+    const input = host.querySelector<HTMLInputElement>('[data-testid="dashboard-header-search"]');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "pending");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const pendingQuery = mocks.ticketSearchQuery!;
+    const pendingRequest = pendingQuery.queryFn();
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    let pendingData: unknown;
+    await act(async () => {
+      resolveRequest?.([{ id: 53, title: "Late result" }]);
+      pendingData = await pendingRequest;
+    });
+    mocks.searchResultsByQuery[JSON.stringify(pendingQuery.queryKey)] =
+      pendingData as { search: string; results: unknown[] };
+    await render(TabLayout);
+
+    expect(host.querySelector('[data-testid="dashboard-search-results"]')).toBeNull();
+    expect(host.querySelector('[data-testid="dashboard-ticket-result-53"]')).toBeNull();
   });
 
   it("shows loading and empty states for ticket suggestions", async () => {

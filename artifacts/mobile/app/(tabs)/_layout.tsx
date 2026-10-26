@@ -90,10 +90,12 @@ function DashboardSearchHeader() {
   }, [clientSearch]);
   const clientsQuery = useQuery({
     queryKey: ["mobile-dashboard-client-search", user?.organizationId, debouncedClientSearch, 4],
-    queryFn: () =>
-      apiGet<DashboardClient[]>(
+    queryFn: async () => ({
+      search: debouncedClientSearch,
+      results: await apiGet<DashboardClient[]>(
         `/clients?search=${encodeURIComponent(debouncedClientSearch)}&limit=4`,
       ),
+    }),
     enabled:
       clientsEnabled &&
       clientSearch.length >= 2 &&
@@ -103,15 +105,19 @@ function DashboardSearchHeader() {
   const ticketSearch = clientSearch;
   const ticketsQuery = useQuery({
     queryKey: ["mobile-dashboard-ticket-search", user?.organizationId, ticketSearch],
-    queryFn: () =>
-      apiGet<DashboardTicket[]>(
+    queryFn: async () => ({
+      search: ticketSearch,
+      results: await apiGet<DashboardTicket[]>(
         `/tickets?search=${encodeURIComponent(ticketSearch)}&limit=4`,
       ),
+    }),
     enabled: user?.organizationId != null && ticketSearch.length >= 2,
     staleTime: 10_000,
   });
-  const matchingClients = clientsQuery.data ?? [];
-  const matchingTickets = ticketsQuery.data ?? [];
+  const matchingClients =
+    clientsQuery.data?.search === clientSearch ? clientsQuery.data.results : [];
+  const matchingTickets =
+    ticketsQuery.data?.search === ticketSearch ? ticketsQuery.data.results : [];
 
   const submitSearch = () => {
     const query = search.trim();
