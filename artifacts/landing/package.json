@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "pnpm run check:wordmark && node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node prerender.mjs && node ../../scripts/security-check.mjs",
+    "build": "pnpm run check:wordmark && pnpm run check:brand-icons && node ../../scripts/security-check.mjs && vite build --config vite.config.ts && node prerender.mjs && node ../../scripts/security-check.mjs",
     "serve": "node server.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run check:wordmark && pnpm run check:wordmark-visual && vitest run && pnpm run test:prerendered",
+    "test": "pnpm run check:wordmark && pnpm run check:brand-icons && pnpm run check:wordmark-visual && vitest run && pnpm run test:prerendered",
     "test:prerendered": "pnpm run build && node scripts/verify-prerendered-routes.mjs && node --test server.test.mjs",
     "check:wordmark": "node ../../scripts/check-taskdesk-wordmark.mjs",
+    "check:brand-icons": "node ../../scripts/generate-taskdesk-icons.mjs --check",
     "check:wordmark-visual": "node ../../scripts/check-wordmark-visual.mjs"
   },
   "devDependencies": {
