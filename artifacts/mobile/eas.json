@@ -24,7 +24,11 @@
         "EXPO_PUBLIC_DOMAIN": "taskdesk.replit.app"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "ios": {
+        "image": "latest"
       },
       "channel": "preview"
     },
