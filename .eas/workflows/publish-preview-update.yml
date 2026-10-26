@@ -36,6 +36,17 @@ jobs:
       channel: preview
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
 
+  get_ios_preview_build:
+    name: Find a matching preview iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: preview
+      distribution: internal
+      channel: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
   publish_preview_update:
     name: Publish to the preview channel
     needs: [get_preview_build]
@@ -47,3 +58,15 @@ jobs:
     params:
       channel: preview
       platform: android
+
+  publish_ios_preview_update:
+    name: Publish iOS to the preview channel
+    needs: [get_ios_preview_build]
+    if: ${{ needs.get_ios_preview_build.outputs.build_id }}
+    type: update
+    environment: preview
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+    params:
+      channel: preview
+      platform: ios

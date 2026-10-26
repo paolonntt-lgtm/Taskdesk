@@ -31,6 +31,17 @@ jobs:
       channel: production
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
 
+  get_ios_production_build:
+    name: Find a matching production iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      channel: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
   publish_production_update:
     name: Promote to the production channel
     needs: [get_production_build]
@@ -42,3 +53,15 @@ jobs:
     params:
       channel: production
       platform: android
+
+  publish_ios_production_update:
+    name: Promote iOS to the production channel
+    needs: [get_ios_production_build]
+    if: ${{ needs.get_ios_production_build.outputs.build_id }}
+    type: update
+    environment: production
+    env:
+      EXPO_PUBLIC_DOMAIN: www.taskdesk.it
+    params:
+      channel: production
+      platform: ios
