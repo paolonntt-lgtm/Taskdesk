@@ -11,7 +11,7 @@ function fail(message) {
   throw new Error(`[android-adaptive-icon] ${message}`);
 }
 
-function parsePng(buffer, filePath) {
+function parsePng(buffer, filePath, { includePixels = false } = {}) {
   if (buffer.length < PNG_SIGNATURE.length || !buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     fail(`${filePath} is not a valid PNG file.`);
   }
@@ -107,6 +107,7 @@ function parsePng(buffer, filePath) {
   }
 
   let previousRow = Buffer.alloc(stride);
+  const rgba = includePixels ? Buffer.alloc(header.width * header.height * 4) : undefined;
   const visibleBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
   const nonWhiteBounds = { minX: header.width, minY: header.height, maxX: -1, maxY: -1 };
   let maxVisibleRadiusSquared = 0;
@@ -218,6 +219,14 @@ function parsePng(buffer, filePath) {
           distanceX * distanceX + distanceY * distanceY,
         );
       }
+
+      if (rgba) {
+        const pixelOffset = (y * header.width + x) * 4;
+        rgba[pixelOffset] = red;
+        rgba[pixelOffset + 1] = green;
+        rgba[pixelOffset + 2] = blue;
+        rgba[pixelOffset + 3] = alpha;
+      }
     }
 
     previousRow = row;
@@ -225,6 +234,7 @@ function parsePng(buffer, filePath) {
 
   return {
     ...header,
+    ...(rgba ? { rgba } : {}),
     visibleBounds,
     nonWhiteBounds,
     maxVisibleRadius: Math.sqrt(maxVisibleRadiusSquared),
@@ -254,6 +264,277 @@ function getConfiguredAsset(projectRoot, assetPath, label, configPath) {
     if (error.message.startsWith("[android-adaptive-icon]")) throw error;
     fail(`Cannot inspect ${assetPath}: ${error.message}`);
   }
+}
+
+function linearizeColor(channel) {
+  const normalized = channel / 255;
+  return normalized <= 0.04045
+    ? normalized / 12.92
+    : ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(red, green, blue) {
+  return (
+    0.2126 * linearizeColor(red) +
+    0.7152 * linearizeColor(green) +
+    0.0722 * linearizeColor(blue)
+  );
+}
+
+function contrastRatio(first, second) {
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function downsampleRgba(image, size) {
+  const pixels = [];
+  const sourceScale = image.width / size;
+
+  for (let outputY = 0; outputY < size; outputY += 1) {
+    const top = outputY * sourceScale;
+    const bottom = (outputY + 1) * sourceScale;
+    for (let outputX = 0; outputX < size; outputX += 1) {
+      const left = outputX * sourceScale;
+      const right = (outputX + 1) * sourceScale;
+      let alphaSum = 0;
+      let redSum = 0;
+      let greenSum = 0;
+      let blueSum = 0;
+      let weightSum = 0;
+
+      for (let sourceY = Math.floor(top); sourceY < Math.ceil(bottom); sourceY += 1) {
+        const verticalWeight =
+          Math.min(bottom, sourceY + 1) - Math.max(top, sourceY);
+        for (let sourceX = Math.floor(left); sourceX < Math.ceil(right); sourceX += 1) {
+          const horizontalWeight =
+            Math.min(right, sourceX + 1) - Math.max(left, sourceX);
+          const weight = horizontalWeight * verticalWeight;
+          const sourceOffset = (sourceY * image.width + sourceX) * 4;
+          const alpha = image.rgba[sourceOffset + 3] / 255;
+          alphaSum += alpha * weight;
+          redSum += image.rgba[sourceOffset] * alpha * weight;
+          greenSum += image.rgba[sourceOffset + 1] * alpha * weight;
+          blueSum += image.rgba[sourceOffset + 2] * alpha * weight;
+          weightSum += weight;
+        }
+      }
+
+      const alpha = alphaSum / weightSum;
+      pixels.push({
+        x: outputX,
+        y: outputY,
+        alpha,
+        red: alphaSum > 0 ? redSum / alphaSum : 0,
+        green: alphaSum > 0 ? greenSum / alphaSum : 0,
+        blue: alphaSum > 0 ? blueSum / alphaSum : 0,
+      });
+    }
+  }
+
+  return pixels;
+}
+
+const FAVICON_SIZES = [16, 32, 48];
+const FAVICON_BACKGROUNDS = {
+  light: [241, 243, 244],
+  dark: [32, 33, 36],
+};
+const MINIMUM_FAVICON_CONTRAST = 2;
+const MINIMUM_FAVICON_ALPHA = 0.25;
+
+function checkFaviconRendition(filePath, size, pixels) {
+  const visiblePixels = pixels.filter((pixel) => pixel.alpha >= MINIMUM_FAVICON_ALPHA);
+  const transparentPixels = pixels.filter((pixel) => pixel.alpha < 0.05);
+  if (transparentPixels.length === 0) {
+    fail(`${filePath} loses transparency at ${size}×${size}px.`);
+  }
+
+  const bounds = visiblePixels.reduce(
+    (result, pixel) => ({
+      minX: Math.min(result.minX, pixel.x),
+      minY: Math.min(result.minY, pixel.y),
+      maxX: Math.max(result.maxX, pixel.x),
+      maxY: Math.max(result.maxY, pixel.y),
+    }),
+    { minX: size, minY: size, maxX: -1, maxY: -1 },
+  );
+  if (bounds.maxX < 0) {
+    fail(`${filePath} monogram is not visible at ${size}×${size}px.`);
+  }
+  if (
+    bounds.maxX - bounds.minX + 1 < size * 0.45 ||
+    bounds.maxY - bounds.minY + 1 < size * 0.35
+  ) {
+    fail(
+      `${filePath} monogram is too small to distinguish at ${size}×${size}px ` +
+        `(${bounds.maxX - bounds.minX + 1}×${bounds.maxY - bounds.minY + 1}px).`,
+    );
+  }
+
+  const backgroundChecks = {};
+  for (const [background, backgroundColor] of Object.entries(FAVICON_BACKGROUNDS)) {
+    const backgroundLuminance = relativeLuminance(...backgroundColor);
+    const distinctPixels = visiblePixels.filter((pixel) => {
+      const blendedRed = pixel.red * pixel.alpha + backgroundColor[0] * (1 - pixel.alpha);
+      const blendedGreen = pixel.green * pixel.alpha + backgroundColor[1] * (1 - pixel.alpha);
+      const blendedBlue = pixel.blue * pixel.alpha + backgroundColor[2] * (1 - pixel.alpha);
+      return (
+        contrastRatio(
+          relativeLuminance(blendedRed, blendedGreen, blendedBlue),
+          backgroundLuminance,
+        ) >= MINIMUM_FAVICON_CONTRAST
+      );
+    });
+    const minimumDistinctPixels = Math.ceil(size * size * 0.1);
+    if (distinctPixels.length < minimumDistinctPixels) {
+      fail(
+        `${filePath} monogram is not sufficiently distinguishable on a ${background} ` +
+          `background at ${size}×${size}px (${distinctPixels.length} clear pixels; ` +
+          `at least ${minimumDistinctPixels} required).`,
+      );
+    }
+    backgroundChecks[background] = distinctPixels.length;
+  }
+
+  return { size, transparentPixels: transparentPixels.length, backgroundChecks };
+}
+
+function checkFavicon(projectRoot, faviconPath, configPath) {
+  const favicon = getConfiguredAsset(projectRoot, faviconPath, "web.favicon", configPath);
+  if (favicon.width !== favicon.height) {
+    fail(`${faviconPath} must be square to render consistently in browser tabs.`);
+  }
+  if (favicon.transparentPixelCount === 0) {
+    fail(`${faviconPath} must preserve transparent pixels around the monogram.`);
+  }
+  const faviconWithPixels = parsePng(
+    fs.readFileSync(path.resolve(projectRoot, faviconPath)),
+    faviconPath,
+    { includePixels: true },
+  );
+
+  return {
+    faviconPath,
+    renditions: FAVICON_SIZES.map((size) =>
+      checkFaviconRendition(faviconPath, size, downsampleRgba(faviconWithPixels, size)),
+    ),
+  };
+}
+
+function parseIcoFrames(buffer, filePath) {
+  if (
+    buffer.length < 6 ||
+    buffer.readUInt16LE(0) !== 0 ||
+    buffer.readUInt16LE(2) !== 1
+  ) {
+    fail(`${filePath} is not a valid Windows icon file.`);
+  }
+  const frameCount = buffer.readUInt16LE(4);
+  if (frameCount === 0 || 6 + frameCount * 16 > buffer.length) {
+    fail(`${filePath} has an invalid icon directory.`);
+  }
+
+  const frames = [];
+  for (let index = 0; index < frameCount; index += 1) {
+    const entryOffset = 6 + index * 16;
+    const width = buffer[entryOffset] || 256;
+    const height = buffer[entryOffset + 1] || 256;
+    const dataLength = buffer.readUInt32LE(entryOffset + 8);
+    const dataOffset = buffer.readUInt32LE(entryOffset + 12);
+    const dataEnd = dataOffset + dataLength;
+    if (dataOffset < 6 + frameCount * 16 || dataEnd > buffer.length) {
+      fail(`${filePath} has an invalid ${width}×${height}px frame range.`);
+    }
+    const frameData = buffer.subarray(dataOffset, dataEnd);
+
+    if (frameData.subarray(0, 8).equals(PNG_SIGNATURE)) {
+      const image = parsePng(frameData, `${filePath} (${width}×${height}px)`, {
+        includePixels: true,
+      });
+      if (image.width !== width || image.height !== height) {
+        fail(`${filePath} frame directory dimensions do not match the embedded PNG.`);
+      }
+      frames.push({ width, height, rgba: image.rgba });
+      continue;
+    }
+
+    if (frameData.length < 40) {
+      fail(`${filePath} has a truncated ${width}×${height}px bitmap frame.`);
+    }
+    const headerSize = frameData.readUInt32LE(0);
+    const bitmapWidth = frameData.readInt32LE(4);
+    const bitmapHeight = Math.abs(frameData.readInt32LE(8));
+    const bitDepth = frameData.readUInt16LE(14);
+    const compression = frameData.readUInt32LE(16);
+    if (
+      headerSize < 40 ||
+      bitmapWidth !== width ||
+      bitmapHeight !== height * 2 ||
+      bitDepth !== 32 ||
+      compression !== 0
+    ) {
+      fail(
+        `${filePath} ${width}×${height}px frame must use an uncompressed 32-bit icon bitmap.`,
+      );
+    }
+    const rowStride = Math.ceil((width * bitDepth) / 32) * 4;
+    const pixelDataOffset = headerSize;
+    const pixelDataEnd = pixelDataOffset + rowStride * height;
+    if (pixelDataEnd > frameData.length) {
+      fail(`${filePath} has truncated pixel data in its ${width}×${height}px frame.`);
+    }
+    const rgba = Buffer.alloc(width * height * 4);
+    const topDown = frameData.readInt32LE(8) < 0;
+    for (let y = 0; y < height; y += 1) {
+      const sourceY = topDown ? y : height - 1 - y;
+      for (let x = 0; x < width; x += 1) {
+        const sourceOffset = pixelDataOffset + sourceY * rowStride + x * 4;
+        const targetOffset = (y * width + x) * 4;
+        rgba[targetOffset] = frameData[sourceOffset + 2];
+        rgba[targetOffset + 1] = frameData[sourceOffset + 1];
+        rgba[targetOffset + 2] = frameData[sourceOffset];
+        rgba[targetOffset + 3] = frameData[sourceOffset + 3];
+      }
+    }
+    frames.push({ width, height, rgba });
+  }
+
+  return frames;
+}
+
+function checkExportedFavicon(projectRoot, icoPath) {
+  const absolutePath = path.resolve(projectRoot, icoPath);
+  if (!fs.existsSync(absolutePath)) {
+    fail(`Exported favicon does not exist: ${icoPath}.`);
+  }
+  const buffer = fs.readFileSync(absolutePath);
+  const frames = parseIcoFrames(buffer, icoPath);
+  const sizes = frames.map(({ width, height }) => `${width}×${height}`);
+  const expectedSizes = FAVICON_SIZES.map((size) => `${size}×${size}`);
+  if (
+    sizes.length !== expectedSizes.length ||
+    expectedSizes.some((size) => !sizes.includes(size))
+  ) {
+    fail(
+      `${icoPath} must contain exactly 16×16, 32×32, and 48×48px frames; ` +
+        `found ${sizes.join(", ")}.`,
+    );
+  }
+  const renditions = frames
+    .sort((first, second) => first.width - second.width)
+    .map(({ width, height, rgba }) => {
+      const pixels = Array.from({ length: width * height }, (_, index) => ({
+        x: index % width,
+        y: Math.floor(index / width),
+        red: rgba[index * 4],
+        green: rgba[index * 4 + 1],
+        blue: rgba[index * 4 + 2],
+        alpha: rgba[index * 4 + 3] / 255,
+      }));
+      return checkFaviconRendition(icoPath, width, pixels);
+    });
+  return { icoPath, renditions };
 }
 
 function checkCenteredSplash(projectRoot, imagePath, label, configPath) {
@@ -406,6 +687,13 @@ function checkAdaptiveIcon(projectRoot) {
     fail(`${notificationImagePath} must contain only white visible pixels.`);
   }
 
+  const faviconPath = config?.expo?.web?.favicon;
+  if (typeof faviconPath !== "string" || faviconPath.trim() === "") {
+    fail(`Expo config ${configPath} must set expo.web.favicon.`);
+  }
+  const favicon = checkFavicon(projectRoot, faviconPath, configPath);
+  const exportedFavicon = checkExportedFavicon(projectRoot, "./static-build/favicon.ico");
+
   return {
     foregroundImage,
     width: image.width,
@@ -420,6 +708,7 @@ function checkAdaptiveIcon(projectRoot) {
     notificationImagePath,
     notificationWidth: notificationImage.width,
     notificationHeight: notificationImage.height,
+    favicon: { ...favicon, exported: exportedFavicon },
   };
 }
 
@@ -439,10 +728,36 @@ if (require.main === module) {
         `(${result.splashWidth}×${result.splashHeight}, centered on opaque background); ` +
         `${result.notificationImagePath} (${result.notificationWidth}×${result.notificationHeight}, white on transparency).`,
     );
+    console.log(
+      `[android-adaptive-icon] Favicon checks passed: ${result.favicon.faviconPath}; ` +
+        result.favicon.renditions
+          .map(
+            ({ size, transparentPixels, backgroundChecks }) =>
+              `${size}×${size}px (${transparentPixels} transparent, ` +
+              `${backgroundChecks.light}/${backgroundChecks.dark} clear pixels on light/dark)`,
+          )
+          .join("; "),
+    );
+    console.log(
+      `[android-adaptive-icon] Exported favicon checks passed: ${result.favicon.exported.icoPath}; ` +
+        result.favicon.exported.renditions
+          .map(
+            ({ size, transparentPixels, backgroundChecks }) =>
+              `${size}×${size}px (${transparentPixels} transparent, ` +
+              `${backgroundChecks.light}/${backgroundChecks.dark} clear pixels on light/dark)`,
+          )
+          .join("; "),
+    );
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
   }
 }
 
-module.exports = { checkAdaptiveIcon, parsePng };
+module.exports = {
+  checkAdaptiveIcon,
+  checkExportedFavicon,
+  checkFavicon,
+  parseIcoFrames,
+  parsePng,
+};

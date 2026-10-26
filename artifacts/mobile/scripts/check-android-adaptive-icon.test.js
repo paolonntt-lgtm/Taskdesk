@@ -7,7 +7,12 @@ import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 
 const require = createRequire(import.meta.url);
-const { checkAdaptiveIcon, parsePng } = require("./check-android-adaptive-icon.js");
+const {
+  checkAdaptiveIcon,
+  checkExportedFavicon,
+  checkFavicon,
+  parsePng,
+} = require("./check-android-adaptive-icon.js");
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const temporaryProjects = [];
 
@@ -132,11 +137,66 @@ function unsupportedColorTypePng(colorType) {
   ]);
 }
 
+function makeFaviconPixels({ color = [45, 95, 255], alpha = 255, xStart = 20, xEnd = 87, yStart = 20, yEnd = 87 } = {}) {
+  const pixels = [];
+  for (let y = yStart; y <= yEnd; y += 1) {
+    for (let x = xStart; x <= xEnd; x += 1) {
+      pixels.push({ x, y, color, alpha });
+    }
+  }
+  return rgbaPng(108, 108, pixels);
+}
+
+function makeIco({ color = [45, 95, 255], opaque = false } = {}) {
+  const sizes = [16, 32, 48];
+  const frameBuffers = sizes.map((size) => {
+    const maskStride = Math.ceil(size / 32) * 4;
+    const bitmap = Buffer.alloc(40 + size * size * 4 + maskStride * size);
+    bitmap.writeUInt32LE(40, 0);
+    bitmap.writeInt32LE(size, 4);
+    bitmap.writeInt32LE(size * 2, 8);
+    bitmap.writeUInt16LE(1, 12);
+    bitmap.writeUInt16LE(32, 14);
+    bitmap.writeUInt32LE(0, 16);
+    bitmap.writeUInt32LE(size * size * 4, 20);
+    const inset = Math.ceil(size * 0.2);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const isMark = x >= inset && x < size - inset && y >= inset && y < size - inset;
+        const pixelOffset = 40 + ((size - 1 - y) * size + x) * 4;
+        bitmap[pixelOffset] = color[2];
+        bitmap[pixelOffset + 1] = color[1];
+        bitmap[pixelOffset + 2] = color[0];
+        bitmap[pixelOffset + 3] = opaque || isMark ? 255 : 0;
+      }
+    }
+    return bitmap;
+  });
+
+  const directory = Buffer.alloc(6 + sizes.length * 16);
+  directory.writeUInt16LE(0, 0);
+  directory.writeUInt16LE(1, 2);
+  directory.writeUInt16LE(sizes.length, 4);
+  let offset = directory.length;
+  for (let index = 0; index < sizes.length; index += 1) {
+    const entryOffset = 6 + index * 16;
+    directory[entryOffset] = sizes[index];
+    directory[entryOffset + 1] = sizes[index];
+    directory.writeUInt16LE(1, entryOffset + 4);
+    directory.writeUInt16LE(32, entryOffset + 6);
+    directory.writeUInt32LE(frameBuffers[index].length, entryOffset + 8);
+    directory.writeUInt32LE(offset, entryOffset + 12);
+    offset += frameBuffers[index].length;
+  }
+  return Buffer.concat([directory, ...frameBuffers]);
+}
+
 function createProject({
   width = 108,
   height = 108,
   visiblePixels = [{ x: 35, y: 35 }],
   foreground = rgbaPng(width, height, visiblePixels),
+  favicon = makeFaviconPixels(),
 } = {}) {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "android-adaptive-icon-"));
   temporaryProjects.push(projectRoot);
@@ -145,6 +205,7 @@ function createProject({
     path.join(projectRoot, "app.json"),
     JSON.stringify({
       expo: {
+        web: { favicon: "./assets/favicon.png" },
         android: {
           adaptiveIcon: { foregroundImage: "./assets/foreground.png" },
         },
@@ -167,6 +228,9 @@ function createProject({
     path.join(projectRoot, "assets/notification.png"),
     rgbaPng(96, 96, [{ x: 48, y: 48 }]),
   );
+  fs.writeFileSync(path.join(projectRoot, "assets/favicon.png"), favicon);
+  fs.mkdirSync(path.join(projectRoot, "static-build"));
+  fs.writeFileSync(path.join(projectRoot, "static-build/favicon.ico"), makeIco());
   return projectRoot;
 }
 
@@ -396,6 +460,83 @@ describe("mobile shared app icon, splash, and favicon asset", () => {
           (adaptiveForeground.visibleBounds.maxX - adaptiveForeground.visibleBounds.minX + 1),
       ),
     );
+    const faviconCheck = checkAdaptiveIcon(projectRoot).favicon;
+    expect(faviconCheck.renditions.map(({ size }) => size)).toEqual([16, 32, 48]);
+    for (const rendition of faviconCheck.renditions) {
+      expect(rendition.transparentPixels).toBeGreaterThan(0);
+      expect(rendition.backgroundChecks.light).toBeGreaterThan(0);
+      expect(rendition.backgroundChecks.dark).toBeGreaterThan(0);
+    }
+    expect(
+      faviconCheck.exported.renditions.map(({ size }) => size),
+    ).toEqual([16, 32, 48]);
+    for (const rendition of faviconCheck.exported.renditions) {
+      expect(rendition.transparentPixels).toBeGreaterThan(0);
+      expect(rendition.backgroundChecks.light).toBeGreaterThan(0);
+      expect(rendition.backgroundChecks.dark).toBeGreaterThan(0);
+    }
+  });
+
+  it("rejects a favicon that loses transparency in a small tab rendition", () => {
+    const opaqueFavicon = rgbaPng(
+      108,
+      108,
+      Array.from({ length: 108 * 108 }, (_, index) => ({
+        x: index % 108,
+        y: Math.floor(index / 108),
+        color: [45, 95, 255],
+      })),
+      [45, 95, 255, 255],
+    );
+    const projectRoot = createProject({ favicon: opaqueFavicon });
+
+    expect(() => checkFavicon(projectRoot, "./assets/favicon.png", "app.json")).toThrow(
+      /must preserve transparent pixels/,
+    );
+  });
+
+  it("rejects a monogram that disappears against a dark browser tab", () => {
+    const projectRoot = createProject({
+      favicon: makeFaviconPixels({ color: [0, 0, 0] }),
+    });
+
+    expect(() => checkFavicon(projectRoot, "./assets/favicon.png", "app.json")).toThrow(
+      /not sufficiently distinguishable on a dark background at 16×16px/,
+    );
+  });
+
+  it("rejects a monogram that is too small to distinguish in a browser tab", () => {
+    const projectRoot = createProject({
+      favicon: makeFaviconPixels({ xStart: 49, xEnd: 58, yStart: 49, yEnd: 58 }),
+    });
+
+    expect(() => checkFavicon(projectRoot, "./assets/favicon.png", "app.json")).toThrow(
+      /monogram is too small to distinguish at 16×16px/,
+    );
+  });
+
+  it("checks the actual exported ICO frames and rejects a mark that disappears on dark tabs", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "static-build/favicon.ico"),
+      makeIco({ color: [0, 0, 0] }),
+    );
+
+    expect(() =>
+      checkExportedFavicon(projectRoot, "./static-build/favicon.ico"),
+    ).toThrow(/not sufficiently distinguishable on a dark background at 16×16px/);
+  });
+
+  it("rejects an exported ICO frame that has lost its transparent corners", () => {
+    const projectRoot = createProject();
+    fs.writeFileSync(
+      path.join(projectRoot, "static-build/favicon.ico"),
+      makeIco({ opaque: true }),
+    );
+
+    expect(() =>
+      checkExportedFavicon(projectRoot, "./static-build/favicon.ico"),
+    ).toThrow(/loses transparency at 16×16px/);
   });
 
   it("uses a square 1024-pixel iOS app icon source to avoid aspect-ratio distortion", () => {
