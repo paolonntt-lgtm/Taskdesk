@@ -412,6 +412,64 @@ describe("ticket time tracking", () => {
       body: JSON.stringify({ title: `Permission edit ${runId}` }),
     });
     expect(permissionEdit.status).toBe(200);
+    const permissionStatusEdit = await request(`/api/tickets/${authorizationTicket.id}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress" }),
+    });
+    expect(permissionStatusEdit.status).toBe(200);
+
+    await db.update(groupsTable)
+      .set({ permissions: JSON.stringify([]) })
+      .where(eq(groupsTable.id, statusGroupId));
+    const revokedGroupStatusEdit = await request(`/api/tickets/${authorizationTicket.id}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "closed" }),
+    });
+    expect(revokedGroupStatusEdit.status).toBe(403);
+    const revokedGroupContentEdit = await request(`/api/tickets/${authorizationTicket.id}`, groupStatusManagerSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Revoked group edit ${runId}` }),
+    });
+    expect(revokedGroupContentEdit.status).toBe(403);
+    let persistedAuthorizationTicket = await db.select({
+      title: ticketsTable.title,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, authorizationTicket.id));
+    expect(persistedAuthorizationTicket[0]).toEqual({
+      title: `Permission edit ${runId}`,
+      status: "in_progress",
+    });
+    await db.update(groupsTable)
+      .set({ permissions: JSON.stringify(["change_status"]) })
+      .where(eq(groupsTable.id, statusGroupId));
+
+    await db.update(usersTable)
+      .set({ permissionOverrides: JSON.stringify({ change_status: "grant" }) })
+      .where(eq(usersTable.id, raceCollaboratorId));
+    const individualPermissionStatusEdit = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "waiting" }),
+    });
+    expect(individualPermissionStatusEdit.status).toBe(200);
+    const individualPermissionContentEdit = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Individual permission edit ${runId}` }),
+    });
+    expect(individualPermissionContentEdit.status).toBe(200);
+
+    await db.update(usersTable)
+      .set({ permissionOverrides: JSON.stringify({}) })
+      .where(eq(usersTable.id, raceCollaboratorId));
+    const revokedIndividualStatusEdit = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "closed" }),
+    });
+    expect(revokedIndividualStatusEdit.status).toBe(403);
+    const revokedIndividualContentEdit = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ title: `Revoked individual edit ${runId}` }),
+    });
+    expect(revokedIndividualContentEdit.status).toBe(403);
 
     const unauthorizedStatusChange = await request(`/api/tickets/${authorizationTicket.id}`, raceSessionId, {
       method: "PATCH",
@@ -423,12 +481,12 @@ describe("ticket time tracking", () => {
       body: JSON.stringify({ title: `Unauthorized edit ${runId}` }),
     });
     expect(unauthorizedContentChange.status).toBe(403);
-    const persistedAuthorizationTicket = await db.select({
+    persistedAuthorizationTicket = await db.select({
       title: ticketsTable.title,
       status: ticketsTable.status,
     }).from(ticketsTable).where(eq(ticketsTable.id, authorizationTicket.id));
     expect(persistedAuthorizationTicket[0]).toEqual({
-      title: `Permission edit ${runId}`,
+      title: `Individual permission edit ${runId}`,
       status: "waiting",
     });
 
