@@ -199,6 +199,15 @@ export interface AcquisitionStats {
   bySource: AcquisitionStatsBySourceItem[];
 }
 
+export interface TicketCreationStats {
+  today: number;
+  yesterday: number;
+  /** Number created during the last seven rolling days. */
+  last7Days: number;
+  /** Number created during the last thirty rolling days. */
+  last30Days: number;
+}
+
 export interface SuperadminOrganizationUser {
   id: number;
   name: string;
@@ -218,14 +227,14 @@ export interface SuperadminOrganizationSummary {
   createdAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
-  /** Non-deleted, non-closed tickets, excluding system-created tickets except external tickets. */
-  openTickets: number;
+  ticketCreationStats: TicketCreationStats;
   users: SuperadminOrganizationUser[];
 }
 
 export interface SuperadminOrganizationsResponse {
   organizations: SuperadminOrganizationSummary[];
   hiddenCount: number;
+  ticketCreationStats: TicketCreationStats;
 }
 
 export interface LoginRequest {

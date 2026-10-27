@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SuperadminOrganizationUser } from './superadminOrganizationUser';
+import type { TicketCreationStats } from './ticketCreationStats';
 
 export interface SuperadminOrganizationSummary {
   id: number;
@@ -13,7 +14,6 @@ export interface SuperadminOrganizationSummary {
   createdAt: Date | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
-  /** Non-deleted, non-closed tickets, excluding system-created tickets except external tickets. */
-  openTickets: number;
+  ticketCreationStats: TicketCreationStats;
   users: SuperadminOrganizationUser[];
 }

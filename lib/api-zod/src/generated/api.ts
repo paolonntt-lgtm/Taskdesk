@@ -3614,7 +3614,12 @@ export const GetSuperadminOrganizationsResponse = zod.object({
   "createdAt": zod.coerce.date().nullable(),
   "hiddenFromSuperadmin": zod.boolean(),
   "totalTickets": zod.int(),
-  "openTickets": zod.int().describe('Non-deleted, non-closed tickets, excluding system-created tickets except external tickets.'),
+  "ticketCreationStats": zod.object({
+  "today": zod.int(),
+  "yesterday": zod.int(),
+  "last7Days": zod.int().describe('Number created during the last seven rolling days.'),
+  "last30Days": zod.int().describe('Number created during the last thirty rolling days.')
+}),
   "users": zod.array(zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -3628,7 +3633,13 @@ export const GetSuperadminOrganizationsResponse = zod.object({
   "avatarUrl": zod.string().nullable()
 }))
 })),
-  "hiddenCount": zod.int()
+  "hiddenCount": zod.int(),
+  "ticketCreationStats": zod.object({
+  "today": zod.int(),
+  "yesterday": zod.int(),
+  "last7Days": zod.int().describe('Number created during the last seven rolling days.'),
+  "last30Days": zod.int().describe('Number created during the last thirty rolling days.')
+})
 })
 
 

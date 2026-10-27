@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, organizationsTable, ticketsTable, ticketStatusesTable, bugReportsTable } from "@workspace/db";
+import { db, usersTable, organizationsTable, ticketsTable, bugReportsTable } from "@workspace/db";
 import { eq, desc, and, sql, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
@@ -12,7 +12,10 @@ const ONLINE_WINDOW_MS = 5 * 60_000;
 
 router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
   const includeHidden = req.query.includeHidden === "true";
-  const [rows, ticketCounts, openTicketCounts, hiddenCountRows] = await Promise.all([
+  const localToday = sql`date_trunc('day', now() at time zone 'Europe/Rome')`;
+  const localTodayStart = sql`${localToday} at time zone 'Europe/Rome'`;
+  const localYesterdayStart = sql`(${localToday} - interval '1 day') at time zone 'Europe/Rome'`;
+  const [rows, ticketCounts, createdTicketCounts, hiddenCountRows] = await Promise.all([
     db
       .select({
         orgId: organizationsTable.id,
@@ -52,16 +55,15 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     db
       .select({
         organizationId: ticketsTable.organizationId,
-        openCount: sql<number>`count(*)::int`,
+        today: sql<number>`count(*) filter (where ${ticketsTable.createdAt} >= ${localTodayStart})::int`,
+        yesterday: sql<number>`count(*) filter (
+          where ${ticketsTable.createdAt} >= ${localYesterdayStart}
+            and ${ticketsTable.createdAt} < ${localTodayStart}
+        )::int`,
+        last7Days: sql<number>`count(*) filter (where ${ticketsTable.createdAt} >= now() - interval '7 days')::int`,
+        last30Days: sql<number>`count(*) filter (where ${ticketsTable.createdAt} >= now() - interval '30 days')::int`,
       })
       .from(ticketsTable)
-      .leftJoin(
-        ticketStatusesTable,
-        and(
-          eq(ticketStatusesTable.organizationId, ticketsTable.organizationId),
-          eq(ticketStatusesTable.key, ticketsTable.status),
-        ),
-      )
       .innerJoin(usersTable, eq(usersTable.id, ticketsTable.createdBy))
       .where(and(
         isNotNull(ticketsTable.organizationId),
@@ -70,11 +72,6 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
           eq(usersTable.isSystem, false),
           sql`lower(trim(coalesce(${ticketsTable.location}, ''))) = 'esterno'`,
         ),
-        sql`case
-          when ${ticketStatusesTable.key} is null
-            then ${ticketsTable.status} not in ('resolved', 'closed')
-          else ${ticketStatusesTable.isClosed} = false
-        end`,
       ))
       .groupBy(ticketsTable.organizationId),
 
@@ -88,10 +85,31 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
   for (const row of ticketCounts) {
     if (row.organizationId != null) totalByOrg.set(row.organizationId, row.totalCount);
   }
-  const openByOrg = new Map<number, number>();
-  for (const row of openTicketCounts) {
-    if (row.organizationId != null) openByOrg.set(row.organizationId, row.openCount);
+  const createdByOrg = new Map<number, {
+    today: number;
+    yesterday: number;
+    last7Days: number;
+    last30Days: number;
+  }>();
+  for (const row of createdTicketCounts) {
+    if (row.organizationId != null) {
+      createdByOrg.set(row.organizationId, {
+        today: row.today,
+        yesterday: row.yesterday,
+        last7Days: row.last7Days,
+        last30Days: row.last30Days,
+      });
+    }
   }
+  const allOrganizationTicketCreationStats = createdTicketCounts.reduce(
+    (totals, row) => ({
+      today: totals.today + row.today,
+      yesterday: totals.yesterday + row.yesterday,
+      last7Days: totals.last7Days + row.last7Days,
+      last30Days: totals.last30Days + row.last30Days,
+    }),
+    { today: 0, yesterday: 0, last7Days: 0, last30Days: 0 },
+  );
 
   const orgMap = new Map<number, {
     id: number;
@@ -99,7 +117,12 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     createdAt: string | null;
     hiddenFromSuperadmin: boolean;
     totalTickets: number;
-    openTickets: number;
+    ticketCreationStats: {
+      today: number;
+      yesterday: number;
+      last7Days: number;
+      last30Days: number;
+    };
     users: Array<{
       id: number;
       name: string;
@@ -122,7 +145,12 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
         hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,
-        openTickets: openByOrg.get(row.orgId) ?? 0,
+        ticketCreationStats: createdByOrg.get(row.orgId) ?? {
+          today: 0,
+          yesterday: 0,
+          last7Days: 0,
+          last30Days: 0,
+        },
         users: [],
       });
     }
@@ -145,6 +173,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
   res.json({
     organizations: Array.from(orgMap.values()),
     hiddenCount: hiddenCountRows[0]?.count ?? 0,
+    ticketCreationStats: allOrganizationTicketCreationStats,
   });
 });
 

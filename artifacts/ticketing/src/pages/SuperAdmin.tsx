@@ -25,13 +25,27 @@ interface OrgUser {
   avatarUrl: string | null;
 }
 
+interface TicketCreationStats {
+  today: number;
+  yesterday: number;
+  last7Days: number;
+  last30Days: number;
+}
+
+const EMPTY_TICKET_CREATION_STATS: TicketCreationStats = {
+  today: 0,
+  yesterday: 0,
+  last7Days: 0,
+  last30Days: 0,
+};
+
 interface Organization {
   id: number;
   name: string;
   createdAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
-  openTickets: number;
+  ticketCreationStats: TicketCreationStats;
   users: OrgUser[];
 }
 
@@ -71,6 +85,7 @@ export default function SuperAdmin() {
   const sa = t.superadmin;
   const [tab, setTab] = useState(0);
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [ticketCreationTotals, setTicketCreationTotals] = useState<TicketCreationStats>(EMPTY_TICKET_CREATION_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -105,6 +120,7 @@ export default function SuperAdmin() {
       const data = await response.json();
       setOrgs(data.organizations);
       setHiddenCount(data.hiddenCount);
+      setTicketCreationTotals(data.ticketCreationStats);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -251,9 +267,6 @@ export default function SuperAdmin() {
 
   const totalUsers = orgs.reduce((sum, o) => sum + o.users.length, 0);
   const totalTickets = orgs.reduce((sum, o) => sum + o.totalTickets, 0);
-  const totalOpenTickets = orgs.reduce((sum, o) => sum + o.openTickets, 0);
-  const organizationsWithOpenTickets = orgs.filter((org) => org.openTickets > 0).length;
-
   const statusColor = (status: string) => {
     if (status === 'pending') return 'warning';
     if (status === 'replied') return 'info';
@@ -304,7 +317,6 @@ export default function SuperAdmin() {
               <Typography variant="h5" fontWeight={700}>{sa.subscribersTitle}</Typography>
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 {orgs.length} {sa.orgs} · {totalUsers} {sa.activeUsers} · {totalTickets} {sa.totalTickets}
-                {' · '}{totalOpenTickets} {sa.openTickets} · {organizationsWithOpenTickets} {sa.organizationsWithOpenTickets}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
@@ -332,6 +344,31 @@ export default function SuperAdmin() {
                 }}
                 sx={{ minWidth: 260 }}
               />
+            </Box>
+          </Box>
+
+          <Box mb={3}>
+            <Typography variant="subtitle2" color="text.secondary" mb={1}>
+              {sa.createdTicketsByPeriod}
+            </Typography>
+            <Box
+              display="grid"
+              gridTemplateColumns={{ xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }}
+              gap={1.5}
+            >
+              {[
+                [sa.createdToday, ticketCreationTotals.today],
+                [sa.createdYesterday, ticketCreationTotals.yesterday],
+                [sa.createdLast7Days, ticketCreationTotals.last7Days],
+                [sa.createdLast30Days, ticketCreationTotals.last30Days],
+              ].map(([label, count]) => (
+                <Card key={label} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <CardContent sx={{ py: '12px !important' }}>
+                    <Typography variant="caption" color="text.secondary">{label}</Typography>
+                    <Typography variant="h5" fontWeight={700}>{count}</Typography>
+                  </CardContent>
+                </Card>
+              ))}
             </Box>
           </Box>
 
@@ -383,16 +420,15 @@ export default function SuperAdmin() {
                         />
                       </Tooltip>
                     )}
-                    <Tooltip title={sa.openTicketsTooltip}>
-                      <Chip
-                        icon={<ConfirmationNumber sx={{ fontSize: '14px !important' }} />}
-                        label={`${sa.openTickets}: ${org.openTickets}`}
-                        size="small"
-                        color={org.openTickets > 0 ? 'warning' : 'default'}
-                        variant={org.openTickets > 0 ? 'filled' : 'outlined'}
-                        sx={{ fontWeight: 700, fontSize: 12 }}
-                      />
-                    </Tooltip>
+                    <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap" width="100%">
+                      <Typography variant="caption" color="text.secondary" mr={0.25}>
+                        {sa.createdTicketsLabel}
+                      </Typography>
+                      <Chip size="small" variant="outlined" label={`${sa.createdToday}: ${org.ticketCreationStats.today}`} />
+                      <Chip size="small" variant="outlined" label={`${sa.createdYesterday}: ${org.ticketCreationStats.yesterday}`} />
+                      <Chip size="small" variant="outlined" label={`${sa.createdLast7Days}: ${org.ticketCreationStats.last7Days}`} />
+                      <Chip size="small" variant="outlined" label={`${sa.createdLast30Days}: ${org.ticketCreationStats.last30Days}`} />
+                    </Box>
                     {org.hiddenFromSuperadmin && <Chip label={sa.hiddenOrganization} size="small" variant="outlined" />}
                     <Chip
                       label={`#${org.id}`}

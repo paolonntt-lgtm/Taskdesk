@@ -5,7 +5,6 @@ import {
   organizationsTable,
   pool,
   sessionsTable,
-  ticketStatusesTable,
   ticketsTable,
   usersTable,
 } from "@workspace/db";
@@ -20,12 +19,13 @@ let organizationIds: number[] = [];
 let userIds: number[] = [];
 let sessionId: string;
 let ticketIds: number[] = [];
+let baselineTicketCreationStats = { today: 0, yesterday: 0, last7Days: 0, last30Days: 0 };
 
-describe("superadmin open ticket statistics", () => {
+describe("superadmin ticket creation statistics", () => {
   beforeAll(async () => {
     const organizations = await db.insert(organizationsTable).values([
       { name: `Superadmin open stats A ${runId}` },
-      { name: `Superadmin open stats B ${runId}` },
+      { name: `Superadmin open stats B ${runId}`, hiddenFromSuperadmin: true },
     ]).returning({ id: organizationsTable.id });
     organizationIds = organizations.map(({ id }) => id);
     const [orgA, orgB] = organizationIds;
@@ -65,31 +65,6 @@ describe("superadmin open ticket statistics", () => {
     const [superadminId, orgAAdminId, systemUserId, orgBAdminId] = userIds;
     sessionId = await createSession(superadminId);
 
-    await db.insert(ticketStatusesTable).values([
-      { organizationId: orgA, key: "open", label: "Open", isDefault: true, isClosed: false },
-      { organizationId: orgA, key: "resolved", label: "Resolved", isClosed: false },
-      { organizationId: orgA, key: "finished", label: "Finished", isClosed: true },
-      { organizationId: orgB, key: "working", label: "Working", isDefault: true, isClosed: false },
-      { organizationId: orgB, key: "done", label: "Done", isClosed: true },
-    ]);
-
-    const insertedTickets = await db.insert(ticketsTable).values([
-      { organizationId: orgA, createdBy: orgAAdminId, title: "Open", status: "open", location: "Ufficio" },
-      { organizationId: orgA, createdBy: orgAAdminId, title: "Custom active", status: "resolved", location: "Ufficio" },
-      { organizationId: orgA, createdBy: orgAAdminId, title: "Custom closed", status: "finished", location: "Ufficio" },
-      { organizationId: orgA, createdBy: orgAAdminId, title: "Legacy closed", status: "closed", location: "Ufficio" },
-      { organizationId: orgA, createdBy: orgAAdminId, title: "Deleted", status: "open", location: "Ufficio", deletedAt: new Date() },
-      { organizationId: orgA, createdBy: systemUserId, title: "System internal", status: "open", location: "Ufficio" },
-      { organizationId: orgA, createdBy: systemUserId, title: "System external", status: "open", location: " Esterno " },
-      { organizationId: orgB, createdBy: orgBAdminId, title: "Organization B active", status: "working", location: "Ufficio" },
-      { organizationId: orgB, createdBy: orgBAdminId, title: "Organization B closed", status: "done", location: "Ufficio" },
-    ].map((ticket) => ({
-      ...ticket,
-      description: ticket.title,
-      category: "Test",
-    }))).returning({ id: ticketsTable.id });
-    ticketIds = insertedTickets.map(({ id }) => id);
-
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -98,6 +73,45 @@ describe("superadmin open ticket statistics", () => {
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("Test server did not expose an address");
     baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const baselineResponse = await fetch(`${baseUrl}/api/superadmin`, {
+      headers: { Cookie: `session_id=${sessionId}` },
+    });
+    const baselineBody = await baselineResponse.json() as { ticketCreationStats: typeof baselineTicketCreationStats };
+    baselineTicketCreationStats = baselineBody.ticketCreationStats;
+
+    const now = Date.now();
+    const romeDateParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Rome",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(new Date(now));
+    const romePart = (type: string) => Number(romeDateParts.find((part) => part.type === type)?.value);
+    const yesterdayAtNoonUtc = new Date(Date.UTC(
+      romePart("year"),
+      romePart("month") - 1,
+      romePart("day") - 1,
+      12,
+    ));
+    const insertedTickets = await db.insert(ticketsTable).values([
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Created today", location: "Ufficio", createdAt: new Date(now) },
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Created yesterday", status: "closed", location: "Ufficio", createdAt: yesterdayAtNoonUtc },
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Created this week", location: "Ufficio", createdAt: new Date(now - 3 * 24 * 60 * 60_000) },
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Created this month", location: "Ufficio", createdAt: new Date(now - 15 * 24 * 60 * 60_000) },
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Created earlier", location: "Ufficio", createdAt: new Date(now - 45 * 24 * 60 * 60_000) },
+      { organizationId: orgA, createdBy: orgAAdminId, title: "Deleted today", location: "Ufficio", createdAt: new Date(now), deletedAt: new Date() },
+      { organizationId: orgA, createdBy: systemUserId, title: "System internal", location: "Ufficio", createdAt: new Date(now) },
+      { organizationId: orgA, createdBy: systemUserId, title: "System external", location: " Esterno ", createdAt: new Date(now) },
+      { organizationId: orgB, createdBy: orgBAdminId, title: "Organization B today", location: "Ufficio", createdAt: new Date(now) },
+      { organizationId: orgB, createdBy: orgBAdminId, title: "Organization B this month", location: "Ufficio", createdAt: new Date(now - 10 * 24 * 60 * 60_000) },
+    ].map((ticket) => ({
+      ...ticket,
+      description: ticket.title,
+      category: "Test",
+    }))).returning({ id: ticketsTable.id });
+    ticketIds = insertedTickets.map(({ id }) => id);
+
   });
 
   afterAll(async () => {
@@ -107,9 +121,6 @@ describe("superadmin open ticket statistics", () => {
       });
     }
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
-    if (organizationIds.length) {
-      await db.delete(ticketStatusesTable).where(inArray(ticketStatusesTable.organizationId, organizationIds));
-    }
     if (sessionId) await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, sessionId));
     if (userIds.length) await db.delete(usersTable).where(inArray(usersTable.id, userIds));
     if (organizationIds.length) {
@@ -118,15 +129,41 @@ describe("superadmin open ticket statistics", () => {
     await pool.end();
   });
 
-  it("counts non-closed tickets across organizations using each organization's statuses", async () => {
+  it("counts tickets created in each period regardless of status and excludes deleted/internal system tickets", async () => {
     const response = await fetch(`${baseUrl}/api/superadmin`, {
       headers: { Cookie: `session_id=${sessionId}` },
     });
-    const body = await response.json() as { organizations: Array<{ id: number; openTickets: number }> };
-    const byId = new Map(body.organizations.map((organization) => [organization.id, organization]));
+    const body = await response.json() as {
+      organizations: Array<{
+        id: number;
+        ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
+      }>;
+      ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
+    };
 
     expect(response.status).toBe(200);
-    expect(byId.get(organizationIds[0])?.openTickets).toBe(3);
-    expect(byId.get(organizationIds[1])?.openTickets).toBe(1);
+    expect(body.organizations.map((organization) => organization.id)).not.toContain(organizationIds[1]);
+    expect(body.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 3);
+    expect(body.ticketCreationStats.yesterday).toBeGreaterThanOrEqual(baselineTicketCreationStats.yesterday + 1);
+    expect(body.ticketCreationStats.last7Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last7Days + 5);
+    expect(body.ticketCreationStats.last30Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last30Days + 7);
+
+    const allOrganizationsResponse = await fetch(`${baseUrl}/api/superadmin?includeHidden=true`, {
+      headers: { Cookie: `session_id=${sessionId}` },
+    });
+    const allOrganizationsBody = await allOrganizationsResponse.json() as typeof body;
+    const byId = new Map(allOrganizationsBody.organizations.map((organization) => [organization.id, organization]));
+    expect(byId.get(organizationIds[0])?.ticketCreationStats).toEqual({
+      today: 2,
+      yesterday: 1,
+      last7Days: 4,
+      last30Days: 5,
+    });
+    expect(byId.get(organizationIds[1])?.ticketCreationStats).toEqual({
+      today: 1,
+      yesterday: 0,
+      last7Days: 1,
+      last30Days: 2,
+    });
   });
 });

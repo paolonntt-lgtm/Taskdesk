@@ -3880,7 +3880,7 @@ components:
 
     SuperadminOrganizationsResponse:
       type: object
-      required: [organizations, hiddenCount]
+      required: [organizations, hiddenCount, ticketCreationStats]
       properties:
         organizations:
           type: array
@@ -3888,10 +3888,12 @@ components:
             $ref: "#/components/schemas/SuperadminOrganizationSummary"
         hiddenCount:
           type: integer
+        ticketCreationStats:
+          $ref: "#/components/schemas/TicketCreationStats"
 
     SuperadminOrganizationSummary:
       type: object
-      required: [id, name, createdAt, hiddenFromSuperadmin, totalTickets, openTickets, users]
+      required: [id, name, createdAt, hiddenFromSuperadmin, totalTickets, ticketCreationStats, users]
       properties:
         id:
           type: integer
@@ -3905,9 +3907,8 @@ components:
           type: boolean
         totalTickets:
           type: integer
-        openTickets:
-          type: integer
-          description: Non-deleted, non-closed tickets, excluding system-created tickets except external tickets.
+        ticketCreationStats:
+          $ref: "#/components/schemas/TicketCreationStats"
         users:
           type: array
           items:
@@ -3946,6 +3947,21 @@ components:
         avatarUrl:
           type: string
           nullable: true
+
+    TicketCreationStats:
+      type: object
+      required: [today, yesterday, last7Days, last30Days]
+      properties:
+        today:
+          type: integer
+        yesterday:
+          type: integer
+        last7Days:
+          type: integer
+          description: Number created during the last seven rolling days.
+        last30Days:
+          type: integer
+          description: Number created during the last thirty rolling days.
 
     LoginRequest:
       type: object

@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SuperadminOrganizationSummary } from './superadminOrganizationSummary';
+import type { TicketCreationStats } from './ticketCreationStats';
 
 export interface SuperadminOrganizationsResponse {
   organizations: SuperadminOrganizationSummary[];
   hiddenCount: number;
+  ticketCreationStats: TicketCreationStats;
 }

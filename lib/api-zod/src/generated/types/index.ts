@@ -146,6 +146,7 @@ export * from './superadminOrganizationsResponse';
 export * from './superadminOrganizationSummary';
 export * from './superadminOrganizationUser';
 export * from './ticket';
+export * from './ticketCreationStats';
 export * from './ticketDriveFolderInput';
 export * from './ticketOneDriveCopy';
 export * from './ticketOneDriveCopyRemoval';
