@@ -31,6 +31,7 @@ interface Organization {
   createdAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
+  openTickets: number;
   users: OrgUser[];
 }
 
@@ -250,6 +251,8 @@ export default function SuperAdmin() {
 
   const totalUsers = orgs.reduce((sum, o) => sum + o.users.length, 0);
   const totalTickets = orgs.reduce((sum, o) => sum + o.totalTickets, 0);
+  const totalOpenTickets = orgs.reduce((sum, o) => sum + o.openTickets, 0);
+  const organizationsWithOpenTickets = orgs.filter((org) => org.openTickets > 0).length;
 
   const statusColor = (status: string) => {
     if (status === 'pending') return 'warning';
@@ -301,6 +304,7 @@ export default function SuperAdmin() {
               <Typography variant="h5" fontWeight={700}>{sa.subscribersTitle}</Typography>
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 {orgs.length} {sa.orgs} · {totalUsers} {sa.activeUsers} · {totalTickets} {sa.totalTickets}
+                {' · '}{totalOpenTickets} {sa.openTickets} · {organizationsWithOpenTickets} {sa.organizationsWithOpenTickets}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
@@ -349,7 +353,7 @@ export default function SuperAdmin() {
                 }}
               >
                 <CardContent sx={{ pb: 1 }}>
-                  <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={1.5} flexWrap="wrap">
                     <Box
                       sx={{
                         width: 38, height: 38, borderRadius: 1.5,
@@ -379,6 +383,16 @@ export default function SuperAdmin() {
                         />
                       </Tooltip>
                     )}
+                    <Tooltip title={sa.openTicketsTooltip}>
+                      <Chip
+                        icon={<ConfirmationNumber sx={{ fontSize: '14px !important' }} />}
+                        label={`${sa.openTickets}: ${org.openTickets}`}
+                        size="small"
+                        color={org.openTickets > 0 ? 'warning' : 'default'}
+                        variant={org.openTickets > 0 ? 'filled' : 'outlined'}
+                        sx={{ fontWeight: 700, fontSize: 12 }}
+                      />
+                    </Tooltip>
                     {org.hiddenFromSuperadmin && <Chip label={sa.hiddenOrganization} size="small" variant="outlined" />}
                     <Chip
                       label={`#${org.id}`}

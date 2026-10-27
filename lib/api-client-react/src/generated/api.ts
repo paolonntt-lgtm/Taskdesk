@@ -64,6 +64,7 @@ import type {
   GetClient200,
   GetOrganizationSettings200,
   GetPersonalTimeTrackingReportParams,
+  GetSuperadminOrganizationsParams,
   GetTimeTrackingReportParams,
   GlobalSearchParams,
   GroupInput,
@@ -113,6 +114,7 @@ import type {
   StripeAddonSeatsInput,
   StripeAddonSeatsResponse,
   SuccessResponse,
+  SuperadminOrganizationsResponse,
   TicketDriveFolderInput,
   TicketOneDriveCopy,
   TicketOneDriveCopyRemoval,
@@ -7885,6 +7887,90 @@ export function useGetAcquisitionStats<TData = Awaited<ReturnType<typeof getAcqu
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAcquisitionStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSuperadminOrganizationsUrl = (params?: GetSuperadminOrganizationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/superadmin?${stringifiedParams}` : `/api/superadmin`
+}
+
+/**
+ * @summary Get organizations and activity summaries for superadmins
+ */
+export const getSuperadminOrganizations = async (params?: GetSuperadminOrganizationsParams, options?: Parameters<typeof customFetch>[1]): Promise<SuperadminOrganizationsResponse> => {
+
+  return customFetch<SuperadminOrganizationsResponse>(getGetSuperadminOrganizationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuperadminOrganizationsQueryKey = (params?: GetSuperadminOrganizationsParams,) => {
+    return [
+    `/api/superadmin`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSuperadminOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof getSuperadminOrganizations>>, TError = ErrorType<void>>(params?: GetSuperadminOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperadminOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuperadminOrganizationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuperadminOrganizations>>> = ({ signal }) => getSuperadminOrganizations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuperadminOrganizations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuperadminOrganizationsQueryResult = NonNullable<Awaited<ReturnType<typeof getSuperadminOrganizations>>>
+export type GetSuperadminOrganizationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get organizations and activity summaries for superadmins
+ */
+
+export function useGetSuperadminOrganizations<TData = Awaited<ReturnType<typeof getSuperadminOrganizations>>, TError = ErrorType<void>>(
+ params?: GetSuperadminOrganizationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuperadminOrganizations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuperadminOrganizationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

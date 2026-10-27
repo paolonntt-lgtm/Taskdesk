@@ -199,6 +199,35 @@ export interface AcquisitionStats {
   bySource: AcquisitionStatsBySourceItem[];
 }
 
+export interface SuperadminOrganizationUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string | null;
+  lastLoginAt: string | null;
+  lastSeenAt: string | null;
+  lastOperationAt: string | null;
+  isOnline: boolean;
+  avatarUrl: string | null;
+}
+
+export interface SuperadminOrganizationSummary {
+  id: number;
+  name: string;
+  createdAt: string | null;
+  hiddenFromSuperadmin: boolean;
+  totalTickets: number;
+  /** Non-deleted, non-closed tickets, excluding system-created tickets except external tickets. */
+  openTickets: number;
+  users: SuperadminOrganizationUser[];
+}
+
+export interface SuperadminOrganizationsResponse {
+  organizations: SuperadminOrganizationSummary[];
+  hiddenCount: number;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -1588,6 +1617,10 @@ collaboratorId?: number;
 export type GetPersonalTimeTrackingReportParams = {
 dateFrom?: string;
 dateTo?: string;
+};
+
+export type GetSuperadminOrganizationsParams = {
+includeHidden?: boolean;
 };
 
 export type ListClientsParams = {

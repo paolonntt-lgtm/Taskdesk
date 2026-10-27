@@ -3601,6 +3601,38 @@ export const GetAcquisitionStatsResponse = zod.object({
 
 
 /**
+ * @summary Get organizations and activity summaries for superadmins
+ */
+export const GetSuperadminOrganizationsQueryParams = zod.object({
+  "includeHidden": zod.coerce.boolean().optional()
+})
+
+export const GetSuperadminOrganizationsResponse = zod.object({
+  "organizations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "createdAt": zod.coerce.date().nullable(),
+  "hiddenFromSuperadmin": zod.boolean(),
+  "totalTickets": zod.int(),
+  "openTickets": zod.int().describe('Non-deleted, non-closed tickets, excluding system-created tickets except external tickets.'),
+  "users": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "createdAt": zod.coerce.date().nullable(),
+  "lastLoginAt": zod.coerce.date().nullable(),
+  "lastSeenAt": zod.coerce.date().nullable(),
+  "lastOperationAt": zod.coerce.date().nullable(),
+  "isOnline": zod.boolean(),
+  "avatarUrl": zod.string().nullable()
+}))
+})),
+  "hiddenCount": zod.int()
+})
+
+
+/**
  * @summary Send a message to the AI bot (SSE streaming)
  */
 

@@ -2634,6 +2634,27 @@ paths:
         "403":
           description: Forbidden
 
+  /superadmin:
+    get:
+      operationId: getSuperadminOrganizations
+      tags: [admin]
+      summary: Get organizations and activity summaries for superadmins
+      parameters:
+        - in: query
+          name: includeHidden
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Organizations with user and ticket summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuperadminOrganizationsResponse"
+        "403":
+          description: Forbidden
+
   /bot/chat:
     post:
       operationId: botChat
@@ -3856,6 +3877,75 @@ components:
                 type: integer
             required: [source, count]
       required: [signupsByDay, bySource]
+
+    SuperadminOrganizationsResponse:
+      type: object
+      required: [organizations, hiddenCount]
+      properties:
+        organizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuperadminOrganizationSummary"
+        hiddenCount:
+          type: integer
+
+    SuperadminOrganizationSummary:
+      type: object
+      required: [id, name, createdAt, hiddenFromSuperadmin, totalTickets, openTickets, users]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        hiddenFromSuperadmin:
+          type: boolean
+        totalTickets:
+          type: integer
+        openTickets:
+          type: integer
+          description: Non-deleted, non-closed tickets, excluding system-created tickets except external tickets.
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuperadminOrganizationUser"
+
+    SuperadminOrganizationUser:
+      type: object
+      required: [id, name, email, role, createdAt, lastLoginAt, lastSeenAt, lastOperationAt, isOnline, avatarUrl]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastOperationAt:
+          type: string
+          format: date-time
+          nullable: true
+        isOnline:
+          type: boolean
+        avatarUrl:
+          type: string
+          nullable: true
 
     LoginRequest:
       type: object

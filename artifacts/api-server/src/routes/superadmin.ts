@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, organizationsTable, ticketsTable, bugReportsTable } from "@workspace/db";
-import { eq, desc, and, sql, asc } from "drizzle-orm";
+import { db, usersTable, organizationsTable, ticketsTable, ticketStatusesTable, bugReportsTable } from "@workspace/db";
+import { eq, desc, and, sql, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
 import { getPlatformSmtpConfig } from "../lib/email";
@@ -12,7 +12,7 @@ const ONLINE_WINDOW_MS = 5 * 60_000;
 
 router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
   const includeHidden = req.query.includeHidden === "true";
-  const [rows, ticketCounts, hiddenCountRows] = await Promise.all([
+  const [rows, ticketCounts, openTicketCounts, hiddenCountRows] = await Promise.all([
     db
       .select({
         orgId: organizationsTable.id,
@@ -50,6 +50,35 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       .groupBy(ticketsTable.organizationId),
 
     db
+      .select({
+        organizationId: ticketsTable.organizationId,
+        openCount: sql<number>`count(*)::int`,
+      })
+      .from(ticketsTable)
+      .leftJoin(
+        ticketStatusesTable,
+        and(
+          eq(ticketStatusesTable.organizationId, ticketsTable.organizationId),
+          eq(ticketStatusesTable.key, ticketsTable.status),
+        ),
+      )
+      .innerJoin(usersTable, eq(usersTable.id, ticketsTable.createdBy))
+      .where(and(
+        isNotNull(ticketsTable.organizationId),
+        isNull(ticketsTable.deletedAt),
+        or(
+          eq(usersTable.isSystem, false),
+          sql`lower(trim(coalesce(${ticketsTable.location}, ''))) = 'esterno'`,
+        ),
+        sql`case
+          when ${ticketStatusesTable.key} is null
+            then ${ticketsTable.status} not in ('resolved', 'closed')
+          else ${ticketStatusesTable.isClosed} = false
+        end`,
+      ))
+      .groupBy(ticketsTable.organizationId),
+
+    db
       .select({ count: sql<number>`count(*)::int` })
       .from(organizationsTable)
       .where(eq(organizationsTable.hiddenFromSuperadmin, true)),
@@ -59,6 +88,10 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
   for (const row of ticketCounts) {
     if (row.organizationId != null) totalByOrg.set(row.organizationId, row.totalCount);
   }
+  const openByOrg = new Map<number, number>();
+  for (const row of openTicketCounts) {
+    if (row.organizationId != null) openByOrg.set(row.organizationId, row.openCount);
+  }
 
   const orgMap = new Map<number, {
     id: number;
@@ -66,6 +99,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     createdAt: string | null;
     hiddenFromSuperadmin: boolean;
     totalTickets: number;
+    openTickets: number;
     users: Array<{
       id: number;
       name: string;
@@ -88,6 +122,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
         hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,
+        openTickets: openByOrg.get(row.orgId) ?? 0,
         users: [],
       });
     }
