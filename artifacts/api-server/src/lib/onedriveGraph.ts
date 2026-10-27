@@ -700,7 +700,7 @@ async function revokeFolderInvitations(
 }
 
 export class OneDriveAccessRevocationError extends Error {
-  constructor() {
+  constructor(readonly requiresReconnect = false) {
     super("Microsoft access to shared Taskdesk folders could not be fully revoked.");
     this.name = "OneDriveAccessRevocationError";
   }
@@ -721,6 +721,7 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
   const orgConnections = await db.select().from(oneDriveConnectionsTable)
     .where(eq(oneDriveConnectionsTable.organizationId, organizationId));
   let failed = false;
+  let requiresReconnect = false;
 
   for (const owner of orgConnections) {
     if (owner.userId === userId) continue;
@@ -729,6 +730,7 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
       await revokeFolderInvitations(accessToken, owner, [target.microsoftEmail]);
     } catch (error) {
       failed = true;
+      if (error instanceof OneDriveBrowseError && error.statusCode === 401) requiresReconnect = true;
       logger.warn({ err: error, ownerUserId: owner.userId, recipientUserId: userId }, "Could not revoke OneDrive folder access");
     }
   }
@@ -741,10 +743,11 @@ export async function disconnectOneDriveUser(userId: number, organizationId: num
     await revokeFolderInvitations(accessToken, target, otherEmails);
   } catch (error) {
     failed = true;
+    if (error instanceof OneDriveBrowseError && error.statusCode === 401) requiresReconnect = true;
     logger.warn({ err: error, userId }, "Could not revoke collaborator access to OneDrive folder");
   }
 
-  if (failed) throw new OneDriveAccessRevocationError();
+  if (failed) throw new OneDriveAccessRevocationError(requiresReconnect);
   await db.delete(oneDriveConnectionsTable).where(eq(oneDriveConnectionsTable.id, target.id));
 }
 

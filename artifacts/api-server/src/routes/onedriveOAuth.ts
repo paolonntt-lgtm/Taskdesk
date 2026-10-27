@@ -27,6 +27,7 @@ import {
   getMicrosoftUser,
   inviteCollaboratorsToTaskdeskFolders,
   listSharedOneDriveFolderItems,
+  OneDriveAccessRevocationError,
   OneDriveBrowseError,
   OneDriveGraphError,
   previewSharedOneDriveItem,
@@ -477,6 +478,10 @@ router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<voi
   try {
     await disconnectOneDriveUser(user.id, user.organizationId);
   } catch (error) {
+    if (error instanceof OneDriveAccessRevocationError && error.requiresReconnect) {
+      res.status(409).json({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
+      return;
+    }
     req.log.error({ err: error, userId: user.id }, "Could not disconnect OneDrive safely");
     res.status(502).json({ error: "Could not revoke shared OneDrive access. The connection was kept; please retry." });
     return;

@@ -88,7 +88,12 @@ export default function OneDriveConnectionSettings() {
         credentials: "include",
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || copy.oneDriveRequestError);
+      if (!response.ok) {
+        const message = data.code === "ONEDRIVE_RECONNECT_REQUIRED"
+          ? copy.oneDriveDisconnectReconnectRequired
+          : data.error || copy.oneDriveRequestError;
+        throw new Error(message);
+      }
       setConnection({ connected: false });
       setDisconnectDialogOpen(false);
       setNotice({ severity: "success", text: copy.oneDriveDisconnectedSuccess });

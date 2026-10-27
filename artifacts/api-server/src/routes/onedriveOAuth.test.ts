@@ -1,4 +1,5 @@
 import express from "express";
+import { OneDriveAccessRevocationError } from "../lib/onedriveGraph";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => {
     createDefaultFolders: vi.fn(),
     inviteCollaboratorsToTaskdeskFolders: vi.fn(),
     syncPendingOneDriveAttachments: vi.fn(),
+    disconnectOneDriveUser: vi.fn(),
   };
 });
 
@@ -66,10 +68,15 @@ vi.mock("../lib/onedriveGraph", () => ({
       super(message);
     }
   },
+  OneDriveAccessRevocationError: class extends Error {
+    constructor(readonly requiresReconnect = false) {
+      super("Microsoft access to shared Taskdesk folders could not be fully revoked.");
+    }
+  },
   previewSharedOneDriveItem: vi.fn(),
   acquireOneDriveDownloadSlot: vi.fn(),
   downloadSharedOneDriveItem: vi.fn(),
-  disconnectOneDriveUser: vi.fn(),
+  disconnectOneDriveUser: mocks.disconnectOneDriveUser,
   syncPendingOneDriveAttachments: mocks.syncPendingOneDriveAttachments,
   uploadSharedOneDriveFile: vi.fn(),
 }));
@@ -195,5 +202,15 @@ describe("Microsoft OneDrive OAuth callback", () => {
       error: expect.stringContaining("MICROSOFT_ONEDRIVE_REDIRECT_URI"),
     });
     expect(mocks.exchangeMicrosoftCode).not.toHaveBeenCalled();
+  });
+
+  it("explains that reauthorization is needed when token renewal blocks safe disconnection", async () => {
+    mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError(true));
+
+    const response = await fetch(`${baseUrl}/api/onedrive/connection`, { method: "DELETE" });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
   });
 });
