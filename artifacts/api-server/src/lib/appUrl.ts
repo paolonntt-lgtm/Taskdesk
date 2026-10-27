@@ -7,6 +7,42 @@ export function appBaseUrl(): string {
   return "http://localhost:80";
 }
 
+const MICROSOFT_ONEDRIVE_CALLBACK_PATH = "/api/onedrive/callback";
+
+export function microsoftOneDriveCallbackUri(): string {
+  const configuredUri = process.env.MICROSOFT_ONEDRIVE_REDIRECT_URI?.trim();
+  if (!configuredUri) {
+    throw new Error(
+      "Microsoft OneDrive OAuth requires MICROSOFT_ONEDRIVE_REDIRECT_URI to be set to the exact registered callback URI.",
+    );
+  }
+
+  let callback: URL;
+  try {
+    callback = new URL(configuredUri);
+  } catch {
+    throw new Error(
+      `MICROSOFT_ONEDRIVE_REDIRECT_URI must be an absolute HTTPS URL ending in ${MICROSOFT_ONEDRIVE_CALLBACK_PATH}.`,
+    );
+  }
+
+  if (
+    callback.protocol !== "https:" ||
+    callback.username ||
+    callback.password ||
+    callback.pathname !== MICROSOFT_ONEDRIVE_CALLBACK_PATH ||
+    callback.search ||
+    callback.hash ||
+    callback.href !== configuredUri
+  ) {
+    throw new Error(
+      `MICROSOFT_ONEDRIVE_REDIRECT_URI must be the exact registered HTTPS URI with path ${MICROSOFT_ONEDRIVE_CALLBACK_PATH}, without credentials, query, or fragment.`,
+    );
+  }
+
+  return configuredUri;
+}
+
 const KNOWN_APP_HOSTS = new Set([
   "taskdesk.it",
   "www.taskdesk.it",

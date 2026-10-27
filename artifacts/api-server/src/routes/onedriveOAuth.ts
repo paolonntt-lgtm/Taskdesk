@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { db, oneDriveConnectionsTable, usersTable } from "@workspace/db";
 import { getCurrentUserId, getSessionId } from "../lib/session";
-import { appBaseUrlForRequest } from "../lib/appUrl";
+import { microsoftOneDriveCallbackUri } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import {
   ListSharedOneDriveFolderItemsParams,
@@ -41,12 +41,15 @@ import { requireAuth } from "../middlewares/auth";
 const router = Router();
 const STATE_COOKIE = "taskdesk_onedrive_state";
 const STATE_TTL = 10 * 60_000;
-type Pending = { userId: number; sessionId: string; verifier: string; returnTo: string; createdAt: number };
+type Pending = {
+  userId: number;
+  sessionId: string;
+  verifier: string;
+  redirectUri: string;
+  returnTo: string;
+  createdAt: number;
+};
 const pending = new Map<string, Pending>();
-
-function getCallbackUri(req: import("express").Request): string {
-  return `${appBaseUrlForRequest(req.headers.origin, req.headers.host)}/api/onedrive/callback`;
-}
 
 function stateCookie(state: string): string {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
@@ -82,6 +85,15 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
     res.status(503).json({ error: "Microsoft OneDrive OAuth is not configured." });
     return;
   }
+  let redirectUri: string;
+  try {
+    redirectUri = microsoftOneDriveCallbackUri();
+  } catch (error) {
+    res.status(503).json({
+      error: error instanceof Error ? error.message : "Microsoft OneDrive callback configuration is invalid.",
+    });
+    return;
+  }
   for (const [key, value] of pending) if (Date.now() - value.createdAt > STATE_TTL) pending.delete(key);
   const sessionId = getSessionId(req);
   if (!sessionId) {
@@ -95,12 +107,12 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
   const returnTo = rawReturnTo.startsWith("/app/") && !rawReturnTo.startsWith("//") && !rawReturnTo.includes("\\")
     ? rawReturnTo
     : "/app/";
-  pending.set(state, { userId: user.id, sessionId, verifier, returnTo, createdAt: Date.now() });
+  pending.set(state, { userId: user.id, sessionId, verifier, redirectUri, returnTo, createdAt: Date.now() });
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     response_mode: "query",
-    redirect_uri: getCallbackUri(req),
+    redirect_uri: redirectUri,
     scope: "openid profile email offline_access User.Read Files.ReadWrite",
     state,
     code_challenge: challenge,
@@ -132,7 +144,7 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const tokens = await exchangeMicrosoftCode(req.query.code, getCallbackUri(req), current.verifier);
+    const tokens = await exchangeMicrosoftCode(req.query.code, current.redirectUri, current.verifier);
     const [user] = await db.select({
       id: usersTable.id, name: usersTable.name, role: usersTable.role, organizationId: usersTable.organizationId,
     }).from(usersTable).where(eq(usersTable.id, current.userId)).limit(1);

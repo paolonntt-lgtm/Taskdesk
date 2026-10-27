@@ -77,7 +77,9 @@ describe("superadmin ticket creation statistics", () => {
     const baselineResponse = await fetch(`${baseUrl}/api/superadmin`, {
       headers: { Cookie: `session_id=${sessionId}` },
     });
-    const baselineBody = await baselineResponse.json() as { ticketCreationStats: typeof baselineTicketCreationStats };
+    const baselineBody = await baselineResponse.json() as {
+      ticketCreationStats: typeof baselineTicketCreationStats;
+    };
     baselineTicketCreationStats = baselineBody.ticketCreationStats;
 
     const now = Date.now();
@@ -111,7 +113,6 @@ describe("superadmin ticket creation statistics", () => {
       category: "Test",
     }))).returning({ id: ticketsTable.id });
     ticketIds = insertedTickets.map(({ id }) => id);
-
   });
 
   afterAll(async () => {
@@ -129,16 +130,13 @@ describe("superadmin ticket creation statistics", () => {
     await pool.end();
   });
 
-  it("counts tickets created in each period regardless of status and excludes deleted/internal system tickets", async () => {
+  it("counts ticket creation periods and excludes hidden organizations from the default list", async () => {
     const response = await fetch(`${baseUrl}/api/superadmin`, {
       headers: { Cookie: `session_id=${sessionId}` },
     });
     const body = await response.json() as {
-      organizations: Array<{
-        id: number;
-        ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
-      }>;
-      ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
+      organizations: Array<{ id: number }>;
+      ticketCreationStats: typeof baselineTicketCreationStats;
     };
 
     expect(response.status).toBe(200);
@@ -151,8 +149,14 @@ describe("superadmin ticket creation statistics", () => {
     const allOrganizationsResponse = await fetch(`${baseUrl}/api/superadmin?includeHidden=true`, {
       headers: { Cookie: `session_id=${sessionId}` },
     });
-    const allOrganizationsBody = await allOrganizationsResponse.json() as typeof body;
+    const allOrganizationsBody = await allOrganizationsResponse.json() as {
+      organizations: Array<{
+        id: number;
+        ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
+      }>;
+    };
     const byId = new Map(allOrganizationsBody.organizations.map((organization) => [organization.id, organization]));
+
     expect(byId.get(organizationIds[0])?.ticketCreationStats).toEqual({
       today: 2,
       yesterday: 1,

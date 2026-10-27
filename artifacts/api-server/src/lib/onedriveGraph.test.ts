@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   canConnectMicrosoftTenant,
   CONSUMER_TENANT_ID,
   acquireOneDriveDownloadSlot,
+  exchangeMicrosoftCode,
   getOneDriveAttachmentCopyName,
   isExpectedOneDriveAttachmentCopy,
   isOneDriveCopyAccountMatch,
@@ -21,6 +22,40 @@ describe("OneDrive account tenant compatibility", () => {
     expect(canConnectMicrosoftTenant("org-1", CONSUMER_TENANT_ID)).toBe(true);
     expect(canConnectMicrosoftTenant(CONSUMER_TENANT_ID, "org-1")).toBe(true);
     expect(canConnectMicrosoftTenant("org-1", "org-2")).toBe(false);
+  });
+});
+
+describe("Microsoft OneDrive OAuth code exchange", () => {
+  it("sends the exact callback URI and its origin to Microsoft", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalClientId = process.env.VITE_MICROSOFT_CLIENT_ID;
+    const claims = Buffer.from(JSON.stringify({
+      tid: "tenant-1",
+      preferred_username: "person@example.test",
+    })).toString("base64url");
+    const mockedFetch = vi.fn(async (_input: string | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      access_token: "access-token",
+      refresh_token: "refresh-token",
+      id_token: `header.${claims}.signature`,
+    }), { status: 200 }));
+    globalThis.fetch = mockedFetch;
+    vi.stubEnv("VITE_MICROSOFT_CLIENT_ID", "test-microsoft-client");
+
+    try {
+      const redirectUri = "https://taskdesk.it/api/onedrive/callback";
+      await exchangeMicrosoftCode("authorization-code", redirectUri, "pkce-verifier");
+
+      expect(mockedFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockedFetch.mock.calls[0];
+      expect(url).toBe("https://login.microsoftonline.com/common/oauth2/v2.0/token");
+      expect(init?.headers).toMatchObject({ Origin: "https://taskdesk.it" });
+      expect(new URLSearchParams(init?.body as URLSearchParams).get("redirect_uri")).toBe(redirectUri);
+    } finally {
+      globalThis.fetch = originalFetch;
+      vi.unstubAllEnvs();
+      if (originalClientId === undefined) delete process.env.VITE_MICROSOFT_CLIENT_ID;
+      else process.env.VITE_MICROSOFT_CLIENT_ID = originalClientId;
+    }
   });
 });
 
