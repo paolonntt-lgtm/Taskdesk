@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
     inviteCollaboratorsToTaskdeskFolders: vi.fn(),
     syncPendingOneDriveAttachments: vi.fn(),
     disconnectOneDriveUser: vi.fn(),
+    getSession: vi.fn(),
   };
 });
 
@@ -41,10 +42,7 @@ vi.mock("../lib/session", () => ({
     req.headers.cookie?.match(/(?:^|;\s*)session_id=([^;]+)/)?.[1],
   getCurrentUserId: (req: { headers: { cookie?: string } }) =>
     req.headers.cookie?.includes("session_id=test-session") ? 7 : undefined,
-    getSession: vi.fn(async (sessionId: string) =>
-      sessionId === "test-session"
-        ? { userId: 7, expiresAt: new Date(Date.now() + 60_000) }
-        : undefined),
+  getSession: mocks.getSession,
 }));
 
 vi.mock("../middlewares/auth", () => ({
@@ -61,6 +59,7 @@ vi.mock("../lib/onedriveGraph", () => ({
   exchangeMicrosoftCode: mocks.exchangeMicrosoftCode,
   getMicrosoftUser: mocks.getMicrosoftUser,
   inviteCollaboratorsToTaskdeskFolders: mocks.inviteCollaboratorsToTaskdeskFolders,
+  invalidateOneDriveAccessToken: vi.fn(),
   listSharedOneDriveFolderItems: vi.fn(),
   OneDriveBrowseError: class extends Error {
     constructor(message: string, readonly statusCode: number) {
@@ -85,7 +84,7 @@ vi.mock("../lib/onedriveGraph", () => ({
   uploadSharedOneDriveFile: vi.fn(),
 }));
 
-const CALLBACK_URI = "https://taskdesk.it/api/onedrive/callback";
+const CALLBACK_URI = "https://www.taskdesk.it/api/onedrive/callback";
 
 describe("Microsoft OneDrive OAuth callback", () => {
   let server: Server;
@@ -106,6 +105,10 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getSession.mockImplementation(async (sessionId: string) =>
+      sessionId === "test-session"
+        ? { userId: 7, expiresAt: new Date(Date.now() + 60_000) }
+        : undefined);
     vi.stubEnv("VITE_MICROSOFT_CLIENT_ID", "test-microsoft-client");
     vi.stubEnv("MICROSOFT_ONEDRIVE_REDIRECT_URI", CALLBACK_URI);
     mocks.exchangeMicrosoftCode.mockResolvedValue({
@@ -195,7 +198,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
     );
   });
 
-  it("completes OAuth when the callback browser omits its session cookie", async () => {
+  it("completes OAuth and restores the session when the callback omits its cookies", async () => {
     const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
       headers: { Cookie: "session_id=test-session" },
     });
@@ -206,7 +209,6 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
     const callbackResponse = await fetch(
       `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
-      { headers: { Cookie: `taskdesk_onedrive_state=${state}` } },
     );
 
     expect(callbackResponse.status).toBe(200);
@@ -216,6 +218,26 @@ describe("Microsoft OneDrive OAuth callback", () => {
       expect.any(String),
     );
     expect(callbackResponse.headers.get("set-cookie")).toContain("session_id=test-session");
+  });
+
+  it("rejects a callback when its original TaskDesk session has expired", async () => {
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+    mocks.getSession.mockResolvedValueOnce(undefined);
+
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+    );
+    const htmlResult = await callbackResponse.text();
+
+    expect(callbackResponse.status).toBe(200);
+    expect(htmlResult).toContain("onedrive=invalid_session");
+    expect(mocks.exchangeMicrosoftCode).not.toHaveBeenCalled();
   });
 
   it("returns a clear configuration error instead of starting OAuth without a callback", async () => {

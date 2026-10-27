@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { db, oneDriveConnectionsTable, usersTable } from "@workspace/db";
-import { getCurrentUserId, getSessionId } from "../lib/session";
+import { getSession, getSessionId } from "../lib/session";
 import { microsoftOneDriveCallbackUri } from "../lib/appUrl";
 import { logger } from "../lib/logger";
 import {
@@ -26,6 +26,7 @@ import {
   exchangeMicrosoftCode,
   getMicrosoftUser,
   inviteCollaboratorsToTaskdeskFolders,
+  invalidateOneDriveAccessToken,
   listSharedOneDriveFolderItems,
   OneDriveAccessRevocationError,
   OneDriveBrowseError,
@@ -67,12 +68,25 @@ function cookieValue(req: import("express").Request, name: string): string | und
   return raw.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
 }
 
-function finish(res: import("express").Response, result: string, returnTo = "/app/"): void {
-  res.setHeader("Set-Cookie", clearStateCookie());
+function finish(
+  res: import("express").Response,
+  result: string,
+  returnTo = "/app/",
+  restoredSessionCookie?: string,
+): void {
+  res.setHeader("Set-Cookie", restoredSessionCookie
+    ? [clearStateCookie(), restoredSessionCookie]
+    : clearStateCookie());
   const targetUrl = new URL(returnTo, "https://taskdesk.invalid");
   targetUrl.searchParams.set("onedrive", result);
   const target = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
   res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>`);
+}
+
+function sessionCookie(sessionId: string, expiresAt: Date): string {
+  const maxAge = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 1000));
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
 router.get("/onedrive/connect", requireAuth, (req, res): void => {
@@ -128,20 +142,26 @@ router.get("/onedrive/connect", requireAuth, (req, res): void => {
 router.get("/onedrive/callback", async (req, res): Promise<void> => {
   const state = typeof req.query.state === "string" ? req.query.state : "";
   const current = state ? pending.get(state) : undefined;
-  if (!current || cookieValue(req, STATE_COOKIE) !== state || Date.now() - current.createdAt > STATE_TTL) {
+  const stateCookieValue = cookieValue(req, STATE_COOKIE);
+  if (!current || (stateCookieValue && stateCookieValue !== state) || Date.now() - current.createdAt > STATE_TTL) {
     if (state) pending.delete(state);
     finish(res, "invalid_state", current?.returnTo);
     return;
   }
   pending.delete(state);
   const sessionId = getSessionId(req);
-  const currentUserId = await getCurrentUserId(req);
-  if (!sessionId || sessionId !== current.sessionId || currentUserId !== current.userId) {
+  const session = await getSession(current.sessionId);
+  if (
+    !session ||
+    session.userId !== current.userId ||
+    (sessionId !== undefined && sessionId !== current.sessionId)
+  ) {
     finish(res, "invalid_session", current.returnTo);
     return;
   }
+  const restoredSessionCookie = sessionId ? undefined : sessionCookie(current.sessionId, session.expiresAt);
   if (req.query.error || typeof req.query.code !== "string") {
-    finish(res, "cancelled", current.returnTo);
+    finish(res, "cancelled", current.returnTo, restoredSessionCookie);
     return;
   }
   try {
@@ -198,14 +218,15 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
         updatedAt: new Date(),
       },
     });
+    if (previousConnection) invalidateOneDriveAccessToken(previousConnection.id);
     const inviteFailures = await inviteCollaboratorsToTaskdeskFolders(user.organizationId);
     void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
       logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
     });
-    finish(res, inviteFailures ? "sharing_partial" : "connected", current.returnTo);
+    finish(res, inviteFailures ? "sharing_partial" : "connected", current.returnTo, restoredSessionCookie);
   } catch (error) {
     logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
-    finish(res, "connect_error", current.returnTo);
+    finish(res, "connect_error", current.returnTo, restoredSessionCookie);
   }
 });
 
