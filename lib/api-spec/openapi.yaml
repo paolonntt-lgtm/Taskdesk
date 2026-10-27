@@ -5239,6 +5239,9 @@ components:
           type: string
         body:
           type: string
+        iconKey:
+          type: string
+          enum: [auto, announcement, update, success, warning, event, info]
         targetType:
           type: string
           enum: [all, location, group]
@@ -5262,6 +5265,7 @@ components:
         - id
         - title
         - body
+        - iconKey
         - targetType
         - targetLocation
         - targetGroupId
@@ -5281,6 +5285,9 @@ components:
           type: string
           minLength: 1
           maxLength: 5000
+        iconKey:
+          type: string
+          enum: [auto, announcement, update, success, warning, event, info]
         targetType:
           type: string
           enum: [all, location, group]

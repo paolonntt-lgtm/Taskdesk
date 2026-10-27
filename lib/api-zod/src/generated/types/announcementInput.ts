@@ -5,6 +5,7 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AnnouncementInputIconKey } from './announcementInputIconKey';
 import type { AnnouncementInputTargetType } from './announcementInputTargetType';
 
 export interface AnnouncementInput {
@@ -18,6 +19,7 @@ export interface AnnouncementInput {
      * @maxLength 5000
      */
   body: string;
+  iconKey?: AnnouncementInputIconKey;
   targetType: AnnouncementInputTargetType;
   /**
      * @maxLength 150

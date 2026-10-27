@@ -5,12 +5,14 @@
  * Internal Ticketing System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AnnouncementIconKey } from './announcementIconKey';
 import type { AnnouncementTargetType } from './announcementTargetType';
 
 export interface Announcement {
   id: number;
   title: string;
   body: string;
+  iconKey: AnnouncementIconKey;
   targetType: AnnouncementTargetType;
   /** @nullable */
   targetLocation: string | null;

@@ -39,12 +39,17 @@ import {
   localDateTimeValue,
   runWithValidAnnouncementSchedule,
 } from '../lib/announcementSchedule';
+import {
+  getAnnouncementIconInfo,
+  type AnnouncementIconKey,
+} from '../lib/announcementIcons';
 
 type TargetType = 'all' | 'location' | 'group';
 
 interface AnnouncementForm {
   title: string;
   body: string;
+  iconKey: AnnouncementIconKey;
   targetType: TargetType;
   targetLocation: string;
   targetGroupId: string;
@@ -58,6 +63,7 @@ function defaultForm(): AnnouncementForm {
   return {
     title: '',
     body: '',
+    iconKey: 'auto',
     targetType: 'all',
     targetLocation: '',
     targetGroupId: '',
@@ -132,6 +138,7 @@ export default function AnnouncementsSettings() {
     setForm({
       title: announcement.title,
       body: announcement.body,
+      iconKey: (announcement.iconKey ?? 'auto') as AnnouncementIconKey,
       targetType: announcement.targetType,
       targetLocation: announcement.targetLocation ?? '',
       targetGroupId: announcement.targetGroupId == null ? '' : String(announcement.targetGroupId),
@@ -165,6 +172,7 @@ export default function AnnouncementsSettings() {
         const data: AnnouncementInput = {
           title,
           body,
+          iconKey: form.iconKey,
           targetType: form.targetType,
           targetLocation: form.targetType === 'location' ? form.targetLocation : null,
           targetGroupId: form.targetType === 'group' ? Number(form.targetGroupId) : null,
@@ -353,6 +361,34 @@ export default function AnnouncementsSettings() {
               helperText={isItalian ? 'Il testo sarà mostrato nel popup ai destinatari.' : 'This message appears in the recipients’ popup.'}
               disabled={saving}
             />
+            <Box display="flex" alignItems="center" gap={1.5}>
+              {(() => {
+                const icon = getAnnouncementIconInfo(form.iconKey, form.title, form.body);
+                return (
+                  <Box sx={{ width: 42, height: 42, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: icon.background, color: icon.color, flex: '0 0 auto' }}>
+                    <icon.Icon />
+                  </Box>
+                );
+              })()}
+              <TextField
+                data-testid="select-announcement-icon"
+                select
+                fullWidth
+                label={isItalian ? 'Icona dell’avviso' : 'Announcement icon'}
+                value={form.iconKey}
+                onChange={(event) => setForm((current) => ({ ...current, iconKey: event.target.value as AnnouncementIconKey }))}
+                helperText={isItalian ? 'Automatica dal testo, oppure scegli un’icona predefinita.' : 'Choose automatic detection from the text or a standard icon.'}
+                disabled={saving}
+              >
+                <MenuItem value="auto">{isItalian ? 'Automatica dal testo' : 'Automatic from text'}</MenuItem>
+                <MenuItem value="announcement">{isItalian ? 'Avviso' : 'Announcement'}</MenuItem>
+                <MenuItem value="update">{isItalian ? 'Aggiornamento' : 'Update'}</MenuItem>
+                <MenuItem value="success">{isItalian ? 'Successo' : 'Success'}</MenuItem>
+                <MenuItem value="warning">{isItalian ? 'Attenzione' : 'Warning'}</MenuItem>
+                <MenuItem value="event">{isItalian ? 'Evento' : 'Event'}</MenuItem>
+                <MenuItem value="info">{isItalian ? 'Informazione' : 'Information'}</MenuItem>
+              </TextField>
+            </Box>
             <TextField
                 data-testid="select-announcement-target"
               select

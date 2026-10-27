@@ -22,6 +22,7 @@ const announcementFields = {
   id: announcementsTable.id,
   title: announcementsTable.title,
   body: announcementsTable.body,
+  iconKey: announcementsTable.iconKey,
   targetType: announcementsTable.targetType,
   targetLocation: announcementsTable.targetLocation,
   targetGroupId: announcementsTable.targetGroupId,
@@ -34,6 +35,7 @@ const announcementFields = {
 type AnnouncementInput = {
   title: string;
   body: string;
+  iconKey?: "auto" | "announcement" | "update" | "success" | "warning" | "event" | "info";
   targetType: "all" | "location" | "group";
   targetLocation?: string | null;
   targetGroupId?: number | null;
@@ -172,6 +174,7 @@ router.post("/announcements", requireAuth, requireAdmin, async (req, res): Promi
       createdBy: currentUser.id,
       title: input.title.trim(),
       body: input.body.trim(),
+      iconKey: input.iconKey ?? "auto",
       targetType: input.targetType,
       ...target,
       startsAt: input.startsAt,
@@ -217,6 +220,7 @@ router.put("/announcements/:id", requireAuth, requireAdmin, async (req, res): Pr
     .set({
       title: input.title.trim(),
       body: input.body.trim(),
+      iconKey: input.iconKey ?? "auto",
       targetType: input.targetType,
       ...target,
       startsAt: input.startsAt,

@@ -11,6 +11,7 @@ export const announcementsTable = pgTable("announcements", {
   organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   body: text("body").notNull(),
+  iconKey: text("icon_key").notNull().default("auto"),
   targetType: text("target_type").notNull().default("all"),
   targetLocation: text("target_location"),
   targetGroupId: integer("target_group_id").references(() => groupsTable.id, { onDelete: "set null" }),

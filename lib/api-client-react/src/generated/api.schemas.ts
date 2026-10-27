@@ -1010,6 +1010,19 @@ export interface KnowledgeArticleInput {
   category?: string | null;
 }
 
+export type AnnouncementIconKey = typeof AnnouncementIconKey[keyof typeof AnnouncementIconKey];
+
+
+export const AnnouncementIconKey = {
+  auto: 'auto',
+  announcement: 'announcement',
+  update: 'update',
+  success: 'success',
+  warning: 'warning',
+  event: 'event',
+  info: 'info',
+} as const;
+
 export type AnnouncementTargetType = typeof AnnouncementTargetType[keyof typeof AnnouncementTargetType];
 
 
@@ -1023,6 +1036,7 @@ export interface Announcement {
   id: number;
   title: string;
   body: string;
+  iconKey: AnnouncementIconKey;
   targetType: AnnouncementTargetType;
   /** @nullable */
   targetLocation: string | null;
@@ -1033,6 +1047,19 @@ export interface Announcement {
   createdAt: string;
   updatedAt: string;
 }
+
+export type AnnouncementInputIconKey = typeof AnnouncementInputIconKey[keyof typeof AnnouncementInputIconKey];
+
+
+export const AnnouncementInputIconKey = {
+  auto: 'auto',
+  announcement: 'announcement',
+  update: 'update',
+  success: 'success',
+  warning: 'warning',
+  event: 'event',
+  info: 'info',
+} as const;
 
 export type AnnouncementInputTargetType = typeof AnnouncementInputTargetType[keyof typeof AnnouncementInputTargetType];
 
@@ -1054,6 +1081,7 @@ export interface AnnouncementInput {
      * @maxLength 5000
      */
   body: string;
+  iconKey?: AnnouncementInputIconKey;
   targetType: AnnouncementInputTargetType;
   /**
      * @maxLength 150

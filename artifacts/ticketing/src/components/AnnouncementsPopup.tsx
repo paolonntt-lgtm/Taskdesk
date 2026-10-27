@@ -12,6 +12,7 @@ import {
 import { ArrowForwardRounded } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import OneDriveLogo from './OneDriveLogo';
+import { getAnnouncementIconInfo } from '../lib/announcementIcons';
 import {
   getListActiveAnnouncementsQueryKey,
   useListActiveAnnouncements,
@@ -39,6 +40,7 @@ function oneDriveCommentAnnouncement(isItalian: boolean): Announcement {
     body: isItalian
       ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare le cartelle e scegliere i file da allegare a un nuovo commento o a una risposta. Il file resta allegato al ticket in TaskDesk. Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk salva una seconda copia nel suo OneDrive, nella cartella Taskdesk/[nome assegnatario], condivisa in sola lettura con gli altri collaboratori che hanno collegato OneDrive. Se l’assegnatario non ha collegato il proprio account, l’allegato resta disponibile in TaskDesk. L’originale selezionato non viene modificato e le copie non si aggiornano automaticamente quando cambia.'
       : 'Connect your OneDrive account in TaskDesk settings to use this feature. Then browse folders and choose files to attach to a new comment or reply. The file remains attached to the ticket in TaskDesk. If the ticket is assigned to someone with OneDrive connected, TaskDesk saves a second copy in their OneDrive, in the Taskdesk/[assignee name] folder, shared read-only with other collaborators who have connected OneDrive. If the assignee has not connected their account, the attachment remains available in TaskDesk. The selected original is not changed, and the copies are not updated automatically when it changes.',
+    iconKey: 'info',
     targetType: 'all',
     targetLocation: null,
     targetGroupId: null,
@@ -90,6 +92,9 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
     ? availableAnnouncements.find((item) => !dismissedVersions.has(dismissalVersion(item)))
     : undefined;
   const isOneDriveAnnouncement = announcement?.id === ONEDRIVE_COMMENT_ANNOUNCEMENT_ID;
+  const announcementIcon = announcement
+    ? getAnnouncementIconInfo(announcement.iconKey, announcement.title, announcement.body)
+    : null;
 
   const dismiss = () => {
     if (!announcement) return;
@@ -175,12 +180,14 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
               display: 'grid',
               placeItems: 'center',
               borderRadius: '19px',
-              background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-              boxShadow: '0 9px 20px rgba(79,70,229,.22)',
-              color: '#fff',
+              background: isOneDriveAnnouncement ? 'linear-gradient(135deg, #2563eb, #7c3aed)' : announcementIcon?.background,
+              boxShadow: isOneDriveAnnouncement ? '0 9px 20px rgba(79,70,229,.22)' : 'none',
+              color: isOneDriveAnnouncement ? '#fff' : announcementIcon?.color,
             }}
           >
-            <OneDriveLogo width={36} height={36} />
+            {isOneDriveAnnouncement
+              ? <OneDriveLogo width={36} height={36} />
+              : announcementIcon && <announcementIcon.Icon sx={{ fontSize: 34 }} />}
           </Box>
           <Chip
             label={isItalian ? 'AVVISO' : 'ANNOUNCEMENT'}
