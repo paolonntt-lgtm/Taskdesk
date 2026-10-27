@@ -6261,6 +6261,80 @@ export const useMarkNotificationRead = <TError = ErrorType<unknown>,
       return useMutation(getMarkNotificationReadMutationOptions(options));
     }
 
+export const getMarkNotificationUnreadUrl = (id: number,) => {
+
+
+
+
+  return `/api/notifications/${id}/unread`
+}
+
+/**
+ * @summary Mark a notification as unread
+ */
+export const markNotificationUnread = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Notification> => {
+
+  return customFetch<Notification>(getMarkNotificationUnreadUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkNotificationUnreadMutationKey = () => ['markNotificationUnread'] as const;
+
+export const getMarkNotificationUnreadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,MarkNotificationUnreadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,MarkNotificationUnreadMutationVariables, TContext> => {
+
+const mutationKey = getMarkNotificationUnreadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markNotificationUnread>>, MarkNotificationUnreadMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markNotificationUnread(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkNotificationUnreadMutationResult = NonNullable<Awaited<ReturnType<typeof markNotificationUnread>>>
+
+    export type MarkNotificationUnreadMutationError = ErrorType<void>
+    export type MarkNotificationUnreadMutationVariables = {id: number}
+
+    /**
+ * @summary Mark a notification as unread
+ */
+export const useMarkNotificationUnread = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,MarkNotificationUnreadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markNotificationUnread>>,
+        TError,
+        MarkNotificationUnreadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkNotificationUnreadMutationOptions(options));
+    }
+
 export const getMarkAllNotificationsReadUrl = () => {
 
 

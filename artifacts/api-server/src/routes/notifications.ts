@@ -77,6 +77,48 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   res.json(notification);
 });
 
+router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const currentUser = (req as any).currentUser;
+
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+
+  const [ownedNotification] = await db
+    .select({
+      id: notificationsTable.id,
+      ticketVisibility: ticketsTable.visibility,
+    })
+    .from(notificationsTable)
+    .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .limit(1);
+
+  if (
+    !ownedNotification ||
+    (currentUser.role !== "admin" && ownedNotification.ticketVisibility === "admins")
+  ) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+
+  const [notification] = await db
+    .update(notificationsTable)
+    .set({ isRead: false })
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .returning();
+
+  if (!notification) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+
+  res.json(notification);
+});
+
 router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
 

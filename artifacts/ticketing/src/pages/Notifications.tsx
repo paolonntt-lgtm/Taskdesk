@@ -20,7 +20,6 @@ import {
   AccessTime,
   ArrowForward,
   Check,
-  CheckCircleOutline,
   ConfirmationNumberOutlined,
   DoneAll,
   ErrorOutline,
@@ -33,6 +32,7 @@ import { useLocation } from 'wouter';
 import {
   getListNotificationsQueryKey,
   useListNotifications,
+  useMarkNotificationUnread,
   useMarkNotificationRead,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -115,6 +115,7 @@ export default function NotificationsPage() {
     },
   });
   const markRead = useMarkNotificationRead();
+  const markUnread = useMarkNotificationUnread();
   const notifications = (notificationsQuery.data ?? []) as NotificationItem[];
 
   const counts = useMemo(() => ({
@@ -140,7 +141,25 @@ export default function NotificationsPage() {
     if (notification.isRead || markingId !== null) return;
     setMarkingId(notification.id);
     markRead.mutate({ id: notification.id }, {
-      onSuccess: () => {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), (current: NotificationItem[] | undefined) =>
+          current?.map((item) => item.id === updated.id ? { ...item, isRead: true } : item),
+        );
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+        setMarkingId(null);
+      },
+      onError: () => setMarkingId(null),
+    });
+  };
+
+  const handleMarkUnread = (notification: NotificationItem) => {
+    if (!notification.isRead || markingId !== null) return;
+    setMarkingId(notification.id);
+    markUnread.mutate({ id: notification.id }, {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), (current: NotificationItem[] | undefined) =>
+          current?.map((item) => item.id === updated.id ? { ...item, isRead: false } : item),
+        );
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
         setMarkingId(null);
       },
@@ -433,25 +452,31 @@ export default function NotificationsPage() {
                             )}
                           </Stack>
                         </Box>
-                        <Tooltip title={notification.isRead ? t.notifications.markedRead : t.notifications.markRead}>
+                        <Tooltip title={notification.isRead ? t.notifications.markUnread : t.notifications.markRead}>
                           <span>
                             <IconButton
                               size="small"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleMarkRead(notification);
+                                if (notification.isRead) handleMarkUnread(notification);
+                                else handleMarkRead(notification);
                               }}
-                              disabled={notification.isRead || isMarking}
-                              aria-label={notification.isRead ? t.notifications.markedRead : t.notifications.markRead}
-                              data-testid={`button-mark-notification-read-${notification.id}`}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              disabled={isMarking}
+                              aria-label={notification.isRead ? t.notifications.markUnread : t.notifications.markRead}
+                              data-testid={`button-mark-notification-${notification.isRead ? 'unread' : 'read'}-${notification.id}`}
                               sx={{
                                 mt: -0.4,
-                                color: notification.isRead ? 'success.main' : 'text.secondary',
-                                bgcolor: notification.isRead ? 'transparent' : 'action.hover',
+                                color: notification.isRead ? 'text.secondary' : 'success.main',
+                                bgcolor: 'action.hover',
                                 '&:hover': { color: 'primary.main', bgcolor: 'action.selected' },
                               }}
                             >
-                              {isMarking ? <Skeleton variant="circular" width={20} height={20} /> : notification.isRead ? <CheckCircleOutline fontSize="small" /> : <Check fontSize="small" />}
+                              {isMarking
+                                ? <Skeleton variant="circular" width={20} height={20} />
+                                : notification.isRead
+                                  ? <NotificationsActiveOutlined fontSize="small" />
+                                  : <Check fontSize="small" />}
                             </IconButton>
                           </span>
                         </Tooltip>

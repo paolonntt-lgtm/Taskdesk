@@ -2827,6 +2827,25 @@ export const MarkNotificationReadResponse = zod.object({
 
 
 /**
+ * @summary Mark a notification as unread
+ */
+export const MarkNotificationUnreadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkNotificationUnreadResponse = zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "ticketId": zod.int().nullish(),
+  "ticketNumber": zod.int().nullish(),
+  "dailyReportId": zod.int().nullable(),
+  "notificationText": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Mark all notifications as read
  */
 export const MarkAllNotificationsReadResponse = zod.object({

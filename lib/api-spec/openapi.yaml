@@ -2227,6 +2227,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Notification"
 
+  /notifications/{id}/unread:
+    patch:
+      operationId: markNotificationUnread
+      tags: [notifications]
+      summary: Mark a notification as unread
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Notification not found
+
   /notifications/read-all:
     patch:
       operationId: markAllNotificationsRead
