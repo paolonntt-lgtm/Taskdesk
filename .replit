@@ -34,6 +34,7 @@ VITE_MICROSOFT_CLIENT_ID = "d74e049d-cb60-4f33-b88a-1b40d74c4d3b"
 
 [userenv.production]
 STAGING_PROTECTION = "1"
+MICROSOFT_ONEDRIVE_REDIRECT_URI = "https://taskdesk.it/api/onedrive/callback"
 
 [userenv.development]
 MICROSOFT_ONEDRIVE_REDIRECT_URI = "https://4a1856fa-6903-4237-b73c-7ebbcebc75f6-00-tafmov6mcohs.picard.replit.dev/api/onedrive/callback"
