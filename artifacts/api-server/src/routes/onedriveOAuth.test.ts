@@ -41,6 +41,10 @@ vi.mock("../lib/session", () => ({
     req.headers.cookie?.match(/(?:^|;\s*)session_id=([^;]+)/)?.[1],
   getCurrentUserId: (req: { headers: { cookie?: string } }) =>
     req.headers.cookie?.includes("session_id=test-session") ? 7 : undefined,
+    getSession: vi.fn(async (sessionId: string) =>
+      sessionId === "test-session"
+        ? { userId: 7, expiresAt: new Date(Date.now() + 60_000) }
+        : undefined),
 }));
 
 vi.mock("../middlewares/auth", () => ({
@@ -189,6 +193,29 @@ describe("Microsoft OneDrive OAuth callback", () => {
       CALLBACK_URI,
       expect.any(String),
     );
+  });
+
+  it("completes OAuth when the callback browser omits its session cookie", async () => {
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+      { headers: { Cookie: `taskdesk_onedrive_state=${state}` } },
+    );
+
+    expect(callbackResponse.status).toBe(200);
+    expect(mocks.exchangeMicrosoftCode).toHaveBeenCalledWith(
+      "authorization-code",
+      CALLBACK_URI,
+      expect.any(String),
+    );
+    expect(callbackResponse.headers.get("set-cookie")).toContain("session_id=test-session");
   });
 
   it("returns a clear configuration error instead of starting OAuth without a callback", async () => {

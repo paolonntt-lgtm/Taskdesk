@@ -18,7 +18,7 @@ export async function createSession(
   return sessionId;
 }
 
-export async function getSession(sessionId: string): Promise<{ userId: number } | undefined> {
+export async function getSession(sessionId: string): Promise<{ userId: number; expiresAt: Date } | undefined> {
   const [session] = await db
     .select()
     .from(sessionsTable)
@@ -28,7 +28,7 @@ export async function getSession(sessionId: string): Promise<{ userId: number } 
     await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, sessionId));
     return undefined;
   }
-  return { userId: session.userId };
+  return { userId: session.userId, expiresAt: session.expiresAt };
 }
 
 export async function destroySession(sessionId: string): Promise<void> {
