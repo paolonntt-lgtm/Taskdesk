@@ -63,6 +63,12 @@ The production OneDrive reauthorization flow has been confirmed working when Mic
 
 **How to apply:** Preserve the pending state/session checks and exact registered redirect host when changing the OneDrive OAuth flow; do not depend on the callback window forwarding the browser's existing session cookie.
 
+Coordinate OneDrive refresh-token rotation with a PostgreSQL row lock. Each refresh must reread the connection after acquiring the lock, then persist any rotated token within the same transaction; process-local promise coalescing alone cannot coordinate autoscale instances.
+
+**Why:** Separate production instances can otherwise redeem the same rotating token simultaneously and invalidate one another.
+
+**How to apply:** Keep the database lock and current-token reread even when optimizing the per-process access-token cache; exercise concurrent service instances against the same row in tests.
+
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.

@@ -17,7 +17,16 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const storage = new ObjectStorageService();
 export const ONE_DRIVE_DOWNLOAD_CONCURRENCY_LIMIT = 2;
 export const CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66e";
-const accessTokenCache = new Map<number, { accessToken: string; expiresAt: number }>();
+type RefreshedOneDriveAccessToken = {
+  accessToken: string;
+  expiresIn: number | undefined;
+  refreshTokenVersions: string[];
+};
+const accessTokenCache = new Map<number, {
+  accessToken: string;
+  expiresAt: number;
+  refreshTokenVersions: Set<string>;
+}>();
 const accessTokenRefreshes = new Map<number, Promise<string>>();
 
 export function invalidateOneDriveAccessToken(connectionId: number): void {
@@ -271,14 +280,28 @@ export async function getMicrosoftUser(accessToken: string) {
   );
 }
 
-async function refreshConnection(connection: typeof oneDriveConnectionsTable.$inferSelect) {
+export async function refreshConnection(connection: typeof oneDriveConnectionsTable.$inferSelect) {
   const cached = accessTokenCache.get(connection.id);
-  if (cached && cached.expiresAt > Date.now() + 30_000) return cached.accessToken;
+  if (
+    cached &&
+    cached.expiresAt > Date.now() + 30_000 &&
+    cached.refreshTokenVersions.has(connection.encryptedRefreshToken)
+  ) return cached.accessToken;
+  if (cached && !cached.refreshTokenVersions.has(connection.encryptedRefreshToken)) {
+    accessTokenCache.delete(connection.id);
+  }
 
   const pending = accessTokenRefreshes.get(connection.id);
   if (pending) return pending;
 
-  const refresh = requestFreshAccessToken(connection);
+  const refresh = requestFreshAccessToken(connection).then((refreshed) => {
+    accessTokenCache.set(connection.id, {
+      accessToken: refreshed.accessToken,
+      expiresAt: Date.now() + Math.max(60, (refreshed.expiresIn ?? 3600) - 120) * 1000,
+      refreshTokenVersions: new Set(refreshed.refreshTokenVersions),
+    });
+    return refreshed.accessToken;
+  });
   accessTokenRefreshes.set(connection.id, refresh);
   try {
     return await refresh;
@@ -298,44 +321,64 @@ async function requestFreshAccessToken(connection: typeof oneDriveConnectionsTab
   } catch {
     throw new OneDriveBrowseError("OneDrive is not configured. Contact your administrator.", 503);
   }
-  const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Origin: origin,
-    },
-    body: new URLSearchParams({
-      client_id: clientId,
-      grant_type: "refresh_token",
-      refresh_token: decryptRefreshToken(connection.encryptedRefreshToken, connection.userId, connection.organizationId),
-      scope: "offline_access User.Read Files.ReadWrite",
-    }),
-  });
-  const result = await response.json() as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-    error?: string;
-    error_description?: string;
-  };
-  if (!response.ok || !result.access_token) {
-    if (result.error === "invalid_grant" || result.error === "interaction_required") {
-      logger.warn({ userId: connection.userId, error: result.error }, "Microsoft rejected the OneDrive refresh authorization");
+  return db.transaction(async (tx) => {
+    // Refresh tokens rotate. Lock and reread the row so another API instance
+    // cannot redeem the same stored token while this request is in flight.
+    const [latestConnection] = await tx.select().from(oneDriveConnectionsTable)
+      .where(eq(oneDriveConnectionsTable.id, connection.id))
+      .for("update");
+    if (!latestConnection) {
       throw new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401);
     }
-    throw new OneDriveGraphError(result.error_description || "Microsoft could not refresh the OneDrive authorization.", response.status);
-  }
-  if (result.refresh_token) {
-    await db.update(oneDriveConnectionsTable)
-      .set({ encryptedRefreshToken: encryptRefreshToken(result.refresh_token, connection.userId, connection.organizationId) })
-      .where(eq(oneDriveConnectionsTable.id, connection.id));
-  }
-  const cacheSeconds = Math.max(60, (result.expires_in ?? 3600) - 120);
-  accessTokenCache.set(connection.id, {
-    accessToken: result.access_token,
-    expiresAt: Date.now() + cacheSeconds * 1000,
+    const previousRefreshToken = latestConnection.encryptedRefreshToken;
+    const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: origin,
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: "refresh_token",
+        refresh_token: decryptRefreshToken(
+          latestConnection.encryptedRefreshToken,
+          latestConnection.userId,
+          latestConnection.organizationId,
+        ),
+        scope: "offline_access User.Read Files.ReadWrite",
+      }),
+    });
+    const result = await response.json() as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+      error?: string;
+      error_description?: string;
+    };
+    if (!response.ok || !result.access_token) {
+      if (result.error === "invalid_grant" || result.error === "interaction_required") {
+        logger.warn({ userId: latestConnection.userId, error: result.error }, "Microsoft rejected the OneDrive refresh authorization");
+        throw new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401);
+      }
+      throw new OneDriveGraphError(result.error_description || "Microsoft could not refresh the OneDrive authorization.", response.status);
+    }
+    let currentRefreshToken = previousRefreshToken;
+    if (result.refresh_token) {
+      currentRefreshToken = encryptRefreshToken(
+        result.refresh_token,
+        latestConnection.userId,
+        latestConnection.organizationId,
+      );
+      await tx.update(oneDriveConnectionsTable)
+        .set({ encryptedRefreshToken: currentRefreshToken })
+        .where(eq(oneDriveConnectionsTable.id, latestConnection.id));
+    }
+    return {
+      accessToken: result.access_token,
+      expiresIn: result.expires_in,
+      refreshTokenVersions: [...new Set([previousRefreshToken, currentRefreshToken])],
+    };
   });
-  return result.access_token;
 }
 
 export class OneDriveBrowseError extends Error {
