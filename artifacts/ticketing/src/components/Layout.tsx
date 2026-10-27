@@ -37,6 +37,7 @@ import {
   AddBox,
   BarChart,
   Notifications,
+  NotificationsActiveOutlined,
   AccountCircle,
   Settings,
   FiberNew,
@@ -61,7 +62,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useColorMode } from '../App';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, getListNotificationsQueryKey, useGetPersonalTimeTrackingReport } from '@workspace/api-client-react';
+import { useListNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, useMarkNotificationUnread, getListNotificationsQueryKey, useGetPersonalTimeTrackingReport } from '@workspace/api-client-react';
 import { canAccessPersonalTimeReport, shouldShowPersonalTimeReport } from '../lib/personalTimeReportAccess';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Lang } from '../i18n/translations';
@@ -450,6 +451,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const markAllRead = useMarkAllNotificationsRead();
   const markNotificationRead = useMarkNotificationRead();
+  const markNotificationUnread = useMarkNotificationUnread();
   const queryClient = useQueryClient();
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -544,6 +546,28 @@ export default function Layout({ children }: LayoutProps) {
     handleMenuClose();
     if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+  };
+  const handleMarkNotificationUnread = (event: React.MouseEvent, notification: any) => {
+    event.stopPropagation();
+    if (!notification.isRead || markNotificationUnread.isPending) return;
+
+    queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] | undefined) =>
+      current?.map((item) => item.id === notification.id ? { ...item, isRead: false } : item),
+    );
+    markNotificationUnread.mutate({ id: notification.id }, {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] | undefined) =>
+          current?.map((item) => item.id === updated.id ? { ...item, isRead: false } : item),
+        );
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+      onError: () => {
+        queryClient.setQueryData(getListNotificationsQueryKey(), (current: any[] | undefined) =>
+          current?.map((item) => item.id === notification.id ? { ...item, isRead: true } : item),
+        );
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      },
+    });
   };
   const toggleLang = () => setLang(lang === 'it' ? 'en' : 'it' as Lang);
   const whatsappMessage = lang === 'it'
@@ -987,6 +1011,27 @@ export default function Layout({ children }: LayoutProps) {
                           </Typography>
                         )}
                       </Box>
+                      {notification.isRead && (
+                        <Tooltip title={t.notifications.markUnread}>
+                          <IconButton
+                            size="small"
+                            aria-label={t.notifications.markUnread}
+                            title={t.notifications.markUnread}
+                            data-testid={`button-mark-notification-unread-${notification.id}`}
+                            onClick={(event) => handleMarkNotificationUnread(event, notification)}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            disabled={markNotificationUnread.isPending}
+                            sx={{
+                              mt: -0.4,
+                              flexShrink: 0,
+                              color: 'text.secondary',
+                              '&:hover': { color: 'primary.main', bgcolor: 'action.selected' },
+                            }}
+                          >
+                            <NotificationsActiveOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </MenuItem>
                   );
                 })
