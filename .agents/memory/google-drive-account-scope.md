@@ -57,6 +57,12 @@ TaskDesk's Microsoft OAuth registration is a public client: use authorization co
 
 **How to apply:** Keep the PKCE verifier server-side and session-bound; do not reintroduce client-secret checks or parameters in the token flow.
 
+The production OneDrive reauthorization flow has been confirmed working when Microsoft sign-in returns in a separate window. Validate the callback against its pending server-side session, and restore the original session cookie only when that stored session is still valid. Production must use the exact Entra-registered `www.taskdesk.it` callback URI.
+
+**Why:** The user confirmed the live reconnect and folder browsing work after the separate-window callback and session handling changes.
+
+**How to apply:** Preserve the pending state/session checks and exact registered redirect host when changing the OneDrive OAuth flow; do not depend on the callback window forwarding the browser's existing session cookie.
+
 For MSAL popup recovery, only set `overrideInteractionInProgress` after an explicit user click, and start a fresh MSAL request rather than reusing a pending single-flight promise. Microsoft documents that the override force-cancels a pending interaction but does not close its popup; automatic retries can create races or leave extra popups open.
 
 **Why:** A stale interaction marker or a reused pending promise can block recovery, while blindly overriding it may cancel a valid sign-in attempt.
