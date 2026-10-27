@@ -226,6 +226,15 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
     finish(res, inviteFailures ? "sharing_partial" : "connected", current.returnTo, restoredSessionCookie);
   } catch (error) {
     logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
+    if (error instanceof OneDriveAccessRevocationError) {
+      finish(
+        res,
+        error.requiresReconnect ? "revocation_reconnect_required" : "revocation_failed",
+        current.returnTo,
+        restoredSessionCookie,
+      );
+      return;
+    }
     finish(res, "connect_error", current.returnTo, restoredSessionCookie);
   }
 });
@@ -504,7 +513,7 @@ router.delete("/onedrive/connection", requireAuth, async (req, res): Promise<voi
       return;
     }
     req.log.error({ err: error, userId: user.id }, "Could not disconnect OneDrive safely");
-    res.status(502).json({ error: "Could not revoke shared OneDrive access. The connection was kept; please retry." });
+    res.status(502).json({ code: "ONEDRIVE_REVOCATION_FAILED" });
     return;
   }
   res.json({ connected: false });

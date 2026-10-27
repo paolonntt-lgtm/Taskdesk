@@ -253,6 +253,10 @@ export default function OneDrivePage() {
             ? copy.connectedSuccess
             : oauthStatus === "sharing_partial"
               ? copy.sharingPartial
+              : oauthStatus === "revocation_failed"
+                ? copy.revocationFailed
+                : oauthStatus === "revocation_reconnect_required"
+                  ? copy.revocationReconnectRequired
               : oauthStatus === "cancelled"
                 ? copy.cancelled
                 : oauthStatus === "connect_error"

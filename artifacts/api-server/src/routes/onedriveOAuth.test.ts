@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     usersTable,
     oneDriveConnectionsTable,
     db: { select: vi.fn(), insert: vi.fn() },
+    previousConnection: null as null | Record<string, unknown>,
     exchangeMicrosoftCode: vi.fn(),
     getMicrosoftUser: vi.fn(),
     createDefaultFolders: vi.fn(),
@@ -94,6 +95,10 @@ describe("Microsoft OneDrive OAuth callback", () => {
   beforeAll(async () => {
     const { default: router } = await import("./onedriveOAuth");
     const app = express();
+    app.use((req, _res, next) => {
+      Object.assign(req, { log: { warn: vi.fn(), error: vi.fn() } });
+      next();
+    });
     app.use("/api", router);
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
@@ -105,6 +110,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.previousConnection = null;
     mocks.getSession.mockImplementation(async (sessionId: string) =>
       sessionId === "test-session"
         ? { userId: 7, expiresAt: new Date(Date.now() + 60_000) }
@@ -136,12 +142,20 @@ describe("Microsoft OneDrive OAuth callback", () => {
         table = value;
         return query;
       });
-      query.where = vi.fn(async () =>
-        table === mocks.usersTable
+      query.limit = vi.fn(async () => {
+        if (table === mocks.usersTable) {
+          return [{ id: 7, name: "Test Person", role: "admin", organizationId: 11 }];
+        }
+        return table === mocks.oneDriveConnectionsTable && mocks.previousConnection
+          ? [mocks.previousConnection]
+          : [];
+      });
+      query.where = vi.fn(() => Object.assign(
+        Promise.resolve(table === mocks.usersTable
           ? [{ id: 7, name: "Test Person", role: "admin", organizationId: 11 }]
-          : [],
-      );
-      query.limit = vi.fn(async () => []);
+          : []),
+        { limit: query.limit },
+      ));
       return query;
     });
     mocks.db.insert.mockImplementation(() => {
@@ -261,5 +275,65 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ code: "ONEDRIVE_RECONNECT_REQUIRED" });
     expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+  });
+
+  it("keeps the local connection and gives retry guidance when Microsoft revocation fails", async () => {
+    mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError());
+
+    const response = await fetch(`${baseUrl}/api/onedrive/connection`, { method: "DELETE" });
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ code: "ONEDRIVE_REVOCATION_FAILED" });
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+  });
+
+  it("reports successful disconnection only after revocation completes", async () => {
+    mocks.disconnectOneDriveUser.mockResolvedValue(undefined);
+
+    const response = await fetch(`${baseUrl}/api/onedrive/connection`, { method: "DELETE" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ connected: false });
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+  });
+
+  it("preserves the old account and tells the user how to retry a failed account replacement", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      tenantId: "tenant-1",
+      microsoftEmail: "old@example.test",
+      rootFolderId: "old-root",
+    };
+    mocks.getMicrosoftUser.mockResolvedValue({
+      displayName: "New Person",
+      mail: "new@example.test",
+      userPrincipalName: "new@example.test",
+    });
+    mocks.createDefaultFolders.mockResolvedValue({
+      rootFolderId: "new-root",
+      operatorFolderId: "new-operator",
+      shareUrl: "https://onedrive.example.test/new-folder",
+    });
+    mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError());
+
+    const connectResponse = await fetch(`${baseUrl}/api/onedrive/connect?returnTo=%2Fapp%2Fsettings`, {
+      headers: { Cookie: "session_id=test-session" },
+    });
+    const html = await connectResponse.text();
+    const locationMatch = html.match(/location\.replace\((.*)\)<\/script>/);
+    const authorizationUrl = new URL(JSON.parse(locationMatch![1]) as string);
+    const state = authorizationUrl.searchParams.get("state")!;
+
+    const callbackResponse = await fetch(
+      `${baseUrl}/api/onedrive/callback?${new URLSearchParams({ code: "authorization-code", state })}`,
+      { headers: { Cookie: `session_id=test-session; taskdesk_onedrive_state=${state}` } },
+    );
+
+    const callbackHtml = await callbackResponse.text();
+    expect(callbackHtml).toContain("onedrive=revocation_failed");
+    expect(mocks.disconnectOneDriveUser).toHaveBeenCalledWith(7, 11);
+    expect(mocks.db.insert).not.toHaveBeenCalled();
   });
 });

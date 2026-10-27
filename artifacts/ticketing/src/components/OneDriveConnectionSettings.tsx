@@ -65,6 +65,10 @@ export default function OneDriveConnectionSettings() {
           ? "Account collegato, ma alcuni inviti non sono riusciti. Ricollega OneDrive per riprovare."
           : "Account connected, but some invitations failed. Reconnect OneDrive to retry.",
       });
+    } else if (result === "revocation_failed") {
+      setNotice({ severity: "error", text: copy.oneDriveRevocationFailed });
+    } else if (result === "revocation_reconnect_required") {
+      setNotice({ severity: "error", text: copy.oneDriveRevocationReconnectRequired });
     } else if (result === "cancelled") {
       setNotice({ severity: "info", text: copy.oneDriveConnectCancelled });
     } else if (result) {
@@ -75,7 +79,14 @@ export default function OneDriveConnectionSettings() {
       window.history.replaceState(null, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
     }
     return () => window.removeEventListener("focus", refreshConnectionOnFocus);
-  }, [copy.oneDriveConnectCancelled, copy.oneDriveConnectError, copy.oneDriveConnectedSuccess, loadConnection]);
+  }, [
+    copy.oneDriveConnectCancelled,
+    copy.oneDriveConnectError,
+    copy.oneDriveConnectedSuccess,
+    copy.oneDriveRevocationFailed,
+    copy.oneDriveRevocationReconnectRequired,
+    loadConnection,
+  ]);
 
   const startConnect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
@@ -99,7 +110,9 @@ export default function OneDriveConnectionSettings() {
       if (!response.ok) {
         const message = data.code === "ONEDRIVE_RECONNECT_REQUIRED"
           ? copy.oneDriveDisconnectReconnectRequired
-          : data.error || copy.oneDriveRequestError;
+          : data.code === "ONEDRIVE_REVOCATION_FAILED"
+            ? copy.oneDriveRevocationFailed
+            : data.error || copy.oneDriveRequestError;
         throw new Error(message);
       }
       setConnection({ connected: false });

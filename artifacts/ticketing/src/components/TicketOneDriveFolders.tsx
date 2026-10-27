@@ -136,6 +136,16 @@ export default function TicketOneDriveFolders({ ticketId }: { ticketId: number }
         ? "OneDrive è collegato, ma alcuni inviti ai collaboratori non sono riusciti. Ricollega l’account per riprovare."
         : "OneDrive is connected, but some collaborator invitations failed. Reconnect the account to retry.");
       void loadConnection();
+    } else if (result === "revocation_failed") {
+      setError(it
+        ? "Non è stato possibile revocare gli accessi del vecchio account. Il collegamento esistente è stato mantenuto: riprova a cambiare account."
+        : "Could not revoke access from the previous account. Your existing connection was kept; retry switching accounts.");
+      void loadConnection();
+    } else if (result === "revocation_reconnect_required") {
+      setError(it
+        ? "Ricollega lo stesso account Microsoft attualmente connesso, poi riprova a cambiare account."
+        : "Reconnect the same Microsoft account currently connected, then retry switching accounts.");
+      void loadConnection();
     } else if (result) {
       setError(result === "cancelled"
         ? (it ? "Collegamento OneDrive annullato." : "OneDrive connection cancelled.")
