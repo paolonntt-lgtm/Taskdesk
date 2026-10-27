@@ -1456,6 +1456,7 @@ const it = {
     oneDriveDisconnectReconnectRequired: 'Scollegamento non completato: ricollega lo stesso account Microsoft e riprova. TaskDesk manterrà il collegamento finché non può revocare in sicurezza gli accessi alle cartelle condivise.',
     oneDriveConnectCancelled: 'Collegamento OneDrive annullato.',
     oneDriveConnectError: 'Collegamento OneDrive non riuscito. Verifica l’account e i permessi Microsoft.',
+    oneDrivePopupBlocked: 'Consenti l’apertura della nuova scheda per accedere a Microsoft e riprova.',
     oneDriveLoadError: 'Impossibile caricare lo stato della connessione OneDrive.',
     oneDriveRequestError: 'Impossibile aggiornare la connessione OneDrive.',
     oneDriveBrowse: {
@@ -1470,6 +1471,7 @@ const it = {
       cancelled: 'Collegamento OneDrive annullato.',
       connectError: 'Microsoft ha completato l’accesso, ma TaskDesk non è riuscito a salvare il collegamento. Riprova.',
       invalidSession: 'Sessione di collegamento scaduta o non valida. Riprova.',
+      popupBlocked: 'Consenti l’apertura della nuova scheda per accedere a Microsoft e riprova.',
       connect: 'Collega OneDrive',
       browse: 'Esplora',
       refresh: 'Aggiorna',
@@ -3593,6 +3595,7 @@ const en: typeof it = {
     oneDriveDisconnectReconnectRequired: 'Disconnect was not completed: reconnect the same Microsoft account and try again. TaskDesk will keep the connection until it can safely revoke shared-folder access.',
     oneDriveConnectCancelled: 'OneDrive connection was cancelled.',
     oneDriveConnectError: 'Could not connect OneDrive. Check the Microsoft account and permissions.',
+    oneDrivePopupBlocked: 'Allow the new tab to open for Microsoft sign-in, then try again.',
     oneDriveLoadError: 'Unable to load the OneDrive connection status.',
     oneDriveRequestError: 'Unable to update the OneDrive connection.',
     oneDriveBrowse: {
@@ -3607,6 +3610,7 @@ const en: typeof it = {
       cancelled: 'OneDrive connection cancelled.',
       connectError: 'Microsoft sign-in completed, but TaskDesk could not save the connection. Please try again.',
       invalidSession: 'The connection session expired or was invalid. Please try again.',
+      popupBlocked: 'Allow the new tab to open for Microsoft sign-in, then try again.',
       connect: 'Connect OneDrive',
       browse: 'Browse',
       refresh: 'Refresh',

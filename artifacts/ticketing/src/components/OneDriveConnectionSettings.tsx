@@ -52,6 +52,8 @@ export default function OneDriveConnectionSettings() {
 
   useEffect(() => {
     void loadConnection();
+    const refreshConnectionOnFocus = () => void loadConnection();
+    window.addEventListener("focus", refreshConnectionOnFocus);
     const currentUrl = new URL(window.location.href);
     const result = currentUrl.searchParams.get("onedrive");
     if (result === "connected") {
@@ -72,11 +74,17 @@ export default function OneDriveConnectionSettings() {
       currentUrl.searchParams.delete("onedrive");
       window.history.replaceState(null, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
     }
+    return () => window.removeEventListener("focus", refreshConnectionOnFocus);
   }, [copy.oneDriveConnectCancelled, copy.oneDriveConnectError, copy.oneDriveConnectedSuccess, loadConnection]);
 
   const startConnect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
-    window.location.assign(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`);
+    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`, "_blank");
+    if (!popup) {
+      setNotice({ severity: "error", text: copy.oneDrivePopupBlocked });
+      return;
+    }
+    popup.opener = null;
   };
 
   const disconnect = async () => {

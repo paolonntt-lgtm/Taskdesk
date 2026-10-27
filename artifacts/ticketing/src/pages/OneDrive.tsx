@@ -127,27 +127,37 @@ export default function OneDrivePage() {
       window.history.replaceState(null, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
     }
 
-    Promise.all([
-      fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(copy.loadSharesError);
-          return response.json() as Promise<OrganizationShare[]>;
-        }),
-      fetch("/api/onedrive/connection", { credentials: "include", cache: "no-store" })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(copy.checkConnectionError);
-          return response.json() as Promise<{ connected: boolean }>;
-        }),
-    ])
-      .then(([shareData, connection]) => {
+    const reload = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [shareResponse, connectionResponse] = await Promise.all([
+          fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" }),
+          fetch("/api/onedrive/connection", { credentials: "include", cache: "no-store" }),
+        ]);
+        if (!shareResponse.ok) throw new Error(copy.loadSharesError);
+        if (!connectionResponse.ok) throw new Error(copy.checkConnectionError);
+        const [shareData, connection] = await Promise.all([
+          shareResponse.json() as Promise<OrganizationShare[]>,
+          connectionResponse.json() as Promise<{ connected: boolean }>,
+        ]);
         if (!active) return;
         setShares(shareData);
         setConnected(connection.connected);
-      })
-      .catch((failure) => { if (active) setError(failure instanceof Error ? failure.message : copy.checkConnectionError); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [it]);
+      } catch (failure) {
+        if (active) setError(failure instanceof Error ? failure.message : copy.checkConnectionError);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void reload();
+    window.addEventListener("focus", reload);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", reload);
+    };
+  }, [copy.checkConnectionError, copy.loadSharesError]);
 
   useEffect(() => {
     if (!connected) return;
@@ -158,7 +168,12 @@ export default function OneDrivePage() {
 
   const connect = () => {
     const returnTo = `${window.location.pathname}${window.location.search}`;
-    window.location.assign(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`);
+    const popup = window.open(`/api/onedrive/connect?returnTo=${encodeURIComponent(returnTo)}`, "_blank");
+    if (!popup) {
+      setOauthStatus("popup_blocked");
+      return;
+    }
+    popup.opener = null;
   };
 
   const showPreview = async (ownerUserId: number, item: OneDriveBrowseItem, path: Breadcrumb[]) => {
@@ -242,6 +257,8 @@ export default function OneDrivePage() {
                 ? copy.cancelled
                 : oauthStatus === "connect_error"
                   ? copy.connectError
+                  : oauthStatus === "popup_blocked"
+                    ? copy.popupBlocked
                   : copy.invalidSession}
         </Alert>
       )}
