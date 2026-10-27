@@ -39,6 +39,7 @@ import {
 } from "@workspace/api-client-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import OneDriveLogo from "../components/OneDriveLogo";
+import { getFolderLoadError } from "../lib/oneDriveBrowseErrors";
 
 type OrganizationShare = {
   ownerUserId: number;
@@ -102,7 +103,7 @@ export default function OneDrivePage() {
         ...current,
         [ownerUserId]: { path, folderName: result.folderName, items: result.items, loading: false, error: "" },
       }));
-    } catch {
+    } catch (error) {
       setBrowsers((current) => ({
         ...current,
         [ownerUserId]: {
@@ -110,7 +111,7 @@ export default function OneDrivePage() {
           folderName: current[ownerUserId]?.folderName ?? "",
           items: [],
           loading: false,
-          error: copy.loadFolderError,
+          error: getFolderLoadError(error, copy),
         },
       }));
     }

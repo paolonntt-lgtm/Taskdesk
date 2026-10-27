@@ -43,6 +43,10 @@ export function microsoftOneDriveCallbackUri(): string {
   return configuredUri;
 }
 
+export function microsoftOneDriveCallbackOrigin(): string {
+  return new URL(microsoftOneDriveCallbackUri()).origin;
+}
+
 const KNOWN_APP_HOSTS = new Set([
   "taskdesk.it",
   "www.taskdesk.it",

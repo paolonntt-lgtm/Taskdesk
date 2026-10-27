@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { microsoftOneDriveCallbackUri } from "./appUrl";
+import { microsoftOneDriveCallbackOrigin, microsoftOneDriveCallbackUri } from "./appUrl";
 
 describe("Microsoft OneDrive callback URI configuration", () => {
   afterEach(() => {
@@ -12,6 +12,13 @@ describe("Microsoft OneDrive callback URI configuration", () => {
     vi.stubEnv("REPLIT_DEV_DOMAIN", "another-preview.example");
 
     expect(microsoftOneDriveCallbackUri()).toBe("https://taskdesk.it/api/onedrive/callback");
+  });
+
+  it("uses the registered callback origin for Microsoft token requests", () => {
+    vi.stubEnv("MICROSOFT_ONEDRIVE_REDIRECT_URI", "https://taskdesk.it/api/onedrive/callback");
+    vi.stubEnv("REPLIT_DOMAINS", "unregistered-preview.example");
+
+    expect(microsoftOneDriveCallbackOrigin()).toBe("https://taskdesk.it");
   });
 
   it("rejects a missing callback URI with setup guidance", () => {

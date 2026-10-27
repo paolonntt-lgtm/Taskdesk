@@ -10,7 +10,7 @@ import {
 } from "@workspace/db";
 import { ObjectStorageService } from "./objectStorage";
 import { logger } from "./logger";
-import { appBaseUrl } from "./appUrl";
+import { microsoftOneDriveCallbackOrigin } from "./appUrl";
 import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_TICKET_ATTACHMENT_SIZE_BYTES } from "./allowedMimeTypes";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -260,12 +260,20 @@ export async function getMicrosoftUser(accessToken: string) {
 
 async function refreshConnection(connection: typeof oneDriveConnectionsTable.$inferSelect) {
   const clientId = process.env.VITE_MICROSOFT_CLIENT_ID;
-  if (!clientId) throw new Error("Microsoft OneDrive OAuth is not configured.");
+  if (!clientId) {
+    throw new OneDriveBrowseError("OneDrive is not configured. Contact your administrator.", 503);
+  }
+  let origin: string;
+  try {
+    origin = microsoftOneDriveCallbackOrigin();
+  } catch {
+    throw new OneDriveBrowseError("OneDrive is not configured. Contact your administrator.", 503);
+  }
   const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Origin: appBaseUrl(),
+      Origin: origin,
     },
     body: new URLSearchParams({
       client_id: clientId,
@@ -274,8 +282,18 @@ async function refreshConnection(connection: typeof oneDriveConnectionsTable.$in
       scope: "offline_access User.Read Files.ReadWrite",
     }),
   });
-  const result = await response.json() as { access_token?: string; refresh_token?: string; error_description?: string };
-  if (!response.ok || !result.access_token) throw new Error(result.error_description || "OneDrive authorization expired.");
+  const result = await response.json() as {
+    access_token?: string;
+    refresh_token?: string;
+    error?: string;
+    error_description?: string;
+  };
+  if (!response.ok || !result.access_token) {
+    if (result.error === "invalid_grant" || result.error === "interaction_required") {
+      throw new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401);
+    }
+    throw new OneDriveGraphError(result.error_description || "Microsoft could not refresh the OneDrive authorization.", response.status);
+  }
   if (result.refresh_token) {
     await db.update(oneDriveConnectionsTable)
       .set({ encryptedRefreshToken: encryptRefreshToken(result.refresh_token, connection.userId, connection.organizationId) })
