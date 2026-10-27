@@ -1,9 +1,7 @@
 import { Router, type IRouter } from "express";
-import { timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, inboundEmailChannelsTable } from "@workspace/db";
 import { processInboundEmail } from "../lib/ticketFromEmail";
-import { inboundEmailRateLimiter } from "../lib/rateLimiter";
 import type { InboundAttachment } from "../lib/ticketFromEmail";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -238,35 +236,7 @@ function extractTextAndAttachments(body: any): {
   return { text: "", attachments: [] };
 }
 
-router.post("/inbound-email", inboundEmailRateLimiter, async (req, res): Promise<void> => {
-  const expectedToken = process.env.INBOUND_EMAIL_TOKEN;
-
-  // Normalise the received token: the Cloudflare Worker may send the value
-  // with trailing whitespace or a duplicated "?token=…" fragment caused by a
-  // newline in the URL template.  Split on the first newline / "?" and trim.
-  const rawToken = (req.query.token as string) || (req.headers["x-webhook-token"] as string) || "";
-  const receivedToken = rawToken.split(/[\n\r?]/)[0].trim();
-
-  if (!expectedToken) {
-    req.log.warn("INBOUND_EMAIL_TOKEN not configured — rejecting request");
-    res.status(503).json({ error: "Webhook not configured" });
-    return;
-  }
-
-  // Use timing-safe comparison to prevent character-by-character timing oracle.
-  // Both buffers must be the same length; if not, the token is definitively wrong.
-  const expectedBuf = Buffer.from(expectedToken, "utf8");
-  const receivedBuf = Buffer.from(receivedToken, "utf8");
-  const tokenValid =
-    expectedBuf.length === receivedBuf.length &&
-    timingSafeEqual(expectedBuf, receivedBuf);
-
-  if (!tokenValid) {
-    req.log.warn({ raw: rawToken }, "Invalid inbound email token");
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
+router.post("/inbound-email", async (req, res): Promise<void> => {
   const body = req.body;
 
   // Log the raw payload structure for debugging (no sensitive content)

@@ -5,7 +5,12 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { WebhookHandlers } from "./webhookHandlers";
 import { logger } from "./lib/logger";
-import { apiRateLimiter } from "./lib/rateLimiter";
+import { apiRateLimiter, inboundEmailRateLimiter } from "./lib/rateLimiter";
+import {
+  authenticateInboundEmailWebhook,
+  inboundEmailJsonParser,
+  inboundEmailUrlEncodedParser,
+} from "./lib/inboundEmailWebhookMiddleware";
 import { securityHeaders, stagingProtection } from "./lib/stagingProtection";
 
 const app: Express = express();
@@ -146,6 +151,16 @@ app.use(
   })
 );
 app.use(cookieParser());
+// Inbound email may include base64 attachments larger than the normal 5 MB API
+// limit. Rate-limit and authenticate before parsing so unauthenticated requests
+// cannot force the larger parser to buffer their payloads.
+app.post(
+  "/api/inbound-email",
+  inboundEmailRateLimiter,
+  authenticateInboundEmailWebhook,
+  inboundEmailJsonParser,
+  inboundEmailUrlEncodedParser,
+);
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
