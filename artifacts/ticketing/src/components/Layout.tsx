@@ -589,22 +589,22 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const menuItems = [
-    { text: t.nav.dashboard,    icon: <Dashboard />,          path: '/',            adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
-    { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  path: '/tickets',     adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
-    { text: entityTerm.navNew,  icon: <AddBox />,              path: '/tickets/new', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
-    { text: 'OneDrive', icon: <OneDriveLogo width={24} height={24} />, path: '/onedrive', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: t.nav.dashboard,    icon: <Dashboard />,          iconColor: '#3478E5', path: '/',              adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: entityTerm.navAll,  icon: <ConfirmationNumber />,  iconColor: '#7357D8', path: '/tickets',       adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: entityTerm.navNew,  icon: <AddBox />,              iconColor: '#159A83', path: '/tickets/new',   adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
+    { text: 'OneDrive', icon: <OneDriveLogo width={24} height={24} />, iconColor: '#1976D2', path: '/onedrive', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' },
     ...((user as any)?.clientsEnabled !== false
-      ? [{ text: t.nav.clients, icon: <Business />, path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
+      ? [{ text: t.nav.clients, icon: <Business />, iconColor: '#D17A22', path: '/clients', adminOnly: false, group: lang === 'it' ? 'Operazioni' : 'Operations' }]
       : []),
-    { text: t.nav.reports,    icon: <BarChart />,            path: '/reports',     adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: t.nav.reports,    icon: <BarChart />,            iconColor: '#7B61C9', path: '/reports',       adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
     ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
-      ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
+      ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
     ...(shouldShowPersonalTimeReport(user?.role, personalTimeReport.data?.rows)
-      ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]
+      ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
-    { text: t.nav.calendar,   icon: <CalendarMonth />,       path: '/calendar',    adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
-    { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: t.nav.calendar,   icon: <CalendarMonth />,       iconColor: '#D65A72', path: '/calendar',      adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' },
+    { text: lang === 'it' ? 'Avvisi' : 'Announcements', icon: <Campaign />, iconColor: '#BD841B', path: '/announcements', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' },
   ].filter((item) => !item.adminOnly || user?.role === 'admin');
 
   const roleLabel = user?.role === 'admin' ? t.role.admin : t.role.user;
@@ -670,8 +670,23 @@ export default function Layout({ children }: LayoutProps) {
                   '&:not(.Mui-selected):hover': { bgcolor: 'action.hover', color: theme.palette.mode === 'dark' ? '#ffffff' : '#172a40' },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 38, color: isActive(item.path) ? 'inherit' : (theme.palette.mode === 'dark' ? '#b9c9d8' : '#506275') }}>
-                  {item.icon}
+                <ListItemIcon sx={{ minWidth: 42 }}>
+                  <Box sx={{
+                    width: 31,
+                    height: 31,
+                    display: 'grid',
+                    placeItems: 'center',
+                    borderRadius: '10px',
+                    color: isActive(item.path) ? '#fff' : item.iconColor,
+                    bgcolor: isActive(item.path)
+                      ? item.iconColor
+                      : `${item.iconColor}${theme.palette.mode === 'dark' ? '30' : '18'}`,
+                    transition: 'color 160ms ease, background-color 160ms ease, transform 160ms ease',
+                    '& .MuiSvgIcon-root': { fontSize: 19 },
+                    '.MuiListItemButton-root:hover &': { transform: 'translateY(-1px)' },
+                  }}>
+                    {item.icon}
+                  </Box>
                 </ListItemIcon>
                 <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 600, fontSize: '0.94rem' }} />
               </ListItemButton>
@@ -700,8 +715,21 @@ export default function Layout({ children }: LayoutProps) {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 38, color: isActive('/superadmin') ? 'inherit' : (theme.palette.mode === 'dark' ? '#b9c9d8' : '#506275') }}>
-                  <AdminPanelSettings />
+                <ListItemIcon sx={{ minWidth: 42 }}>
+                  <Box sx={{
+                    width: 31,
+                    height: 31,
+                    display: 'grid',
+                    placeItems: 'center',
+                    borderRadius: '10px',
+                    color: isActive('/superadmin') ? '#fff' : '#B34478',
+                    bgcolor: isActive('/superadmin')
+                      ? 'rgba(255,255,255,0.18)'
+                      : theme.palette.mode === 'dark' ? 'rgba(179,68,120,0.24)' : 'rgba(179,68,120,0.12)',
+                    '& .MuiSvgIcon-root': { fontSize: 19 },
+                  }}>
+                    <AdminPanelSettings />
+                  </Box>
                 </ListItemIcon>
                 <ListItemText
                   primary={t.nav.superadmin}
