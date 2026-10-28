@@ -29,6 +29,8 @@ type ClientDetailField = {
   label: string;
   value: string | null | undefined;
   icon: React.ComponentProps<typeof Feather>["name"];
+  iconColor: string;
+  iconBackground: string;
 };
 
 function noteAsPlainText(value: string): string {
@@ -86,15 +88,17 @@ export default function ClientDetailScreen() {
   });
   const client = data?.client ?? data;
   const clientDetails = client ? ([
-    { label: "Email", value: client.email, icon: "mail" },
-    { label: it ? "Telefono" : "Phone", value: client.phone, icon: "phone" },
-    { label: it ? "Indirizzo" : "Address", value: client.address, icon: "map-pin" },
-    { label: "P. IVA", value: client.vatNumber, icon: "hash" },
-    { label: it ? "Referente" : "Contact", value: client.contactPerson, icon: "user" },
+    { label: "Email", value: client.email, icon: "mail", iconColor: c.successForeground, iconBackground: c.success },
+    { label: it ? "Telefono" : "Phone", value: client.phone, icon: "phone", iconColor: c.primaryForeground, iconBackground: c.primary },
+    { label: it ? "Indirizzo" : "Address", value: client.address, icon: "map-pin", iconColor: c.warningForeground, iconBackground: c.warning },
+    { label: "P. IVA", value: client.vatNumber, icon: "hash", iconColor: c.accentForeground, iconBackground: c.accent },
+    { label: it ? "Referente" : "Contact", value: client.contactPerson, icon: "user", iconColor: c.secondaryForeground, iconBackground: c.secondary },
     {
       label: it ? "Note" : "Notes",
       value: client.notes ? noteAsPlainText(client.notes) : null,
       icon: "file-text",
+      iconColor: c.primary,
+      iconBackground: c.secondary,
     },
   ] satisfies ClientDetailField[]).filter((field) => Boolean(field.value)) : [];
   const canEditNote = (note: ClientNote) =>
@@ -205,7 +209,7 @@ export default function ClientDetailScreen() {
       <View style={s.card}>
         <View style={s.cardHeading}>
           <View style={s.cardIcon}>
-            <Feather name="briefcase" size={18} color={c.primary} />
+              <Feather name="briefcase" size={18} color={c.primaryForeground} />
           </View>
           <View style={s.cardHeadingText}>
             <Text style={s.cardTitle}>{it ? "Dati cliente" : "Client details"}</Text>
@@ -215,7 +219,9 @@ export default function ClientDetailScreen() {
         <View>
           {clientDetails.map((field, index) => (
             <View key={field.label} style={[s.fieldRow, index > 0 && s.fieldRowDivider]}>
-              <Feather name={field.icon} size={16} color={c.mutedForeground} />
+              <View style={[s.fieldIcon, { backgroundColor: field.iconBackground }]}>
+                <Feather name={field.icon} size={15} color={field.iconColor} />
+              </View>
               <View style={s.fieldText}>
                 <Text style={s.label}>{field.label}</Text>
                 <Text style={s.value}>{field.value}</Text>
@@ -227,7 +233,9 @@ export default function ClientDetailScreen() {
       <View style={s.notesSection}>
         <View style={s.notesHeading}>
           <Text style={s.sectionTitle}>{it ? "Storico note" : "Notes history"}</Text>
-          <Text style={s.noteCount}>{notesQuery.data?.length ?? 0}</Text>
+          <View style={s.noteCountBadge}>
+            <Text style={s.noteCount}>{notesQuery.data?.length ?? 0}</Text>
+          </View>
         </View>
         <View style={s.composer}>
           <TextInput
@@ -354,22 +362,24 @@ export default function ClientDetailScreen() {
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.background }, center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 16, paddingBottom: 100 },
   muted: { color: c.mutedForeground },
-  card: { borderRadius: 18, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, padding: 18, gap: 14, shadowColor: c.foreground, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
-  cardHeading: { flexDirection: "row", alignItems: "center", gap: 12, paddingBottom: 4 },
-  cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.secondary, alignItems: "center", justifyContent: "center" },
+  card: { borderRadius: 18, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, padding: 18, gap: 14, shadowColor: c.primary, shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
+  cardHeading: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.secondary, marginHorizontal: -18, marginTop: -18, paddingHorizontal: 18, paddingVertical: 15, borderTopLeftRadius: 17, borderTopRightRadius: 17 },
+  cardIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: c.primary, alignItems: "center", justifyContent: "center" },
   cardHeadingText: { flex: 1, gap: 2 },
   cardTitle: { color: c.foreground, fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  alias: { color: c.mutedForeground, fontSize: 12 },
-  fieldRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 11 },
+  alias: { color: c.secondaryForeground, fontSize: 12 },
+  fieldRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11 },
   fieldRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  fieldIcon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   fieldText: { flex: 1, gap: 3 },
   label: { color: c.mutedForeground, fontSize: 11, letterSpacing: 0.35 },
   value: { color: c.foreground, fontSize: 14, lineHeight: 20 },
   notesSection: { gap: 10 },
   notesHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { color: c.foreground, fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  noteCount: { color: c.mutedForeground, fontSize: 12 },
-  composer: { gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
+  noteCountBadge: { minWidth: 26, height: 26, paddingHorizontal: 7, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: c.secondary },
+  noteCount: { color: c.secondaryForeground, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  composer: { gap: 8, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: c.accent, backgroundColor: c.secondary },
   noteInput: { minHeight: 72, color: c.foreground, fontSize: 14, lineHeight: 20, padding: 0 },
   addNoteButton: { alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 9, backgroundColor: c.primary, paddingHorizontal: 12, paddingVertical: 8 },
   addNoteText: { color: c.primaryForeground, fontFamily: "Inter_600SemiBold", fontSize: 13 },
@@ -379,7 +389,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   retry: { padding: 10, marginTop: 8, alignItems: "center" },
   retryText: { color: c.primary, fontFamily: "Inter_600SemiBold" },
   emptyNotes: { color: c.mutedForeground, fontSize: 13, paddingVertical: 8 },
-  noteCard: { gap: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
+  noteCard: { gap: 10, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: c.border, borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.card },
   noteHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   author: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   authorName: { flexShrink: 1, color: c.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 },
