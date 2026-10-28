@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
     select,
     removeWhere,
     remove,
-    db: { select, delete: remove },
+    db: { select, delete: remove, transaction: vi.fn() },
   };
 });
 
@@ -78,6 +78,18 @@ describe("OneDrive disconnection after Microsoft revocation", () => {
           Promise.resolve(result).then(resolve, reject),
       };
       return query;
+    });
+    let refreshedConnectionIndex = 0;
+    mocks.db.transaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const connection = refreshedConnectionIndex++ === 0
+        ? mocks.collaboratorConnection
+        : mocks.targetConnection;
+      const query: Record<string, unknown> = {
+        from: vi.fn(() => query),
+        where: vi.fn(() => query),
+        for: vi.fn(async () => [connection]),
+      };
+      return callback({ select: vi.fn(() => query) });
     });
   });
 
