@@ -45,6 +45,12 @@ export default function TicketsScreen() {
     setSearch(params.search ?? "");
   }, [params.search]);
 
+  useEffect(() => {
+    setStatusFilter(params.status ?? "");
+    setPriorityFilter(params.priority ?? "");
+    setRecurringFilter(false);
+  }, [params.status, params.priority]);
+
   const buildQuery = () => {
     const parts: string[] = [];
     if (statusFilter) parts.push(`status=${statusFilter}`);

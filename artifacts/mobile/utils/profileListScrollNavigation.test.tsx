@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   initialRoute: "tickets",
   clientsEnabled: true,
   routeSearch: undefined as string | undefined,
+  routeStatus: undefined as string | undefined,
+  routePriority: undefined as string | undefined,
   ticketQueryFn: undefined as (() => Promise<unknown>) | undefined,
   dashboardTickets: [] as Array<{
     id: number;
@@ -161,7 +163,11 @@ vi.mock("expo-router", async () => {
 
   return {
     Tabs,
-    useLocalSearchParams: () => ({ search: mocks.routeSearch }),
+    useLocalSearchParams: () => ({
+      search: mocks.routeSearch,
+      status: mocks.routeStatus,
+      priority: mocks.routePriority,
+    }),
     useRouter: () => ({ push: vi.fn() }),
     router: { push: vi.fn() },
   };
@@ -290,6 +296,8 @@ describe("mobile list position after returning from Profile", () => {
     mocks.initialRoute = "tickets";
     mocks.clientsEnabled = true;
     mocks.routeSearch = undefined;
+    mocks.routeStatus = undefined;
+    mocks.routePriority = undefined;
     mocks.ticketQueryFn = undefined;
     mocks.dashboardTickets = [];
     mocks.apiGet.mockClear();
@@ -310,6 +318,24 @@ describe("mobile list position after returning from Profile", () => {
     expect(mocks.apiGet).toHaveBeenCalledWith(
       "/tickets?search=invoice%20%26%20renewal",
     );
+  });
+
+  it("updates status and priority filters when route parameters change", async () => {
+    mocks.routeStatus = "open";
+    await act(async () => root.render(React.createElement(TicketsScreen)));
+    await mocks.ticketQueryFn?.();
+    expect(mocks.apiGet).toHaveBeenLastCalledWith("/tickets?status=open");
+
+    mocks.routeStatus = "in_progress";
+    await act(async () => root.render(React.createElement(TicketsScreen)));
+    await mocks.ticketQueryFn?.();
+    expect(mocks.apiGet).toHaveBeenLastCalledWith("/tickets?status=in_progress");
+
+    mocks.routeStatus = undefined;
+    mocks.routePriority = "urgent";
+    await act(async () => root.render(React.createElement(TicketsScreen)));
+    await mocks.ticketQueryFn?.();
+    expect(mocks.apiGet).toHaveBeenLastCalledWith("/tickets?priority=urgent");
   });
 
   it("shows client and assignee on dashboard ticket suggestions at a narrow mobile width", async () => {
