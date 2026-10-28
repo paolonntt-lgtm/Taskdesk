@@ -228,8 +228,10 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     filterTextUrgent: { color: "#fff" },
     list: { padding: 16, paddingTop: 8 },
     card: {
-      backgroundColor: colors.card, borderRadius: 12, padding: 16,
+      backgroundColor: colors.card, borderRadius: colors.radius + 2, padding: 16,
       marginBottom: 10, borderWidth: 1, borderColor: colors.border, gap: 8,
+      shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
     },
     cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     priorityBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },

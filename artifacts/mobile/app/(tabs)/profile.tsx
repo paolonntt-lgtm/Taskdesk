@@ -74,8 +74,8 @@ export default function ProfileScreen() {
   ];
 
   const LANGS: { value: Lang; label: string; flag: string }[] = [
-    { value: "it", label: "Italiano", flag: "🇮🇹" },
-    { value: "en", label: "English", flag: "🇬🇧" },
+    { value: "it", label: "Italiano", flag: "IT" },
+    { value: "en", label: "English", flag: "EN" },
   ];
 
   return (
@@ -294,7 +294,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border,
     },
     langBtnActive: { backgroundColor: colors.primary + "18", borderColor: colors.primary },
-    langFlag: { fontSize: 16 },
+    langFlag: { fontSize: 10, color: colors.primary, fontWeight: "700" as const, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
     langLabel: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     langLabelActive: { color: colors.primary, fontWeight: "600" as const },
     logoutBtn: {

@@ -21,7 +21,7 @@ interface ReportsAll {
   leaderboard: { openers: LeaderEntry[]; commenters: LeaderEntry[]; resolvers: LeaderEntry[] };
 }
 
-const MEDALS = ["🥇", "🥈", "🥉", "4.", "5."];
+const MEDALS = ["01", "02", "03", "04", "05"];
 
 const PRIORITY_COLORS_MAP: Record<string, string> = {
   Bassa: "#24a148", Media: "#f1c21b", Alta: "#ff832b", Urgente: "#da1e28",
@@ -31,9 +31,12 @@ const PRIORITY_COLORS_MAP: Record<string, string> = {
 function SectionTitle({ label }: { label: string }) {
   const colors = useColors();
   return (
-    <Text style={{ fontSize: 17, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", marginBottom: 10 }}>
-      {label}
-    </Text>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 10 }}>
+      <View style={{ width: 4, height: 19, borderRadius: 2, backgroundColor: colors.accent }} />
+      <Text style={{ fontSize: 17, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" }}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -227,7 +230,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     barCount: { fontSize: 13, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "right" },
     lbHeader: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
     lbTitle: { fontSize: 14, fontWeight: "600" as const, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    medal: { fontSize: 16, width: 26, textAlign: "center" },
+  medal: { fontSize: 10, width: 28, height: 28, overflow: "hidden", textAlign: "center", textAlignVertical: "center", borderRadius: 9, backgroundColor: colors.secondary, color: colors.secondaryForeground, fontFamily: "Inter_700Bold" },
     emptyRow: { padding: 20, alignItems: "center" },
     emptyText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     trendContainer: { padding: 14 },

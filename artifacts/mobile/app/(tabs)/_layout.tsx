@@ -880,7 +880,14 @@ function BottomTabBar({
                 </>
               ) : (
                 <>
-                  {icon}
+                  <View
+                    style={[
+                      styles.tabIconContainer,
+                      focused && { backgroundColor: colors.secondary },
+                    ]}
+                  >
+                    {icon}
+                  </View>
                   <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit
@@ -1078,6 +1085,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2,
     paddingHorizontal: 2,
+  },
+  tabIconContainer: {
+    width: 38,
+    height: 30,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   newActionTabItem: {
     top: -14,

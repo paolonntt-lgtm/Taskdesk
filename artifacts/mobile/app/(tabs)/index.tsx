@@ -180,13 +180,13 @@ export default function DashboardScreen() {
 const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
+    content: { padding: 18, paddingTop: 16, gap: 2 },
     header: {
       minHeight: 138,
       marginBottom: 20,
       paddingHorizontal: 18,
       paddingVertical: 18,
-      borderRadius: colors.radius * 2,
+      borderRadius: colors.radius * 2.25,
       flexDirection: "row",
       alignItems: "center",
       overflow: "hidden",
@@ -247,10 +247,12 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     statCard: {
       flex: 1, minWidth: "45%",
       backgroundColor: colors.card,
-      borderRadius: 10, padding: 10,
+      borderRadius: colors.radius + 3, padding: 10,
       borderLeftWidth: 3,
       gap: 5,
       borderWidth: 1, borderColor: colors.border,
+      shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.055, shadowRadius: 8, elevation: 1,
     },
     statCardSingleRow: { minWidth: 0, paddingHorizontal: 5, paddingVertical: 8, gap: 3, alignItems: "center" },
     statValue: { fontSize: 22, fontWeight: "700" as const, color: colors.foreground, fontFamily: "Inter_700Bold" },
@@ -266,8 +268,10 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     ticketRow: {
       flexDirection: "row", alignItems: "center",
       backgroundColor: colors.card,
-      borderRadius: 10, padding: 14, marginBottom: 8,
+      borderRadius: colors.radius + 2, padding: 14, marginBottom: 8,
       borderWidth: 1, borderColor: colors.border, gap: 12,
+      shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.045, shadowRadius: 6, elevation: 1,
     },
     priorityDot: { width: 8, height: 8, borderRadius: 4 },
     ticketInfo: { flex: 1 },
