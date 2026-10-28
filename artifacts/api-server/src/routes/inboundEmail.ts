@@ -298,6 +298,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const messageId = extractField(body, "messageId", "message_id", "MessageID") || headers["message-id"] || headers["Message-ID"] || "";
   const inReplyTo = extractField(body, "inReplyTo", "in_reply_to", "InReplyTo") || headers["in-reply-to"] || headers["In-Reply-To"] || "";
   const references = extractField(body, "references", "References") || headers["references"] || headers["References"] || "";
+  const conversationId = extractField(body, "conversationId", "conversation_id", "ConversationId", "threadId", "thread_id", "ThreadId");
 
   // Auto-reply / automated sender detection — discard before creating a ticket.
   // Pass the outer PEC envelope subject (subject) separately from the effective
@@ -376,6 +377,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
       messageId: messageId || undefined,
       inReplyTo: inReplyTo || undefined,
       references: references || undefined,
+      conversationId: conversationId || undefined,
       inboundChannelId: resolvedChannelId,
       isPec: !!overrideSubject,
     });
