@@ -20,6 +20,7 @@ import {
   useGetTicketTimeSessionEdits, getGetTicketTimeSessionEditsQueryKey,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
   getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
+  getListPendingClientSuggestionsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -209,6 +210,7 @@ export default function TicketDetail() {
       if (!response.ok) throw new Error('visibility update failed');
       await queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       await queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListPendingClientSuggestionsQueryKey() });
       setVisibilityDialog(false);
     } finally {
       setVisibilitySaving(false);

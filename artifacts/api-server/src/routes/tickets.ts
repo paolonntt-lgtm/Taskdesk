@@ -1513,6 +1513,43 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> =>
   ), clientsEnabled));
 });
 
+router.get("/tickets/client-suggestions", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const currentUser = (req as any).currentUser;
+  const orgId = currentUser.organizationId;
+  if (orgId == null) {
+    res.status(403).json({ error: "Account has no organization" });
+    return;
+  }
+  if (!(await isClientFeatureEnabled(orgId))) {
+    res.json([]);
+    return;
+  }
+
+  const suggestions = await db.select({
+    id: ticketsTable.id,
+    ticketNumber: ticketsTable.ticketNumber,
+    title: ticketsTable.title,
+    status: ticketsTable.status,
+    createdAt: ticketsTable.createdAt,
+    suggestedClient: {
+      id: clientsTable.id,
+      name: clientsTable.name,
+      alias: clientsTable.alias,
+    },
+  }).from(ticketsTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, ticketsTable.suggestedClientId))
+    .where(and(
+      eq(ticketsTable.organizationId, orgId),
+      isNull(ticketsTable.deletedAt),
+      isNull(ticketsTable.clientId),
+      isNotNull(ticketsTable.suggestedClientId),
+      eq(clientsTable.organizationId, orgId),
+    ))
+    .orderBy(asc(ticketsTable.createdAt), asc(ticketsTable.id));
+
+  res.json(suggestions);
+});
+
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);

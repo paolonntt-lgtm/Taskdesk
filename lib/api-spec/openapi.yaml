@@ -773,6 +773,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/TicketWithDetails"
 
+  /tickets/client-suggestions:
+    get:
+      operationId: listPendingClientSuggestions
+      tags: [tickets]
+      summary: List saved email client suggestions for review (admin only)
+      responses:
+        "200":
+          description: Pending suggestions, oldest tickets first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingClientSuggestion"
+        "403":
+          description: Admin access required
+
   /tickets/{id}:
     get:
       operationId: getTicket
@@ -4372,6 +4389,35 @@ components:
             - creator
             - commentCount
             - noteCount
+
+    PendingClientSuggestion:
+      type: object
+      required: [id, title, status, createdAt, suggestedClient]
+      properties:
+        id:
+          type: integer
+        ticketNumber:
+          type: ["integer", "null"]
+        title:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        suggestedClient:
+          $ref: "#/components/schemas/SuggestedClientSummary"
+
+    SuggestedClientSummary:
+      type: object
+      required: [id, name, alias]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        alias:
+          type: ["string", "null"]
 
     TicketTimeSession:
       type: object

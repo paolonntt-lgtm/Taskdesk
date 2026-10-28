@@ -970,6 +970,24 @@ export const CreateTicketResponse = zod.object({
 
 
 /**
+ * @summary List saved email client suggestions for review (admin only)
+ */
+export const ListPendingClientSuggestionsResponseItem = zod.object({
+  "id": zod.int(),
+  "ticketNumber": zod.int().nullish(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "suggestedClient": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "alias": zod.string().nullable()
+})
+})
+export const ListPendingClientSuggestionsResponse = zod.array(ListPendingClientSuggestionsResponseItem)
+
+
+/**
  * @summary Get ticket by ID
  */
 export const GetTicketParams = zod.object({

@@ -550,6 +550,23 @@ export type TicketWithDetails = Ticket & ({
   canViewTimeTrackingSummary?: boolean;
 });
 
+export interface SuggestedClientSummary {
+  id: number;
+  name: string;
+  /** @nullable */
+  alias: string | null;
+}
+
+export interface PendingClientSuggestion {
+  id: number;
+  /** @nullable */
+  ticketNumber?: number | null;
+  title: string;
+  status: string;
+  createdAt: string;
+  suggestedClient: SuggestedClientSummary;
+}
+
 export type TimeTrackingReportRowKind = typeof TimeTrackingReportRowKind[keyof typeof TimeTrackingReportRowKind];
 
 
