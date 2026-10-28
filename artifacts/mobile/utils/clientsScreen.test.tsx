@@ -60,7 +60,11 @@ vi.mock("react-native", async () => {
 
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
+  Stack: {
+    Screen: ({ options }: { options?: { title?: string } }) => options?.title
+      ? React.createElement("div", { "data-testid": "screen-title" }, options.title)
+      : null,
+  },
   router: { push: vi.fn(), replace: vi.fn() },
   useLocalSearchParams: () => mocks.routeParams,
 }));
@@ -258,6 +262,8 @@ describe("mobile clients screen", () => {
     expect(host.textContent).toContain("Studio Alfa");
     expect(host.textContent).toContain("Ogni mese fare conteggi");
     expect(host.textContent).not.toContain("<p>");
+    expect(host.textContent?.match(/Studio Alfa/g)).toHaveLength(1);
+    expect(host.textContent).toContain("Dati cliente");
   });
 
   it("shows the client note history and creates a note", async () => {

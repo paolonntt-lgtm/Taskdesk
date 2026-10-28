@@ -25,6 +25,12 @@ type ClientNoteChecklistItem = {
   checkedAt?: string | null;
 };
 
+type ClientDetailField = {
+  label: string;
+  value: string | null | undefined;
+  icon: React.ComponentProps<typeof Feather>["name"];
+};
+
 function noteAsPlainText(value: string): string {
   return value
     .replace(/<\s*br\s*\/?>/gi, "\n")
@@ -79,6 +85,18 @@ export default function ClientDetailScreen() {
     },
   });
   const client = data?.client ?? data;
+  const clientDetails = client ? ([
+    { label: "Email", value: client.email, icon: "mail" },
+    { label: it ? "Telefono" : "Phone", value: client.phone, icon: "phone" },
+    { label: it ? "Indirizzo" : "Address", value: client.address, icon: "map-pin" },
+    { label: "P. IVA", value: client.vatNumber, icon: "hash" },
+    { label: it ? "Referente" : "Contact", value: client.contactPerson, icon: "user" },
+    {
+      label: it ? "Note" : "Notes",
+      value: client.notes ? noteAsPlainText(client.notes) : null,
+      icon: "file-text",
+    },
+  ] satisfies ClientDetailField[]).filter((field) => Boolean(field.value)) : [];
   const canEditNote = (note: ClientNote) =>
     user?.role === "admin" ||
     user?.groupPermissions?.includes("edit_client_notes") === true ||
@@ -184,10 +202,27 @@ export default function ClientDetailScreen() {
     <Stack.Screen options={{ title: client?.name ?? (it ? "Cliente" : "Client") }} />
     {isLoading && <ActivityIndicator color={c.primary} />}
     {error || !client ? (!isLoading && <Text style={s.muted}>{it ? "Cliente non disponibile." : "Client unavailable."}</Text>) : <>
-      <Text style={s.title}>{client.name}</Text>
-      {!!client.alias && <Text style={s.muted}>{client.alias}</Text>}
       <View style={s.card}>
-        {([[it ? "Email" : "Email", client.email], [it ? "Telefono" : "Phone", client.phone], [it ? "Indirizzo" : "Address", client.address], ["P. IVA", client.vatNumber], [it ? "Referente" : "Contact", client.contactPerson], [it ? "Note" : "Notes", client.notes ? noteAsPlainText(client.notes) : null]] as Array<[string, string | null | undefined]>).filter(([, value]) => value).map(([label, value]) => <View key={label} style={s.field}><Text style={s.label}>{label}</Text><Text style={s.value}>{value}</Text></View>)}
+        <View style={s.cardHeading}>
+          <View style={s.cardIcon}>
+            <Feather name="briefcase" size={18} color={c.primary} />
+          </View>
+          <View style={s.cardHeadingText}>
+            <Text style={s.cardTitle}>{it ? "Dati cliente" : "Client details"}</Text>
+            {!!client.alias && client.alias !== client.name && <Text style={s.alias}>{client.alias}</Text>}
+          </View>
+        </View>
+        <View>
+          {clientDetails.map((field, index) => (
+            <View key={field.label} style={[s.fieldRow, index > 0 && s.fieldRowDivider]}>
+              <Feather name={field.icon} size={16} color={c.mutedForeground} />
+              <View style={s.fieldText}>
+                <Text style={s.label}>{field.label}</Text>
+                <Text style={s.value}>{field.value}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
       <View style={s.notesSection}>
         <View style={s.notesHeading}>
@@ -317,10 +352,19 @@ export default function ClientDetailScreen() {
   </ScrollView>;
 }
 const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.background }, center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 12, paddingBottom: 100 },
-  title: { color: c.foreground, fontSize: 24, fontFamily: "Inter_700Bold" }, muted: { color: c.mutedForeground },
-  card: { borderRadius: 14, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, padding: 16, gap: 14 },
-  field: { gap: 4 }, label: { color: c.mutedForeground, fontSize: 12 }, value: { color: c.foreground, fontSize: 15 },
+  root: { flex: 1, backgroundColor: c.background }, center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 18, gap: 16, paddingBottom: 100 },
+  muted: { color: c.mutedForeground },
+  card: { borderRadius: 18, backgroundColor: c.card, borderColor: c.border, borderWidth: 1, padding: 18, gap: 14, shadowColor: c.foreground, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
+  cardHeading: { flexDirection: "row", alignItems: "center", gap: 12, paddingBottom: 4 },
+  cardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.secondary, alignItems: "center", justifyContent: "center" },
+  cardHeadingText: { flex: 1, gap: 2 },
+  cardTitle: { color: c.foreground, fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  alias: { color: c.mutedForeground, fontSize: 12 },
+  fieldRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 11 },
+  fieldRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  fieldText: { flex: 1, gap: 3 },
+  label: { color: c.mutedForeground, fontSize: 11, letterSpacing: 0.35 },
+  value: { color: c.foreground, fontSize: 14, lineHeight: 20 },
   notesSection: { gap: 10 },
   notesHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { color: c.foreground, fontSize: 18, fontFamily: "Inter_600SemiBold" },
@@ -351,5 +395,5 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   cancelButton: { paddingHorizontal: 12, paddingVertical: 8 },
   cancelText: { color: c.foreground, fontFamily: "Inter_500Medium" },
   saveButton: { borderRadius: 9, backgroundColor: c.primary, paddingHorizontal: 14, paddingVertical: 8 },
-  delete: { alignSelf: "flex-start", padding: 12 }, deleteText: { color: "#da1e28", fontFamily: "Inter_600SemiBold" },
+  delete: { alignSelf: "flex-start", padding: 12 }, deleteText: { color: c.destructive, fontFamily: "Inter_600SemiBold" },
 });
