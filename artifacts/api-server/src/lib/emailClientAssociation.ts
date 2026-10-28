@@ -41,23 +41,54 @@ const GENERIC_EMAIL_DOMAIN_LABELS = new Set([
   "sfr", "wanadoo", "aruba", "legalmail", "pecmail", "namirial", "postacertificata",
   "registerpec",
 ]);
-
 const TWO_PART_PUBLIC_SUFFIXES = new Set([
   "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "edu.au",
   "co.nz", "org.nz", "com.br", "com.mx", "com.sg", "com.hk", "co.jp", "co.in",
   "com.tr", "com.ar", "co.za",
 ]);
 
-const LEGAL_NAME_WORDS = new Set([
-  "srl", "srls", "spa", "snc", "sas", "ss", "societa", "society", "limited", "ltd",
-  "inc", "corp", "corporation", "company", "co", "llc", "gmbh", "ag", "bv", "nv",
-  "sarl", "sa", "eurl", "plc",
-]);
-
 export function normalizeSenderEmail(value: string): string {
   const trimmed = value.trim().replace(/^.*<([^>]+)>$/, "$1").toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return "";
   return trimmed;
+}
+
+export function normalizeClientEmailAddress(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  const wildcard = /^\*@(.+)$/.exec(trimmed);
+  if (!wildcard) return normalizeSenderEmail(trimmed);
+
+  const domain = domainToASCII(wildcard[1].replace(/\.$/, ""));
+  const labels = domain.split(".");
+  if (
+    !domain ||
+    domain.length > 253 ||
+    labels.length < 2 ||
+    labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))
+  ) return "";
+  return `*@${domain}`;
+}
+
+export function emailAddressPatternMatches(pattern: string, senderEmail: string): boolean {
+  const normalizedPattern = normalizeClientEmailAddress(pattern);
+  const sender = normalizeSenderEmail(senderEmail);
+  if (!normalizedPattern || !sender) return false;
+  if (normalizedPattern === sender) return true;
+  if (!normalizedPattern.startsWith("*@")) return false;
+
+  const senderDomain = domainToASCII(sender.slice(sender.lastIndexOf("@") + 1).replace(/\.$/, ""));
+  return senderDomain === normalizedPattern.slice(2);
+}
+
+export function emailAddressPatternsOverlap(left: string, right: string): boolean {
+  const normalizedLeft = normalizeClientEmailAddress(left);
+  const normalizedRight = normalizeClientEmailAddress(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+  if (normalizedLeft === normalizedRight) return true;
+  if (normalizedLeft.startsWith("*@") && normalizedRight.startsWith("*@")) return false;
+  return normalizedLeft.startsWith("*@")
+    ? emailAddressPatternMatches(normalizedLeft, normalizedRight)
+    : emailAddressPatternMatches(normalizedRight, normalizedLeft);
 }
 
 export function domainForSender(email: string): string | null {
@@ -71,37 +102,21 @@ export function domainForSender(email: string): string | null {
   const suffix = labels.slice(-2).join(".");
   const registeredLabelIndex = TWO_PART_PUBLIC_SUFFIXES.has(suffix) ? labels.length - 3 : labels.length - 2;
   if (registeredLabelIndex < 0) return null;
-  const registeredDomain = labels.slice(registeredLabelIndex).join(".");
   const companyLabel = labels[registeredLabelIndex].replace(/[^a-z0-9]/g, "");
-  if (GENERIC_EMAIL_DOMAIN_LABELS.has(companyLabel)) return null;
-  return companyLabel.length >= 3 ? registeredDomain : null;
-}
-
-function companyNameKeyForDomain(domain: string): string {
-  const labels = domain.split(".");
-  const suffix = labels.slice(-2).join(".");
-  const registeredLabelIndex = TWO_PART_PUBLIC_SUFFIXES.has(suffix) ? labels.length - 3 : labels.length - 2;
-  return labels[registeredLabelIndex]?.replace(/[^a-z0-9]/g, "") ?? "";
-}
-
-function normalizeCompanyName(value: string | null | undefined): string {
-  if (!value) return "";
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\bs[\s.]*r[\s.]*l\b/g, " ")
-    .replace(/\bs[\s.]*p[\s.]*a\b/g, " ")
-    .split(/[^a-z0-9]+/)
-    .filter((word) => word && !LEGAL_NAME_WORDS.has(word))
-    .join("");
+  if (GENERIC_EMAIL_DOMAIN_LABELS.has(companyLabel) || companyLabel.length < 3) return null;
+  return labels.slice(registeredLabelIndex).join(".");
 }
 
 function clientContactMatches(client: EmailClientCandidate, sender: string): boolean {
-  return [client.email, client.pec]
-    .filter((value): value is string => Boolean(value))
-    .flatMap((value) => value.split(/[;,\s]+/))
-    .some((address) => normalizeSenderEmail(address) === sender);
+  const emailMatches = (client.email ?? "")
+    .split(/[;,\s]+/)
+    .filter(Boolean)
+    .some((address) => emailAddressPatternMatches(address, sender));
+  const pecMatches = (client.pec ?? "")
+    .split(/[;,\s]+/)
+    .map(normalizeSenderEmail)
+    .some((address) => address === sender);
+  return emailMatches || pecMatches;
 }
 
 export function resolveEmailClientAssociation(input: {
@@ -155,10 +170,19 @@ export function resolveEmailClientAssociation(input: {
     };
   }
 
-  const candidates = clients.filter((client) =>
-    [client.name, client.alias].some((label) => normalizeCompanyName(label) === companyNameKeyForDomain(senderDomain)),
-  );
-  const candidateIds = new Set(candidates.map((client) => client.id));
-  if (candidateIds.size !== 1) return { clientId: null, suggestedClientId: null };
-  return { clientId: null, suggestedClientId: [...candidateIds][0] };
+  return { clientId: null, suggestedClientId: null };
+}
+
+/**
+ * Keep the outer sender authoritative for forwarded messages. The original
+ * sender may supply an association only when it resolves to an actual client;
+ * an unconfirmed suggestion is never enough to associate the ticket.
+ */
+export function chooseForwardedEmailAssociation(
+  outerSender: EmailClientAssociationResult,
+  originalSender?: EmailClientAssociationResult,
+): EmailClientAssociationResult {
+  if (outerSender.clientId != null || outerSender.clientAssociationIssue) return outerSender;
+  if (originalSender?.clientId != null) return originalSender;
+  return outerSender;
 }

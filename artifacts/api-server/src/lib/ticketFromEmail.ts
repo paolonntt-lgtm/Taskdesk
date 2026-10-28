@@ -6,7 +6,12 @@ import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
 import { hasReplySubjectPrefix, normaliseEmailSubject, removeForwardSubjectPrefix } from "./emailSubject";
 import { randomUUID } from "crypto";
-import { domainForSender, normalizeSenderEmail, resolveEmailClientAssociation } from "./emailClientAssociation";
+import {
+  chooseForwardedEmailAssociation,
+  domainForSender,
+  normalizeSenderEmail,
+  resolveEmailClientAssociation,
+} from "./emailClientAssociation";
 import { isClientFeatureEnabled } from "./clientFeature";
 import { prefixTicketTitleWithClient } from "./clientTicketTitle";
 import { syncOneDriveAttachment } from "./onedriveGraph";
@@ -340,13 +345,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail)
   ) {
     const originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
-    if (
-      originalSenderAssociation.clientId != null ||
-      originalSenderAssociation.suggestedClientId != null ||
-      originalSenderAssociation.clientAssociationIssue
-    ) {
-      clientAssociation = originalSenderAssociation;
-    }
+    clientAssociation = chooseForwardedEmailAssociation(outerSenderAssociation, originalSenderAssociation);
   }
   let title = originalTitle;
   if (clientAssociation.clientId != null && orgId != null) {

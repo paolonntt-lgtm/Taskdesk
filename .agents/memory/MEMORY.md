@@ -61,6 +61,6 @@
 - [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.
 - [Inbound email client titles](inbound-email-client-titles.md) — Prefix associated email-ticket titles, preserve the subject, and hide the client field after matching.
 - [Inbound email notifications](inbound-email-notification-routing.md) — When an email ticket has an assigned operator, send its notification only to that operator.
-- [Client email matching](client-email-association-priority.md) — Explicit sender rules, client-profile addresses, and learned links take priority; only use a forwarded original sender when the outer sender has no match.
+- [Client email matching](client-email-association-priority.md) — Associate only through contact addresses or saved sender/domain rules; forwarded senders never override a known outer-sender match.
 - [Microsoft SPA token redemption](microsoft-spa-token-origin.md) — Entra SPA token endpoint requests from the backend need a matching Origin header for code exchange and refresh.
 - [API workflow port conflicts](api-workflow-port-conflict.md) — A failed managed API restart may leave an older dev server listening on port 8080.

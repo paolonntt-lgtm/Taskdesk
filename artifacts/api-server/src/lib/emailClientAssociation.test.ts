@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { domainForSender, resolveEmailClientAssociation, type EmailClientCandidate } from "./emailClientAssociation";
+import {
+  chooseForwardedEmailAssociation,
+  domainForSender,
+  emailAddressPatternMatches,
+  emailAddressPatternsOverlap,
+  normalizeClientEmailAddress,
+  resolveEmailClientAssociation,
+  type EmailClientCandidate,
+} from "./emailClientAssociation";
 
 const clients = [
   { id: 1, organizationId: 7, name: "Caffè Aurora SRL", alias: "Caffe Aurora", email: "billing@caffeaurora.it", pec: "caffeaurora@pec.it" },
@@ -13,6 +21,31 @@ describe("email client association", () => {
   it("matches an exact client email or PEC", () => {
     expect(resolve("BILLING@CAFFEAURORA.IT").clientId).toBe(1);
     expect(resolve("caffeaurora@pec.it").clientId).toBe(1);
+  });
+
+  it("matches all senders at an explicitly saved client email domain", () => {
+    const clientWithDomain = [{ ...clients[0], email: "*@iannettisrl.it" }];
+    expect(resolve("paolo@iannettisrl.it", [], [], clientWithDomain).clientId).toBe(1);
+    expect(resolve("contabile@altro.it", [], [], clientWithDomain).clientId).toBeNull();
+    expect(resolve("paolo@sub.iannettisrl.it", [], [], clientWithDomain).clientId).toBeNull();
+  });
+
+  it("does not treat a wildcard stored in the PEC field as a profile email rule", () => {
+    const clientWithWildcardPec = [{ ...clients[0], email: null, pec: "*@iannettisrl.it" }];
+    expect(resolve("paolo@iannettisrl.it", [], [], clientWithWildcardPec).clientId).toBeNull();
+  });
+
+  it("normalizes and validates explicit domain patterns", () => {
+    expect(normalizeClientEmailAddress(" *@IANNETTISRl.it ")).toBe("*@iannettisrl.it");
+    expect(normalizeClientEmailAddress("*@not a domain")).toBe("");
+    expect(normalizeClientEmailAddress("paolo@iannettisrl.it")).toBe("paolo@iannettisrl.it");
+    expect(emailAddressPatternMatches("*@iannettisrl.it", "Paolo@IANNETTISRl.it")).toBe(true);
+  });
+
+  it("detects conflicts between a domain pattern and exact addresses", () => {
+    expect(emailAddressPatternsOverlap("*@iannettisrl.it", "paolo@iannettisrl.it")).toBe(true);
+    expect(emailAddressPatternsOverlap("*@iannettisrl.it", "*@iannettisrl.it")).toBe(true);
+    expect(emailAddressPatternsOverlap("*@iannettisrl.it", "paolo@other.it")).toBe(false);
   });
 
   it("honors an exact sender rule on later tickets", () => {
@@ -36,8 +69,8 @@ describe("email client association", () => {
     })).toEqual({ clientId: null, suggestedClientId: null });
   });
 
-  it("suggests a unique business-name match without assigning it", () => {
-    expect(resolve("andrea@caffeaurora.it")).toEqual({ clientId: null, suggestedClientId: 1 });
+  it("does not associate or suggest a client from a matching business domain", () => {
+    expect(resolve("andrea@caffeaurora.it")).toEqual({ clientId: null, suggestedClientId: null });
   });
 
   it("uses a confirmed custom-domain rule on future emails", () => {
@@ -45,9 +78,15 @@ describe("email client association", () => {
       .toEqual({ clientId: 1, suggestedClientId: null });
   });
 
-  it("does not carry a confirmed domain rule across a different top-level domain", () => {
+  it("does not carry a confirmed domain rule or infer a match across a different top-level domain", () => {
     expect(resolve("another@caffeaurora.com", [], [{ organizationId: 7, domain: "caffeaurora.it", clientId: 1 }]))
-      .toEqual({ clientId: null, suggestedClientId: 1 });
+      .toEqual({ clientId: null, suggestedClientId: null });
+  });
+
+  it("does not infer a match from a similar client alias", () => {
+    const aliasClient = [{ ...clients[0], name: "Different Company", alias: "Caffè Aurora" }];
+    expect(resolve("andrea@caffeaurora.it", [], [], aliasClient))
+      .toEqual({ clientId: null, suggestedClientId: null });
   });
 
   it.each([
@@ -125,5 +164,44 @@ describe("email client association", () => {
   it("does not match provider addresses and handles common two-part public suffixes", () => {
     expect(domainForSender("person@gmail.com")).toBeNull();
     expect(domainForSender("person@support.caffeaurora.co.uk")).toBe("caffeaurora.co.uk");
+  });
+
+  it("uses the explicit original-sender match only when the outer sender is unmatched", () => {
+    expect(chooseForwardedEmailAssociation(
+      { clientId: null, suggestedClientId: null },
+      { clientId: 2, suggestedClientId: null },
+    )).toEqual({ clientId: 2, suggestedClientId: null });
+  });
+
+  it("keeps the outer sender's explicit match ahead of the original sender", () => {
+    expect(chooseForwardedEmailAssociation(
+      { clientId: 1, suggestedClientId: null },
+      { clientId: 2, suggestedClientId: null },
+    )).toEqual({ clientId: 1, suggestedClientId: null });
+  });
+
+  it("does not turn an original-sender suggestion into an association", () => {
+    expect(chooseForwardedEmailAssociation(
+      { clientId: null, suggestedClientId: null },
+      { clientId: null, suggestedClientId: 1 },
+    )).toEqual({ clientId: null, suggestedClientId: null });
+  });
+
+  it("leaves a forwarded ticket unassociated when neither sender has an explicit match", () => {
+    const outerSender = resolve("forwarder@external.example");
+    const originalSender = resolve("andrea@caffeaurora.it");
+    expect(chooseForwardedEmailAssociation(outerSender, originalSender))
+      .toEqual({ clientId: null, suggestedClientId: null });
+  });
+
+  it("does not use the original sender to bypass an outer-sender conflict", () => {
+    expect(chooseForwardedEmailAssociation(
+      { clientId: null, suggestedClientId: null, clientAssociationIssue: "conflicting_exact_matches" },
+      { clientId: 2, suggestedClientId: null },
+    )).toEqual({
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_exact_matches",
+    });
   });
 });

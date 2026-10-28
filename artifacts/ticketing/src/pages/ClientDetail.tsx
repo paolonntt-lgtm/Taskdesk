@@ -1433,6 +1433,8 @@ export default function ClientDetail() {
               ruleSourceLabel={tc.emailFromRule}
               unmatchedLabel={tc.emailNotMatched}
               conflictLabel={tc.emailAddressConflict}
+              wildcardHint={tc.emailDomainWildcardHint}
+              wildcardExample="*@azienda.it"
             />
             <TextField
               label={tc.phone}

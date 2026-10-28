@@ -6,7 +6,11 @@ import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPe
 import { redactWorkedHours } from "../lib/workedTime";
 import { UpdateClientTicketWorkedHoursBody } from "@workspace/api-zod";
 import { z } from "zod";
-import { normalizeSenderEmail } from "../lib/emailClientAssociation";
+import {
+  emailAddressPatternsOverlap,
+  normalizeClientEmailAddress,
+  normalizeSenderEmail,
+} from "../lib/emailClientAssociation";
 
 const router: IRouter = Router();
 
@@ -75,13 +79,14 @@ async function generateUniqueSlug(name: string, orgId: number, excludeId?: numbe
   }
 }
 
-function splitEmailAddresses(value: string | null | undefined): string[] {
+function splitEmailAddresses(value: string | null | undefined, allowDomainPattern = false): string[] {
   if (!value) return [];
-  return [...new Set(value.split(/[;,\s]+/).map(normalizeSenderEmail).filter(Boolean))];
+  const normalize = allowDomainPattern ? normalizeClientEmailAddress : normalizeSenderEmail;
+  return [...new Set(value.split(/[;,\s]+/).map(normalize).filter(Boolean))];
 }
 
 function normalizeClientEmailField(value: string | null | undefined): string | null {
-  const addresses = splitEmailAddresses(value);
+  const addresses = splitEmailAddresses(value, true);
   return addresses.length ? addresses.join("; ") : null;
 }
 
@@ -90,7 +95,7 @@ function removeClientEmailAddress(value: string | null | undefined, address: str
   const remaining = value
     .split(/[;,\s]+/)
     .map((item) => item.trim())
-    .filter((item) => item && normalizeSenderEmail(item) !== address);
+    .filter((item) => item && !emailAddressPatternsOverlap(item, address));
   return remaining.length ? remaining.join("; ") : null;
 }
 
@@ -123,18 +128,23 @@ async function findClientEmailConflicts(
 
   for (const client of clients) {
     if (client.id === excludeClientId) continue;
-    for (const address of splitEmailAddresses(client.email)) {
-      if (addresses.includes(address)) addConflict(address, client.id, client.name, "profile");
+    for (const address of splitEmailAddresses(client.email, true)) {
+      const overlappingAddress = addresses.find((candidate) => emailAddressPatternsOverlap(address, candidate));
+      if (overlappingAddress) addConflict(overlappingAddress, client.id, client.name, "profile");
     }
     for (const address of splitEmailAddresses(client.pec)) {
-      if (addresses.includes(address)) addConflict(address, client.id, client.name, "profile");
+      const overlappingAddress = addresses.find((candidate) => emailAddressPatternsOverlap(address, candidate));
+      if (overlappingAddress) addConflict(overlappingAddress, client.id, client.name, "profile");
     }
   }
   for (const rule of senderRules) {
     const address = normalizeSenderEmail(rule.senderEmail);
     const client = clients.find((row) => row.id === rule.clientId);
-    if (address && addresses.includes(address) && client) {
-      addConflict(address, client.id, client.name, "sender_rule");
+    const overlappingAddress = address
+      ? addresses.find((candidate) => emailAddressPatternsOverlap(address, candidate))
+      : undefined;
+    if (overlappingAddress && client) {
+      addConflict(overlappingAddress, client.id, client.name, "sender_rule");
     }
   }
   return [...conflicts.values()].map((conflict) => ({
@@ -146,8 +156,11 @@ async function findClientEmailConflicts(
 const ClientEmailField = z.string().nullable().optional().superRefine((value, ctx) => {
   if (!value?.trim()) return;
   const pieces = value.split(/[;,\s]+/).filter(Boolean);
-  if (pieces.some((address) => !normalizeSenderEmail(address))) {
-    ctx.addIssue({ code: "custom", message: "Email addresses must be valid and separated by semicolons" });
+  if (pieces.some((address) => !normalizeClientEmailAddress(address))) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Use valid email addresses or *@domain patterns, separated by semicolons",
+    });
   }
 });
 
@@ -365,7 +378,7 @@ router.get("/clients/email-address-associations", requireClientFeature, async (r
     associations.set(key, entry);
   };
   for (const client of clients) {
-    for (const address of splitEmailAddresses(client.email)) add(address, client.id, client.name, "profile");
+    for (const address of splitEmailAddresses(client.email, true)) add(address, client.id, client.name, "profile");
     for (const address of splitEmailAddresses(client.pec)) add(address, client.id, client.name, "profile");
   }
   for (const rule of senderRules) {
@@ -380,7 +393,7 @@ router.get("/clients/email-address-associations", requireClientFeature, async (r
 });
 
 const ResolveClientEmailAssociationBody = z.object({
-  address: z.string().email().transform(normalizeSenderEmail),
+  address: z.string().transform(normalizeClientEmailAddress).refine(Boolean),
   keepClientId: z.number().int().positive(),
   removeClientId: z.number().int().positive(),
 }).refine((body) => body.keepClientId !== body.removeClientId, {
@@ -428,10 +441,10 @@ router.patch(
           inArray(emailClientSenderRulesTable.clientId, [keepClientId, removeClientId]),
         ));
       const hasAssociation = (client: typeof keepClient | typeof removeClient) =>
-        splitEmailAddresses(client.email).includes(address)
-        || splitEmailAddresses(client.pec).includes(address)
+        splitEmailAddresses(client.email, true).some((entry) => emailAddressPatternsOverlap(entry, address))
+        || splitEmailAddresses(client.pec).some((entry) => emailAddressPatternsOverlap(entry, address))
         || senderRules.some((rule) =>
-          rule.clientId === client.id && normalizeSenderEmail(rule.senderEmail) === address,
+          rule.clientId === client.id && emailAddressPatternsOverlap(rule.senderEmail, address),
         );
 
       if (!hasAssociation(keepClient) || !hasAssociation(removeClient)) {
@@ -439,10 +452,10 @@ router.patch(
       }
 
       const profileUpdates: { email?: string | null; pec?: string | null } = {};
-      if (splitEmailAddresses(removeClient.email).includes(address)) {
+      if (splitEmailAddresses(removeClient.email, true).some((entry) => emailAddressPatternsOverlap(entry, address))) {
         profileUpdates.email = removeClientEmailAddress(removeClient.email, address);
       }
-      if (splitEmailAddresses(removeClient.pec).includes(address)) {
+      if (splitEmailAddresses(removeClient.pec).some((entry) => emailAddressPatternsOverlap(entry, address))) {
         profileUpdates.pec = removeClientEmailAddress(removeClient.pec, address);
       }
       if (Object.keys(profileUpdates).length > 0) {
@@ -453,7 +466,7 @@ router.patch(
       }
 
       const rulesToDelete = senderRules
-        .filter((rule) => rule.clientId === removeClientId && normalizeSenderEmail(rule.senderEmail) === address)
+        .filter((rule) => rule.clientId === removeClientId && emailAddressPatternsOverlap(rule.senderEmail, address))
         .map((rule) => rule.id);
       if (rulesToDelete.length > 0) {
         await tx.delete(emailClientSenderRulesTable).where(inArray(emailClientSenderRulesTable.id, rulesToDelete));
@@ -489,7 +502,7 @@ router.post("/clients", requireClientFeature, async (req, res): Promise<void> =>
   const conflicts = await findClientEmailConflicts(
     currentUser.organizationId,
     [...new Set([
-      ...splitEmailAddresses(normalizedEmail),
+      ...splitEmailAddresses(normalizedEmail, true),
       ...splitEmailAddresses(parsed.data.pec),
     ])],
   );
@@ -843,8 +856,8 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
   const updates = { ...parsed.data };
   if (Object.prototype.hasOwnProperty.call(parsed.data, "email")) {
     const normalizedEmail = normalizeClientEmailField(parsed.data.email);
-    const previousAddresses = new Set(splitEmailAddresses(client.email));
-    const newAddresses = splitEmailAddresses(normalizedEmail).filter((address) => !previousAddresses.has(address));
+    const previousAddresses = new Set(splitEmailAddresses(client.email, true));
+    const newAddresses = splitEmailAddresses(normalizedEmail, true).filter((address) => !previousAddresses.has(address));
     const conflicts = await findClientEmailConflicts(currentUser.organizationId, newAddresses, id);
     if (conflicts.length > 0) {
       res.status(409).json({ error: "Email address already associated with another client", conflicts });

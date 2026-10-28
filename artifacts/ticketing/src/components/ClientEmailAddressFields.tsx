@@ -6,14 +6,27 @@ export function parseClientEmailAddresses(value: string | null | undefined): str
   return value ? [...new Set(value.split(/[;,\s]+/).map((email) => email.trim().toLowerCase()).filter(Boolean))] : [];
 }
 
+function emailAddressEntriesOverlap(left: string, right: string): boolean {
+  const normalizedLeft = left.trim().toLowerCase();
+  const normalizedRight = right.trim().toLowerCase();
+  if (!normalizedLeft || !normalizedRight) return false;
+  if (normalizedLeft === normalizedRight) return true;
+  const leftWildcard = /^\*@([^@]+)$/.exec(normalizedLeft);
+  const rightWildcard = /^\*@([^@]+)$/.exec(normalizedRight);
+  if (leftWildcard && rightWildcard) return leftWildcard[1] === rightWildcard[1];
+  if (leftWildcard) return normalizedRight.endsWith(`@${leftWildcard[1]}`);
+  if (rightWildcard) return normalizedLeft.endsWith(`@${rightWildcard[1]}`);
+  return false;
+}
+
 export function getClientEmailAddressConflicts(
   addresses: string[],
   associations: ClientEmailAddressAssociation[],
   clientId?: number,
 ): ClientEmailAddressAssociation[] {
-  const normalized = new Set(addresses.map((address) => address.trim().toLowerCase()).filter(Boolean));
   return associations.filter((association) =>
-    normalized.has(association.address.toLowerCase()) && association.clientId !== clientId,
+    addresses.some((address) => emailAddressEntriesOverlap(address, association.address))
+      && association.clientId !== clientId,
   );
 }
 
@@ -30,6 +43,8 @@ interface ClientEmailAddressFieldsProps {
   ruleSourceLabel: string;
   unmatchedLabel: string;
   conflictLabel: string;
+  wildcardHint: string;
+  wildcardExample: string;
 }
 
 export default function ClientEmailAddressFields({
@@ -45,6 +60,8 @@ export default function ClientEmailAddressFields({
   ruleSourceLabel,
   unmatchedLabel,
   conflictLabel,
+  wildcardHint,
+  wildcardExample,
 }: ClientEmailAddressFieldsProps) {
   return (
     <Stack spacing={1.25}>
@@ -52,7 +69,7 @@ export default function ClientEmailAddressFields({
       {addresses.map((address, index) => {
         const normalized = address.trim().toLowerCase();
         const matches = normalized
-          ? associations.filter((association) => association.address.toLowerCase() === normalized)
+          ? associations.filter((association) => emailAddressEntriesOverlap(association.address, normalized))
           : [];
         const conflicts = matches.filter((association) => association.clientId !== clientId);
         const ownSources = new Set(matches
@@ -63,15 +80,20 @@ export default function ClientEmailAddressFields({
             <Stack direction="row" spacing={1} alignItems="center">
               <TextField
                 fullWidth
-                type="email"
+                type="text"
+                inputProps={{ inputMode: 'email' }}
                 label={`${emailLabel} ${index + 1}`}
+                placeholder={wildcardExample}
+                helperText={wildcardHint}
                 value={address}
                 onChange={(event) => onChange(addresses.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
+                data-testid={`input-client-email-${index}`}
               />
               <IconButton
                 aria-label={removeLabel}
                 onClick={() => onChange(addresses.filter((_, itemIndex) => itemIndex !== index))}
                 size="small"
+                data-testid={`button-remove-client-email-${index}`}
               >
                 <DeleteOutline />
               </IconButton>
@@ -98,6 +120,7 @@ export default function ClientEmailAddressFields({
         variant="outlined"
         onClick={() => onChange([...addresses, ''])}
         sx={{ alignSelf: 'flex-start' }}
+        data-testid="button-add-client-email"
       >
         {addLabel}
       </Button>
