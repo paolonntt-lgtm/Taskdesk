@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   settingsError: false,
   settingsRefetchError: false,
   clients: [{ id: 1, name: "Studio Alfa", email: "info@studioalfa.it" }],
-  client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" },
+  client: { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined as string | undefined },
   clientNotes: [] as Array<Record<string, unknown>>,
   routeParams: { id: "1" },
   apiGet: vi.fn(),
@@ -115,7 +115,7 @@ describe("mobile clients screen", () => {
     mocks.settingsError = false;
     mocks.settingsRefetchError = false;
     mocks.refetchSettings.mockReset();
-    mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it" };
+    mocks.client = { id: 1, name: "Studio Alfa", email: "info@studioalfa.it", notes: undefined };
     mocks.clientNotes = [];
     mocks.routeParams = { id: "1" };
     mocks.apiGet.mockReset().mockResolvedValue([]);
@@ -242,6 +242,12 @@ describe("mobile clients screen", () => {
 
   it("loads and displays client details when the module is enabled", async () => {
     mocks.settings = { clientsEnabled: true };
+    mocks.client = {
+      id: 1,
+      name: "Studio Alfa",
+      email: "info@studioalfa.it",
+      notes: "<p>Ogni mese fare conteggi</p>",
+    };
 
     await renderDetailScreen();
 
@@ -250,6 +256,8 @@ describe("mobile clients screen", () => {
       "/clients/1",
     ]);
     expect(host.textContent).toContain("Studio Alfa");
+    expect(host.textContent).toContain("Ogni mese fare conteggi");
+    expect(host.textContent).not.toContain("<p>");
   });
 
   it("shows the client note history and creates a note", async () => {

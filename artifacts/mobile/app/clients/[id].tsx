@@ -25,6 +25,24 @@ type ClientNoteChecklistItem = {
   checkedAt?: string | null;
 };
 
+function noteAsPlainText(value: string): string {
+  return value
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/\s*(p|div|li|h[1-6]|tr|blockquote)\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(?:nbsp|#160);/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(?:39|x27);/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export default function ClientDetailScreen() {
   const c = useColors(); const { lang } = useLanguage(); const it = lang === "it"; const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth(); const qc = useQueryClient();
@@ -169,7 +187,7 @@ export default function ClientDetailScreen() {
       <Text style={s.title}>{client.name}</Text>
       {!!client.alias && <Text style={s.muted}>{client.alias}</Text>}
       <View style={s.card}>
-        {([[it ? "Email" : "Email", client.email], [it ? "Telefono" : "Phone", client.phone], [it ? "Indirizzo" : "Address", client.address], ["P. IVA", client.vatNumber], [it ? "Referente" : "Contact", client.contactPerson], [it ? "Note" : "Notes", client.notes]] as Array<[string, string | null | undefined]>).filter(([, value]) => value).map(([label, value]) => <View key={label} style={s.field}><Text style={s.label}>{label}</Text><Text style={s.value}>{value}</Text></View>)}
+        {([[it ? "Email" : "Email", client.email], [it ? "Telefono" : "Phone", client.phone], [it ? "Indirizzo" : "Address", client.address], ["P. IVA", client.vatNumber], [it ? "Referente" : "Contact", client.contactPerson], [it ? "Note" : "Notes", client.notes ? noteAsPlainText(client.notes) : null]] as Array<[string, string | null | undefined]>).filter(([, value]) => value).map(([label, value]) => <View key={label} style={s.field}><Text style={s.label}>{label}</Text><Text style={s.value}>{value}</Text></View>)}
       </View>
       <View style={s.notesSection}>
         <View style={s.notesHeading}>
