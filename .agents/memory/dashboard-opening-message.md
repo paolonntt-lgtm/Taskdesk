@@ -3,8 +3,8 @@ name: Dashboard opening message
 description: Visual direction preference for the TaskDesk dashboard greeting.
 ---
 
-The selected TaskDesk dashboard direction should retain a warm, time-aware opening message such as “Buongiorno, Alessandro. Mettiamo ordine alla giornata.” alongside the operational overview. The greeting should change to “Buon pomeriggio” and “Buonasera” as the day progresses.
+The TaskDesk mobile dashboard should retain a warm, time-aware salutation, with the first name on a separate, prominent line. Keep the supporting message concise (for example, “La tua giornata”). The salutation should change to “Buon pomeriggio” and “Buonasera” as the day progresses.
 
-**Why:** The user explicitly preferred the greeting from the earlier dashboard previews and asked whether it should adapt to the time of day; the dynamic behavior was then implemented.
+**Why:** The user said the name was hard to read and the supporting message was too long. Separating the name preserves the warm greeting without forcing it to shrink.
 
-**How to apply:** Keep the greeting prominent and time-aware in future dashboard mockups or refinements unless the user asks for a more neutral or compact tone.
+**How to apply:** In future mobile dashboard refinements, keep the salutation and first name visually distinct and make the supporting line short, unless the user asks for a different tone.

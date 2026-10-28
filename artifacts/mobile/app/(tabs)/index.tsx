@@ -84,14 +84,20 @@ export default function DashboardScreen() {
       >
         <View style={s.greetingCopy}>
           <View style={s.greetingLine} testID="dashboard-greeting-line">
-            <Text style={s.greeting} numberOfLines={1} adjustsFontSizeToFit>
-              {greeting}, {firstName}
+            <Text style={s.greeting}>{greeting}</Text>
+            <Text
+              style={s.greetingName}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              testID="dashboard-greeting-name"
+            >
+              {firstName}
             </Text>
           </View>
           <View style={s.greetingSubtitleRow}>
-            <Feather name="activity" size={14} color={colors.primaryForeground} />
-            <Text style={s.greetingSubtitle}>
-              {lang === "it" ? "Il riepilogo della giornata" : "Your day at a glance"}
+            <Feather name="activity" size={13} color={colors.primaryForeground} />
+            <Text style={s.greetingSubtitle} numberOfLines={1}>
+              {lang === "it" ? "La tua giornata" : "Your day"}
             </Text>
           </View>
         </View>
@@ -100,7 +106,7 @@ export default function DashboardScreen() {
           <View style={s.greetingOrbSmall} />
           <Feather
             name={greetingIcon as "sunrise" | "sun" | "moon"}
-            size={38}
+            size={32}
             color={colors.primaryForeground}
             style={s.greetingArtworkIcon}
           />
@@ -176,7 +182,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20 },
     header: {
-      minHeight: 122,
+      minHeight: 138,
       marginBottom: 20,
       paddingHorizontal: 18,
       paddingVertical: 18,
@@ -185,24 +191,30 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "center",
       overflow: "hidden",
     },
-    greetingCopy: { flex: 1, gap: 10, zIndex: 1 },
-    greetingLine: { minWidth: 0 },
+    greetingCopy: { flex: 1, gap: 7, zIndex: 1, minWidth: 0 },
+    greetingLine: { minWidth: 0, gap: 1 },
     greeting: {
-      fontSize: 20,
+      fontSize: 14,
       fontWeight: "600" as const,
       color: colors.primaryForeground,
       fontFamily: "Inter_600SemiBold",
     },
+    greetingName: {
+      fontSize: 25,
+      fontWeight: "700" as const,
+      color: colors.primaryForeground,
+      fontFamily: "Inter_700Bold",
+    },
     greetingSubtitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
     greetingSubtitle: {
-      fontSize: 13,
+      fontSize: 12,
       color: colors.primaryForeground,
       opacity: 0.9,
       fontFamily: "Inter_500Medium",
     },
     greetingArtwork: {
-      width: 74,
-      height: 74,
+      width: 64,
+      height: 64,
       alignItems: "center",
       justifyContent: "center",
       marginLeft: 8,
