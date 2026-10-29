@@ -26,6 +26,7 @@ import {
   exchangeMicrosoftCode,
   getMicrosoftUser,
   inviteCollaboratorsToTaskdeskFolders,
+  inviteTaskdeskFolderCollaborator,
   invalidateOneDriveAccessToken,
   listSharedOneDriveFolderItems,
   OneDriveAccessRevocationError,
@@ -307,13 +308,43 @@ router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res)
     );
     res.json(ListSharedOneDriveFolderItemsResponse.parse(result));
   } catch (error) {
-    if (error instanceof OneDriveBrowseError) {
-      res.status(error.statusCode).json({ error: error.message });
+    let reportedError: unknown = error;
+    if (
+      error instanceof OneDriveGraphError &&
+      error.statusCode === 403 &&
+      params.data.ownerUserId !== user.id &&
+      user.organizationId != null
+    ) {
+      try {
+        await inviteTaskdeskFolderCollaborator(
+          user.organizationId,
+          params.data.ownerUserId,
+          user.id,
+        );
+        const result = await listSharedOneDriveFolderItems(
+          user.id,
+          user.organizationId,
+          params.data.ownerUserId,
+          query.data.path,
+        );
+        res.json(ListSharedOneDriveFolderItemsResponse.parse(result));
+        return;
+      } catch (retryError) {
+        reportedError = retryError;
+        req.log.warn({
+          err: retryError,
+          userId: user.id,
+          ownerUserId: params.data.ownerUserId,
+        }, "Could not restore OneDrive access to shared Taskdesk folder");
+      }
+    }
+    if (reportedError instanceof OneDriveBrowseError) {
+      res.status(reportedError.statusCode).json({ error: reportedError.message });
       return;
     }
-    if (error instanceof OneDriveGraphError) {
-      req.log.warn({ err: error, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive shared folder listing failed");
-      const status = [401, 403, 404].includes(error.statusCode) ? error.statusCode : 502;
+    if (reportedError instanceof OneDriveGraphError) {
+      req.log.warn({ err: reportedError, userId: user.id, ownerUserId: params.data.ownerUserId }, "OneDrive shared folder listing failed");
+      const status = [401, 403, 404].includes(reportedError.statusCode) ? reportedError.statusCode : 502;
       res.status(status).json({
         error: status === 403
           ? "Your Microsoft account does not have access to this shared folder."

@@ -86,3 +86,9 @@ When a connected user disconnects OneDrive or is deactivated/deleted, revoke the
 **Why:** The user confirmed Microsoft invitations must be revoked on disconnect or deactivation; otherwise a Microsoft account can retain direct access after TaskDesk blocks it.
 
 **How to apply:** Scope cleanup to the user's current organization and fail closed if Graph cannot confirm revocation, keeping the account connected/active so cleanup can be retried.
+
+When Microsoft Graph denies a collaborator access to an already-listed OneDrive folder, retry once after reissuing a direct, sign-in-protected read invitation from that folder's owner to the requesting collaborator.
+
+**Why:** Existing folder URLs can remain present after Microsoft access is revoked or lost, so the organization menu alone cannot detect that an invitation needs repair.
+
+**How to apply:** On a browse-time 403, invite only the requesting collaborator to the selected owner's Taskdesk root, then retry the browse once. Never create anonymous links or send invitations to every organization member for a single denied folder.

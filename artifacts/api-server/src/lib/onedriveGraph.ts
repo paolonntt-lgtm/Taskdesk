@@ -723,6 +723,55 @@ export async function inviteCollaboratorsToTaskdeskFolders(organizationId: numbe
 }
 
 /**
+ * Re-issue a sign-in-protected read invitation for one collaborator when
+ * Microsoft Graph denies their access to an owner's Taskdesk folder.
+ */
+export async function inviteTaskdeskFolderCollaborator(
+  organizationId: number,
+  ownerUserId: number,
+  collaboratorUserId: number,
+): Promise<void> {
+  if (ownerUserId === collaboratorUserId) return;
+
+  const [owner, collaborator] = await Promise.all([
+    db.select({ connection: oneDriveConnectionsTable })
+      .from(oneDriveConnectionsTable)
+      .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+      .where(and(
+        eq(oneDriveConnectionsTable.organizationId, organizationId),
+        eq(oneDriveConnectionsTable.userId, ownerUserId),
+        eq(usersTable.isActive, true),
+      ))
+      .limit(1),
+    db.select({ connection: oneDriveConnectionsTable })
+      .from(oneDriveConnectionsTable)
+      .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+      .where(and(
+        eq(oneDriveConnectionsTable.organizationId, organizationId),
+        eq(oneDriveConnectionsTable.userId, collaboratorUserId),
+        eq(usersTable.isActive, true),
+      ))
+      .limit(1),
+  ]);
+  if (!owner[0] || !collaborator[0]) {
+    throw new OneDriveBrowseError("A connected OneDrive account is required to restore folder access.", 404);
+  }
+
+  const ownerConnection = owner[0].connection;
+  const collaboratorConnection = collaborator[0].connection;
+  const accessToken = await refreshConnection(ownerConnection);
+  await graph(accessToken, `/me/drive/items/${encodeURIComponent(ownerConnection.rootFolderId)}/invite`, {
+    method: "POST",
+    body: JSON.stringify({
+      recipients: [{ email: collaboratorConnection.microsoftEmail }],
+      requireSignIn: true,
+      sendInvitation: false,
+      roles: ["read"],
+    }),
+  });
+}
+
+/**
  * Older OneDrive connections may predate the stored organization folder URL.
  * Rebuild missing URLs from the owner's existing folder ID so they appear in
  * the organization browser without requiring every owner to reconnect.
