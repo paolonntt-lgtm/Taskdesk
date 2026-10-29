@@ -31,6 +31,7 @@ import {
   OneDriveAccessRevocationError,
   OneDriveBrowseError,
   OneDriveGraphError,
+  backfillOneDriveOrganizationShareUrls,
   previewSharedOneDriveItem,
   acquireOneDriveDownloadSlot,
   downloadSharedOneDriveItem,
@@ -260,6 +261,13 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
   if (!user.organizationId) {
     res.json([]);
     return;
+  }
+  const repairedUrls = await backfillOneDriveOrganizationShareUrls(user.organizationId);
+  if (repairedUrls > 0) {
+    const inviteFailures = await inviteCollaboratorsToTaskdeskFolders(user.organizationId);
+    if (inviteFailures > 0) {
+      req.log.warn({ organizationId: user.organizationId, inviteFailures }, "Some OneDrive folder invitations could not be refreshed");
+    }
   }
   const shares = await db.select({
     ownerUserId: oneDriveConnectionsTable.userId,

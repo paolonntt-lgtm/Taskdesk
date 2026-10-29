@@ -722,6 +722,44 @@ export async function inviteCollaboratorsToTaskdeskFolders(organizationId: numbe
   return failures;
 }
 
+/**
+ * Older OneDrive connections may predate the stored organization folder URL.
+ * Rebuild missing URLs from the owner's existing folder ID so they appear in
+ * the organization browser without requiring every owner to reconnect.
+ */
+export async function backfillOneDriveOrganizationShareUrls(organizationId: number): Promise<number> {
+  const connections = await db.select({
+    connection: oneDriveConnectionsTable,
+  }).from(oneDriveConnectionsTable)
+    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
+    .where(and(
+      eq(oneDriveConnectionsTable.organizationId, organizationId),
+      eq(usersTable.isActive, true),
+    ));
+
+  let repaired = 0;
+  for (const { connection } of connections) {
+    if (connection.organizationShareUrl?.startsWith("https://")) continue;
+    try {
+      const accessToken = await refreshConnection(connection);
+      const details = await graph<{ webUrl?: string }>(
+        accessToken,
+        `/me/drive/items/${encodeURIComponent(connection.rootFolderId)}?$select=webUrl`,
+      );
+      if (!details.webUrl?.startsWith("https://")) {
+        throw new Error("Microsoft did not return a valid Taskdesk folder URL.");
+      }
+      await db.update(oneDriveConnectionsTable)
+        .set({ organizationShareUrl: details.webUrl })
+        .where(eq(oneDriveConnectionsTable.id, connection.id));
+      repaired += 1;
+    } catch (error) {
+      logger.warn({ err: error, userId: connection.userId }, "Could not restore OneDrive organization folder URL");
+    }
+  }
+  return repaired;
+}
+
 export type DrivePermission = {
   id?: string;
   roles?: string[];
