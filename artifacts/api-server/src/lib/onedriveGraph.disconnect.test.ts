@@ -112,6 +112,21 @@ describe("OneDrive disconnection after Microsoft revocation", () => {
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
+  it("requires reauthorization when Microsoft rejects the Graph access token", async () => {
+    globalThis.fetch = vi.fn(async (input: string | URL) => {
+      if (String(input).includes("/oauth2/v2.0/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token" }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: { message: "Invalid authentication token" } }), { status: 401 });
+    }) as typeof fetch;
+
+    const error = await disconnectOneDriveUser(7, 11).catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(OneDriveAccessRevocationError);
+    expect(error).toMatchObject({ requiresReconnect: true });
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
   it("removes the local connection after Microsoft confirms revocation", async () => {
     globalThis.fetch = vi.fn(async (input: string | URL) => {
       if (String(input).includes("/oauth2/v2.0/token")) {

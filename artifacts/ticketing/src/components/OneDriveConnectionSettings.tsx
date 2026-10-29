@@ -27,6 +27,7 @@ export default function OneDriveConnectionSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [reconnectRequired, setReconnectRequired] = useState(false);
   const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
 
@@ -57,6 +58,7 @@ export default function OneDriveConnectionSettings() {
     const currentUrl = new URL(window.location.href);
     const result = currentUrl.searchParams.get("onedrive");
     if (result === "connected") {
+      setReconnectRequired(false);
       setNotice({ severity: "success", text: copy.oneDriveConnectedSuccess });
     } else if (result === "sharing_partial") {
       setNotice({
@@ -68,6 +70,7 @@ export default function OneDriveConnectionSettings() {
     } else if (result === "revocation_failed") {
       setNotice({ severity: "error", text: copy.oneDriveRevocationFailed });
     } else if (result === "revocation_reconnect_required") {
+      setReconnectRequired(true);
       setNotice({ severity: "error", text: copy.oneDriveRevocationReconnectRequired });
     } else if (result === "cancelled") {
       setNotice({ severity: "info", text: copy.oneDriveConnectCancelled });
@@ -108,6 +111,9 @@ export default function OneDriveConnectionSettings() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const needsReconnect = data.code === "ONEDRIVE_RECONNECT_REQUIRED";
+        setReconnectRequired(needsReconnect);
+        if (needsReconnect) setDisconnectDialogOpen(false);
         const message = data.code === "ONEDRIVE_RECONNECT_REQUIRED"
           ? copy.oneDriveDisconnectReconnectRequired
           : data.code === "ONEDRIVE_REVOCATION_FAILED"
@@ -176,6 +182,15 @@ export default function OneDriveConnectionSettings() {
                     disabled={saving}
                   >
                     {copy.oneDriveDisconnect}
+                  </Button>
+                )}
+                {connection?.connected && reconnectRequired && (
+                  <Button
+                    variant="outlined"
+                    onClick={startConnect}
+                    disabled={saving}
+                  >
+                    {copy.oneDriveReconnectSameAccount}
                   </Button>
                 )}
               </Stack>
