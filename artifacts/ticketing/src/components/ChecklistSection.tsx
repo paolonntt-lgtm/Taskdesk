@@ -357,13 +357,13 @@ function SingleChecklist({ checklist, ticketId, isAdmin, onError, onDeleted, can
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={ct.renameItem}>
-                          <IconButton size="small" onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }} sx={{ p: 0.25 }}>
-                            <EditOutlined sx={{ fontSize: 12 }} />
-                          </IconButton>
-                        </Tooltip>
                       </>
                     )}
+                    <Tooltip title={ct.renameItem}>
+                      <IconButton size="small" onClick={() => { setEditingItemId(item.id); setEditingItemText(item.text); }} sx={{ p: 0.25 }}>
+                        <EditOutlined sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={ct.deleteItem}>
                       <IconButton size="small" color="error" onClick={() => handleDeleteItem(item.id)} sx={{ p: 0.25 }}>
                         <Delete sx={{ fontSize: 12 }} />

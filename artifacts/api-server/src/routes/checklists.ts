@@ -257,6 +257,11 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
   if (!existingItem) { res.status(404).json({ error: "Item not found" }); return; }
 
   const isAdmin = currentUser.role === "admin";
+  if (!isAdmin && parsed.data.position !== undefined) {
+    res.status(403).json({ error: "Only admins can reorder checklist items" });
+    return;
+  }
+
   const updates: { text?: string; checked?: boolean; position?: number; checkedById?: number | null; checkedAt?: Date | null } = {};
   if (parsed.data.checked !== undefined) {
     updates.checked = parsed.data.checked;
@@ -270,10 +275,8 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
       }
     }
   }
-  if (isAdmin) {
-    if (parsed.data.text !== undefined) updates.text = parsed.data.text;
-    if (parsed.data.position !== undefined) updates.position = parsed.data.position;
-  }
+  if (parsed.data.text !== undefined) updates.text = parsed.data.text;
+  if (isAdmin && parsed.data.position !== undefined) updates.position = parsed.data.position;
 
   await db
     .update(ticketChecklistItemsTable)
@@ -312,7 +315,7 @@ router.patch("/tickets/:ticketId/checklists/:checklistId/items/:itemId", require
   res.json(updatedItem);
 });
 
-router.delete("/tickets/:ticketId/checklists/:checklistId/items/:itemId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.delete("/tickets/:ticketId/checklists/:checklistId/items/:itemId", requireAuth, async (req, res): Promise<void> => {
   const ticketId = parseParam(req.params.ticketId);
   const checklistId = parseParam(req.params.checklistId);
   const itemId = parseParam(req.params.itemId);
