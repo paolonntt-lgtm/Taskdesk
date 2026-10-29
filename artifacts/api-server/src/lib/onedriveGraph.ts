@@ -581,6 +581,35 @@ export async function listSharedOneDriveFolderItems(
   return { folderName: folder.name, items: children.map(toBrowseItem) };
 }
 
+export async function listOneDriveItemsSharedWithMe(userId: number, organizationId: number) {
+  const [connection] = await db.select().from(oneDriveConnectionsTable).where(and(
+    eq(oneDriveConnectionsTable.userId, userId),
+    eq(oneDriveConnectionsTable.organizationId, organizationId),
+  )).limit(1);
+  if (!connection) return [];
+
+  const accessToken = await refreshConnection(connection);
+  let next: string | null = `${GRAPH}/me/drive/sharedWithMe?$select=id,name,webUrl,folder,remoteItem&$top=200`;
+  const folders = new Map<string, { id: string; name: string; url: string }>();
+  while (next) {
+    const page: {
+      value?: Array<BrowseDriveItem & { remoteItem?: BrowseDriveItem }>;
+      "@odata.nextLink"?: string;
+    } = await graph<{
+      value?: Array<BrowseDriveItem & { remoteItem?: BrowseDriveItem }>;
+      "@odata.nextLink"?: string;
+    }>(accessToken, next);
+    for (const item of page.value ?? []) {
+      const url = item.webUrl ?? item.remoteItem?.webUrl;
+      if (!item.folder && !item.remoteItem?.folder || !url?.startsWith("https://")) continue;
+      const id = item.remoteItem?.id ?? item.id;
+      folders.set(url, { id, name: item.name || item.remoteItem?.name || "Shared folder", url });
+    }
+    next = page["@odata.nextLink"] ?? null;
+  }
+  return [...folders.values()];
+}
+
 export async function uploadSharedOneDriveFile(
   currentUserId: number,
   organizationId: number,
@@ -668,107 +697,6 @@ export async function downloadSharedOneDriveItem(
     mimeType,
     bytes,
   };
-}
-
-/**
- * Grant each connected collaborator read access to every connected owner's
- * Taskdesk folder. Invitation permissions are protected by Microsoft sign-in,
- * unlike anonymous sharing links, and also work for consumer OneDrive accounts.
- */
-export async function inviteCollaboratorsToTaskdeskFolders(organizationId: number): Promise<number> {
-  const connections = await db.select({
-    connection: oneDriveConnectionsTable,
-  }).from(oneDriveConnectionsTable)
-    .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
-    .where(and(
-      eq(oneDriveConnectionsTable.organizationId, organizationId),
-      eq(usersTable.isActive, true),
-    ));
-  let failures = 0;
-  for (const owner of connections) {
-    let accessToken: string;
-    try {
-      accessToken = await refreshConnection(owner.connection);
-    } catch (error) {
-      failures += Math.max(0, connections.length - 1);
-      logger.warn({ err: error, userId: owner.connection.userId }, "Could not refresh OneDrive token for folder invitations");
-      continue;
-    }
-    for (const recipient of connections) {
-      if (
-        recipient.connection.userId === owner.connection.userId ||
-        recipient.connection.microsoftEmail.toLowerCase() === owner.connection.microsoftEmail.toLowerCase()
-      ) continue;
-      try {
-        await graph(accessToken, `/me/drive/items/${encodeURIComponent(owner.connection.rootFolderId)}/invite`, {
-          method: "POST",
-          body: JSON.stringify({
-            recipients: [{ email: recipient.connection.microsoftEmail }],
-            requireSignIn: true,
-            sendInvitation: false,
-            roles: ["read"],
-          }),
-        });
-      } catch (error) {
-        failures += 1;
-        logger.warn({
-          err: error,
-          ownerUserId: owner.connection.userId,
-          recipientUserId: recipient.connection.userId,
-        }, "Could not share OneDrive Taskdesk folder with collaborator");
-      }
-    }
-  }
-  return failures;
-}
-
-/**
- * Re-issue a sign-in-protected read invitation for one collaborator when
- * Microsoft Graph denies their access to an owner's Taskdesk folder.
- */
-export async function inviteTaskdeskFolderCollaborator(
-  organizationId: number,
-  ownerUserId: number,
-  collaboratorUserId: number,
-): Promise<void> {
-  if (ownerUserId === collaboratorUserId) return;
-
-  const [owner, collaborator] = await Promise.all([
-    db.select({ connection: oneDriveConnectionsTable })
-      .from(oneDriveConnectionsTable)
-      .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
-      .where(and(
-        eq(oneDriveConnectionsTable.organizationId, organizationId),
-        eq(oneDriveConnectionsTable.userId, ownerUserId),
-        eq(usersTable.isActive, true),
-      ))
-      .limit(1),
-    db.select({ connection: oneDriveConnectionsTable })
-      .from(oneDriveConnectionsTable)
-      .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
-      .where(and(
-        eq(oneDriveConnectionsTable.organizationId, organizationId),
-        eq(oneDriveConnectionsTable.userId, collaboratorUserId),
-        eq(usersTable.isActive, true),
-      ))
-      .limit(1),
-  ]);
-  if (!owner[0] || !collaborator[0]) {
-    throw new OneDriveBrowseError("A connected OneDrive account is required to restore folder access.", 404);
-  }
-
-  const ownerConnection = owner[0].connection;
-  const collaboratorConnection = collaborator[0].connection;
-  const accessToken = await refreshConnection(ownerConnection);
-  await graph(accessToken, `/me/drive/items/${encodeURIComponent(ownerConnection.rootFolderId)}/invite`, {
-    method: "POST",
-    body: JSON.stringify({
-      recipients: [{ email: collaboratorConnection.microsoftEmail }],
-      requireSignIn: true,
-      sendInvitation: false,
-      roles: ["read"],
-    }),
-  });
 }
 
 /**
@@ -863,6 +791,23 @@ async function revokeFolderInvitations(
     }
     next = page["@odata.nextLink"] ?? null;
   }
+}
+
+export async function revokeOrganizationRootInvitations(organizationId: number): Promise<void> {
+  const connections = await db.select().from(oneDriveConnectionsTable)
+    .where(eq(oneDriveConnectionsTable.organizationId, organizationId));
+  const recipientEmails = connections.map((connection) => connection.microsoftEmail);
+  let failed = false;
+  for (const owner of connections) {
+    try {
+      const accessToken = await refreshConnection(owner);
+      await revokeFolderInvitations(accessToken, owner, recipientEmails);
+    } catch (error) {
+      failed = true;
+      logger.warn({ err: error, ownerUserId: owner.userId }, "Could not remove organization-wide OneDrive root access");
+    }
+  }
+  if (failed) throw new OneDriveAccessRevocationError();
 }
 
 export class OneDriveAccessRevocationError extends Error {

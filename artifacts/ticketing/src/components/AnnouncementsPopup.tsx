@@ -38,8 +38,8 @@ function oneDriveCommentAnnouncement(isItalian: boolean): Announcement {
     id: ONEDRIVE_COMMENT_ANNOUNCEMENT_ID,
     title: isItalian ? 'Novità: allegati OneDrive nei commenti' : 'New: OneDrive attachments in comments',
     body: isItalian
-      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare le cartelle e scegliere i file da allegare a un nuovo commento o a una risposta. Il file resta allegato al ticket in TaskDesk. Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk salva una seconda copia nel suo OneDrive, nella cartella Taskdesk/[nome assegnatario], condivisa in sola lettura con gli altri collaboratori che hanno collegato OneDrive. Se l’assegnatario non ha collegato il proprio account, l’allegato resta disponibile in TaskDesk. L’originale selezionato non viene modificato e le copie non si aggiornano automaticamente quando cambia.'
-      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Then browse folders and choose files to attach to a new comment or reply. The file remains attached to the ticket in TaskDesk. If the ticket is assigned to someone with OneDrive connected, TaskDesk saves a second copy in their OneDrive, in the Taskdesk/[assignee name] folder, shared read-only with other collaborators who have connected OneDrive. If the assignee has not connected their account, the attachment remains available in TaskDesk. The selected original is not changed, and the copies are not updated automatically when it changes.',
+      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare il tuo spazio e le cartelle condivise con te per allegare file a un commento o a una risposta. L’allegato resta disponibile nel ticket TaskDesk. Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk può salvare una copia privata nel suo account; gli altri utenti non ricevono accesso al suo OneDrive. L’originale selezionato non viene modificato.'
+      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Browse your own drive and folders shared with you to attach files to a comment or reply. The attachment remains available in the TaskDesk ticket. If the ticket is assigned to someone with OneDrive connected, TaskDesk may save a private copy in their account; other users do not receive access to that OneDrive. The selected original is not changed.',
     iconKey: 'info',
     targetType: 'all',
     targetLocation: null,
@@ -274,12 +274,12 @@ export default function AnnouncementsPopup({ userId, enabled, lang }: Announceme
                 }}
               >
                 <Typography variant="caption" color="primary.main" sx={{ display: 'block', fontWeight: 800, mb: 0.4 }}>
-                  {isItalian ? 'Copia OneDrive per il team' : 'OneDrive copy for the team'}
+                  {isItalian ? 'Copia privata su OneDrive' : 'Private OneDrive copy'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, lineHeight: 1.55 }}>
                   {isItalian
-                    ? 'Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk salva una copia in `Taskdesk/[nome assegnatario]` nel suo account. La cartella è condivisa in sola lettura con gli altri collaboratori collegati. Senza account collegato, l’allegato resta in TaskDesk. L’originale selezionato non viene modificato e le copie non si aggiornano automaticamente.'
-                    : 'If the ticket is assigned to someone with OneDrive connected, TaskDesk saves a copy in `Taskdesk/[assignee name]` in their account. The folder is shared read-only with other connected collaborators. Without a connected account, the attachment remains in TaskDesk. The selected original is not changed, and copies are not updated automatically.'
+                    ? 'Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk salva una copia privata nel suo account. Gli altri collaboratori non ottengono accesso al suo OneDrive; l’allegato resta comunque disponibile nel ticket TaskDesk.'
+                    : 'If the ticket is assigned to someone with OneDrive connected, TaskDesk saves a private copy in their account. Other collaborators do not gain access to that OneDrive; the attachment remains available in the TaskDesk ticket.'
                   }
                 </Typography>
               </Box>

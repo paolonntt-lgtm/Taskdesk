@@ -47,6 +47,7 @@ type OrganizationShare = {
   url: string;
   canUpload: boolean;
 };
+type SharedFolder = { id: string; name: string; url: string };
 
 type Breadcrumb = { id: string; name: string };
 type BrowseState = {
@@ -75,6 +76,7 @@ export default function OneDrivePage() {
   const it = lang === "it";
   const copy = t.settings.oneDriveBrowse;
   const [shares, setShares] = useState<OrganizationShare[]>([]);
+  const [sharedFolders, setSharedFolders] = useState<SharedFolder[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -131,18 +133,22 @@ export default function OneDrivePage() {
       setLoading(true);
       setError("");
       try {
-        const [shareResponse, connectionResponse] = await Promise.all([
+        const [shareResponse, connectionResponse, sharedFoldersResponse] = await Promise.all([
           fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" }),
           fetch("/api/onedrive/connection", { credentials: "include", cache: "no-store" }),
+          fetch("/api/onedrive/shared-with-me", { credentials: "include", cache: "no-store" }),
         ]);
         if (!shareResponse.ok) throw new Error(copy.loadSharesError);
         if (!connectionResponse.ok) throw new Error(copy.checkConnectionError);
-        const [shareData, connection] = await Promise.all([
+        if (!sharedFoldersResponse.ok) throw new Error(copy.loadSharesError);
+        const [shareData, connection, sharedData] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
           connectionResponse.json() as Promise<{ connected: boolean }>,
+          sharedFoldersResponse.json() as Promise<SharedFolder[]>,
         ]);
         if (!active) return;
         setShares(shareData);
+        setSharedFolders(sharedData);
         setConnected(connection.connected);
       } catch (failure) {
         if (active) setError(failure instanceof Error ? failure.message : copy.checkConnectionError);
@@ -277,7 +283,7 @@ export default function OneDrivePage() {
           {copy.connectPrompt}
         </Alert>
       )}
-      {!loading && !error && shares.length === 0 && (
+      {!loading && !error && shares.length === 0 && sharedFolders.length === 0 && (
         <Card variant="outlined">
           <CardContent>
             <Typography fontWeight={600} mb={1}>
@@ -479,6 +485,37 @@ export default function OneDrivePage() {
           );
         })}
       </Stack>
+      {sharedFolders.length > 0 && (
+        <Box mt={3}>
+          <Typography variant="h6" fontWeight={650} mb={1.5}>
+            {it ? "Cartelle condivise con me" : "Folders shared with me"}
+          </Typography>
+          <Stack spacing={1.5}>
+            {sharedFolders.map((folder) => (
+              <Card key={folder.id} variant="outlined">
+                <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                    <FolderOutlined color="primary" />
+                    <Typography fontWeight={600} sx={{ overflowWrap: "anywhere" }}>{folder.name}</Typography>
+                  </Stack>
+                  <Button
+                    component="a"
+                    href={folder.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    size="small"
+                    variant="outlined"
+                    endIcon={<OpenInNew />}
+                    sx={{ whiteSpace: "nowrap" }}
+                  >
+                    {copy.openOneDrive}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </Box>
+      )}
 
       <Dialog open={preview !== null} onClose={() => setPreview(null)} fullWidth maxWidth="lg">
         <DialogTitle sx={{ pr: 6 }}>

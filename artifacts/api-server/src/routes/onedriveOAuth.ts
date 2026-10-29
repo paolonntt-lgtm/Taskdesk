@@ -25,14 +25,13 @@ import {
   encryptRefreshToken,
   exchangeMicrosoftCode,
   getMicrosoftUser,
-  inviteCollaboratorsToTaskdeskFolders,
-  inviteTaskdeskFolderCollaborator,
   invalidateOneDriveAccessToken,
   listSharedOneDriveFolderItems,
+  listOneDriveItemsSharedWithMe,
+  revokeOrganizationRootInvitations,
   OneDriveAccessRevocationError,
   OneDriveBrowseError,
   OneDriveGraphError,
-  backfillOneDriveOrganizationShareUrls,
   previewSharedOneDriveItem,
   acquireOneDriveDownloadSlot,
   downloadSharedOneDriveItem,
@@ -221,11 +220,10 @@ router.get("/onedrive/callback", async (req, res): Promise<void> => {
       },
     });
     if (previousConnection) invalidateOneDriveAccessToken(previousConnection.id);
-    const inviteFailures = await inviteCollaboratorsToTaskdeskFolders(user.organizationId);
     void syncPendingOneDriveAttachments(user.id, user.organizationId, user.role === "admin").catch((error) => {
       logger.warn({ err: error, userId: user.id }, "Could not retry pending OneDrive attachments");
     });
-    finish(res, inviteFailures ? "sharing_partial" : "connected", current.returnTo, restoredSessionCookie);
+    finish(res, "connected", current.returnTo, restoredSessionCookie);
   } catch (error) {
     logger.warn({ err: error, userId: current.userId }, "OneDrive connection failed");
     if (error instanceof OneDriveAccessRevocationError) {
@@ -263,23 +261,43 @@ router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promi
     res.json([]);
     return;
   }
-  const repairedUrls = await backfillOneDriveOrganizationShareUrls(user.organizationId);
-  if (repairedUrls > 0) {
-    const inviteFailures = await inviteCollaboratorsToTaskdeskFolders(user.organizationId);
-    if (inviteFailures > 0) {
-      req.log.warn({ organizationId: user.organizationId, inviteFailures }, "Some OneDrive folder invitations could not be refreshed");
-    }
+  try {
+    await revokeOrganizationRootInvitations(user.organizationId);
+  } catch (error) {
+    req.log.error({ err: error, organizationId: user.organizationId }, "Could not remove organization-wide OneDrive root access");
+    res.status(503).json({ error: "TaskDesk could not safely limit OneDrive access. Please retry." });
+    return;
   }
-  const shares = await db.select({
+  const [connection] = await db.select({
     ownerUserId: oneDriveConnectionsTable.userId,
     operatorName: usersTable.name,
     url: oneDriveConnectionsTable.organizationShareUrl,
   }).from(oneDriveConnectionsTable)
     .innerJoin(usersTable, eq(usersTable.id, oneDriveConnectionsTable.userId))
-    .where(and(eq(oneDriveConnectionsTable.organizationId, user.organizationId), eq(usersTable.isActive, true)));
-  res.json(shares
-    .filter((item) => item.url?.startsWith("https://"))
-    .map((item) => ({ ...item, canUpload: item.ownerUserId === user.id })));
+    .where(and(
+      eq(oneDriveConnectionsTable.organizationId, user.organizationId),
+      eq(oneDriveConnectionsTable.userId, user.id),
+      eq(usersTable.isActive, true),
+    )).limit(1);
+  res.json(connection?.url?.startsWith("https://") ? [{ ...connection, canUpload: true }] : []);
+});
+
+router.get("/onedrive/shared-with-me", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser as { id: number; organizationId: number | null };
+  if (!user.organizationId) {
+    res.json([]);
+    return;
+  }
+  try {
+    res.json(await listOneDriveItemsSharedWithMe(user.id, user.organizationId));
+  } catch (error) {
+    req.log.warn({ err: error, userId: user.id }, "Could not load OneDrive items shared with user");
+    if (error instanceof OneDriveBrowseError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    res.status(502).json({ error: "Microsoft could not load shared OneDrive folders." });
+  }
 });
 
 router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res): Promise<void> => {
@@ -299,6 +317,10 @@ router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res)
     res.status(403).json({ error: "An organization account is required." });
     return;
   }
+  if (params.data.ownerUserId !== user.id) {
+    res.status(403).json({ error: "You can browse only your own OneDrive here." });
+    return;
+  }
   try {
     const result = await listSharedOneDriveFolderItems(
       user.id,
@@ -308,36 +330,7 @@ router.get("/onedrive/folders/:ownerUserId/items", requireAuth, async (req, res)
     );
     res.json(ListSharedOneDriveFolderItemsResponse.parse(result));
   } catch (error) {
-    let reportedError: unknown = error;
-    if (
-      error instanceof OneDriveGraphError &&
-      error.statusCode === 403 &&
-      params.data.ownerUserId !== user.id &&
-      user.organizationId != null
-    ) {
-      try {
-        await inviteTaskdeskFolderCollaborator(
-          user.organizationId,
-          params.data.ownerUserId,
-          user.id,
-        );
-        const result = await listSharedOneDriveFolderItems(
-          user.id,
-          user.organizationId,
-          params.data.ownerUserId,
-          query.data.path,
-        );
-        res.json(ListSharedOneDriveFolderItemsResponse.parse(result));
-        return;
-      } catch (retryError) {
-        reportedError = retryError;
-        req.log.warn({
-          err: retryError,
-          userId: user.id,
-          ownerUserId: params.data.ownerUserId,
-        }, "Could not restore OneDrive access to shared Taskdesk folder");
-      }
-    }
+    const reportedError = error;
     if (reportedError instanceof OneDriveBrowseError) {
       res.status(reportedError.statusCode).json({ error: reportedError.message });
       return;
@@ -445,6 +438,10 @@ router.post("/onedrive/folders/:ownerUserId/items/:itemId/preview", requireAuth,
     res.status(403).json({ error: "An organization account is required." });
     return;
   }
+  if (params.data.ownerUserId !== user.id) {
+    res.status(403).json({ error: "You can preview files only from your own OneDrive." });
+    return;
+  }
   try {
     const result = await previewSharedOneDriveItem(
       user.id,
@@ -491,6 +488,10 @@ router.get("/onedrive/folders/:ownerUserId/items/:itemId/content", requireAuth, 
   const user = (req as any).currentUser as { id: number; organizationId: number | null };
   if (!user.organizationId) {
     res.status(403).json({ error: "An organization account is required." });
+    return;
+  }
+  if (params.data.ownerUserId !== user.id) {
+    res.status(403).json({ error: "You can download files only from your own OneDrive." });
     return;
   }
   const releaseDownloadSlot = await acquireOneDriveDownloadSlot();

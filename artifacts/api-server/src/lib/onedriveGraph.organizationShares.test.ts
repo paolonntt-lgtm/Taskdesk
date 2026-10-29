@@ -43,7 +43,6 @@ vi.mock("drizzle-orm", () => ({
 import {
   backfillOneDriveOrganizationShareUrls,
   encryptRefreshToken,
-  inviteTaskdeskFolderCollaborator,
 } from "./onedriveGraph";
 
 describe("OneDrive organization folder URL recovery", () => {
@@ -104,47 +103,4 @@ describe("OneDrive organization folder URL recovery", () => {
     expect(mocks.updateWhere).toHaveBeenCalled();
   });
 
-  it("re-invites the requested collaborator to the selected owner's folder", async () => {
-    const collaborator = {
-      ...mocks.connection,
-      id: 42,
-      userId: 8,
-      microsoftEmail: "collaborator@example.test",
-      rootFolderId: "collaborator-root",
-      encryptedRefreshToken: encryptRefreshToken("collaborator-refresh", 8, 11),
-    };
-    const connectionQuery = (connection: Record<string, unknown>) => {
-      const query: Record<string, unknown> = {
-        from: vi.fn(() => query),
-        innerJoin: vi.fn(() => query),
-        where: vi.fn(() => query),
-        limit: vi.fn(async () => [{ connection }]),
-      };
-      return query;
-    };
-    mocks.select
-      .mockImplementationOnce(() => connectionQuery(mocks.connection))
-      .mockImplementationOnce(() => connectionQuery(collaborator));
-    globalThis.fetch = vi.fn(async (input: string | URL) => {
-      if (String(input).includes("/oauth2/v2.0/token")) {
-        return new Response(JSON.stringify({ access_token: "owner-access-token", expires_in: 3600 }), { status: 200 });
-      }
-      return new Response(JSON.stringify({ value: [] }), { status: 200 });
-    }) as typeof fetch;
-
-    await expect(inviteTaskdeskFolderCollaborator(11, 7, 8)).resolves.toBeUndefined();
-
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "https://graph.microsoft.com/v1.0/me/drive/items/taskdesk-root/invite",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          recipients: [{ email: "collaborator@example.test" }],
-          requireSignIn: true,
-          sendInvitation: false,
-          roles: ["read"],
-        }),
-      }),
-    );
-  });
 });

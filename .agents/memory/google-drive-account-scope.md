@@ -27,11 +27,11 @@ The main navigation's OneDrive entry should open an organization-level directory
 
 **How to apply:** Keep the menu entry distinct from Google Drive and aggregate only the current user's organization-scoped share links.
 
-Support both organizational and personal Microsoft accounts, but do not grant folder access with anonymous links.
+Each TaskDesk user must see their own OneDrive and only folders Microsoft has explicitly shared with that signed-in account. Never grant organization members access to one another's OneDrive roots.
 
-**Why:** The user explicitly changed the requirement to accept personal accounts and selected individual collaborator invitations as the sharing method.
+**Why:** The user clarified that coworkers must not see one another's OneDrive; an earlier app flow over-shared every connected owner's root.
 
-**How to apply:** Use a Microsoft authority and app registration that accept personal accounts; grant each connected collaborator sign-in-protected access to other connected Taskdesk roots.
+**How to apply:** Use the current user's own Microsoft token for their drive and Microsoft-provided shared-with-me items. Do not create or renew root invitations. Revoke legacy root-level invitations to known organization accounts while preserving explicit shares on specific subfolders.
 
 Ticket creation should reuse the user's existing OneDrive connection. Keep cloud-drive folder sections out of the new-ticket form; provide a toolbar picker that imports selected OneDrive files as ordinary ticket attachments.
 
@@ -87,8 +87,8 @@ When a connected user disconnects OneDrive or is deactivated/deleted, revoke the
 
 **How to apply:** Scope cleanup to the user's current organization and fail closed if Graph cannot confirm revocation, keeping the account connected/active so cleanup can be retried.
 
-When Microsoft Graph denies a collaborator access to an already-listed OneDrive folder, retry once after reissuing a direct, sign-in-protected read invitation from that folder's owner to the requesting collaborator.
+An access-denied response must not cause TaskDesk to invite the requester to another user's OneDrive root.
 
-**Why:** Existing folder URLs can remain present after Microsoft access is revoked or lost, so the organization menu alone cannot detect that an invitation needs repair.
+**Why:** Root-level access between organization members is not allowed, even as an automatic recovery step.
 
-**How to apply:** On a browse-time 403, invite only the requesting collaborator to the selected owner's Taskdesk root, then retry the browse once. Never create anonymous links or send invitations to every organization member for a single denied folder.
+**How to apply:** Keep browse, preview, download, and upload routes scoped to the authenticated account; enumerate other content only from that account's Microsoft shared-with-me results.

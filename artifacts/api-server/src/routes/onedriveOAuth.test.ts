@@ -20,7 +20,8 @@ const mocks = vi.hoisted(() => {
     exchangeMicrosoftCode: vi.fn(),
     getMicrosoftUser: vi.fn(),
     createDefaultFolders: vi.fn(),
-    inviteCollaboratorsToTaskdeskFolders: vi.fn(),
+    listOneDriveItemsSharedWithMe: vi.fn(),
+    revokeOrganizationRootInvitations: vi.fn(),
     syncPendingOneDriveAttachments: vi.fn(),
     disconnectOneDriveUser: vi.fn(),
     getSession: vi.fn(),
@@ -59,7 +60,8 @@ vi.mock("../lib/onedriveGraph", () => ({
   encryptRefreshToken: () => "encrypted-refresh-token",
   exchangeMicrosoftCode: mocks.exchangeMicrosoftCode,
   getMicrosoftUser: mocks.getMicrosoftUser,
-  inviteCollaboratorsToTaskdeskFolders: mocks.inviteCollaboratorsToTaskdeskFolders,
+  listOneDriveItemsSharedWithMe: mocks.listOneDriveItemsSharedWithMe,
+  revokeOrganizationRootInvitations: mocks.revokeOrganizationRootInvitations,
   invalidateOneDriveAccessToken: vi.fn(),
   listSharedOneDriveFolderItems: vi.fn(),
   OneDriveBrowseError: class extends Error {
@@ -133,7 +135,8 @@ describe("Microsoft OneDrive OAuth callback", () => {
       operatorFolderId: "operator-folder",
       shareUrl: "https://onedrive.example.test/folder",
     });
-    mocks.inviteCollaboratorsToTaskdeskFolders.mockResolvedValue(0);
+    mocks.listOneDriveItemsSharedWithMe.mockResolvedValue([]);
+    mocks.revokeOrganizationRootInvitations.mockResolvedValue(undefined);
     mocks.syncPendingOneDriveAttachments.mockResolvedValue(undefined);
     mocks.db.select.mockImplementation((selection?: unknown) => {
       let table: unknown;
