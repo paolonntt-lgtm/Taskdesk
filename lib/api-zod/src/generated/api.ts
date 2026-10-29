@@ -2284,7 +2284,7 @@ export const RemoveTicketOneDriveFolderResponse = zod.object({
 
 
 /**
- * @summary List the active organization's connected OneDrive folders
+ * @summary Get the current user's own OneDrive folder
  */
 export const ListOrganizationOneDriveSharesResponseItem = zod.object({
   "ownerUserId": zod.int(),
@@ -2293,6 +2293,17 @@ export const ListOrganizationOneDriveSharesResponseItem = zod.object({
   "canUpload": zod.boolean()
 })
 export const ListOrganizationOneDriveSharesResponse = zod.array(ListOrganizationOneDriveSharesResponseItem)
+
+
+/**
+ * @summary List folders Microsoft has shared with the current user
+ */
+export const ListOneDriveSharedWithMeResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.url()
+})
+export const ListOneDriveSharedWithMeResponse = zod.array(ListOneDriveSharedWithMeResponseItem)
 
 
 /**

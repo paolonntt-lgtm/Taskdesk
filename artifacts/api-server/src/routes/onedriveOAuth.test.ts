@@ -270,6 +270,15 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(mocks.exchangeMicrosoftCode).not.toHaveBeenCalled();
   });
 
+  it("blocks browsing another organization member's OneDrive root", async () => {
+    const response = await fetch(`${baseUrl}/api/onedrive/folders/8/items`);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "You can browse only your own OneDrive here.",
+    });
+  });
+
   it("explains that reauthorization is needed when token renewal blocks safe disconnection", async () => {
     mocks.disconnectOneDriveUser.mockRejectedValue(new OneDriveAccessRevocationError(true));
 

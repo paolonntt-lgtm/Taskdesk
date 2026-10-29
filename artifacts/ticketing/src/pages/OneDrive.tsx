@@ -32,7 +32,9 @@ import {
   UploadFileOutlined,
 } from "@mui/icons-material";
 import {
+  listOneDriveSharedWithMe,
   listSharedOneDriveFolderItems,
+  type OneDriveSharedFolder,
   previewSharedOneDriveItem,
   type OneDriveBrowseItem,
   type OneDrivePreview,
@@ -47,7 +49,6 @@ type OrganizationShare = {
   url: string;
   canUpload: boolean;
 };
-type SharedFolder = { id: string; name: string; url: string };
 
 type Breadcrumb = { id: string; name: string };
 type BrowseState = {
@@ -76,7 +77,7 @@ export default function OneDrivePage() {
   const it = lang === "it";
   const copy = t.settings.oneDriveBrowse;
   const [shares, setShares] = useState<OrganizationShare[]>([]);
-  const [sharedFolders, setSharedFolders] = useState<SharedFolder[]>([]);
+  const [sharedFolders, setSharedFolders] = useState<OneDriveSharedFolder[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -133,22 +134,20 @@ export default function OneDrivePage() {
       setLoading(true);
       setError("");
       try {
-        const [shareResponse, connectionResponse, sharedFoldersResponse] = await Promise.all([
+        const [shareResponse, connectionResponse, sharedFoldersData] = await Promise.all([
           fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" }),
           fetch("/api/onedrive/connection", { credentials: "include", cache: "no-store" }),
-          fetch("/api/onedrive/shared-with-me", { credentials: "include", cache: "no-store" }),
+          listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
         ]);
         if (!shareResponse.ok) throw new Error(copy.loadSharesError);
         if (!connectionResponse.ok) throw new Error(copy.checkConnectionError);
-        if (!sharedFoldersResponse.ok) throw new Error(copy.loadSharesError);
-        const [shareData, connection, sharedData] = await Promise.all([
+        const [shareData, connection] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
           connectionResponse.json() as Promise<{ connected: boolean }>,
-          sharedFoldersResponse.json() as Promise<SharedFolder[]>,
         ]);
         if (!active) return;
         setShares(shareData);
-        setSharedFolders(sharedData);
+        setSharedFolders(sharedFoldersData);
         setConnected(connection.connected);
       } catch (failure) {
         if (active) setError(failure instanceof Error ? failure.message : copy.checkConnectionError);

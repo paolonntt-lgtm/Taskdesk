@@ -109,6 +109,7 @@ export * from './oneDriveFolderInput';
 export * from './oneDriveFolderReference';
 export * from './oneDriveOrganizationShare';
 export * from './oneDrivePreview';
+export * from './oneDriveSharedFolder';
 export * from './pendingClientSuggestion';
 export * from './personalTimeTrackingReport';
 export * from './personalTimeTrackingReportRow';

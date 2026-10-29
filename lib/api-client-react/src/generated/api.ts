@@ -92,6 +92,7 @@ import type {
   OneDriveFolderReference,
   OneDriveOrganizationShare,
   OneDrivePreview,
+  OneDriveSharedFolder,
   PendingClientSuggestion,
   PersonalTimeTrackingReport,
   PreviewSharedOneDriveItemParams,
@@ -4709,7 +4710,7 @@ export const getListOrganizationOneDriveSharesUrl = () => {
 }
 
 /**
- * @summary List the active organization's connected OneDrive folders
+ * @summary Get the current user's own OneDrive folder
  */
 export const listOrganizationOneDriveShares = async ( options?: Parameters<typeof customFetch>[1]): Promise<OneDriveOrganizationShare[]> => {
 
@@ -4756,7 +4757,7 @@ export type ListOrganizationOneDriveSharesQueryError = ErrorType<void>
 
 
 /**
- * @summary List the active organization's connected OneDrive folders
+ * @summary Get the current user's own OneDrive folder
  */
 
 export function useListOrganizationOneDriveShares<TData = Awaited<ReturnType<typeof listOrganizationOneDriveShares>>, TError = ErrorType<void>>(
@@ -4765,6 +4766,83 @@ export function useListOrganizationOneDriveShares<TData = Awaited<ReturnType<typ
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListOrganizationOneDriveSharesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListOneDriveSharedWithMeUrl = () => {
+
+
+
+
+  return `/api/onedrive/shared-with-me`
+}
+
+/**
+ * @summary List folders Microsoft has shared with the current user
+ */
+export const listOneDriveSharedWithMe = async ( options?: Parameters<typeof customFetch>[1]): Promise<OneDriveSharedFolder[]> => {
+
+  return customFetch<OneDriveSharedFolder[]>(getListOneDriveSharedWithMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOneDriveSharedWithMeQueryKey = () => {
+    return [
+    `/api/onedrive/shared-with-me`
+    ] as const;
+    }
+
+
+export const getListOneDriveSharedWithMeQueryOptions = <TData = Awaited<ReturnType<typeof listOneDriveSharedWithMe>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOneDriveSharedWithMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOneDriveSharedWithMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOneDriveSharedWithMe>>> = ({ signal }) => listOneDriveSharedWithMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOneDriveSharedWithMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOneDriveSharedWithMeQueryResult = NonNullable<Awaited<ReturnType<typeof listOneDriveSharedWithMe>>>
+export type ListOneDriveSharedWithMeQueryError = ErrorType<void>
+
+
+/**
+ * @summary List folders Microsoft has shared with the current user
+ */
+
+export function useListOneDriveSharedWithMe<TData = Awaited<ReturnType<typeof listOneDriveSharedWithMe>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOneDriveSharedWithMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOneDriveSharedWithMeQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

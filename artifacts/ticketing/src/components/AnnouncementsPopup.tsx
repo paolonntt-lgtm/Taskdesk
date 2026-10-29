@@ -38,8 +38,8 @@ function oneDriveCommentAnnouncement(isItalian: boolean): Announcement {
     id: ONEDRIVE_COMMENT_ANNOUNCEMENT_ID,
     title: isItalian ? 'Novità: allegati OneDrive nei commenti' : 'New: OneDrive attachments in comments',
     body: isItalian
-      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Poi potrai sfogliare il tuo spazio e le cartelle condivise con te per allegare file a un commento o a una risposta. L’allegato resta disponibile nel ticket TaskDesk. Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk può salvare una copia privata nel suo account; gli altri utenti non ricevono accesso al suo OneDrive. L’originale selezionato non viene modificato.'
-      : 'Connect your OneDrive account in TaskDesk settings to use this feature. Browse your own drive and folders shared with you to attach files to a comment or reply. The attachment remains available in the TaskDesk ticket. If the ticket is assigned to someone with OneDrive connected, TaskDesk may save a private copy in their account; other users do not receive access to that OneDrive. The selected original is not changed.',
+      ? 'Collega il tuo account OneDrive nelle impostazioni di TaskDesk per usare questa funzione. Nei commenti puoi scegliere file dal tuo OneDrive; dal menu OneDrive puoi anche aprire le cartelle condivise con il tuo account. L’allegato resta disponibile nel ticket TaskDesk. Se il ticket è assegnato a una persona con OneDrive collegato, TaskDesk può salvare una copia privata nel suo account; gli altri utenti non ricevono accesso al suo OneDrive.'
+      : 'Connect your OneDrive account in TaskDesk settings to use this feature. In comments, choose files from your own OneDrive; use the OneDrive page to open folders shared with your account. Attachments remain available in the TaskDesk ticket. If the ticket is assigned to someone with OneDrive connected, TaskDesk may save a private copy in their account; other users do not receive access to that OneDrive.',
     iconKey: 'info',
     targetType: 'all',
     targetLocation: null,

@@ -784,9 +784,13 @@ async function revokeFolderInvitations(
     const page: { value?: DrivePermission[]; "@odata.nextLink"?: string } = await graph(accessToken, next);
     for (const permission of page.value ?? []) {
       if (permission.id && shouldRevokeOneDrivePermission(permission, targets, owner.microsoftEmail)) {
-        await graph(accessToken, `/me/drive/items/${encodeURIComponent(owner.rootFolderId)}/permissions/${encodeURIComponent(permission.id)}`, {
-          method: "DELETE",
-        });
+        try {
+          await graph(accessToken, `/me/drive/items/${encodeURIComponent(owner.rootFolderId)}/permissions/${encodeURIComponent(permission.id)}`, {
+            method: "DELETE",
+          });
+        } catch (error) {
+          if (!(error instanceof OneDriveGraphError) || error.statusCode !== 404) throw error;
+        }
       }
     }
     next = page["@odata.nextLink"] ?? null;

@@ -1661,10 +1661,10 @@ paths:
     get:
       operationId: listOrganizationOneDriveShares
       tags: [drive]
-      summary: List the active organization's connected OneDrive folders
+      summary: Get the current user's own OneDrive folder
       responses:
         "200":
-          description: OneDrive folders available to the current organization
+          description: The current user's own Taskdesk folder, if connected
           content:
             application/json:
               schema:
@@ -1673,6 +1673,25 @@ paths:
                   $ref: "#/components/schemas/OneDriveOrganizationShare"
         "401":
           description: Authentication required
+
+  /onedrive/shared-with-me:
+    get:
+      operationId: listOneDriveSharedWithMe
+      tags: [drive]
+      summary: List folders Microsoft has shared with the current user
+      responses:
+        "200":
+          description: Folders shared with the signed-in Microsoft account
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OneDriveSharedFolder"
+        "401":
+          description: Authentication required or OneDrive is not connected
+        "502":
+          description: Microsoft Graph could not list shared folders
 
   /onedrive/folders/{ownerUserId}/items:
     get:
@@ -3737,6 +3756,17 @@ components:
           format: uri
         canUpload:
           type: boolean
+    OneDriveSharedFolder:
+      type: object
+      required: [id, name, url]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
     OneDrivePreview:
       type: object
       required: [getUrl]

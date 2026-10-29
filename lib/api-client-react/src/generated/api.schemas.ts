@@ -79,6 +79,12 @@ export interface OneDriveOrganizationShare {
   canUpload: boolean;
 }
 
+export interface OneDriveSharedFolder {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface OneDrivePreview {
   getUrl: string;
   /** @nullable */
