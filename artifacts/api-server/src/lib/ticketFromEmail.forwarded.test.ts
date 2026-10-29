@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
     db,
     tables,
     clients: [] as Array<Record<string, unknown>>,
+    senderRules: [] as Array<Record<string, unknown>>,
     inserts: [] as Array<{ table: unknown; values: Record<string, unknown> }>,
     systemUser: { id: 80, organizationId: 7, name: "Sistema" },
   };
@@ -75,6 +76,7 @@ function queryResultFor(table: unknown): unknown[] {
   if (table === mocks.tables.usersTable) return [mocks.systemUser];
   if (table === mocks.tables.ticketsTable) return [{ maxNum: 12 }];
   if (table === mocks.tables.clientsTable) return mocks.clients;
+  if (table === mocks.tables.emailClientSenderRulesTable) return mocks.senderRules;
   return [];
 }
 
@@ -82,6 +84,7 @@ describe("forwarded inbound ticket creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.inserts.length = 0;
+    mocks.senderRules = [];
     mocks.clients = [
       {
         id: 21,
@@ -182,6 +185,46 @@ describe("forwarded inbound ticket creation", () => {
       resource: "unknown-forwarder@gmail.com",
       clientId: null,
       suggestedClientId: null,
+    });
+  });
+
+  it("ignores a learned forwarding-address rule when the forwarded sender has no client match", async () => {
+    mocks.clients = [{
+      id: 22,
+      organizationId: 7,
+      name: "Original Sender Client",
+      alias: null,
+      email: "known@acme.example",
+      pec: null,
+    }];
+    mocks.senderRules = [{
+      organizationId: 7,
+      senderEmail: "forwarder@forwarding.example",
+      clientId: 22,
+    }];
+
+    await createTicketFromEmail({
+      ...baseInput,
+      originalSenderEmail: "unknown@other.example",
+    });
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      resource: "forwarder@forwarding.example",
+      clientId: null,
+      suggestedClientId: null,
+    });
+  });
+
+  it("still associates a forwarded ticket when the outer sender is an explicit client contact", async () => {
+    mocks.clients = [mocks.clients[0]];
+
+    await createTicketFromEmail(baseInput);
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      resource: "forwarder@forwarding.example",
+      clientId: 21,
     });
   });
 });

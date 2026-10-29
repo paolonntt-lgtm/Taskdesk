@@ -98,6 +98,7 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
 async function getInboundClientAssociation(
   orgId: number | null,
   senderEmail: string,
+  options: { ignoreLearnedSenderRules?: boolean } = {},
 ): Promise<ReturnType<typeof resolveEmailClientAssociation>> {
   if (orgId == null) {
     return { clientId: null, suggestedClientId: null };
@@ -124,7 +125,7 @@ async function getInboundClientAssociation(
       email: clientsTable.email,
       pec: clientsTable.pec,
     }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
-    db.select({
+    options.ignoreLearnedSenderRules ? Promise.resolve([]) : db.select({
       organizationId: emailClientSenderRulesTable.organizationId,
       senderEmail: emailClientSenderRulesTable.senderEmail,
       clientId: emailClientSenderRulesTable.clientId,
@@ -336,13 +337,19 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   ].join("\n");
 
   const routing = await getInboundRouting(orgId, inboundChannelId);
-  const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail);
+  const hasDifferentOriginalSender = !!originalSenderEmail &&
+    normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail);
+  const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail, {
+    // These rules are learned when an operator manually links a ticket. A
+    // forwarding mailbox is not proof that later forwarded messages belong to
+    // the same client; explicit profile email/PEC matches still remain valid.
+    ignoreLearnedSenderRules: hasDifferentOriginalSender,
+  });
   let clientAssociation = outerSenderAssociation;
   if (
     outerSenderAssociation.clientId == null &&
     !outerSenderAssociation.clientAssociationIssue &&
-    originalSenderEmail &&
-    normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail)
+    hasDifferentOriginalSender
   ) {
     const originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
     clientAssociation = chooseForwardedEmailAssociation(outerSenderAssociation, originalSenderAssociation);
