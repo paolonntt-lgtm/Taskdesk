@@ -3934,6 +3934,45 @@ export const ResolveClientEmailAddressAssociationResponse = zod.object({
 
 
 /**
+ * @summary List inactive legacy sender and domain rules for the current organization (admin only)
+ */
+export const ListLegacyEmailRulesResponseItem = zod.object({
+  "id": zod.int(),
+  "ruleType": zod.enum(['sender', 'domain']),
+  "value": zod.string(),
+  "clientId": zod.int(),
+  "clientName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullish()
+})
+export const ListLegacyEmailRulesResponse = zod.array(ListLegacyEmailRulesResponseItem)
+
+
+/**
+ * @summary Mark an inactive legacy email rule as reviewed (admin only)
+ */
+export const ReviewLegacyEmailRuleParams = zod.object({
+  "ruleType": zod.enum(['sender', 'domain']),
+  "id": zod.coerce.number().int()
+})
+
+export const ReviewLegacyEmailRuleResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Remove an inactive legacy email rule (admin only)
+ */
+export const DeleteLegacyEmailRuleParams = zod.object({
+  "ruleType": zod.enum(['sender', 'domain']),
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteLegacyEmailRuleResponse = zod.void()
+
+
+/**
  * @summary Bulk import clients from parsed rows (admin only)
  */
 export const ImportClientsBody = zod.object({

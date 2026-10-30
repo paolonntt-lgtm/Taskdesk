@@ -6,8 +6,21 @@ import {
   LinearProgress, Divider, Checkbox, FormControlLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, Search, OpenInNew, Upload, FileUpload } from '@mui/icons-material';
-import { useListClients, useListClientEmailAssociations, useCreateClient, useUpdateClient, useDeleteClient, getGetClientQueryKey, getListClientsQueryKey, getListClientEmailAssociationsQueryKey } from '@workspace/api-client-react';
-import type { Client, ClientInput } from '@workspace/api-client-react';
+import {
+  useListClients,
+  useListClientEmailAssociations,
+  useListLegacyEmailRules,
+  useReviewLegacyEmailRule,
+  useDeleteLegacyEmailRule,
+  useCreateClient,
+  useUpdateClient,
+  useDeleteClient,
+  getGetClientQueryKey,
+  getListClientsQueryKey,
+  getListClientEmailAssociationsQueryKey,
+  getListLegacyEmailRulesQueryKey,
+} from '@workspace/api-client-react';
+import type { Client, ClientInput, LegacyEmailRule } from '@workspace/api-client-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -251,6 +264,11 @@ export default function Clients() {
   const isLoading = clientsQuery.isLoading;
   const { data: allClients = [] } = useListClients({});
   const { data: emailAssociations = [] } = useListClientEmailAssociations();
+  const legacyEmailRulesQuery = useListLegacyEmailRules({
+    query: { queryKey: getListLegacyEmailRulesQueryKey(), enabled: isAdmin },
+  });
+  const reviewLegacyEmailRule = useReviewLegacyEmailRule();
+  const deleteLegacyEmailRule = useDeleteLegacyEmailRule();
 
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
@@ -288,6 +306,8 @@ export default function Clients() {
   });
   const [keepEmailAssociationByAddress, setKeepEmailAssociationByAddress] = useState<Record<string, number>>({});
   const [resolvingEmailAssociation, setResolvingEmailAssociation] = useState<string | null>(null);
+  const [legacyRuleToDelete, setLegacyRuleToDelete] = useState<LegacyEmailRule | null>(null);
+  const [legacyRuleAction, setLegacyRuleAction] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conflictingEmailGroups = (() => {
@@ -410,6 +430,37 @@ export default function Clients() {
       setSnackbar({ open: true, msg: tc.emailAssociationResolveError, severity: 'error' });
     } finally {
       setResolvingEmailAssociation(null);
+    }
+  };
+
+  const handleKeepLegacyRule = async (rule: LegacyEmailRule) => {
+    const actionKey = `${rule.ruleType}:${rule.id}`;
+    setLegacyRuleAction(actionKey);
+    try {
+      await reviewLegacyEmailRule.mutateAsync({ ruleType: rule.ruleType, id: rule.id });
+      await qc.invalidateQueries({ queryKey: getListLegacyEmailRulesQueryKey() });
+      setSnackbar({ open: true, msg: tc.legacyEmailRuleKept, severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, msg: tc.legacyEmailRuleActionError, severity: 'error' });
+    } finally {
+      setLegacyRuleAction(null);
+    }
+  };
+
+  const handleRemoveLegacyRule = async () => {
+    if (!legacyRuleToDelete) return;
+    const rule = legacyRuleToDelete;
+    const actionKey = `${rule.ruleType}:${rule.id}`;
+    setLegacyRuleAction(actionKey);
+    try {
+      await deleteLegacyEmailRule.mutateAsync({ ruleType: rule.ruleType, id: rule.id });
+      await qc.invalidateQueries({ queryKey: getListLegacyEmailRulesQueryKey() });
+      setLegacyRuleToDelete(null);
+      setSnackbar({ open: true, msg: tc.legacyEmailRuleRemoved, severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, msg: tc.legacyEmailRuleActionError, severity: 'error' });
+    } finally {
+      setLegacyRuleAction(null);
     }
   };
 
@@ -609,6 +660,87 @@ export default function Clients() {
               );
             })}
           </Box>
+        </Box>
+      )}
+
+      {isAdmin && (
+        <Box mb={3}>
+          <Typography variant="h6" sx={{ mb: 0.5 }}>{tc.legacyEmailRulesTitle}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            {tc.legacyEmailRulesDescription}
+          </Typography>
+          {legacyEmailRulesQuery.isLoading ? (
+            <LinearProgress />
+          ) : legacyEmailRulesQuery.isError ? (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" size="small" onClick={() => void legacyEmailRulesQuery.refetch()}>
+                  {tc.legacyEmailRulesRetry}
+                </Button>
+              }
+            >
+              {tc.legacyEmailRulesLoadError}
+            </Alert>
+          ) : legacyEmailRulesQuery.data?.length ? (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                    <TableCell sx={{ fontWeight: 600 }}>{tc.legacyEmailRuleType}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{tc.legacyEmailRuleValue}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{tc.legacyEmailRuleClient}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{tc.legacyEmailRuleStatus}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">{tc.actions}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {legacyEmailRulesQuery.data.map((rule) => {
+                    const actionKey = `${rule.ruleType}:${rule.id}`;
+                    return (
+                      <TableRow key={actionKey} hover>
+                        <TableCell>
+                          {rule.ruleType === 'sender' ? tc.legacyEmailSender : tc.legacyEmailDomain}
+                        </TableCell>
+                        <TableCell sx={{ overflowWrap: 'anywhere' }}>{rule.value}</TableCell>
+                        <TableCell>{rule.clientName ?? tc.legacyEmailUnknownClient}</TableCell>
+                        <TableCell>
+                          {rule.reviewedAt ? (
+                            <Chip size="small" color="success" variant="outlined" label={tc.legacyEmailRuleKeptStatus} />
+                          ) : (
+                            <Chip size="small" color="warning" variant="outlined" label={tc.legacyEmailRulePendingStatus} />
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box display="flex" justifyContent="flex-end" gap={0.5}>
+                            {!rule.reviewedAt && (
+                              <Button
+                                size="small"
+                                disabled={legacyRuleAction !== null}
+                                onClick={() => void handleKeepLegacyRule(rule)}
+                              >
+                                {legacyRuleAction === actionKey ? tc.saving : tc.legacyEmailRuleKeep}
+                              </Button>
+                            )}
+                            <Button
+                              size="small"
+                              color="error"
+                              disabled={legacyRuleAction !== null}
+                              onClick={() => setLegacyRuleToDelete(rule)}
+                            >
+                              {tc.legacyEmailRuleRemove}
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Alert severity="info">{tc.legacyEmailRulesEmpty}</Alert>
+          )}
         </Box>
       )}
 
@@ -817,6 +949,36 @@ export default function Clients() {
           <Button onClick={() => setConfirmDeleteId(null)}>{tc.cancel}</Button>
           <Button variant="contained" color="error" onClick={() => confirmDeleteId !== null && handleDelete(confirmDeleteId)}>
             {tc.deleteClient}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={legacyRuleToDelete !== null}
+        onClose={() => legacyRuleAction === null && setLegacyRuleToDelete(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{tc.legacyEmailRuleRemoveTitle}</DialogTitle>
+        <DialogContent>
+          <Typography>{tc.legacyEmailRuleRemovePrompt}</Typography>
+          {legacyRuleToDelete && (
+            <Typography variant="body2" fontWeight={600} sx={{ mt: 1, overflowWrap: 'anywhere' }}>
+              {legacyRuleToDelete.value}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLegacyRuleToDelete(null)} disabled={legacyRuleAction !== null}>
+            {tc.cancel}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void handleRemoveLegacyRule()}
+            disabled={legacyRuleAction !== null}
+          >
+            {legacyRuleAction !== null ? tc.saving : tc.legacyEmailRuleRemove}
           </Button>
         </DialogActions>
       </Dialog>

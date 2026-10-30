@@ -2941,6 +2941,91 @@ paths:
         "409":
           description: Association changed before resolution
 
+  /clients/legacy-email-rules:
+    get:
+      operationId: listLegacyEmailRules
+      tags: [clients]
+      summary: List inactive legacy sender and domain rules for the current organization (admin only)
+      responses:
+        "200":
+          description: Legacy email rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LegacyEmailRule"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin access required
+
+  /clients/legacy-email-rules/{ruleType}/{id}/review:
+    patch:
+      operationId: reviewLegacyEmailRule
+      tags: [clients]
+      summary: Mark an inactive legacy email rule as reviewed (admin only)
+      parameters:
+        - in: path
+          name: ruleType
+          required: true
+          schema:
+            type: string
+            enum: [sender, domain]
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rule marked as reviewed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin access required
+        "404":
+          description: Rule not found
+
+  /clients/legacy-email-rules/{ruleType}/{id}:
+    delete:
+      operationId: deleteLegacyEmailRule
+      tags: [clients]
+      summary: Remove an inactive legacy email rule (admin only)
+      parameters:
+        - in: path
+          name: ruleType
+          required: true
+          schema:
+            type: string
+            enum: [sender, domain]
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Rule removed
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin access required
+        "404":
+          description: Rule not found
+
   /clients/import:
     post:
       operationId: importClients
@@ -5522,6 +5607,28 @@ components:
             type: string
             enum: [profile, sender_rule]
       required: [address, clientId, clientName, sources]
+
+    LegacyEmailRule:
+      type: object
+      properties:
+        id:
+          type: integer
+        ruleType:
+          type: string
+          enum: [sender, domain]
+        value:
+          type: string
+        clientId:
+          type: integer
+        clientName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, ruleType, value, clientId, createdAt]
 
     ResolveClientEmailAddressAssociationBody:
       type: object

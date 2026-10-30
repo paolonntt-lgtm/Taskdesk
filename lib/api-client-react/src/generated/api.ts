@@ -74,6 +74,7 @@ import type {
   ImportClientsBody,
   KnowledgeArticle,
   KnowledgeArticleInput,
+  LegacyEmailRule,
   ListAllClientNotesParams,
   ListAppointmentsParams,
   ListClientsParams,
@@ -102,6 +103,7 @@ import type {
   ResolveClientEmailAddressAssociation200,
   ResolveClientEmailAddressAssociationBody,
   RetryTicketAttachmentOneDriveCopy200,
+  ReviewLegacyEmailRule200,
   SaveAttachmentBody,
   SearchResults,
   SetRecurrenceBody,
@@ -8924,6 +8926,235 @@ export const useResolveClientEmailAddressAssociation = <TError = ErrorType<void>
         TContext
       > => {
       return useMutation(getResolveClientEmailAddressAssociationMutationOptions(options));
+    }
+
+export const getListLegacyEmailRulesUrl = () => {
+
+
+
+
+  return `/api/clients/legacy-email-rules`
+}
+
+/**
+ * @summary List inactive legacy sender and domain rules for the current organization (admin only)
+ */
+export const listLegacyEmailRules = async ( options?: Parameters<typeof customFetch>[1]): Promise<LegacyEmailRule[]> => {
+
+  return customFetch<LegacyEmailRule[]>(getListLegacyEmailRulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLegacyEmailRulesQueryKey = () => {
+    return [
+    `/api/clients/legacy-email-rules`
+    ] as const;
+    }
+
+
+export const getListLegacyEmailRulesQueryOptions = <TData = Awaited<ReturnType<typeof listLegacyEmailRules>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLegacyEmailRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLegacyEmailRulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLegacyEmailRules>>> = ({ signal }) => listLegacyEmailRules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLegacyEmailRules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLegacyEmailRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listLegacyEmailRules>>>
+export type ListLegacyEmailRulesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List inactive legacy sender and domain rules for the current organization (admin only)
+ */
+
+export function useListLegacyEmailRules<TData = Awaited<ReturnType<typeof listLegacyEmailRules>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLegacyEmailRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLegacyEmailRulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewLegacyEmailRuleUrl = (ruleType: 'sender' | 'domain',
+    id: number,) => {
+
+
+
+
+  return `/api/clients/legacy-email-rules/${ruleType}/${id}/review`
+}
+
+/**
+ * @summary Mark an inactive legacy email rule as reviewed (admin only)
+ */
+export const reviewLegacyEmailRule = async (ruleType: 'sender' | 'domain',
+    id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReviewLegacyEmailRule200> => {
+
+  return customFetch<ReviewLegacyEmailRule200>(getReviewLegacyEmailRuleUrl(ruleType,id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getReviewLegacyEmailRuleMutationKey = () => ['reviewLegacyEmailRule'] as const;
+
+export const getReviewLegacyEmailRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewLegacyEmailRule>>, TError,ReviewLegacyEmailRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewLegacyEmailRule>>, TError,ReviewLegacyEmailRuleMutationVariables, TContext> => {
+
+const mutationKey = getReviewLegacyEmailRuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewLegacyEmailRule>>, ReviewLegacyEmailRuleMutationVariables> = (props) => {
+          const {ruleType,id} = props ?? {};
+
+          return  reviewLegacyEmailRule(ruleType,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewLegacyEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof reviewLegacyEmailRule>>>
+
+    export type ReviewLegacyEmailRuleMutationError = ErrorType<void>
+    export type ReviewLegacyEmailRuleMutationVariables = {ruleType: 'sender' | 'domain';id: number}
+
+    /**
+ * @summary Mark an inactive legacy email rule as reviewed (admin only)
+ */
+export const useReviewLegacyEmailRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewLegacyEmailRule>>, TError,ReviewLegacyEmailRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewLegacyEmailRule>>,
+        TError,
+        ReviewLegacyEmailRuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewLegacyEmailRuleMutationOptions(options));
+    }
+
+export const getDeleteLegacyEmailRuleUrl = (ruleType: 'sender' | 'domain',
+    id: number,) => {
+
+
+
+
+  return `/api/clients/legacy-email-rules/${ruleType}/${id}`
+}
+
+/**
+ * @summary Remove an inactive legacy email rule (admin only)
+ */
+export const deleteLegacyEmailRule = async (ruleType: 'sender' | 'domain',
+    id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteLegacyEmailRuleUrl(ruleType,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteLegacyEmailRuleMutationKey = () => ['deleteLegacyEmailRule'] as const;
+
+export const getDeleteLegacyEmailRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLegacyEmailRule>>, TError,DeleteLegacyEmailRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteLegacyEmailRule>>, TError,DeleteLegacyEmailRuleMutationVariables, TContext> => {
+
+const mutationKey = getDeleteLegacyEmailRuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLegacyEmailRule>>, DeleteLegacyEmailRuleMutationVariables> = (props) => {
+          const {ruleType,id} = props ?? {};
+
+          return  deleteLegacyEmailRule(ruleType,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteLegacyEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteLegacyEmailRule>>>
+
+    export type DeleteLegacyEmailRuleMutationError = ErrorType<void>
+    export type DeleteLegacyEmailRuleMutationVariables = {ruleType: 'sender' | 'domain';id: number}
+
+    /**
+ * @summary Remove an inactive legacy email rule (admin only)
+ */
+export const useDeleteLegacyEmailRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLegacyEmailRule>>, TError,DeleteLegacyEmailRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteLegacyEmailRule>>,
+        TError,
+        DeleteLegacyEmailRuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteLegacyEmailRuleMutationOptions(options));
     }
 
 export const getImportClientsUrl = () => {

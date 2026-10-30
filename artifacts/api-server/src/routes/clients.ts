@@ -1,6 +1,16 @@
 import { Router, type IRouter, type RequestHandler } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable } from "@workspace/db";
+import {
+  db,
+  clientsTable,
+  ticketsTable,
+  usersTable,
+  clientNotesTable,
+  ticketActivityLogsTable,
+  organizationsTable,
+  emailClientSenderRulesTable,
+  emailClientDomainRulesTable,
+} from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
@@ -364,6 +374,106 @@ router.get("/clients/email-address-associations", requireClientFeature, async (r
     sources: [...entry.sources],
   })));
 });
+
+router.get(
+  "/clients/legacy-email-rules",
+  requireClientFeature,
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const organizationId = (req as any).currentUser.organizationId as number;
+    const senderRules = await db
+      .select({
+        id: emailClientSenderRulesTable.id,
+        value: emailClientSenderRulesTable.senderEmail,
+        clientId: emailClientSenderRulesTable.clientId,
+        clientName: clientsTable.name,
+        createdAt: emailClientSenderRulesTable.createdAt,
+        reviewedAt: emailClientSenderRulesTable.reviewedAt,
+      })
+      .from(emailClientSenderRulesTable)
+      .leftJoin(clientsTable, and(
+        eq(clientsTable.id, emailClientSenderRulesTable.clientId),
+        eq(clientsTable.organizationId, organizationId),
+      ))
+      .where(eq(emailClientSenderRulesTable.organizationId, organizationId));
+    const domainRules = await db
+      .select({
+        id: emailClientDomainRulesTable.id,
+        value: emailClientDomainRulesTable.domain,
+        clientId: emailClientDomainRulesTable.clientId,
+        clientName: clientsTable.name,
+        createdAt: emailClientDomainRulesTable.createdAt,
+        reviewedAt: emailClientDomainRulesTable.reviewedAt,
+      })
+      .from(emailClientDomainRulesTable)
+      .leftJoin(clientsTable, and(
+        eq(clientsTable.id, emailClientDomainRulesTable.clientId),
+        eq(clientsTable.organizationId, organizationId),
+      ))
+      .where(eq(emailClientDomainRulesTable.organizationId, organizationId));
+
+    res.json([
+      ...senderRules.map((rule) => ({ ...rule, ruleType: "sender" as const })),
+      ...domainRules.map((rule) => ({ ...rule, ruleType: "domain" as const })),
+    ]);
+  },
+);
+
+const LegacyEmailRuleParams = z.object({
+  ruleType: z.enum(["sender", "domain"]),
+  id: z.coerce.number().int().positive(),
+});
+
+router.patch(
+  "/clients/legacy-email-rules/:ruleType/:id/review",
+  requireClientFeature,
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = LegacyEmailRuleParams.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid legacy email rule" });
+      return;
+    }
+    const organizationId = (req as any).currentUser.organizationId as number;
+    const table = parsed.data.ruleType === "sender"
+      ? emailClientSenderRulesTable
+      : emailClientDomainRulesTable;
+    const [rule] = await db.update(table)
+      .set({ reviewedAt: new Date() })
+      .where(and(eq(table.id, parsed.data.id), eq(table.organizationId, organizationId)))
+      .returning({ id: table.id });
+    if (!rule) {
+      res.status(404).json({ error: "Legacy email rule not found" });
+      return;
+    }
+    res.json({ success: true });
+  },
+);
+
+router.delete(
+  "/clients/legacy-email-rules/:ruleType/:id",
+  requireClientFeature,
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = LegacyEmailRuleParams.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid legacy email rule" });
+      return;
+    }
+    const organizationId = (req as any).currentUser.organizationId as number;
+    const table = parsed.data.ruleType === "sender"
+      ? emailClientSenderRulesTable
+      : emailClientDomainRulesTable;
+    const [rule] = await db.delete(table)
+      .where(and(eq(table.id, parsed.data.id), eq(table.organizationId, organizationId)))
+      .returning({ id: table.id });
+    if (!rule) {
+      res.status(404).json({ error: "Legacy email rule not found" });
+      return;
+    }
+    res.sendStatus(204);
+  },
+);
 
 const ResolveClientEmailAssociationBody = z.object({
   address: z.string().transform(normalizeClientEmailAddress).refine(Boolean),

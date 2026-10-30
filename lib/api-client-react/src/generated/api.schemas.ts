@@ -1199,6 +1199,26 @@ export interface ClientEmailAddressAssociation {
   sources: ClientEmailAddressAssociationSourcesItem[];
 }
 
+export type LegacyEmailRuleRuleType = typeof LegacyEmailRuleRuleType[keyof typeof LegacyEmailRuleRuleType];
+
+
+export const LegacyEmailRuleRuleType = {
+  sender: 'sender',
+  domain: 'domain',
+} as const;
+
+export interface LegacyEmailRule {
+  id: number;
+  ruleType: LegacyEmailRuleRuleType;
+  value: string;
+  clientId: number;
+  /** @nullable */
+  clientName?: string | null;
+  createdAt: string;
+  /** @nullable */
+  reviewedAt?: string | null;
+}
+
 export interface ResolveClientEmailAddressAssociationBody {
   address: string;
   keepClientId: number;
@@ -1723,6 +1743,10 @@ hasUnbilledWorkedTime?: boolean;
 };
 
 export type ResolveClientEmailAddressAssociation200 = {
+  success: boolean;
+};
+
+export type ReviewLegacyEmailRule200 = {
   success: boolean;
 };
 

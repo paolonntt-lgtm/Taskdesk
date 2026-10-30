@@ -124,6 +124,11 @@ export async function runAppMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS email_client_domain_rules_client_idx
         ON email_client_domain_rules (client_id);
+
+      ALTER TABLE email_client_sender_rules
+        ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+      ALTER TABLE email_client_domain_rules
+        ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
     `);
 
     // Persist only whether this organization tried a referral code, not the code or referrer identity.
