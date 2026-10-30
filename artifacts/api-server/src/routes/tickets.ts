@@ -2002,6 +2002,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     addSenderEmailToClient = false,
     ...ticketUpdateData
   } = parsed.data;
+  const isClientAssociationUpdate =
+    !isAdmin &&
+    Object.keys(parsed.data).length === 1 &&
+    parsed.data.clientId != null;
 
   if (addSenderEmailToClient && !isAdmin) {
     res.status(403).json({ error: "Only admins can add sender addresses to client profiles" });
@@ -2115,6 +2119,16 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   
 }
+
+  if (!isAdmin && "clientId" in parsed.data && !isClientAssociationUpdate) {
+    res.status(403).json({ error: "Only an unassociated ticket can be assigned to a client" });
+    return;
+  }
+
+  if (!isAdmin && isClientAssociationUpdate && existing.clientId != null) {
+    res.status(409).json({ error: "Ticket already has a client" });
+    return;
+  }
 
 
   const [organizationTimeTracking] = await db.select(
@@ -2319,7 +2333,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
-  if (!isAdmin && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
+  if (!isAdmin && !isClientAssociationUpdate && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
 {
 
     res.status(403).json(
@@ -2504,6 +2518,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 ;
 
     // ^ Self-assign-only path: no fields allowed except assignedTo (patched below)
+
+  if (isClientAssociationUpdate) {
+    (updates as any).clientId = parsed.data.clientId;
+  }
 
   // Allow non-admin users to self-assign or remove their own assignment
   if (!isAdmin && parsed.data.assignedTo !== undefined) 
@@ -3106,6 +3124,10 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         }
       }
 
+      if (isClientAssociationUpdate && timerState.clientId != null) {
+        throw new TicketClientAssociationError(409, "Ticket already has a client");
+      }
+
       if (addSenderEmailToClient) {
         const selectedClientId = parsed.data.clientId;
         const senderAddress = normalizeSenderEmail(timerState.resource ?? "");
@@ -3293,7 +3315,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       let updatesToSave = updates
 ;
 
-      if (clientsEnabled && hasInboundEmailMetadata && "clientId" in updates && updates.clientId != null) 
+      if (isAdmin && clientsEnabled && hasInboundEmailMetadata && "clientId" in updates && updates.clientId != null)
 {
 
         const [newClient] = await tx.select(

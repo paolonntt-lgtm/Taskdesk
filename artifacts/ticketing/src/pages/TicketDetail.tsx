@@ -251,7 +251,12 @@ export default function TicketDetail() {
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
-  const { data: clientsList = [] } = useListClients(undefined, { query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
+  const { data: clientsList = [] } = useListClients(undefined, {
+    query: {
+      enabled: Boolean(currentUser) && (currentUser as any)?.clientsEnabled !== false,
+      staleTime: 5 * 60_000,
+    } as any,
+  });
   const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
@@ -926,6 +931,7 @@ export default function TicketDetail() {
       (hasInboundEmailMetadata && selectedTicketClient && !clientTitlePrefixApplied)
     ),
   );
+  const canEditClientAssociation = isAdmin || ticketClientId == null;
   const clientOptions =
     selectedTicketClient && !clientsList.some((client: any) => client.id === selectedTicketClient.id)
       ? [selectedTicketClient, ...clientsList]
@@ -975,6 +981,7 @@ export default function TicketDetail() {
   const requestClientAssociationChange = (clientId: number) => {
     const targetClient = clientOptions.find((client: any) => client.id === clientId);
     if (
+      isAdmin &&
       hasInboundEmailMetadata &&
       ticketSenderEmail &&
       targetClient &&
@@ -1288,9 +1295,9 @@ export default function TicketDetail() {
             </Alert>
           )}
 
-          {clientsEnabled && !hideAssociatedInboundClientSelector && (
+          {clientsEnabled && (!isAdmin || !hideAssociatedInboundClientSelector) && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
-              {isAdmin && !hideAssociatedInboundClientSelector ? (
+              {canEditClientAssociation && !hideAssociatedInboundClientSelector ? (
                 <Autocomplete
                   size="small"
                   options={clientOptions}
@@ -1327,7 +1334,7 @@ export default function TicketDetail() {
                   />
                 </Box>
               )}
-              {isAdmin && !hideAssociatedInboundClientSelector && (
+              {canEditClientAssociation && !hideAssociatedInboundClientSelector && (
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"
@@ -1355,7 +1362,9 @@ export default function TicketDetail() {
               )}
               {clientAssociationSaved && (
                 <FormHelperText sx={{ color: 'success.main' }}>
-                  {t.ticketDetail.clientAssociationSaved}
+                  {isAdmin
+                    ? t.ticketDetail.clientAssociationSaved
+                    : t.ticketDetail.clientAssociationSavedByCollaborator}
                 </FormHelperText>
               )}
               {!clientAssociationSaved && ticket.inboundChannelId && selectedTicketClient && (

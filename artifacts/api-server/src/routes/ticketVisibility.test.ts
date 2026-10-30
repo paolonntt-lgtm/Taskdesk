@@ -78,7 +78,7 @@ describe("manual ticket visibility", () => {
   beforeAll(async () => {
     const [organization] = await db
       .insert(organizationsTable)
-      .values({ name: `Ticket visibility test ${runId}` })
+      .values({ name: `Ticket visibility test ${runId}`, clientsEnabled: true })
       .returning({ id: organizationsTable.id });
     organizationId = organization.id;
 
@@ -611,6 +611,142 @@ describe("manual ticket visibility", () => {
       .from(ticketsTable)
       .where(eq(ticketsTable.id, ticketId));
     expect(storedTicket?.title).toBe(`Updated audited ticket ${runId}`);
+  }, 60_000);
+
+  it("lets visible non-admins associate a client without editing other ticket or client fields", async () => {
+    const [client] = await db.insert(clientsTable).values({
+      organizationId,
+      name: `Collaborator association client ${runId}`,
+      email: `saved-${runId}@example.test`,
+    }).returning({ id: clientsTable.id });
+    createdClientIds.push(client.id);
+    const associationTestTicketIds: number[] = [];
+    const associationTestClientIds: number[] = [client.id];
+
+    const [otherOrganizationClient] = await db.insert(clientsTable).values({
+      organizationId: otherOrganizationId,
+      name: `Other organization client ${runId}`,
+    }).returning({ id: clientsTable.id });
+    createdClientIds.push(otherOrganizationClient.id);
+    associationTestClientIds.push(otherOrganizationClient.id);
+
+    async function createTicket(title: string, visibility: "organization" | "admins" = "organization") {
+      const response = await request("/api/tickets", adminSessionId, {
+        method: "POST",
+        body: JSON.stringify({
+          title: `${title} ${runId}`,
+          description: "Client association authorization test.",
+          category: "Support",
+          priority: "medium",
+          visibility,
+        }),
+      });
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+      const ticketId = response.body.id as number;
+      createdTicketIds.push(ticketId);
+      associationTestTicketIds.push(ticketId);
+      return ticketId;
+    }
+
+    const associationTicketId = await createTicket("Collaborator association");
+    const originalTitle = `Collaborator association ${runId}`;
+    const allowedResponse = await request(`/api/tickets/${associationTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: client.id }),
+    });
+    expect(allowedResponse.status, JSON.stringify(allowedResponse.body)).toBe(200);
+    expect(allowedResponse.body).toEqual(expect.objectContaining({ clientId: client.id }));
+
+    const [associatedTicket] = await db.select({
+      clientId: ticketsTable.clientId,
+      title: ticketsTable.title,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, associationTicketId));
+    expect(associatedTicket).toEqual({
+      clientId: client.id,
+      title: originalTitle,
+      status: "open",
+    });
+
+    const replaceResponse = await request(`/api/tickets/${associationTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: otherOrganizationClient.id }),
+    });
+    expect(replaceResponse.status).toBe(409);
+    const removeResponse = await request(`/api/tickets/${associationTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: null }),
+    });
+    expect(removeResponse.status).toBe(403);
+
+    const crossOrganizationTicketId = await createTicket("Cross-organization association");
+    const crossOrganizationResponse = await request(`/api/tickets/${crossOrganizationTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: otherOrganizationClient.id }),
+    });
+    expect(crossOrganizationResponse.status).toBe(400);
+
+    const mixedUpdateTicketId = await createTicket("Mixed association update");
+    const mixedUpdateResponse = await request(`/api/tickets/${mixedUpdateTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({
+        clientId: client.id,
+        title: "This title must not be saved",
+        status: "in_progress",
+      }),
+    });
+    expect(mixedUpdateResponse.status).toBe(403);
+    const [unchangedMixedTicket] = await db.select({
+      clientId: ticketsTable.clientId,
+      title: ticketsTable.title,
+      status: ticketsTable.status,
+    }).from(ticketsTable).where(eq(ticketsTable.id, mixedUpdateTicketId));
+    expect(unchangedMixedTicket).toEqual({
+      clientId: null,
+      title: `Mixed association update ${runId}`,
+      status: "open",
+    });
+
+    const emailProfileUpdateResponse = await request(`/api/tickets/${mixedUpdateTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: client.id, addSenderEmailToClient: true }),
+    });
+    expect(emailProfileUpdateResponse.status).toBe(403);
+    const [unchangedClient] = await db.select({ email: clientsTable.email })
+      .from(clientsTable).where(eq(clientsTable.id, client.id));
+    expect(unchangedClient?.email).toBe(`saved-${runId}@example.test`);
+
+    const privateTicketId = await createTicket("Private association", "admins");
+    const privateResponse = await request(`/api/tickets/${privateTicketId}`, userSessionId, {
+      method: "PATCH",
+      body: JSON.stringify({ clientId: client.id }),
+    });
+    expect(privateResponse.status).toBe(404);
+
+    await db.update(organizationsTable)
+      .set({ clientsEnabled: false })
+      .where(eq(organizationsTable.id, organizationId));
+    const disabledFeatureTicketId = await createTicket("Disabled feature association");
+    const disabledFeatureResponse = await request(
+      `/api/tickets/${disabledFeatureTicketId}`,
+      userSessionId,
+      { method: "PATCH", body: JSON.stringify({ clientId: client.id }) },
+    );
+    expect(disabledFeatureResponse.status).toBe(403);
+    await db.update(organizationsTable)
+      .set({ clientsEnabled: true })
+      .where(eq(organizationsTable.id, organizationId));
+
+    await db.delete(ticketsTable).where(inArray(ticketsTable.id, associationTestTicketIds));
+    await db.delete(clientsTable).where(inArray(clientsTable.id, associationTestClientIds));
+    for (const ticketId of associationTestTicketIds) {
+      const index = createdTicketIds.indexOf(ticketId);
+      if (index !== -1) createdTicketIds.splice(index, 1);
+    }
+    for (const clientId of associationTestClientIds) {
+      const index = createdClientIds.indexOf(clientId);
+      if (index !== -1) createdClientIds.splice(index, 1);
+    }
   }, 60_000);
 
   it("lets a non-assignee without status group permission change status and priority only", async () => {
