@@ -217,6 +217,34 @@ describe("forwarded inbound ticket creation", () => {
     }), "Inbound email client association resolved");
   });
 
+  it("does not use a legacy sender rule for a direct inbound email", async () => {
+    mocks.clients = [{
+      id: 22,
+      organizationId: 7,
+      name: "Different Client",
+      alias: null,
+      email: "known@other.example",
+      pec: null,
+    }];
+    mocks.senderRules = [{
+      organizationId: 7,
+      senderEmail: "forwarder@forwarding.example",
+      clientId: 22,
+    }];
+
+    await createTicketFromEmail({
+      ...baseInput,
+      originalSenderEmail: undefined,
+    });
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      resource: "forwarder@forwarding.example",
+      clientId: null,
+      suggestedClientId: null,
+    });
+  });
+
   it("ignores a learned forwarding-address rule when the forwarded sender has no client match", async () => {
     mocks.clients = [{
       id: 22,

@@ -16,8 +16,8 @@ import {
   db, ticketsTable, usersTable, ticketTimeSessionsTable, ticketCommentsTable,
   ticketInternalNotesTable, ticketActivityLogsTable, ticketAttachmentsTable,
   ticketAttachmentOneDriveCopiesTable, oneDriveConnectionsTable, notificationsTable,
-  settingsTable, inboundEmailChannelsTable, clientsTable, emailClientSenderRulesTable,
-  emailClientDomainRulesTable, ticketStatusesTable, ticketChecklistsTable,
+  settingsTable, inboundEmailChannelsTable, clientsTable,
+  ticketStatusesTable, ticketChecklistsTable,
   ticketChecklistItemsTable, groupsTable, groupMembersTable, checklistTemplatesTable,
   checklistTemplateItemsTable, organizationsTable,
 } from "@workspace/db";
@@ -99,9 +99,12 @@ import
  from "../lib/clientFeature"
 ;
 
-import 
+import
 {
- domainForSender, normalizeSenderEmail, resolveEmailClientAssociation 
+  emailAddressPatternMatches,
+  normalizeClientEmailAddress,
+  normalizeSenderEmail,
+  resolveEmailClientAssociation
 }
  from "../lib/emailClientAssociation"
 ;
@@ -119,6 +122,19 @@ import { syncTicketOneDriveAttachments } from "../lib/onedriveGraph";
 const router: IRouter = Router()
 ;
 
+class SenderEmailClientConflictError extends Error {
+  constructor(readonly conflictingClientName: string) {
+    super("Sender email is already associated with another client");
+    this.name = "SenderEmailClientConflictError";
+  }
+}
+
+class TicketClientAssociationError extends Error {
+  constructor(readonly statusCode: number, message: string) {
+    super(message);
+    this.name = "TicketClientAssociationError";
+  }
+}
 
 const TICKET_LIST_COLS = 
 {
@@ -1618,40 +1634,19 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     !ticket.clientId &&
     (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId)
   ) {
-    const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
+      const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
     if (senderEmail) {
-      const domain = domainForSender(senderEmail);
-      const [clients, senderRules, domainRules] = await Promise.all([
-        db.select({
+      const clients = await db.select({
           id: clientsTable.id,
           name: clientsTable.name,
           alias: clientsTable.alias,
           email: clientsTable.email,
           pec: clientsTable.pec,
-        }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
-        db.select({
-          organizationId: emailClientSenderRulesTable.organizationId,
-          senderEmail: emailClientSenderRulesTable.senderEmail,
-          clientId: emailClientSenderRulesTable.clientId,
-        }).from(emailClientSenderRulesTable).where(and(
-          eq(emailClientSenderRulesTable.organizationId, orgId),
-          eq(emailClientSenderRulesTable.senderEmail, senderEmail),
-        )),
-        domain ? db.select({
-          organizationId: emailClientDomainRulesTable.organizationId,
-          domain: emailClientDomainRulesTable.domain,
-          clientId: emailClientDomainRulesTable.clientId,
-        }).from(emailClientDomainRulesTable).where(and(
-          eq(emailClientDomainRulesTable.organizationId, orgId),
-          eq(emailClientDomainRulesTable.domain, domain),
-        )) : Promise.resolve([]),
-      ]);
+        }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
       clientAssociationIssue = resolveEmailClientAssociation({
         organizationId: orgId,
         senderEmail,
         clients: clients.map((client) => ({ ...client, organizationId: orgId })),
-        senderRules,
-        domainRules,
       }).clientAssociationIssue;
     }
   }
@@ -1793,8 +1788,7 @@ router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin,
     eq(clientsTable.id, ticket.suggestedClientId),
     eq(clientsTable.organizationId, orgId),
   ));
-  const domain = domainForSender(ticket.resource);
-  if (!client || !domain) {
+  if (!client) {
     res.status(409).json({ error: "Client suggestion is no longer valid" });
     return;
   }
@@ -1808,8 +1802,7 @@ router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin,
     if (
       !currentTicket ||
       currentTicket.suggestedClientId !== client.id ||
-      currentTicket.clientId != null ||
-      domainForSender(currentTicket.resource ?? "") !== domain
+      currentTicket.clientId != null
     ) return false;
 
     const [currentClient] = await tx.select({ id: clientsTable.id, name: clientsTable.name })
@@ -1818,22 +1811,6 @@ router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin,
         eq(clientsTable.organizationId, orgId),
       ));
     if (!currentClient) return false;
-
-    await tx.insert(emailClientDomainRulesTable).values({
-      organizationId: orgId,
-      domain,
-      clientId: currentClient.id,
-    }).onConflictDoNothing({
-      target: [emailClientDomainRulesTable.organizationId, emailClientDomainRulesTable.domain],
-    });
-    const [domainRule] = await tx.select({ clientId: emailClientDomainRulesTable.clientId })
-      .from(emailClientDomainRulesTable)
-      .where(and(
-        eq(emailClientDomainRulesTable.organizationId, orgId),
-        eq(emailClientDomainRulesTable.domain, domain),
-      ))
-      .for("update");
-    if (!domainRule || domainRule.clientId !== currentClient.id) return false;
 
     await tx.update(ticketsTable).set({
       clientId: currentClient.id,
@@ -1849,7 +1826,7 @@ router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin,
       ticketId: id,
       userId: currentUser.id,
       actionType: "client_associated",
-      actionDescription: `Cliente "${currentClient.name}" associato e dominio email confermato: ${domain}`,
+      actionDescription: `Cliente "${currentClient.name}" associato al ticket.`,
     });
     return true;
   });
@@ -2007,6 +1984,21 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   
 }
 
+  const {
+    addSenderEmailToClient = false,
+    ...ticketUpdateData
+  } = parsed.data;
+
+  if (addSenderEmailToClient && !isAdmin) {
+    res.status(403).json({ error: "Only admins can add sender addresses to client profiles" });
+    return;
+  }
+
+  if (addSenderEmailToClient && parsed.data.clientId == null) {
+    res.status(400).json({ error: "A client must be selected before adding the sender address" });
+    return;
+  }
+
   if (parsed.data.workedMinutes !== undefined) 
 {
 
@@ -2081,6 +2073,17 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   
 }
+
+  const existingHasInboundEmailMetadata = existing.inboundChannelId != null ||
+    existing.emailMessageId != null ||
+    existing.emailConversationId != null;
+  if (
+    addSenderEmailToClient &&
+    (!existingHasInboundEmailMetadata || !normalizeSenderEmail(existing.resource ?? ""))
+  ) {
+    res.status(400).json({ error: "This ticket does not have a valid inbound sender address" });
+    return;
+  }
 
 
   if (!isAdmin && existing.visibility === "admins") 
@@ -2319,12 +2322,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 
 
-  const updates: typeof parsed.data & 
+  const updates: typeof ticketUpdateData &
 {
  timeTrackingEnabled?: boolean 
 }
  = isAdmin
-    ? parsed.data
+    ? ticketUpdateData
     : hasGroupStatusPermission
     ? 
 {
@@ -3089,6 +3092,66 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         }
       }
 
+      if (addSenderEmailToClient) {
+        const selectedClientId = parsed.data.clientId;
+        const senderAddress = normalizeSenderEmail(timerState.resource ?? "");
+        const hasInboundEmailMetadata = timerState.inboundChannelId != null ||
+          timerState.emailMessageId != null ||
+          timerState.emailConversationId != null;
+        if (!hasInboundEmailMetadata || !senderAddress || selectedClientId == null) {
+          throw new TicketClientAssociationError(
+            400,
+            "This ticket does not have a valid inbound sender address",
+          );
+        }
+
+        const organizationClients = await tx.select({
+          id: clientsTable.id,
+          name: clientsTable.name,
+          email: clientsTable.email,
+          pec: clientsTable.pec,
+        }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
+        const selectedClient = organizationClients.find((client) => client.id === selectedClientId);
+        if (!selectedClient) {
+          throw new TicketClientAssociationError(404, "Client not found in organization");
+        }
+
+        const profileContainsSender = (value: string | null, allowDomainPattern: boolean) =>
+          (value ?? "").split(/[;,\s]+/).some((entry) => {
+            const normalized = allowDomainPattern
+              ? normalizeClientEmailAddress(entry)
+              : normalizeSenderEmail(entry);
+            return normalized && emailAddressPatternMatches(normalized, senderAddress);
+          });
+        const senderAlreadyInSelectedProfile =
+          profileContainsSender(selectedClient.email, true) ||
+          profileContainsSender(selectedClient.pec, false);
+
+        if (!senderAlreadyInSelectedProfile) {
+          const conflictingClient = organizationClients.find((client) =>
+            client.id !== selectedClient.id &&
+            (
+              profileContainsSender(client.email, true) ||
+              profileContainsSender(client.pec, false)
+            ),
+          );
+          if (conflictingClient) {
+            throw new SenderEmailClientConflictError(conflictingClient.name);
+          }
+
+          const savedEmails = (selectedClient.email ?? "")
+            .split(/[;,\s]+/)
+            .map((entry) => normalizeClientEmailAddress(entry))
+            .filter(Boolean);
+          await tx.update(clientsTable)
+            .set({ email: [...savedEmails, senderAddress].join("; ") })
+            .where(and(
+              eq(clientsTable.id, selectedClient.id),
+              eq(clientsTable.organizationId, orgId),
+            ));
+        }
+      }
+
       const timerStatusChanged = updates.status !== undefined && updates.status !== timerState.status;
       const timerAssignmentChanged =
         updates.assignedTo !== undefined && updates.assignedTo !== timerState.assignedTo;
@@ -3425,61 +3488,6 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
           .where(eq(ticketAttachmentsTable.ticketId, id));
       }
 
-      const [creator] = !hasInboundEmailMetadata && clientsEnabled && "clientId" in updates && updates.clientId != null
-        ? await tx.select(
-{
- isSystem: usersTable.isSystem 
-}
-)
-            .from(usersTable)
-            .where(and(eq(usersTable.id, existing.createdBy), eq(usersTable.organizationId, orgId)))
-        : []
-;
-
-      if (
-        clientsEnabled &&
-        (hasInboundEmailMetadata || creator?.isSystem === true) &&
-        "clientId" in updates &&
-        updates.clientId != null
-      ) 
-{
-
-        const senderEmail = normalizeSenderEmail(
-          typeof updates.resource === "string" ? updates.resource : existing.resource ?? "",
-        )
-;
-
-        if (senderEmail) 
-{
-
-          await tx.insert(emailClientSenderRulesTable).values(
-{
-
-            organizationId: orgId,
-            senderEmail,
-            clientId: updates.clientId,
-          
-}
-).onConflictDoUpdate(
-{
-
-            target: [emailClientSenderRulesTable.organizationId, emailClientSenderRulesTable.senderEmail],
-            set: 
-{
- clientId: updates.clientId 
-}
-,
-          
-}
-)
-;
-
-        
-}
-
-      
-}
-
       return saved
 ;
 
@@ -3492,6 +3500,19 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
  catch (error: any) 
 {
+
+    if (error instanceof SenderEmailClientConflictError) {
+      res.status(409).json({
+        error: "Sender email is already associated with another client",
+        clientName: error.conflictingClientName,
+      });
+      return;
+    }
+
+    if (error instanceof TicketClientAssociationError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
 
     const dbError = error?.cause ?? error
 ;

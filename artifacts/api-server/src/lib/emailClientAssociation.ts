@@ -9,44 +9,12 @@ export interface EmailClientCandidate {
   pec?: string | null;
 }
 
-export interface EmailClientRule {
-  organizationId: number;
-  clientId: number;
-  senderEmail?: string;
-  domain?: string;
-}
-
 export interface EmailClientAssociationResult {
   clientId: number | null;
   suggestedClientId: number | null;
-  matchType?: "profile_contact" | "sender_rule" | "domain_rule";
-  clientAssociationIssue?: "conflicting_exact_matches" | "conflicting_domain_rules";
+  matchType?: "profile_contact";
+  clientAssociationIssue?: "conflicting_exact_matches";
 }
-
-const GENERIC_EMAIL_DOMAINS = new Set([
-  "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
-  "yahoo.com", "yahoo.it", "icloud.com", "me.com", "mac.com", "aol.com", "proton.me",
-  "protonmail.com", "gmx.com", "gmx.net", "libero.it", "virgilio.it", "tin.it",
-  "alice.it", "tim.it", "fastwebnet.it", "tiscali.it", "pec.it", "hotmail.co.uk",
-  "yahoo.co.uk", "yahoo.co.jp", "yahoo.com.au", "outlook.it", "hotmail.it",
-  "mail.com", "email.com", "fastmail.com", "yandex.com", "yandex.ru", "zoho.com", "hey.com",
-  "tutanota.com", "tuta.io", "protonmail.ch", "pm.me", "gmx.de", "gmx.at", "web.de",
-  "orange.fr", "free.fr", "laposte.net", "sfr.fr", "wanadoo.fr", "aruba.it", "legalmail.it",
-  "pecmail.it", "namirial.it", "postacertificata.com", "registerpec.it",
-]);
-const GENERIC_EMAIL_DOMAIN_LABELS = new Set([
-  "gmail", "googlemail", "outlook", "hotmail", "live", "msn", "yahoo", "icloud",
-  "me", "mac", "aol", "proton", "protonmail", "gmx", "libero", "virgilio",
-  "tin", "alice", "tim", "fastwebnet", "tiscali", "pec", "mail", "email", "fastmail",
-  "yandex", "zoho", "hey", "tutanota", "tuta", "web", "orange", "free", "laposte",
-  "sfr", "wanadoo", "aruba", "legalmail", "pecmail", "namirial", "postacertificata",
-  "registerpec",
-]);
-const TWO_PART_PUBLIC_SUFFIXES = new Set([
-  "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "edu.au",
-  "co.nz", "org.nz", "com.br", "com.mx", "com.sg", "com.hk", "co.jp", "co.in",
-  "com.tr", "com.ar", "co.za",
-]);
 
 export function normalizeSenderEmail(value: string): string {
   const trimmed = value.trim().replace(/^.*<([^>]+)>$/, "$1").toLowerCase();
@@ -92,22 +60,6 @@ export function emailAddressPatternsOverlap(left: string, right: string): boolea
     : emailAddressPatternMatches(normalizedRight, normalizedLeft);
 }
 
-export function domainForSender(email: string): string | null {
-  const normalized = normalizeSenderEmail(email);
-  if (!normalized) return null;
-  const domain = domainToASCII(normalized.slice(normalized.lastIndexOf("@") + 1).replace(/\.$/, ""));
-  if (!domain) return null;
-  if (GENERIC_EMAIL_DOMAINS.has(domain) || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(domain)) return null;
-  const labels = domain.split(".");
-  if (labels.length < 2 || labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) return null;
-  const suffix = labels.slice(-2).join(".");
-  const registeredLabelIndex = TWO_PART_PUBLIC_SUFFIXES.has(suffix) ? labels.length - 3 : labels.length - 2;
-  if (registeredLabelIndex < 0) return null;
-  const companyLabel = labels[registeredLabelIndex].replace(/[^a-z0-9]/g, "");
-  if (GENERIC_EMAIL_DOMAIN_LABELS.has(companyLabel) || companyLabel.length < 3) return null;
-  return labels.slice(registeredLabelIndex).join(".");
-}
-
 function clientContactMatches(client: EmailClientCandidate, sender: string): boolean {
   const emailMatches = (client.email ?? "")
     .split(/[;,\s]+/)
@@ -125,56 +77,28 @@ export function resolveEmailClientAssociation(input: {
   senderEmail: string;
   clientsEnabled?: boolean;
   clients: EmailClientCandidate[];
-  senderRules: EmailClientRule[];
-  domainRules: EmailClientRule[];
 }): EmailClientAssociationResult {
   if (input.clientsEnabled === false) return { clientId: null, suggestedClientId: null };
   const sender = normalizeSenderEmail(input.senderEmail);
   if (!sender) return { clientId: null, suggestedClientId: null };
   const clients = input.clients.filter((client) => client.organizationId === input.organizationId);
-  const validClientIds = new Set(clients.map((client) => client.id));
   const exactContactIds = new Set(
     clients.filter((client) => clientContactMatches(client, sender)).map((client) => client.id),
   );
-  const learnedExactIds = new Set(
-    input.senderRules
-      .filter((rule) => rule.organizationId === input.organizationId && normalizeSenderEmail(rule.senderEmail ?? "") === sender && validClientIds.has(rule.clientId))
-      .map((rule) => rule.clientId),
-  );
-  const exactIds = new Set([...exactContactIds, ...learnedExactIds]);
 
-  // Conflicting contact data or learned rules are ambiguous and must never auto-assign.
-  if (exactIds.size > 1) {
+  if (exactContactIds.size > 1) {
     return {
       clientId: null,
       suggestedClientId: null,
       clientAssociationIssue: "conflicting_exact_matches",
     };
   }
-  if (exactIds.size === 1) {
-    const clientId = [...exactIds][0];
+  if (exactContactIds.size === 1) {
+    const clientId = [...exactContactIds][0];
     return {
       clientId,
       suggestedClientId: null,
-      matchType: exactContactIds.has(clientId) ? "profile_contact" : "sender_rule",
-    };
-  }
-
-  const senderDomain = domainForSender(sender);
-  if (!senderDomain) return { clientId: null, suggestedClientId: null };
-  const confirmedDomainIds = new Set(
-    input.domainRules
-      .filter((rule) => rule.organizationId === input.organizationId && rule.domain === senderDomain && validClientIds.has(rule.clientId))
-      .map((rule) => rule.clientId),
-  );
-  if (confirmedDomainIds.size === 1) {
-    return { clientId: [...confirmedDomainIds][0], suggestedClientId: null, matchType: "domain_rule" };
-  }
-  if (confirmedDomainIds.size > 1) {
-    return {
-      clientId: null,
-      suggestedClientId: null,
-      clientAssociationIssue: "conflicting_domain_rules",
+      matchType: "profile_contact",
     };
   }
 

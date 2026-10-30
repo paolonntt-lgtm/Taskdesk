@@ -23,6 +23,10 @@ let adminId: number;
 let clientId: number;
 let ticketId: number;
 let dismissTicketId: number;
+let addSenderTicketId: number;
+let linkOnlyTicketId: number;
+let conflictTicketId: number;
+let conflictingClientId: number;
 let adminSessionId: string;
 
 describe("email ticket client suggestion confirmation", () => {
@@ -46,6 +50,12 @@ describe("email ticket client suggestion confirmation", () => {
       name: "Caffè Aurora SRL",
     }).returning({ id: clientsTable.id });
     clientId = client.id;
+    const [conflictingClient] = await db.insert(clientsTable).values({
+      organizationId,
+      name: "Other Client",
+      email: `reserved-${runId}@example.test`,
+    }).returning({ id: clientsTable.id });
+    conflictingClientId = conflictingClient.id;
 
     const [ticket] = await db.insert(ticketsTable).values({
       organizationId,
@@ -71,6 +81,39 @@ describe("email ticket client suggestion confirmation", () => {
       emailMessageId: `<dismiss-${runId}@test.example>`,
     }).returning({ id: ticketsTable.id });
     dismissTicketId = dismissTicket.id;
+    const [addSenderTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Add sender ${runId}`,
+      description: "Sender-profile association test.",
+      category: "Support",
+      location: "",
+      resource: `new-sender-${runId}@example.test`,
+      createdBy: adminId,
+      emailMessageId: `<add-sender-${runId}@test.example>`,
+    }).returning({ id: ticketsTable.id });
+    addSenderTicketId = addSenderTicket.id;
+    const [linkOnlyTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Link only ${runId}`,
+      description: "Sender-profile association test.",
+      category: "Support",
+      location: "",
+      resource: `link-only-${runId}@example.test`,
+      createdBy: adminId,
+      emailMessageId: `<link-only-${runId}@test.example>`,
+    }).returning({ id: ticketsTable.id });
+    linkOnlyTicketId = linkOnlyTicket.id;
+    const [conflictTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Conflict ${runId}`,
+      description: "Sender-profile association test.",
+      category: "Support",
+      location: "",
+      resource: `reserved-${runId}@example.test`,
+      createdBy: adminId,
+      emailMessageId: `<conflict-${runId}@test.example>`,
+    }).returning({ id: ticketsTable.id });
+    conflictTicketId = conflictTicket.id;
     adminSessionId = await createSession(adminId);
 
     server = createServer(app);
@@ -93,11 +136,15 @@ describe("email ticket client suggestion confirmation", () => {
     }
     if (ticketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, ticketId));
     if (dismissTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, dismissTicketId));
+    if (addSenderTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, addSenderTicketId));
+    if (linkOnlyTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
+    if (conflictTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, conflictTicketId));
     if (organizationId) {
       await db.delete(emailClientDomainRulesTable)
         .where(eq(emailClientDomainRulesTable.organizationId, organizationId));
     }
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
+    if (conflictingClientId) await db.delete(clientsTable).where(eq(clientsTable.id, conflictingClientId));
     if (adminSessionId) {
       await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, adminSessionId));
     }
@@ -127,7 +174,7 @@ describe("email ticket client suggestion confirmation", () => {
     expect(ticket).toEqual({ clientId: null, suggestedClientId: clientId });
   });
 
-  it("links the ticket, stores the domain rule, and makes it usable for later email", async () => {
+  it("links the ticket without making later emails match automatically", async () => {
     const response = await fetch(`${baseUrl}/api/tickets/${ticketId}/client-suggestion/confirm`, {
       method: "POST",
       headers: { Cookie: `session_id=${adminSessionId}` },
@@ -140,22 +187,80 @@ describe("email ticket client suggestion confirmation", () => {
     }).from(ticketsTable).where(eq(ticketsTable.id, ticketId));
     expect(ticket).toEqual({ clientId, suggestedClientId: null });
 
-    const [domainRule] = await db.select({
+    const domainRules = await db.select({
       organizationId: emailClientDomainRulesTable.organizationId,
       domain: emailClientDomainRulesTable.domain,
       clientId: emailClientDomainRulesTable.clientId,
     }).from(emailClientDomainRulesTable).where(eq(emailClientDomainRulesTable.organizationId, organizationId));
-    expect(domainRule).toEqual({ organizationId, domain: "caffeaurora.example", clientId });
-    if (!domainRule) throw new Error("Confirmed domain rule was not persisted");
+    expect(domainRules).toEqual([]);
 
     expect(resolveEmailClientAssociation({
       organizationId,
       senderEmail: "marco@caffeaurora.example",
       clientsEnabled: true,
       clients: [{ id: clientId, organizationId, name: "Caffè Aurora SRL" }],
-      senderRules: [],
-      domainRules: [domainRule],
-    })).toEqual({ clientId, suggestedClientId: null, matchType: "domain_rule" });
+    })).toEqual({ clientId: null, suggestedClientId: null });
+  });
+
+  it("adds the sender to the selected client only when explicitly requested", async () => {
+    const response = await fetch(`${baseUrl}/api/tickets/${addSenderTicketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId, addSenderEmailToClient: true }),
+    });
+    expect(response.status).toBe(200);
+
+    const [client] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, clientId));
+    expect(client?.email).toContain(`new-sender-${runId}@example.test`);
+
+    const [ticket] = await db.select({
+      clientId: ticketsTable.clientId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, addSenderTicketId));
+    expect(ticket?.clientId).toBe(clientId);
+  });
+
+  it("can link a ticket without saving its sender to the client profile", async () => {
+    const response = await fetch(`${baseUrl}/api/tickets/${linkOnlyTicketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId }),
+    });
+    expect(response.status).toBe(200);
+
+    const [client] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, clientId));
+    expect(client?.email).not.toContain(`link-only-${runId}@example.test`);
+
+    const [ticket] = await db.select({
+      clientId: ticketsTable.clientId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
+    expect(ticket?.clientId).toBe(clientId);
+  });
+
+  it("rejects adding a sender already saved on another client's profile", async () => {
+    const response = await fetch(`${baseUrl}/api/tickets/${conflictTicketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId, addSenderEmailToClient: true }),
+    });
+    expect(response.status).toBe(409);
+
+    const [ticket] = await db.select({
+      clientId: ticketsTable.clientId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, conflictTicketId));
+    expect(ticket?.clientId).toBeNull();
   });
 
   it("dismisses a saved suggestion without assigning the client", async () => {

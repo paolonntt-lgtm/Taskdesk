@@ -25,4 +25,6 @@ export interface UpdateTicketBody {
   timeTrackingCompensationOverride?: boolean | null;
   dueAt?: Date | null;
   clientId?: number | null;
+  /** When true, save the inbound sender address to the selected client's email profile as part of this update. */
+  addSenderEmailToClient?: boolean;
 }

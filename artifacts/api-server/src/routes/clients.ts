@@ -1,6 +1,6 @@
 import { Router, type IRouter, type RequestHandler } from "express";
 import { eq, and, ilike, or, asc, desc, ne, gte, lt, isNotNull, isNull, inArray } from "drizzle-orm";
-import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable, emailClientSenderRulesTable } from "@workspace/db";
+import { db, clientsTable, ticketsTable, usersTable, clientNotesTable, ticketActivityLogsTable, organizationsTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { hasGroupPermission, VIEW_WORKED_HOURS_PERMISSION } from "../lib/groupPermissions";
 import { redactWorkedHours } from "../lib/workedTime";
@@ -105,18 +105,12 @@ async function findClientEmailConflicts(
   excludeClientId?: number,
 ) {
   if (addresses.length === 0) return [];
-  const [clients, senderRules] = await Promise.all([
-    db.select({
+  const clients = await db.select({
       id: clientsTable.id,
       name: clientsTable.name,
       email: clientsTable.email,
       pec: clientsTable.pec,
-    }).from(clientsTable).where(eq(clientsTable.organizationId, organizationId)),
-    db.select({
-      clientId: emailClientSenderRulesTable.clientId,
-      senderEmail: emailClientSenderRulesTable.senderEmail,
-    }).from(emailClientSenderRulesTable).where(eq(emailClientSenderRulesTable.organizationId, organizationId)),
-  ]);
+    }).from(clientsTable).where(eq(clientsTable.organizationId, organizationId));
   const conflicts = new Map<string, { address: string; clientId: number; clientName: string; sources: Set<string> }>();
   const addConflict = (address: string, clientId: number, clientName: string, source: string) => {
     if (clientId === excludeClientId) return;
@@ -135,16 +129,6 @@ async function findClientEmailConflicts(
     for (const address of splitEmailAddresses(client.pec)) {
       const overlappingAddress = addresses.find((candidate) => emailAddressPatternsOverlap(address, candidate));
       if (overlappingAddress) addConflict(overlappingAddress, client.id, client.name, "profile");
-    }
-  }
-  for (const rule of senderRules) {
-    const address = normalizeSenderEmail(rule.senderEmail);
-    const client = clients.find((row) => row.id === rule.clientId);
-    const overlappingAddress = address
-      ? addresses.find((candidate) => emailAddressPatternsOverlap(address, candidate))
-      : undefined;
-    if (overlappingAddress && client) {
-      addConflict(overlappingAddress, client.id, client.name, "sender_rule");
     }
   }
   return [...conflicts.values()].map((conflict) => ({
@@ -358,18 +342,12 @@ router.get("/clients", requireClientFeature, async (req, res): Promise<void> => 
 
 router.get("/clients/email-address-associations", requireClientFeature, async (req, res): Promise<void> => {
   const orgId = (req as any).currentUser.organizationId as number;
-  const [clients, senderRules] = await Promise.all([
-    db.select({
+  const clients = await db.select({
       id: clientsTable.id,
       name: clientsTable.name,
       email: clientsTable.email,
       pec: clientsTable.pec,
-    }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
-    db.select({
-      clientId: emailClientSenderRulesTable.clientId,
-      senderEmail: emailClientSenderRulesTable.senderEmail,
-    }).from(emailClientSenderRulesTable).where(eq(emailClientSenderRulesTable.organizationId, orgId)),
-  ]);
+    }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
   const associations = new Map<string, { address: string; clientId: number; clientName: string; sources: Set<string> }>();
   const add = (address: string, clientId: number, clientName: string, source: string) => {
     const key = `${address}:${clientId}`;
@@ -380,11 +358,6 @@ router.get("/clients/email-address-associations", requireClientFeature, async (r
   for (const client of clients) {
     for (const address of splitEmailAddresses(client.email, true)) add(address, client.id, client.name, "profile");
     for (const address of splitEmailAddresses(client.pec)) add(address, client.id, client.name, "profile");
-  }
-  for (const rule of senderRules) {
-    const client = clients.find((row) => row.id === rule.clientId);
-    const address = normalizeSenderEmail(rule.senderEmail);
-    if (client && address) add(address, client.id, client.name, "sender_rule");
   }
   res.json([...associations.values()].map((entry) => ({
     ...entry,
@@ -429,23 +402,9 @@ router.patch(
       const removeClient = clients.find((client) => client.id === removeClientId);
       if (!keepClient || !removeClient) return "not_found" as const;
 
-      const senderRules = await tx
-        .select({
-          id: emailClientSenderRulesTable.id,
-          clientId: emailClientSenderRulesTable.clientId,
-          senderEmail: emailClientSenderRulesTable.senderEmail,
-        })
-        .from(emailClientSenderRulesTable)
-        .where(and(
-          eq(emailClientSenderRulesTable.organizationId, organizationId),
-          inArray(emailClientSenderRulesTable.clientId, [keepClientId, removeClientId]),
-        ));
       const hasAssociation = (client: typeof keepClient | typeof removeClient) =>
         splitEmailAddresses(client.email, true).some((entry) => emailAddressPatternsOverlap(entry, address))
-        || splitEmailAddresses(client.pec).some((entry) => emailAddressPatternsOverlap(entry, address))
-        || senderRules.some((rule) =>
-          rule.clientId === client.id && emailAddressPatternsOverlap(rule.senderEmail, address),
-        );
+        || splitEmailAddresses(client.pec).some((entry) => emailAddressPatternsOverlap(entry, address));
 
       if (!hasAssociation(keepClient) || !hasAssociation(removeClient)) {
         return "association_changed" as const;
@@ -463,13 +422,6 @@ router.patch(
           eq(clientsTable.id, removeClientId),
           eq(clientsTable.organizationId, organizationId),
         ));
-      }
-
-      const rulesToDelete = senderRules
-        .filter((rule) => rule.clientId === removeClientId && emailAddressPatternsOverlap(rule.senderEmail, address))
-        .map((rule) => rule.id);
-      if (rulesToDelete.length > 0) {
-        await tx.delete(emailClientSenderRulesTable).where(inArray(emailClientSenderRulesTable.id, rulesToDelete));
       }
 
       return "resolved" as const;

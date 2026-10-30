@@ -2416,7 +2416,7 @@ return customFetch<TicketWithDetails>(getUpdateTicketUrl(id),
 
 export const getUpdateTicketMutationKey = () => ['updateTicket'] as const;
 
-export const getUpdateTicketMutationOptions = <TError = ErrorType<unknown>,
+export const getUpdateTicketMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext> => {
 
@@ -2445,13 +2445,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateTicketMutationResult = NonNullable<Awaited<ReturnType<typeof updateTicket>>>
     export type UpdateTicketMutationBody = BodyType<UpdateTicketBody>
-    export type UpdateTicketMutationError = ErrorType<unknown>
+    export type UpdateTicketMutationError = ErrorType<ErrorResponse>
     export type UpdateTicketMutationVariables = {id: number;data: BodyType<UpdateTicketBody>}
 
     /**
  * @summary Update ticket fields
  */
-export const useUpdateTicket = <TError = ErrorType<unknown>,
+export const useUpdateTicket = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateTicket>>,

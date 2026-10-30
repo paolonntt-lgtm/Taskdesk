@@ -1152,7 +1152,8 @@ export const UpdateTicketBody = zod.object({
   "timeTrackingBillable": zod.boolean().optional(),
   "timeTrackingCompensationOverride": zod.boolean().nullish(),
   "dueAt": zod.coerce.date().nullish(),
-  "clientId": zod.int().nullish()
+  "clientId": zod.int().nullish(),
+  "addSenderEmailToClient": zod.boolean().optional().describe('When true, save the inbound sender address to the selected client\'s email profile as part of this update.')
 })
 
 export const updateTicketResponseOneRecurrenceRuleOneDayOfMonthMax = 31;

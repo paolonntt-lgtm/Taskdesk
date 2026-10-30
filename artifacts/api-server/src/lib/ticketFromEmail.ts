@@ -1,5 +1,5 @@
 import { eq, sql, and, or, inArray } from "drizzle-orm";
-import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable, clientsTable, emailClientSenderRulesTable, emailClientDomainRulesTable } from "@workspace/db";
+import { db, ticketsTable, usersTable, ticketActivityLogsTable, ticketCommentsTable, inboundEmailChannelsTable, ticketAttachmentsTable, clientsTable } from "@workspace/db";
 import { createNotificationsForSubscribers, createNotificationsForTicket, createNotificationForUser, subscribeUserToTicket } from "./notifications";
 import { getInboundEmailNotificationTarget } from "./inboundEmailNotificationPolicy";
 import { logger } from "./logger";
@@ -8,7 +8,6 @@ import { hasForwardSubjectPrefix, hasReplySubjectPrefix, normaliseEmailSubject, 
 import { randomUUID } from "crypto";
 import {
   chooseForwardedEmailAssociation,
-  domainForSender,
   normalizeSenderEmail,
   resolveEmailClientAssociation,
 } from "./emailClientAssociation";
@@ -98,7 +97,6 @@ async function getInboundRouting(orgId: number | null | undefined, inboundChanne
 async function getInboundClientAssociation(
   orgId: number | null,
   senderEmail: string,
-  options: { ignoreLearnedSenderRules?: boolean } = {},
 ): Promise<ReturnType<typeof resolveEmailClientAssociation>> {
   if (orgId == null) {
     return { clientId: null, suggestedClientId: null };
@@ -109,46 +107,23 @@ async function getInboundClientAssociation(
       senderEmail,
       clientsEnabled: false,
       clients: [],
-      senderRules: [],
-      domainRules: [],
     });
   }
 
   const normalizedSender = normalizeSenderEmail(senderEmail);
   if (!normalizedSender) return { clientId: null, suggestedClientId: null };
-  const domain = domainForSender(normalizedSender);
-  const [clients, senderRules, domainRules] = await Promise.all([
-    db.select({
-      id: clientsTable.id,
-      name: clientsTable.name,
-      alias: clientsTable.alias,
-      email: clientsTable.email,
-      pec: clientsTable.pec,
-    }).from(clientsTable).where(eq(clientsTable.organizationId, orgId)),
-    options.ignoreLearnedSenderRules ? Promise.resolve([]) : db.select({
-      organizationId: emailClientSenderRulesTable.organizationId,
-      senderEmail: emailClientSenderRulesTable.senderEmail,
-      clientId: emailClientSenderRulesTable.clientId,
-    }).from(emailClientSenderRulesTable).where(and(
-      eq(emailClientSenderRulesTable.organizationId, orgId),
-      eq(emailClientSenderRulesTable.senderEmail, normalizedSender),
-    )),
-    domain ? db.select({
-      organizationId: emailClientDomainRulesTable.organizationId,
-      domain: emailClientDomainRulesTable.domain,
-      clientId: emailClientDomainRulesTable.clientId,
-    }).from(emailClientDomainRulesTable).where(and(
-      eq(emailClientDomainRulesTable.organizationId, orgId),
-      eq(emailClientDomainRulesTable.domain, domain),
-    )) : Promise.resolve([]),
-  ]);
+  const clients = await db.select({
+    id: clientsTable.id,
+    name: clientsTable.name,
+    alias: clientsTable.alias,
+    email: clientsTable.email,
+    pec: clientsTable.pec,
+  }).from(clientsTable).where(eq(clientsTable.organizationId, orgId));
 
   return resolveEmailClientAssociation({
     organizationId: orgId,
     senderEmail: normalizedSender,
     clients: clients.map((client) => ({ ...client, organizationId: orgId })),
-    senderRules,
-    domainRules,
   });
 }
 
@@ -342,12 +317,9 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const isForwardedBySubject = hasForwardSubjectPrefix(subject);
   const isForwarded = hasDifferentOriginalSender || isForwardedBySubject;
   const originalSenderAvailable = !!normalizeSenderEmail(originalSenderEmail ?? "");
-  const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail, {
-    // These rules are learned when an operator manually links a ticket. A
-    // forwarding mailbox is not proof that later forwarded messages belong to
-    // the same client; explicit profile email/PEC matches still remain valid.
-    ignoreLearnedSenderRules: hasDifferentOriginalSender || isForwardedBySubject,
-  });
+  // Automatic matching uses only email/PEC contacts saved on the client
+  // profile, including an explicit email wildcard.
+  const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail);
   let clientAssociation = outerSenderAssociation;
   let originalSenderAssociation: ReturnType<typeof resolveEmailClientAssociation> | undefined;
   let matchedOriginalSender = false;

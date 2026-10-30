@@ -838,6 +838,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TicketWithDetails"
+        "409":
+          description: Sender address is already saved on another client profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       operationId: deleteTicket
@@ -4802,6 +4808,9 @@ components:
         clientId:
           type: integer
           nullable: true
+        addSenderEmailToClient:
+          type: boolean
+          description: When true, save the inbound sender address to the selected client's email profile as part of this update.
 
     WorkedHoursUpdate:
       type: object
