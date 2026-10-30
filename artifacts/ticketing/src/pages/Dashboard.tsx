@@ -1318,6 +1318,7 @@ const PERSON_WIDGET_KEY = 'td_widget_person_id';
 
 function FeedPersonWidget() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const entityTerm = useEntityTerm();
   const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-person';
   const [configOpen, setConfigOpen] = useState(false);
@@ -1339,7 +1340,7 @@ function FeedPersonWidget() {
     staleTime: 60_000,
   });
 
-  const personTicketsQuery = getPersonWidgetTicketsQuery(selectedId);
+  const personTicketsQuery = getPersonWidgetTicketsQuery(selectedId, user?.id);
   const { data = [] } = useQuery<TicketRow[]>({
     ...personTicketsQuery,
     staleTime: POLL_MS,

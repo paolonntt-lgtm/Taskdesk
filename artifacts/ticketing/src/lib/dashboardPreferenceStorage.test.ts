@@ -108,6 +108,64 @@ describe("collaborator ticket widgets", () => {
     expect(readDashboardWidgetInstancePreference(storage, legacyKey, "feed-person__123", "feed-person"))
       .toBeNull();
   });
+
+  it("restores private collaborator choices and requests tickets after switching accounts", async () => {
+    const storage = createMemoryStorage();
+    const widgetId = "feed-person";
+    const firstUserKey = dashboardPreferenceStorageKey("td_widget_person_id", 12);
+    const secondUserKey = dashboardPreferenceStorageKey("td_widget_person_id", 34);
+
+    // Both accounts use the same browser storage, but retain separate choices.
+    writeDashboardWidgetInstancePreference(storage, firstUserKey, widgetId, "11", widgetId);
+    writeDashboardWidgetInstancePreference(storage, secondUserKey, widgetId, "22", widgetId);
+
+    const restoreSelection = (userId: number) => {
+      const key = dashboardPreferenceStorageKey("td_widget_person_id", userId);
+      const savedSelection = readDashboardWidgetInstancePreference(storage, key, widgetId, widgetId);
+      return savedSelection ? Number(savedSelection) : null;
+    };
+
+    // Switching away and back in the same browser restores that account's setting.
+    const firstUserSelection = restoreSelection(12);
+    const secondUserSelection = restoreSelection(34);
+    const restoredFirstUserSelection = restoreSelection(12);
+
+    expect([firstUserSelection, secondUserSelection, restoredFirstUserSelection]).toEqual([11, 22, 11]);
+
+    const fetchMock = vi.fn(async (url: string) => ({
+      json: async () => [{ id: url.includes("assignedTo=11") ? 101 : 202, title: "Account ticket" }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstUserQuery = getPersonWidgetTicketsQuery(firstUserSelection, 12);
+    const secondUserQuery = getPersonWidgetTicketsQuery(secondUserSelection, 34);
+    const sameCollaboratorForOtherAccount = getPersonWidgetTicketsQuery(firstUserSelection, 34);
+    const firstUserTickets = await firstUserQuery.queryFn();
+    const secondUserTickets = await secondUserQuery.queryFn();
+    const restoredFirstUserQuery = getPersonWidgetTicketsQuery(restoredFirstUserSelection, 12);
+    const restoredFirstUserTickets = await restoredFirstUserQuery.queryFn();
+
+    expect(firstUserQuery.queryKey).not.toEqual(secondUserQuery.queryKey);
+    expect(firstUserQuery.queryKey).not.toEqual(sameCollaboratorForOtherAccount.queryKey);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/tickets?assignedTo=11&status=open",
+      { credentials: "include" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/tickets?assignedTo=22&status=open",
+      { credentials: "include" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/tickets?assignedTo=11&status=open",
+      { credentials: "include" },
+    );
+    expect(firstUserTickets).toEqual([{ id: 101, title: "Account ticket" }]);
+    expect(secondUserTickets).toEqual([{ id: 202, title: "Account ticket" }]);
+    expect(restoredFirstUserTickets).toEqual([{ id: 101, title: "Account ticket" }]);
+  });
 });
 
 describe("dashboardWidgetSettingsId", () => {

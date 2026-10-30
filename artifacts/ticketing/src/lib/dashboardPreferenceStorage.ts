@@ -36,9 +36,12 @@ export function writeDashboardWidgetInstancePreference(
   if (widgetInstanceId === legacyWidgetInstanceId) storage.removeItem(key);
 }
 
-export function getPersonWidgetTicketsQuery(selectedId: number | null) {
+export function getPersonWidgetTicketsQuery(
+  selectedId: number | null,
+  userId: number | string | null | undefined,
+) {
   return {
-    queryKey: ["tickets-for-person", selectedId] as const,
+    queryKey: ["tickets-for-person", userId ?? "anonymous", selectedId] as const,
     enabled: selectedId !== null,
     queryFn: () => selectedId
       ? fetch(`/api/tickets?assignedTo=${selectedId}&status=open`, { credentials: "include" }).then((response) => response.json())
