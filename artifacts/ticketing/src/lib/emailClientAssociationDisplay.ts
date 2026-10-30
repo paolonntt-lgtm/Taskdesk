@@ -17,6 +17,11 @@ export function getEmailClientAssociationExplanationKey(input: {
   hasCurrentConflict?: boolean;
 }): EmailClientAssociationExplanationKey {
   const { reason, source, forwarded, hasCurrentConflict } = input;
+  if (reason === 'conflict' || hasCurrentConflict) {
+    return source === 'original_sender'
+      ? 'emailClientAssociationConflictOriginal'
+      : 'emailClientAssociationConflictExternal';
+  }
   if (reason === 'profile_contact') {
     if (source === 'original_sender') return 'emailClientAssociationOriginalSender';
     return forwarded
@@ -30,11 +35,6 @@ export function getEmailClientAssociationExplanationKey(input: {
     return forwarded
       ? 'emailClientAssociationNoMatchForwarded'
       : 'emailClientAssociationNoMatch';
-  }
-  if (reason === 'conflict' || hasCurrentConflict) {
-    return source === 'original_sender'
-      ? 'emailClientAssociationConflictOriginal'
-      : 'emailClientAssociationConflictExternal';
   }
   return 'emailClientAssociationReasonUnavailable';
 }

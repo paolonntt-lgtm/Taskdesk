@@ -561,17 +561,6 @@ router.post("/clients", requireClientFeature, async (req, res): Promise<void> =>
   }
 
   const normalizedEmail = normalizeClientEmailField(parsed.data.email);
-  const conflicts = await findClientEmailConflicts(
-    currentUser.organizationId,
-    [...new Set([
-      ...splitEmailAddresses(normalizedEmail, true),
-      ...splitEmailAddresses(parsed.data.pec),
-    ])],
-  );
-  if (conflicts.length > 0) {
-    res.status(409).json({ error: "Email address already associated with another client", conflicts });
-    return;
-  }
 
   const vatNumber = parsed.data.vatNumber?.trim() || null;
   if (vatNumber) {
@@ -917,24 +906,7 @@ router.patch("/clients/:id", requireClientFeature, async (req, res): Promise<voi
 
   const updates = { ...parsed.data };
   if (Object.prototype.hasOwnProperty.call(parsed.data, "email")) {
-    const normalizedEmail = normalizeClientEmailField(parsed.data.email);
-    const previousAddresses = new Set(splitEmailAddresses(client.email, true));
-    const newAddresses = splitEmailAddresses(normalizedEmail, true).filter((address) => !previousAddresses.has(address));
-    const conflicts = await findClientEmailConflicts(currentUser.organizationId, newAddresses, id);
-    if (conflicts.length > 0) {
-      res.status(409).json({ error: "Email address already associated with another client", conflicts });
-      return;
-    }
-    updates.email = normalizedEmail;
-  }
-  if (Object.prototype.hasOwnProperty.call(parsed.data, "pec")) {
-    const previousAddresses = new Set(splitEmailAddresses(client.pec));
-    const newAddresses = splitEmailAddresses(parsed.data.pec).filter((address) => !previousAddresses.has(address));
-    const conflicts = await findClientEmailConflicts(currentUser.organizationId, newAddresses, id);
-    if (conflicts.length > 0) {
-      res.status(409).json({ error: "Email address already associated with another client", conflicts });
-      return;
-    }
+    updates.email = normalizeClientEmailField(parsed.data.email);
   }
 
   const [updatedClient] = await db

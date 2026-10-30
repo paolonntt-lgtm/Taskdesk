@@ -42,6 +42,10 @@ describe('email client association explanation', () => {
     expect(getEmailClientAssociationExplanationKey({
       hasCurrentConflict: true,
     })).toBe('emailClientAssociationConflictExternal');
+    expect(getEmailClientAssociationExplanationKey({
+      reason: 'no_match',
+      hasCurrentConflict: true,
+    })).toBe('emailClientAssociationConflictExternal');
     expect(getEmailClientAssociationExplanationKey({})).toBe('emailClientAssociationReasonUnavailable');
   });
 });

@@ -1635,12 +1635,11 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   let suggestedClient = null;
   let clientAssociationIssue: ReturnType<typeof resolveEmailClientAssociation>["clientAssociationIssue"];
   if (
-    currentUser.role === "admin" &&
     clientsEnabled &&
     !ticket.clientId &&
     (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId)
   ) {
-      const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
+    const senderEmail = normalizeSenderEmail(ticket.resource ?? "");
     if (senderEmail) {
       const clients = await db.select({
           id: clientsTable.id,
@@ -1654,6 +1653,9 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         senderEmail,
         clients: clients.map((client) => ({ ...client, organizationId: orgId })),
       }).clientAssociationIssue;
+    }
+    if (ticket.emailClientAssociationReason === "conflict") {
+      clientAssociationIssue = "conflicting_exact_matches";
     }
   }
   if (currentUser.role === "admin" && clientsEnabled && ticket.suggestedClientId) {
@@ -1697,6 +1699,10 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     if (clientAssociationIssue) {
       (detail as any).clientAssociationIssue = clientAssociationIssue;
     }
+  } else if (clientsEnabled && clientAssociationIssue) {
+    // The ambiguity itself is safe to show to ticket viewers; client names and
+    // association-source details remain restricted to admins.
+    (detail as any).clientAssociationIssue = clientAssociationIssue;
   }
   const groupCanChangeStatus = await hasGroupPermission(
     currentUser.id,

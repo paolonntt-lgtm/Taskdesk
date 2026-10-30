@@ -1282,7 +1282,8 @@ export default function TicketDetail() {
             {ticket.title}
           </Box>
 
-          {isAdmin && clientsEnabled && hasInboundEmailMetadata && (
+          {(isAdmin || (clientsEnabled && Boolean((ticket as any).clientAssociationIssue))) &&
+            clientsEnabled && hasInboundEmailMetadata && (
             <Alert
               severity={emailAssociationReason === 'conflict' || (ticket as any).clientAssociationIssue ? 'warning' : 'info'}
               data-testid="email-client-association-reason"
@@ -1291,7 +1292,11 @@ export default function TicketDetail() {
               <Typography variant="subtitle2" fontWeight={700}>
                 {t.ticketDetail.emailClientAssociationReasonTitle}
               </Typography>
-              <Typography variant="body2">{t.ticketDetail[emailAssociationExplanationKey]}</Typography>
+                <Typography variant="body2">
+                  {isAdmin
+                    ? t.ticketDetail[emailAssociationExplanationKey]
+                    : t.ticketDetail.emailClientAssociationConflictGeneric}
+                </Typography>
             </Alert>
           )}
 

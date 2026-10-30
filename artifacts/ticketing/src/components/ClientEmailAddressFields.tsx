@@ -42,7 +42,7 @@ interface ClientEmailAddressFieldsProps {
   profileSourceLabel: string;
   ruleSourceLabel: string;
   unmatchedLabel: string;
-  conflictLabel: string;
+  sharedLabel: string;
   wildcardHint: string;
   wildcardExample: string;
 }
@@ -59,7 +59,7 @@ export default function ClientEmailAddressFields({
   profileSourceLabel,
   ruleSourceLabel,
   unmatchedLabel,
-  conflictLabel,
+  sharedLabel,
   wildcardHint,
   wildcardExample,
 }: ClientEmailAddressFieldsProps) {
@@ -99,8 +99,8 @@ export default function ClientEmailAddressFields({
               </IconButton>
             </Stack>
             {conflicts.length > 0 ? (
-              <Alert severity="error" sx={{ mt: 0.75 }}>
-                {conflictLabel} {conflicts.map((item) => item.clientName).join(', ')}
+              <Alert severity="info" sx={{ mt: 0.75 }}>
+                {sharedLabel} {[...new Set(conflicts.map((item) => item.clientName))].join(', ')}
               </Alert>
             ) : normalized && ownSources.size > 0 ? (
               <Stack direction="row" spacing={0.75} sx={{ mt: 0.75 }}>

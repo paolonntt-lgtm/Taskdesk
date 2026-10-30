@@ -108,6 +108,19 @@ describe("email client association", () => {
       });
   });
 
+  it("treats a match across email and PEC profiles as ambiguous", () => {
+    const sharedEmail = "shared@northwind.example";
+    const shared = [
+      { ...clients[0], email: sharedEmail, pec: null },
+      { ...clients[1], email: null, pec: sharedEmail },
+    ];
+    expect(resolve(sharedEmail, shared)).toEqual({
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_exact_matches",
+    });
+  });
+
   it("does not use a profile contact from another organization", () => {
     const otherOrgClient = { ...clients[1], organizationId: 8 };
     expect(resolve("andrea@nordest.it", [otherOrgClient]))
@@ -146,6 +159,26 @@ describe("email client association", () => {
     expect(chooseForwardedEmailAssociation(
       { clientId: null, suggestedClientId: null, clientAssociationIssue: "conflicting_exact_matches" },
       { clientId: 2, suggestedClientId: null },
+    )).toEqual({
+      clientId: null,
+      suggestedClientId: null,
+      clientAssociationIssue: "conflicting_exact_matches",
+    });
+  });
+
+  it("retains an original-sender conflict when the forwarded sender has no match", () => {
+    const originalConflict = resolve("billing@caffeaurora.it", [
+      ...clients,
+      {
+        id: 3,
+        organizationId: 7,
+        name: "Caffe Aurora S.p.A.",
+        email: "billing@caffeaurora.it",
+      },
+    ]);
+    expect(chooseForwardedEmailAssociation(
+      resolve("forwarder@external.example"),
+      originalConflict,
     )).toEqual({
       clientId: null,
       suggestedClientId: null,

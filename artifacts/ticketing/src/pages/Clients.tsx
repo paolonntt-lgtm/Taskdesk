@@ -280,12 +280,11 @@ export default function Clients() {
   const [emailAddresses, setEmailAddresses] = useState<string[]>(['']);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const existingEmailAddresses = parseClientEmailAddresses(editingClient?.email);
-  const existingEmailSet = new Set(existingEmailAddresses);
-  const newlyAddedEmails = emailAddresses.filter((address) =>
-    address.trim() && !existingEmailSet.has(address.trim().toLowerCase()),
+  const pecConflicts = getClientEmailAddressConflicts(
+    parseClientEmailAddresses(form.pec).filter((address) => !address.startsWith('*@')),
+    emailAssociations,
+    editingClient?.id,
   );
-  const emailConflicts = getClientEmailAddressConflicts(newlyAddedEmails, emailAssociations, editingClient?.id);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState('');
@@ -544,6 +543,7 @@ export default function Clients() {
       if (!res.ok) throw new Error('server');
       const result = await res.json();
       qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
+      qc.invalidateQueries({ queryKey: getListClientEmailAssociationsQueryKey() });
       setImportOpen(false);
       setImportRows(null);
       setHeaderlessImport(null);
@@ -892,6 +892,12 @@ export default function Clients() {
               value={(form as any).pec ?? ''}
               onChange={e => setForm(f => ({ ...f, pec: e.target.value || null } as any))}
             />
+            {pecConflicts.length > 0 && (
+              <Alert severity="info">
+                {tc.emailAddressConflict}{' '}
+                {[...new Set(pecConflicts.map((item) => item.clientName))].join(', ')}
+              </Alert>
+            )}
             <TextField
               label={tc.contactPerson}
               fullWidth
@@ -910,7 +916,7 @@ export default function Clients() {
                 profileSourceLabel={tc.emailFromProfile}
                 ruleSourceLabel={tc.emailFromRule}
                 unmatchedLabel={tc.emailNotMatched}
-                conflictLabel={tc.emailAddressConflict}
+                sharedLabel={tc.emailAddressConflict}
               wildcardHint={tc.emailDomainWildcardHint}
               wildcardExample="*@azienda.it"
               />
@@ -932,7 +938,7 @@ export default function Clients() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>{tc.cancel}</Button>
-          <Button variant="contained" onClick={handleSave} disabled={saving || emailConflicts.length > 0}>
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
             {saving ? tc.saving : tc.save}
           </Button>
         </DialogActions>

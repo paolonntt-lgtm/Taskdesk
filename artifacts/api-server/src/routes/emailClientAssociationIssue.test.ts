@@ -12,6 +12,7 @@ import {
 import { eq } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
+import { resolveEmailClientAssociation } from "../lib/emailClientAssociation";
 
 const runId = crypto.randomUUID();
 let server: Server;
@@ -125,12 +126,123 @@ describe("admin-only inbound email client association warnings", () => {
     expect(adminResponse.body.emailClientAssociationReason).toBe("conflict");
     expect(adminResponse.body.emailClientAssociationSource).toBe("external_sender");
     expect(adminResponse.body.emailClientAssociationForwarded).toBe(true);
-    expect(JSON.stringify(collaboratorResponse.body)).not.toContain("clientAssociationIssue");
+    expect(collaboratorResponse.body.clientAssociationIssue).toBe("conflicting_exact_matches");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationReason");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationSource");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationForwarded");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client One");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client Two");
+  });
+
+  it("allows shared email and PEC addresses through create, update, and import", async () => {
+    const sharedAddress = `shared-profile-${runId}@northwind.example`;
+    const firstResponse = await fetch(`${baseUrl}/api/clients`, {
+      method: "POST",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Shared Email Client One", email: sharedAddress }),
+    });
+    expect(firstResponse.status).toBe(201);
+    const firstClient = await firstResponse.json() as any;
+
+    const secondResponse = await fetch(`${baseUrl}/api/clients`, {
+      method: "POST",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "Shared Email Client Two", pec: sharedAddress }),
+    });
+    expect(secondResponse.status).toBe(201);
+    const secondClient = await secondResponse.json() as any;
+
+    const updateResponse = await fetch(`${baseUrl}/api/clients/${secondClient.id}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: sharedAddress, pec: sharedAddress }),
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const importResponse = await fetch(`${baseUrl}/api/clients/import`, {
+      method: "POST",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        rows: [{
+          name: "Shared Email Client Imported",
+          vatNumber: `VAT-${runId}`,
+          email: sharedAddress,
+          pec: sharedAddress,
+        }],
+      }),
+    });
+    expect(importResponse.status).toBe(200);
+    expect(await importResponse.json()).toEqual({
+      imported: 1,
+      skipped: 0,
+      duplicates: 0,
+      errors: [],
+    });
+
+    const associationsResponse = await fetch(`${baseUrl}/api/clients/email-address-associations`, {
+      headers: { Cookie: `session_id=${adminSessionId}` },
+    });
+    expect(associationsResponse.status).toBe(200);
+    const associations = await associationsResponse.json() as any[];
+    const matchingClientIds = new Set(
+      associations
+        .filter((association) => association.address === sharedAddress)
+        .map((association) => association.clientId),
+    );
+    expect(matchingClientIds.has(firstClient.id)).toBe(true);
+    expect(matchingClientIds.has(secondClient.id)).toBe(true);
+    expect(matchingClientIds.size).toBe(3);
+  });
+
+  it("lets a collaborator assign the ambiguous ticket without changing sender routing data", async () => {
+    const before = await db.select({
+      resource: ticketsTable.resource,
+      emailMessageId: ticketsTable.emailMessageId,
+      emailConversationId: ticketsTable.emailConversationId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, ticketId));
+
+    const response = await fetch(`${baseUrl}/api/tickets/${ticketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${collaboratorSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId: keepClientId }),
+    });
+    expect(response.status).toBe(200);
+
+    const [ticket] = await db.select({
+      clientId: ticketsTable.clientId,
+      resource: ticketsTable.resource,
+      emailMessageId: ticketsTable.emailMessageId,
+      emailConversationId: ticketsTable.emailConversationId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    expect(ticket).toEqual({
+      clientId: keepClientId,
+      ...before[0],
+    });
+
+    const stillAmbiguous = resolveEmailClientAssociation({
+      organizationId,
+      senderEmail,
+      clients: [
+        { id: keepClientId, organizationId, name: "Private Client One", email: senderEmail },
+        { id: removeClientId, organizationId, name: "Private Client Two", pec: senderEmail },
+      ],
+    });
+    expect(stillAmbiguous.clientAssociationIssue).toBe("conflicting_exact_matches");
   });
 
   it("lets admins remove only the incorrect client association without changing ticket sender history", async () => {

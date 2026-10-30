@@ -324,6 +324,14 @@ export default function ClientDetail() {
   const emailAssociationsQuery = useListClientEmailAssociations();
   const emailAssociations = emailAssociationsQuery.data ?? [];
   const { data, isLoading, isError } = clientQuery;
+  const sharedClientContacts = getClientEmailAddressConflicts(
+    [
+      ...parseClientEmailAddresses(data?.email),
+      ...parseClientEmailAddresses((data as any)?.pec).filter((address) => !address.startsWith('*@')),
+    ],
+    emailAssociations,
+    clientId,
+  );
   const updateClient = useUpdateClient();
   const [layout, setLayout] = useState<BlockConfig[]>(() => loadClientLayoutCache(clientId));
   const [editMode, setEditMode] = useState(false);
@@ -344,12 +352,11 @@ export default function ClientDetail() {
   const [emailAddresses, setEmailAddresses] = useState<string[]>(['']);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const existingEmailAddresses = parseClientEmailAddresses((data as any)?.email);
-  const existingEmailSet = new Set(existingEmailAddresses);
-  const newlyAddedEmails = emailAddresses.filter((address) =>
-    address.trim() && !existingEmailSet.has(address.trim().toLowerCase()),
+  const pecConflicts = getClientEmailAddressConflicts(
+    parseClientEmailAddresses(form.pec).filter((address) => !address.startsWith('*@')),
+    emailAssociations,
+    clientId,
   );
-  const emailConflicts = getClientEmailAddressConflicts(newlyAddedEmails, emailAssociations, clientId);
 
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingInstanceId, setRenamingInstanceId] = useState<string | null>(null);
@@ -875,6 +882,13 @@ export default function ClientDetail() {
                 <InfoRow label={tc.phone} value={client.phone} />
               </Grid>
             </Grid>
+            {sharedClientContacts.length > 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                {tc.emailAddressConflict}{' '}
+                {[...new Set(sharedClientContacts.map((item) => `${item.address} — ${item.clientName}`))]
+                  .join('; ')}
+              </Alert>
+            )}
           </CardContent>
         </Card>
       );
@@ -1414,6 +1428,12 @@ export default function ClientDetail() {
               value={form.pec ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, pec: e.target.value || null }))}
             />
+            {pecConflicts.length > 0 && (
+              <Alert severity="info">
+                {tc.emailAddressConflict}{' '}
+                {[...new Set(pecConflicts.map((item) => item.clientName))].join(', ')}
+              </Alert>
+            )}
             <TextField
               label={tc.contactPerson}
               fullWidth
@@ -1432,7 +1452,7 @@ export default function ClientDetail() {
               profileSourceLabel={tc.emailFromProfile}
               ruleSourceLabel={tc.emailFromRule}
               unmatchedLabel={tc.emailNotMatched}
-              conflictLabel={tc.emailAddressConflict}
+              sharedLabel={tc.emailAddressConflict}
               wildcardHint={tc.emailDomainWildcardHint}
               wildcardExample="*@azienda.it"
             />
@@ -1454,7 +1474,7 @@ export default function ClientDetail() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setEditDialogOpen(false)}>{tc.cancel}</Button>
-          <Button variant="contained" onClick={handleSaveClient} disabled={saving || emailConflicts.length > 0}>
+          <Button variant="contained" onClick={handleSaveClient} disabled={saving}>
             {saving ? tc.saving : tc.save}
           </Button>
         </DialogActions>
