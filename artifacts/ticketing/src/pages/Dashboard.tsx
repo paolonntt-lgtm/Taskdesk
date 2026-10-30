@@ -66,6 +66,7 @@ import { useEntityTerm } from '../hooks/useEntityTerm';
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
+  dashboardWidgetSettingsId,
 } from '../lib/dashboardPreferenceStorage';
 
 const ReactGridLayout = WidthProvider(GridLayout);
@@ -177,9 +178,11 @@ function WidgetSettingsProvider({
 
 function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, defaults: T): [T, (s: T) => void] {
   const ctx = React.useContext(WidgetSettingsContext);
-  const saved = ctx.all[widgetId];
+  const widgetInstanceId = React.useContext(WidgetInstanceIdContext);
+  const settingsId = dashboardWidgetSettingsId(widgetId, widgetInstanceId);
+  const saved = ctx.all[settingsId] ?? (settingsId === widgetId ? undefined : ctx.all[widgetId]);
   const settings = (saved ? { ...defaults, ...saved } : defaults) as T;
-  const setFn = React.useCallback((s: T) => ctx.set(widgetId, s as Record<string, unknown>), [ctx, widgetId]);
+  const setFn = React.useCallback((s: T) => ctx.set(settingsId, s as Record<string, unknown>), [ctx, settingsId]);
   return [settings, setFn];
 }
 
@@ -1426,9 +1429,17 @@ const GROUP_WIDGET_KEY = 'td_widget_group_name';
 function FeedGroupWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
+  const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-group';
   const [configOpen, setConfigOpen] = useState(false);
-  const groupWidgetStorageKey = useDashboardStorageKey(GROUP_WIDGET_KEY);
-  const [selectedGroup, setSelectedGroup] = useState<string>(() => localStorage.getItem(groupWidgetStorageKey) ?? '');
+  const groupWidgetStorageKey = useDashboardStorageKey(
+    dashboardWidgetInstancePreferenceKey(GROUP_WIDGET_KEY, widgetInstanceId),
+  );
+  const legacyGroupWidgetStorageKey = useDashboardStorageKey(GROUP_WIDGET_KEY);
+  const [selectedGroup, setSelectedGroup] = useState<string>(() => (
+    localStorage.getItem(groupWidgetStorageKey)
+      ?? (widgetInstanceId === 'feed-group' ? localStorage.getItem(legacyGroupWidgetStorageKey) : null)
+      ?? ''
+  ));
   const [tempGroup, setTempGroup] = useState<string>(selectedGroup);
 
   const { data: groups = [] } = useQuery<string[]>({
@@ -1454,6 +1465,7 @@ function FeedGroupWidget() {
     setSelectedGroup(tempGroup);
     if (tempGroup) localStorage.setItem(groupWidgetStorageKey, tempGroup);
     else localStorage.removeItem(groupWidgetStorageKey);
+    if (widgetInstanceId === 'feed-group') localStorage.removeItem(legacyGroupWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -1596,9 +1608,17 @@ const CATEGORY_WIDGET_KEY = 'td_widget_category';
 function FeedCategoryWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
+  const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-category';
   const [configOpen, setConfigOpen] = useState(false);
-  const categoryWidgetStorageKey = useDashboardStorageKey(CATEGORY_WIDGET_KEY);
-  const [selected, setSelected] = useState<string>(() => localStorage.getItem(categoryWidgetStorageKey) ?? '');
+  const categoryWidgetStorageKey = useDashboardStorageKey(
+    dashboardWidgetInstancePreferenceKey(CATEGORY_WIDGET_KEY, widgetInstanceId),
+  );
+  const legacyCategoryWidgetStorageKey = useDashboardStorageKey(CATEGORY_WIDGET_KEY);
+  const [selected, setSelected] = useState<string>(() => (
+    localStorage.getItem(categoryWidgetStorageKey)
+      ?? (widgetInstanceId === 'feed-category' ? localStorage.getItem(legacyCategoryWidgetStorageKey) : null)
+      ?? ''
+  ));
   const [temp, setTemp] = useState<string>(selected);
 
   const { data: categories = [] } = useQuery<string[]>({
@@ -1620,6 +1640,7 @@ function FeedCategoryWidget() {
     setSelected(temp);
     if (temp) localStorage.setItem(categoryWidgetStorageKey, temp);
     else localStorage.removeItem(categoryWidgetStorageKey);
+    if (widgetInstanceId === 'feed-category') localStorage.removeItem(legacyCategoryWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -1692,9 +1713,17 @@ const STATUS_WIDGET_KEY = 'td_widget_status';
 function FeedStatusWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
+  const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-status';
   const [configOpen, setConfigOpen] = useState(false);
-  const statusWidgetStorageKey = useDashboardStorageKey(STATUS_WIDGET_KEY);
-  const [selected, setSelected] = useState<string>(() => localStorage.getItem(statusWidgetStorageKey) ?? '');
+  const statusWidgetStorageKey = useDashboardStorageKey(
+    dashboardWidgetInstancePreferenceKey(STATUS_WIDGET_KEY, widgetInstanceId),
+  );
+  const legacyStatusWidgetStorageKey = useDashboardStorageKey(STATUS_WIDGET_KEY);
+  const [selected, setSelected] = useState<string>(() => (
+    localStorage.getItem(statusWidgetStorageKey)
+      ?? (widgetInstanceId === 'feed-status' ? localStorage.getItem(legacyStatusWidgetStorageKey) : null)
+      ?? ''
+  ));
   const [temp, setTemp] = useState<string>(selected);
 
   const { statuses } = useTicketStatuses();
@@ -1714,6 +1743,7 @@ function FeedStatusWidget() {
     setSelected(temp);
     if (temp) localStorage.setItem(statusWidgetStorageKey, temp);
     else localStorage.removeItem(statusWidgetStorageKey);
+    if (widgetInstanceId === 'feed-status') localStorage.removeItem(legacyStatusWidgetStorageKey);
     setConfigOpen(false);
   };
 

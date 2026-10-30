@@ -8,3 +8,9 @@ export function dashboardPreferenceStorageKey(
 export function dashboardWidgetInstancePreferenceKey(key: string, widgetInstanceId: string): string {
   return `${key}:widget:${encodeURIComponent(widgetInstanceId)}`;
 }
+
+export function dashboardWidgetSettingsId(widgetId: string, widgetInstanceId: string): string {
+  return widgetInstanceId === widgetId || widgetInstanceId.startsWith(`${widgetId}__`)
+    ? widgetInstanceId
+    : widgetId;
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
+  dashboardWidgetSettingsId,
 } from "./dashboardPreferenceStorage";
 
 describe("dashboardPreferenceStorageKey", () => {
@@ -26,5 +27,24 @@ describe("dashboardPreferenceStorageKey", () => {
     const secondInstance = dashboardWidgetInstancePreferenceKey("td_widget_person_id", "feed-person__123");
 
     expect(firstInstance).not.toBe(secondInstance);
+  });
+});
+
+describe("dashboardWidgetSettingsId", () => {
+  it("uses the instance ID for duplicate widget settings", () => {
+    expect(dashboardWidgetSettingsId("feed-person", "feed-person__123"))
+      .toBe("feed-person__123");
+  });
+
+  it("keeps the base ID for the original widget and existing callers", () => {
+    expect(dashboardWidgetSettingsId("feed-person", "feed-person"))
+      .toBe("feed-person");
+    expect(dashboardWidgetSettingsId("feed-person", ""))
+      .toBe("feed-person");
+  });
+
+  it("does not mistake an unrelated widget ID for an instance", () => {
+    expect(dashboardWidgetSettingsId("feed-person", "feed-group__123"))
+      .toBe("feed-person");
   });
 });
