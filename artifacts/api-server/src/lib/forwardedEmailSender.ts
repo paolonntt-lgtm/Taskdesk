@@ -27,6 +27,7 @@ export function extractForwardedSender(text: string): string | null {
   const headerLines: string[] = [];
   for (const line of lines) {
     if (!line.trim()) break;
+    if (!/^[\w-]+:\s*/.test(line)) break;
     headerLines.push(line);
   }
   const senders = new Set(
