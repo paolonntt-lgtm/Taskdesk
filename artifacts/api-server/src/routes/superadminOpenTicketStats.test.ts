@@ -135,12 +135,13 @@ describe("superadmin ticket creation statistics", () => {
       headers: { Cookie: `session_id=${sessionId}` },
     });
     const body = await response.json() as {
-      organizations: Array<{ id: number }>;
+      organizations: Array<{ id: number; nextPaymentAt: string | null }>;
       ticketCreationStats: typeof baselineTicketCreationStats;
     };
 
     expect(response.status).toBe(200);
     expect(body.organizations.map((organization) => organization.id)).not.toContain(organizationIds[1]);
+    expect(body.organizations.find((organization) => organization.id === organizationIds[0])?.nextPaymentAt).toBeNull();
     expect(body.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 2);
     expect(body.ticketCreationStats.yesterday).toBeGreaterThanOrEqual(baselineTicketCreationStats.yesterday + 1);
     expect(body.ticketCreationStats.last7Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last7Days + 4);
@@ -152,6 +153,7 @@ describe("superadmin ticket creation statistics", () => {
     const allOrganizationsBody = await allOrganizationsResponse.json() as {
       organizations: Array<{
         id: number;
+        nextPaymentAt: string | null;
         ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
       }>;
       ticketCreationStats: typeof baselineTicketCreationStats;

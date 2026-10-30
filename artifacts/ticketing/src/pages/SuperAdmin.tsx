@@ -43,6 +43,7 @@ interface Organization {
   id: number;
   name: string;
   createdAt: string | null;
+  nextPaymentAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
   ticketCreationStats: TicketCreationStats;
@@ -406,7 +407,8 @@ export default function SuperAdmin() {
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {org.users.length} {org.users.length === 1 ? sa.userSingular : sa.userPlural} ·{' '}
-                        {sa.registeredOn} {formatDate(org.createdAt, dateLocale)}
+                        {sa.registeredOn} {formatDate(org.createdAt, dateLocale)} ·{' '}
+                        {sa.nextPayment}: {formatDate(org.nextPaymentAt, dateLocale)}
                       </Typography>
                     </Box>
                     {org.totalTickets > 0 && (

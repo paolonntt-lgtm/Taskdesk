@@ -4035,7 +4035,7 @@ components:
 
     SuperadminOrganizationSummary:
       type: object
-      required: [id, name, createdAt, hiddenFromSuperadmin, totalTickets, ticketCreationStats, users]
+      required: [id, name, createdAt, nextPaymentAt, hiddenFromSuperadmin, totalTickets, ticketCreationStats, users]
       properties:
         id:
           type: integer
@@ -4045,6 +4045,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        nextPaymentAt:
+          type: ["string", "null"]
+          format: date-time
         hiddenFromSuperadmin:
           type: boolean
         totalTickets:

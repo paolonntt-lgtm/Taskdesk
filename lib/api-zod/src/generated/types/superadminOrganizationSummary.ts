@@ -12,6 +12,8 @@ export interface SuperadminOrganizationSummary {
   id: number;
   name: string;
   createdAt: Date | null;
+  /** @nullable */
+  nextPaymentAt: Date | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
   ticketCreationStats: TicketCreationStats;

@@ -3679,6 +3679,7 @@ export const GetSuperadminOrganizationsResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "createdAt": zod.coerce.date().nullable(),
+  "nextPaymentAt": zod.coerce.date().nullable(),
   "hiddenFromSuperadmin": zod.boolean(),
   "totalTickets": zod.int(),
   "ticketCreationStats": zod.object({
