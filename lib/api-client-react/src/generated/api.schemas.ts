@@ -523,6 +523,26 @@ export const TicketWithDetailsClientAssociationIssue = {
   conflicting_domain_rules: 'conflicting_domain_rules',
 } as const;
 
+export type TicketWithDetailsEmailClientAssociationReason = typeof TicketWithDetailsEmailClientAssociationReason[keyof typeof TicketWithDetailsEmailClientAssociationReason];
+
+
+export const TicketWithDetailsEmailClientAssociationReason = {
+  profile_contact: 'profile_contact',
+  sender_rule: 'sender_rule',
+  domain_rule: 'domain_rule',
+  original_sender: 'original_sender',
+  no_match: 'no_match',
+  conflict: 'conflict',
+} as const;
+
+export type TicketWithDetailsEmailClientAssociationSource = typeof TicketWithDetailsEmailClientAssociationSource[keyof typeof TicketWithDetailsEmailClientAssociationSource] | null;
+
+
+export const TicketWithDetailsEmailClientAssociationSource = {
+  external_sender: 'external_sender',
+  original_sender: 'original_sender',
+} as const;
+
 export interface TicketTimeSession {
   id: number;
   userId: number;
@@ -550,6 +570,9 @@ export type TicketWithDetails = Ticket & ({
   noteCount: number;
   inboundChannelName?: string | null;
   clientAssociationIssue?: TicketWithDetailsClientAssociationIssue;
+  emailClientAssociationReason?: TicketWithDetailsEmailClientAssociationReason;
+  emailClientAssociationSource?: TicketWithDetailsEmailClientAssociationSource;
+  emailClientAssociationForwarded?: boolean | null;
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;

@@ -342,8 +342,14 @@ function buildTicketWithDetails(
   inboundChannelName?: string | null,
   client?: { id: number; name: string; alias?: string | null } | null,
 ) {
+  const {
+    emailClientAssociationReason: _emailClientAssociationReason,
+    emailClientAssociationSource: _emailClientAssociationSource,
+    emailClientAssociationForwarded: _emailClientAssociationForwarded,
+    ...ticketFields
+  } = ticket;
   return {
-    ...ticket,
+    ...ticketFields,
     creator: {
       id: creator.id,
       name: creator.name,
@@ -1680,6 +1686,14 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   );
   if (currentUser.role === "admin" && clientsEnabled) {
     (detail as any).suggestedClient = suggestedClient;
+    if (
+      (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) &&
+      typeof ticket.emailClientAssociationReason === "string"
+    ) {
+      (detail as any).emailClientAssociationReason = ticket.emailClientAssociationReason;
+      (detail as any).emailClientAssociationSource = ticket.emailClientAssociationSource;
+      (detail as any).emailClientAssociationForwarded = ticket.emailClientAssociationForwarded;
+    }
     if (clientAssociationIssue) {
       (detail as any).clientAssociationIssue = clientAssociationIssue;
     }

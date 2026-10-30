@@ -158,6 +158,9 @@ describe("forwarded inbound ticket creation", () => {
       clientId: 21,
       emailMessageId: "<forwarded-message@forwarding.example>",
       emailConversationId: "conversation-789",
+      emailClientAssociationReason: "profile_contact",
+      emailClientAssociationSource: "external_sender",
+      emailClientAssociationForwarded: true,
     });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
       associationCriterion: "profile_contact",
@@ -178,6 +181,9 @@ describe("forwarded inbound ticket creation", () => {
       clientId: 22,
       emailMessageId: "<forwarded-message@forwarding.example>",
       emailConversationId: "conversation-789",
+      emailClientAssociationReason: "original_sender",
+      emailClientAssociationSource: "original_sender",
+      emailClientAssociationForwarded: true,
     });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
       associationCriterion: "original_sender",
@@ -207,6 +213,9 @@ describe("forwarded inbound ticket creation", () => {
       resource: "unknown-forwarder@gmail.com",
       clientId: null,
       suggestedClientId: null,
+      emailClientAssociationReason: "no_match",
+      emailClientAssociationSource: null,
+      emailClientAssociationForwarded: true,
     });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
       associationCriterion: "none",
@@ -215,6 +224,37 @@ describe("forwarded inbound ticket creation", () => {
       originalSenderStatus: "available",
       originalSenderMatch: "none",
     }), "Inbound email client association resolved");
+  });
+
+  it("records conflicts on the original sender without associating the ticket", async () => {
+    mocks.clients = [
+      {
+        id: 31,
+        organizationId: 7,
+        name: "Original Client One",
+        alias: null,
+        email: "customer@acme.example",
+        pec: null,
+      },
+      {
+        id: 32,
+        organizationId: 7,
+        name: "Original Client Two",
+        alias: null,
+        email: null,
+        pec: "customer@acme.example",
+      },
+    ];
+
+    await createTicketFromEmail(baseInput);
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      clientId: null,
+      emailClientAssociationReason: "conflict",
+      emailClientAssociationSource: "original_sender",
+      emailClientAssociationForwarded: true,
+    });
   });
 
   it("does not use a legacy sender rule for a direct inbound email", async () => {

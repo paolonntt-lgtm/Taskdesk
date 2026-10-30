@@ -338,6 +338,19 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     : matchedOriginalSender
       ? "original_sender"
       : clientAssociation.matchType ?? "none";
+  const associationReason = clientAssociation.clientAssociationIssue
+    ? "conflict"
+    : clientAssociation.clientId == null
+      ? "no_match"
+      : associationCriterion;
+  const associationSource = clientAssociation.clientId != null
+    ? matchedOriginalSender ? "original_sender" : "external_sender"
+    : clientAssociation.clientAssociationIssue
+      ? originalSenderAssociation?.clientAssociationIssue === clientAssociation.clientAssociationIssue &&
+        !outerSenderAssociation.clientAssociationIssue
+        ? "original_sender"
+        : "external_sender"
+      : null;
   const originalSenderStatus = !isForwarded
     ? "not_forwarded"
     : originalSenderAvailable ? "available" : "unavailable";
@@ -431,6 +444,9 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       inboundChannelId: inboundChannelId ?? null,
       clientId: clientAssociation.clientId,
       suggestedClientId: clientAssociation.suggestedClientId,
+      emailClientAssociationReason: associationReason,
+      emailClientAssociationSource: associationSource,
+      emailClientAssociationForwarded: isForwarded,
     })
     .returning();
 
@@ -438,6 +454,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     ticketId: ticket.id,
     ticketNumber: nextTicketNumber,
     associationCriterion,
+    associationReason,
+    associationSource,
     externalSenderMatch: outerSenderAssociation.matchType ?? "none",
     forwarded: isForwarded,
     originalSenderStatus,

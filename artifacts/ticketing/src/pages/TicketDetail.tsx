@@ -37,6 +37,8 @@ import PermissionGateButton from '../components/PermissionGateButton';
 import ClientEmailAssociationDialog from '../components/ClientEmailAssociationDialog';
 import { trackEvent } from '../lib/analytics';
 
+import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -929,6 +931,15 @@ export default function TicketDetail() {
       ? [selectedTicketClient, ...clientsList]
       : clientsList;
   const ticketSenderEmail = extractTicketSenderEmail((ticket as any).resource);
+  const emailAssociationReason = (ticket as any).emailClientAssociationReason as string | undefined;
+  const emailAssociationSource = (ticket as any).emailClientAssociationSource as string | null | undefined;
+  const emailAssociationForwarded = (ticket as any).emailClientAssociationForwarded as boolean | null | undefined;
+  const emailAssociationExplanationKey = getEmailClientAssociationExplanationKey({
+    reason: emailAssociationReason,
+    source: emailAssociationSource,
+    forwarded: emailAssociationForwarded,
+    hasCurrentConflict: Boolean((ticket as any).clientAssociationIssue),
+  });
 
   const handleClientAssociationChange = async (clientId: number, addSenderEmailToClient = false) => {
     setClientAssociationBusy(true);
@@ -1264,6 +1275,19 @@ export default function TicketDetail() {
             {ticket.title}
           </Box>
 
+          {isAdmin && clientsEnabled && hasInboundEmailMetadata && (
+            <Alert
+              severity={emailAssociationReason === 'conflict' || (ticket as any).clientAssociationIssue ? 'warning' : 'info'}
+              data-testid="email-client-association-reason"
+              sx={{ mb: 2 }}
+            >
+              <Typography variant="subtitle2" fontWeight={700}>
+                {t.ticketDetail.emailClientAssociationReasonTitle}
+              </Typography>
+              <Typography variant="body2">{t.ticketDetail[emailAssociationExplanationKey]}</Typography>
+            </Alert>
+          )}
+
           {clientsEnabled && !hideAssociatedInboundClientSelector && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
               {isAdmin && !hideAssociatedInboundClientSelector ? (
@@ -1339,15 +1363,6 @@ export default function TicketDetail() {
               )}
               {clientAssociationError && (
                 <FormHelperText error>{clientAssociationError}</FormHelperText>
-              )}
-              {isAdmin && (ticket as any).clientAssociationIssue && (
-                <Alert
-                  severity="warning"
-                  data-testid="client-association-issue-alert"
-                  sx={{ mt: 1.5 }}
-                >
-                  {t.ticketDetail.emailClientAssociationExactConflict}
-                </Alert>
               )}
             </Box>
           )}

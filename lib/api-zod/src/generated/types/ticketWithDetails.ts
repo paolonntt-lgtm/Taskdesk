@@ -9,6 +9,8 @@ import type { Ticket } from './ticket';
 import type { TicketTimeSession } from './ticketTimeSession';
 import type { TicketTimeSummary } from './ticketTimeSummary';
 import type { TicketWithDetailsClientAssociationIssue } from './ticketWithDetailsClientAssociationIssue';
+import type { TicketWithDetailsEmailClientAssociationReason } from './ticketWithDetailsEmailClientAssociationReason';
+import type { TicketWithDetailsEmailClientAssociationSource } from './ticketWithDetailsEmailClientAssociationSource';
 import type { User } from './user';
 
 export type TicketWithDetails = Ticket & ({
@@ -18,6 +20,9 @@ export type TicketWithDetails = Ticket & ({
   noteCount: number;
   inboundChannelName?: string | null;
   clientAssociationIssue?: TicketWithDetailsClientAssociationIssue;
+  emailClientAssociationReason?: TicketWithDetailsEmailClientAssociationReason;
+  emailClientAssociationSource?: TicketWithDetailsEmailClientAssociationSource;
+  emailClientAssociationForwarded?: boolean | null;
   timeSessions?: TicketTimeSession[];
   timeTrackingSummary?: TicketTimeSummary;
   canChangeStatus?: boolean;

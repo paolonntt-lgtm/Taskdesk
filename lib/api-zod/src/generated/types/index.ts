@@ -163,6 +163,8 @@ export * from './ticketTimeSummary';
 export * from './ticketVisibility';
 export * from './ticketWithDetails';
 export * from './ticketWithDetailsClientAssociationIssue';
+export * from './ticketWithDetailsEmailClientAssociationReason';
+export * from './ticketWithDetailsEmailClientAssociationSource';
 export * from './ticketWorkedBillingStatus';
 export * from './timeTrackingClientBillingUpdate';
 export * from './timeTrackingClientBillingUpdateStatus';

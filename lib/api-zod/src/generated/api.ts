@@ -781,6 +781,9 @@ export const ListTicketsResponseItem = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -948,6 +951,9 @@ export const CreateTicketResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1105,6 +1111,9 @@ export const GetTicketResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1267,6 +1276,9 @@ export const UpdateTicketResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1465,6 +1477,9 @@ export const CloneTicketResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1619,6 +1634,9 @@ export const SetTicketRecurrenceResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -1758,6 +1776,9 @@ export const DeleteTicketRecurrenceResponse = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3340,6 +3361,9 @@ export const GetRecentTicketsResponseItem = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3482,6 +3506,9 @@ export const GetMyTicketsResponseItem = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),
@@ -3618,6 +3645,9 @@ export const GetDueSoonTicketsResponseItem = zod.object({
   "noteCount": zod.int(),
   "inboundChannelName": zod.string().nullish(),
   "clientAssociationIssue": zod.enum(['conflicting_exact_matches', 'conflicting_domain_rules']).optional(),
+  "emailClientAssociationReason": zod.enum(['profile_contact', 'sender_rule', 'domain_rule', 'original_sender', 'no_match', 'conflict']).optional(),
+  "emailClientAssociationSource": zod.enum(['external_sender', 'original_sender']).nullish(),
+  "emailClientAssociationForwarded": zod.boolean().nullish(),
   "timeSessions": zod.array(zod.object({
   "id": zod.int(),
   "userId": zod.int(),

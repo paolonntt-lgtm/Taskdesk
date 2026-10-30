@@ -4411,6 +4411,16 @@ components:
             clientAssociationIssue:
               type: string
               enum: [conflicting_exact_matches, conflicting_domain_rules]
+            emailClientAssociationReason:
+              type: string
+              enum: [profile_contact, sender_rule, domain_rule, original_sender, no_match, conflict]
+            emailClientAssociationSource:
+              type: string
+              enum: [external_sender, original_sender]
+              nullable: true
+            emailClientAssociationForwarded:
+              type: boolean
+              nullable: true
             timeSessions:
               type: array
               items:

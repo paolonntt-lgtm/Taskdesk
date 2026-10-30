@@ -14,6 +14,14 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS worked_minutes INTEGER;
     `);
 
+    // Keep a safe snapshot of why a newly received email was associated with a client.
+    await client.query(`
+      ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS email_client_association_reason TEXT,
+        ADD COLUMN IF NOT EXISTS email_client_association_source TEXT,
+        ADD COLUMN IF NOT EXISTS email_client_association_forwarded BOOLEAN;
+    `);
+
     // Track whether recorded extra work has already been billed.
     await client.query(`
       ALTER TABLE tickets

@@ -77,6 +77,9 @@ describe("admin-only inbound email client association warnings", () => {
       visibility: "organization",
       createdBy: adminId,
       emailMessageId: `<${runId}@example.test>`,
+      emailClientAssociationReason: "conflict",
+      emailClientAssociationSource: "external_sender",
+      emailClientAssociationForwarded: true,
     }).returning({ id: ticketsTable.id });
     ticketId = ticket.id;
 
@@ -119,7 +122,13 @@ describe("admin-only inbound email client association warnings", () => {
 
     expect(adminResponse.status).toBe(200);
     expect(adminResponse.body.clientAssociationIssue).toBe("conflicting_exact_matches");
+    expect(adminResponse.body.emailClientAssociationReason).toBe("conflict");
+    expect(adminResponse.body.emailClientAssociationSource).toBe("external_sender");
+    expect(adminResponse.body.emailClientAssociationForwarded).toBe(true);
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("clientAssociationIssue");
+    expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationReason");
+    expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationSource");
+    expect(JSON.stringify(collaboratorResponse.body)).not.toContain("emailClientAssociationForwarded");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client One");
     expect(JSON.stringify(collaboratorResponse.body)).not.toContain("Private Client Two");
   });

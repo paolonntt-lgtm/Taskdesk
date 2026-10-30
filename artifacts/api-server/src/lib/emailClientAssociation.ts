@@ -115,6 +115,6 @@ export function chooseForwardedEmailAssociation(
   originalSender?: EmailClientAssociationResult,
 ): EmailClientAssociationResult {
   if (outerSender.clientId != null || outerSender.clientAssociationIssue) return outerSender;
-  if (originalSender?.clientId != null) return originalSender;
+  if (originalSender?.clientId != null || originalSender?.clientAssociationIssue) return originalSender;
   return outerSender;
 }
