@@ -9,54 +9,9 @@ import {
 } from "@workspace/db";
 import { createNotificationForUser } from "./notifications";
 import { logger } from "./logger";
-import { computeNextWeeklyRecurrence } from "./weeklyRecurrence";
+import { computeNextRecurrenceOccurrence, parseRecurrenceEndDate, type RecurrenceRule } from "./recurrenceSchedule";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
-
-interface RecurrenceRule {
-  frequency: "daily" | "weekly" | "monthly" | "yearly";
-  interval?: number;
-  dayOfMonth?: number | null;
-  dayOfWeek?: number | null;
-  endDate?: string | null;
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function addMonthsOnDay(from: Date, months: number, dayOfMonth?: number | null): Date {
-  const targetDay = Math.min(31, Math.max(1, Math.round(dayOfMonth ?? from.getDate())));
-  const next = new Date(from);
-  next.setDate(1);
-  next.setMonth(next.getMonth() + months);
-  next.setDate(Math.min(targetDay, daysInMonth(next.getFullYear(), next.getMonth())));
-  return next;
-}
-
-function computeNextAt(current: Date, rule: RecurrenceRule): Date {
-  const n = Math.max(1, Math.round(rule.interval ?? 1));
-  const next = new Date(current);
-  switch (rule.frequency) {
-    case "daily":
-      next.setDate(next.getDate() + n);
-      break;
-    case "weekly":
-      return computeNextWeeklyRecurrence(current, n, rule.dayOfWeek);
-    case "monthly":
-      return addMonthsOnDay(current, n, rule.dayOfMonth);
-    case "yearly":
-      next.setFullYear(next.getFullYear() + n);
-      break;
-  }
-  return next;
-}
-
-function parseEndDate(value: string): Date {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? new Date(`${value}T23:59:59.999`)
-    : new Date(value);
-}
 
 async function checkTicketRecurrences(): Promise<void> {
   try {
@@ -102,7 +57,7 @@ async function checkTicketRecurrences(): Promise<void> {
       if (!rule?.frequency) continue;
 
       const occurrenceAt = ticket.recurrenceNextAt!;
-      const endDate = rule.endDate ? parseEndDate(rule.endDate) : null;
+      const endDate = rule.endDate ? parseRecurrenceEndDate(rule.endDate) : null;
       if (endDate && occurrenceAt > endDate) {
         await db
           .update(ticketsTable)
@@ -110,7 +65,7 @@ async function checkTicketRecurrences(): Promise<void> {
           .where(eq(ticketsTable.id, ticket.id));
         continue;
       }
-      const nextAt = computeNextAt(occurrenceAt, rule);
+      const nextAt = computeNextRecurrenceOccurrence(occurrenceAt, rule);
       const shouldContinue = !endDate || nextAt <= endDate;
 
       const violatesTimeTrackingRequirements =

@@ -3,6 +3,7 @@ import { eq, and, gte, lt, isNotNull, inArray, isNull, or } from "drizzle-orm";
 import { db, ticketsTable, usersTable, appointmentsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { getCalendarDateKeysForEvent } from "../lib/calendarDateKeys";
+import { getRecurrenceOccurrencesInRange, type RecurrenceRule } from "../lib/recurrenceSchedule";
 
 const router: IRouter = Router();
 
@@ -56,8 +57,41 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
     .from(ticketsTable)
     .where(and(...ticketConditions));
 
-  // Fetch assignee info for tickets
-  const assigneeIds = [...new Set(tickets.map((t) => t.assignedTo).filter(Boolean))] as number[];
+  const recurrenceConditions: any[] = [
+    isNotNull(ticketsTable.recurrenceRule),
+    isNotNull(ticketsTable.recurrenceNextAt),
+    lt(ticketsTable.recurrenceNextAt, end),
+  ];
+  if (orgId != null) recurrenceConditions.push(eq(ticketsTable.organizationId, orgId));
+  if (!isAdmin) {
+    recurrenceConditions.push(
+      eq(ticketsTable.visibility, "organization"),
+      or(
+        eq(ticketsTable.createdBy, currentUser.id),
+        eq(ticketsTable.assignedTo, currentUser.id),
+      ),
+    );
+  }
+
+  const recurringTickets = await db
+    .select({
+      id: ticketsTable.id,
+      title: ticketsTable.title,
+      priority: ticketsTable.priority,
+      assignedTo: ticketsTable.assignedTo,
+      createdBy: ticketsTable.createdBy,
+      ticketNumber: ticketsTable.ticketNumber,
+      recurrenceRule: ticketsTable.recurrenceRule,
+      recurrenceNextAt: ticketsTable.recurrenceNextAt,
+    })
+    .from(ticketsTable)
+    .where(and(...recurrenceConditions));
+
+  // Fetch assignee info for existing tickets and calendar-only recurrence previews.
+  const assigneeIds = [...new Set([
+    ...tickets.map((t) => t.assignedTo),
+    ...recurringTickets.map((t) => t.assignedTo),
+  ].filter(Boolean))] as number[];
   const ticketAssignees = assigneeIds.length > 0
     ? await db.select({ id: usersTable.id, name: usersTable.name, avatarUrl: usersTable.avatarUrl })
         .from(usersTable)
@@ -107,6 +141,31 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
         ticketEvent,
         date,
         startsAt: dateValue.toISOString(),
+      });
+    }
+  }
+
+  for (const ticket of recurringTickets) {
+    if (!ticket.recurrenceNextAt) continue;
+    const rule = ticket.recurrenceRule as RecurrenceRule | null;
+    if (!rule?.frequency) continue;
+
+    for (const occurrenceAt of getRecurrenceOccurrencesInRange(ticket.recurrenceNextAt, rule, start, end)) {
+      const date = `${occurrenceAt.getFullYear()}-${String(occurrenceAt.getMonth() + 1).padStart(2, '0')}-${String(occurrenceAt.getDate()).padStart(2, '0')}`;
+      items.push({
+        type: 'ticket',
+        ticketEvent: 'recurrence',
+        id: ticket.id,
+        title: ticket.title,
+        date,
+        startsAt: occurrenceAt.toISOString(),
+        endsAt: null,
+        status: null,
+        priority: ticket.priority,
+        assignee: ticket.assignedTo ? (ticketAssigneeMap.get(ticket.assignedTo) ?? null) : null,
+        description: null,
+        createdBy: ticket.createdBy,
+        ticketNumber: ticket.ticketNumber,
       });
     }
   }

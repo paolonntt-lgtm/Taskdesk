@@ -18,6 +18,8 @@ let baseUrl: string;
 let organizationId: number;
 let adminId: number;
 let adminSessionId: string;
+let recurrenceStart: Date;
+let recurrenceEnd: Date;
 const ticketIds: number[] = [];
 
 const dateKey = (date: Date) =>
@@ -68,6 +70,23 @@ describe("calendar scheduled tickets", () => {
       ticketIds.push(ticket.id);
     }
 
+    recurrenceStart = new Date(year, month, 20, 12);
+    recurrenceEnd = new Date(recurrenceStart);
+    recurrenceEnd.setDate(recurrenceEnd.getDate() + 2);
+    const [recurringTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Recurring template ${runId}`,
+      description: "Calendar recurrence preview fixture.",
+      category: "Support",
+      location: "",
+      status: "open",
+      priority: "medium",
+      createdBy: adminId,
+      recurrenceRule: { frequency: "daily", interval: 1, endDate: dateKey(recurrenceEnd) },
+      recurrenceNextAt: recurrenceStart,
+    }).returning({ id: ticketsTable.id });
+    ticketIds.push(recurringTicket.id);
+
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -110,6 +129,7 @@ describe("calendar scheduled tickets", () => {
       type: string;
       ticketEvent?: string;
       date: string;
+      status?: string | null;
     }>;
     expect(items).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: ticketIds[0], type: "ticket", ticketEvent: "due", date: dateKey(new Date(now.getFullYear(), now.getMonth(), 10, 12)) }),
@@ -118,5 +138,12 @@ describe("calendar scheduled tickets", () => {
     ]));
     expect(items.filter((item) => item.id === ticketIds[2])).toHaveLength(1);
     expect(items.some((item) => item.id === ticketIds[3])).toBe(false);
+    const recurrenceItems = items.filter((item) => item.id === ticketIds[4]);
+    expect(recurrenceItems.map((item) => item.date)).toEqual([
+      dateKey(recurrenceStart),
+      dateKey(new Date(recurrenceStart.getFullYear(), recurrenceStart.getMonth(), recurrenceStart.getDate() + 1, 12)),
+      dateKey(recurrenceEnd),
+    ]);
+    expect(recurrenceItems.every((item) => item.ticketEvent === "recurrence" && item.status === null)).toBe(true);
   });
 });

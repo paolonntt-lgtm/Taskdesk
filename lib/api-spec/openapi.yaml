@@ -6213,8 +6213,8 @@ components:
           enum: [ticket, appointment]
         ticketEvent:
           type: string
-          enum: [due, scheduled]
-          description: Whether a ticket calendar item represents its due date or scheduled date.
+          enum: [due, scheduled, recurrence]
+          description: Whether a ticket calendar item represents its due date, scheduled date, or a future recurrence preview.
         date:
           type: string
           format: date

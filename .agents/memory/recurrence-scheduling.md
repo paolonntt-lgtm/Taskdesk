@@ -14,3 +14,9 @@ Weekly recurring tickets may select an explicit weekday; older rules without one
 **Why:** Users need to choose “every Tuesday” independently of the day they create the first ticket, while existing recurring tickets must not change schedule after the feature is introduced.
 
 **How to apply:** Treat the selected weekday as a strict future target, use the configured week interval, and fall back to the legacy seven-day progression when the field is absent.
+
+Future recurring occurrences should appear as calendar-only previews; create the actual open ticket only when its scheduled occurrence arrives.
+
+**Why:** The user wants to see planned openings in advance without future recurring tickets appearing as already-open work.
+
+**How to apply:** Derive future calendar events from the recurrence rule and next-occurrence cursor. Do not insert future occurrence tickets ahead of the recurrence job’s scheduled date.

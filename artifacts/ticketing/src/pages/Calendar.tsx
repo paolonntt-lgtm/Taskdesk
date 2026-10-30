@@ -20,7 +20,7 @@ import { useTicketStatuses } from '../hooks/useTicketStatuses';
 
 type CalendarItem = {
   type: 'ticket' | 'appointment';
-  ticketEvent?: 'due' | 'scheduled';
+  ticketEvent?: 'due' | 'scheduled' | 'recurrence';
   date: string;
   id: number;
   title: string;
@@ -485,8 +485,9 @@ export default function CalendarPage() {
   };
 
   const selectedItems = selectedDate ? (itemsByDate.get(selectedDate) ?? []) : [];
-  const selectedTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled');
+  const selectedTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled' && i.ticketEvent !== 'recurrence');
   const selectedScheduledTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent === 'scheduled');
+  const selectedRecurrenceTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent === 'recurrence');
   const selectedAppointments = selectedItems.filter(i => i.type === 'appointment');
 
   const handleAppointmentClick = async (item: CalendarItem) => {
@@ -606,8 +607,9 @@ export default function CalendarPage() {
                   const isToday = dateStr === todayStr;
                   const isSelected = dateStr === selectedDate;
                   const dayItems = dateStr ? (itemsByDate.get(dateStr) ?? []) : [];
-                  const hasTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled');
+                  const hasTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled' && i.ticketEvent !== 'recurrence');
                   const hasScheduledTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent === 'scheduled');
+                  const hasRecurrenceTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent === 'recurrence');
                   const hasAppointments = dayItems.some(i => i.type === 'appointment');
 
                   return (
@@ -662,6 +664,7 @@ export default function CalendarPage() {
                           <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', justifyContent: 'center' }}>
                             {hasTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'warning.main' }} />}
                             {hasScheduledTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'primary.main' }} />}
+                            {hasRecurrenceTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'info.main' }} />}
                             {hasAppointments && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'secondary.main' }} />}
                           </Box>
                         </>
@@ -683,6 +686,10 @@ export default function CalendarPage() {
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
             <Typography variant="caption" color="text.secondary">{t.calendar.scheduledTickets}</Typography>
           </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'info.main' }} />
+              <Typography variant="caption" color="text.secondary">{t.calendar.upcomingOpenings}</Typography>
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} />
               <Typography variant="caption" color="text.secondary">{t.calendar.appointments}</Typography>
@@ -785,7 +792,7 @@ export default function CalendarPage() {
                   </Box>
                 )}
 
-                {selectedTickets.length > 0 && (selectedScheduledTickets.length > 0 || selectedAppointments.length > 0) && (
+                {selectedTickets.length > 0 && (selectedScheduledTickets.length > 0 || selectedRecurrenceTickets.length > 0 || selectedAppointments.length > 0) && (
                   <Divider sx={{ my: 0.5 }} />
                 )}
 
@@ -848,7 +855,58 @@ export default function CalendarPage() {
                   </Box>
                 )}
 
-                {selectedScheduledTickets.length > 0 && selectedAppointments.length > 0 && (
+                {selectedScheduledTickets.length > 0 && (selectedRecurrenceTickets.length > 0 || selectedAppointments.length > 0) && (
+                  <Divider sx={{ my: 0.5 }} />
+                )}
+
+                {/* Future recurrence openings are calendar previews, not created tickets. */}
+                {selectedRecurrenceTickets.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                      <TicketIcon sx={{ fontSize: 14, color: 'info.main' }} />
+                      <Typography variant="caption" fontWeight={700} color="info.main" textTransform="uppercase" letterSpacing={0.5}>
+                        {t.calendar.upcomingOpenings}
+                      </Typography>
+                      <Chip label={selectedRecurrenceTickets.length} size="small" color="info" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      {selectedRecurrenceTickets.map((item) => (
+                        <Box
+                          key={`recurrence-${item.id}-${item.date}`}
+                          onClick={() => setLocation(`/tickets/${item.id}?from=calendar`)}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1,
+                            p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'info.light',
+                            cursor: 'pointer', bgcolor: 'background.paper',
+                            '&:hover': { bgcolor: 'info.50', borderColor: 'info.main' },
+                            transition: 'all 0.13s',
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ flexShrink: 0, minWidth: 36, color: 'info.dark', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {item.startsAt ? formatTime(item.startsAt) : ''}
+                          </Typography>
+                          <TicketIcon sx={{ color: 'info.main', flexShrink: 0, fontSize: 16 }} />
+                          <Box flex={1} minWidth={0}>
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
+                            </Typography>
+                          </Box>
+                          {item.assignee && (
+                            <Avatar src={item.assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: '0.6rem', flexShrink: 0 }}>
+                              {item.assignee.name.charAt(0)}
+                            </Avatar>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {(selectedScheduledTickets.length > 0 || selectedRecurrenceTickets.length > 0) && selectedAppointments.length > 0 && (
                   <Divider sx={{ my: 0.5 }} />
                 )}
 

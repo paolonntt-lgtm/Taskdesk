@@ -11,7 +11,7 @@ import type { CalendarItemType } from './calendarItemType';
 
 export interface CalendarItem {
   type: CalendarItemType;
-  /** Whether a ticket calendar item represents its due date or scheduled date. */
+  /** Whether a ticket calendar item represents its due date, scheduled date, or a future recurrence preview. */
   ticketEvent?: CalendarItemTicketEvent;
   date: Date;
   id: number;

@@ -4631,7 +4631,7 @@ export const GetCalendarQueryParams = zod.object({
 
 export const GetCalendarResponseItem = zod.object({
   "type": zod.enum(['ticket', 'appointment']),
-  "ticketEvent": zod.enum(['due', 'scheduled']).optional().describe('Whether a ticket calendar item represents its due date or scheduled date.'),
+  "ticketEvent": zod.enum(['due', 'scheduled', 'recurrence']).optional().describe('Whether a ticket calendar item represents its due date, scheduled date, or a future recurrence preview.'),
   "date": zod.coerce.date(),
   "id": zod.int(),
   "title": zod.string(),

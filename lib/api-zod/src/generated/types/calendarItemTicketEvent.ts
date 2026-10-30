@@ -7,7 +7,7 @@
  */
 
 /**
- * Whether a ticket calendar item represents its due date or scheduled date.
+ * Whether a ticket calendar item represents its due date, scheduled date, or a future recurrence preview.
  */
 export type CalendarItemTicketEvent = typeof CalendarItemTicketEvent[keyof typeof CalendarItemTicketEvent];
 
@@ -15,4 +15,5 @@ export type CalendarItemTicketEvent = typeof CalendarItemTicketEvent[keyof typeo
 export const CalendarItemTicketEvent = {
   due: 'due',
   scheduled: 'scheduled',
+  recurrence: 'recurrence',
 } as const;
