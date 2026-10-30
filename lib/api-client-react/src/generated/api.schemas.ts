@@ -1482,6 +1482,17 @@ export const CalendarItemType = {
   appointment: 'appointment',
 } as const;
 
+/**
+ * Whether a ticket calendar item represents its due date or scheduled date.
+ */
+export type CalendarItemTicketEvent = typeof CalendarItemTicketEvent[keyof typeof CalendarItemTicketEvent];
+
+
+export const CalendarItemTicketEvent = {
+  due: 'due',
+  scheduled: 'scheduled',
+} as const;
+
 export type CalendarItemAssignee = {
   id?: number;
   name?: string;
@@ -1490,6 +1501,8 @@ export type CalendarItemAssignee = {
 
 export interface CalendarItem {
   type: CalendarItemType;
+  /** Whether a ticket calendar item represents its due date or scheduled date. */
+  ticketEvent?: CalendarItemTicketEvent;
   date: string;
   id: number;
   title: string;

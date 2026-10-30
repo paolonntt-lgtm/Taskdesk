@@ -23,18 +23,21 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
   const start = new Date(y, m - 1, 1);
   const end = new Date(y, m, 1);
 
-  // Fetch tickets due in this month (org-scoped, role-filtered)
+  // Fetch due and future-scheduled tickets in this month (org-scoped, role-filtered)
   const ticketConditions: any[] = [
-    isNotNull(ticketsTable.dueAt),
-    gte(ticketsTable.dueAt, start),
-    lt(ticketsTable.dueAt, end),
+    or(
+      and(isNotNull(ticketsTable.dueAt), gte(ticketsTable.dueAt, start), lt(ticketsTable.dueAt, end)),
+      and(isNotNull(ticketsTable.scheduledAt), gte(ticketsTable.scheduledAt, start), lt(ticketsTable.scheduledAt, end)),
+    ),
   ];
   if (orgId != null) ticketConditions.push(eq(ticketsTable.organizationId, orgId));
   if (!isAdmin) {
     ticketConditions.push(
       eq(ticketsTable.visibility, "organization"),
-      // Regular users only see tickets they created or are assigned to
-      eq(ticketsTable.createdBy, currentUser.id),
+      or(
+        eq(ticketsTable.createdBy, currentUser.id),
+        eq(ticketsTable.assignedTo, currentUser.id),
+      ),
     );
   }
 
@@ -45,6 +48,7 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
       status: ticketsTable.status,
       priority: ticketsTable.priority,
       dueAt: ticketsTable.dueAt,
+      scheduledAt: ticketsTable.scheduledAt,
       assignedTo: ticketsTable.assignedTo,
       createdBy: ticketsTable.createdBy,
       ticketNumber: ticketsTable.ticketNumber,
@@ -52,42 +56,8 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
     .from(ticketsTable)
     .where(and(...ticketConditions));
 
-  // For non-admins, also include tickets assigned to them (in addition to created by them)
-  let assignedTickets: typeof tickets = [];
-  if (!isAdmin && orgId != null) {
-    const assignedConditions: any[] = [
-      isNotNull(ticketsTable.dueAt),
-      gte(ticketsTable.dueAt, start),
-      lt(ticketsTable.dueAt, end),
-      eq(ticketsTable.organizationId, orgId),
-      eq(ticketsTable.visibility, "organization"),
-      eq(ticketsTable.assignedTo, currentUser.id),
-    ];
-    assignedTickets = await db
-      .select({
-        id: ticketsTable.id,
-        title: ticketsTable.title,
-        status: ticketsTable.status,
-        priority: ticketsTable.priority,
-        dueAt: ticketsTable.dueAt,
-        assignedTo: ticketsTable.assignedTo,
-        createdBy: ticketsTable.createdBy,
-        ticketNumber: ticketsTable.ticketNumber,
-      })
-      .from(ticketsTable)
-      .where(and(...assignedConditions));
-  }
-
-  // Merge and deduplicate tickets
-  const allTicketIds = new Set<number>();
-  const allTickets = [...tickets, ...assignedTickets].filter((t) => {
-    if (allTicketIds.has(t.id)) return false;
-    allTicketIds.add(t.id);
-    return true;
-  });
-
   // Fetch assignee info for tickets
-  const assigneeIds = [...new Set(allTickets.map((t) => t.assignedTo).filter(Boolean))] as number[];
+  const assigneeIds = [...new Set(tickets.map((t) => t.assignedTo).filter(Boolean))] as number[];
   const ticketAssignees = assigneeIds.length > 0
     ? await db.select({ id: usersTable.id, name: usersTable.name, avatarUrl: usersTable.avatarUrl })
         .from(usersTable)
@@ -113,15 +83,11 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
   // Build unified CalendarItem array
   const items: any[] = [];
 
-  for (const t of allTickets) {
-    const due = t.dueAt!;
-    const date = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
-    items.push({
+  for (const t of tickets) {
+    const baseItem = {
       type: 'ticket',
-      date,
       id: t.id,
       title: t.title,
-      startsAt: due.toISOString(),
       endsAt: null,
       status: t.status,
       priority: t.priority,
@@ -129,7 +95,20 @@ router.get("/calendar", requireAuth, async (req, res): Promise<void> => {
       description: null,
       createdBy: t.createdBy,
       ticketNumber: t.ticketNumber,
-    });
+    };
+    for (const [ticketEvent, dateValue] of [
+      ['due', t.dueAt],
+      ['scheduled', t.scheduledAt],
+    ] as const) {
+      if (!dateValue || dateValue < start || dateValue >= end) continue;
+      const date = `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, '0')}-${String(dateValue.getDate()).padStart(2, '0')}`;
+      items.push({
+        ...baseItem,
+        ticketEvent,
+        date,
+        startsAt: dateValue.toISOString(),
+      });
+    }
   }
 
   for (const a of appts) {

@@ -10999,7 +10999,7 @@ export const getGetCalendarUrl = (params: GetCalendarParams,) => {
 }
 
 /**
- * @summary Get calendar items (tickets due + appointments) for a given month
+ * @summary Get calendar items (due/scheduled tickets + appointments) for a given month
  */
 export const getCalendar = async (params: GetCalendarParams, options?: Parameters<typeof customFetch>[1]): Promise<CalendarItem[]> => {
 
@@ -11046,7 +11046,7 @@ export type GetCalendarQueryError = ErrorType<void>
 
 
 /**
- * @summary Get calendar items (tickets due + appointments) for a given month
+ * @summary Get calendar items (due/scheduled tickets + appointments) for a given month
  */
 
 export function useGetCalendar<TData = Awaited<ReturnType<typeof getCalendar>>, TError = ErrorType<void>>(

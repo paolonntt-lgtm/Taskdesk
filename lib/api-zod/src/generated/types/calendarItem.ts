@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CalendarItemAssignee } from './calendarItemAssignee';
+import type { CalendarItemTicketEvent } from './calendarItemTicketEvent';
 import type { CalendarItemType } from './calendarItemType';
 
 export interface CalendarItem {
   type: CalendarItemType;
+  /** Whether a ticket calendar item represents its due date or scheduled date. */
+  ticketEvent?: CalendarItemTicketEvent;
   date: Date;
   id: number;
   title: string;

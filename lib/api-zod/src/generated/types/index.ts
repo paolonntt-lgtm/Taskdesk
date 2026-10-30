@@ -25,6 +25,7 @@ export * from './botChatMessageRole';
 export * from './botChatRequest';
 export * from './calendarItem';
 export * from './calendarItemAssignee';
+export * from './calendarItemTicketEvent';
 export * from './calendarItemType';
 export * from './checklistItem';
 export * from './checklistWithItems';

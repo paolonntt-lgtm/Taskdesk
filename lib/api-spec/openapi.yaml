@@ -3727,7 +3727,7 @@ paths:
     get:
       operationId: getCalendar
       tags: [calendar]
-      summary: Get calendar items (tickets due + appointments) for a given month
+      summary: Get calendar items (due/scheduled tickets + appointments) for a given month
       parameters:
         - name: year
           in: query
@@ -3741,7 +3741,7 @@ paths:
             type: integer
       responses:
         "200":
-          description: Calendar items grouped by date
+          description: Calendar items for the selected month
           content:
             application/json:
               schema:
@@ -6211,6 +6211,10 @@ components:
         type:
           type: string
           enum: [ticket, appointment]
+        ticketEvent:
+          type: string
+          enum: [due, scheduled]
+          description: Whether a ticket calendar item represents its due date or scheduled date.
         date:
           type: string
           format: date

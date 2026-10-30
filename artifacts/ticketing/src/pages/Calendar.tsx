@@ -20,6 +20,7 @@ import { useTicketStatuses } from '../hooks/useTicketStatuses';
 
 type CalendarItem = {
   type: 'ticket' | 'appointment';
+  ticketEvent?: 'due' | 'scheduled';
   date: string;
   id: number;
   title: string;
@@ -484,7 +485,8 @@ export default function CalendarPage() {
   };
 
   const selectedItems = selectedDate ? (itemsByDate.get(selectedDate) ?? []) : [];
-  const selectedTickets = selectedItems.filter(i => i.type === 'ticket');
+  const selectedTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled');
+  const selectedScheduledTickets = selectedItems.filter(i => i.type === 'ticket' && i.ticketEvent === 'scheduled');
   const selectedAppointments = selectedItems.filter(i => i.type === 'appointment');
 
   const handleAppointmentClick = async (item: CalendarItem) => {
@@ -604,7 +606,8 @@ export default function CalendarPage() {
                   const isToday = dateStr === todayStr;
                   const isSelected = dateStr === selectedDate;
                   const dayItems = dateStr ? (itemsByDate.get(dateStr) ?? []) : [];
-                  const hasTickets = dayItems.some(i => i.type === 'ticket');
+                  const hasTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent !== 'scheduled');
+                  const hasScheduledTickets = dayItems.some(i => i.type === 'ticket' && i.ticketEvent === 'scheduled');
                   const hasAppointments = dayItems.some(i => i.type === 'appointment');
 
                   return (
@@ -658,6 +661,7 @@ export default function CalendarPage() {
                           </Box>
                           <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', justifyContent: 'center' }}>
                             {hasTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'warning.main' }} />}
+                            {hasScheduledTickets && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'primary.main' }} />}
                             {hasAppointments && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'secondary.main' }} />}
                           </Box>
                         </>
@@ -675,6 +679,10 @@ export default function CalendarPage() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
               <Typography variant="caption" color="text.secondary">{t.calendar.ticketsDue}</Typography>
             </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
+            <Typography variant="caption" color="text.secondary">{t.calendar.scheduledTickets}</Typography>
+          </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} />
               <Typography variant="caption" color="text.secondary">{t.calendar.appointments}</Typography>
@@ -777,7 +785,70 @@ export default function CalendarPage() {
                   </Box>
                 )}
 
-                {selectedTickets.length > 0 && selectedAppointments.length > 0 && (
+                {selectedTickets.length > 0 && (selectedScheduledTickets.length > 0 || selectedAppointments.length > 0) && (
+                  <Divider sx={{ my: 0.5 }} />
+                )}
+
+                {/* Scheduled tickets */}
+                {selectedScheduledTickets.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                      <TicketIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+                      <Typography variant="caption" fontWeight={700} color="primary.main" textTransform="uppercase" letterSpacing={0.5}>
+                        {t.calendar.scheduledTickets}
+                      </Typography>
+                      <Chip label={selectedScheduledTickets.length} size="small" color="primary" sx={{ height: 16, fontSize: '0.58rem', '& .MuiChip-label': { px: 0.6 } }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      {selectedScheduledTickets.map((item) => (
+                        <Box
+                          key={`scheduled-${item.id}`}
+                          onClick={() => setLocation(`/tickets/${item.id}?from=calendar`)}
+                          sx={{
+                            display: 'flex', alignItems: 'center', gap: 1,
+                            p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'primary.light',
+                            cursor: 'pointer', bgcolor: 'background.paper',
+                            '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' },
+                            transition: 'all 0.13s',
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ flexShrink: 0, minWidth: 36, color: 'primary.dark', fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {item.startsAt ? formatTime(item.startsAt) : ''}
+                          </Typography>
+                          <TicketIcon sx={{ color: 'primary.main', flexShrink: 0, fontSize: 16 }} />
+                          <Box flex={1} minWidth={0}>
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {item.ticketNumber ? `#${item.ticketNumber} ` : ''}{item.title}
+                            </Typography>
+                            {item.status && (
+                              <Chip
+                                label={getLabelForKey(item.status) || item.status}
+                                size="small"
+                                sx={{
+                                  height: 18, fontSize: '0.6rem', mt: 0.25,
+                                  bgcolor: getColorForKey(item.status) ?? undefined,
+                                  color: getColorForKey(item.status) ? '#fff' : undefined,
+                                }}
+                                color={getColorForKey(item.status) ? undefined : (getStatusColor(item.status) as any)}
+                              />
+                            )}
+                          </Box>
+                          {item.assignee && (
+                            <Avatar src={item.assignee.avatarUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: '0.6rem', flexShrink: 0 }}>
+                              {item.assignee.name.charAt(0)}
+                            </Avatar>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {selectedScheduledTickets.length > 0 && selectedAppointments.length > 0 && (
                   <Divider sx={{ my: 0.5 }} />
                 )}
 

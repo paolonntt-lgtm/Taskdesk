@@ -4622,7 +4622,7 @@ export const DeleteAppointmentResponse = zod.void()
 
 
 /**
- * @summary Get calendar items (tickets due + appointments) for a given month
+ * @summary Get calendar items (due/scheduled tickets + appointments) for a given month
  */
 export const GetCalendarQueryParams = zod.object({
   "year": zod.coerce.number().int(),
@@ -4631,6 +4631,7 @@ export const GetCalendarQueryParams = zod.object({
 
 export const GetCalendarResponseItem = zod.object({
   "type": zod.enum(['ticket', 'appointment']),
+  "ticketEvent": zod.enum(['due', 'scheduled']).optional().describe('Whether a ticket calendar item represents its due date or scheduled date.'),
   "date": zod.coerce.date(),
   "id": zod.int(),
   "title": zod.string(),
