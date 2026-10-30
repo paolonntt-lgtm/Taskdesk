@@ -346,6 +346,7 @@ function buildTicketWithDetails(
     emailClientAssociationReason: _emailClientAssociationReason,
     emailClientAssociationSource: _emailClientAssociationSource,
     emailClientAssociationForwarded: _emailClientAssociationForwarded,
+    suggestedClientId: _suggestedClientId,
     ...ticketFields
   } = ticket;
   return {
@@ -1535,43 +1536,6 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> =>
   ), clientsEnabled));
 });
 
-router.get("/tickets/client-suggestions", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const currentUser = (req as any).currentUser;
-  const orgId = currentUser.organizationId;
-  if (orgId == null) {
-    res.status(403).json({ error: "Account has no organization" });
-    return;
-  }
-  if (!(await isClientFeatureEnabled(orgId))) {
-    res.json([]);
-    return;
-  }
-
-  const suggestions = await db.select({
-    id: ticketsTable.id,
-    ticketNumber: ticketsTable.ticketNumber,
-    title: ticketsTable.title,
-    status: ticketsTable.status,
-    createdAt: ticketsTable.createdAt,
-    suggestedClient: {
-      id: clientsTable.id,
-      name: clientsTable.name,
-      alias: clientsTable.alias,
-    },
-  }).from(ticketsTable)
-    .innerJoin(clientsTable, eq(clientsTable.id, ticketsTable.suggestedClientId))
-    .where(and(
-      eq(ticketsTable.organizationId, orgId),
-      isNull(ticketsTable.deletedAt),
-      isNull(ticketsTable.clientId),
-      isNotNull(ticketsTable.suggestedClientId),
-      eq(clientsTable.organizationId, orgId),
-    ))
-    .orderBy(asc(ticketsTable.createdAt), asc(ticketsTable.id));
-
-  res.json(suggestions);
-});
-
 router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -1632,7 +1596,6 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       .where(eq(clientsTable.id, ticket.clientId));
     ticketClient = c ?? null;
   }
-  let suggestedClient = null;
   let clientAssociationIssue: ReturnType<typeof resolveEmailClientAssociation>["clientAssociationIssue"];
   if (
     clientsEnabled &&
@@ -1658,18 +1621,6 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       clientAssociationIssue = "conflicting_exact_matches";
     }
   }
-  if (currentUser.role === "admin" && clientsEnabled && ticket.suggestedClientId) {
-    const [candidate] = await db.select({
-      id: clientsTable.id,
-      name: clientsTable.name,
-      alias: clientsTable.alias,
-    }).from(clientsTable).where(and(
-      eq(clientsTable.id, ticket.suggestedClientId),
-      eq(clientsTable.organizationId, orgId),
-    ));
-    suggestedClient = candidate ?? null;
-  }
-
   const canViewWorkedHours = await hasGroupPermission(
     currentUser.id,
     orgId,
@@ -1687,7 +1638,6 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     ticketClient,
   );
   if (currentUser.role === "admin" && clientsEnabled) {
-    (detail as any).suggestedClient = suggestedClient;
     if (
       (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) &&
       typeof ticket.emailClientAssociationReason === "string"
@@ -1772,8 +1722,6 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   }
   const responseDetail = redactClientData(redactWorkedHours(detail, canViewWorkedHours), clientsEnabled);
   if (currentUser.role !== "admin") {
-    delete (responseDetail as any).suggestedClientId;
-    delete (responseDetail as any).suggestedClient;
     delete (responseDetail as any).timeTrackingBillable;
     delete (responseDetail as any).timeTrackingCompensationOverride;
   }
@@ -1782,100 +1730,6 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     delete (responseDetail as any).workedBillingStatus;
   }
   res.json(responseDetail);
-});
-
-router.post("/tickets/:id/client-suggestion/confirm", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  const currentUser = (req as any).currentUser;
-  const orgId = currentUser.organizationId;
-  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  if (Number.isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
-  if (!(await isClientFeatureEnabled(orgId))) {
-    res.status(403).json({ error: "Client management is disabled for this organization" });
-    return;
-  }
-
-  const [ticket] = await db.select().from(ticketsTable).where(and(
-    eq(ticketsTable.id, id),
-    eq(ticketsTable.organizationId, orgId),
-    isNull(ticketsTable.deletedAt),
-  ));
-  if (!ticket || !ticket.suggestedClientId || ticket.clientId || !ticket.resource) {
-    res.status(404).json({ error: "Client suggestion not found" });
-    return;
-  }
-  const [client] = await db.select({ id: clientsTable.id }).from(clientsTable).where(and(
-    eq(clientsTable.id, ticket.suggestedClientId),
-    eq(clientsTable.organizationId, orgId),
-  ));
-  if (!client) {
-    res.status(409).json({ error: "Client suggestion is no longer valid" });
-    return;
-  }
-
-  const confirmed = await db.transaction(async (tx) => {
-    const [currentTicket] = await tx.select().from(ticketsTable).where(and(
-      eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId),
-      isNull(ticketsTable.deletedAt),
-    )).for("update");
-    if (
-      !currentTicket ||
-      currentTicket.suggestedClientId !== client.id ||
-      currentTicket.clientId != null
-    ) return false;
-
-    const [currentClient] = await tx.select({ id: clientsTable.id, name: clientsTable.name })
-      .from(clientsTable).where(and(
-        eq(clientsTable.id, client.id),
-        eq(clientsTable.organizationId, orgId),
-      ));
-    if (!currentClient) return false;
-
-    await tx.update(ticketsTable).set({
-      clientId: currentClient.id,
-      title: prefixTicketTitleWithClient(currentTicket.title, currentClient.name),
-      suggestedClientId: null,
-      updatedAt: new Date(),
-    }).where(and(
-      eq(ticketsTable.id, id),
-      eq(ticketsTable.organizationId, orgId),
-      eq(ticketsTable.suggestedClientId, currentClient.id),
-    ));
-    await tx.insert(ticketActivityLogsTable).values({
-      ticketId: id,
-      userId: currentUser.id,
-      actionType: "client_associated",
-      actionDescription: `Cliente "${currentClient.name}" associato al ticket.`,
-    });
-    return true;
-  });
-
-  if (!confirmed) { res.status(409).json({ error: "Client suggestion is no longer valid" }); return; }
-  res.json({ ok: true });
-});
-
-router.post("/tickets/:id/client-suggestion/dismiss", requireAuth, requireAdmin, async (req, res): Promise<void> => {
-  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  const currentUser = (req as any).currentUser;
-  const orgId = currentUser.organizationId;
-  if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  if (Number.isNaN(id)) { res.status(400).json({ error: "Invalid ticket ID" }); return; }
-  if (!(await isClientFeatureEnabled(orgId))) {
-    res.status(403).json({ error: "Client management is disabled for this organization" });
-    return;
-  }
-  const [dismissed] = await db.update(ticketsTable).set({
-    suggestedClientId: null,
-    updatedAt: new Date(),
-  }).where(and(
-    eq(ticketsTable.id, id),
-    eq(ticketsTable.organizationId, orgId),
-    isNull(ticketsTable.deletedAt),
-    isNotNull(ticketsTable.suggestedClientId),
-  )).returning({ id: ticketsTable.id });
-  if (!dismissed) { res.status(404).json({ error: "Email ticket not found" }); return; }
-  res.json({ ok: true });
 });
 
 // Admin-only visibility switch for tickets created through private email channels.
@@ -3374,14 +3228,6 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 {
 
           ...updatesToSave,
-          ...("clientId" in updates ? 
-{
- suggestedClientId: null 
-}
- : 
-{
-}
-),
           updatedAt: new Date(),
         
 }
@@ -4013,18 +3859,6 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     canViewWorkedHours,
   ), clientsEnabled)
 ;
-
-  if (currentUser.role !== "admin") 
-{
-
-    delete (updateResponse as any).suggestedClientId
-;
-
-    delete (updateResponse as any).suggestedClient
-;
-
-  
-}
 
   res.json(updateResponse)
 ;

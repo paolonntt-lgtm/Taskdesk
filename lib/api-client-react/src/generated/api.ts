@@ -94,7 +94,6 @@ import type {
   OneDriveOrganizationShare,
   OneDrivePreview,
   OneDriveSharedFolder,
-  PendingClientSuggestion,
   PersonalTimeTrackingReport,
   PreviewSharedOneDriveItemParams,
   RecentTicketWithActivity,
@@ -2228,83 +2227,6 @@ export const useCreateTicket = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateTicketMutationOptions(options));
     }
-
-export const getListPendingClientSuggestionsUrl = () => {
-
-
-
-
-  return `/api/tickets/client-suggestions`
-}
-
-/**
- * @summary List saved email client suggestions for review (admin only)
- */
-export const listPendingClientSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<PendingClientSuggestion[]> => {
-
-  return customFetch<PendingClientSuggestion[]>(getListPendingClientSuggestionsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListPendingClientSuggestionsQueryKey = () => {
-    return [
-    `/api/tickets/client-suggestions`
-    ] as const;
-    }
-
-
-export const getListPendingClientSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listPendingClientSuggestions>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPendingClientSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListPendingClientSuggestionsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPendingClientSuggestions>>> = ({ signal }) => listPendingClientSuggestions({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPendingClientSuggestions>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListPendingClientSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof listPendingClientSuggestions>>>
-export type ListPendingClientSuggestionsQueryError = ErrorType<void>
-
-
-/**
- * @summary List saved email client suggestions for review (admin only)
- */
-
-export function useListPendingClientSuggestions<TData = Awaited<ReturnType<typeof listPendingClientSuggestions>>, TError = ErrorType<void>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPendingClientSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListPendingClientSuggestionsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getGetTicketUrl = (id: number,) => {
 

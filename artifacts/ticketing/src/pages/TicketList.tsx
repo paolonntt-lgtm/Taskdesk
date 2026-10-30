@@ -19,7 +19,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import DeadlineCell from '../components/DeadlineCell';
-import PendingClientSuggestions from '../components/PendingClientSuggestions';
 function hashAvatarColor(name: string): string {
   const colors = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#c62828', '#00838f', '#6a1b9a', '#0277bd'];
   let h = 0;
@@ -655,8 +654,6 @@ export default function TicketList() {
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>{entityTerm.navNew}</Box>
         </Button>
       </Box>
-
-      {isAdmin && <PendingClientSuggestions />}
 
       {/* Overdue filter banner */}
       {overdueFilter && (

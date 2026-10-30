@@ -100,6 +100,7 @@ describe("email ticket client suggestion confirmation", () => {
       location: "",
       resource: `link-only-${runId}@example.test`,
       createdBy: adminId,
+      suggestedClientId: clientId,
       emailMessageId: `<link-only-${runId}@test.example>`,
     }).returning({ id: ticketsTable.id });
     linkOnlyTicketId = linkOnlyTicket.id;
@@ -153,39 +154,37 @@ describe("email ticket client suggestion confirmation", () => {
     await pool.end();
   });
 
-  it("lists saved suggestions for admins without changing ticket associations", async () => {
-    const response = await fetch(`${baseUrl}/api/tickets/client-suggestions`, {
+  it("retires suggestion review while leaving legacy suggestions untouched", async () => {
+    const listResponse = await fetch(`${baseUrl}/api/tickets/client-suggestions`, {
       headers: { Cookie: `session_id=${adminSessionId}` },
     });
-    expect(response.status).toBe(200);
-    const suggestions = await response.json();
-    expect(suggestions).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: ticketId,
-        title: `Email suggestion ${runId}`,
-        suggestedClient: expect.objectContaining({ id: clientId, name: "Caffè Aurora SRL" }),
-      }),
+    expect(listResponse.status).not.toBe(200);
+
+    for (const action of ["confirm", "dismiss"]) {
+      const response = await fetch(`${baseUrl}/api/tickets/${ticketId}/client-suggestion/${action}`, {
+        method: "POST",
+        headers: { Cookie: `session_id=${adminSessionId}` },
+      });
+      expect(response.status).toBe(404);
+    }
+
+    const detailResponse = await fetch(`${baseUrl}/api/tickets/${ticketId}`, {
+      headers: { Cookie: `session_id=${adminSessionId}` },
+    });
+    expect(detailResponse.status).toBe(200);
+    const detail = await detailResponse.json();
+    expect(detail).not.toHaveProperty("suggestedClient");
+    expect(detail).not.toHaveProperty("suggestedClientId");
+
+    const legacyTickets = await db.select({
+      id: ticketsTable.id,
+      clientId: ticketsTable.clientId,
+      suggestedClientId: ticketsTable.suggestedClientId,
+    }).from(ticketsTable).where(eq(ticketsTable.organizationId, organizationId));
+    expect(legacyTickets).toEqual(expect.arrayContaining([
+      { id: ticketId, clientId: null, suggestedClientId: clientId },
+      { id: dismissTicketId, clientId: null, suggestedClientId: clientId },
     ]));
-
-    const [ticket] = await db.select({
-      clientId: ticketsTable.clientId,
-      suggestedClientId: ticketsTable.suggestedClientId,
-    }).from(ticketsTable).where(eq(ticketsTable.id, ticketId));
-    expect(ticket).toEqual({ clientId: null, suggestedClientId: clientId });
-  });
-
-  it("links the ticket without making later emails match automatically", async () => {
-    const response = await fetch(`${baseUrl}/api/tickets/${ticketId}/client-suggestion/confirm`, {
-      method: "POST",
-      headers: { Cookie: `session_id=${adminSessionId}` },
-    });
-    expect(response.status).toBe(200);
-
-    const [ticket] = await db.select({
-      clientId: ticketsTable.clientId,
-      suggestedClientId: ticketsTable.suggestedClientId,
-    }).from(ticketsTable).where(eq(ticketsTable.id, ticketId));
-    expect(ticket).toEqual({ clientId, suggestedClientId: null });
 
     const domainRules = await db.select({
       organizationId: emailClientDomainRulesTable.organizationId,
@@ -244,6 +243,10 @@ describe("email ticket client suggestion confirmation", () => {
       clientId: ticketsTable.clientId,
     }).from(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
     expect(ticket?.clientId).toBe(clientId);
+    const [legacyTicket] = await db.select({
+      suggestedClientId: ticketsTable.suggestedClientId,
+    }).from(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
+    expect(legacyTicket?.suggestedClientId).toBe(clientId);
   });
 
   it("rejects adding a sender already saved on another client's profile", async () => {
@@ -277,17 +280,4 @@ describe("email ticket client suggestion confirmation", () => {
     expect(existingOwner?.email).toBe(`reserved-${runId}@example.test`);
   });
 
-  it("dismisses a saved suggestion without assigning the client", async () => {
-    const response = await fetch(`${baseUrl}/api/tickets/${dismissTicketId}/client-suggestion/dismiss`, {
-      method: "POST",
-      headers: { Cookie: `session_id=${adminSessionId}` },
-    });
-    expect(response.status).toBe(200);
-
-    const [ticket] = await db.select({
-      clientId: ticketsTable.clientId,
-      suggestedClientId: ticketsTable.suggestedClientId,
-    }).from(ticketsTable).where(eq(ticketsTable.id, dismissTicketId));
-    expect(ticket).toEqual({ clientId: null, suggestedClientId: null });
-  });
 });
