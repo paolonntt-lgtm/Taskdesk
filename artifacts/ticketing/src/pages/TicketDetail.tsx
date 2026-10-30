@@ -34,6 +34,7 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
 import PermissionGateButton from '../components/PermissionGateButton';
+import ClientEmailAssociationDialog from '../components/ClientEmailAssociationDialog';
 import { trackEvent } from '../lib/analytics';
 
 interface TabPanelProps {
@@ -1351,70 +1352,33 @@ export default function TicketDetail() {
             </Box>
           )}
 
-          <Dialog
+          <ClientEmailAssociationDialog
             open={clientEmailPromptOpen}
+            busy={clientAssociationBusy}
+            title={t.ticketDetail.clientEmailAssociationPromptTitle}
+            prompt={t.ticketDetail.clientEmailAssociationPromptBody(
+              ticketSenderEmail ?? '',
+              clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
+            )}
+            cancelLabel={t.ticketDetail.clientEmailAssociationCancel}
+            linkOnlyLabel={t.ticketDetail.clientEmailAssociationLinkOnly}
+            addAndLinkLabel={t.ticketDetail.clientEmailAssociationAddAndLink}
+            error={clientAssociationError}
             onClose={() => {
-              if (!clientAssociationBusy) {
-                setClientEmailPromptOpen(false);
-                setClientAssociationError(null);
+              setClientEmailPromptOpen(false);
+              setClientAssociationError(null);
+            }}
+            onLinkOnly={() => {
+              if (clientAssociationTargetId != null) {
+                void handleClientAssociationChange(clientAssociationTargetId, false);
               }
             }}
-            fullWidth
-            maxWidth="sm"
-            aria-labelledby="client-email-association-dialog-title"
-          >
-            <DialogTitle id="client-email-association-dialog-title">
-              {t.ticketDetail.clientEmailAssociationPromptTitle}
-            </DialogTitle>
-            <DialogContent>
-              <Typography>
-                {t.ticketDetail.clientEmailAssociationPromptBody(
-                  ticketSenderEmail ?? '',
-                  clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
-                )}
-              </Typography>
-              {clientAssociationError && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {clientAssociationError}
-                </Alert>
-              )}
-            </DialogContent>
-            <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2.5 }}>
-              <Button
-                color="inherit"
-                disabled={clientAssociationBusy}
-                onClick={() => {
-                  setClientEmailPromptOpen(false);
-                  setClientAssociationError(null);
-                }}
-              >
-                {t.ticketDetail.clientEmailAssociationCancel}
-              </Button>
-              <Button
-                variant="outlined"
-                disabled={clientAssociationBusy || clientAssociationTargetId == null}
-                onClick={() => {
-                  if (clientAssociationTargetId != null) {
-                    void handleClientAssociationChange(clientAssociationTargetId, false);
-                  }
-                }}
-              >
-                {t.ticketDetail.clientEmailAssociationLinkOnly}
-              </Button>
-              <Button
-                variant="contained"
-                disabled={clientAssociationBusy || clientAssociationTargetId == null}
-                onClick={() => {
-                  if (clientAssociationTargetId != null) {
-                    void handleClientAssociationChange(clientAssociationTargetId, true);
-                  }
-                }}
-                startIcon={clientAssociationBusy ? <CircularProgress size={16} color="inherit" /> : <EmailIcon />}
-              >
-                {t.ticketDetail.clientEmailAssociationAddAndLink}
-              </Button>
-            </DialogActions>
-          </Dialog>
+            onAddAndLink={() => {
+              if (clientAssociationTargetId != null) {
+                void handleClientAssociationChange(clientAssociationTargetId, true);
+              }
+            }}
+          />
 
           {isAdmin && (ticket as any).suggestedClient && (
             <Alert

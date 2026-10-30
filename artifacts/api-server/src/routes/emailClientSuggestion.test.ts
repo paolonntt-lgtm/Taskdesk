@@ -247,6 +247,9 @@ describe("email ticket client suggestion confirmation", () => {
   });
 
   it("rejects adding a sender already saved on another client's profile", async () => {
+    const [selectedClientBefore] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, clientId));
     const response = await fetch(`${baseUrl}/api/tickets/${conflictTicketId}`, {
       method: "PATCH",
       headers: {
@@ -259,8 +262,19 @@ describe("email ticket client suggestion confirmation", () => {
 
     const [ticket] = await db.select({
       clientId: ticketsTable.clientId,
+      title: ticketsTable.title,
     }).from(ticketsTable).where(eq(ticketsTable.id, conflictTicketId));
-    expect(ticket?.clientId).toBeNull();
+    expect(ticket).toEqual({ clientId: null, title: `Conflict ${runId}` });
+
+    const [selectedClient] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, clientId));
+    expect(selectedClient?.email).toBe(selectedClientBefore?.email);
+
+    const [existingOwner] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, conflictingClientId));
+    expect(existingOwner?.email).toBe(`reserved-${runId}@example.test`);
   });
 
   it("dismisses a saved suggestion without assigning the client", async () => {
