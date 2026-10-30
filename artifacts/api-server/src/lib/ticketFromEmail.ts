@@ -4,7 +4,7 @@ import { createNotificationsForSubscribers, createNotificationsForTicket, create
 import { getInboundEmailNotificationTarget } from "./inboundEmailNotificationPolicy";
 import { logger } from "./logger";
 import { ObjectStorageService } from "./objectStorage";
-import { hasReplySubjectPrefix, normaliseEmailSubject, removeForwardSubjectPrefix } from "./emailSubject";
+import { hasForwardSubjectPrefix, hasReplySubjectPrefix, normaliseEmailSubject, removeForwardSubjectPrefix } from "./emailSubject";
 import { randomUUID } from "crypto";
 import {
   chooseForwardedEmailAssociation,
@@ -339,11 +339,12 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const routing = await getInboundRouting(orgId, inboundChannelId);
   const hasDifferentOriginalSender = !!originalSenderEmail &&
     normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail);
+  const isForwardedBySubject = hasForwardSubjectPrefix(subject);
   const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail, {
     // These rules are learned when an operator manually links a ticket. A
     // forwarding mailbox is not proof that later forwarded messages belong to
     // the same client; explicit profile email/PEC matches still remain valid.
-    ignoreLearnedSenderRules: hasDifferentOriginalSender,
+    ignoreLearnedSenderRules: hasDifferentOriginalSender || isForwardedBySubject,
   });
   let clientAssociation = outerSenderAssociation;
   if (

@@ -216,6 +216,49 @@ describe("forwarded inbound ticket creation", () => {
     });
   });
 
+  it("ignores a learned forwarding-address rule when Fwd is present but the original sender is missing", async () => {
+    mocks.clients = [{
+      id: 22,
+      organizationId: 7,
+      name: "Original Sender Client",
+      alias: null,
+      email: "known@acme.example",
+      pec: null,
+    }];
+    mocks.senderRules = [{
+      organizationId: 7,
+      senderEmail: "forwarder@forwarding.example",
+      clientId: 22,
+    }];
+
+    await createTicketFromEmail({
+      ...baseInput,
+      originalSenderEmail: undefined,
+      subject: "Fwd: Support request",
+    });
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      resource: "forwarder@forwarding.example",
+      clientId: null,
+      suggestedClientId: null,
+    });
+  });
+
+  it("keeps explicit client-contact matching for forwarded subjects", async () => {
+    await createTicketFromEmail({
+      ...baseInput,
+      originalSenderEmail: undefined,
+      subject: "Fw: Support request",
+    });
+
+    const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
+    expect(ticket).toMatchObject({
+      resource: "forwarder@forwarding.example",
+      clientId: 21,
+    });
+  });
+
   it("still associates a forwarded ticket when the outer sender is an explicit client contact", async () => {
     mocks.clients = [mocks.clients[0]];
 

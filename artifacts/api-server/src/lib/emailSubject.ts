@@ -16,3 +16,8 @@ export function normaliseEmailSubject(subject: string): string {
 export function hasReplySubjectPrefix(subject: string): boolean {
   return REPLY_SUBJECT_PREFIX.test(subject.trim());
 }
+
+/** Forward prefixes identify a forwarded message even when its headers are unavailable. */
+export function hasForwardSubjectPrefix(subject: string): boolean {
+  return FORWARD_SUBJECT_PREFIX.test(subject.trim());
+}

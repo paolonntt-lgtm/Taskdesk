@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasReplySubjectPrefix,
+  hasForwardSubjectPrefix,
   normaliseEmailSubject,
   removeForwardSubjectPrefix,
 } from "./emailSubject";
@@ -18,7 +19,15 @@ describe("email subject threading", () => {
     "does not treat %s as a reply based on subject alone",
     (subject) => {
       expect(hasReplySubjectPrefix(subject)).toBe(false);
+      expect(hasForwardSubjectPrefix(subject)).toBe(true);
       expect(normaliseEmailSubject(subject)).toBe("richiesta");
+    },
+  );
+
+  it.each(["FWD: Richiesta", "FW: Richiesta", "FW: Fwd: Richiesta"])(
+    "recognizes %s as a forwarded subject",
+    (subject) => {
+      expect(hasForwardSubjectPrefix(subject)).toBe(true);
     },
   );
 
@@ -36,6 +45,7 @@ describe("email subject threading", () => {
     "Richiesta",
     "Richiesta Fwd: dettagli",
     "Re: Fwd: Richiesta",
+    "Forward: Richiesta",
   ])("preserves non-leading forward markers in %s", (subject) => {
     expect(removeForwardSubjectPrefix(subject)).toBe(subject);
   });
