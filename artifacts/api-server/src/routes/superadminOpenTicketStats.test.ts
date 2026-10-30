@@ -141,10 +141,10 @@ describe("superadmin ticket creation statistics", () => {
 
     expect(response.status).toBe(200);
     expect(body.organizations.map((organization) => organization.id)).not.toContain(organizationIds[1]);
-    expect(body.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 3);
+    expect(body.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 2);
     expect(body.ticketCreationStats.yesterday).toBeGreaterThanOrEqual(baselineTicketCreationStats.yesterday + 1);
-    expect(body.ticketCreationStats.last7Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last7Days + 5);
-    expect(body.ticketCreationStats.last30Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last30Days + 7);
+    expect(body.ticketCreationStats.last7Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last7Days + 4);
+    expect(body.ticketCreationStats.last30Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last30Days + 5);
 
     const allOrganizationsResponse = await fetch(`${baseUrl}/api/superadmin?includeHidden=true`, {
       headers: { Cookie: `session_id=${sessionId}` },
@@ -154,8 +154,14 @@ describe("superadmin ticket creation statistics", () => {
         id: number;
         ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
       }>;
+      ticketCreationStats: typeof baselineTicketCreationStats;
     };
     const byId = new Map(allOrganizationsBody.organizations.map((organization) => [organization.id, organization]));
+
+    expect(allOrganizationsBody.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 3);
+    expect(allOrganizationsBody.ticketCreationStats.yesterday).toBeGreaterThanOrEqual(baselineTicketCreationStats.yesterday + 1);
+    expect(allOrganizationsBody.ticketCreationStats.last7Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last7Days + 5);
+    expect(allOrganizationsBody.ticketCreationStats.last30Days).toBeGreaterThanOrEqual(baselineTicketCreationStats.last30Days + 7);
 
     expect(byId.get(organizationIds[0])?.ticketCreationStats).toEqual({
       today: 2,

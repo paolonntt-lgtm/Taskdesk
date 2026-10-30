@@ -65,8 +65,10 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       })
       .from(ticketsTable)
       .innerJoin(usersTable, eq(usersTable.id, ticketsTable.createdBy))
+      .innerJoin(organizationsTable, eq(organizationsTable.id, ticketsTable.organizationId))
       .where(and(
         isNotNull(ticketsTable.organizationId),
+        includeHidden ? undefined : eq(organizationsTable.hiddenFromSuperadmin, false),
         isNull(ticketsTable.deletedAt),
         or(
           eq(usersTable.isSystem, false),
