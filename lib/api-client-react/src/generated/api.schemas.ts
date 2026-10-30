@@ -232,7 +232,7 @@ export interface SuperadminOrganizationSummary {
   name: string;
   createdAt: string | null;
   /** @nullable */
-  nextPaymentAt: string | null;
+  planExpiresAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
   ticketCreationStats: TicketCreationStats;

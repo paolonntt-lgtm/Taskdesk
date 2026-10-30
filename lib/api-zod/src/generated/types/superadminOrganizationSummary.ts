@@ -13,7 +13,7 @@ export interface SuperadminOrganizationSummary {
   name: string;
   createdAt: Date | null;
   /** @nullable */
-  nextPaymentAt: Date | null;
+  planExpiresAt: Date | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
   ticketCreationStats: TicketCreationStats;

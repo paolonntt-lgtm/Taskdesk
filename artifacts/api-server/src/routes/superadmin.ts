@@ -15,7 +15,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
   const localToday = sql`date_trunc('day', now() at time zone 'Europe/Rome')`;
   const localTodayStart = sql`${localToday} at time zone 'Europe/Rome'`;
   const localYesterdayStart = sql`(${localToday} - interval '1 day') at time zone 'Europe/Rome'`;
-  const [rows, ticketCounts, createdTicketCounts, hiddenCountRows, nextPaymentRows] = await Promise.all([
+  const [rows, ticketCounts, createdTicketCounts, hiddenCountRows, planExpiryRows] = await Promise.all([
     db
       .select({
         orgId: organizationsTable.id,
@@ -85,15 +85,13 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     db.execute(sql`
       SELECT
         u.organization_id AS "organizationId",
-        to_timestamp(MIN(s.current_period_end)) AS "nextPaymentAt"
+        to_timestamp(MIN(COALESCE(s.cancel_at, s.current_period_end))) AS "planExpiresAt"
       FROM public.users u
       JOIN stripe.subscriptions s ON s.customer = u.stripe_customer_id
       WHERE u.role = 'admin'
         AND u.is_active = true
         AND s.status IN ('active', 'trialing')
-        AND COALESCE(s.cancel_at_period_end, false) = false
-        AND s.cancel_at IS NULL
-        AND s.current_period_end IS NOT NULL
+        AND COALESCE(s.cancel_at, s.current_period_end) IS NOT NULL
       GROUP BY u.organization_id
     `),
   ]);
@@ -128,15 +126,15 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     { today: 0, yesterday: 0, last7Days: 0, last30Days: 0 },
   );
 
-  const nextPaymentByOrg = new Map<number, string>();
-  for (const row of nextPaymentRows.rows as Array<{
+  const planExpiryByOrg = new Map<number, string>();
+  for (const row of planExpiryRows.rows as Array<{
     organizationId: number | string | null;
-    nextPaymentAt: Date | string | null;
+    planExpiresAt: Date | string | null;
   }>) {
-    if (row.organizationId == null || row.nextPaymentAt == null) continue;
-    const date = row.nextPaymentAt instanceof Date ? row.nextPaymentAt : new Date(row.nextPaymentAt);
+    if (row.organizationId == null || row.planExpiresAt == null) continue;
+    const date = row.planExpiresAt instanceof Date ? row.planExpiresAt : new Date(row.planExpiresAt);
     if (!Number.isNaN(date.getTime())) {
-      nextPaymentByOrg.set(Number(row.organizationId), date.toISOString());
+      planExpiryByOrg.set(Number(row.organizationId), date.toISOString());
     }
   }
 
@@ -144,7 +142,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     id: number;
     name: string;
     createdAt: string | null;
-    nextPaymentAt: string | null;
+    planExpiresAt: string | null;
     hiddenFromSuperadmin: boolean;
     totalTickets: number;
     ticketCreationStats: {
@@ -173,7 +171,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         id: row.orgId,
         name: row.orgName,
         createdAt: row.orgCreatedAt?.toISOString() ?? null,
-        nextPaymentAt: nextPaymentByOrg.get(row.orgId) ?? null,
+        planExpiresAt: planExpiryByOrg.get(row.orgId) ?? null,
         hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,
         ticketCreationStats: createdByOrg.get(row.orgId) ?? {
