@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { dashboardPreferenceStorageKey } from "./dashboardPreferenceStorage";
+import {
+  dashboardPreferenceStorageKey,
+  dashboardWidgetInstancePreferenceKey,
+} from "./dashboardPreferenceStorage";
 
 describe("dashboardPreferenceStorageKey", () => {
   it("keeps the same dashboard preference separate for each user", () => {
@@ -16,5 +19,12 @@ describe("dashboardPreferenceStorageKey", () => {
       .toBe("td_dashboard_layout_v4:anonymous");
     expect(dashboardPreferenceStorageKey("td_dashboard_layout_v4", 12))
       .not.toBe(dashboardPreferenceStorageKey("td_dashboard_layout_v4", null));
+  });
+
+  it("keeps settings for duplicate widget instances separate", () => {
+    const firstInstance = dashboardWidgetInstancePreferenceKey("td_widget_person_id", "feed-person");
+    const secondInstance = dashboardWidgetInstancePreferenceKey("td_widget_person_id", "feed-person__123");
+
+    expect(firstInstance).not.toBe(secondInstance);
   });
 });

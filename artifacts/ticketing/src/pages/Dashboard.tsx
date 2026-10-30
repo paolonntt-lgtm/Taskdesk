@@ -63,7 +63,10 @@ import { formatRecentActivitySummary } from './recentActivityLabels';
 import { useAuth } from '../contexts/AuthContext';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import { useEntityTerm } from '../hooks/useEntityTerm';
-import { dashboardPreferenceStorageKey } from '../lib/dashboardPreferenceStorage';
+import {
+  dashboardPreferenceStorageKey,
+  dashboardWidgetInstancePreferenceKey,
+} from '../lib/dashboardPreferenceStorage';
 
 const ReactGridLayout = WidthProvider(GridLayout);
 
@@ -181,6 +184,7 @@ function useWidgetSettings<T extends Record<string, unknown>>(widgetId: string, 
 }
 
 const WidgetCustomNameContext = React.createContext('');
+const WidgetInstanceIdContext = React.createContext('');
 
 // ── TRIAL BANNER ──────────────────────────────────────────────────────────
 
@@ -1309,10 +1313,15 @@ const PERSON_WIDGET_KEY = 'td_widget_person_id';
 function FeedPersonWidget() {
   const { t } = useLanguage();
   const entityTerm = useEntityTerm();
+  const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-person';
   const [configOpen, setConfigOpen] = useState(false);
-  const personWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
+  const personWidgetStorageKey = useDashboardStorageKey(
+    dashboardWidgetInstancePreferenceKey(PERSON_WIDGET_KEY, widgetInstanceId),
+  );
+  const legacyPersonWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
   const [selectedId, setSelectedId] = useState<number | null>(() => {
-    const v = localStorage.getItem(personWidgetStorageKey);
+    const v = localStorage.getItem(personWidgetStorageKey)
+      ?? (widgetInstanceId === 'feed-person' ? localStorage.getItem(legacyPersonWidgetStorageKey) : null);
     return v ? parseInt(v, 10) : null;
   });
   const [tempId, setTempId] = useState<number | ''>(selectedId ?? '');
@@ -1342,6 +1351,7 @@ function FeedPersonWidget() {
     setSelectedId(id);
     if (id != null) localStorage.setItem(personWidgetStorageKey, String(id));
     else localStorage.removeItem(personWidgetStorageKey);
+    if (widgetInstanceId === 'feed-person') localStorage.removeItem(legacyPersonWidgetStorageKey);
     setConfigOpen(false);
   };
 
@@ -2958,7 +2968,9 @@ function Dashboard() {
                   onOpenSettings={() => setSettingsWidgetId(id)}
                 >
                   <WidgetCustomNameContext.Provider value={customNames[id] || ''}>
-                    <Cmp />
+                    <WidgetInstanceIdContext.Provider value={id}>
+                      <Cmp />
+                    </WidgetInstanceIdContext.Provider>
                   </WidgetCustomNameContext.Provider>
                 </WidgetShell>
               </div>
@@ -2984,7 +2996,9 @@ function Dashboard() {
                 onOpenSettings={() => setSettingsWidgetId(id)}
               >
                 <WidgetCustomNameContext.Provider value={customNames[id] || ''}>
-                  <Cmp />
+                  <WidgetInstanceIdContext.Provider value={id}>
+                    <Cmp />
+                  </WidgetInstanceIdContext.Provider>
                 </WidgetCustomNameContext.Provider>
               </WidgetShell>
             </Box>
