@@ -19,6 +19,7 @@ export interface EmailClientRule {
 export interface EmailClientAssociationResult {
   clientId: number | null;
   suggestedClientId: number | null;
+  matchType?: "profile_contact" | "sender_rule" | "domain_rule";
   clientAssociationIssue?: "conflicting_exact_matches" | "conflicting_domain_rules";
 }
 
@@ -150,7 +151,14 @@ export function resolveEmailClientAssociation(input: {
       clientAssociationIssue: "conflicting_exact_matches",
     };
   }
-  if (exactIds.size === 1) return { clientId: [...exactIds][0], suggestedClientId: null };
+  if (exactIds.size === 1) {
+    const clientId = [...exactIds][0];
+    return {
+      clientId,
+      suggestedClientId: null,
+      matchType: exactContactIds.has(clientId) ? "profile_contact" : "sender_rule",
+    };
+  }
 
   const senderDomain = domainForSender(sender);
   if (!senderDomain) return { clientId: null, suggestedClientId: null };
@@ -160,7 +168,7 @@ export function resolveEmailClientAssociation(input: {
       .map((rule) => rule.clientId),
   );
   if (confirmedDomainIds.size === 1) {
-    return { clientId: [...confirmedDomainIds][0], suggestedClientId: null };
+    return { clientId: [...confirmedDomainIds][0], suggestedClientId: null, matchType: "domain_rule" };
   }
   if (confirmedDomainIds.size > 1) {
     return {

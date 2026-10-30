@@ -340,6 +340,8 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   const hasDifferentOriginalSender = !!originalSenderEmail &&
     normalizeSenderEmail(originalSenderEmail) !== normalizeSenderEmail(fromEmail);
   const isForwardedBySubject = hasForwardSubjectPrefix(subject);
+  const isForwarded = hasDifferentOriginalSender || isForwardedBySubject;
+  const originalSenderAvailable = !!normalizeSenderEmail(originalSenderEmail ?? "");
   const outerSenderAssociation = await getInboundClientAssociation(orgId, fromEmail, {
     // These rules are learned when an operator manually links a ticket. A
     // forwarding mailbox is not proof that later forwarded messages belong to
@@ -347,14 +349,26 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     ignoreLearnedSenderRules: hasDifferentOriginalSender || isForwardedBySubject,
   });
   let clientAssociation = outerSenderAssociation;
+  let originalSenderAssociation: ReturnType<typeof resolveEmailClientAssociation> | undefined;
+  let matchedOriginalSender = false;
   if (
     outerSenderAssociation.clientId == null &&
     !outerSenderAssociation.clientAssociationIssue &&
     hasDifferentOriginalSender
   ) {
-    const originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
+    originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
     clientAssociation = chooseForwardedEmailAssociation(outerSenderAssociation, originalSenderAssociation);
+    matchedOriginalSender = clientAssociation.clientId != null &&
+      clientAssociation.clientId === originalSenderAssociation.clientId;
   }
+  const associationCriterion = clientAssociation.clientId == null
+    ? "none"
+    : matchedOriginalSender
+      ? "original_sender"
+      : clientAssociation.matchType ?? "none";
+  const originalSenderStatus = !isForwarded
+    ? "not_forwarded"
+    : originalSenderAvailable ? "available" : "unavailable";
   let title = originalTitle;
   if (clientAssociation.clientId != null && orgId != null) {
     const [associatedClient] = await db.select({ name: clientsTable.name }).from(clientsTable).where(and(
@@ -448,6 +462,21 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     })
     .returning();
 
+  logger.info({
+    ticketId: ticket.id,
+    ticketNumber: nextTicketNumber,
+    associationCriterion,
+    externalSenderMatch: outerSenderAssociation.matchType ?? "none",
+    forwarded: isForwarded,
+    originalSenderStatus,
+    ...(clientAssociation.clientAssociationIssue
+      ? { associationIssue: clientAssociation.clientAssociationIssue }
+      : {}),
+    ...(originalSenderAssociation
+      ? { originalSenderMatch: originalSenderAssociation.matchType ?? "none" }
+      : {}),
+  }, "Inbound email client association resolved");
+
   // Save inbound attachments (fire-and-forget errors; oversized ones return warning lines)
   if (attachments && attachments.length > 0) {
     try {
@@ -496,7 +525,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     );
   }
 
-  logger.info({ ticketId: ticket.id, ticketNumber: nextTicketNumber, from: fromEmail }, "Inbound email ticket created");
+  logger.info({ ticketId: ticket.id, ticketNumber: nextTicketNumber }, "Inbound email ticket created");
   return { ticketId: ticket.id, ticketNumber: nextTicketNumber };
 }
 
@@ -584,7 +613,7 @@ async function threadReplyAsComment(
   }
 
   logger.info(
-    { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, commentId: comment.id, from: fromEmail, matchReason },
+    { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, commentId: comment.id, matchReason },
     "Customer email reply threaded into existing ticket"
   );
 }

@@ -155,7 +155,7 @@ describe("email ticket client suggestion confirmation", () => {
       clients: [{ id: clientId, organizationId, name: "Caffè Aurora SRL" }],
       senderRules: [],
       domainRules: [domainRule],
-    })).toEqual({ clientId, suggestedClientId: null });
+    })).toEqual({ clientId, suggestedClientId: null, matchType: "domain_rule" });
   });
 
   it("dismisses a saved suggestion without assigning the client", async () => {

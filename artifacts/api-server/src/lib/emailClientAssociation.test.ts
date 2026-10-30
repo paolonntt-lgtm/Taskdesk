@@ -21,6 +21,7 @@ describe("email client association", () => {
   it("matches an exact client email or PEC", () => {
     expect(resolve("BILLING@CAFFEAURORA.IT").clientId).toBe(1);
     expect(resolve("caffeaurora@pec.it").clientId).toBe(1);
+    expect(resolve("billing@caffeaurora.it").matchType).toBe("profile_contact");
   });
 
   it("matches all senders at an explicitly saved client email domain", () => {
@@ -49,13 +50,15 @@ describe("email client association", () => {
   });
 
   it("honors an exact sender rule on later tickets", () => {
-    expect(resolve("andrea@unknown.example", [{ organizationId: 7, senderEmail: "andrea@unknown.example", clientId: 2 }]).clientId).toBe(2);
+    const result = resolve("andrea@unknown.example", [{ organizationId: 7, senderEmail: "andrea@unknown.example", clientId: 2 }]);
+    expect(result.clientId).toBe(2);
+    expect(result.matchType).toBe("sender_rule");
   });
 
   it("gives an exact client contact match priority over a conflicting domain rule", () => {
     expect(resolve("billing@caffeaurora.it", [], [
       { organizationId: 7, domain: "caffeaurora.it", clientId: 2 },
-    ])).toEqual({ clientId: 1, suggestedClientId: null });
+    ])).toEqual({ clientId: 1, suggestedClientId: null, matchType: "profile_contact" });
   });
 
   it("does not match or suggest clients when client management is disabled", () => {
@@ -75,7 +78,7 @@ describe("email client association", () => {
 
   it("uses a confirmed custom-domain rule on future emails", () => {
     expect(resolve("another@caffeaurora.it", [], [{ organizationId: 7, domain: "caffeaurora.it", clientId: 1 }]))
-      .toEqual({ clientId: 1, suggestedClientId: null });
+      .toEqual({ clientId: 1, suggestedClientId: null, matchType: "domain_rule" });
   });
 
   it("does not carry a confirmed domain rule or infer a match across a different top-level domain", () => {

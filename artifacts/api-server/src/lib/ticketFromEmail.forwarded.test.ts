@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     tables,
     clients: [] as Array<Record<string, unknown>>,
     senderRules: [] as Array<Record<string, unknown>>,
+    domainRules: [] as Array<Record<string, unknown>>,
     inserts: [] as Array<{ table: unknown; values: Record<string, unknown> }>,
     systemUser: { id: 80, organizationId: 7, name: "Sistema" },
   };
@@ -70,6 +71,7 @@ vi.mock("./onedriveGraph", () => ({
   syncOneDriveAttachment: vi.fn(async () => undefined),
 }));
 
+import { logger } from "./logger";
 import { createTicketFromEmail } from "./ticketFromEmail";
 
 function queryResultFor(table: unknown): unknown[] {
@@ -77,6 +79,7 @@ function queryResultFor(table: unknown): unknown[] {
   if (table === mocks.tables.ticketsTable) return [{ maxNum: 12 }];
   if (table === mocks.tables.clientsTable) return mocks.clients;
   if (table === mocks.tables.emailClientSenderRulesTable) return mocks.senderRules;
+  if (table === mocks.tables.emailClientDomainRulesTable) return mocks.domainRules;
   return [];
 }
 
@@ -85,6 +88,7 @@ describe("forwarded inbound ticket creation", () => {
     vi.clearAllMocks();
     mocks.inserts.length = 0;
     mocks.senderRules = [];
+    mocks.domainRules = [];
     mocks.clients = [
       {
         id: 21,
@@ -155,6 +159,12 @@ describe("forwarded inbound ticket creation", () => {
       emailMessageId: "<forwarded-message@forwarding.example>",
       emailConversationId: "conversation-789",
     });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
+      associationCriterion: "profile_contact",
+      externalSenderMatch: "profile_contact",
+      forwarded: true,
+      originalSenderStatus: "available",
+    }), "Inbound email client association resolved");
   });
 
   it("uses the original sender only as a client-association fallback, not as the reply address", async () => {
@@ -169,6 +179,18 @@ describe("forwarded inbound ticket creation", () => {
       emailMessageId: "<forwarded-message@forwarding.example>",
       emailConversationId: "conversation-789",
     });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
+      associationCriterion: "original_sender",
+      externalSenderMatch: "none",
+      originalSenderStatus: "available",
+      originalSenderMatch: "profile_contact",
+    }), "Inbound email client association resolved");
+    const associationLog = vi.mocked(logger.info).mock.calls.find(([, message]) =>
+      message === "Inbound email client association resolved");
+    expect(JSON.stringify(associationLog)).not.toContain("forwarder@forwarding.example");
+    expect(JSON.stringify(associationLog)).not.toContain("customer@acme.example");
+    expect(JSON.stringify(associationLog)).not.toContain("Forwarding Service");
+    expect(JSON.stringify(associationLog)).not.toContain("Please help with this request.");
   });
 
   it("does not associate an unmatched original sender", async () => {
@@ -186,6 +208,13 @@ describe("forwarded inbound ticket creation", () => {
       clientId: null,
       suggestedClientId: null,
     });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
+      associationCriterion: "none",
+      externalSenderMatch: "none",
+      forwarded: true,
+      originalSenderStatus: "available",
+      originalSenderMatch: "none",
+    }), "Inbound email client association resolved");
   });
 
   it("ignores a learned forwarding-address rule when the forwarded sender has no client match", async () => {
@@ -214,6 +243,12 @@ describe("forwarded inbound ticket creation", () => {
       clientId: null,
       suggestedClientId: null,
     });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
+      associationCriterion: "none",
+      externalSenderMatch: "none",
+      forwarded: true,
+      originalSenderStatus: "available",
+    }), "Inbound email client association resolved");
   });
 
   it("ignores a learned forwarding-address rule when Fwd is present but the original sender is missing", async () => {

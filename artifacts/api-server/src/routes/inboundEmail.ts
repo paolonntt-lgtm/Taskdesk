@@ -244,28 +244,17 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const headersForLog: Record<string, string> = (body?.headers && typeof body.headers === "object")
     ? body.headers as Record<string, string>
     : {};
-  const xTrasportoLog = Object.entries(headersForLog)
-    .find(([k]) => k.toLowerCase() === "x-trasporto")?.[1] ?? "(absent)";
-  // Also peek at X-Trasporto from the raw MIME headers
-  let mimeXTrasportoLog = "(absent)";
-  if (rawMimeForLog) {
-    const blankIdx = rawMimeForLog.search(/\r?\n\r?\n/);
-    if (blankIdx !== -1) {
-      const mimeHdrs = rawMimeForLog.slice(0, blankIdx);
-      const m = /^x-trasporto:\s*(.+)$/im.exec(mimeHdrs);
-      if (m) mimeXTrasportoLog = m[1].trim();
-    }
-  }
+  const hasXTrasportoProvider = Object.keys(headersForLog).some((key) => key.toLowerCase() === "x-trasporto");
+  const mimeHeaderEnd = rawMimeForLog.search(/\r?\n\r?\n/);
+  const mimeHeadersForLog = mimeHeaderEnd < 0 ? rawMimeForLog : rawMimeForLog.slice(0, mimeHeaderEnd);
+  const hasXTrasportoMime = /^x-trasporto\s*:/im.test(mimeHeadersForLog);
   req.log.info({
     bodyKeys: body ? Object.keys(body) : [],
-    toRaw: body?.to ?? body?.To ?? body?.ToFull ?? body?.envelope?.to ?? "(missing)",
-    fromRaw: body?.from ?? body?.From ?? body?.from_email ?? "(missing)",
-    subject: body?.subject ?? body?.Subject ?? "(missing)",
     hasText: !!(body?.text || body?.body_text || body?.plain || body?.body),
     hasHeaders: !!body?.headers,
     hasProviderAttachments: Array.isArray(body?.attachments) ? body.attachments.length : 0,
-    xTrasportoProvider: xTrasportoLog,
-    xTrasportoMime: mimeXTrasportoLog,
+    hasXTrasportoProvider,
+    hasXTrasportoMime,
     rawMimeBytes: rawMimeForLog.length,
   }, "Inbound email webhook received");
 
@@ -278,7 +267,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   const { text: bodyText, attachments, overrideSubject, originalSenderEmail, discard } = extractTextAndAttachments(body);
 
   if (discard) {
-    req.log.info({ from: fromEmail }, "Inbound email: PEC receipt discarded silently");
+    req.log.info({}, "Inbound email: PEC receipt discarded silently");
     res.status(200).json({ ok: true });
     return;
   }
@@ -306,7 +295,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   // to each: TaskDesk bounce detection on the envelope, general patterns on the
   // inner content.
   if (isAutoReply(headers, effectiveSubject, subject)) {
-    req.log.info({ from: fromEmail, subject: effectiveSubject, outerSubject: subject }, "Inbound email: auto-reply/automated message discarded");
+    req.log.info({}, "Inbound email: auto-reply/automated message discarded");
     res.status(200).json({ ok: true });
     return;
   }
@@ -323,7 +312,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
   let resolvedChannelId: number | null = null;
 
   const toAddresses = extractToAddresses(body);
-  req.log.info({ toAddresses }, "Inbound email: resolved To addresses");
+  req.log.info({ recipientCount: toAddresses.length }, "Inbound email: resolved To addresses");
 
   for (const addr of toAddresses) {
     const localPart = extractLocalPart(addr);
@@ -335,28 +324,28 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
     if (bySlug?.enabled) {
       resolvedOrgId = bySlug.organizationId;
       resolvedChannelId = bySlug.id;
-      req.log.info({ localPart, channelId: bySlug.id }, "Inbound email: channel resolved via slug");
+      req.log.info({ channelId: bySlug.id, matchType: "slug" }, "Inbound email: channel resolved via slug");
       break;
     }
 
     // 2. Fall back to legacy tickets-{token} pattern
     const token = extractToken(localPart);
-    req.log.info({ localPart, extractedToken: token ?? "(no match)" }, "Inbound email: token extraction");
+    req.log.info({ tokenMatched: token != null }, "Inbound email: token extraction");
     if (!token) continue;
     const [byToken] = await db.select().from(inboundEmailChannelsTable)
       .where(eq(inboundEmailChannelsTable.token, token));
     if (byToken?.enabled) {
       resolvedOrgId = byToken.organizationId;
       resolvedChannelId = byToken.id;
-      req.log.info({ token, channelId: byToken.id }, "Inbound email: channel resolved via token");
+      req.log.info({ channelId: byToken.id, matchType: "token" }, "Inbound email: channel resolved via token");
       break;
     } else {
-      req.log.warn({ token, found: !!byToken, enabled: byToken?.enabled }, "Inbound email: token not matched to any enabled channel");
+      req.log.warn({ found: !!byToken, enabled: byToken?.enabled }, "Inbound email: token not matched to any enabled channel");
     }
   }
 
   if (!resolvedChannelId) {
-    req.log.warn({ toAddresses }, "Inbound email: no channel resolved from To addresses");
+    req.log.warn({ recipientCount: toAddresses.length }, "Inbound email: no channel resolved from To addresses");
   }
 
   // Fall back to env-configured org if no token matched
@@ -381,7 +370,7 @@ router.post("/inbound-email", async (req, res): Promise<void> => {
       inboundChannelId: resolvedChannelId,
       isPec: !!overrideSubject,
     });
-    req.log.info({ from: fromEmail, orgId: resolvedOrgId, inboundChannelId: resolvedChannelId }, "Inbound email processed successfully");
+    req.log.info({ orgId: resolvedOrgId, inboundChannelId: resolvedChannelId }, "Inbound email processed successfully");
     res.status(200).json({ ok: true });
   } catch (err: any) {
     req.log.error({ err }, "Failed to process inbound email webhook");
