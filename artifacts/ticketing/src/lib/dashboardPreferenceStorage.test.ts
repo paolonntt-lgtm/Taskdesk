@@ -1,9 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
   dashboardWidgetSettingsId,
+  getPersonWidgetTicketsQuery,
+  readDashboardWidgetInstancePreference,
+  writeDashboardWidgetInstancePreference,
 } from "./dashboardPreferenceStorage";
+
+function createMemoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("dashboardPreferenceStorageKey", () => {
   it("keeps the same dashboard preference separate for each user", () => {
@@ -27,6 +43,70 @@ describe("dashboardPreferenceStorageKey", () => {
     const secondInstance = dashboardWidgetInstancePreferenceKey("td_widget_person_id", "feed-person__123");
 
     expect(firstInstance).not.toBe(secondInstance);
+  });
+});
+
+describe("collaborator ticket widgets", () => {
+  it("restores each instance and loads that collaborator's tickets after a refresh", async () => {
+    const storage = createMemoryStorage();
+    const widgetId = "feed-person";
+    const duplicateWidgetId = "feed-person__123";
+    const preferenceKey = "td_widget_person_id:user:12";
+
+    // Configure two widgets, then read from storage again as a page reload would.
+    writeDashboardWidgetInstancePreference(storage, preferenceKey, widgetId, "11", widgetId);
+    writeDashboardWidgetInstancePreference(storage, preferenceKey, duplicateWidgetId, "22", widgetId);
+    const firstSelectedId = Number(readDashboardWidgetInstancePreference(storage, preferenceKey, widgetId, widgetId));
+    const secondSelectedId = Number(readDashboardWidgetInstancePreference(storage, preferenceKey, duplicateWidgetId, widgetId));
+    const users = [
+      { id: 11, name: "Ada" },
+      { id: 22, name: "Lin" },
+    ];
+
+    expect([firstSelectedId, secondSelectedId]).toEqual([11, 22]);
+    expect(users.find((user) => user.id === firstSelectedId)?.name).toBe("Ada");
+    expect(users.find((user) => user.id === secondSelectedId)?.name).toBe("Lin");
+
+    const ticketsByUrl: Record<string, { id: number; title: string }[]> = {
+      "/api/tickets?assignedTo=11&status=open": [{ id: 101, title: "Ada's ticket" }],
+      "/api/tickets?assignedTo=22&status=open": [{ id: 202, title: "Lin's ticket" }],
+    };
+    const fetchMock = vi.fn(async (url: string) => ({
+      json: async () => ticketsByUrl[url] ?? [],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstQuery = getPersonWidgetTicketsQuery(firstSelectedId);
+    const secondQuery = getPersonWidgetTicketsQuery(secondSelectedId);
+    const [firstTickets, secondTickets] = await Promise.all([
+      firstQuery.queryFn(),
+      secondQuery.queryFn(),
+    ]);
+
+    expect(firstQuery.queryKey).not.toEqual(secondQuery.queryKey);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/tickets?assignedTo=11&status=open",
+      { credentials: "include" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/tickets?assignedTo=22&status=open",
+      { credentials: "include" },
+    );
+    expect(firstTickets).toEqual([{ id: 101, title: "Ada's ticket" }]);
+    expect(secondTickets).toEqual([{ id: 202, title: "Lin's ticket" }]);
+  });
+
+  it("restores the legacy single-widget preference only for the original instance", () => {
+    const storage = createMemoryStorage();
+    const legacyKey = "td_widget_person_id:user:12";
+    storage.setItem(legacyKey, "31");
+
+    expect(readDashboardWidgetInstancePreference(storage, legacyKey, "feed-person", "feed-person"))
+      .toBe("31");
+    expect(readDashboardWidgetInstancePreference(storage, legacyKey, "feed-person__123", "feed-person"))
+      .toBeNull();
   });
 });
 

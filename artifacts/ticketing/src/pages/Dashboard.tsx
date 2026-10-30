@@ -67,6 +67,9 @@ import {
   dashboardPreferenceStorageKey,
   dashboardWidgetInstancePreferenceKey,
   dashboardWidgetSettingsId,
+  getPersonWidgetTicketsQuery,
+  readDashboardWidgetInstancePreference,
+  writeDashboardWidgetInstancePreference,
 } from '../lib/dashboardPreferenceStorage';
 
 const ReactGridLayout = WidthProvider(GridLayout);
@@ -1318,13 +1321,14 @@ function FeedPersonWidget() {
   const entityTerm = useEntityTerm();
   const widgetInstanceId = React.useContext(WidgetInstanceIdContext) || 'feed-person';
   const [configOpen, setConfigOpen] = useState(false);
-  const personWidgetStorageKey = useDashboardStorageKey(
-    dashboardWidgetInstancePreferenceKey(PERSON_WIDGET_KEY, widgetInstanceId),
-  );
-  const legacyPersonWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
+  const personWidgetStorageKey = useDashboardStorageKey(PERSON_WIDGET_KEY);
   const [selectedId, setSelectedId] = useState<number | null>(() => {
-    const v = localStorage.getItem(personWidgetStorageKey)
-      ?? (widgetInstanceId === 'feed-person' ? localStorage.getItem(legacyPersonWidgetStorageKey) : null);
+    const v = readDashboardWidgetInstancePreference(
+      localStorage,
+      personWidgetStorageKey,
+      widgetInstanceId,
+      'feed-person',
+    );
     return v ? parseInt(v, 10) : null;
   });
   const [tempId, setTempId] = useState<number | ''>(selectedId ?? '');
@@ -1335,12 +1339,9 @@ function FeedPersonWidget() {
     staleTime: 60_000,
   });
 
+  const personTicketsQuery = getPersonWidgetTicketsQuery(selectedId);
   const { data = [] } = useQuery<TicketRow[]>({
-    queryKey: ['tickets-for-person', selectedId],
-    queryFn: () => selectedId
-      ? fetch(`/api/tickets?assignedTo=${selectedId}&status=open`, { credentials: 'include' }).then((r) => r.json())
-      : Promise.resolve([]),
-    enabled: selectedId != null,
+    ...personTicketsQuery,
     staleTime: POLL_MS,
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
@@ -1352,9 +1353,13 @@ function FeedPersonWidget() {
   const handleSave = () => {
     const id = typeof tempId === 'number' ? tempId : null;
     setSelectedId(id);
-    if (id != null) localStorage.setItem(personWidgetStorageKey, String(id));
-    else localStorage.removeItem(personWidgetStorageKey);
-    if (widgetInstanceId === 'feed-person') localStorage.removeItem(legacyPersonWidgetStorageKey);
+    writeDashboardWidgetInstancePreference(
+      localStorage,
+      personWidgetStorageKey,
+      widgetInstanceId,
+      id === null ? null : String(id),
+      'feed-person',
+    );
     setConfigOpen(false);
   };
 
