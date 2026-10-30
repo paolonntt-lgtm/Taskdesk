@@ -8,19 +8,20 @@ export function prefixTicketTitleWithClient(
   const normalizedClientName = clientName.trim();
   if (!normalizedClientName) return title;
 
-  const previousPrefix = previousClientName?.trim()
-    ? `${previousClientName.trim()}${CLIENT_TITLE_SEPARATOR}`
-    : null;
+  const normalizedPreviousClientName = previousClientName?.trim() || null;
   const newPrefix = `${normalizedClientName}${CLIENT_TITLE_SEPARATOR}`;
   let originalTitle = title;
 
   const stripPrefix = (prefix: string) => {
-    while (originalTitle.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase())) {
-      originalTitle = originalTitle.slice(prefix.length);
+    const normalizedPrefix = prefix.trim().toLocaleLowerCase();
+    while (originalTitle.toLocaleLowerCase().startsWith(normalizedPrefix)) {
+      const separator = /^\s*(?:—|–|-|:)\s*/u.exec(originalTitle.slice(prefix.trim().length));
+      if (!separator) break;
+      originalTitle = originalTitle.slice(prefix.trim().length + separator[0].length);
     }
   };
-  if (previousPrefix) stripPrefix(previousPrefix);
-  stripPrefix(newPrefix);
+  if (normalizedPreviousClientName) stripPrefix(normalizedPreviousClientName);
+  stripPrefix(normalizedClientName);
 
   return `${newPrefix}${originalTitle}`;
 }
