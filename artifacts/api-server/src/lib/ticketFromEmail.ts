@@ -323,11 +323,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   let clientAssociation = outerSenderAssociation;
   let originalSenderAssociation: ReturnType<typeof resolveEmailClientAssociation> | undefined;
   let matchedOriginalSender = false;
-  if (
-    outerSenderAssociation.clientId == null &&
-    !outerSenderAssociation.clientAssociationIssue &&
-    hasDifferentOriginalSender
-  ) {
+  if (hasDifferentOriginalSender) {
     originalSenderAssociation = await getInboundClientAssociation(orgId, originalSenderEmail);
     clientAssociation = chooseForwardedEmailAssociation(outerSenderAssociation, originalSenderAssociation);
     matchedOriginalSender = clientAssociation.clientId != null &&

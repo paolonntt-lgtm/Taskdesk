@@ -106,15 +106,15 @@ export function resolveEmailClientAssociation(input: {
 }
 
 /**
- * Keep the outer sender authoritative for forwarded messages. The original
- * sender may supply an association only when it resolves to an actual client;
- * an unconfirmed suggestion is never enough to associate the ticket.
+ * For forwarded messages, prefer a unique or conflicting match for the
+ * original sender. Fall back to the outer sender only when the original
+ * sender has no profile match; an unconfirmed suggestion is never enough.
  */
 export function chooseForwardedEmailAssociation(
   outerSender: EmailClientAssociationResult,
   originalSender?: EmailClientAssociationResult,
 ): EmailClientAssociationResult {
-  if (outerSender.clientId != null || outerSender.clientAssociationIssue) return outerSender;
   if (originalSender?.clientId != null || originalSender?.clientAssociationIssue) return originalSender;
+  if (outerSender.clientId != null || outerSender.clientAssociationIssue) return outerSender;
   return outerSender;
 }

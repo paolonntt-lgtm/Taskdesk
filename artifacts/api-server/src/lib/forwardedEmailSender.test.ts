@@ -23,6 +23,17 @@ describe("forwarded email sender extraction", () => {
     )).toBe("cliente@example.it");
   });
 
+  it("extracts Mittente after other headers in an Italian forwarded block", () => {
+    expect(extractForwardedSender(
+      "------ Messaggio Inoltrato --------\n" +
+      "Oggetto: Riduzione orario dipendente\n" +
+      "Data: Fri, 30 Oct 2026 14:07:07 +0100\n" +
+      "Mittente: Domowellness SSD ARL <domowellnessssdarl@gmail.com>\n" +
+      "A: Enrico <enrico@example.it>\n\n" +
+      "Ciao, attendo lettera.",
+    )).toBe("domowellnessssdarl@gmail.com");
+  });
+
   it("does not treat an arbitrary From line as an original sender", () => {
     expect(extractForwardedSender("From: client@example.it\nThis is just body text.")).toBeNull();
   });

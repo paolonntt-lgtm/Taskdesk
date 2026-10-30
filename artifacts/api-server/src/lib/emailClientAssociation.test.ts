@@ -134,11 +134,11 @@ describe("email client association", () => {
     )).toEqual({ clientId: 2, suggestedClientId: null, matchType: "profile_contact" });
   });
 
-  it("keeps the outer sender's explicit match ahead of the original sender", () => {
+  it("prefers the original sender's explicit match over the forwarding account", () => {
     expect(chooseForwardedEmailAssociation(
       { clientId: 1, suggestedClientId: null },
       { clientId: 2, suggestedClientId: null, matchType: "profile_contact" },
-    )).toEqual({ clientId: 1, suggestedClientId: null });
+    )).toEqual({ clientId: 2, suggestedClientId: null, matchType: "profile_contact" });
   });
 
   it("does not turn an original-sender suggestion into an association", () => {
@@ -155,18 +155,14 @@ describe("email client association", () => {
       .toEqual({ clientId: null, suggestedClientId: null });
   });
 
-  it("does not use the original sender to bypass an outer-sender conflict", () => {
+  it("uses a unique original-sender match when the forwarding account is ambiguous", () => {
     expect(chooseForwardedEmailAssociation(
       { clientId: null, suggestedClientId: null, clientAssociationIssue: "conflicting_exact_matches" },
       { clientId: 2, suggestedClientId: null },
-    )).toEqual({
-      clientId: null,
-      suggestedClientId: null,
-      clientAssociationIssue: "conflicting_exact_matches",
-    });
+    )).toEqual({ clientId: 2, suggestedClientId: null });
   });
 
-  it("retains an original-sender conflict when the forwarded sender has no match", () => {
+  it("does not use a unique forwarding-account match when the original sender is ambiguous", () => {
     const originalConflict = resolve("billing@caffeaurora.it", [
       ...clients,
       {
@@ -177,7 +173,7 @@ describe("email client association", () => {
       },
     ]);
     expect(chooseForwardedEmailAssociation(
-      resolve("forwarder@external.example"),
+      { clientId: 1, suggestedClientId: null, matchType: "profile_contact" },
       originalConflict,
     )).toEqual({
       clientId: null,

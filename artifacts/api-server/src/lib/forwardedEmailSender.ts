@@ -22,10 +22,21 @@ export function extractForwardedSender(text: string): string | null {
   const lines = text.slice(marker.lastIndex).split(/\r?\n/);
   while (lines[0]?.trim() === "") lines.shift();
 
-  // Mail clients place the original sender in the first header line. Requiring
-  // it here prevents a later, unrelated From line in the body from being accepted.
-  const fromLine = /^(?:from|da):\s*(.+)$/i.exec(lines[0] ?? "");
-  return fromLine ? validatedSender(fromLine[1]) : null;
+  // Forwarded headers vary by mail client and locale; keep scanning only the
+  // contiguous header block so a From line in the forwarded body is ignored.
+  const headerLines: string[] = [];
+  for (const line of lines) {
+    if (!line.trim()) break;
+    headerLines.push(line);
+  }
+  const senders = new Set(
+    headerLines
+      .map((line) => /^(?:from|da|mittente):\s*(.+)$/i.exec(line))
+      .filter((match): match is RegExpExecArray => Boolean(match))
+      .map((match) => validatedSender(match[1]))
+      .filter((sender): sender is string => sender != null),
+  );
+  return senders.size === 1 ? [...senders][0] : null;
 }
 
 export function extractSenderFromEmbeddedEmail(rawMime: string): string | null {

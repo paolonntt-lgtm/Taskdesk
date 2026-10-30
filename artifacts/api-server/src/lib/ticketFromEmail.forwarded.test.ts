@@ -149,22 +149,23 @@ describe("forwarded inbound ticket creation", () => {
     conversationId: "conversation-789",
   };
 
-  it("keeps the matched external sender, its client, and threading IDs on the ticket", async () => {
+  it("matches the original customer when both it and the forwarding account belong to clients", async () => {
     await createTicketFromEmail(baseInput);
 
     const ticket = mocks.inserts.find(({ table }) => table === mocks.tables.ticketsTable)?.values;
     expect(ticket).toMatchObject({
       resource: "forwarder@forwarding.example",
-      clientId: 21,
+      clientId: 22,
       emailMessageId: "<forwarded-message@forwarding.example>",
       emailConversationId: "conversation-789",
-      emailClientAssociationReason: "profile_contact",
-      emailClientAssociationSource: "external_sender",
+      emailClientAssociationReason: "original_sender",
+      emailClientAssociationSource: "original_sender",
       emailClientAssociationForwarded: true,
     });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
-      associationCriterion: "profile_contact",
+      associationCriterion: "original_sender",
       externalSenderMatch: "profile_contact",
+      originalSenderMatch: "profile_contact",
       forwarded: true,
       originalSenderStatus: "available",
     }), "Inbound email client association resolved");
