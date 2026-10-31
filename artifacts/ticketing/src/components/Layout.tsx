@@ -610,9 +610,6 @@ export default function Layout({ children }: LayoutProps) {
     ...(user?.role === 'admin' && timeTrackingSettings?.timeTrackingModuleEnabled
       ? [{ text: t.nav.timeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/time-report', adminOnly: true, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
-    ...(user?.role === 'admin' && ((user as any)?.isSharedWorkspace || activeWorkspaceId === (user as any)?.billingOrganizationId)
-      ? [{ text: lang === 'it' ? 'Gestione spazi' : 'Workspace management', icon: <Business />, iconColor: '#2878C8', path: '/workspace-management', adminOnly: true, group: lang === 'it' ? 'Organizzazione' : 'Organization' }]
-      : []),
     ...(shouldShowPersonalTimeReport(user?.role, personalTimeReport.data?.rows)
       ? [{ text: t.nav.myTimeTrackingReport, icon: <AccessTime />, iconColor: '#168B9B', path: '/my-time-report', adminOnly: false, group: lang === 'it' ? 'Controllo' : 'Control' }]
       : []),
@@ -653,15 +650,15 @@ export default function Layout({ children }: LayoutProps) {
       <Divider />
 
       {/* Nav items */}
-      <List sx={{ px: 1.5, pt: 1.5, flex: 1 }}>
+      <List sx={{ px: 1.5, pt: 1.25, flex: 1 }}>
         {menuItems.map((item, index) => (
           <React.Fragment key={item.text}>
             {(index === 0 || item.group !== menuItems[index - 1]?.group) && (
-              <Typography sx={{ px: 1.5, pt: index === 0 ? 0 : 1.75, pb: 0.6, color: theme.palette.mode === 'dark' ? '#c3d0dc' : '#526579', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', lineHeight: 1.2, textTransform: 'uppercase' }}>
+              <Typography sx={{ px: 1.5, pt: index === 0 ? 0 : 1.5, pb: 0.5, color: theme.palette.mode === 'dark' ? '#c3d0dc' : '#526579', fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.1em', lineHeight: 1.2, textTransform: 'uppercase' }}>
                 {item.group}
               </Typography>
             )}
-            <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItem disablePadding sx={{ mb: 0.35 }}>
               <ListItemButton
                 data-tour={item.path === '/tickets' ? 'tickets' : item.path === '/tickets/new' ? 'new-ticket' : undefined}
                 data-testid={item.path === '/announcements' ? 'nav-announcements' : undefined}
@@ -669,7 +666,7 @@ export default function Layout({ children }: LayoutProps) {
                 selected={isActive(item.path)}
                 sx={{
                   borderRadius: '8px',
-                  py: 1,
+                  py: 0.7,
                   color: theme.palette.mode === 'dark' ? '#e4edf5' : '#26384d',
                   '&.Mui-selected': {
                      background: theme.palette.mode === 'dark' ? 'rgba(25,118,210,.22)' : '#eaf2fb',
@@ -683,10 +680,10 @@ export default function Layout({ children }: LayoutProps) {
                   '&:not(.Mui-selected):hover': { bgcolor: 'action.hover', color: theme.palette.mode === 'dark' ? '#ffffff' : '#172a40' },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 42 }}>
+                <ListItemIcon sx={{ minWidth: 38 }}>
                   <Box sx={{
-                    width: 31,
-                    height: 31,
+                    width: 27,
+                    height: 27,
                     display: 'grid',
                     placeItems: 'center',
                     borderRadius: '10px',
@@ -695,13 +692,13 @@ export default function Layout({ children }: LayoutProps) {
                       ? item.iconColor
                       : `${item.iconColor}${theme.palette.mode === 'dark' ? '30' : '18'}`,
                     transition: 'color 160ms ease, background-color 160ms ease, transform 160ms ease',
-                    '& .MuiSvgIcon-root': { fontSize: 19 },
+                    '& .MuiSvgIcon-root': { fontSize: 17 },
                     '.MuiListItemButton-root:hover &': { transform: 'translateY(-1px)' },
                   }}>
                     {item.icon}
                   </Box>
                 </ListItemIcon>
-                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 600, fontSize: '0.94rem' }} />
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 700 : 600, fontSize: '0.88rem' }} />
               </ListItemButton>
             </ListItem>
           </React.Fragment>
@@ -709,13 +706,13 @@ export default function Layout({ children }: LayoutProps) {
         {(user as any)?.isSuperAdmin && (
           <>
             <Divider sx={{ my: 1 }} />
-            <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItem disablePadding sx={{ mb: 0.35 }}>
               <ListItemButton
                 onClick={() => { setLocation('/superadmin'); if (isMobile) setMobileOpen(false); }}
                 selected={isActive('/superadmin')}
                 sx={{
                   borderRadius: '10px',
-                  py: 1,
+                  py: 0.7,
                   '&.Mui-selected': {
                     background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                     color: '#ffffff',
@@ -728,10 +725,10 @@ export default function Layout({ children }: LayoutProps) {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 42 }}>
+                <ListItemIcon sx={{ minWidth: 38 }}>
                   <Box sx={{
-                    width: 31,
-                    height: 31,
+                    width: 27,
+                    height: 27,
                     display: 'grid',
                     placeItems: 'center',
                     borderRadius: '10px',
@@ -739,14 +736,14 @@ export default function Layout({ children }: LayoutProps) {
                     bgcolor: isActive('/superadmin')
                       ? 'rgba(255,255,255,0.18)'
                       : theme.palette.mode === 'dark' ? 'rgba(179,68,120,0.24)' : 'rgba(179,68,120,0.12)',
-                    '& .MuiSvgIcon-root': { fontSize: 19 },
+                    '& .MuiSvgIcon-root': { fontSize: 17 },
                   }}>
                     <AdminPanelSettings />
                   </Box>
                 </ListItemIcon>
                 <ListItemText
                   primary={t.nav.superadmin}
-                  primaryTypographyProps={{ fontWeight: isActive('/superadmin') ? 700 : 500, fontSize: '0.9rem' }}
+                  primaryTypographyProps={{ fontWeight: isActive('/superadmin') ? 700 : 500, fontSize: '0.88rem' }}
                 />
               </ListItemButton>
             </ListItem>
