@@ -437,6 +437,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
       assignedTo: isAdminOnly ? null : (autoAssignedUserId ?? routing.defaultAssignee ?? null),
       emailMessageId: messageId ?? null,
       emailConversationId: conversationId ?? null,
+      emailOriginalSender: normalizeSenderEmail(originalSenderEmail ?? "") || null,
       inboundChannelId: inboundChannelId ?? null,
       clientId: clientAssociation.clientId,
       suggestedClientId: clientAssociation.suggestedClientId,

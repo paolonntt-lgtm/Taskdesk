@@ -109,6 +109,8 @@ import
  from "../lib/emailClientAssociation"
 ;
 
+import { extractForwardedSender } from "../lib/forwardedEmailSender";
+
 import 
 {
  prefixTicketTitleWithClient 
@@ -168,6 +170,7 @@ const TICKET_LIST_COLS =
   inboundChannelId: ticketsTable.inboundChannelId,
   emailMessageId: ticketsTable.emailMessageId,
   emailConversationId: ticketsTable.emailConversationId,
+  emailOriginalSender: ticketsTable.emailOriginalSender,
   recurrenceRule: ticketsTable.recurrenceRule,
   recurrenceNextAt: ticketsTable.recurrenceNextAt,
   recurrenceParentId: ticketsTable.recurrenceParentId,
@@ -348,6 +351,7 @@ function buildTicketWithDetails(
     emailClientAssociationReason: _emailClientAssociationReason,
     emailClientAssociationSource: _emailClientAssociationSource,
     emailClientAssociationForwarded: _emailClientAssociationForwarded,
+    emailOriginalSender: _emailOriginalSender,
     suggestedClientId: _suggestedClientId,
     ...ticketFields
   } = ticket;
@@ -1641,13 +1645,13 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     ticketClient,
   );
   if (currentUser.role === "admin" && clientsEnabled) {
-    if (
-      (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) &&
-      typeof ticket.emailClientAssociationReason === "string"
-    ) {
-      (detail as any).emailClientAssociationReason = ticket.emailClientAssociationReason;
+    if (ticket.inboundChannelId || ticket.emailMessageId || ticket.emailConversationId) {
+      if (typeof ticket.emailClientAssociationReason === "string") {
+        (detail as any).emailClientAssociationReason = ticket.emailClientAssociationReason;
+      }
       (detail as any).emailClientAssociationSource = ticket.emailClientAssociationSource;
       (detail as any).emailClientAssociationForwarded = ticket.emailClientAssociationForwarded;
+      (detail as any).emailOriginalSender = ticket.emailOriginalSender;
     }
     if (clientAssociationIssue) {
       (detail as any).clientAssociationIssue = clientAssociationIssue;
@@ -2993,14 +2997,24 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
       if (addSenderEmailToClient) {
         const selectedClientId = parsed.data.clientId;
-        const senderAddress = normalizeSenderEmail(timerState.resource ?? "");
+        const parsedOriginalSender = extractForwardedSender(timerState.description ?? "");
+        const originalSender = timerState.emailOriginalSender ?? parsedOriginalSender;
+        const isForwardedMessage =
+          timerState.emailClientAssociationForwarded === true || parsedOriginalSender != null;
+        const senderAddress = normalizeSenderEmail(
+          isForwardedMessage
+            ? originalSender ?? ""
+            : timerState.resource ?? "",
+        );
         const hasInboundEmailMetadata = timerState.inboundChannelId != null ||
           timerState.emailMessageId != null ||
           timerState.emailConversationId != null;
         if (!hasInboundEmailMetadata || !senderAddress || selectedClientId == null) {
           throw new TicketClientAssociationError(
             400,
-            "This ticket does not have a valid inbound sender address",
+            isForwardedMessage
+              ? "The original sender could not be determined for this forwarded email"
+              : "This ticket does not have a valid inbound sender address",
           );
         }
 

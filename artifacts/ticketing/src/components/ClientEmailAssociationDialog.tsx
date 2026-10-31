@@ -16,6 +16,7 @@ interface ClientEmailAssociationDialogProps {
   cancelLabel: string;
   linkOnlyLabel: string;
   addAndLinkLabel: string;
+  allowAddSender?: boolean;
   error: string | null;
   onClose: () => void;
   onLinkOnly: () => void;
@@ -30,6 +31,7 @@ export default function ClientEmailAssociationDialog({
   cancelLabel,
   linkOnlyLabel,
   addAndLinkLabel,
+  allowAddSender = true,
   error,
   onClose,
   onLinkOnly,
@@ -61,13 +63,15 @@ export default function ClientEmailAssociationDialog({
         >
           {linkOnlyLabel}
         </Button>
-        <Button
-          variant="contained"
-          disabled={busy}
-          onClick={onAddAndLink}
-        >
-          {addAndLinkLabel}
-        </Button>
+        {allowAddSender && (
+          <Button
+            variant="contained"
+            disabled={busy}
+            onClick={onAddAndLink}
+          >
+            {addAndLinkLabel}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

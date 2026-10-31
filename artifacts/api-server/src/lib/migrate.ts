@@ -19,7 +19,8 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE tickets
         ADD COLUMN IF NOT EXISTS email_client_association_reason TEXT,
         ADD COLUMN IF NOT EXISTS email_client_association_source TEXT,
-        ADD COLUMN IF NOT EXISTS email_client_association_forwarded BOOLEAN;
+        ADD COLUMN IF NOT EXISTS email_client_association_forwarded BOOLEAN,
+        ADD COLUMN IF NOT EXISTS email_original_sender TEXT;
     `);
 
     // Track whether recorded extra work has already been billed.

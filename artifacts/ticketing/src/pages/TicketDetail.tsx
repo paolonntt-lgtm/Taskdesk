@@ -932,10 +932,22 @@ export default function TicketDetail() {
     selectedTicketClient && !clientsList.some((client: any) => client.id === selectedTicketClient.id)
       ? [selectedTicketClient, ...clientsList]
       : clientsList;
-  const ticketSenderEmail = extractTicketSenderEmail((ticket as any).resource);
   const emailAssociationReason = (ticket as any).emailClientAssociationReason as string | undefined;
   const emailAssociationSource = (ticket as any).emailClientAssociationSource as string | null | undefined;
   const emailAssociationForwarded = (ticket as any).emailClientAssociationForwarded as boolean | null | undefined;
+  const emailOriginalSender = (ticket as any).emailOriginalSender as string | null | undefined;
+  const ticketSenderEmail = extractTicketSenderEmail(
+    emailAssociationForwarded ? emailOriginalSender : (ticket as any).resource,
+  );
+  const canAddSenderEmailToClient = isAdmin && Boolean(ticketSenderEmail);
+  const clientAssociationPrompt = emailAssociationForwarded && !ticketSenderEmail
+    ? t.ticketDetail.clientEmailAssociationForwardedSenderUnavailable
+    : canAddSenderEmailToClient
+      ? t.ticketDetail.clientEmailAssociationPromptBody(
+          ticketSenderEmail!,
+          clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
+        )
+      : t.ticketDetail.clientEmailAssociationLinkOnlyPrompt;
   const emailAssociationExplanationKey = getEmailClientAssociationExplanationKey({
     reason: emailAssociationReason,
     source: emailAssociationSource,
@@ -1369,13 +1381,11 @@ export default function TicketDetail() {
             open={clientEmailPromptOpen}
             busy={clientAssociationBusy}
             title={t.ticketDetail.clientEmailAssociationPromptTitle}
-            prompt={t.ticketDetail.clientEmailAssociationPromptBody(
-              ticketSenderEmail ?? '',
-              clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
-            )}
+            prompt={clientAssociationPrompt}
             cancelLabel={t.ticketDetail.clientEmailAssociationCancel}
             linkOnlyLabel={t.ticketDetail.clientEmailAssociationLinkOnly}
             addAndLinkLabel={t.ticketDetail.clientEmailAssociationAddAndLink}
+            allowAddSender={canAddSenderEmailToClient}
             error={clientAssociationError}
             onClose={() => {
               setClientEmailPromptOpen(false);

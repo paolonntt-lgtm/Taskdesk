@@ -27,6 +27,9 @@ let addSenderTicketId: number;
 let linkOnlyTicketId: number;
 let conflictTicketId: number;
 let conflictingClientId: number;
+let forwardedClientId: number;
+let forwardedAddSenderTicketId: number;
+let forwardedMissingSenderTicketId: number;
 let adminSessionId: string;
 
 describe("email ticket client suggestion confirmation", () => {
@@ -56,6 +59,11 @@ describe("email ticket client suggestion confirmation", () => {
       email: `reserved-${runId}@example.test`,
     }).returning({ id: clientsTable.id });
     conflictingClientId = conflictingClient.id;
+    const [forwardedClient] = await db.insert(clientsTable).values({
+      organizationId,
+      name: "Cavaliere S.S.D. a R.L.",
+    }).returning({ id: clientsTable.id });
+    forwardedClientId = forwardedClient.id;
 
     const [ticket] = await db.insert(ticketsTable).values({
       organizationId,
@@ -115,6 +123,31 @@ describe("email ticket client suggestion confirmation", () => {
       emailMessageId: `<conflict-${runId}@test.example>`,
     }).returning({ id: ticketsTable.id });
     conflictTicketId = conflictTicket.id;
+    const [forwardedAddSenderTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Forwarded email ${runId}`,
+      description: "Forwarded sender profile test.",
+      category: "Support",
+      location: "",
+      resource: `admin-${runId}@forwarding.example`,
+      createdBy: adminId,
+      emailOriginalSender: `customer-${runId}@cavaliere.example`,
+      emailClientAssociationForwarded: true,
+      emailMessageId: `<forwarded-add-${runId}@test.example>`,
+    }).returning({ id: ticketsTable.id });
+    forwardedAddSenderTicketId = forwardedAddSenderTicket.id;
+    const [forwardedMissingSenderTicket] = await db.insert(ticketsTable).values({
+      organizationId,
+      title: `Forwarded email without original sender ${runId}`,
+      description: "Forwarded sender profile test.",
+      category: "Support",
+      location: "",
+      resource: `admin-${runId}@forwarding.example`,
+      createdBy: adminId,
+      emailClientAssociationForwarded: true,
+      emailMessageId: `<forwarded-missing-${runId}@test.example>`,
+    }).returning({ id: ticketsTable.id });
+    forwardedMissingSenderTicketId = forwardedMissingSenderTicket.id;
     adminSessionId = await createSession(adminId);
 
     server = createServer(app);
@@ -140,12 +173,15 @@ describe("email ticket client suggestion confirmation", () => {
     if (addSenderTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, addSenderTicketId));
     if (linkOnlyTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
     if (conflictTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, conflictTicketId));
+    if (forwardedAddSenderTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, forwardedAddSenderTicketId));
+    if (forwardedMissingSenderTicketId) await db.delete(ticketsTable).where(eq(ticketsTable.id, forwardedMissingSenderTicketId));
     if (organizationId) {
       await db.delete(emailClientDomainRulesTable)
         .where(eq(emailClientDomainRulesTable.organizationId, organizationId));
     }
     if (clientId) await db.delete(clientsTable).where(eq(clientsTable.id, clientId));
     if (conflictingClientId) await db.delete(clientsTable).where(eq(clientsTable.id, conflictingClientId));
+    if (forwardedClientId) await db.delete(clientsTable).where(eq(clientsTable.id, forwardedClientId));
     if (adminSessionId) {
       await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, adminSessionId));
     }
@@ -247,6 +283,41 @@ describe("email ticket client suggestion confirmation", () => {
       suggestedClientId: ticketsTable.suggestedClientId,
     }).from(ticketsTable).where(eq(ticketsTable.id, linkOnlyTicketId));
     expect(legacyTicket?.suggestedClientId).toBe(clientId);
+  });
+
+  it("adds the original sender, not the forwarding admin, to a client profile", async () => {
+    const response = await fetch(`${baseUrl}/api/tickets/${forwardedAddSenderTicketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId: forwardedClientId, addSenderEmailToClient: true }),
+    });
+    expect(response.status).toBe(200);
+
+    const [client] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, forwardedClientId));
+    expect(client?.email).toBe(`customer-${runId}@cavaliere.example`);
+    expect(client?.email).not.toContain(`admin-${runId}@forwarding.example`);
+  });
+
+  it("does not add the forwarding admin when the original sender is unknown", async () => {
+    const response = await fetch(`${baseUrl}/api/tickets/${forwardedMissingSenderTicketId}`, {
+      method: "PATCH",
+      headers: {
+        Cookie: `session_id=${adminSessionId}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientId: forwardedClientId, addSenderEmailToClient: true }),
+    });
+    expect(response.status).toBe(400);
+
+    const [client] = await db.select({
+      email: clientsTable.email,
+    }).from(clientsTable).where(eq(clientsTable.id, forwardedClientId));
+    expect(client?.email).toBe(`customer-${runId}@cavaliere.example`);
   });
 
   it("rejects adding a sender already saved on another client's profile", async () => {

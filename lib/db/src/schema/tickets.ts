@@ -34,6 +34,7 @@ export const ticketsTable = pgTable("tickets", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   emailMessageId: text("email_message_id"),
   emailConversationId: text("email_conversation_id"),
+  emailOriginalSender: text("email_original_sender"),
   emailClientAssociationReason: text("email_client_association_reason"),
   emailClientAssociationSource: text("email_client_association_source"),
   emailClientAssociationForwarded: boolean("email_client_association_forwarded"),
