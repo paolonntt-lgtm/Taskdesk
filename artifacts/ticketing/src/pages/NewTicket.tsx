@@ -6,7 +6,7 @@ import {
   Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon } from '@mui/icons-material';
-import { useCreateTicket, useUpdateTicket, useGetTicket, useListUsers, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
+import { useCreateTicket, useUpdateTicket, useGetTicket, useListUsers, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey, getListUsersQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,6 +73,9 @@ export default function NewTicket() {
   const { t, lang } = useLanguage();
   const entityTerm = useEntityTerm();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const activeWorkspaceId =
+    (currentUser as any)?.activeWorkspaceId ?? currentUser?.organizationId;
   const createTicket = useCreateTicket();
   const updateTicket = useUpdateTicket();
   const saveAttachment = useSaveTicketAttachment();
@@ -80,8 +83,10 @@ export default function NewTicket() {
     isEditing ? editTicketId : 0,
     { query: { enabled: isEditing } as any },
   );
-  const { data: users } = useListUsers({ request: { cache: 'no-store' } });
-  const { user: currentUser } = useAuth();
+  const { data: users } = useListUsers({
+    query: { queryKey: [...getListUsersQueryKey(), activeWorkspaceId] } as any,
+    request: { cache: 'no-store' },
+  });
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {

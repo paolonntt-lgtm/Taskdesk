@@ -48,7 +48,7 @@ async function request(
   sessionId: string,
   workspaceHeader?: number,
   init: RequestInit = {},
-): Promise<{ status: number; body: any }> {
+): Promise<{ status: number; body: any; cacheControl: string | null }> {
   const headers = new Headers(init.headers);
   headers.set("Cookie", `session_id=${sessionId}`);
   if (workspaceHeader != null) headers.set("X-Workspace-ID", String(workspaceHeader));
@@ -65,7 +65,11 @@ async function request(
       body = text;
     }
   }
-  return { status: response.status, body };
+  return {
+    status: response.status,
+    body,
+    cacheControl: response.headers.get("cache-control"),
+  };
 }
 
 describe("shared workspaces", () => {
@@ -195,6 +199,11 @@ describe("shared workspaces", () => {
       externalSharingEnabled: false,
       billingOwnerOrganizationId: billingOrganizationId,
     });
+    const initialAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
+    expect(initialAssignees.status).toBe(200);
+    expect(initialAssignees.cacheControl).toBe("no-store");
+    expect(initialAssignees.body.map((user: { id: number }) => user.id)).toEqual([billingAdminId]);
+
     const rejectLastAdminDemotion = await request(
       `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
       billingAdminSessionId,
@@ -222,6 +231,9 @@ describe("shared workspaces", () => {
     expect(inviteResponse.status).toBe(201);
     expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true, emailSent: true });
     expect(inviteResponse.body.inviteUrl).toBeUndefined();
+    const pendingInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
+    expect(pendingInviteAssignees.cacheControl).toBe("no-store");
+    expect(pendingInviteAssignees.body.map((user: { id: number }) => user.id)).toEqual([billingAdminId]);
     const sentEmail = vi.mocked(sendEmailForOrg).mock.calls.at(-1);
     expect(sentEmail).toBeDefined();
     const [sentOrganizationId, sentMail] = sentEmail!;
@@ -327,6 +339,12 @@ describe("shared workspaces", () => {
       method: "POST",
     });
     expect(acceptDirectInvite.status).toBe(201);
+    const acceptedInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
+    expect(acceptedInviteAssignees.cacheControl).toBe("no-store");
+    expect(acceptedInviteAssignees.body.map((user: { id: number }) => user.id)).toEqual([
+      billingAdminId,
+      externalUserId,
+    ]);
     expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
     const inviteAcceptanceText =
@@ -506,5 +524,5 @@ describe("shared workspaces", () => {
     expect(disableSharing.status).toBe(200);
     expect(disableSharing.body).toEqual({ externalSharingEnabled: false });
     expect((await request(`/api/workspace-invites/${directToken}`, externalUserSessionId)).status).toBe(404);
-  }, 60_000);
+  }, 90_000);
 });
