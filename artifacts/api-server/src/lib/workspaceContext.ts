@@ -6,6 +6,7 @@ export interface WorkspaceOption {
   name: string;
   role: string;
   isSharedWorkspace: boolean;
+  externalSharingEnabled: boolean;
   billingOwnerOrganizationId: number | null;
 }
 
@@ -16,6 +17,7 @@ export async function getUserWorkspaces(userId: number, billingOrganizationId: n
       id: organizationsTable.id,
       name: organizationsTable.name,
       isSharedWorkspace: organizationsTable.isSharedWorkspace,
+      externalSharingEnabled: organizationsTable.externalSharingEnabled,
       billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
     }).from(organizationsTable).where(eq(organizationsTable.id, billingOrganizationId));
     if (home) workspaces.push({ ...home, role: homeRole });
@@ -25,6 +27,7 @@ export async function getUserWorkspaces(userId: number, billingOrganizationId: n
     name: organizationsTable.name,
     role: workspaceMembershipsTable.role,
     isSharedWorkspace: organizationsTable.isSharedWorkspace,
+    externalSharingEnabled: organizationsTable.externalSharingEnabled,
     billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
   }).from(workspaceMembershipsTable)
     .innerJoin(organizationsTable, eq(organizationsTable.id, workspaceMembershipsTable.workspaceOrganizationId))

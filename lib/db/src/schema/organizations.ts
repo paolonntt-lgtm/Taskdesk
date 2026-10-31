@@ -29,6 +29,7 @@ export const organizationsTable = pgTable("organizations", {
   workedTimeEnabled: boolean("worked_time_enabled").default(true).notNull(),
   timeTrackingModuleEnabled: boolean("time_tracking_module_enabled").default(false).notNull(),
   isSharedWorkspace: boolean("is_shared_workspace").default(false).notNull(),
+  externalSharingEnabled: boolean("external_sharing_enabled").default(false).notNull(),
   billingOwnerOrganizationId: integer("billing_owner_organization_id").references((): any => organizationsTable.id, { onDelete: "set null" }),
   sendClosureEmail: boolean("send_closure_email").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

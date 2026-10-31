@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => {
     id: { name: "organizations.id" },
     name: { name: "organizations.name" },
     isSharedWorkspace: { name: "organizations.isSharedWorkspace" },
+    externalSharingEnabled: { name: "organizations.externalSharingEnabled" },
     billingOwnerOrganizationId: { name: "organizations.billingOwnerOrganizationId" },
   };
   const workspaceMembershipsTable = {

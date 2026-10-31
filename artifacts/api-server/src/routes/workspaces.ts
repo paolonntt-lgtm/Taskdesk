@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   db, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
@@ -36,6 +36,7 @@ router.post("/workspaces", requireAuth, requireAdmin, async (req, res): Promise<
       name,
       onboardingDone: true,
       isSharedWorkspace: true,
+      externalSharingEnabled: false,
       billingOwnerOrganizationId: user.billingOrganizationId,
       clientsEnabled: false,
     }).returning();
@@ -52,6 +53,7 @@ router.post("/workspaces", requireAuth, requireAdmin, async (req, res): Promise<
   });
   res.status(201).json({
     workspace: { id: workspace.id, name: workspace.name, role: "admin", isSharedWorkspace: true,
+      externalSharingEnabled: workspace.externalSharingEnabled,
       billingOwnerOrganizationId: workspace.billingOwnerOrganizationId },
   });
 });
@@ -103,10 +105,54 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
     res.status(404).json({ error: "This email must belong to an active account with a billing organization before it can be invited" });
     return;
   }
+  const [workspace] = await db.select({
+    billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
+    externalSharingEnabled: organizationsTable.externalSharingEnabled,
+  }).from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
+  if (!workspace) {
+    res.status(404).json({ error: "Workspace not found" });
+    return;
+  }
+  const isExternal = target.organizationId !== workspace.billingOwnerOrganizationId;
   const [existing] = await db.select({ id: workspaceMembershipsTable.id }).from(workspaceMembershipsTable)
     .where(and(eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId), eq(workspaceMembershipsTable.userId, target.id)));
   if (existing) {
     res.status(409).json({ error: "This account already belongs to the workspace" });
+    return;
+  }
+  if (isExternal) {
+    const [pendingInvite] = await db.select({ id: workspaceInviteTokensTable.id })
+      .from(workspaceInviteTokensTable)
+      .where(and(
+        eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+        eq(workspaceInviteTokensTable.inviteeUserId, target.id),
+        isNull(workspaceInviteTokensTable.revokedAt),
+        isNull(workspaceInviteTokensTable.acceptedAt),
+        sql`${workspaceInviteTokensTable.expiresAt} > NOW()`,
+      ));
+    if (pendingInvite) {
+      res.status(409).json({ error: "This account already has a pending workspace invitation" });
+      return;
+    }
+    const token = randomBytes(24).toString("base64url");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const [invite] = await db.transaction(async (tx) => {
+      await tx.update(organizationsTable).set({ externalSharingEnabled: true })
+        .where(eq(organizationsTable.id, workspaceId));
+      return tx.insert(workspaceInviteTokensTable).values({
+        token,
+        workspaceOrganizationId: workspaceId,
+        createdByUserId: user.id,
+        inviteeUserId: target.id,
+        inviteeRole: role,
+        expiresAt,
+      }).returning({ token: workspaceInviteTokensTable.token });
+    });
+    res.status(201).json({
+      inviteUrl: `${appBaseUrl()}/app/workspace-invite/${invite.token}`,
+      expiresAt,
+      pendingAcceptance: true,
+    });
     return;
   }
   const [membership] = await db.insert(workspaceMembershipsTable).values({
@@ -138,9 +184,12 @@ router.post("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireSam
   const token = randomBytes(24).toString("base64url");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await db.transaction(async (tx) => {
+    await tx.update(organizationsTable).set({ externalSharingEnabled: true })
+      .where(eq(organizationsTable.id, workspaceId));
     await tx.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
       .where(and(
         eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+        isNull(workspaceInviteTokensTable.inviteeUserId),
         isNull(workspaceInviteTokensTable.revokedAt),
       ));
     await tx.insert(workspaceInviteTokensTable).values({
@@ -157,6 +206,55 @@ router.post("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireSam
   });
 });
 
+router.patch("/workspaces/:id/sharing", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const user = (req as any).currentUser;
+  const enabled = req.body?.enabled;
+  if (!Number.isInteger(workspaceId) || typeof enabled !== "boolean") {
+    res.status(400).json({ error: "A valid workspace and sharing setting are required" });
+    return;
+  }
+  if (user.organizationId !== workspaceId || !user.isSharedWorkspace ||
+      !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Workspace administrator access required" });
+    return;
+  }
+  const [workspace] = await db.select({
+    id: organizationsTable.id,
+    billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
+  }).from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
+  if (!workspace) {
+    res.status(404).json({ error: "Workspace not found" });
+    return;
+  }
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM organizations WHERE id = ${workspaceId} FOR UPDATE`);
+    if (!enabled) {
+      const externalMembers = await tx.select({ userId: workspaceMembershipsTable.userId })
+        .from(workspaceMembershipsTable)
+        .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+        .where(and(
+          eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId),
+          sql`${usersTable.organizationId} IS DISTINCT FROM ${workspace.billingOwnerOrganizationId}`,
+        ));
+      if (externalMembers.length) return false;
+      await tx.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+        .where(and(
+          eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+          isNull(workspaceInviteTokensTable.revokedAt),
+        ));
+    }
+    await tx.update(organizationsTable).set({ externalSharingEnabled: enabled })
+      .where(eq(organizationsTable.id, workspaceId));
+    return true;
+  });
+  if (!updated) {
+    res.status(409).json({ error: "Remove all members from other organizations before disabling sharing" });
+    return;
+  }
+  res.json({ externalSharingEnabled: enabled });
+});
+
 router.delete("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
   const workspaceId = Number(req.params.id);
   const user = (req as any).currentUser;
@@ -169,6 +267,7 @@ router.delete("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireS
   await db.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
     .where(and(
       eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+      isNull(workspaceInviteTokensTable.inviteeUserId),
       isNull(workspaceInviteTokensTable.revokedAt),
     ));
   res.json({ success: true });
@@ -179,11 +278,13 @@ router.get("/workspace-invites/:token", async (req, res): Promise<void> => {
   const [invite] = await db.select({
     workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
     createdByUserId: workspaceInviteTokensTable.createdByUserId,
+    inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
+    acceptedAt: workspaceInviteTokensTable.acceptedAt,
     expiresAt: workspaceInviteTokensTable.expiresAt,
     revokedAt: workspaceInviteTokensTable.revokedAt,
   }).from(workspaceInviteTokensTable)
     .where(eq(workspaceInviteTokensTable.token, token));
-  if (!invite || invite.revokedAt) {
+  if (!invite || invite.revokedAt || (invite.inviteeUserId != null && invite.acceptedAt)) {
     res.status(404).json({ valid: false, message: "Link non valido" });
     return;
   }
@@ -191,9 +292,13 @@ router.get("/workspace-invites/:token", async (req, res): Promise<void> => {
     res.status(410).json({ valid: false, message: "Link scaduto" });
     return;
   }
-  const [workspace] = await db.select({ name: organizationsTable.name, isSharedWorkspace: organizationsTable.isSharedWorkspace })
+  const [workspace] = await db.select({
+    name: organizationsTable.name,
+    isSharedWorkspace: organizationsTable.isSharedWorkspace,
+    externalSharingEnabled: organizationsTable.externalSharingEnabled,
+  })
     .from(organizationsTable).where(eq(organizationsTable.id, invite.workspaceId));
-  if (!workspace?.isSharedWorkspace) {
+  if (!workspace?.isSharedWorkspace || !workspace.externalSharingEnabled) {
     res.status(404).json({ valid: false, message: "Spazio non disponibile" });
     return;
   }
@@ -203,6 +308,7 @@ router.get("/workspace-invites/:token", async (req, res): Promise<void> => {
     valid: true,
     workspaceId: invite.workspaceId,
     workspaceName: workspace.name,
+    targeted: invite.inviteeUserId != null,
     inviterName: creator?.name ?? "Admin",
     expiresAt: invite.expiresAt,
   });
@@ -213,11 +319,14 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   const token = String(req.params.token);
   const [invite] = await db.select({
     workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
+    inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
+    inviteeRole: workspaceInviteTokensTable.inviteeRole,
+    acceptedAt: workspaceInviteTokensTable.acceptedAt,
     expiresAt: workspaceInviteTokensTable.expiresAt,
     revokedAt: workspaceInviteTokensTable.revokedAt,
   }).from(workspaceInviteTokensTable)
     .where(eq(workspaceInviteTokensTable.token, token));
-  if (!invite || invite.revokedAt) {
+  if (!invite || invite.revokedAt || (invite.inviteeUserId != null && invite.acceptedAt)) {
     res.status(404).json({ error: "Link non valido" });
     return;
   }
@@ -229,8 +338,10 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     id: organizationsTable.id,
     name: organizationsTable.name,
     isSharedWorkspace: organizationsTable.isSharedWorkspace,
+    externalSharingEnabled: organizationsTable.externalSharingEnabled,
+    billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
   }).from(organizationsTable).where(eq(organizationsTable.id, invite.workspaceId));
-  if (!workspace?.isSharedWorkspace) {
+  if (!workspace?.isSharedWorkspace || !workspace.externalSharingEnabled) {
     res.status(404).json({ error: "Spazio non disponibile" });
     return;
   }
@@ -242,13 +353,46 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     res.status(403).json({ error: "È necessario un account attivo con un'organizzazione di fatturazione" });
     return;
   }
-
-  const [membership] = await db.insert(workspaceMembershipsTable).values({
-    workspaceOrganizationId: workspace.id,
-    userId: user.id,
-    role: "user",
-    sponsored: false,
-  }).onConflictDoNothing().returning({ userId: workspaceMembershipsTable.userId });
+  if (invite.inviteeUserId != null && invite.inviteeUserId !== user.id) {
+    res.status(403).json({ error: "This invitation was issued to a different account" });
+    return;
+  }
+  if (account.organizationId !== workspace.billingOwnerOrganizationId && !workspace.externalSharingEnabled) {
+    res.status(403).json({ error: "External sharing is disabled for this workspace" });
+    return;
+  }
+  const acceptance = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM organizations WHERE id = ${workspace.id} FOR UPDATE`);
+    const [freshWorkspace] = await tx.select({
+      externalSharingEnabled: organizationsTable.externalSharingEnabled,
+    }).from(organizationsTable).where(eq(organizationsTable.id, workspace.id));
+    if (!freshWorkspace?.externalSharingEnabled) {
+      return { sharingDisabled: true, membership: undefined };
+    }
+    const [created] = await tx.insert(workspaceMembershipsTable).values({
+      workspaceOrganizationId: workspace.id,
+      userId: user.id,
+      role: invite.inviteeUserId != null ? invite.inviteeRole : "user",
+      sponsored: false,
+    }).onConflictDoNothing().returning({ userId: workspaceMembershipsTable.userId });
+    if (invite.inviteeUserId != null) {
+      await tx.update(workspaceInviteTokensTable).set({ acceptedAt: new Date() })
+        .where(and(
+          eq(workspaceInviteTokensTable.token, token),
+          isNull(workspaceInviteTokensTable.acceptedAt),
+        ));
+    }
+    return { sharingDisabled: false, membership: created };
+  });
+  if (acceptance.sharingDisabled) {
+    res.status(403).json({ error: "External sharing is disabled for this workspace" });
+    return;
+  }
+  const membership = acceptance.membership;
+  if (!membership && invite.inviteeUserId != null) {
+    res.status(409).json({ error: "This invitation has already been used" });
+    return;
+  }
   if (membership) notifyPermissionChanged(user.id);
   res.status(membership ? 201 : 200).json({
     joined: !!membership,

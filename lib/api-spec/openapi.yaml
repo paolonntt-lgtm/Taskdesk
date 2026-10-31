@@ -53,6 +53,38 @@ tags:
     description: Google Drive folder references and metadata navigation
 
 paths:
+  /workspaces/{id}/sharing:
+    patch:
+      operationId: updateWorkspaceSharing
+      tags: [users]
+      summary: Enable or disable external membership for a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceSharingInput"
+      responses:
+        "200":
+          description: Updated sharing mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceSharingResponse"
+        "400":
+          description: Invalid sharing setting
+        "401":
+          description: Not authenticated
+        "403":
+          description: Workspace administrator access required
+        "409":
+          description: Remove external members before disabling sharing
   /stripe/addon-price:
     get:
       operationId: getStripeAddonPrice
@@ -6217,3 +6249,15 @@ components:
         - date
         - id
         - title
+    WorkspaceSharingInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+    WorkspaceSharingResponse:
+      type: object
+      required: [externalSharingEnabled]
+      properties:
+        externalSharingEnabled:
+          type: boolean

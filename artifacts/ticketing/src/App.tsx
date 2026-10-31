@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import AnnouncementsSettings from "./components/AnnouncementsSettings";
 import InviteRegister from "./pages/InviteRegister";
 import WorkspaceInvite from "./pages/WorkspaceInvite";
+import WorkspaceManagement from "./pages/WorkspaceManagement";
 import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
@@ -141,6 +142,7 @@ function AuthenticatedApp({ user, onTourDone }: { user: User; onTourDone: () => 
           <Route path="/notifications" component={NotificationsPage} />
           <Route path="/users/:id" component={UserProfile} />
           <Route path="/users">{() => <AdminRoute component={Users} />}</Route>
+          <Route path="/workspace-management">{() => <AdminRoute component={WorkspaceManagement} />}</Route>
           {(user as any)?.clientsEnabled !== false ? (
             <>
               <Route path="/clients/:id" component={ClientDetail} />

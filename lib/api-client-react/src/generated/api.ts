@@ -147,7 +147,9 @@ import type {
   User,
   WaitForPermissionChanges200,
   WorkedHoursUpdate,
-  WorkedHoursUpdateResult
+  WorkedHoursUpdateResult,
+  WorkspaceSharingInput,
+  WorkspaceSharingResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -176,6 +178,87 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getUpdateWorkspaceSharingUrl = (id: number,) => {
+
+
+
+
+  return `/api/workspaces/${id}/sharing`
+}
+
+/**
+ * @summary Enable or disable external membership for a workspace
+ */
+export const updateWorkspaceSharing = async (id: number,
+    workspaceSharingInput: WorkspaceSharingInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceSharingResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Array.isArray(h)) return Object.fromEntries(h);
+    return h;
+  };
+return customFetch<WorkspaceSharingResponse>(getUpdateWorkspaceSharingUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workspaceSharingInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateWorkspaceSharingMutationKey = () => ['updateWorkspaceSharing'] as const;
+
+export const getUpdateWorkspaceSharingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkspaceSharing>>, TError,UpdateWorkspaceSharingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWorkspaceSharing>>, TError,UpdateWorkspaceSharingMutationVariables, TContext> => {
+
+const mutationKey = getUpdateWorkspaceSharingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWorkspaceSharing>>, UpdateWorkspaceSharingMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateWorkspaceSharing(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWorkspaceSharingMutationResult = NonNullable<Awaited<ReturnType<typeof updateWorkspaceSharing>>>
+    export type UpdateWorkspaceSharingMutationBody = BodyType<WorkspaceSharingInput>
+    export type UpdateWorkspaceSharingMutationError = ErrorType<void>
+    export type UpdateWorkspaceSharingMutationVariables = {id: number;data: BodyType<WorkspaceSharingInput>}
+
+    /**
+ * @summary Enable or disable external membership for a workspace
+ */
+export const useUpdateWorkspaceSharing = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkspaceSharing>>, TError,UpdateWorkspaceSharingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWorkspaceSharing>>,
+        TError,
+        UpdateWorkspaceSharingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateWorkspaceSharingMutationOptions(options));
+    }
 
 export const getGetStripeAddonPriceUrl = () => {
 

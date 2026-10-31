@@ -216,3 +216,5 @@ export * from './waitForPermissionChanges200Type';
 export * from './workedHoursUpdate';
 export * from './workedHoursUpdateResult';
 export * from './workedHoursUpdateResultWorkedBillingStatus';
+export * from './workspaceSharingInput';
+export * from './workspaceSharingResponse';

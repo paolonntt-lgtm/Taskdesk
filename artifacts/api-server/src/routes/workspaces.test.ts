@@ -61,16 +61,25 @@ async function request(
 describe("shared workspaces", () => {
   beforeAll(async () => {
     await pool.query(`
+      ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS external_sharing_enabled BOOLEAN NOT NULL DEFAULT false;
       CREATE TABLE IF NOT EXISTS workspace_invite_tokens (
         id SERIAL PRIMARY KEY,
         token TEXT NOT NULL UNIQUE,
         workspace_organization_id INTEGER NOT NULL
           REFERENCES organizations(id) ON DELETE CASCADE,
         created_by_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        invitee_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        invitee_role TEXT NOT NULL DEFAULT 'user',
         expires_at TIMESTAMPTZ NOT NULL,
         revoked_at TIMESTAMPTZ,
+        accepted_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
+      );
+      ALTER TABLE workspace_invite_tokens
+        ADD COLUMN IF NOT EXISTS invitee_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS invitee_role TEXT NOT NULL DEFAULT 'user',
+        ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
     `);
     const [billingOrganization] = await db.insert(organizationsTable)
       .values({ name: `Workspace billing ${runId}` })
@@ -172,6 +181,7 @@ describe("shared workspaces", () => {
     workspaceId = createResponse.body.workspace.id;
     expect(createResponse.body.workspace).toMatchObject({
       isSharedWorkspace: true,
+      externalSharingEnabled: false,
       billingOwnerOrganizationId: billingOrganizationId,
     });
 
@@ -183,10 +193,22 @@ describe("shared workspaces", () => {
     );
     const inviteResponse = await invite(`workspace-external-${runId}@example.test`);
     expect(inviteResponse.status).toBe(201);
-    expect(inviteResponse.body.membership).toEqual({ userId: externalUserId, role: "user" });
+    expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true });
+    expect(inviteResponse.body.inviteUrl).toContain("/app/workspace-invite/");
+    const directToken = inviteResponse.body.inviteUrl.split("/").at(-1);
+    expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
     expect((await invite(`workspace-external-${runId}@example.test`)).status).toBe(409);
     expect((await invite(`workspace-unbilled-${runId}@example.test`)).status).toBe(404);
 
+    const rejectWrongInvitee = await request(`/api/workspace-invites/${directToken}/accept`, outsiderSessionId, undefined, {
+      method: "POST",
+    });
+    expect(rejectWrongInvitee.status).toBe(403);
+    const acceptDirectInvite = await request(`/api/workspace-invites/${directToken}/accept`, externalUserSessionId, undefined, {
+      method: "POST",
+    });
+    expect(acceptDirectInvite.status).toBe(201);
+    expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
     const externalContext = await request("/api/auth/me", externalUserSessionId, workspaceId);
     expect(externalContext.status).toBe(200);
     expect(externalContext.body).toMatchObject({
@@ -197,6 +219,11 @@ describe("shared workspaces", () => {
       role: "user",
       isSharedWorkspace: true,
     });
+    const rejectDisableWithMember = await request(`/api/workspaces/${workspaceId}/sharing`, billingAdminSessionId, workspaceId, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(rejectDisableWithMember.status).toBe(409);
     expect((await request("/api/auth/me", outsiderSessionId, workspaceId)).status).toBe(403);
 
     const sharedTicket = await request("/api/tickets", externalUserSessionId, workspaceId, {
@@ -277,5 +304,19 @@ describe("shared workspaces", () => {
     });
     expect(revokeLink.status).toBe(200);
     expect((await request(`/api/workspace-invites/${token}`, outsiderSessionId)).status).toBe(404);
+    const removeOutsider = await request(
+      `/api/workspaces/${workspaceId}/members/${outsiderId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    );
+    expect(removeOutsider.status).toBe(200);
+    const disableSharing = await request(`/api/workspaces/${workspaceId}/sharing`, billingAdminSessionId, workspaceId, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(disableSharing.status).toBe(200);
+    expect(disableSharing.body).toEqual({ externalSharingEnabled: false });
+    expect((await request(`/api/workspace-invites/${directToken}`, externalUserSessionId)).status).toBe(404);
   }, 60_000);
 });

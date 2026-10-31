@@ -9,6 +9,22 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Enable or disable external membership for a workspace
+ */
+export const UpdateWorkspaceSharingParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateWorkspaceSharingBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const UpdateWorkspaceSharingResponse = zod.object({
+  "externalSharingEnabled": zod.boolean()
+})
+
+
+/**
  * @summary Get the additional-seat price for the current plan cadence
  */
 export const GetStripeAddonPriceResponse = zod.object({

@@ -143,8 +143,15 @@ export async function runAppMigrations(): Promise<void> {
 
     // Shared workspaces are separate tenants; member accounts retain billing in their home organization.
     await client.query(`
+      CREATE TABLE IF NOT EXISTS app_migrations (
+        key TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
       ALTER TABLE organizations
         ADD COLUMN IF NOT EXISTS is_shared_workspace BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS external_sharing_enabled BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS billing_owner_organization_id INTEGER
           REFERENCES organizations(id) ON DELETE SET NULL;
       CREATE TABLE IF NOT EXISTS workspace_memberships (
@@ -167,12 +174,35 @@ export async function runAppMigrations(): Promise<void> {
         workspace_organization_id INTEGER NOT NULL
           REFERENCES organizations(id) ON DELETE CASCADE,
         created_by_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        invitee_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        invitee_role TEXT NOT NULL DEFAULT 'user',
         expires_at TIMESTAMPTZ NOT NULL,
         revoked_at TIMESTAMPTZ,
+        accepted_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE workspace_invite_tokens
+        ADD COLUMN IF NOT EXISTS invitee_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS invitee_role TEXT NOT NULL DEFAULT 'user',
+        ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
       CREATE INDEX IF NOT EXISTS workspace_invite_tokens_workspace_idx
         ON workspace_invite_tokens (workspace_organization_id);
+      CREATE INDEX IF NOT EXISTS workspace_invite_tokens_invitee_idx
+        ON workspace_invite_tokens (invitee_user_id);
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_migrations
+          WHERE key = 'workspace_external_sharing_enabled'
+        ) THEN
+          UPDATE organizations
+          SET external_sharing_enabled = true
+          WHERE is_shared_workspace = true;
+          INSERT INTO app_migrations (key) VALUES ('workspace_external_sharing_enabled');
+        END IF;
+      END $$;
     `);
 
     // Keep each user's notifications scoped to the workspace that generated them.

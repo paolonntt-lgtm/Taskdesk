@@ -1502,6 +1502,14 @@ export interface CalendarItem {
   createdBy?: number | null;
 }
 
+export interface WorkspaceSharingInput {
+  enabled: boolean;
+}
+
+export interface WorkspaceSharingResponse {
+  externalSharingEnabled: boolean;
+}
+
 export type GlobalSearchParams = {
 /**
  * @minLength 1
