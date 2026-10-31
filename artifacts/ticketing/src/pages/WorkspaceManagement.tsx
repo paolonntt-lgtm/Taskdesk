@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Divider, MenuItem,
   TextField, Typography,
 } from '@mui/material';
 import { ContentCopy, LinkOff } from '@mui/icons-material';
+import {
+  getListWorkspaceInvitationsQueryKey, useListWorkspaceInvitations, useRevokeWorkspaceInvitation,
+} from '@workspace/api-client-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -13,6 +17,14 @@ type WorkspaceMember = {
   email: string;
   role: 'admin' | 'user';
   billingOrganizationName: string | null;
+};
+
+type WorkspaceInvitation = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+  expiresAt: string;
 };
 
 export default function WorkspaceManagement() {
@@ -38,6 +50,16 @@ export default function WorkspaceManagement() {
   const [inviteExpiresAt, setInviteExpiresAt] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [shareExpiresAt, setShareExpiresAt] = useState('');
+  const queryClient = useQueryClient();
+  const invitationWorkspaceId = Number(activeWorkspaceId ?? 0);
+  const invitationsQuery = useListWorkspaceInvitations(invitationWorkspaceId, {
+    query: {
+      enabled: isSharedWorkspace && !!activeWorkspaceId,
+      queryKey: getListWorkspaceInvitationsQueryKey(invitationWorkspaceId),
+    },
+  });
+  const revokeInvitationMutation = useRevokeWorkspaceInvitation();
+  const invitations = invitationsQuery.data?.invitations ?? [];
 
   const loadMembers = async () => {
     if (!isSharedWorkspace || !activeWorkspaceId) return;
@@ -45,6 +67,11 @@ export default function WorkspaceManagement() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || data.message || 'Could not load workspace members');
     setMembers(data.members ?? []);
+  };
+
+  const loadInvitations = async () => {
+    const result = await invitationsQuery.refetch();
+    if (result.error) throw result.error;
   };
 
   useEffect(() => {
@@ -65,6 +92,12 @@ export default function WorkspaceManagement() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [activeWorkspaceId, isSharedWorkspace]);
+
+  useEffect(() => {
+    if (invitationsQuery.error) {
+      setError((invitationsQuery.error as Error).message || (it ? 'Impossibile caricare gli inviti.' : 'Could not load invitations.'));
+    }
+  }, [invitationsQuery.error, it]);
 
   const createWorkspace = async () => {
     setBusy(true); setError(''); setNotice('');
@@ -98,6 +131,7 @@ export default function WorkspaceManagement() {
       if (data.inviteUrl) {
         setInviteUrl(data.inviteUrl);
         setInviteExpiresAt(data.expiresAt);
+        await loadInvitations();
         setNotice(it ? 'Invito creato. Copia il link e invialo alla persona: entrerà solo dopo averlo accettato.' : 'Invitation created. Copy and send the link; the person joins only after accepting it.');
       } else {
         await loadMembers();
@@ -176,6 +210,17 @@ export default function WorkspaceManagement() {
     } finally { setBusy(false); }
   };
 
+  const revokeInvitation = async (invitation: WorkspaceInvitation) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await revokeInvitationMutation.mutateAsync({ id: invitationWorkspaceId, invitationId: invitation.id });
+      await queryClient.invalidateQueries({ queryKey: getListWorkspaceInvitationsQueryKey(invitationWorkspaceId) });
+      setNotice(it ? 'Invito revocato. La condivisione esterna resta attiva.' : 'Invitation revoked. External sharing remains enabled.');
+    } catch (reason: any) {
+      setError(reason?.message || (it ? 'Operazione non riuscita.' : 'The action could not be completed.'));
+    } finally { setBusy(false); }
+  };
+
   const copy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -242,6 +287,28 @@ export default function WorkspaceManagement() {
                 <Button startIcon={<ContentCopy />} onClick={() => void copy(inviteUrl)}>{it ? 'Copia' : 'Copy'}</Button>
               </Box>
             )}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" fontWeight={700}>{it ? 'Inviti in attesa' : 'Pending invitations'}</Typography>
+            {invitationsQuery.isLoading ? <CircularProgress size={20} sx={{ mt: 2 }} /> : invitations.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {it ? 'Non ci sono inviti in attesa.' : 'There are no pending invitations.'}
+              </Typography>
+            ) : invitations.map((invitation) => (
+              <Box key={invitation.id} display="flex" alignItems="center" gap={1} py={1} sx={{ borderBottom: '1px solid', borderColor: 'divider' }} data-testid={`row-pending-invitation-${invitation.id}`}>
+                <Box flex={1} minWidth={0}>
+                  <Typography variant="body2" fontWeight={700} noWrap data-testid={`text-invitation-recipient-${invitation.id}`}>{invitation.name}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>{invitation.email}</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {invitation.role === 'admin' ? (it ? 'Amministratore' : 'Administrator') : (it ? 'Collaboratore' : 'Collaborator')}
+                    {' · '}{it ? 'Scade il' : 'Expires'}{' '}
+                    {new Date(invitation.expiresAt).toLocaleString(it ? 'it-IT' : 'en-GB')}
+                  </Typography>
+                </Box>
+                <Button color="error" startIcon={<LinkOff />} disabled={busy} onClick={() => void revokeInvitation(invitation)} data-testid={`button-revoke-invitation-${invitation.id}`}>
+                  {it ? 'Revoca' : 'Revoke'}
+                </Button>
+              </Box>
+            ))}
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle1" fontWeight={700}>{it ? 'Link condivisibile' : 'Share link'}</Typography>
             {shareUrl ? (

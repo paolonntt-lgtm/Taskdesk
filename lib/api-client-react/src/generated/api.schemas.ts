@@ -1510,6 +1510,30 @@ export interface WorkspaceSharingResponse {
   externalSharingEnabled: boolean;
 }
 
+export type WorkspaceInvitationRole = typeof WorkspaceInvitationRole[keyof typeof WorkspaceInvitationRole];
+
+
+export const WorkspaceInvitationRole = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
+export interface WorkspaceInvitation {
+  id: number;
+  name: string;
+  email: string;
+  role: WorkspaceInvitationRole;
+  expiresAt: string;
+}
+
+export interface WorkspaceInvitationList {
+  invitations: WorkspaceInvitation[];
+}
+
+export interface WorkspaceInvitationRevokeResponse {
+  success: boolean;
+}
+
 export type GlobalSearchParams = {
 /**
  * @minLength 1

@@ -148,6 +148,8 @@ import type {
   WaitForPermissionChanges200,
   WorkedHoursUpdate,
   WorkedHoursUpdateResult,
+  WorkspaceInvitationList,
+  WorkspaceInvitationRevokeResponse,
   WorkspaceSharingInput,
   WorkspaceSharingResponse
 } from './api.schemas';
@@ -178,6 +180,159 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListWorkspaceInvitationsUrl = (id: number,) => {
+
+
+
+
+  return `/api/workspaces/${id}/invitations`
+}
+
+/**
+ * @summary List pending personal invitations for a workspace
+ */
+export const listWorkspaceInvitations = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceInvitationList> => {
+
+  return customFetch<WorkspaceInvitationList>(getListWorkspaceInvitationsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkspaceInvitationsQueryKey = (id: number,) => {
+    return [
+    `/api/workspaces/${id}/invitations`
+    ] as const;
+    }
+
+
+export const getListWorkspaceInvitationsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkspaceInvitations>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceInvitations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkspaceInvitationsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkspaceInvitations>>> = ({ signal }) => listWorkspaceInvitations(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceInvitations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkspaceInvitationsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkspaceInvitations>>>
+export type ListWorkspaceInvitationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List pending personal invitations for a workspace
+ */
+
+export function useListWorkspaceInvitations<TData = Awaited<ReturnType<typeof listWorkspaceInvitations>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspaceInvitations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkspaceInvitationsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRevokeWorkspaceInvitationUrl = (id: number,
+    invitationId: number,) => {
+
+
+
+
+  return `/api/workspaces/${id}/invitations/${invitationId}`
+}
+
+/**
+ * @summary Revoke one pending personal invitation
+ */
+export const revokeWorkspaceInvitation = async (id: number,
+    invitationId: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceInvitationRevokeResponse> => {
+
+  return customFetch<WorkspaceInvitationRevokeResponse>(getRevokeWorkspaceInvitationUrl(id,invitationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeWorkspaceInvitationMutationKey = () => ['revokeWorkspaceInvitation'] as const;
+
+export const getRevokeWorkspaceInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeWorkspaceInvitation>>, TError,RevokeWorkspaceInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeWorkspaceInvitation>>, TError,RevokeWorkspaceInvitationMutationVariables, TContext> => {
+
+const mutationKey = getRevokeWorkspaceInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeWorkspaceInvitation>>, RevokeWorkspaceInvitationMutationVariables> = (props) => {
+          const {id,invitationId} = props ?? {};
+
+          return  revokeWorkspaceInvitation(id,invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeWorkspaceInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof revokeWorkspaceInvitation>>>
+
+    export type RevokeWorkspaceInvitationMutationError = ErrorType<void>
+    export type RevokeWorkspaceInvitationMutationVariables = {id: number;invitationId: number}
+
+    /**
+ * @summary Revoke one pending personal invitation
+ */
+export const useRevokeWorkspaceInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeWorkspaceInvitation>>, TError,RevokeWorkspaceInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeWorkspaceInvitation>>,
+        TError,
+        RevokeWorkspaceInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeWorkspaceInvitationMutationOptions(options));
+    }
 
 export const getUpdateWorkspaceSharingUrl = (id: number,) => {
 

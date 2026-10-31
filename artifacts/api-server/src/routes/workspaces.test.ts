@@ -196,6 +196,16 @@ describe("shared workspaces", () => {
     expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true });
     expect(inviteResponse.body.inviteUrl).toContain("/app/workspace-invite/");
     const directToken = inviteResponse.body.inviteUrl.split("/").at(-1);
+    const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
+    expect(pendingList.status).toBe(200);
+    expect(pendingList.body.invitations).toEqual([
+      expect.objectContaining({
+        name: "Workspace External User",
+        email: `workspace-external-${runId}@example.test`,
+        role: "user",
+        expiresAt: expect.any(String),
+      }),
+    ]);
     expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
     expect((await invite(`workspace-external-${runId}@example.test`)).status).toBe(409);
     expect((await invite(`workspace-unbilled-${runId}@example.test`)).status).toBe(404);
@@ -208,6 +218,7 @@ describe("shared workspaces", () => {
       method: "POST",
     });
     expect(acceptDirectInvite.status).toBe(201);
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
     const externalContext = await request("/api/auth/me", externalUserSessionId, workspaceId);
     expect(externalContext.status).toBe(200);
@@ -272,6 +283,33 @@ describe("shared workspaces", () => {
     );
     expect(remove.status).toBe(200);
     expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
+
+    const expiredInvite = await invite(`workspace-external-${runId}@example.test`, "user");
+    expect(expiredInvite.status).toBe(201);
+    const expiredToken = expiredInvite.body.inviteUrl.split("/").at(-1);
+    await db.update(workspaceInviteTokensTable)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(workspaceInviteTokensTable.token, expiredToken));
+
+    const pendingForRevocation = await invite(`workspace-outsider-${runId}@example.test`, "admin");
+    expect(pendingForRevocation.status).toBe(201);
+    const pendingBeforeRevoke = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
+    expect(pendingBeforeRevoke.body.invitations).toHaveLength(1);
+    expect(pendingBeforeRevoke.body.invitations[0].email).toBe(`workspace-outsider-${runId}@example.test`);
+    const invitationId = pendingBeforeRevoke.body.invitations[0].id;
+    const revokeInvitation = await request(`/api/workspaces/${workspaceId}/invitations/${invitationId}`, billingAdminSessionId, workspaceId, {
+      method: "DELETE",
+    });
+    expect(revokeInvitation.status).toBe(200);
+    expect(revokeInvitation.body).toEqual({ success: true });
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
+    const [workspaceAfterRevoke] = await db.select({ externalSharingEnabled: organizationsTable.externalSharingEnabled })
+      .from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
+    expect(workspaceAfterRevoke.externalSharingEnabled).toBe(true);
+    expect((await request(`/api/workspace-invites/${pendingForRevocation.body.inviteUrl.split("/").at(-1)}`, outsiderSessionId)).status).toBe(404);
+    expect((await request(`/api/workspaces/${workspaceId}/invitations/${invitationId}`, billingAdminSessionId, workspaceId, {
+      method: "DELETE",
+    })).status).toBe(404);
 
     const linkResponse = await request(`/api/workspaces/${workspaceId}/invite-link`, billingAdminSessionId, workspaceId, {
       method: "POST",

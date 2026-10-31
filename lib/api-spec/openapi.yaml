@@ -53,6 +53,57 @@ tags:
     description: Google Drive folder references and metadata navigation
 
 paths:
+  /workspaces/{id}/invitations:
+    get:
+      operationId: listWorkspaceInvitations
+      tags: [users]
+      summary: List pending personal invitations for a workspace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pending personal invitations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationList"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Workspace administrator access required
+  /workspaces/{id}/invitations/{invitationId}:
+    delete:
+      operationId: revokeWorkspaceInvitation
+      tags: [users]
+      summary: Revoke one pending personal invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invitation revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationRevokeResponse"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Workspace administrator access required
+        "404":
+          description: No matching pending invitation
   /workspaces/{id}/sharing:
     patch:
       operationId: updateWorkspaceSharing
@@ -6260,4 +6311,34 @@ components:
       required: [externalSharingEnabled]
       properties:
         externalSharingEnabled:
+          type: boolean
+    WorkspaceInvitation:
+      type: object
+      required: [id, name, email, role, expiresAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        expiresAt:
+          type: string
+          format: date-time
+    WorkspaceInvitationList:
+      type: object
+      required: [invitations]
+      properties:
+        invitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceInvitation"
+    WorkspaceInvitationRevokeResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
           type: boolean

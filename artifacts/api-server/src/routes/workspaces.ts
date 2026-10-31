@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import {
   db, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
@@ -81,6 +81,34 @@ router.get("/workspaces/:id/members", requireAuth, requireAdmin, async (req, res
     .where(eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId))
     .orderBy(usersTable.name);
   res.json({ members });
+});
+
+router.get("/workspaces/:id/invitations", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const user = (req as any).currentUser;
+  if (!Number.isInteger(workspaceId) || user.organizationId !== workspaceId || !user.isSharedWorkspace ||
+      !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Shared-workspace administrator access required" });
+    return;
+  }
+  const invitations = await db.select({
+    id: workspaceInviteTokensTable.id,
+    name: usersTable.name,
+    email: usersTable.email,
+    role: workspaceInviteTokensTable.inviteeRole,
+    expiresAt: workspaceInviteTokensTable.expiresAt,
+  }).from(workspaceInviteTokensTable)
+    .innerJoin(usersTable, eq(usersTable.id, workspaceInviteTokensTable.inviteeUserId))
+    .where(and(
+      eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+      sql`${workspaceInviteTokensTable.inviteeUserId} IS NOT NULL`,
+      sql`${workspaceInviteTokensTable.expiresAt} > NOW()`,
+    ))
+    .orderBy(workspaceInviteTokensTable.expiresAt);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ invitations });
 });
 
 router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -270,6 +298,33 @@ router.delete("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireS
       isNull(workspaceInviteTokensTable.inviteeUserId),
       isNull(workspaceInviteTokensTable.revokedAt),
     ));
+  res.json({ success: true });
+});
+
+router.delete("/workspaces/:id/invitations/:invitationId", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const invitationId = Number(req.params.invitationId);
+  const user = (req as any).currentUser;
+  if (!Number.isInteger(workspaceId) || !Number.isInteger(invitationId) || user.organizationId !== workspaceId ||
+      !user.isSharedWorkspace || !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Shared-workspace administrator access required" });
+    return;
+  }
+  const [revoked] = await db.update(workspaceInviteTokensTable)
+    .set({ revokedAt: new Date() })
+    .where(and(
+      eq(workspaceInviteTokensTable.id, invitationId),
+      eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+      isNotNull(workspaceInviteTokensTable.inviteeUserId),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+      sql`${workspaceInviteTokensTable.expiresAt} > NOW()`,
+    ))
+    .returning({ id: workspaceInviteTokensTable.id });
+  if (!revoked) {
+    res.status(404).json({ error: "Pending workspace invitation not found" });
+    return;
+  }
   res.json({ success: true });
 });
 

@@ -9,6 +9,37 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List pending personal invitations for a workspace
+ */
+export const ListWorkspaceInvitationsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListWorkspaceInvitationsResponse = zod.object({
+  "invitations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'user']),
+  "expiresAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Revoke one pending personal invitation
+ */
+export const RevokeWorkspaceInvitationParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "invitationId": zod.coerce.number().int()
+})
+
+export const RevokeWorkspaceInvitationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary Enable or disable external membership for a workspace
  */
 export const UpdateWorkspaceSharingParams = zod.object({
