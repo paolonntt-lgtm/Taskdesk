@@ -161,6 +161,18 @@ export async function runAppMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS workspace_memberships_user_idx
         ON workspace_memberships (user_id);
+      CREATE TABLE IF NOT EXISTS workspace_invite_tokens (
+        id SERIAL PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        workspace_organization_id INTEGER NOT NULL
+          REFERENCES organizations(id) ON DELETE CASCADE,
+        created_by_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS workspace_invite_tokens_workspace_idx
+        ON workspace_invite_tokens (workspace_organization_id);
     `);
 
     // Keep each user's notifications scoped to the workspace that generated them.

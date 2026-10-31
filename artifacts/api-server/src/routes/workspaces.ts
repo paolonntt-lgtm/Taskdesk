@@ -1,13 +1,16 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
-  db, organizationsTable, settingsTable, usersTable, workspaceMembershipsTable,
+  db, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { isWorkspaceMember } from "../lib/workspaceContext";
 import { notifyPermissionChanged } from "../lib/permissionEvents";
 import { createNotificationForUser } from "../lib/notifications";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
+import { randomBytes } from "crypto";
+import { appBaseUrl } from "../lib/appUrl";
+import { requireSameOrigin } from "../lib/originCheck";
 
 const router: IRouter = Router();
 
@@ -121,6 +124,137 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
     workspaceId,
   );
   res.status(201).json({ membership: { userId: membership.userId, role: membership.role } });
+});
+
+router.post("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const user = (req as any).currentUser;
+  if (!Number.isInteger(workspaceId) || user.organizationId !== workspaceId || !user.isSharedWorkspace ||
+      !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Shared-workspace administrator access required" });
+    return;
+  }
+
+  const token = randomBytes(24).toString("base64url");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.transaction(async (tx) => {
+    await tx.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+      .where(and(
+        eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+        isNull(workspaceInviteTokensTable.revokedAt),
+      ));
+    await tx.insert(workspaceInviteTokensTable).values({
+      token,
+      workspaceOrganizationId: workspaceId,
+      createdByUserId: user.id,
+      expiresAt,
+    });
+  });
+
+  res.status(201).json({
+    inviteUrl: `${appBaseUrl()}/app/workspace-invite/${token}`,
+    expiresAt,
+  });
+});
+
+router.delete("/workspaces/:id/invite-link", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const user = (req as any).currentUser;
+  if (!Number.isInteger(workspaceId) || user.organizationId !== workspaceId || !user.isSharedWorkspace ||
+      !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Shared-workspace administrator access required" });
+    return;
+  }
+
+  await db.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+    .where(and(
+      eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+      isNull(workspaceInviteTokensTable.revokedAt),
+    ));
+  res.json({ success: true });
+});
+
+router.get("/workspace-invites/:token", async (req, res): Promise<void> => {
+  const token = String(req.params.token);
+  const [invite] = await db.select({
+    workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
+    createdByUserId: workspaceInviteTokensTable.createdByUserId,
+    expiresAt: workspaceInviteTokensTable.expiresAt,
+    revokedAt: workspaceInviteTokensTable.revokedAt,
+  }).from(workspaceInviteTokensTable)
+    .where(eq(workspaceInviteTokensTable.token, token));
+  if (!invite || invite.revokedAt) {
+    res.status(404).json({ valid: false, message: "Link non valido" });
+    return;
+  }
+  if (invite.expiresAt.getTime() <= Date.now()) {
+    res.status(410).json({ valid: false, message: "Link scaduto" });
+    return;
+  }
+  const [workspace] = await db.select({ name: organizationsTable.name, isSharedWorkspace: organizationsTable.isSharedWorkspace })
+    .from(organizationsTable).where(eq(organizationsTable.id, invite.workspaceId));
+  if (!workspace?.isSharedWorkspace) {
+    res.status(404).json({ valid: false, message: "Spazio non disponibile" });
+    return;
+  }
+  const [creator] = await db.select({ name: usersTable.name }).from(usersTable)
+    .where(eq(usersTable.id, invite.createdByUserId));
+  res.json({
+    valid: true,
+    workspaceId: invite.workspaceId,
+    workspaceName: workspace.name,
+    inviterName: creator?.name ?? "Admin",
+    expiresAt: invite.expiresAt,
+  });
+});
+
+router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser;
+  const token = String(req.params.token);
+  const [invite] = await db.select({
+    workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
+    expiresAt: workspaceInviteTokensTable.expiresAt,
+    revokedAt: workspaceInviteTokensTable.revokedAt,
+  }).from(workspaceInviteTokensTable)
+    .where(eq(workspaceInviteTokensTable.token, token));
+  if (!invite || invite.revokedAt) {
+    res.status(404).json({ error: "Link non valido" });
+    return;
+  }
+  if (invite.expiresAt.getTime() <= Date.now()) {
+    res.status(410).json({ error: "Link scaduto" });
+    return;
+  }
+  const [workspace] = await db.select({
+    id: organizationsTable.id,
+    name: organizationsTable.name,
+    isSharedWorkspace: organizationsTable.isSharedWorkspace,
+  }).from(organizationsTable).where(eq(organizationsTable.id, invite.workspaceId));
+  if (!workspace?.isSharedWorkspace) {
+    res.status(404).json({ error: "Spazio non disponibile" });
+    return;
+  }
+  const [account] = await db.select({
+    isActive: usersTable.isActive,
+    organizationId: usersTable.organizationId,
+  }).from(usersTable).where(eq(usersTable.id, user.id));
+  if (!account?.isActive || account.organizationId == null) {
+    res.status(403).json({ error: "È necessario un account attivo con un'organizzazione di fatturazione" });
+    return;
+  }
+
+  const [membership] = await db.insert(workspaceMembershipsTable).values({
+    workspaceOrganizationId: workspace.id,
+    userId: user.id,
+    role: "user",
+    sponsored: false,
+  }).onConflictDoNothing().returning({ userId: workspaceMembershipsTable.userId });
+  if (membership) notifyPermissionChanged(user.id);
+  res.status(membership ? 201 : 200).json({
+    joined: !!membership,
+    alreadyMember: !membership,
+    workspace: { id: workspace.id, name: workspace.name },
+  });
 });
 
 router.patch("/workspaces/:id/members/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {

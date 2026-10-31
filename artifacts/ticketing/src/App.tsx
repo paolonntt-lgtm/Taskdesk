@@ -17,6 +17,7 @@ import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
 import AnnouncementsSettings from "./components/AnnouncementsSettings";
 import InviteRegister from "./pages/InviteRegister";
+import WorkspaceInvite from "./pages/WorkspaceInvite";
 import UserProfile from "./pages/UserProfile";
 import SuperAdmin from "./pages/SuperAdmin";
 import ResetPassword from "./pages/ResetPassword";
@@ -486,6 +487,9 @@ function AppShell() {
             <Switch>
               <Route path="/invite/:token">
                 {(params) => <InviteRegister token={params.token!} />}
+              </Route>
+              <Route path="/workspace-invite/:token">
+                {(params) => <WorkspaceInvite token={params.token!} />}
               </Route>
               <Route path="/reset-password" component={ResetPassword} />
               <Route>

@@ -9,6 +9,7 @@ import {
   settingsTable,
   ticketsTable,
   usersTable,
+  workspaceInviteTokensTable,
   workspaceMembershipsTable,
 } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
@@ -29,6 +30,7 @@ let unbilledUserId: number;
 let outsiderId: number;
 let billingAdminSessionId: string;
 let externalUserSessionId: string;
+let unbilledUserSessionId: string;
 let outsiderSessionId: string;
 
 async function request(
@@ -58,6 +60,18 @@ async function request(
 
 describe("shared workspaces", () => {
   beforeAll(async () => {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS workspace_invite_tokens (
+        id SERIAL PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        workspace_organization_id INTEGER NOT NULL
+          REFERENCES organizations(id) ON DELETE CASCADE,
+        created_by_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
     const [billingOrganization] = await db.insert(organizationsTable)
       .values({ name: `Workspace billing ${runId}` })
       .returning({ id: organizationsTable.id });
@@ -103,6 +117,7 @@ describe("shared workspaces", () => {
 
     billingAdminSessionId = await createSession(billingAdminId);
     externalUserSessionId = await createSession(externalUserId);
+    unbilledUserSessionId = await createSession(unbilledUserId);
     outsiderSessionId = await createSession(outsiderId);
 
     server = createServer(app);
@@ -129,13 +144,15 @@ describe("shared workspaces", () => {
       }
       await db.delete(workspaceMembershipsTable)
         .where(eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId));
+      await db.delete(workspaceInviteTokensTable)
+        .where(eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId));
       await db.delete(settingsTable)
         .where(inArray(settingsTable.key, [`org_${workspaceId}_categories`, `org_${workspaceId}_locations`]));
     }
     await db.delete(notificationsTable)
       .where(inArray(notificationsTable.userId, [billingAdminId, externalUserId, unbilledUserId, outsiderId]));
     await db.delete(sessionsTable)
-      .where(inArray(sessionsTable.sessionId, [billingAdminSessionId, externalUserSessionId, outsiderSessionId]));
+      .where(inArray(sessionsTable.sessionId, [billingAdminSessionId, externalUserSessionId, unbilledUserSessionId, outsiderSessionId]));
     await db.delete(usersTable)
       .where(inArray(usersTable.id, [billingAdminId, externalUserId, unbilledUserId, outsiderId]));
     if (workspaceId) await db.delete(organizationsTable).where(eq(organizationsTable.id, workspaceId));
@@ -228,5 +245,37 @@ describe("shared workspaces", () => {
     );
     expect(remove.status).toBe(200);
     expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
+
+    const linkResponse = await request(`/api/workspaces/${workspaceId}/invite-link`, billingAdminSessionId, workspaceId, {
+      method: "POST",
+    });
+    expect(linkResponse.status).toBe(201);
+    expect(linkResponse.body.inviteUrl).toContain("/app/workspace-invite/");
+    const token = linkResponse.body.inviteUrl.split("/").at(-1);
+    const linkInfo = await request(`/api/workspace-invites/${token}`, outsiderSessionId);
+    expect(linkInfo.status).toBe(200);
+    expect(linkInfo.body).toMatchObject({ valid: true, workspaceId, workspaceName: expect.any(String) });
+
+    const rejectUnbilledAccount = await request(`/api/workspace-invites/${token}/accept`, unbilledUserSessionId, undefined, {
+      method: "POST",
+    });
+    expect(rejectUnbilledAccount.status).toBe(403);
+
+    const acceptLink = await request(`/api/workspace-invites/${token}/accept`, outsiderSessionId, undefined, {
+      method: "POST",
+    });
+    expect(acceptLink.status).toBe(201);
+    expect(acceptLink.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
+    expect((await request("/api/auth/me", outsiderSessionId, workspaceId)).body).toMatchObject({
+      id: outsiderId,
+      organizationId: workspaceId,
+      billingOrganizationId: externalOrganizationId,
+    });
+
+    const revokeLink = await request(`/api/workspaces/${workspaceId}/invite-link`, billingAdminSessionId, workspaceId, {
+      method: "DELETE",
+    });
+    expect(revokeLink.status).toBe(200);
+    expect((await request(`/api/workspace-invites/${token}`, outsiderSessionId)).status).toBe(404);
   }, 60_000);
 });

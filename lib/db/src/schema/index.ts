@@ -1,5 +1,6 @@
 export * from "./organizations";
 export * from "./workspace_memberships";
+export * from "./workspace_invite_tokens";
 export * from "./users";
 export * from "./tickets";
 export * from "./ticket_time_sessions";

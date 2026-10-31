@@ -62,6 +62,9 @@ import {
   ExpandMore,
   CheckCircleOutline,
   DeleteOutline,
+  Link as LinkIcon,
+  ContentCopy,
+  LinkOff,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -336,11 +339,14 @@ export default function Layout({ children }: LayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [workspaceAnchorEl, setWorkspaceAnchorEl] = useState<null | HTMLElement>(null);
-  const [workspaceDialog, setWorkspaceDialog] = useState<'create' | 'invite' | 'manage' | null>(null);
+  const [workspaceDialog, setWorkspaceDialog] = useState<'create' | 'invite' | 'invite-link' | 'manage' | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<any[]>([]);
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState('');
   const [workspaceInviteRole, setWorkspaceInviteRole] = useState<'user' | 'admin'>('user');
+  const [workspaceInviteLink, setWorkspaceInviteLink] = useState('');
+  const [workspaceInviteExpiresAt, setWorkspaceInviteExpiresAt] = useState('');
+  const [workspaceInviteCopied, setWorkspaceInviteCopied] = useState(false);
   const [workspaceActionError, setWorkspaceActionError] = useState('');
   const [workspaceActionBusy, setWorkspaceActionBusy] = useState(false);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
@@ -567,6 +573,16 @@ export default function Layout({ children }: LayoutProps) {
         if (!response.ok) throw new Error(data.message || data.error || (lang === 'it' ? 'Impossibile aggiungere l’utente.' : 'Could not add the account.'));
         setWorkspaceDialog(null);
         setWorkspaceInviteEmail('');
+      } else if (workspaceDialog === 'invite-link') {
+        const response = await fetch(`/api/workspaces/${activeWorkspaceId}/invite-link`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.error || (lang === 'it' ? 'Impossibile creare il link.' : 'Could not create the link.'));
+        setWorkspaceInviteLink(data.inviteUrl);
+        setWorkspaceInviteExpiresAt(data.expiresAt);
+        setWorkspaceInviteCopied(false);
       }
     } catch (error: any) {
       setWorkspaceActionError(error?.message || (lang === 'it' ? 'Operazione non riuscita.' : 'The action could not be completed.'));
@@ -604,6 +620,24 @@ export default function Layout({ children }: LayoutProps) {
     }
     setWorkspaceMembers((members) => members.filter((item) => item.userId !== member.userId));
     if (member.userId === user?.id) await switchWorkspace((user as any).billingOrganizationId);
+  };
+  const revokeWorkspaceInviteLink = async () => {
+    setWorkspaceActionBusy(true);
+    setWorkspaceActionError('');
+    try {
+      const response = await fetch(`/api/workspaces/${activeWorkspaceId}/invite-link`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || data.error || (lang === 'it' ? 'Impossibile revocare il link.' : 'Could not revoke the link.'));
+      setWorkspaceInviteLink('');
+      setWorkspaceInviteExpiresAt('');
+    } catch (error: any) {
+      setWorkspaceActionError(error?.message || (lang === 'it' ? 'Operazione non riuscita.' : 'The action could not be completed.'));
+    } finally {
+      setWorkspaceActionBusy(false);
+    }
   };
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
@@ -896,6 +930,19 @@ export default function Layout({ children }: LayoutProps) {
             </MenuItem>
           )}
           {canInviteWorkspaceMembers && (
+            <MenuItem onClick={() => {
+              setWorkspaceAnchorEl(null);
+              setWorkspaceActionError('');
+              setWorkspaceInviteLink('');
+              setWorkspaceInviteExpiresAt('');
+              setWorkspaceInviteCopied(false);
+              setWorkspaceDialog('invite-link');
+            }}>
+              <LinkIcon fontSize="small" sx={{ mr: 1 }} />
+              {lang === 'it' ? 'Crea link condivisibile' : 'Create shareable link'}
+            </MenuItem>
+          )}
+          {canInviteWorkspaceMembers && (
             <MenuItem onClick={async () => {
               setWorkspaceAnchorEl(null);
               setWorkspaceActionError('');
@@ -923,6 +970,8 @@ export default function Layout({ children }: LayoutProps) {
             ? (lang === 'it' ? 'Crea uno spazio condiviso' : 'Create a shared workspace')
             : workspaceDialog === 'invite'
               ? (lang === 'it' ? 'Invita un account esistente' : 'Invite an existing account')
+              : workspaceDialog === 'invite-link'
+                ? (lang === 'it' ? 'Link per questo spazio' : 'Link for this workspace')
               : (lang === 'it' ? 'Membri dello spazio' : 'Workspace members')}
         </DialogTitle>
         <DialogContent>
@@ -931,6 +980,10 @@ export default function Layout({ children }: LayoutProps) {
               ? (lang === 'it'
                 ? 'Lo spazio avrà dati e permessi separati. Non crea nuovi posti di fatturazione.'
                 : 'This workspace has separate data and permissions. It does not create new billing seats.')
+              : workspaceDialog === 'invite-link'
+                ? (lang === 'it'
+                  ? 'Condividi il link solo con collaboratori che hanno già un account TaskDesk attivo. Scade dopo 7 giorni ed è revocabile.'
+                  : 'Share this link only with collaborators who already have an active TaskDesk account. It expires after 7 days and can be revoked.')
               : (lang === 'it'
                 ? 'L’account invitato mantiene la propria organizzazione di fatturazione e il relativo posto.'
                 : 'The invited account keeps its own billing organization and seat.')}
@@ -953,6 +1006,33 @@ export default function Layout({ children }: LayoutProps) {
                   : 'To prevent unbilled seats, only active accounts with their own billing organization can be added.'}
               </Typography>
             </>
+          ) : workspaceDialog === 'invite-link' ? (
+            <Box>
+              {workspaceInviteLink ? (
+                <>
+                  <TextField fullWidth value={workspaceInviteLink} size="small" InputProps={{ readOnly: true }}
+                    helperText={workspaceInviteExpiresAt
+                      ? `${lang === 'it' ? 'Scade il' : 'Expires'} ${new Date(workspaceInviteExpiresAt).toLocaleString(lang === 'it' ? 'it-IT' : 'en-GB')}`
+                      : undefined} />
+                  <Button sx={{ mt: 1 }} startIcon={<ContentCopy />} onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(workspaceInviteLink);
+                      setWorkspaceInviteCopied(true);
+                    } catch {
+                      setWorkspaceActionError(lang === 'it' ? 'Copia non riuscita: seleziona e copia il link.' : 'Could not copy. Select and copy the link.');
+                    }
+                  }}>
+                    {workspaceInviteCopied
+                      ? (lang === 'it' ? 'Link copiato' : 'Link copied')
+                      : (lang === 'it' ? 'Copia link' : 'Copy link')}
+                  </Button>
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {lang === 'it' ? 'Genera un link temporaneo per invitare più collaboratori già attivi.' : 'Generate a temporary link to invite multiple active collaborators.'}
+                </Typography>
+              )}
+            </Box>
           ) : (
             <Box>
               {workspaceMembers.map((member) => (
@@ -985,11 +1065,19 @@ export default function Layout({ children }: LayoutProps) {
           <Button onClick={() => setWorkspaceDialog(null)} disabled={workspaceActionBusy}>
             {lang === 'it' ? 'Annulla' : 'Cancel'}
           </Button>
+          {workspaceDialog === 'invite-link' && workspaceInviteLink && (
+            <Button color="error" startIcon={<LinkOff />} onClick={() => void revokeWorkspaceInviteLink()} disabled={workspaceActionBusy}>
+              {lang === 'it' ? 'Revoca link' : 'Revoke link'}
+            </Button>
+          )}
           {workspaceDialog !== 'manage' && <Button onClick={submitWorkspaceAction} disabled={workspaceActionBusy ||
-            (workspaceDialog === 'create' ? workspaceName.trim().length < 2 : !workspaceInviteEmail.trim())} variant="contained">
+            (workspaceDialog === 'create' ? workspaceName.trim().length < 2 : workspaceDialog === 'invite' ? !workspaceInviteEmail.trim() : false)} variant="contained">
             {workspaceActionBusy ? (lang === 'it' ? 'Salvataggio…' : 'Saving…') :
-              workspaceDialog === 'create' ? (lang === 'it' ? 'Crea spazio' : 'Create workspace') :
-                (lang === 'it' ? 'Aggiungi account' : 'Add account')}
+              workspaceDialog === 'create'
+                ? (lang === 'it' ? 'Crea spazio' : 'Create workspace')
+                : workspaceDialog === 'invite-link'
+                  ? (workspaceInviteLink ? (lang === 'it' ? 'Rinnova link' : 'Renew link') : (lang === 'it' ? 'Genera link' : 'Generate link'))
+                  : (lang === 'it' ? 'Aggiungi account' : 'Add account')}
           </Button>}
         </DialogActions>
       </Dialog>
