@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { runBackupForOrg, buildBackupPayload } from "../lib/backup";
 import { db, organizationsTable, ticketsTable, ticketTimeSessionsTable, ticketCommentsTable, ticketInternalNotesTable, clientsTable, clientNotesTable, usersTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -102,7 +102,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
     const restoredTicketOldIds = new Set<number>();
     const backupUsers = Array.isArray(data.users) ? data.users : [];
     const existingUsers = await db.select({ id: usersTable.id, email: usersTable.email })
-      .from(usersTable).where(eq(usersTable.organizationId, orgId));
+      .from(usersTable).where(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []));
     const userIdByEmail = new Map(existingUsers.map((user) => [user.email.toLowerCase(), user.id]));
     const userIdMap = new Map<number, number>();
     for (const backupUser of backupUsers) {
@@ -112,7 +112,7 @@ router.post("/backup/restore", requireAuth, requireAdmin, async (req, res): Prom
           userIdMap.set(Number(backupUser.id), mappedId);
           if (typeof backupUser.hourlyCompensated === "boolean") {
             await db.update(usersTable).set({ hourlyCompensated: backupUser.hourlyCompensated })
-              .where(and(eq(usersTable.id, mappedId), eq(usersTable.organizationId, orgId)));
+              .where(and(eq(usersTable.id, mappedId), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])));
           }
         }
       }

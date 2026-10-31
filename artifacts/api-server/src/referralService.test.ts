@@ -396,6 +396,7 @@ describe("TaskDesk referral Stripe rewards", () => {
 
     expect(mocks.notificationRows).toEqual([{
       userId: 101,
+      organizationId: 10,
       ticketId: null,
       type: "system",
       notificationText: "Premio referral accreditato per Invited Company",

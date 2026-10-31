@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, jsonb, integer } from "drizzle-orm/pg-core";
 
 export const organizationsTable = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -28,6 +28,8 @@ export const organizationsTable = pgTable("organizations", {
   entityPlural: text("entity_plural"),
   workedTimeEnabled: boolean("worked_time_enabled").default(true).notNull(),
   timeTrackingModuleEnabled: boolean("time_tracking_module_enabled").default(false).notNull(),
+  isSharedWorkspace: boolean("is_shared_workspace").default(false).notNull(),
+  billingOwnerOrganizationId: integer("billing_owner_organization_id").references((): any => organizationsTable.id, { onDelete: "set null" }),
   sendClosureEmail: boolean("send_closure_email").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db, groupMembersTable, groupsTable, usersTable } from "@workspace/db";
+import { db, groupMembersTable, groupsTable, usersTable, workspaceMembershipsTable } from "@workspace/db";
 
 export const VIEW_WORKED_HOURS_PERMISSION = "view_worked_hours";
 export const ASSIGN_TIME_TRACKED_TICKETS_PERMISSION = "assign_time_tracked_tickets";
@@ -80,7 +80,15 @@ export async function getUserPermissionSummary(userId: number, organizationId: n
       return [];
     }
   }))];
-  const overrides = parsePermissionOverrides(user?.permissionOverrides);
+  const workspaceRows = user ? [] : await db
+    .select({ permissionOverrides: workspaceMembershipsTable.permissionOverrides })
+    .from(workspaceMembershipsTable)
+    .where(and(
+      eq(workspaceMembershipsTable.userId, userId),
+      eq(workspaceMembershipsTable.workspaceOrganizationId, organizationId ?? -1),
+    ));
+  const workspaceMember = workspaceRows[0];
+  const overrides = parsePermissionOverrides(user?.permissionOverrides ?? workspaceMember?.permissionOverrides);
   const { inheritedGroupPermissions, effectivePermissions } =
     resolvePermissionSummary(role, inherited, overrides);
   return {

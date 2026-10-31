@@ -141,6 +141,41 @@ export async function runAppMigrations(): Promise<void> {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS hidden_from_superadmin BOOLEAN NOT NULL DEFAULT false;
     `);
 
+    // Shared workspaces are separate tenants; member accounts retain billing in their home organization.
+    await client.query(`
+      ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS is_shared_workspace BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS billing_owner_organization_id INTEGER
+          REFERENCES organizations(id) ON DELETE SET NULL;
+      CREATE TABLE IF NOT EXISTS workspace_memberships (
+        id SERIAL PRIMARY KEY,
+        workspace_organization_id INTEGER NOT NULL
+          REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL DEFAULT 'user',
+        permission_overrides TEXT NOT NULL DEFAULT '{}',
+        sponsored BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT workspace_memberships_workspace_user_uniq
+          UNIQUE (workspace_organization_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS workspace_memberships_user_idx
+        ON workspace_memberships (user_id);
+    `);
+
+    // Keep each user's notifications scoped to the workspace that generated them.
+    await client.query(`
+      ALTER TABLE notifications
+        ADD COLUMN IF NOT EXISTS organization_id INTEGER
+          REFERENCES organizations(id) ON DELETE CASCADE;
+      UPDATE notifications n SET organization_id = t.organization_id
+        FROM tickets t WHERE n.ticket_id = t.id AND n.organization_id IS NULL;
+      UPDATE notifications n SET organization_id = u.organization_id
+        FROM users u WHERE n.user_id = u.id AND n.organization_id IS NULL;
+      CREATE INDEX IF NOT EXISTS notifications_organization_id_idx
+        ON notifications (organization_id, user_id);
+    `);
+
     // Create sticky_notes table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sticky_notes (
@@ -519,6 +554,25 @@ export async function runAppMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS stripe_reward_reversal_balance_transaction_id TEXT,
         ADD COLUMN IF NOT EXISTS reward_revocation_reason TEXT,
         ADD COLUMN IF NOT EXISTS reward_revoked_at TIMESTAMPTZ;
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ticket_attachment_onedrive_copies (
+        id SERIAL PRIMARY KEY,
+        attachment_id INTEGER NOT NULL REFERENCES ticket_attachments(id) ON DELETE CASCADE,
+        owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        owner_name TEXT NOT NULL,
+        owner_email TEXT NOT NULL,
+        owner_tenant_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        is_current BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ticket_attachment_onedrive_copies_attachment_idx
+        ON ticket_attachment_onedrive_copies (attachment_id);
+      CREATE INDEX IF NOT EXISTS ticket_attachment_onedrive_copies_stale_idx
+        ON ticket_attachment_onedrive_copies (attachment_id, is_current);
+      CREATE UNIQUE INDEX IF NOT EXISTS ticket_attachment_onedrive_copies_identity_idx
+        ON ticket_attachment_onedrive_copies (attachment_id, owner_tenant_id, owner_email, item_id);
     `);
 
     logger.info("App migrations completed");

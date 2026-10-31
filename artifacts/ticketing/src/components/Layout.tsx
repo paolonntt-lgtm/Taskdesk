@@ -27,6 +27,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowForwardRounded,
@@ -57,6 +59,9 @@ import {
   Search,
   BugReport,
   WhatsApp,
+  ExpandMore,
+  CheckCircleOutline,
+  DeleteOutline,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -154,7 +159,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, switchWorkspace } = useAuth();
   const canShowAnnouncements = !!user &&
     !((user as any).registeredViaInvite && !(user as any).tourDone);
   const { mode, toggleColorMode } = useColorMode();
@@ -330,6 +335,14 @@ export default function Layout({ children }: LayoutProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [workspaceAnchorEl, setWorkspaceAnchorEl] = useState<null | HTMLElement>(null);
+  const [workspaceDialog, setWorkspaceDialog] = useState<'create' | 'invite' | 'manage' | null>(null);
+  const [workspaceMembers, setWorkspaceMembers] = useState<any[]>([]);
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [workspaceInviteEmail, setWorkspaceInviteEmail] = useState('');
+  const [workspaceInviteRole, setWorkspaceInviteRole] = useState<'user' | 'admin'>('user');
+  const [workspaceActionError, setWorkspaceActionError] = useState('');
+  const [workspaceActionBusy, setWorkspaceActionBusy] = useState(false);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const taskTrackStorageKey = user ? getTaskTrackAnnouncementStorageKey(String(user.id)) : '';
@@ -521,6 +534,77 @@ export default function Layout({ children }: LayoutProps) {
     setNotifAnchorEl(null);
   };
   const handleLogout = () => { handleMenuClose(); logout(); };
+  const workspaces = ((user as any)?.workspaces ?? []) as Array<{ id: number; name: string; role: string; isSharedWorkspace?: boolean }>;
+  const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
+  const canCreateWorkspace = user?.role === 'admin' &&
+    activeWorkspaceId === (user as any)?.billingOrganizationId &&
+    !(user as any)?.isSharedWorkspace;
+  const canInviteWorkspaceMembers = user?.role === 'admin' && (user as any)?.isSharedWorkspace;
+  const submitWorkspaceAction = async () => {
+    setWorkspaceActionBusy(true);
+    setWorkspaceActionError('');
+    try {
+      if (workspaceDialog === 'create') {
+        const response = await fetch('/api/workspaces', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: workspaceName }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.error || (lang === 'it' ? 'Impossibile creare lo spazio.' : 'Could not create the workspace.'));
+        setWorkspaceDialog(null);
+        setWorkspaceName('');
+        await switchWorkspace(data.workspace.id);
+      } else if (workspaceDialog === 'invite') {
+        const response = await fetch(`/api/workspaces/${activeWorkspaceId}/members`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: workspaceInviteEmail, role: workspaceInviteRole }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.error || (lang === 'it' ? 'Impossibile aggiungere l’utente.' : 'Could not add the account.'));
+        setWorkspaceDialog(null);
+        setWorkspaceInviteEmail('');
+      }
+    } catch (error: any) {
+      setWorkspaceActionError(error?.message || (lang === 'it' ? 'Operazione non riuscita.' : 'The action could not be completed.'));
+    } finally {
+      setWorkspaceActionBusy(false);
+    }
+  };
+  const refreshWorkspaceMembers = async () => {
+    const response = await fetch(`/api/workspaces/${activeWorkspaceId}/members`, { credentials: 'include' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || data.error || 'Could not load workspace members');
+    setWorkspaceMembers(data.members ?? []);
+  };
+  const changeWorkspaceMemberRole = async (member: any, role: 'user' | 'admin') => {
+    const response = await fetch(`/api/workspaces/${activeWorkspaceId}/members/${member.userId}`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setWorkspaceActionError(data.message || data.error || 'Could not update member role');
+      return;
+    }
+    setWorkspaceMembers((members) => members.map((item) => item.userId === member.userId ? { ...item, role } : item));
+    if (member.userId === user?.id) await switchWorkspace(activeWorkspaceId!);
+  };
+  const removeWorkspaceMember = async (member: any) => {
+    const response = await fetch(`/api/workspaces/${activeWorkspaceId}/members/${member.userId}`, {
+      method: 'DELETE', credentials: 'include',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setWorkspaceActionError(data.message || data.error || 'Could not remove workspace member');
+      return;
+    }
+    setWorkspaceMembers((members) => members.filter((item) => item.userId !== member.userId));
+    if (member.userId === user?.id) await switchWorkspace((user as any).billingOrganizationId);
+  };
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
       onSuccess: () => {
@@ -532,7 +616,10 @@ export default function Layout({ children }: LayoutProps) {
     });
     handleMenuClose();
   };
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = async (notification: any) => {
+    if (notification.organizationId && notification.organizationId !== activeWorkspaceId) {
+      await switchWorkspace(notification.organizationId);
+    }
     if (!notification.isRead) {
       markNotificationRead.mutate({ id: notification.id }, {
         onSuccess: (updated) => {
@@ -745,12 +832,18 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* User card at bottom */}
       <Box sx={{ p: 2 }}>
-        <Box sx={{
-          display: 'flex', alignItems: 'center', gap: 1.5,
-          p: 1.5, borderRadius: '12px',
-          bgcolor: 'background.default',
-          border: '1px solid', borderColor: 'divider',
-        }}>
+        <Box
+          component="button"
+          type="button"
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) => setWorkspaceAnchorEl(event.currentTarget)}
+          aria-label={lang === 'it' ? 'Cambia spazio di lavoro' : 'Switch workspace'}
+          sx={{
+            width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 1.5,
+            p: 1.5, borderRadius: '12px', bgcolor: 'background.default',
+            border: '1px solid', borderColor: 'divider', color: 'inherit', cursor: 'pointer',
+            '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+          }}
+        >
           <Avatar
             src={(user as any)?.avatarUrl ?? undefined}
             sx={{
@@ -767,7 +860,56 @@ export default function Layout({ children }: LayoutProps) {
               {(user as any)?.organizationName ?? roleLabel}
             </Typography>
           </Box>
+          <ExpandMore fontSize="small" color="action" />
         </Box>
+        <Menu anchorEl={workspaceAnchorEl} open={!!workspaceAnchorEl} onClose={() => setWorkspaceAnchorEl(null)}>
+          {workspaces.map((workspace) => (
+            <MenuItem
+              key={workspace.id}
+              selected={workspace.id === activeWorkspaceId}
+              onClick={async () => {
+                setWorkspaceAnchorEl(null);
+                if (workspace.id !== activeWorkspaceId) {
+                  try { await switchWorkspace(workspace.id); } catch (error: any) {
+                    setWorkspaceActionError(error?.message || 'Workspace switch failed');
+                  }
+                }
+              }}
+            >
+              {workspace.id === activeWorkspaceId ? <CheckCircleOutline fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : <Box sx={{ width: 24 }} />}
+              <Box>
+                <Typography variant="body2">{workspace.name}</Typography>
+                {workspace.isSharedWorkspace && (
+                  <Typography variant="caption" color="text.secondary">{lang === 'it' ? 'Spazio condiviso' : 'Shared workspace'}</Typography>
+                )}
+              </Box>
+            </MenuItem>
+          ))}
+          {canCreateWorkspace && (
+            <MenuItem onClick={() => { setWorkspaceAnchorEl(null); setWorkspaceActionError(''); setWorkspaceDialog('create'); }}>
+              {lang === 'it' ? 'Crea spazio condiviso' : 'Create shared workspace'}
+            </MenuItem>
+          )}
+          {canInviteWorkspaceMembers && (
+            <MenuItem onClick={() => { setWorkspaceAnchorEl(null); setWorkspaceActionError(''); setWorkspaceDialog('invite'); }}>
+              {lang === 'it' ? 'Invita account esistente' : 'Invite existing account'}
+            </MenuItem>
+          )}
+          {canInviteWorkspaceMembers && (
+            <MenuItem onClick={async () => {
+              setWorkspaceAnchorEl(null);
+              setWorkspaceActionError('');
+              try {
+                await refreshWorkspaceMembers();
+                setWorkspaceDialog('manage');
+              } catch (error: any) {
+                setWorkspaceActionError(error?.message || 'Could not load members');
+              }
+            }}>
+              {lang === 'it' ? 'Gestisci membri e ruoli' : 'Manage members and roles'}
+            </MenuItem>
+          )}
+        </Menu>
       </Box>
     </Box>
   );
@@ -775,6 +917,82 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
+      <Dialog open={!!workspaceDialog} onClose={() => !workspaceActionBusy && setWorkspaceDialog(null)} fullWidth maxWidth="xs">
+        <DialogTitle>
+          {workspaceDialog === 'create'
+            ? (lang === 'it' ? 'Crea uno spazio condiviso' : 'Create a shared workspace')
+            : workspaceDialog === 'invite'
+              ? (lang === 'it' ? 'Invita un account esistente' : 'Invite an existing account')
+              : (lang === 'it' ? 'Membri dello spazio' : 'Workspace members')}
+        </DialogTitle>
+        <DialogContent>
+          {workspaceDialog !== 'manage' && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {workspaceDialog === 'create'
+              ? (lang === 'it'
+                ? 'Lo spazio avrà dati e permessi separati. Non crea nuovi posti di fatturazione.'
+                : 'This workspace has separate data and permissions. It does not create new billing seats.')
+              : (lang === 'it'
+                ? 'L’account invitato mantiene la propria organizzazione di fatturazione e il relativo posto.'
+                : 'The invited account keeps its own billing organization and seat.')}
+          </Typography>}
+          {workspaceDialog === 'create' ? (
+            <TextField autoFocus fullWidth label={lang === 'it' ? 'Nome dello spazio' : 'Workspace name'}
+              value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} />
+          ) : workspaceDialog === 'invite' ? (
+            <>
+              <TextField autoFocus fullWidth type="email" label="Email"
+                value={workspaceInviteEmail} onChange={(event) => setWorkspaceInviteEmail(event.target.value)} sx={{ mb: 2 }} />
+              <TextField select fullWidth label={lang === 'it' ? 'Ruolo nello spazio' : 'Workspace role'}
+                value={workspaceInviteRole} onChange={(event) => setWorkspaceInviteRole(event.target.value as 'user' | 'admin')}>
+                <MenuItem value="user">{lang === 'it' ? 'Collaboratore' : 'Collaborator'}</MenuItem>
+                <MenuItem value="admin">{lang === 'it' ? 'Amministratore' : 'Administrator'}</MenuItem>
+              </TextField>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                {lang === 'it'
+                  ? 'Per evitare posti non fatturati, puoi aggiungere solo account già attivi con una propria organizzazione.'
+                  : 'To prevent unbilled seats, only active accounts with their own billing organization can be added.'}
+              </Typography>
+            </>
+          ) : (
+            <Box>
+              {workspaceMembers.map((member) => (
+                <Box key={member.userId} sx={{ py: 1.25, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" fontWeight={700} noWrap>{member.name}</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                      {member.email} · {member.billingOrganizationName || (lang === 'it' ? 'Organizzazione non disponibile' : 'Billing organization unavailable')}
+                    </Typography>
+                  </Box>
+                  <TextField select size="small" value={member.role}
+                    onChange={(event) => void changeWorkspaceMemberRole(member, event.target.value as 'user' | 'admin')}
+                    sx={{ minWidth: 132 }}>
+                    <MenuItem value="user">{lang === 'it' ? 'Collaboratore' : 'Collaborator'}</MenuItem>
+                    <MenuItem value="admin">{lang === 'it' ? 'Amministratore' : 'Administrator'}</MenuItem>
+                  </TextField>
+                  <Tooltip title={lang === 'it' ? 'Rimuovi dallo spazio' : 'Remove from workspace'}>
+                    <IconButton size="small" color="error" onClick={() => void removeWorkspaceMember(member)}>
+                      <DeleteOutline fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+              {workspaceMembers.length === 0 && <Typography variant="body2" color="text.secondary">{lang === 'it' ? 'Nessun membro.' : 'No members yet.'}</Typography>}
+            </Box>
+          )}
+          {!!workspaceActionError && <Typography color="error" variant="body2" sx={{ mt: 1 }}>{workspaceActionError}</Typography>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWorkspaceDialog(null)} disabled={workspaceActionBusy}>
+            {lang === 'it' ? 'Annulla' : 'Cancel'}
+          </Button>
+          {workspaceDialog !== 'manage' && <Button onClick={submitWorkspaceAction} disabled={workspaceActionBusy ||
+            (workspaceDialog === 'create' ? workspaceName.trim().length < 2 : !workspaceInviteEmail.trim())} variant="contained">
+            {workspaceActionBusy ? (lang === 'it' ? 'Salvataggio…' : 'Saving…') :
+              workspaceDialog === 'create' ? (lang === 'it' ? 'Crea spazio' : 'Create workspace') :
+                (lang === 'it' ? 'Aggiungi account' : 'Add account')}
+          </Button>}
+        </DialogActions>
+      </Dialog>
 
       <AppBar
         position="fixed"

@@ -43,7 +43,7 @@ function statsTicketFilter(orgId: number, currentUser: any) {
         ticketsTable.createdBy,
         db.select({ id: usersTable.id })
           .from(usersTable)
-          .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, true))),
+          .where(and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isSystem, true))),
       ),
       sql`lower(trim(coalesce(${ticketsTable.location}, ''))) = 'esterno'`,
     ),
@@ -258,7 +258,7 @@ router.get("/stats/by-assignee", requireAuth, async (req, res): Promise<void> =>
   })
     .from(usersTable)
     .leftJoin(ticketsTable, joinCondition)
-    .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, false)))
+    .where(and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name)
     .having(sql`count(${ticketsTable.id}) > 0`);
 
@@ -323,7 +323,7 @@ router.get("/stats/recent-tickets", requireAuth, async (req, res): Promise<void>
         avatarUrl: usersTable.avatarUrl,
         createdAt: usersTable.createdAt,
       }).from(usersTable).where(
-        and(inArray(usersTable.id, userIds as number[]), eq(usersTable.organizationId, orgId))
+        and(inArray(usersTable.id, userIds as number[]), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
       )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -384,7 +384,7 @@ router.get("/stats/my-tickets", requireAuth, async (req, res): Promise<void> => 
         avatarUrl: usersTable.avatarUrl,
         createdAt: usersTable.createdAt,
       }).from(usersTable).where(
-        and(inArray(usersTable.id, userIds as number[]), eq(usersTable.organizationId, orgId))
+        and(inArray(usersTable.id, userIds as number[]), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
       )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -439,7 +439,7 @@ router.get("/stats/assignee-workload", requireAuth, async (req, res): Promise<vo
         currentUser.role === "admin" ? undefined : eq(ticketsTable.visibility, "organization"),
       )
     )
-    .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isActive, true), eq(usersTable.isSystem, false)))
+    .where(and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isActive, true), eq(usersTable.isSystem, false)))
     .groupBy(usersTable.id, usersTable.name, usersTable.email)
     .orderBy(sql`count(${ticketsTable.id}) filter (where ${isOpenStatus}) desc`);
 
@@ -475,7 +475,7 @@ router.get("/stats/overdue-tickets", requireAuth, async (req, res): Promise<void
         role: usersTable.role, mainLocation: usersTable.mainLocation,
         avatarUrl: usersTable.avatarUrl, createdAt: usersTable.createdAt,
       }).from(usersTable).where(
-        and(inArray(usersTable.id, userIds), eq(usersTable.organizationId, orgId))
+        and(inArray(usersTable.id, userIds), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
       )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -538,7 +538,7 @@ router.get("/stats/reports-all", requireAuth, async (req, res): Promise<void> =>
   const orgFilter = statsTicketFilter(orgId, currentUser);
   const chartFilter = statsChartTicketFilter(orgId, currentUser);
   const userOrgFilter = and(
-    eq(usersTable.organizationId, orgId),
+    inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
     eq(usersTable.isSystem, false),
   );
 
@@ -709,7 +709,7 @@ router.get("/stats/due-soon", requireAuth, async (req, res): Promise<void> => {
         role: usersTable.role, mainLocation: usersTable.mainLocation,
         avatarUrl: usersTable.avatarUrl, createdAt: usersTable.createdAt,
       }).from(usersTable).where(
-        and(inArray(usersTable.id, userIds), eq(usersTable.organizationId, orgId))
+        and(inArray(usersTable.id, userIds), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
       )
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -735,7 +735,7 @@ router.get("/stats/leaderboard", requireAuth, async (req, res): Promise<void> =>
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
   if (orgId == null) { res.status(403).json({ error: "Account has no organization" }); return; }
-  const userOrgFilter = and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, false));
+  const userOrgFilter = and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isSystem, false));
 
   const [openers, commenters, resolvers] = await Promise.all([
     db.select({
@@ -828,7 +828,7 @@ router.get("/stats/resolution-by-assignee", requireAuth, requireAdmin, async (re
           isNotNull(ticketsTable.closedAt),
         )
       )
-      .where(and(eq(usersTable.organizationId, orgId), eq(usersTable.isSystem, false)))
+      .where(and(inArray(usersTable.id, currentUser.workspaceMemberIds ?? []), eq(usersTable.isSystem, false)))
       .groupBy(usersTable.id, usersTable.name)
       .orderBy(sql`avg(extract(epoch from (${ticketsTable.closedAt} - ${ticketsTable.createdAt})) / 3600)`),
 

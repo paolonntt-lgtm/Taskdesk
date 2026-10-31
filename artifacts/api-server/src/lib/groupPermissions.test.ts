@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parsePermissionOverrides,
   resolvePermissionSummary,
+  GROUP_PERMISSION_KEYS,
 } from "./groupPermissions";
 
 describe("permission override resolution", () => {
@@ -22,7 +23,7 @@ describe("permission override resolution", () => {
 
   it("keeps every catalog permission for admins regardless of overrides", () => {
     const summary = resolvePermissionSummary("admin", [], { add_notes: "deny" });
-    expect(summary.effectivePermissions).toHaveLength(9);
+    expect(summary.effectivePermissions).toHaveLength(GROUP_PERMISSION_KEYS.length);
     expect(summary.effectivePermissions).toContain("add_notes");
   });
 

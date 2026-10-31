@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { ticketsTable } from "./tickets";
 import { dailyReportsTable } from "./daily_reports";
+import { organizationsTable } from "./organizations";
 
 export const NOTIFICATION_TYPES = [
   "ticket_created",
@@ -21,6 +22,7 @@ export type NotificationType = typeof NOTIFICATION_TYPES[number];
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id),
+  organizationId: integer("organization_id").references(() => organizationsTable.id, { onDelete: "cascade" }),
   ticketId: integer("ticket_id").references(() => ticketsTable.id, { onDelete: "cascade" }),
   dailyReportId: integer("daily_report_id").references(() => dailyReportsTable.id, { onDelete: "cascade" }),
   type: text("type").notNull().default("system"),
@@ -29,6 +31,7 @@ export const notificationsTable = pgTable("notifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("notifications_user_id_idx").on(t.userId),
+  index("notifications_organization_id_idx").on(t.organizationId, t.userId),
   index("notifications_user_id_is_read_idx").on(t.userId, t.isRead),
   index("notifications_user_id_type_idx").on(t.userId, t.type),
 ]);

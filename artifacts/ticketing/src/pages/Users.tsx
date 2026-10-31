@@ -194,6 +194,7 @@ export default function Users() {
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
 
   const { data: users = [], isLoading } = useListUsers();
+  const canManageOrganizationUsers = currentUser?.role === 'admin' && (currentUser as any)?.isSharedWorkspace !== true;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
@@ -461,7 +462,7 @@ export default function Users() {
             )}
           </Box>
         </Box>
-        {currentUser?.role === 'admin' && (
+        {canManageOrganizationUsers && (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             {isFull && (
               <Button variant="outlined" color="primary" component={WLink as any} href="/billing" startIcon={<TrendingUp />} size={isMobile ? 'small' : 'medium'}>
@@ -537,7 +538,7 @@ export default function Users() {
             <Box display="flex" flexDirection="column" alignItems="center" gap={1.5} py={5}>
               <Typography variant="body1" fontWeight={600} color="text.secondary">{ut.noUsers}</Typography>
               <Typography variant="body2" color="text.secondary">{ut.noUsersDesc}</Typography>
-              {currentUser?.role === 'admin' && (
+              {canManageOrganizationUsers && (
                 <Button
                   size="small"
                   variant="contained"
@@ -632,7 +633,7 @@ export default function Users() {
                       );
                     })()}
                   </CardContent>
-                  {currentUser?.role === 'admin' && (
+                  {canManageOrganizationUsers && (
                     <CardActions sx={{ pt: 0, px: 2, pb: 1.5, gap: 1, flexWrap: 'wrap' }}>
                       <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => openEdit(u)}>
                         {ut.editUser}
@@ -692,7 +693,7 @@ export default function Users() {
                     <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
                       <Typography variant="body1" fontWeight={600} color="text.secondary">{ut.noUsers}</Typography>
                       <Typography variant="body2" color="text.secondary">{ut.noUsersDesc}</Typography>
-                      {currentUser?.role === 'admin' && (
+                      {canManageOrganizationUsers && (
                         <Button
                           size="small"
                           variant="contained"
@@ -792,7 +793,7 @@ export default function Users() {
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        {currentUser?.role === 'admin' && (
+                        {canManageOrganizationUsers && (
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
                             <Tooltip title={ut.editUser}>
                               <IconButton size="small" onClick={() => openEdit(u)}>

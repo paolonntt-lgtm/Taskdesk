@@ -301,9 +301,10 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
         .select({ id: usersTable.id, name: usersTable.name })
         .from(usersTable)
         .where(and(
-          eq(usersTable.organizationId, organizationId),
+          inArray(usersTable.id, ticket.visibility === "admins"
+            ? currentUser.workspaceAdminMemberIds ?? []
+            : currentUser.workspaceMemberIds ?? []),
           eq(usersTable.isActive, true),
-          ticket.visibility === "admins" ? eq(usersTable.role, "admin") : undefined,
         )),
       db
         .select({
@@ -316,9 +317,10 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
         .where(and(
           eq(groupsTable.organizationId, organizationId),
           inArray(groupsTable.name, mentionedNames),
-          eq(usersTable.organizationId, organizationId),
+          inArray(usersTable.id, ticket.visibility === "admins"
+            ? currentUser.workspaceAdminMemberIds ?? []
+            : currentUser.workspaceMemberIds ?? []),
           eq(usersTable.isActive, true),
-          ticket.visibility === "admins" ? eq(usersTable.role, "admin") : undefined,
         )),
     ]);
 

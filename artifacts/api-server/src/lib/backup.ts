@@ -11,6 +11,7 @@ import {
   clientsTable,
   clientNotesTable,
   groupsTable,
+  workspaceMembershipsTable,
 } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { ObjectStorageService } from "./objectStorage";
@@ -27,7 +28,15 @@ async function _buildPayload(orgId: number) {
   const [org] = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId));
   if (!org) throw new Error("Organization not found");
 
-  const users = await db.select({
+  const users = org.isSharedWorkspace
+    ? await db.select({
+        id: usersTable.id, name: usersTable.name, email: usersTable.email,
+        role: workspaceMembershipsTable.role, isActive: usersTable.isActive,
+        hourlyCompensated: usersTable.hourlyCompensated, createdAt: usersTable.createdAt,
+      }).from(workspaceMembershipsTable)
+        .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+        .where(eq(workspaceMembershipsTable.workspaceOrganizationId, orgId))
+    : await db.select({
     id: usersTable.id, name: usersTable.name, email: usersTable.email,
     role: usersTable.role, isActive: usersTable.isActive, hourlyCompensated: usersTable.hourlyCompensated, createdAt: usersTable.createdAt,
   }).from(usersTable).where(eq(usersTable.organizationId, orgId));

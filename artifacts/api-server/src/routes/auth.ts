@@ -24,6 +24,7 @@ import { getUserPermissionSummary } from "../lib/groupPermissions";
 import { subscribeToPermissionChanges } from "../lib/permissionEvents";
 import { attachReferralAtSignup } from "../referralService";
 import { requireAuth } from "../middlewares/auth";
+import { resolveWorkspaceUser } from "../lib/workspaceContext";
 
 const router: IRouter = Router();
 
@@ -119,11 +120,12 @@ router.post("/auth/login", loginRateLimiter, requireSameOrigin, async (req, res)
     `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${rememberMe ? SESSION_COOKIE_MAX_AGE : SESSION_COOKIE_SHORT_MAX_AGE}${secureFlag}`
   );
 
-  const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
-
   const { passwordHash: _, ...safeUser } = row;
   const trialStatus = await getOrganizationTrialStatus(safeUser);
-  res.json({ user: { ...safeUser, ...permissionSummary, trialStatus }, message: "Login effettuato" });
+  const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
+  const fullUser = await db.select().from(usersTable).where(eq(usersTable.id, row.id)).then((rows) => rows[0]);
+  const workspaces = fullUser ? await resolveWorkspaceUser(fullUser) : null;
+  res.json({ user: { ...safeUser, ...permissionSummary, workspaces: workspaces?.workspaces ?? [], billingOrganizationId: row.organizationId, trialStatus }, message: "Login effettuato" });
 });
 
 router.post("/auth/register", registerRateLimiter, requireSameOrigin, async (req, res): Promise<void> => {
@@ -317,8 +319,28 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }
 
   const trialStatus = await getOrganizationTrialStatus(row);
-  const permissionSummary = await getUserPermissionSummary(row.id, row.organizationId, row.role);
-  res.json({ ...row, ...permissionSummary, trialStatus });
+  const [fullUser] = await db.select().from(usersTable).where(eq(usersTable.id, row.id));
+  const requestedWorkspaceId = Number(req.get("X-Workspace-ID"));
+  const context = fullUser
+    ? await resolveWorkspaceUser(fullUser, req.get("X-Workspace-ID") ? requestedWorkspaceId : undefined)
+    : null;
+  if (!context) {
+    res.status(403).json({ error: "Workspace access denied" });
+    return;
+  }
+  const permissionSummary = await getUserPermissionSummary(row.id, context.organizationId, context.role);
+  const activeContext = context as any;
+  const [activeOrganization] = context.organizationId == null ? [null] : await db.select({
+    onboardingDone: organizationsTable.onboardingDone,
+    businessType: organizationsTable.businessType,
+    clientsEnabled: organizationsTable.clientsEnabled,
+    entitySingular: organizationsTable.entitySingular,
+    entityPlural: organizationsTable.entityPlural,
+  }).from(organizationsTable).where(eq(organizationsTable.id, context.organizationId));
+  res.json({ ...row, organizationId: context.organizationId, organizationName: activeContext.organizationName ?? row.organizationName, role: context.role,
+    billingOrganizationId: row.organizationId, activeWorkspaceId: context.activeWorkspaceId,
+    isSharedWorkspace: activeContext.isSharedWorkspace ?? false, workspaces: context.workspaces, ...activeOrganization,
+    ...permissionSummary, trialStatus });
 });
 
 router.post("/auth/me/tour-done", async (req, res): Promise<void> => {

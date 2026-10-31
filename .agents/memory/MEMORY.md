@@ -65,3 +65,4 @@
 - [Client email matching](client-email-association-priority.md) — Automatically match only email/PEC contacts saved in the same organization's client profile.
 - [Microsoft SPA token redemption](microsoft-spa-token-origin.md) — Entra SPA token endpoint requests from the backend need a matching Origin header for code exchange and refresh.
 - [API workflow port conflicts](api-workflow-port-conflict.md) — A failed managed API restart may leave an older dev server listening on port 8080.
+- [Shared workspace billing](shared-workspace-billing.md) — Membership and workspace roles stay separate from the account’s home billing owner and seat count.

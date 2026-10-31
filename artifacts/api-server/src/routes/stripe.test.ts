@@ -47,12 +47,19 @@ vi.mock('../referralService', () => ({
 
 vi.mock('../middlewares/auth', () => {
   const attachTestAdmin = (req: any, _res: any, next: any) => {
-    req.currentUser = { id: 50, organizationId: 20, role: 'admin', isSuperAdmin: false };
+    req.currentUser = {
+      id: 50,
+      organizationId: 20,
+      billingOrganizationId: 20,
+      role: 'admin',
+      isSuperAdmin: false,
+    };
     next();
   };
   return {
     requireAuth: attachTestAdmin,
     requireAdmin: (_req: any, _res: any, next: any) => next(),
+    requireBillingAdmin: (_req: any, _res: any, next: any) => next(),
   };
 });
 

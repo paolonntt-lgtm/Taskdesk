@@ -1,0 +1,232 @@
+import { createServer, type Server } from "node:http";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  db,
+  notificationsTable,
+  organizationsTable,
+  pool,
+  sessionsTable,
+  settingsTable,
+  ticketsTable,
+  usersTable,
+  workspaceMembershipsTable,
+} from "@workspace/db";
+import { and, eq, inArray } from "drizzle-orm";
+import app from "../app";
+import { createSession } from "../lib/session";
+
+const runId = crypto.randomUUID();
+let server: Server;
+let baseUrl: string;
+let billingOrganizationId: number;
+let externalOrganizationId: number;
+let externalOrganizationName: string;
+let workspaceId: number;
+let sharedTicketId: number | undefined;
+let billingAdminId: number;
+let externalUserId: number;
+let unbilledUserId: number;
+let outsiderId: number;
+let billingAdminSessionId: string;
+let externalUserSessionId: string;
+let outsiderSessionId: string;
+
+async function request(
+  path: string,
+  sessionId: string,
+  workspaceHeader?: number,
+  init: RequestInit = {},
+): Promise<{ status: number; body: any }> {
+  const headers = new Headers(init.headers);
+  headers.set("Cookie", `session_id=${sessionId}`);
+  if (workspaceHeader != null) headers.set("X-Workspace-ID", String(workspaceHeader));
+  if (init.body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  const text = await response.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  return { status: response.status, body };
+}
+
+describe("shared workspaces", () => {
+  beforeAll(async () => {
+    const [billingOrganization] = await db.insert(organizationsTable)
+      .values({ name: `Workspace billing ${runId}` })
+      .returning({ id: organizationsTable.id });
+    billingOrganizationId = billingOrganization.id;
+    const [externalOrganization] = await db.insert(organizationsTable)
+      .values({ name: `Workspace external ${runId}` })
+      .returning({ id: organizationsTable.id });
+    externalOrganizationId = externalOrganization.id;
+    externalOrganizationName = `Workspace external ${runId}`;
+
+    const [billingAdmin] = await db.insert(usersTable).values({
+      name: "Workspace Billing Admin",
+      email: `workspace-admin-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "admin",
+      organizationId: billingOrganizationId,
+    }).returning({ id: usersTable.id });
+    billingAdminId = billingAdmin.id;
+    const [externalUser] = await db.insert(usersTable).values({
+      name: "Workspace External User",
+      email: `workspace-external-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "user",
+      organizationId: externalOrganizationId,
+    }).returning({ id: usersTable.id });
+    externalUserId = externalUser.id;
+    const [unbilledUser] = await db.insert(usersTable).values({
+      name: "Workspace Unbilled User",
+      email: `workspace-unbilled-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "user",
+      organizationId: null,
+    }).returning({ id: usersTable.id });
+    unbilledUserId = unbilledUser.id;
+    const [outsider] = await db.insert(usersTable).values({
+      name: "Workspace Outsider",
+      email: `workspace-outsider-${runId}@example.test`,
+      passwordHash: "not-used-in-test",
+      role: "user",
+      organizationId: externalOrganizationId,
+    }).returning({ id: usersTable.id });
+    outsiderId = outsider.id;
+
+    billingAdminSessionId = await createSession(billingAdminId);
+    externalUserSessionId = await createSession(externalUserId);
+    outsiderSessionId = await createSession(outsiderId);
+
+    server = createServer(app);
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Test server did not expose an address");
+    }
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(async () => {
+    if (server) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+    if (workspaceId) {
+      if (sharedTicketId) {
+        await db.delete(ticketsTable).where(eq(ticketsTable.id, sharedTicketId));
+      }
+      await db.delete(workspaceMembershipsTable)
+        .where(eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId));
+      await db.delete(settingsTable)
+        .where(inArray(settingsTable.key, [`org_${workspaceId}_categories`, `org_${workspaceId}_locations`]));
+    }
+    await db.delete(notificationsTable)
+      .where(inArray(notificationsTable.userId, [billingAdminId, externalUserId, unbilledUserId, outsiderId]));
+    await db.delete(sessionsTable)
+      .where(inArray(sessionsTable.sessionId, [billingAdminSessionId, externalUserSessionId, outsiderSessionId]));
+    await db.delete(usersTable)
+      .where(inArray(usersTable.id, [billingAdminId, externalUserId, unbilledUserId, outsiderId]));
+    if (workspaceId) await db.delete(organizationsTable).where(eq(organizationsTable.id, workspaceId));
+    await db.delete(organizationsTable)
+      .where(inArray(organizationsTable.id, [billingOrganizationId, externalOrganizationId]));
+    await pool.end();
+  });
+
+  it("keeps billing seats on home organizations while isolating workspace access and roles", async () => {
+    const homeSeatsBefore = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(eq(usersTable.organizationId, billingOrganizationId), eq(usersTable.isActive, true)));
+    const createResponse = await request("/api/workspaces", billingAdminSessionId, undefined, {
+      method: "POST",
+      body: JSON.stringify({ name: `Shared workspace ${runId}` }),
+    });
+    expect(createResponse.status).toBe(201);
+    workspaceId = createResponse.body.workspace.id;
+    expect(createResponse.body.workspace).toMatchObject({
+      isSharedWorkspace: true,
+      billingOwnerOrganizationId: billingOrganizationId,
+    });
+
+    const invite = (email: string, role = "user") => request(
+      `/api/workspaces/${workspaceId}/members`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "POST", body: JSON.stringify({ email, role }) },
+    );
+    const inviteResponse = await invite(`workspace-external-${runId}@example.test`);
+    expect(inviteResponse.status).toBe(201);
+    expect(inviteResponse.body.membership).toEqual({ userId: externalUserId, role: "user" });
+    expect((await invite(`workspace-external-${runId}@example.test`)).status).toBe(409);
+    expect((await invite(`workspace-unbilled-${runId}@example.test`)).status).toBe(404);
+
+    const externalContext = await request("/api/auth/me", externalUserSessionId, workspaceId);
+    expect(externalContext.status).toBe(200);
+    expect(externalContext.body).toMatchObject({
+      id: externalUserId,
+      organizationId: workspaceId,
+      billingOrganizationId: externalOrganizationId,
+      activeWorkspaceId: workspaceId,
+      role: "user",
+      isSharedWorkspace: true,
+    });
+    expect((await request("/api/auth/me", outsiderSessionId, workspaceId)).status).toBe(403);
+
+    const sharedTicket = await request("/api/tickets", externalUserSessionId, workspaceId, {
+      method: "POST",
+      body: JSON.stringify({
+        title: `Shared ticket ${runId}`,
+        description: "Created inside the shared workspace.",
+        category: "Support",
+        priority: "medium",
+      }),
+    });
+    expect(sharedTicket.status).toBe(201);
+    sharedTicketId = sharedTicket.body.id;
+    const ticketDetails = await request(`/api/tickets/${sharedTicketId}`, externalUserSessionId, workspaceId);
+    expect(ticketDetails.status).toBe(200);
+    expect(ticketDetails.body.creator.organizationName).toBe(externalOrganizationName);
+    const activity = await request(`/api/tickets/${sharedTicketId}/activity`, externalUserSessionId, workspaceId);
+    expect(activity.status).toBe(200);
+    expect(activity.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        user: expect.objectContaining({ organizationName: externalOrganizationName }),
+      }),
+    ]));
+
+    const roleChange = await request(
+      `/api/workspaces/${workspaceId}/members/${externalUserId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "admin" }) },
+    );
+    expect(roleChange.status).toBe(200);
+    expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).body.role).toBe("admin");
+
+    const externalSeats = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(eq(usersTable.organizationId, externalOrganizationId), eq(usersTable.isActive, true)));
+    expect(externalSeats.map(({ id }) => id)).toEqual(expect.arrayContaining([externalUserId, outsiderId]));
+    const homeSeatsAfter = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(eq(usersTable.organizationId, billingOrganizationId), eq(usersTable.isActive, true)));
+    expect(homeSeatsAfter.map(({ id }) => id)).toEqual(homeSeatsBefore.map(({ id }) => id));
+
+    const remove = await request(
+      `/api/workspaces/${workspaceId}/members/${externalUserId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    );
+    expect(remove.status).toBe(200);
+    expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
+  }, 60_000);
+});

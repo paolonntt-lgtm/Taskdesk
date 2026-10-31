@@ -46,6 +46,7 @@ import driveFoldersRouter from "./driveFolders";
 import onedriveFoldersRouter from "./onedriveFolders";
 import onedriveOAuthRouter from "./onedriveOAuth";
 import onedriveCopiesRouter from "./onedriveCopies";
+import workspacesRouter from "./workspaces";
 
 const router: IRouter = Router();
 
@@ -53,6 +54,7 @@ router.use(healthRouter);
 router.use(storageRouter);
 router.use(attachmentsRouter);
 router.use(authRouter);
+router.use(workspacesRouter);
 router.use(profileRouter);
 router.use(usersRouter);
 router.use(ticketsRouter);

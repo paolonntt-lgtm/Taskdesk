@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { canUseBillingDuringExpiredTrial } from "../lib/trialAccess";
 import { logger } from "../lib/logger";
+import { resolveWorkspaceUser } from "../lib/workspaceContext";
 
 const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
 const lastSeenWriteAt = new Map<number, number>();
@@ -77,7 +78,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   recordUserActivity(userId);
   recordSuccessfulUserOperation(userId, req, res);
-  (req as any).currentUser = user;
+  const requestedWorkspaceId = Number(req.get("X-Workspace-ID"));
+  const workspaceUser = req.get("X-Workspace-ID")
+    ? (Number.isInteger(requestedWorkspaceId) && requestedWorkspaceId > 0
+      ? await resolveWorkspaceUser(user, requestedWorkspaceId)
+      : null)
+    : await resolveWorkspaceUser(user);
+  if (!workspaceUser) {
+    res.status(403).json({ error: "Workspace access denied" });
+    return;
+  }
+  (req as any).currentUser = workspaceUser;
   next();
 }
 
@@ -91,6 +102,15 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   // account has no tenant scope and must not be treated as tenant-admin.
   if (!user.isSuperAdmin && user.organizationId == null) {
     res.status(403).json({ error: "Admin account has no organization" });
+    return;
+  }
+  next();
+}
+
+export function requireBillingAdmin(req: Request, res: Response, next: NextFunction): void {
+  const user = (req as any).currentUser;
+  if (!user || user.role !== "admin" || user.organizationId !== user.billingOrganizationId) {
+    res.status(403).json({ error: "Switch to your billing organization to manage billing" });
     return;
   }
   next();

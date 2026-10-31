@@ -379,6 +379,7 @@ export async function applyPendingReferralCreditsForCustomer(customerId: string)
       if (admins.length > 0) {
         await tx.insert(notificationsTable).values(admins.map(({ id }) => ({
           userId: id,
+          organizationId: lockedReferral.referrerOrganizationId,
           ticketId: null,
           type: "system",
           notificationText: `Premio referral accreditato per ${referredOrganization.name}`,

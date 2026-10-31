@@ -8,7 +8,7 @@ import {
 import { stripeStorage } from '../stripeStorage';
 import { stripeService } from '../stripeService';
 import { getUncachableStripeClient, isStripeNotConfiguredError } from '../stripeClient';
-import { requireAuth, requireAdmin } from '../middlewares/auth';
+import { requireAuth, requireAdmin, requireBillingAdmin } from '../middlewares/auth';
 import { getSeatUsage } from '../seatService';
 import { appBaseUrlForRequest } from '../lib/appUrl';
 import {
@@ -23,7 +23,7 @@ const priceIdBody = z.object({ priceId: z.string().min(1).max(200) });
 
 const router: IRouter = Router();
 
-router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.get('/stripe/referrals/status', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   const organizationId = req.currentUser.organizationId;
   if (organizationId == null) {
     res.status(403).json({ error: 'Admin account has no organization' });
@@ -43,7 +43,7 @@ router.get('/stripe/referrals/status', requireAuth, requireAdmin, async (req: an
   }
 });
 
-router.get('/stripe/referrals', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.get('/stripe/referrals', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const organizationId = req.currentUser.organizationId;
     const plan = await getReferralPlan(organizationId, true);
@@ -174,7 +174,7 @@ router.get('/stripe/products', async (_req, res) => {
   }
 });
 
-router.get('/stripe/subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.get('/stripe/subscription', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
@@ -215,7 +215,7 @@ function maxAddonForPlan(planSeats: number | null, unlimited: boolean): number {
   return 0;
 }
 
-router.get('/stripe/seat-usage', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.get('/stripe/seat-usage', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     const maxAddonSeats = maxAddonForPlan(usage.planSeats, usage.unlimited);
@@ -227,6 +227,10 @@ router.get('/stripe/seat-usage', requireAuth, requireAdmin, async (req: any, res
 
 router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void> => {
   try {
+    if (req.currentUser.organizationId !== req.currentUser.billingOrganizationId) {
+      res.status(403).json({ error: 'Switch to your billing organization to manage billing' });
+      return;
+    }
     const parsed = priceIdBody.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
     const { priceId } = parsed.data;
@@ -284,7 +288,7 @@ router.post('/stripe/checkout', requireAuth, async (req: any, res): Promise<void
  * Called by the frontend after a successful Stripe Checkout redirect (?success=1)
  * so the trial-enforcement check in requireAuth can see the active subscription.
  */
-router.post('/stripe/sync-subscription', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.post('/stripe/sync-subscription', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const user = await stripeStorage.getUser(req.currentUser.id);
     if (!user?.stripeCustomerId) {
@@ -320,7 +324,7 @@ router.post('/stripe/sync-subscription', requireAuth, requireAdmin, async (req: 
   }
 });
 
-router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.post('/stripe/upgrade', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const parsed = priceIdBody.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: 'priceId is required' }); return; }
@@ -426,7 +430,7 @@ router.post('/stripe/upgrade', requireAuth, requireAdmin, async (req: any, res):
  * The admin must create a product in Stripe with metadata.addon = "seat".
  * Returns 404 if not configured.
  */
-router.get('/stripe/addon-price', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.get('/stripe/addon-price', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const usage = await getSeatUsage(req.currentUser.organizationId ?? null);
     if (!usage.subscriptionId || !usage.currentPriceId) {
@@ -471,7 +475,7 @@ router.get('/stripe/addon-price', requireAuth, requireAdmin, async (req: any, re
  * Body: { quantity: number } — total desired addon seat count (not delta).
  * quantity === 0 removes the addon item from the subscription.
  */
-router.post('/stripe/add-seats', requireAuth, requireAdmin, async (req: any, res): Promise<void> => {
+router.post('/stripe/add-seats', requireAuth, requireBillingAdmin, async (req: any, res): Promise<void> => {
   try {
     const parsed = SetStripeAddonSeatsBody.safeParse(req.body);
     if (!parsed.success) {

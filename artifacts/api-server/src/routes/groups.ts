@@ -46,7 +46,7 @@ const userFields = {
   createdAt: usersTable.createdAt,
 };
 
-async function getGroupWithMembers(groupId: number, orgId: number) {
+async function getGroupWithMembers(groupId: number, orgId: number, workspaceMemberIds: number[]) {
   const [group] = await db
     .select()
     .from(groupsTable)
@@ -59,7 +59,7 @@ async function getGroupWithMembers(groupId: number, orgId: number) {
 
   if (!group) return null;
 
-  // Filter joined users by org to prevent cross-org data leakage
+  // Workspace membership, not billing ownership, determines who is visible here.
   const memberRows = await db
     .select(userFields)
     .from(groupMembersTable)
@@ -67,7 +67,7 @@ async function getGroupWithMembers(groupId: number, orgId: number) {
     .where(
       and(
         eq(groupMembersTable.groupId, groupId),
-        eq(usersTable.organizationId, orgId),
+        inArray(usersTable.id, workspaceMemberIds),
       )
     );
 
@@ -100,7 +100,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   }
 
   const groupIds = groups.map((g) => g.id);
-  // Filter joined users by org to prevent cross-org data leakage
+  // Workspace membership, not billing ownership, determines who is visible here.
   const allMembers = await db
     .select({ groupId: groupMembersTable.groupId, ...userFields })
     .from(groupMembersTable)
@@ -108,7 +108,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
     .where(
       and(
         inArray(groupMembersTable.groupId, groupIds),
-        eq(usersTable.organizationId, orgId),
+        inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
       )
     );
 
@@ -167,7 +167,7 @@ router.put("/groups/:id", requireAuth, requireAdmin, async (req, res): Promise<v
 
   if (!updated) { res.status(404).json({ error: "Group not found" }); return; }
 
-  const withMembers = await getGroupWithMembers(id, currentUser.organizationId);
+  const withMembers = await getGroupWithMembers(id, currentUser.organizationId, currentUser.workspaceMemberIds ?? []);
   res.json(withMembers);
 });
 
@@ -244,14 +244,14 @@ router.post("/groups/:id/members", requireAuth, requireAdmin, async (req, res): 
     );
   if (!group) { res.status(404).json({ error: "Group not found" }); return; }
 
-  // Verify the target user belongs to the same org (prevents cross-org membership)
+  // Verify the target user belongs to this workspace.
   const [targetUser] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(
       and(
         eq(usersTable.id, parsed.data.userId),
-        eq(usersTable.organizationId, orgId),
+        inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
       )
     );
   if (!targetUser) { res.status(404).json({ error: "User not found" }); return; }
@@ -289,14 +289,14 @@ router.delete("/groups/:id/members", requireAuth, requireAdmin, async (req, res)
     );
   if (!group) { res.status(404).json({ error: "Group not found" }); return; }
 
-  // Verify the target user belongs to the same org (prevents cross-org manipulation)
+  // Verify the target user belongs to this workspace.
   const [targetUser] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(
       and(
         eq(usersTable.id, parsed.data.userId),
-        eq(usersTable.organizationId, orgId),
+        inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
       )
     );
   if (!targetUser) { res.status(404).json({ error: "User not found" }); return; }

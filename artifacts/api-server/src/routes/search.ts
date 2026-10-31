@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { ilike, or, eq, and } from "drizzle-orm";
+import { ilike, or, eq, and, inArray } from "drizzle-orm";
 import { db, ticketsTable, clientsTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { isClientFeatureEnabled } from "../lib/clientFeature";
@@ -76,7 +76,7 @@ router.get("/search", requireAuth, async (req, res) => {
           .from(usersTable)
           .where(
             and(
-              eq(usersTable.organizationId, orgId),
+              inArray(usersTable.id, user.workspaceMemberIds ?? []),
               eq(usersTable.isActive, true),
               or(ilike(usersTable.name, pattern), ilike(usersTable.email, pattern))
             )

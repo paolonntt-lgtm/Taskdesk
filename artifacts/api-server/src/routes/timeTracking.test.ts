@@ -1601,9 +1601,9 @@ describe("ticket time tracking", () => {
     expect(backup).not.toBeNull();
     if (!backup) throw new Error("Expected a backup payload for the test organization");
     const backupTicket = backup.data.tickets.find((ticket) => ticket.id === backupHandoffTicketId);
-    const backupSessions = backup.data.timeSessions.filter((session) => session.ticketId === backupHandoffTicketId);
+    const backupSessions = ((backup.data as any).timeSessions as any[]).filter((session: any) => session.ticketId === backupHandoffTicketId);
     expect(backupSessions).toHaveLength(2);
-    expect(backupSessions.map((session) => ({
+    expect(backupSessions.map((session: any) => ({
       userId: session.userId,
       startedAt: session.startedAt.toISOString(),
       endedAt: session.endedAt?.toISOString() ?? null,
@@ -1648,7 +1648,7 @@ describe("ticket time tracking", () => {
       endedAt: session.endedAt?.toISOString() ?? null,
       clientBillable: session.clientBillable,
       collaboratorRecognizable: session.collaboratorRecognizable,
-    }))).toEqual(backupSessions.map((session) => ({
+    }))).toEqual(backupSessions.map((session: any) => ({
       userId: session.userId,
       startedAt: session.startedAt.toISOString(),
       endedAt: session.endedAt?.toISOString() ?? null,

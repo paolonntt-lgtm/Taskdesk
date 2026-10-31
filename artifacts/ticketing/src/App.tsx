@@ -45,6 +45,20 @@ import AppHelp from "./pages/AppHelp";
 import TrialExpiredNotice from "./pages/TrialExpiredNotice";
 import { canAccessPersonalTimeReport } from "./lib/personalTimeReportAccess";
 
+let activeWorkspaceHeader: number | null = null;
+if (typeof window !== "undefined" && !(window as any).__taskdeskWorkspaceFetchPatched) {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    if (!url.startsWith("/api/") || !activeWorkspaceHeader) return nativeFetch(input, init);
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    headers.set("X-Workspace-ID", String(activeWorkspaceHeader));
+    return nativeFetch(input, { ...init, headers });
+  };
+  (window as any).__taskdeskWorkspaceFetchPatched = true;
+}
+const workspaceStorageKey = (userId: number) => `taskdesk-active-workspace:${userId}`;
+
 export const ColorModeContext = createContext<{ toggleColorMode: () => void; mode: 'light' | 'dark' }>({
   toggleColorMode: () => {},
   mode: 'light',
@@ -193,23 +207,58 @@ function AppShell() {
   );
 
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { setUser(data ?? null); setIsLoading(false); })
-      .catch(() => { setUser(null); setIsLoading(false); });
+    activeWorkspaceHeader = null;
+    let cancelled = false;
+    const loadUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        if (!response.ok) throw new Error("Not authenticated");
+        const homeUser = await response.json();
+        if (cancelled) return;
+        let activeUser = homeUser;
+        const saved = Number(localStorage.getItem(workspaceStorageKey(homeUser.id)));
+        if (Number.isInteger(saved) && saved > 0 && saved !== homeUser.organizationId) {
+          activeWorkspaceHeader = saved;
+          const contextualResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+          if (contextualResponse.ok) activeUser = await contextualResponse.json();
+          else {
+            activeWorkspaceHeader = null;
+            localStorage.removeItem(workspaceStorageKey(homeUser.id));
+          }
+        }
+        if (!cancelled) setUser(activeUser);
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void loadUser();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (isLoading || !user?.id || (user as any).trialStatus?.isExpired) return;
     const refreshAuth = createAuthRefreshHandler<User>({
-      request: () => fetch("/api/auth/me", {
-          credentials: "include",
-          cache: "no-store",
-        }),
+      request: async () => {
+        let response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        if (response.status === 403 && activeWorkspaceHeader !== null) {
+          activeWorkspaceHeader = null;
+          try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
+          qc.clear();
+          response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        }
+        return response;
+      },
       getCurrentUser: () => userRef.current,
       setCurrentUser: (freshUser) => {
+        const previous = userRef.current;
         userRef.current = freshUser;
         setUser(freshUser);
+        if ((freshUser as any).activeWorkspaceId !== (previous as any)?.activeWorkspaceId) {
+          qc.clear();
+          setLocation("/");
+        }
       },
       onUnauthorized: () => {
         userRef.current = null;
@@ -299,6 +348,40 @@ function AppShell() {
   }, [isLoading, user?.id, (user as any)?.trialStatus?.isExpired, qc, setLocation]);
 
   useEffect(() => {
+    if (isLoading || !user?.id) return;
+    const key = workspaceStorageKey(user.id);
+    const onWorkspaceStorage = (event: StorageEvent) => {
+      if (event.key !== key || !event.newValue) return;
+      const workspaceId = Number(event.newValue);
+      if (!Number.isInteger(workspaceId) || workspaceId < 1) return;
+      activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
+      qc.clear();
+      void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Workspace access changed");
+          const freshUser = await response.json();
+          userRef.current = freshUser;
+          setUser(freshUser);
+          setLocation("/");
+        })
+        .catch(() => {
+          activeWorkspaceHeader = null;
+          try { localStorage.removeItem(key); } catch {}
+          void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+            .then(async (response) => {
+              if (!response.ok) return;
+              const homeUser = await response.json();
+              userRef.current = homeUser;
+              setUser(homeUser);
+              setLocation("/");
+            });
+        });
+    };
+    window.addEventListener("storage", onWorkspaceStorage);
+    return () => window.removeEventListener("storage", onWorkspaceStorage);
+  }, [isLoading, user?.id, qc, setLocation]);
+
+  useEffect(() => {
     if (isLoading) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("oauth_trial_signup") !== "1") return;
@@ -339,7 +422,20 @@ function AppShell() {
     }
     const body = await res.json();
     qc.clear();
-    setUser(body.user);
+    activeWorkspaceHeader = null;
+    let loggedInUser = body.user;
+    try {
+      const savedWorkspace = Number(localStorage.getItem(workspaceStorageKey(body.user.id)));
+      if (Number.isInteger(savedWorkspace) && savedWorkspace > 0 && savedWorkspace !== body.user.organizationId) {
+        activeWorkspaceHeader = savedWorkspace;
+        const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        if (response.ok) loggedInUser = await response.json();
+        else activeWorkspaceHeader = null;
+      }
+    } catch {
+      activeWorkspaceHeader = null;
+    }
+    setUser(loggedInUser);
     trackEvent("login_succeeded", { method: "password" });
     setLocation("/");
   };
@@ -349,17 +445,43 @@ function AppShell() {
     clearBotSession();
     try { sessionStorage.removeItem('td_bot_open'); } catch { /* ignore */ }
     setUser(null);
+    activeWorkspaceHeader = null;
     qc.clear();
     setLocation("/login");
   };
 
   const updateUser = (updated: User) => setUser((prev) => prev ? { ...prev, ...updated } : updated);
+  const switchWorkspace = async (workspaceId: number) => {
+    if (!user) return;
+    const previousWorkspaceId = (user as any).activeWorkspaceId ?? user.organizationId;
+    activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
+    try { localStorage.setItem(workspaceStorageKey(user.id), String(workspaceId)); } catch {}
+    qc.clear();
+    setLocation("/");
+    const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+    if (!response.ok) {
+      activeWorkspaceHeader = null;
+      try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
+      qc.clear();
+      const homeResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+      if (homeResponse.ok) {
+        const homeUser = await homeResponse.json();
+        userRef.current = homeUser;
+        setUser(homeUser);
+        setLocation("/");
+      }
+      throw new Error("Non hai accesso a questo spazio.");
+    }
+    const freshUser = await response.json();
+    userRef.current = freshUser;
+    setUser(freshUser);
+  };
 
   return (
     <ColorModeContext.Provider value={colorModeCtx}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser }}>
+        <AuthContext.Provider value={{ user, isLoading, login, logout, error, updateUser, switchWorkspace }}>
           <>
             <Switch>
               <Route path="/invite/:token">

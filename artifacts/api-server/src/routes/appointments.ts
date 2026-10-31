@@ -110,7 +110,7 @@ router.post("/appointments", requireAuth, async (req, res): Promise<void> => {
   if (assignedTo != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
       .from(usersTable)
-      .where(and(eq(usersTable.id, assignedTo), eq(usersTable.organizationId, orgId)));
+      .where(and(eq(usersTable.id, assignedTo), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])));
     if (!assigneeUser) {
       res.status(400).json({ error: "Assignee not found in organization" });
       return;
@@ -199,7 +199,7 @@ router.put("/appointments/:id", requireAuth, async (req, res): Promise<void> => 
   if (assignedTo != null && orgId != null) {
     const [assigneeUser] = await db.select({ id: usersTable.id })
       .from(usersTable)
-      .where(and(eq(usersTable.id, assignedTo), eq(usersTable.organizationId, orgId)));
+      .where(and(eq(usersTable.id, assignedTo), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])));
     if (!assigneeUser) {
       res.status(400).json({ error: "Assignee not found in organization" });
       return;

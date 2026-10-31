@@ -179,6 +179,8 @@ const USER_LIST_COLS = {
   name: usersTable.name,
   email: usersTable.email,
   role: usersTable.role,
+  organizationId: usersTable.organizationId,
+  organizationName: organizationsTable.name,
   mainLocation: usersTable.mainLocation,
   avatarUrl: usersTable.avatarUrl,
   createdAt: usersTable.createdAt,
@@ -356,6 +358,8 @@ function buildTicketWithDetails(
       name: creator.name,
       email: creator.email,
       role: creator.role,
+      organizationId: creator.organizationId ?? null,
+      organizationName: creator.organizationName ?? creator.billingOrganizationName ?? null,
       mainLocation: creator.mainLocation,
       avatarUrl: creator.avatarUrl ?? null,
       createdAt: creator.createdAt,
@@ -366,6 +370,8 @@ function buildTicketWithDetails(
           name: assignee.name,
           email: assignee.email,
           role: assignee.role,
+          organizationId: assignee.organizationId ?? null,
+          organizationName: assignee.organizationName ?? assignee.billingOrganizationName ?? null,
           mainLocation: assignee.mainLocation,
           avatarUrl: assignee.avatarUrl ?? null,
           createdAt: assignee.createdAt,
@@ -376,6 +382,14 @@ function buildTicketWithDetails(
     inboundChannelName: inboundChannelName ?? null,
     client: client ?? null,
   };
+}
+
+async function getTicketUserDetails(userId: number) {
+  const [row] = await db.select()
+    .from(usersTable)
+    .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
+    .where(eq(usersTable.id, userId));
+  return row?.users ? { ...row.users, organizationName: row.organizations?.name ?? null } : null;
 }
 
 
@@ -782,11 +796,9 @@ router.get("/tickets", requireAuth, async (req, res): Promise<void> =>
 ;
 
   const users = allUserIds.length > 0
-    ? await db.select(USER_LIST_COLS).from(usersTable).where(
-        orgId != null
-          ? and(inArray(usersTable.id, allUserIds), eq(usersTable.organizationId, orgId))
-          : inArray(usersTable.id, allUserIds)
-      )
+    ? await db.select(USER_LIST_COLS).from(usersTable)
+        .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
+        .where(inArray(usersTable.id, allUserIds))
     : []
 ;
 
@@ -1265,7 +1277,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> =>
  id: usersTable.id 
 }
 ).from(usersTable).where(
-      and(eq(usersTable.id, assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+      and(eq(usersTable.id, assignedTo), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
     )
 ;
 
@@ -1509,11 +1521,7 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> =>
   const creator = currentUser;
   let assigneeUser = null;
   if (ticket.assignedTo) {
-    const orgId = currentUser.organizationId;
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, ticket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    );
-    assigneeUser = a ?? null;
+    assigneeUser = await getTicketUserDetails(ticket.assignedTo);
   }
 
   let ticketClient = null;
@@ -1567,15 +1575,10 @@ router.get("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [creator] = await db.select().from(usersTable).where(
-    and(eq(usersTable.id, ticket.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-  );
+  const creator = await getTicketUserDetails(ticket.createdBy);
   let assignee = null;
   if (ticket.assignedTo) {
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, ticket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    );
-    assignee = a ?? null;
+    assignee = await getTicketUserDetails(ticket.assignedTo);
   }
 
   const [{ count: cc }] = await db.select({ count: sql<number>`count(*)` }).from(ticketCommentsTable).where(eq(ticketCommentsTable.ticketId, id));
@@ -2193,7 +2196,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 
   // Authorization: admins, group-permission users, the assigned person, the creator,
   // and anyone performing a valid self-assign can act on the ticket.
-  if (!isAdmin && !isClientAssociationUpdate && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
+  if (!isAdmin && !isStatusAccessUpdate && !isClientAssociationUpdate && !hasGroupStatusPermission && !isAssignee && existing.createdBy !== currentUser.id && !isSelfAssignAttempt && !(isTimeTrackedTicket && hasTrackedAssignmentPermission && hasAssignmentRequest))
 {
 
     res.status(403).json(
@@ -2699,7 +2702,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 {
 
       const [assigneeUser] = await db.select().from(usersTable).where(
-        and(eq(usersTable.id, updates.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
+        and(eq(usersTable.id, updates.assignedTo), inArray(usersTable.id, currentUser.workspaceMemberIds ?? []))
       )
 ;
 
@@ -2916,7 +2919,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 )
       .from(usersTable)
-      .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)))
+      .where(and(eq(usersTable.id, sessionUserId), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])))
 ;
 
     const sessionRecognizable =
@@ -3065,7 +3068,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
             : currentUser.id;
         const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
           .from(usersTable)
-          .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)));
+          .where(and(eq(usersTable.id, sessionUserId), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])));
         await tx.insert(ticketTimeSessionsTable).values({
           organizationId: orgId,
           ticketId: id,
@@ -3089,7 +3092,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
               : currentUser.id;
           const [worker] = await tx.select({ hourlyCompensated: usersTable.hourlyCompensated })
             .from(usersTable)
-            .where(and(eq(usersTable.id, sessionUserId), eq(usersTable.organizationId, orgId)));
+            .where(and(eq(usersTable.id, sessionUserId), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])));
           await tx.insert(ticketTimeSessionsTable).values({
             organizationId: orgId,
             ticketId: id,
@@ -3143,7 +3146,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 )
             .from(usersTable)
-            .where(and(eq(usersTable.id, handoffUserId), eq(usersTable.organizationId, orgId)))
+            .where(and(eq(usersTable.id, handoffUserId), inArray(usersTable.id, currentUser.workspaceMemberIds ?? [])))
 ;
 
           await tx.insert(ticketTimeSessionsTable).values(
@@ -3327,7 +3330,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
               .from(usersTable)
               .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
               .where(and(
-                eq(usersTable.organizationId, orgId),
+                inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
                 eq(usersTable.role, "admin"),
                 eq(oneDriveConnectionsTable.organizationId, orgId),
               ))
@@ -3344,7 +3347,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
             .innerJoin(oneDriveConnectionsTable, eq(oneDriveConnectionsTable.userId, usersTable.id))
             .where(and(
               eq(usersTable.id, ownerUserId),
-              eq(usersTable.organizationId, orgId),
+              inArray(usersTable.id, currentUser.workspaceMemberIds ?? []),
               eq(oneDriveConnectionsTable.organizationId, orgId),
             ))
             .limit(1);
@@ -3786,9 +3789,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 }
 
 
-  const [creator] = await db.select().from(usersTable).where(
-    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-  )
+  const creator = await getTicketUserDetails(updated.createdBy)
 ;
 
   let assignee = null
@@ -3797,12 +3798,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (updated.assignedTo) 
 {
 
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    )
-;
-
-    assignee = a ?? null
+    assignee = await getTicketUserDetails(updated.assignedTo)
 ;
 
   
@@ -4063,7 +4059,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
 }
 
 
-  const [creator] = await db.select().from(usersTable).where(eq(usersTable.id, currentUser.id))
+  const creator = await getTicketUserDetails(currentUser.id)
 ;
 
   let assigneeUser = null
@@ -4072,12 +4068,7 @@ router.post("/tickets/:id/clone", requireAuth, requireAdmin, async (req, res): P
   if (newTicket.assignedTo) 
 {
 
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, newTicket.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    )
-;
-
-    assigneeUser = a ?? null
+    assigneeUser = await getTicketUserDetails(newTicket.assignedTo)
 ;
 
   
@@ -4457,9 +4448,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
 }
 
 
-  const [creator] = await db.select().from(usersTable).where(
-    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-  )
+  const creator = await getTicketUserDetails(updated.createdBy)
 ;
 
   let assignee = null
@@ -4468,12 +4457,7 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
   if (updated.assignedTo) 
 {
 
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    )
-;
-
-    assignee = a ?? null
+    assignee = await getTicketUserDetails(updated.assignedTo)
 ;
 
   
@@ -4606,9 +4590,7 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
 ;
 
 
-  const [creator] = await db.select().from(usersTable).where(
-    and(eq(usersTable.id, updated.createdBy), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-  )
+  const creator = await getTicketUserDetails(updated.createdBy)
 ;
 
   let assignee = null
@@ -4617,12 +4599,7 @@ router.delete("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, 
   if (updated.assignedTo) 
 {
 
-    const [a] = await db.select().from(usersTable).where(
-      and(eq(usersTable.id, updated.assignedTo), orgId != null ? eq(usersTable.organizationId, orgId) : undefined)
-    )
-;
-
-    assignee = a ?? null
+    assignee = await getTicketUserDetails(updated.assignedTo)
 ;
 
   

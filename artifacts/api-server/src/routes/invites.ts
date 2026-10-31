@@ -14,6 +14,10 @@ const router: IRouter = Router();
 
 router.post("/invites", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const admin = (req as any).currentUser;
+  if (admin.isSharedWorkspace || admin.organizationId !== admin.billingOrganizationId) {
+    res.status(403).json({ error: "Create account invitations from your billing organization" });
+    return;
+  }
 
   const usage = await getSeatUsage(admin.organizationId ?? null);
   if (usage.limitReached) {

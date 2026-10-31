@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray, and, isNull } from "drizzle-orm";
-import { db, ticketActivityLogsTable, ticketsTable, usersTable } from "@workspace/db";
+import { db, ticketActivityLogsTable, ticketsTable, usersTable, organizationsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -28,8 +28,9 @@ router.get("/tickets/:id/activity", requireAuth, async (req, res): Promise<void>
   const userIds = [...new Set(logs.map((l) => l.userId))];
   const usersResult = userIds.length > 0
     ? await db
-        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt })
+        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, mainLocation: usersTable.mainLocation, createdAt: usersTable.createdAt, organizationId: usersTable.organizationId, organizationName: organizationsTable.name })
         .from(usersTable)
+        .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
         .where(inArray(usersTable.id, userIds))
     : [];
   const userMap = new Map(usersResult.map((u) => [u.id, u]));

@@ -13,6 +13,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     .select({
       id: notificationsTable.id,
       userId: notificationsTable.userId,
+      organizationId: notificationsTable.organizationId,
       ticketId: notificationsTable.ticketId,
       dailyReportId: notificationsTable.dailyReportId,
       ticketNumber: ticketsTable.ticketNumber,
@@ -25,6 +26,12 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
     .where(and(
       eq(notificationsTable.userId, currentUser.id),
+      or(
+        eq(notificationsTable.organizationId, currentUser.organizationId),
+        currentUser.organizationId === currentUser.billingOrganizationId
+          ? isNull(notificationsTable.organizationId)
+          : undefined,
+      ),
       currentUser.role === "admin"
         ? undefined
         : or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
@@ -52,7 +59,9 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
     })
     .from(notificationsTable)
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
+      or(eq(notificationsTable.organizationId, currentUser.organizationId),
+        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
     .limit(1);
 
   if (
@@ -66,7 +75,9 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   const [notification] = await db
     .update(notificationsTable)
     .set({ isRead: true })
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
+      or(eq(notificationsTable.organizationId, currentUser.organizationId),
+        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
     .returning();
 
   if (!notification) {
@@ -94,7 +105,9 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
     })
     .from(notificationsTable)
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
+      or(eq(notificationsTable.organizationId, currentUser.organizationId),
+        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
     .limit(1);
 
   if (
@@ -108,7 +121,9 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
   const [notification] = await db
     .update(notificationsTable)
     .set({ isRead: false })
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
+      or(eq(notificationsTable.organizationId, currentUser.organizationId),
+        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
     .returning();
 
   if (!notification) {
@@ -126,7 +141,9 @@ router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<v
     await db
       .update(notificationsTable)
       .set({ isRead: true })
-      .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false)));
+      .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false),
+        or(eq(notificationsTable.organizationId, currentUser.organizationId),
+          currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)));
   } else {
     const visibleNotifications = await db
       .select({ id: notificationsTable.id })
@@ -135,6 +152,8 @@ router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<v
       .where(and(
         eq(notificationsTable.userId, currentUser.id),
         eq(notificationsTable.isRead, false),
+        or(eq(notificationsTable.organizationId, currentUser.organizationId),
+          currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined),
         or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
       ));
 
@@ -142,7 +161,9 @@ router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<v
       await db
         .update(notificationsTable)
         .set({ isRead: true })
-        .where(inArray(notificationsTable.id, visibleNotifications.map(({ id }) => id)));
+        .where(and(inArray(notificationsTable.id, visibleNotifications.map(({ id }) => id)),
+          or(eq(notificationsTable.organizationId, currentUser.organizationId),
+            currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)));
     }
   }
 

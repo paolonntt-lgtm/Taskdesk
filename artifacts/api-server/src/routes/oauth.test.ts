@@ -18,13 +18,25 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@workspace/db", () => {
   const usersTable = { email: {}, id: {}, isSuperAdmin: {}, isActive: {} };
-  const organizationsTable = { id: {}, name: {} };
+  const organizationsTable = {
+    id: {},
+    name: {},
+    isSharedWorkspace: {},
+    billingOwnerOrganizationId: {},
+  };
+  const workspaceMembershipsTable = {
+    id: {},
+    userId: {},
+    role: {},
+    workspaceOrganizationId: {},
+  };
   const groupMembersTable = { groupId: {}, userId: {} };
   const groupsTable = { id: {}, permissions: {}, organizationId: {} };
   return {
     db: mocks.db,
     usersTable,
     organizationsTable,
+    workspaceMembershipsTable,
     groupMembersTable,
     groupsTable,
     settingsTable: {},
@@ -124,9 +136,10 @@ describe("Google OAuth callback", () => {
     mocks.getCurrentUserId.mockImplementation((req: { headers: { cookie?: string } }) =>
       req.headers.cookie?.includes("session_id=test-session-id") ? oauthUser.id : undefined,
     );
-    mocks.db.select.mockImplementation(() => {
+    mocks.db.select.mockImplementation((selection?: Record<string, unknown>) => {
       let table: unknown;
       let hasLeftJoin = false;
+      const selectedFields = Object.keys(selection ?? {});
       const query: Record<string, ReturnType<typeof vi.fn>> = {};
       query.from = vi.fn((value: unknown) => {
         table = value;
@@ -138,7 +151,29 @@ describe("Google OAuth callback", () => {
       });
       query.innerJoin = vi.fn(() => query);
       query.where = vi.fn(async () => {
-        if (table === (await import("@workspace/db")).usersTable) {
+        const dbTables = await import("@workspace/db");
+        if (table === dbTables.organizationsTable) {
+          if (selectedFields.includes("onboardingDone")) {
+            return [{
+              onboardingDone: authMeUser.onboardingDone,
+              businessType: authMeUser.businessType,
+              clientsEnabled: authMeUser.clientsEnabled,
+              entitySingular: authMeUser.entitySingular,
+              entityPlural: authMeUser.entityPlural,
+            }];
+          }
+          return [{
+            id: oauthUser.organizationId,
+            name: authMeUser.organizationName,
+            isSharedWorkspace: false,
+            billingOwnerOrganizationId: oauthUser.organizationId,
+          }];
+        }
+        if (table === dbTables.workspaceMembershipsTable) {
+          return [];
+        }
+        if (table === dbTables.usersTable) {
+          if (!hasLeftJoin) return [oauthUser];
           return [hasLeftJoin ? authMeUser : oauthUser];
         }
         return [];

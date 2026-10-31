@@ -8,6 +8,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   error: string | null;
   updateUser: (user: User) => void;
+  switchWorkspace: (workspaceId: number) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);

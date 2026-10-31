@@ -9,6 +9,7 @@ import {
   groupMembersTable,
   groupsTable,
   organizationsTable,
+  workspaceMembershipsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { CreateUserBody, UpdateUserBody } from "@workspace/api-zod";
@@ -64,15 +65,29 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const users = await db
-    .select(userFields)
-    .from(usersTable)
-    .where(and(
-      notLike(usersTable.email, "deleted-%@deleted.local"),
-      eq(usersTable.isSystem, false),
-      eq(usersTable.organizationId, orgId),
-    ))
-    .orderBy(usersTable.name);
+  const users = currentUser.isSharedWorkspace
+    ? await db.select({ ...userFields, workspaceRole: workspaceMembershipsTable.role,
+        workspacePermissionOverrides: workspaceMembershipsTable.permissionOverrides,
+        billingOrganizationName: organizationsTable.name })
+      .from(workspaceMembershipsTable)
+      .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+      .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
+      .where(and(
+        eq(workspaceMembershipsTable.workspaceOrganizationId, orgId),
+        notLike(usersTable.email, "deleted-%@deleted.local"),
+        eq(usersTable.isSystem, false),
+      ))
+      .orderBy(usersTable.name)
+    : await db.select({ ...userFields, workspaceRole: usersTable.role,
+        workspacePermissionOverrides: usersTable.permissionOverrides, billingOrganizationName: organizationsTable.name })
+      .from(usersTable)
+      .leftJoin(organizationsTable, eq(organizationsTable.id, usersTable.organizationId))
+      .where(and(
+        notLike(usersTable.email, "deleted-%@deleted.local"),
+        eq(usersTable.isSystem, false),
+        eq(usersTable.organizationId, orgId),
+      ))
+      .orderBy(usersTable.name);
 
   const memberships = users.length > 0
     ? await db
@@ -103,10 +118,12 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
   res.json(users.map((u) => {
     const groupMemberships = byUser.get(u.id) ?? [];
     const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];
-    const permissionOverrides = parsePermissionOverrides(u.permissionOverrides);
-    const summary = resolvePermissionSummary(u.role, inherited, permissionOverrides);
+    const permissionOverrides = parsePermissionOverrides((u as any).workspacePermissionOverrides ?? u.permissionOverrides);
+    const role = (u as any).workspaceRole ?? u.role;
+    const summary = resolvePermissionSummary(role, inherited, permissionOverrides);
     return {
       ...u,
+      role,
       ...(!exposeHourlyCompensation && { hourlyCompensated: undefined }),
       groupMemberships,
       ...summary,
@@ -135,6 +152,10 @@ router.post("/users", requireAuth, requireAdmin, async (req, res): Promise<void>
   }
 
   const currentUser = (req as any).currentUser;
+  if (currentUser.isSharedWorkspace) {
+    res.status(403).json({ error: "New accounts must be created by a billing organization. Invite an existing account to this workspace instead." });
+    return;
+  }
   const trackingEnabled = await isTimeTrackingModuleEnabled(currentUser.organizationId);
   if (hourlyCompensated !== undefined && !trackingEnabled) {
     res.status(403).json({ error: "Time tracking module is disabled" });
