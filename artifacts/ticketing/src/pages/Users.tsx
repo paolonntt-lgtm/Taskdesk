@@ -57,13 +57,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  useListUsers,
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
   getListUsersQueryKey,
 } from '@workspace/api-client-react';
 import type { User, CreateUserBody, UpdateUserBody } from '@workspace/api-client-react';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 
 interface UserFormData {
   name: string;
@@ -193,7 +193,9 @@ export default function Users() {
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
 
-  const { data: users = [], isLoading } = useListUsers({ request: { cache: 'no-store' } });
+  const activeWorkspaceId =
+    (currentUser as any)?.activeWorkspaceId ?? currentUser?.organizationId;
+  const { data: users = [], isLoading } = useWorkspaceCollaborators(activeWorkspaceId);
   const canManageOrganizationUsers = currentUser?.role === 'admin' && (currentUser as any)?.isSharedWorkspace !== true;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],

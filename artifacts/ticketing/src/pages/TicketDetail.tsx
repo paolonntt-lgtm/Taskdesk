@@ -11,7 +11,7 @@ import { alpha } from '@mui/material/styles';
 import { CheckCircleOutline, CheckCircle, ArrowBack, Person, Group, EditOutlined, InsertDriveFile, Download, DeleteOutline, MoreVert, MailOutline, Email as EmailIcon, AttachFile, Close as CloseIcon, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon, LockOutlined } from '@mui/icons-material';
 import {
   useGetTicket, useUpdateTicket, useListTicketComments, useAddTicketComment,
-  useListTicketActivity, useListUsers, useListTicketAttachments, useSaveTicketAttachment,
+  useListTicketActivity, useListTicketAttachments, useSaveTicketAttachment,
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
@@ -23,6 +23,7 @@ import {
 } from '@workspace/api-client-react';
 import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
@@ -246,7 +247,12 @@ export default function TicketDetail() {
   const { data: ticket, isLoading } = useGetTicket(ticketId, { query: { enabled: !!ticketId, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: comments } = useListTicketComments(ticketId, { query: { enabled: !!ticketId, staleTime: 30_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
-  const { data: users } = useListUsers({ query: { enabled: currentUser?.role === 'admin', staleTime: 5 * 60_000 } as any });
+  const activeWorkspaceId =
+    (currentUser as any)?.activeWorkspaceId ?? currentUser?.organizationId;
+  const { data: users } = useWorkspaceCollaborators(
+    activeWorkspaceId,
+    currentUser?.role === 'admin',
+  );
   const { data: clientsList = [] } = useListClients(undefined, {
     query: {
       enabled: Boolean(currentUser) && (currentUser as any)?.clientsEnabled !== false,

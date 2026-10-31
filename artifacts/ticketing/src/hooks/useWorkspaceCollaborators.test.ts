@@ -10,7 +10,7 @@ vi.mock('@workspace/api-client-react', async () => {
   return {
     getListUsersQueryKey: () => ['/api/users'],
     useListUsers: (options: any) => useQuery({
-      queryKey: options.query.queryKey,
+      ...options.query,
       queryFn: async () => {
         const response = await fetch('/api/users', options.request);
         return response.json();
@@ -19,8 +19,8 @@ vi.mock('@workspace/api-client-react', async () => {
   };
 });
 
-function CollaboratorOptions() {
-  const { data } = useWorkspaceCollaborators(81);
+function CollaboratorOptions({ workspaceId }: { workspaceId: number }) {
+  const { data } = useWorkspaceCollaborators(workspaceId);
   return React.createElement('div', null, JSON.stringify(data ?? []));
 }
 
@@ -73,7 +73,7 @@ describe('useWorkspaceCollaborators', () => {
         React.createElement(
           QueryClientProvider,
           { client: queryClient },
-          React.createElement(CollaboratorOptions),
+          React.createElement(CollaboratorOptions, { workspaceId: 81 }),
         ),
       );
     });
@@ -88,5 +88,36 @@ describe('useWorkspaceCollaborators', () => {
     expect(host.textContent).toContain('New collaborator');
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' });
+  });
+
+  it('keeps collaborator results separate when switching back to a previous workspace', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 1, name: 'Space 81 collaborator' }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 2, name: 'Space 82 collaborator' }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 1, name: 'Updated space 81 collaborator' }]), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const renderWorkspace = async (workspaceId: number) => {
+      await act(async () => {
+        root.render(
+          React.createElement(
+            QueryClientProvider,
+            { client: queryClient },
+            React.createElement(CollaboratorOptions, { workspaceId }),
+          ),
+        );
+      });
+    };
+
+    await renderWorkspace(81);
+    await waitForText('Space 81 collaborator');
+    await renderWorkspace(82);
+    await waitForText('Space 82 collaborator');
+    expect(host.textContent).not.toContain('Space 81 collaborator');
+
+    await renderWorkspace(81);
+    await waitForText('Updated space 81 collaborator');
+    expect(host.textContent).not.toContain('Space 82 collaborator');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

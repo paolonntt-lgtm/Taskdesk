@@ -9,13 +9,14 @@ import {
   useTheme, useMediaQuery,
 } from '@mui/material';
 import { Search as SearchIcon, Add as AddIcon, CheckCircle, FilterList, FilterListOff, Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Email as EmailIcon, BookmarkAdd as BookmarkAddIcon, Close as CloseIcon, Schedule as ScheduleIcon, ViewColumn, Repeat as RepeatIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
-import { useListTickets, useListUsers, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
+import { useListTickets, useListClients, useDeleteTicket, getListTicketsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearch, useLocation } from 'wouter';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useDebounce } from '../lib/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
 import DeadlineCell from '../components/DeadlineCell';
@@ -141,7 +142,8 @@ export default function TicketList() {
   const [searchInput, setSearchInput] = useState(urlParams.get('search') ?? '');
   const debouncedSearch = useDebounce(searchInput, 300);
 
-  const { data: users } = useListUsers();
+  const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
+  const { data: users } = useWorkspaceCollaborators(activeWorkspaceId);
   const { data: clients } = useListClients();
 
   // ── Filter presets ────────────────────────────────────────────────────────

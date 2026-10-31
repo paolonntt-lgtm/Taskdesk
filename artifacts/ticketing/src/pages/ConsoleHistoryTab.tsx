@@ -8,8 +8,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useLocation } from 'wouter';
 import {
   useListAllClientNotes,
-  useListUsers,
 } from '@workspace/api-client-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 
 interface SectionProps {
   title: string;
@@ -33,6 +34,7 @@ export default function ConsoleHistoryTab() {
   const { t, lang } = useLanguage();
   const ts = t.settings as Record<string, any>;
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   const [search, setSearch] = useState('');
   const [authorId, setAuthorId] = useState<string>('');
@@ -56,7 +58,8 @@ export default function ConsoleHistoryTab() {
     setDebouncedSearch('');
   };
 
-  const { data: users = [] } = useListUsers();
+  const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
+  const { data: users = [] } = useWorkspaceCollaborators(activeWorkspaceId);
   const { data: rawNotes = [], isLoading } = useListAllClientNotes({
     search: debouncedSearch || undefined,
     authorId: authorId ? Number(authorId) : undefined,

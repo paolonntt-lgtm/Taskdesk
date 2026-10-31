@@ -14,9 +14,9 @@ import { useLocation } from 'wouter';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import PermissionGateButton from '../components/PermissionGateButton';
-import { useListUsers } from '@workspace/api-client-react';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 
 type CalendarItem = {
   type: 'ticket' | 'appointment';
@@ -110,9 +110,11 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: users = [] } = useListUsers({
-    query: { enabled: isAdmin && open, staleTime: 60000 } as any,
-  });
+  const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
+  const { data: users = [] } = useWorkspaceCollaborators(
+    activeWorkspaceId,
+    isAdmin && open,
+  );
 
   React.useEffect(() => {
     if (open) {
