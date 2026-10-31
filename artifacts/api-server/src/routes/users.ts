@@ -114,7 +114,9 @@ router.get("/users", requireAuth, async (req, res): Promise<void> => {
     byUser.set(m.userId, list);
   }
 
-  res.setHeader("Cache-Control", "private, max-age=60");
+  // The active workspace is selected by X-Workspace-ID, not the URL. Do not
+  // let the browser reuse a different workspace's user list from its HTTP cache.
+  res.setHeader("Cache-Control", "no-store");
   res.json(users.map((u) => {
     const groupMemberships = byUser.get(u.id) ?? [];
     const inherited = [...new Set(groupMemberships.flatMap((group) => group.permissions))];

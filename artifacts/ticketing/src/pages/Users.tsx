@@ -193,7 +193,7 @@ export default function Users() {
   const qc = useQueryClient();
   const invalidateUsers = () => qc.invalidateQueries({ queryKey: getListUsersQueryKey() });
 
-  const { data: users = [], isLoading } = useListUsers();
+  const { data: users = [], isLoading } = useListUsers({ request: { cache: 'no-store' } });
   const canManageOrganizationUsers = currentUser?.role === 'admin' && (currentUser as any)?.isSharedWorkspace !== true;
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],

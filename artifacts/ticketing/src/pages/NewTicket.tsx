@@ -80,7 +80,7 @@ export default function NewTicket() {
     isEditing ? editTicketId : 0,
     { query: { enabled: isEditing } as any },
   );
-  const { data: users } = useListUsers();
+  const { data: users } = useListUsers({ request: { cache: 'no-store' } });
   const { user: currentUser } = useAuth();
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
