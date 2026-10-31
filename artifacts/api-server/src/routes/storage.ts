@@ -176,6 +176,9 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // Attachment URLs are authorized against the active workspace above, so
+    // the browser must not reuse a prior workspace's cached private download.
+    res.setHeader("Cache-Control", "no-store");
 
     // Always force download to prevent the browser from rendering the file
     // inline under the TaskDesk origin, which would enable stored-XSS via

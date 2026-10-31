@@ -9,7 +9,7 @@ Targeted workspace invitations are emailed to the address saved on the selected 
 
 Resending a pending invitation must reuse its existing token and expiration without changing either; the email should state the actual saved expiration rather than imply a fresh seven-day period.
 
-Responses whose contents depend on the active workspace header must not be cached by URL alone. The browser can otherwise reuse the prior workspace's collaborator list after switching.
+Responses whose contents depend on the active workspace header, and private attachment downloads authorized against the active workspace, must not be cached by URL alone. The browser can otherwise reuse prior workspace data without asking the server to recheck access.
 
 **Why:** The user requested external collaboration for additional organizations while keeping workspace switching distinct from workspace administration and preserving billing ownership.
 

@@ -28,6 +28,7 @@ import { ObjectStorageService } from "../lib/objectStorage";
 type HttpResult = {
   status: number;
   body: any;
+  headers: Headers;
 };
 
 const runId = crypto.randomUUID();
@@ -71,7 +72,7 @@ async function request(
       body = text;
     }
   }
-  return { status: response.status, body };
+  return { status: response.status, body, headers: response.headers };
 }
 
 describe("manual ticket visibility", () => {
@@ -443,6 +444,7 @@ describe("manual ticket visibility", () => {
 
     const adminDownloadResponse = await request(directDownloadPath, adminSessionId);
     expect(adminDownloadResponse.status).toBe(200);
+    expect(adminDownloadResponse.headers.get("cache-control")).toBe("no-store");
     expect(adminDownloadResponse.body).toBe("Private attachment");
 
     const publicResponse = await request("/api/tickets", adminSessionId, {
