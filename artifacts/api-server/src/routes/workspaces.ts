@@ -405,6 +405,7 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   const token = String(req.params.token);
   const [invite] = await db.select({
     workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
+    createdByUserId: workspaceInviteTokensTable.createdByUserId,
     inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
     inviteeRole: workspaceInviteTokensTable.inviteeRole,
     acceptedAt: workspaceInviteTokensTable.acceptedAt,
@@ -434,6 +435,8 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   const [account] = await db.select({
     isActive: usersTable.isActive,
     organizationId: usersTable.organizationId,
+    name: usersTable.name,
+    email: usersTable.email,
   }).from(usersTable).where(eq(usersTable.id, user.id));
   if (!account?.isActive || account.organizationId == null) {
     res.status(403).json({ error: "È necessario un account attivo con un'organizzazione di fatturazione" });
@@ -479,7 +482,16 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     res.status(409).json({ error: "This invitation has already been used" });
     return;
   }
-  if (membership) notifyPermissionChanged(user.id);
+  if (membership) {
+    notifyPermissionChanged(user.id);
+    await createNotificationForUser(
+      invite.createdByUserId,
+      null,
+      `${account.name ?? account.email ?? "Un utente"} ha accettato l'invito allo spazio condiviso ${workspace.name}.`,
+      "system",
+      workspace.id,
+    );
+  }
   res.status(membership ? 201 : 200).json({
     joined: !!membership,
     alreadyMember: !membership,

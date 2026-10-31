@@ -307,6 +307,22 @@ describe("shared workspaces", () => {
     expect(acceptDirectInvite.status).toBe(201);
     expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
+    const inviteAcceptanceText =
+      `Workspace External User ha accettato l'invito allo spazio condiviso Shared workspace ${runId}.`;
+    const acceptanceNotifications = () => db.select().from(notificationsTable).where(and(
+      eq(notificationsTable.userId, billingAdminId),
+      eq(notificationsTable.organizationId, workspaceId),
+      eq(notificationsTable.notificationText, inviteAcceptanceText),
+    ));
+    expect(await acceptanceNotifications()).toHaveLength(1);
+    const retryAcceptedInvite = await request(
+      `/api/workspace-invites/${directToken}/accept`,
+      externalUserSessionId,
+      undefined,
+      { method: "POST" },
+    );
+    expect(retryAcceptedInvite.status).toBe(404);
+    expect(await acceptanceNotifications()).toHaveLength(1);
     const externalContext = await request("/api/auth/me", externalUserSessionId, workspaceId);
     expect(externalContext.status).toBe(200);
     expect(externalContext.body).toMatchObject({
