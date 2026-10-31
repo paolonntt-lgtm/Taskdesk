@@ -184,6 +184,22 @@ describe("shared workspaces", () => {
       externalSharingEnabled: false,
       billingOwnerOrganizationId: billingOrganizationId,
     });
+    const rejectLastAdminDemotion = await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "user" }) },
+    );
+    expect(rejectLastAdminDemotion.status).toBe(409);
+    expect(rejectLastAdminDemotion.body.error).toContain("at least one administrator");
+    const rejectLastAdminRemoval = await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    );
+    expect(rejectLastAdminRemoval.status).toBe(409);
+    expect(rejectLastAdminRemoval.body.error).toContain("at least one administrator");
 
     const invite = (email: string, role = "user") => request(
       `/api/workspaces/${workspaceId}/members`,
@@ -295,6 +311,21 @@ describe("shared workspaces", () => {
     );
     expect(roleChange.status).toBe(200);
     expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).body.role).toBe("admin");
+    const demoteAnotherAdmin = await request(
+      `/api/workspaces/${workspaceId}/members/${externalUserId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "user" }) },
+    );
+    expect(demoteAnotherAdmin.status).toBe(200);
+    expect(demoteAnotherAdmin.body.membership).toMatchObject({ userId: externalUserId, role: "user" });
+    const restoreAnotherAdmin = await request(
+      `/api/workspaces/${workspaceId}/members/${externalUserId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "admin" }) },
+    );
+    expect(restoreAnotherAdmin.status).toBe(200);
 
     const externalSeats = await db.select({ id: usersTable.id }).from(usersTable)
       .where(and(eq(usersTable.organizationId, externalOrganizationId), eq(usersTable.isActive, true)));
