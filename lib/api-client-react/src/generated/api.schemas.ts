@@ -1534,6 +1534,11 @@ export interface WorkspaceInvitationRevokeResponse {
   success: boolean;
 }
 
+export interface WorkspaceInvitationResendResponse {
+  emailSent: boolean;
+  email?: string;
+}
+
 export type GlobalSearchParams = {
 /**
  * @minLength 1

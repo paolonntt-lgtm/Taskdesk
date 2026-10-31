@@ -4,7 +4,7 @@ import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Divider, MenuItem,
   TextField, Typography,
 } from '@mui/material';
-import { ContentCopy, LinkOff } from '@mui/icons-material';
+import { ContentCopy, EmailOutlined, LinkOff } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -225,6 +225,23 @@ export default function WorkspaceManagement() {
     } finally { setBusy(false); }
   };
 
+  const resendInvitation = async (invitation: WorkspaceInvitation) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch(`/api/workspaces/${invitationWorkspaceId}/invitations/${invitation.id}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile reinviare l’invito.' : 'Could not resend invitation.'));
+      setNotice(it
+        ? `Invito reinviato a ${data.email ?? invitation.email}. Il link esistente resta valido.`
+        : `Invitation resent to ${data.email ?? invitation.email}. The existing link remains valid.`);
+    } catch (reason: any) {
+      setError(reason?.message || (it ? 'Operazione non riuscita.' : 'The action could not be completed.'));
+    } finally { setBusy(false); }
+  };
+
   const copy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -302,9 +319,14 @@ export default function WorkspaceManagement() {
                     {new Date(invitation.expiresAt).toLocaleString(it ? 'it-IT' : 'en-GB')}
                   </Typography>
                 </Box>
-                <Button color="error" startIcon={<LinkOff />} disabled={busy} onClick={() => void revokeInvitation(invitation)} data-testid={`button-revoke-invitation-${invitation.id}`}>
-                  {it ? 'Revoca' : 'Revoke'}
-                </Button>
+                <Box display="flex" gap={0.5} flexShrink={0}>
+                  <Button startIcon={<EmailOutlined />} disabled={busy} onClick={() => void resendInvitation(invitation)} data-testid={`button-resend-invitation-${invitation.id}`}>
+                    {it ? 'Reinvia' : 'Resend'}
+                  </Button>
+                  <Button color="error" startIcon={<LinkOff />} disabled={busy} onClick={() => void revokeInvitation(invitation)} data-testid={`button-revoke-invitation-${invitation.id}`}>
+                    {it ? 'Revoca' : 'Revoke'}
+                  </Button>
+                </Box>
               </Box>
             ))}
             <Divider sx={{ my: 2 }} />

@@ -27,6 +27,20 @@ export const ListWorkspaceInvitationsResponse = zod.object({
 
 
 /**
+ * @summary Resend an active pending workspace invitation
+ */
+export const ResendWorkspaceInvitationParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "invitationId": zod.coerce.number().int()
+})
+
+export const ResendWorkspaceInvitationResponse = zod.object({
+  "emailSent": zod.boolean(),
+  "email": zod.string().optional()
+})
+
+
+/**
  * @summary Revoke one pending personal invitation
  */
 export const RevokeWorkspaceInvitationParams = zod.object({

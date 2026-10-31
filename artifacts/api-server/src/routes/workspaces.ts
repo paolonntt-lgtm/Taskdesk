@@ -185,6 +185,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       inviterName: user.name ?? "Admin",
       workspaceName: workspace.name,
       inviteUrl,
+      expiresAt,
     });
     let emailSent = false;
     try {
@@ -357,6 +358,73 @@ router.delete("/workspaces/:id/invitations/:invitationId", requireAuth, requireA
     return;
   }
   res.json({ success: true });
+});
+
+router.post("/workspaces/:id/invitations/:invitationId/resend", requireAuth, requireAdmin, requireSameOrigin, async (req, res): Promise<void> => {
+  const workspaceId = Number(req.params.id);
+  const invitationId = Number(req.params.invitationId);
+  const user = (req as any).currentUser;
+  if (!Number.isInteger(workspaceId) || !Number.isInteger(invitationId) || user.organizationId !== workspaceId ||
+      !user.isSharedWorkspace || !(await isWorkspaceMember(workspaceId, user.id))) {
+    res.status(403).json({ error: "Shared-workspace administrator access required" });
+    return;
+  }
+
+  const [workspace] = await db.select({
+    name: organizationsTable.name,
+    billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
+    externalSharingEnabled: organizationsTable.externalSharingEnabled,
+  }).from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
+  if (!workspace?.externalSharingEnabled) {
+    res.status(404).json({ error: "Active pending workspace invitation not found" });
+    return;
+  }
+
+  const [invitation] = await db.select({
+    token: workspaceInviteTokensTable.token,
+    inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
+    expiresAt: workspaceInviteTokensTable.expiresAt,
+    email: usersTable.email,
+    isActive: usersTable.isActive,
+  }).from(workspaceInviteTokensTable)
+    .innerJoin(usersTable, eq(usersTable.id, workspaceInviteTokensTable.inviteeUserId))
+    .where(and(
+      eq(workspaceInviteTokensTable.id, invitationId),
+      eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId),
+      isNotNull(workspaceInviteTokensTable.inviteeUserId),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+      sql`${workspaceInviteTokensTable.expiresAt} > NOW()`,
+    ));
+  if (!invitation || !invitation.isActive || !invitation.email) {
+    res.status(404).json({ error: "Active pending workspace invitation not found" });
+    return;
+  }
+
+  const email = buildWorkspaceInviteEmail({
+    inviterName: user.name ?? "Admin",
+    workspaceName: workspace.name,
+    inviteUrl: `${appBaseUrl()}/app/workspace-invite/${invitation.token}`,
+    expiresAt: invitation.expiresAt,
+  });
+  try {
+    const result = await sendEmailForOrg(workspace.billingOwnerOrganizationId, {
+      to: invitation.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    });
+    if (!result.ok) {
+      res.status(502).json({ error: "The invitation email could not be sent. The existing invitation remains valid." });
+      return;
+    }
+  } catch (error) {
+    req.log.warn({ workspaceId, invitationId, inviteeUserId: invitation.inviteeUserId, err: error }, "Workspace invitation email could not be resent");
+    res.status(502).json({ error: "The invitation email could not be sent. The existing invitation remains valid." });
+    return;
+  }
+
+  res.json({ emailSent: true, email: invitation.email });
 });
 
 router.get("/workspace-invites/:token", async (req, res): Promise<void> => {

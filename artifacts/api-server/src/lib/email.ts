@@ -545,14 +545,20 @@ export function buildWorkspaceInviteEmail(args: {
   inviterName: string;
   workspaceName: string;
   inviteUrl: string;
+  expiresAt: Date;
 }): { subject: string; html: string; text: string } {
   const subject = `${args.inviterName} ti ha invitato nello spazio ${args.workspaceName} su TaskDesk`;
+  const expiresAtLabel = args.expiresAt.toLocaleString("it-IT", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/Rome",
+  });
   const text = [
     `Ciao,`,
     "",
     `${args.inviterName} ti ha invitato a collaborare nello spazio "${args.workspaceName}" su TaskDesk.`,
     "",
-    `Accetta l'invito entro 7 giorni da questo link:`,
+    `Accetta l'invito entro il ${expiresAtLabel} (ora italiana) da questo link:`,
     "",
     args.inviteUrl,
     "",
@@ -571,7 +577,7 @@ export function buildWorkspaceInviteEmail(args: {
         <strong>"${escapeHtml(args.workspaceName)}"</strong> su TaskDesk.
       </p>
       <a href="${escapeHtml(args.inviteUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Accetta invito →</a>
-      <p style="margin-top:24px;font-size:13px;color:#6b7280">Il link è valido per 7 giorni. Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${escapeHtml(args.inviteUrl)}" style="color:#2563eb;word-break:break-all">${escapeHtml(args.inviteUrl)}</a></p>
+      <p style="margin-top:24px;font-size:13px;color:#6b7280">Il link scade il ${escapeHtml(expiresAtLabel)} (ora italiana). Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${escapeHtml(args.inviteUrl)}" style="color:#2563eb;word-break:break-all">${escapeHtml(args.inviteUrl)}</a></p>
       <p style="margin-top:24px;font-size:12px;color:#9ca3af">Se non ti aspettavi questo invito, puoi ignorare questa email.</p>
     </div>
   `;

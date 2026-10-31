@@ -7,6 +7,7 @@ import {
   pool,
   sessionsTable,
   settingsTable,
+  ticketStatusesTable,
   ticketsTable,
   usersTable,
   workspaceInviteTokensTable,
@@ -166,6 +167,7 @@ describe("shared workspaces", () => {
         .where(eq(workspaceInviteTokensTable.workspaceOrganizationId, workspaceId));
       await db.delete(settingsTable)
         .where(inArray(settingsTable.key, [`org_${workspaceId}_categories`, `org_${workspaceId}_locations`]));
+      await db.delete(ticketStatusesTable).where(eq(ticketStatusesTable.organizationId, workspaceId));
     }
     await db.delete(notificationsTable)
       .where(inArray(notificationsTable.userId, [billingAdminId, externalUserId, unbilledUserId, outsiderId]));
@@ -227,7 +229,7 @@ describe("shared workspaces", () => {
     expect(sentMail.to).toBe(`workspace-external-${runId}@example.test`);
     expect(sentMail.subject).toContain(`Shared workspace ${runId}`);
     expect(sentMail.text).toContain("/app/workspace-invite/");
-    expect(sentMail.text).toContain("7 giorni");
+    expect(sentMail.text).toContain("ora italiana");
     const directToken = sentMail.text?.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
     expect(directToken).toBeTruthy();
     if (!directToken) throw new Error("Workspace invite email did not include a tokenized link");
@@ -242,6 +244,25 @@ describe("shared workspaces", () => {
       }),
     ]);
     const pendingInvitationId = pendingList.body.invitations[0].id;
+    const resendInvitationPath = `/api/workspaces/${workspaceId}/invitations/${pendingInvitationId}/resend`;
+    const resendInvitation = await request(resendInvitationPath, billingAdminSessionId, workspaceId, { method: "POST" });
+    expect(resendInvitation.status).toBe(200);
+    expect(resendInvitation.body).toEqual({
+      emailSent: true,
+      email: `workspace-external-${runId}@example.test`,
+    });
+    const resentEmail = vi.mocked(sendEmailForOrg).mock.calls.at(-1);
+    expect(resentEmail?.[1]?.to).toBe(`workspace-external-${runId}@example.test`);
+    expect(resentEmail?.[1]?.text).toContain(`/app/workspace-invite/${directToken}`);
+
+    vi.mocked(sendEmailForOrg).mockRejectedValueOnce(new Error("SMTP unavailable"));
+    const failedResend = await request(resendInvitationPath, billingAdminSessionId, workspaceId, { method: "POST" });
+    expect(failedResend.status).toBe(502);
+    expect(failedResend.body.error).toContain("existing invitation remains valid");
+    expect((await request(`/api/workspace-invites/${directToken}`, outsiderSessionId)).status).toBe(200);
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ id: pendingInvitationId })]));
+
     await db.insert(workspaceMembershipsTable).values({
       workspaceOrganizationId: workspaceId,
       userId: outsiderId,
@@ -255,6 +276,7 @@ describe("shared workspaces", () => {
       workspaceId,
       { method: "DELETE" },
     )).status).toBe(403);
+    expect((await request(resendInvitationPath, outsiderSessionId, workspaceId, { method: "POST" })).status).toBe(403);
     expect((await request(
       `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
       outsiderSessionId,

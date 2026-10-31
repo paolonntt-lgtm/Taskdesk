@@ -218,6 +218,7 @@ export * from './workedHoursUpdateResult';
 export * from './workedHoursUpdateResultWorkedBillingStatus';
 export * from './workspaceInvitation';
 export * from './workspaceInvitationList';
+export * from './workspaceInvitationResendResponse';
 export * from './workspaceInvitationRevokeResponse';
 export * from './workspaceInvitationRole';
 export * from './workspaceSharingInput';

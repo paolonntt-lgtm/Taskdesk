@@ -7,6 +7,8 @@ Additional workspaces can become externally shared by inviting active accounts f
 
 Targeted workspace invitations are emailed to the address saved on the selected account, using the billing-owner organization's SMTP settings. If delivery fails, revoke the new invitation so it does not appear active.
 
+Resending a pending invitation must reuse its existing token and expiration without changing either; the email should state the actual saved expiration rather than imply a fresh seven-day period.
+
 **Why:** The user requested external collaboration for additional organizations while keeping workspace switching distinct from workspace administration and preserving billing ownership.
 
 **How to apply:** Keep the workspace/tenant identity separate from the external-sharing setting. New workspaces can start private, and explicit invitations or links enable collaboration without moving accounts or billing seats. Use the billing owner organization for invitation email configuration because a newly created workspace may not have its own SMTP channel.
