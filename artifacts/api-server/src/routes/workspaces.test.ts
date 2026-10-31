@@ -236,9 +236,33 @@ describe("shared workspaces", () => {
       workspaceId,
       { method: "DELETE" },
     )).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
+      outsiderSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "user" }) },
+    )).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
+      outsiderSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    )).status).toBe(403);
     expect((await request(`/api/workspaces/${workspaceId}/invitations`, externalUserSessionId, workspaceId)).status).toBe(403);
     expect((await request(
       `/api/workspaces/${workspaceId}/invitations/${pendingInvitationId}`,
+      externalUserSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    )).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
+      externalUserSessionId,
+      workspaceId,
+      { method: "PATCH", body: JSON.stringify({ role: "user" }) },
+    )).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/members/${billingAdminId}`,
       externalUserSessionId,
       workspaceId,
       { method: "DELETE" },
