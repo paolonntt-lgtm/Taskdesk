@@ -206,6 +206,34 @@ describe("shared workspaces", () => {
         expiresAt: expect.any(String),
       }),
     ]);
+    const pendingInvitationId = pendingList.body.invitations[0].id;
+    await db.insert(workspaceMembershipsTable).values({
+      workspaceOrganizationId: workspaceId,
+      userId: outsiderId,
+      role: "user",
+      sponsored: false,
+    });
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, outsiderSessionId, workspaceId)).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/invitations/${pendingInvitationId}`,
+      outsiderSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    )).status).toBe(403);
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, externalUserSessionId, workspaceId)).status).toBe(403);
+    expect((await request(
+      `/api/workspaces/${workspaceId}/invitations/${pendingInvitationId}`,
+      externalUserSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    )).status).toBe(403);
+    const removeTemporaryCollaborator = await request(
+      `/api/workspaces/${workspaceId}/members/${outsiderId}`,
+      billingAdminSessionId,
+      workspaceId,
+      { method: "DELETE" },
+    );
+    expect(removeTemporaryCollaborator.status).toBe(200);
     expect((await request("/api/auth/me", externalUserSessionId, workspaceId)).status).toBe(403);
     expect((await invite(`workspace-external-${runId}@example.test`)).status).toBe(409);
     expect((await invite(`workspace-unbilled-${runId}@example.test`)).status).toBe(404);
