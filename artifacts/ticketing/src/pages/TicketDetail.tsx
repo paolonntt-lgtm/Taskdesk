@@ -943,11 +943,14 @@ export default function TicketDetail() {
   const clientAssociationPrompt = emailAssociationForwarded && !ticketSenderEmail
     ? t.ticketDetail.clientEmailAssociationForwardedSenderUnavailable
     : canAddSenderEmailToClient
-      ? t.ticketDetail.clientEmailAssociationPromptBody(
-          ticketSenderEmail!,
-          clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
-        )
+      ? t.ticketDetail.clientEmailAssociationPromptBody
       : t.ticketDetail.clientEmailAssociationLinkOnlyPrompt;
+  const clientEmailAssociationAddressNotice = canAddSenderEmailToClient
+    ? t.ticketDetail.clientEmailAssociationAddressNotice(
+        ticketSenderEmail!,
+        clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
+      )
+    : undefined;
   const emailAssociationExplanationKey = getEmailClientAssociationExplanationKey({
     reason: emailAssociationReason,
     source: emailAssociationSource,
@@ -1382,6 +1385,7 @@ export default function TicketDetail() {
             busy={clientAssociationBusy}
             title={t.ticketDetail.clientEmailAssociationPromptTitle}
             prompt={clientAssociationPrompt}
+            addressNotice={clientEmailAssociationAddressNotice}
             cancelLabel={t.ticketDetail.clientEmailAssociationCancel}
             linkOnlyLabel={t.ticketDetail.clientEmailAssociationLinkOnly}
             addAndLinkLabel={t.ticketDetail.clientEmailAssociationAddAndLink}

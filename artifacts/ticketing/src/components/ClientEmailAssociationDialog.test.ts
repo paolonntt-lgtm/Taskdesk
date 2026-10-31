@@ -20,7 +20,8 @@ describe("ClientEmailAssociationDialog", () => {
           open: true,
           busy: false,
           title: t.clientEmailAssociationPromptTitle,
-          prompt: t.clientEmailAssociationPromptBody("mittente@example.test", "Cliente"),
+          prompt: t.clientEmailAssociationPromptBody,
+          addressNotice: t.clientEmailAssociationAddressNotice("mittente@example.test", "Cliente"),
           cancelLabel: t.clientEmailAssociationCancel,
           linkOnlyLabel: t.clientEmailAssociationLinkOnly,
           addAndLinkLabel: t.clientEmailAssociationAddAndLink,
@@ -58,12 +59,13 @@ describe("ClientEmailAssociationDialog", () => {
   });
 
   it.each([
-    ["it", "Aggiungere il mittente alla scheda cliente?", "mittente@example.test non è presente nella scheda di Cliente. Vuoi aggiungerlo e collegare il ticket?", "Annulla", "Collega senza aggiungere", "Aggiungi e collega", "Questo indirizzo è già associato a un altro cliente e non è stato aggiunto."],
-    ["en", "Add sender to the client profile?", "mittente@example.test is not saved on Cliente's profile. Add it and assign this ticket?", "Cancel", "Assign without adding", "Add and assign", "This address is already assigned to another client and was not added."],
-  ] as const)("shows localized dialog copy and all choices in %s", async (lang, title, prompt, cancel, linkOnly, addAndLink, conflictMessage) => {
+    ["it", "Aggiungere il mittente alla scheda cliente?", "Confermi di aggiungere l’indirizzo alla scheda cliente e collegare il ticket?", "Indirizzo che verrà aggiunto alla scheda di Cliente: mittente@example.test", "Annulla", "Collega senza aggiungere", "Aggiungi e collega", "Questo indirizzo è già associato a un altro cliente e non è stato aggiunto."],
+    ["en", "Add sender to the client profile?", "Confirm adding the address to the client profile and assigning this ticket?", "Address that will be added to Cliente's profile: mittente@example.test", "Cancel", "Assign without adding", "Add and assign", "This address is already assigned to another client and was not added."],
+  ] as const)("shows localized dialog copy and all choices in %s", async (lang, title, prompt, notice, cancel, linkOnly, addAndLink, conflictMessage) => {
     await renderDialog(lang);
     expect(document.body.textContent).toContain(title);
     expect(document.body.textContent).toContain(prompt);
+    expect(document.body.textContent).toContain(notice);
     for (const label of [cancel, linkOnly, addAndLink]) {
       expect(Array.from(document.querySelectorAll("button")).some((button) => button.textContent?.trim() === label)).toBe(true);
     }

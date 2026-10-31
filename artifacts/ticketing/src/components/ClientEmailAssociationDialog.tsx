@@ -13,6 +13,7 @@ interface ClientEmailAssociationDialogProps {
   busy: boolean;
   title: string;
   prompt: string;
+  addressNotice?: string;
   cancelLabel: string;
   linkOnlyLabel: string;
   addAndLinkLabel: string;
@@ -28,6 +29,7 @@ export default function ClientEmailAssociationDialog({
   busy,
   title,
   prompt,
+  addressNotice,
   cancelLabel,
   linkOnlyLabel,
   addAndLinkLabel,
@@ -49,6 +51,7 @@ export default function ClientEmailAssociationDialog({
     >
       <DialogTitle id="client-email-association-dialog-title">{title}</DialogTitle>
       <DialogContent>
+        {addressNotice && <Alert severity="info" sx={{ mb: 2 }}>{addressNotice}</Alert>}
         {prompt}
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
       </DialogContent>
