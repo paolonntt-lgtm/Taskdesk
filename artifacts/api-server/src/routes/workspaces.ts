@@ -552,6 +552,16 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   }
   if (membership) {
     notifyPermissionChanged(user.id);
+    const workspaceAdmins = await db
+      .select({ userId: workspaceMembershipsTable.userId })
+      .from(workspaceMembershipsTable)
+      .where(and(
+        eq(workspaceMembershipsTable.workspaceOrganizationId, workspace.id),
+        eq(workspaceMembershipsTable.role, "admin"),
+      ));
+    for (const admin of workspaceAdmins) {
+      notifyPermissionChanged(admin.userId);
+    }
     await createNotificationForUser(
       invite.createdByUserId,
       null,

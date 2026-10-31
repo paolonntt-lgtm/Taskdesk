@@ -6,7 +6,7 @@ import {
   Alert, Chip, Paper, Avatar, FormControlLabel, Switch,
 } from '@mui/material';
 import { Person, Group, AddCircle as AddCircleIcon, PlaylistAddCheck, AutoAwesome, LockOutlined, PublicOutlined, Repeat as RepeatIcon } from '@mui/icons-material';
-import { useCreateTicket, useUpdateTicket, useGetTicket, useListUsers, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey, getListUsersQueryKey } from '@workspace/api-client-react';
+import { useCreateTicket, useUpdateTicket, useGetTicket, useSaveTicketAttachment, useListClients, getGetTicketQueryKey, getListTicketsQueryKey, getListClientsQueryKey } from '@workspace/api-client-react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,7 @@ import { RichCommentEditor, type PendingAttachment } from '../components/RichCom
 import NewTicketChecklistSection, { type ChecklistDraft } from '../components/NewTicketChecklistSection';
 import { trackEvent } from '../lib/analytics';
 import { buildNewTicketAssociations } from '../lib/newTicketAssociations';
+import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -83,10 +84,7 @@ export default function NewTicket() {
     isEditing ? editTicketId : 0,
     { query: { enabled: isEditing } as any },
   );
-  const { data: users } = useListUsers({
-    query: { queryKey: [...getListUsersQueryKey(), activeWorkspaceId] } as any,
-    request: { cache: 'no-store' },
-  });
+  const { data: users } = useWorkspaceCollaborators(activeWorkspaceId);
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {

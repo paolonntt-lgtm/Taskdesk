@@ -335,10 +335,19 @@ describe("shared workspaces", () => {
       method: "POST",
     });
     expect(rejectWrongInvitee.status).toBe(403);
+    const adminPermissionEvent = request(
+      "/api/auth/permission-events",
+      billingAdminSessionId,
+      workspaceId,
+    );
     const acceptDirectInvite = await request(`/api/workspace-invites/${directToken}/accept`, externalUserSessionId, undefined, {
       method: "POST",
     });
     expect(acceptDirectInvite.status).toBe(201);
+    await expect(adminPermissionEvent).resolves.toMatchObject({
+      status: 200,
+      body: { type: "permissions_changed" },
+    });
     const acceptedInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
     expect(acceptedInviteAssignees.cacheControl).toBe("no-store");
     expect(acceptedInviteAssignees.body.map((user: { id: number }) => user.id)).toEqual([
