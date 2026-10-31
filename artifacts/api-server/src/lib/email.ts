@@ -541,6 +541,43 @@ export function buildInviteEmail(args: {
   return { subject, html, text };
 }
 
+export function buildWorkspaceInviteEmail(args: {
+  inviterName: string;
+  workspaceName: string;
+  inviteUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `${args.inviterName} ti ha invitato nello spazio ${args.workspaceName} su TaskDesk`;
+  const text = [
+    `Ciao,`,
+    "",
+    `${args.inviterName} ti ha invitato a collaborare nello spazio "${args.workspaceName}" su TaskDesk.`,
+    "",
+    `Accetta l'invito entro 7 giorni da questo link:`,
+    "",
+    args.inviteUrl,
+    "",
+    "Se non ti aspettavi questo invito, puoi ignorare questa email.",
+    "",
+    "— Il team di TaskDesk",
+  ].join("\n");
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
+      <div style="margin-bottom:24px">
+        <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
+      </div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 12px">Invito a uno spazio condiviso</h2>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#374151">
+        <strong>${escapeHtml(args.inviterName)}</strong> ti ha invitato a collaborare nello spazio
+        <strong>"${escapeHtml(args.workspaceName)}"</strong> su TaskDesk.
+      </p>
+      <a href="${escapeHtml(args.inviteUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Accetta invito →</a>
+      <p style="margin-top:24px;font-size:13px;color:#6b7280">Il link è valido per 7 giorni. Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${escapeHtml(args.inviteUrl)}" style="color:#2563eb;word-break:break-all">${escapeHtml(args.inviteUrl)}</a></p>
+      <p style="margin-top:24px;font-size:12px;color:#9ca3af">Se non ti aspettavi questo invito, puoi ignorare questa email.</p>
+    </div>
+  `;
+  return { subject, html, text };
+}
+
 function suggestPlanHtml(usersCount: number): string {
   const plans = [
     { name: "Starter", seats: 5, price: "€35/mese" },

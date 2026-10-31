@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, Card, CardContent, CircularProgress, Divider, MenuItem,
   TextField, Typography,
 } from '@mui/material';
 import { ContentCopy, LinkOff } from '@mui/icons-material';
-import {
-  getListWorkspaceInvitationsQueryKey, useListWorkspaceInvitations, useRevokeWorkspaceInvitation,
-} from '@workspace/api-client-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -46,19 +43,21 @@ export default function WorkspaceManagement() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
-  const [inviteUrl, setInviteUrl] = useState('');
-  const [inviteExpiresAt, setInviteExpiresAt] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [shareExpiresAt, setShareExpiresAt] = useState('');
   const queryClient = useQueryClient();
   const invitationWorkspaceId = Number(activeWorkspaceId ?? 0);
-  const invitationsQuery = useListWorkspaceInvitations(invitationWorkspaceId, {
-    query: {
-      enabled: isSharedWorkspace && !!activeWorkspaceId,
-      queryKey: getListWorkspaceInvitationsQueryKey(invitationWorkspaceId),
+  const invitationQueryKey = ['workspace-invitations', invitationWorkspaceId] as const;
+  const invitationsQuery = useQuery<{ invitations: WorkspaceInvitation[] }>({
+    queryKey: invitationQueryKey,
+    enabled: isSharedWorkspace && !!activeWorkspaceId,
+    queryFn: async () => {
+      const response = await fetch(`/api/workspaces/${invitationWorkspaceId}/invitations`, { credentials: 'include' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || data.message || 'Could not load workspace invitations');
+      return data;
     },
   });
-  const revokeInvitationMutation = useRevokeWorkspaceInvitation();
   const invitations = invitationsQuery.data?.invitations ?? [];
 
   const loadMembers = async () => {
@@ -118,7 +117,7 @@ export default function WorkspaceManagement() {
   };
 
   const inviteAccount = async () => {
-    setBusy(true); setError(''); setNotice(''); setInviteUrl('');
+    setBusy(true); setError(''); setNotice('');
     try {
       const response = await fetch(`/api/workspaces/${activeWorkspaceId}/members`, {
         method: 'POST', credentials: 'include',
@@ -128,11 +127,11 @@ export default function WorkspaceManagement() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile creare l’invito.' : 'Could not create invitation.'));
       setInviteEmail('');
-      if (data.inviteUrl) {
-        setInviteUrl(data.inviteUrl);
-        setInviteExpiresAt(data.expiresAt);
+      if (data.emailSent) {
         await loadInvitations();
-        setNotice(it ? 'Invito creato. Copia il link e invialo alla persona: entrerà solo dopo averlo accettato.' : 'Invitation created. Copy and send the link; the person joins only after accepting it.');
+        setNotice(it
+          ? `Invito inviato a ${inviteEmail.trim()}. Potrà accedere solo dopo averlo accettato.`
+          : `Invitation sent to ${inviteEmail.trim()}. They can join only after accepting it.`);
       } else {
         await loadMembers();
         setNotice(it ? 'Account aggiunto allo spazio.' : 'Account added to the workspace.');
@@ -213,8 +212,13 @@ export default function WorkspaceManagement() {
   const revokeInvitation = async (invitation: WorkspaceInvitation) => {
     setBusy(true); setError(''); setNotice('');
     try {
-      await revokeInvitationMutation.mutateAsync({ id: invitationWorkspaceId, invitationId: invitation.id });
-      await queryClient.invalidateQueries({ queryKey: getListWorkspaceInvitationsQueryKey(invitationWorkspaceId) });
+      const response = await fetch(`/api/workspaces/${invitationWorkspaceId}/invitations/${invitation.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile revocare l’invito.' : 'Could not revoke invitation.'));
+      await queryClient.invalidateQueries({ queryKey: invitationQueryKey });
       setNotice(it ? 'Invito revocato. La condivisione esterna resta attiva.' : 'Invitation revoked. External sharing remains enabled.');
     } catch (reason: any) {
       setError(reason?.message || (it ? 'Operazione non riuscita.' : 'The action could not be completed.'));
@@ -271,7 +275,7 @@ export default function WorkspaceManagement() {
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle1" fontWeight={700}>{it ? 'Invita un account TaskDesk attivo' : 'Invite an active TaskDesk account'}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>
-              {it ? 'Per gli account esterni viene creato un link personale; potranno accedere solo dopo averlo accettato. La fatturazione resta legata alla loro organizzazione.' : 'External accounts receive a personal link and join only after accepting. Billing stays with their own organization.'}
+              {it ? 'Gli account esterni ricevono un invito all’indirizzo email del loro account; potranno accedere solo dopo averlo accettato. La fatturazione resta legata alla loro organizzazione.' : 'External accounts receive an invitation at their account email and join only after accepting. Billing stays with their own organization.'}
             </Typography>
             <Box display="flex" gap={1} flexWrap="wrap">
               <TextField size="small" label="Email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} sx={{ flex: '1 1 240px' }} />
@@ -281,12 +285,6 @@ export default function WorkspaceManagement() {
               </TextField>
               <Button variant="contained" disabled={busy || !inviteEmail.trim()} onClick={() => void inviteAccount()}>{it ? 'Invita' : 'Invite'}</Button>
             </Box>
-            {inviteUrl && (
-              <Box display="flex" gap={1} alignItems="center" mt={2}>
-                <TextField fullWidth size="small" value={inviteUrl} InputProps={{ readOnly: true }} helperText={inviteExpiresAt ? `${it ? 'Scade il' : 'Expires'} ${new Date(inviteExpiresAt).toLocaleString(it ? 'it-IT' : 'en-GB')}` : undefined} />
-                <Button startIcon={<ContentCopy />} onClick={() => void copy(inviteUrl)}>{it ? 'Copia' : 'Copy'}</Button>
-              </Box>
-            )}
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle1" fontWeight={700}>{it ? 'Inviti in attesa' : 'Pending invitations'}</Typography>
             {invitationsQuery.isLoading ? <CircularProgress size={20} sx={{ mt: 2 }} /> : invitations.length === 0 ? (

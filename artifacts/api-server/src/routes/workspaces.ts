@@ -11,6 +11,7 @@ import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { randomBytes } from "crypto";
 import { appBaseUrl } from "../lib/appUrl";
 import { requireSameOrigin } from "../lib/originCheck";
+import { buildWorkspaceInviteEmail, sendEmailForOrg } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -126,6 +127,8 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
   }
   const [target] = await db.select({
     id: usersTable.id,
+    name: usersTable.name,
+    email: usersTable.email,
     isActive: usersTable.isActive,
     organizationId: usersTable.organizationId,
   }).from(usersTable).where(eq(usersTable.email, email));
@@ -134,6 +137,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
     return;
   }
   const [workspace] = await db.select({
+    name: organizationsTable.name,
     billingOwnerOrganizationId: organizationsTable.billingOwnerOrganizationId,
     externalSharingEnabled: organizationsTable.externalSharingEnabled,
   }).from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
@@ -176,10 +180,37 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
         expiresAt,
       }).returning({ token: workspaceInviteTokensTable.token });
     });
+    const inviteUrl = `${appBaseUrl()}/app/workspace-invite/${invite.token}`;
+    const email = buildWorkspaceInviteEmail({
+      inviterName: user.name ?? "Admin",
+      workspaceName: workspace.name,
+      inviteUrl,
+    });
+    let emailSent = false;
+    try {
+      const result = await sendEmailForOrg(workspace.billingOwnerOrganizationId, {
+        to: target.email,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      });
+      emailSent = result.ok;
+    } catch (error) {
+      req.log.warn({ workspaceId, inviteeUserId: target.id, err: error }, "Workspace invitation email could not be sent");
+    }
+    if (!emailSent) {
+      await db.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+        .where(and(
+          eq(workspaceInviteTokensTable.token, invite.token),
+          isNull(workspaceInviteTokensTable.acceptedAt),
+        ));
+      res.status(502).json({ error: "The invitation email could not be sent. No active invitation was created." });
+      return;
+    }
     res.status(201).json({
-      inviteUrl: `${appBaseUrl()}/app/workspace-invite/${invite.token}`,
       expiresAt,
       pendingAcceptance: true,
+      emailSent: true,
     });
     return;
   }

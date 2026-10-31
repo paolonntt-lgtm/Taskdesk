@@ -1,5 +1,5 @@
 import { createServer, type Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   db,
   notificationsTable,
@@ -15,6 +15,15 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import app from "../app";
 import { createSession } from "../lib/session";
+import { sendEmailForOrg } from "../lib/email";
+
+vi.mock("../lib/email", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/email")>();
+  return {
+    ...actual,
+    sendEmailForOrg: vi.fn().mockResolvedValue({ ok: true }),
+  };
+});
 
 const runId = crypto.randomUUID();
 let server: Server;
@@ -209,9 +218,19 @@ describe("shared workspaces", () => {
     );
     const inviteResponse = await invite(`workspace-external-${runId}@example.test`);
     expect(inviteResponse.status).toBe(201);
-    expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true });
-    expect(inviteResponse.body.inviteUrl).toContain("/app/workspace-invite/");
-    const directToken = inviteResponse.body.inviteUrl.split("/").at(-1);
+    expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true, emailSent: true });
+    expect(inviteResponse.body.inviteUrl).toBeUndefined();
+    const sentEmail = vi.mocked(sendEmailForOrg).mock.calls.at(-1);
+    expect(sentEmail).toBeDefined();
+    const [sentOrganizationId, sentMail] = sentEmail!;
+    expect(sentOrganizationId).toBe(billingOrganizationId);
+    expect(sentMail.to).toBe(`workspace-external-${runId}@example.test`);
+    expect(sentMail.subject).toContain(`Shared workspace ${runId}`);
+    expect(sentMail.text).toContain("/app/workspace-invite/");
+    expect(sentMail.text).toContain("7 giorni");
+    const directToken = sentMail.text?.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
+    expect(directToken).toBeTruthy();
+    if (!directToken) throw new Error("Workspace invite email did not include a tokenized link");
     const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
     expect(pendingList.status).toBe(200);
     expect(pendingList.body.invitations).toEqual([
@@ -298,6 +317,11 @@ describe("shared workspaces", () => {
       role: "user",
       isSharedWorkspace: true,
     });
+    vi.mocked(sendEmailForOrg).mockResolvedValueOnce({ ok: false, error: "SMTP unavailable" });
+    const failedDelivery = await invite(`workspace-outsider-${runId}@example.test`);
+    expect(failedDelivery.status).toBe(502);
+    expect(failedDelivery.body).not.toHaveProperty("inviteUrl");
+    expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     const rejectDisableWithMember = await request(`/api/workspaces/${workspaceId}/sharing`, billingAdminSessionId, workspaceId, {
       method: "PATCH",
       body: JSON.stringify({ enabled: false }),
@@ -369,7 +393,9 @@ describe("shared workspaces", () => {
 
     const expiredInvite = await invite(`workspace-external-${runId}@example.test`, "user");
     expect(expiredInvite.status).toBe(201);
-    const expiredToken = expiredInvite.body.inviteUrl.split("/").at(-1);
+    const expiredText = vi.mocked(sendEmailForOrg).mock.calls.at(-1)?.[1]?.text ?? "";
+    const expiredToken = expiredText.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
+    if (!expiredToken) throw new Error("Workspace invite email did not include a tokenized link");
     await db.update(workspaceInviteTokensTable)
       .set({ expiresAt: new Date(Date.now() - 60_000) })
       .where(eq(workspaceInviteTokensTable.token, expiredToken));
@@ -389,7 +415,10 @@ describe("shared workspaces", () => {
     const [workspaceAfterRevoke] = await db.select({ externalSharingEnabled: organizationsTable.externalSharingEnabled })
       .from(organizationsTable).where(eq(organizationsTable.id, workspaceId));
     expect(workspaceAfterRevoke.externalSharingEnabled).toBe(true);
-    expect((await request(`/api/workspace-invites/${pendingForRevocation.body.inviteUrl.split("/").at(-1)}`, outsiderSessionId)).status).toBe(404);
+    const revokedText = vi.mocked(sendEmailForOrg).mock.calls.at(-1)?.[1]?.text ?? "";
+    const revokedToken = revokedText.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
+    expect(revokedToken).toBeTruthy();
+    expect((await request(`/api/workspace-invites/${revokedToken}`, outsiderSessionId)).status).toBe(404);
     expect((await request(`/api/workspaces/${workspaceId}/invitations/${invitationId}`, billingAdminSessionId, workspaceId, {
       method: "DELETE",
     })).status).toBe(404);
