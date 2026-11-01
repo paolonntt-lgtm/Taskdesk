@@ -23,7 +23,10 @@ import {
 } from '@workspace/api-client-react';
 import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
-import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
+import {
+  resolveWorkspaceAssigneeId,
+  useWorkspaceCollaborators,
+} from '../hooks/useWorkspaceCollaborators';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEntityTerm } from '../hooks/useEntityTerm';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
@@ -249,7 +252,7 @@ export default function TicketDetail() {
   const { data: activities } = useListTicketActivity(ticketId, { query: { enabled: !!ticketId, staleTime: 60_000, refetchInterval: 30_000, refetchIntervalInBackground: false } as any });
   const activeWorkspaceId =
     (currentUser as any)?.activeWorkspaceId ?? currentUser?.organizationId;
-  const { data: users } = useWorkspaceCollaborators(
+  const { data: users, isSuccess: workspaceCollaboratorsLoaded } = useWorkspaceCollaborators(
     activeWorkspaceId,
     currentUser?.role === 'admin',
   );
@@ -538,8 +541,19 @@ export default function TicketDetail() {
 
   const handleAssigneeChange = async (newAssignee: string) => {
     setTicketUpdateError(null);
+    const assigneeId = newAssignee ? Number(newAssignee) : null;
+    if (assigneeId !== null) {
+      const isValidId = Number.isInteger(assigneeId) && assigneeId > 0;
+      const isAllowed = isAdmin
+        ? workspaceCollaboratorsLoaded && resolveWorkspaceAssigneeId(users as any[], assigneeId) === assigneeId
+        : assigneeId === (currentUser as any)?.id;
+      if (!isValidId || !isAllowed) {
+        setTicketUpdateError(t.ticketDetail.ticketUpdateError);
+        return;
+      }
+    }
     try {
-      await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: newAssignee ? parseInt(newAssignee) : null } });
+      await updateTicket.mutateAsync({ id: ticketId, data: { assignedTo: assigneeId } });
       queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) });
       queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() });
       setAssignAnchor(null);
@@ -2184,7 +2198,7 @@ export default function TicketDetail() {
                 >
                   {lang === 'it' ? 'Nessun assegnatario' : 'No assignee'}
                 </Box>
-                {(users ?? []).map((u: any) => {
+                {(users ?? []).filter((u: any) => u.isActive !== false).map((u: any) => {
                   const load = (workload as any[]).find((w) => w.id === u.id)?.open ?? 0;
                   const isCurrent = (ticket as any).assignedTo === u.id;
                   return (

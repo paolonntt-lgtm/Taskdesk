@@ -16,7 +16,11 @@ import { useAuth } from '../contexts/AuthContext';
 import PermissionGateButton from '../components/PermissionGateButton';
 import { getStatusColor, getPriorityColor } from './Dashboard';
 import { useTicketStatuses } from '../hooks/useTicketStatuses';
-import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
+import {
+  resolveWorkspaceAssigneeId,
+  useWorkspaceAssigneeSelection,
+  useWorkspaceCollaborators,
+} from '../hooks/useWorkspaceCollaborators';
 
 type CalendarItem = {
   type: 'ticket' | 'appointment';
@@ -111,9 +115,17 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
   const [error, setError] = useState<string | null>(null);
 
   const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
-  const { data: users = [] } = useWorkspaceCollaborators(
+  const { data: users = [], isSuccess: collaboratorsLoaded } = useWorkspaceCollaborators(
     activeWorkspaceId,
     isAdmin && open,
+  );
+  useWorkspaceAssigneeSelection(
+    activeWorkspaceId,
+    open,
+    collaboratorsLoaded,
+    users as any[],
+    assignedTo,
+    setAssignedTo,
   );
 
   React.useEffect(() => {
@@ -155,6 +167,16 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
       setError(t.calendar.errorSave);
       return;
     }
+    const resolvedAssigneeId = isAdmin
+      ? (assignedTo === '' ? null : collaboratorsLoaded ? resolveWorkspaceAssigneeId(users as any[], assignedTo) : undefined)
+      : null;
+    if (isAdmin && resolvedAssigneeId === undefined) {
+      if (assignedTo !== '') {
+        setAssignedTo('');
+      }
+      setError(t.calendar.errorSave);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -164,7 +186,7 @@ function AppointmentFormDialog({ open, appointment, onClose, onSaved, defaultDat
         startsAt: isAllDay ? new Date(`${startDate}T00:00:00.000Z`).toISOString() : new Date(startsAt).toISOString(),
         endsAt: isAllDay ? new Date(`${endDate}T00:00:00.000Z`).toISOString() : endsAt ? new Date(endsAt).toISOString() : null,
         isAllDay,
-        assignedTo: assignedTo !== '' ? assignedTo : null,
+        ...(isAdmin ? { assignedTo: resolvedAssigneeId ?? null } : {}),
       };
       const url = appointment ? `/api/appointments/${appointment.id}` : '/api/appointments';
       const method = appointment ? 'PUT' : 'POST';

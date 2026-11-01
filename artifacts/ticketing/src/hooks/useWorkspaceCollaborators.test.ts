@@ -3,7 +3,11 @@ import React, { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useWorkspaceCollaborators } from './useWorkspaceCollaborators';
+import {
+  resolveWorkspaceAssigneeId,
+  useWorkspaceAssigneeSelection,
+  useWorkspaceCollaborators,
+} from './useWorkspaceCollaborators';
 
 vi.mock('@workspace/api-client-react', async () => {
   const { useQuery } = await import('@tanstack/react-query');
@@ -22,6 +26,25 @@ vi.mock('@workspace/api-client-react', async () => {
 function CollaboratorOptions({ workspaceId }: { workspaceId: number }) {
   const { data } = useWorkspaceCollaborators(workspaceId);
   return React.createElement('div', null, JSON.stringify(data ?? []));
+}
+
+function CalendarAssigneeSelection({
+  workspaceId,
+  collaborators,
+}: {
+  workspaceId: number;
+  collaborators: { id: number; isActive?: boolean }[];
+}) {
+  const [selectedId, setSelectedId] = React.useState<number | ''>(11);
+  useWorkspaceAssigneeSelection(
+    workspaceId,
+    true,
+    true,
+    collaborators,
+    selectedId,
+    setSelectedId,
+  );
+  return React.createElement('div', null, selectedId === '' ? 'unassigned' : String(selectedId));
 }
 
 describe('useWorkspaceCollaborators', () => {
@@ -173,5 +196,46 @@ describe('useWorkspaceCollaborators', () => {
     await waitForText('Updated space 81 collaborator');
     expect(host.textContent).not.toContain('Space 82 collaborator');
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('prevents TicketDetail from sending an assignee outside the active workspace', () => {
+    const collaborators = [{ id: 22, isActive: true }];
+
+    expect(resolveWorkspaceAssigneeId(collaborators, 11)).toBeUndefined();
+    expect(resolveWorkspaceAssigneeId(collaborators, 22)).toBe(22);
+  });
+
+  it('clears a Calendar assignee after the workspace changes', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(CalendarAssigneeSelection, {
+          workspaceId: 81,
+          collaborators: [{ id: 11, isActive: true }],
+        }),
+      );
+    });
+    expect(host.textContent).toBe('11');
+
+    await act(async () => {
+      root.render(
+        React.createElement(CalendarAssigneeSelection, {
+          workspaceId: 82,
+          collaborators: [{ id: 22, isActive: true }],
+        }),
+      );
+    });
+    expect(host.textContent).toBe('unassigned');
+  });
+
+  it('rejects removed or inactive Calendar assignees before saving', () => {
+    const collaborators = [
+      { id: 22, isActive: true },
+      { id: 23, isActive: false },
+    ];
+
+    expect(resolveWorkspaceAssigneeId(collaborators, 11)).toBeUndefined();
+    expect(resolveWorkspaceAssigneeId(collaborators, 23)).toBeUndefined();
+    expect(resolveWorkspaceAssigneeId(collaborators, 22)).toBe(22);
+    expect(resolveWorkspaceAssigneeId(collaborators, '')).toBeNull();
   });
 });
