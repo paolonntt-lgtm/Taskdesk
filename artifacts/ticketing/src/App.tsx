@@ -310,7 +310,11 @@ function AppShell() {
           await refreshAuth();
         } else if (response.status !== 204 && response.ok) {
           const event = await response.json().catch(() => null);
-          if (event?.type === "permissions_changed") await refreshAuth();
+          if (event?.type === "permissions_changed") {
+            await refreshAuth();
+          } else if (event?.type === "workspace_members_changed") {
+            window.dispatchEvent(new CustomEvent("workspace-members-changed", { detail: event }));
+          }
         } else if (!response.ok) {
           retryDelay = 5_000;
         }

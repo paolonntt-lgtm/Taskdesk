@@ -21,7 +21,7 @@ import { FREE_TRIAL_DURATION_MS } from "../lib/trialStatus";
 import { recordUserActivity } from "../middlewares/auth";
 import { getOrganizationTrialStatus } from "../lib/organizationTrialStatus";
 import { getUserPermissionSummary } from "../lib/groupPermissions";
-import { subscribeToPermissionChanges } from "../lib/permissionEvents";
+import { subscribeToPermissionChanges, type PermissionEvent } from "../lib/permissionEvents";
 import { attachReferralAtSignup } from "../referralService";
 import { requireAuth } from "../middlewares/auth";
 import { resolveWorkspaceUser } from "../lib/workspaceContext";
@@ -238,19 +238,19 @@ router.get("/auth/permission-events", requireAuth, async (req, res): Promise<voi
     clearTimeout(timeout);
     unsubscribe();
   };
-  const finish = (changed: boolean) => {
+  const finish = (event: PermissionEvent | null) => {
     if (settled || res.destroyed) return;
     settled = true;
     cleanup();
-    if (changed) {
-      res.status(200).json({ type: "permissions_changed" });
+    if (event) {
+      res.status(200).json(event);
     } else {
       res.status(204).end();
     }
   };
 
-  unsubscribe = subscribeToPermissionChanges(userId, () => finish(true));
-  timeout = setTimeout(() => finish(false), 25_000);
+  unsubscribe = subscribeToPermissionChanges(userId, (event) => finish(event));
+  timeout = setTimeout(() => finish(null), 25_000);
   res.once("close", () => {
     settled = true;
     cleanup();

@@ -5,7 +5,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { isWorkspaceMember } from "../lib/workspaceContext";
-import { notifyPermissionChanged } from "../lib/permissionEvents";
+import { notifyPermissionChanged, notifyWorkspaceMembersChanged } from "../lib/permissionEvents";
 import { createNotificationForUser } from "../lib/notifications";
 import { STANDARD_CATEGORIES, DEFAULT_LOCATIONS } from "./settings";
 import { randomBytes } from "crypto";
@@ -14,6 +14,21 @@ import { requireSameOrigin } from "../lib/originCheck";
 import { buildWorkspaceInviteEmail, sendEmailForOrg } from "../lib/email";
 
 const router: IRouter = Router();
+
+async function notifyWorkspaceAdminsOfMemberChange(
+  workspaceId: number,
+  change: "added" | "removed" | "role_changed",
+): Promise<void> {
+  const admins = await db.select({ userId: workspaceMembershipsTable.userId })
+    .from(workspaceMembershipsTable)
+    .where(and(
+      eq(workspaceMembershipsTable.workspaceOrganizationId, workspaceId),
+      eq(workspaceMembershipsTable.role, "admin"),
+    ));
+  for (const admin of admins) {
+    notifyWorkspaceMembersChanged(admin.userId, workspaceId, change);
+  }
+}
 
 router.get("/workspaces", requireAuth, async (req, res): Promise<void> => {
   const user = (req as any).currentUser;
@@ -222,6 +237,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
     sponsored: false,
   }).returning();
   notifyPermissionChanged(target.id);
+  await notifyWorkspaceAdminsOfMemberChange(workspaceId, "added");
   await createNotificationForUser(
     target.id,
     null,
@@ -552,16 +568,7 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   }
   if (membership) {
     notifyPermissionChanged(user.id);
-    const workspaceAdmins = await db
-      .select({ userId: workspaceMembershipsTable.userId })
-      .from(workspaceMembershipsTable)
-      .where(and(
-        eq(workspaceMembershipsTable.workspaceOrganizationId, workspace.id),
-        eq(workspaceMembershipsTable.role, "admin"),
-      ));
-    for (const admin of workspaceAdmins) {
-      notifyPermissionChanged(admin.userId);
-    }
+    await notifyWorkspaceAdminsOfMemberChange(workspace.id, "added");
     await createNotificationForUser(
       invite.createdByUserId,
       null,
@@ -608,6 +615,7 @@ router.patch("/workspaces/:id/members/:userId", requireAuth, requireAdmin, async
     return;
   }
   notifyPermissionChanged(userId);
+  await notifyWorkspaceAdminsOfMemberChange(workspaceId, "role_changed");
   res.json({ membership: updated });
 });
 
@@ -638,6 +646,7 @@ router.delete("/workspaces/:id/members/:userId", requireAuth, requireAdmin, asyn
     eq(workspaceMembershipsTable.userId, userId),
   ));
   notifyPermissionChanged(userId);
+  await notifyWorkspaceAdminsOfMemberChange(workspaceId, "removed");
   res.json({ success: true });
 });
 

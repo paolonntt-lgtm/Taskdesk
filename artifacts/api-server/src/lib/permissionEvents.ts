@@ -1,4 +1,12 @@
-type PermissionChangeListener = () => void;
+export type PermissionEvent =
+  | { type: "permissions_changed" }
+  | {
+      type: "workspace_members_changed";
+      workspaceId: number;
+      change: "added" | "removed" | "role_changed";
+    };
+
+type PermissionChangeListener = (event: PermissionEvent) => void;
 
 const listenersByUser = new Map<number, Set<PermissionChangeListener>>();
 
@@ -17,5 +25,17 @@ export function subscribeToPermissionChanges(
 }
 
 export function notifyPermissionChanged(userId: number): void {
-  for (const listener of [...(listenersByUser.get(userId) ?? [])]) listener();
+  for (const listener of [...(listenersByUser.get(userId) ?? [])]) {
+    listener({ type: "permissions_changed" });
+  }
+}
+
+export function notifyWorkspaceMembersChanged(
+  userId: number,
+  workspaceId: number,
+  change: "added" | "removed" | "role_changed",
+): void {
+  for (const listener of [...(listenersByUser.get(userId) ?? [])]) {
+    listener({ type: "workspace_members_changed", workspaceId, change });
+  }
 }

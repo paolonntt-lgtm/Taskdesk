@@ -90,6 +90,60 @@ describe('useWorkspaceCollaborators', () => {
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' });
   });
 
+  it('refreshes an open list after adding, changing the role of, and removing a member', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 1, name: 'Admin', role: 'admin' },
+        { id: 2, name: 'Member', role: 'user' },
+      ]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 1, name: 'Admin', role: 'admin' },
+        { id: 2, name: 'Member', role: 'user' },
+        { id: 3, name: 'Added member', role: 'user' },
+      ]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 1, name: 'Admin', role: 'admin' },
+        { id: 2, name: 'Member', role: 'admin' },
+        { id: 3, name: 'Added member', role: 'user' },
+      ]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 1, name: 'Admin', role: 'admin' },
+        { id: 2, name: 'Member', role: 'admin' },
+      ]), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(CollaboratorOptions, { workspaceId: 81 }),
+        ),
+      );
+    });
+    await waitForText('Member');
+
+    const emitChange = async (change: 'added' | 'role_changed' | 'removed') => {
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent('workspace-members-changed', {
+          detail: { type: 'workspace_members_changed', workspaceId: 81, change },
+        }));
+      });
+    };
+
+    await emitChange('added');
+    await waitForText('Added member');
+    expect(host.textContent).toContain('Added member');
+
+    await emitChange('role_changed');
+    await vi.waitFor(() => expect(host.textContent).toContain('"role":"admin"'));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    await emitChange('removed');
+    await vi.waitFor(() => expect(host.textContent).not.toContain('Added member'));
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it('keeps collaborator results separate when switching back to a previous workspace', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 1, name: 'Space 81 collaborator' }]), { status: 200 }))

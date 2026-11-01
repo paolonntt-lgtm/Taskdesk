@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   notifyPermissionChanged,
+  notifyWorkspaceMembersChanged,
   subscribeToPermissionChanges,
 } from "./permissionEvents";
 
@@ -31,5 +32,23 @@ describe("permission change notifications", () => {
     notifyPermissionChanged(303);
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("delivers workspace-member changes only to the targeted user", () => {
+    const admin = vi.fn();
+    const unrelatedUser = vi.fn();
+    const unsubscribeAdmin = subscribeToPermissionChanges(404, admin);
+    const unsubscribeUnrelated = subscribeToPermissionChanges(505, unrelatedUser);
+
+    notifyWorkspaceMembersChanged(404, 81, "role_changed");
+    unsubscribeAdmin();
+    unsubscribeUnrelated();
+
+    expect(admin).toHaveBeenCalledWith({
+      type: "workspace_members_changed",
+      workspaceId: 81,
+      change: "role_changed",
+    });
+    expect(unrelatedUser).not.toHaveBeenCalled();
   });
 });

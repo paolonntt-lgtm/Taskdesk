@@ -346,7 +346,11 @@ describe("shared workspaces", () => {
     expect(acceptDirectInvite.status).toBe(201);
     await expect(adminPermissionEvent).resolves.toMatchObject({
       status: 200,
-      body: { type: "permissions_changed" },
+      body: {
+        type: "workspace_members_changed",
+        workspaceId,
+        change: "added",
+      },
     });
     const acceptedInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
     expect(acceptedInviteAssignees.cacheControl).toBe("no-store");
