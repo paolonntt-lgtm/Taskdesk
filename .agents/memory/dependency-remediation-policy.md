@@ -58,3 +58,12 @@ dependencies even when the lockfile and active consumer use the fixed release.
 
 **How to apply:** Follow the application's declared consumer chain for packages
 with peer variants, and only exercise legacy versions still in the lockfile.
+
+When a package publishes generated runtime entry files, patch the files selected
+by its `main` or `exports` metadata as well as its source file.
+
+**Why:** A local patch limited to `index.js` passed a misleading test against an
+inactive source entry while consumers loaded an unpatched CommonJS build.
+
+**How to apply:** Read the package manifest, resolve the real consumer entry,
+and test the advisory's regression through that entry before committing a patch.

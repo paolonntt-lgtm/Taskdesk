@@ -4,8 +4,9 @@ packages:
   - lib/integrations/*
   - scripts
 
-autoInstallPeers: false
 allowUnusedPatches: true
+
+autoInstallPeers: false
 
 catalog:
   '@replit/vite-plugin-cartographer': ^0.5.1
@@ -97,6 +98,7 @@ overrides:
   undici@>=6.0.0 <7: 6.28.1
   undici@>=7.0.0 <8: 7.29.1
   undici@>=8.0.0 <9: 8.12.3
+  zod@<4.6.6: 4.6.7
   uuid@<11.1.1: 11.1.1
   vite@>=7.0.0 <7.3.7: 7.3.7
   ws@>=6.0.0 <7: 6.2.6
@@ -106,7 +108,7 @@ overrides:
 
 patchedDependencies:
   braces@3.0.3: patches/braces@3.0.3.patch
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
   metro@0.83.3: patches/metro@0.83.3.patch
   metro@0.83.7: patches/metro@0.83.7.patch
-  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
   sprintf-js@1.0.3: patches/sprintf-js@1.0.3.patch

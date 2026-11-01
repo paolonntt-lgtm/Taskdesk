@@ -26,10 +26,21 @@ function consumerRequire(name, version) {
   return createRequire(path.join(store, installed, "node_modules", name, "package.json"));
 }
 
+function patchedPackageRequire(name, version) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedVersion = version.replaceAll(".", "\\.");
+  const match = lock.match(new RegExp(`^  ${escapedName}@${escapedVersion}\\(patch_hash=([^)]+)\\):`, "m"));
+  assert.ok(match, `Missing patched lockfile snapshot for ${name}@${version}`);
+  const installed = `${name.replaceAll("/", "+")}@${version}_patch_hash=${match[1]}`;
+  const packageJson = path.join(store, installed, "node_modules", name, "package.json");
+  assert.ok(readdirSync(store).includes(installed), `Missing patched package ${installed}`);
+  return createRequire(packageJson)(".");
+}
+
 const micromatch = consumerRequire("micromatch", "4.0.8")(".");
 const braces = consumerRequire("micromatch", "4.0.8")("braces");
 const forge = consumerRequire("@expo/code-signing-certificates", "0.0.6")("node-forge");
-const deepmerge = consumerRequire("html-to-text", "9.0.5")("deepmerge");
+const deepmerge = patchedPackageRequire("deepmerge", "4.3.1");
 // Old virtual-store directories can survive upgrades. Only test legacy
 // consumers when they remain in the current dependency graph.
 const hasLegacySprintf = lockedVersions("sprintf-js").includes("1.0.3");
@@ -154,7 +165,13 @@ test("node-forge accepts valid RSA signatures but rejects malformed DigestAlgori
 });
 
 test("deepmerge does not copy prototype-polluting keys into returned objects", () => {
-  for (const key of ["__proto__", "constructor", "prototype"]) {
+  const target = JSON.parse('{"__proto__":{"polluted":"yes"}}');
+  const mergedTarget = deepmerge(target, { safe: true });
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.equal(mergedTarget.polluted, undefined);
+  assert.equal(Object.getPrototypeOf(mergedTarget), Object.prototype);
+
+  for (const key of ["constructor", "prototype"]) {
     const source = JSON.parse(`{"${key}":{"polluted":"yes"}}`);
     const merged = deepmerge({}, source);
     assert.equal(Object.prototype.polluted, undefined);
