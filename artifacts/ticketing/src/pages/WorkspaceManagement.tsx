@@ -7,6 +7,7 @@ import {
 import { ContentCopy, EmailOutlined, LinkOff } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { trackEvent } from '../lib/analytics';
 
 type WorkspaceMember = {
   userId: number;
@@ -108,6 +109,7 @@ export default function WorkspaceManagement() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile creare lo spazio.' : 'Could not create workspace.'));
+      trackEvent('workspace_created', { kind: 'shared' });
       setWorkspaceName('');
       await switchWorkspace(data.workspace.id);
       setNotice(it ? 'Spazio creato. Puoi invitare collaboratori esterni da qui.' : 'Workspace created. You can invite external collaborators here.');
@@ -126,6 +128,9 @@ export default function WorkspaceManagement() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile creare l’invito.' : 'Could not create invitation.'));
+      trackEvent(data.emailSent ? 'workspace_invitation_sent' : 'workspace_member_added', {
+        role: inviteRole,
+      });
       setInviteEmail('');
       if (data.emailSent) {
         await loadInvitations();
@@ -202,6 +207,11 @@ export default function WorkspaceManagement() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile aggiornare il membro.' : 'Could not update member.'));
+      if (changes.remove) {
+        trackEvent('workspace_member_removed');
+      } else if (changes.role && changes.role !== member.role) {
+        trackEvent('workspace_member_role_changed', { role: changes.role });
+      }
       await loadMembers();
       if (changes.remove && member.userId === user?.id) await switchWorkspace(billingOrganizationId);
     } catch (reason: any) {
