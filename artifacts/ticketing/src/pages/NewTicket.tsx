@@ -18,6 +18,8 @@ import { trackEvent } from '../lib/analytics';
 import { buildNewTicketAssociations } from '../lib/newTicketAssociations';
 import { useWorkspaceCollaborators } from '../hooks/useWorkspaceCollaborators';
 
+import { scopeWorkspaceQueryKey } from '../lib/workspaceQueryScope';
+
 function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -82,11 +84,16 @@ export default function NewTicket() {
   const saveAttachment = useSaveTicketAttachment();
   const { data: existingTicket, isLoading: isLoadingEditTicket, isError: editTicketLoadError } = useGetTicket(
     isEditing ? editTicketId : 0,
-    { query: { enabled: isEditing } as any },
+    {
+      query: {
+        queryKey: scopeWorkspaceQueryKey(getGetTicketQueryKey(isEditing ? editTicketId : 0), activeWorkspaceId),
+        enabled: isEditing,
+      } as any,
+    },
   );
   const { data: users } = useWorkspaceCollaborators(activeWorkspaceId);
   const { data: organizationSettings } = useQuery<{ timeTrackingModuleEnabled?: boolean }>({
-    queryKey: ['organization-settings'],
+    queryKey: scopeWorkspaceQueryKey(['organization-settings'], activeWorkspaceId),
     queryFn: async () => {
       const response = await fetch('/api/settings/organization', { credentials: 'include' });
       if (!response.ok) throw new Error('Unable to load organization settings');
@@ -125,11 +132,13 @@ export default function NewTicket() {
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(new Date().getDate());
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
-  const { data: clientsList = [] } = useListClients();
+  const { data: clientsList = [] } = useListClients(undefined, {
+    query: { queryKey: scopeWorkspaceQueryKey(getListClientsQueryKey(), activeWorkspaceId) } as any,
+  });
   const hydratedTicketId = useRef<number | null>(null);
 
   const { data: workload = [] } = useQuery<{ id: number; name: string; open: number; total: number }[]>({
-    queryKey: ['assignee-workload'],
+    queryKey: scopeWorkspaceQueryKey(['assignee-workload'], activeWorkspaceId),
     queryFn: () => fetch('/api/stats/assignee-workload', { credentials: 'include' }).then(r => r.json()),
     staleTime: 30_000,
     enabled: currentUser?.role === 'admin',

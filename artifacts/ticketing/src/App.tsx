@@ -46,8 +46,10 @@ import TaskTrackHelp from "./pages/TaskTrackHelp";
 import AppHelp from "./pages/AppHelp";
 import TrialExpiredNotice from "./pages/TrialExpiredNotice";
 import { canAccessPersonalTimeReport } from "./lib/personalTimeReportAccess";
+import { hashWorkspaceQueryKey } from "./lib/workspaceQueryScope";
 
 let activeWorkspaceHeader: number | null = null;
+let activeWorkspaceCacheId: number | null = null;
 if (typeof window !== "undefined" && !(window as any).__taskdeskWorkspaceFetchPatched) {
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -170,6 +172,7 @@ const queryClient = new QueryClient({
       retry: false,
       refetchOnWindowFocus: true,
       staleTime: 30_000,
+      queryKeyHashFn: (queryKey) => hashWorkspaceQueryKey(queryKey, activeWorkspaceCacheId),
     },
   },
 });
@@ -211,6 +214,7 @@ function AppShell() {
 
   useEffect(() => {
     activeWorkspaceHeader = null;
+    activeWorkspaceCacheId = null;
     let cancelled = false;
     const loadUser = async () => {
       try {
@@ -219,19 +223,28 @@ function AppShell() {
         const homeUser = await response.json();
         if (cancelled) return;
         let activeUser = homeUser;
+        activeWorkspaceCacheId = homeUser.activeWorkspaceId ?? homeUser.organizationId ?? null;
         const saved = Number(localStorage.getItem(workspaceStorageKey(homeUser.id)));
         if (Number.isInteger(saved) && saved > 0 && saved !== homeUser.organizationId) {
           activeWorkspaceHeader = saved;
+          activeWorkspaceCacheId = saved;
           const contextualResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
           if (contextualResponse.ok) activeUser = await contextualResponse.json();
           else {
             activeWorkspaceHeader = null;
+            activeWorkspaceCacheId = homeUser.organizationId ?? null;
             localStorage.removeItem(workspaceStorageKey(homeUser.id));
           }
         }
-        if (!cancelled) setUser(activeUser);
+        if (!cancelled) {
+          activeWorkspaceCacheId = activeUser.activeWorkspaceId ?? activeUser.organizationId ?? null;
+          setUser(activeUser);
+        }
       } catch {
-        if (!cancelled) setUser(null);
+        if (!cancelled) {
+          activeWorkspaceCacheId = null;
+          setUser(null);
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -247,6 +260,7 @@ function AppShell() {
         let response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
         if (response.status === 403 && activeWorkspaceHeader !== null) {
           activeWorkspaceHeader = null;
+          activeWorkspaceCacheId = (user as any).billingOrganizationId ?? user.organizationId;
           try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
           qc.clear();
           response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
@@ -256,6 +270,7 @@ function AppShell() {
       getCurrentUser: () => userRef.current,
       setCurrentUser: (freshUser) => {
         const previous = userRef.current;
+        activeWorkspaceCacheId = (freshUser as any).activeWorkspaceId ?? freshUser.organizationId ?? null;
         userRef.current = freshUser;
         setUser(freshUser);
         if ((freshUser as any).activeWorkspaceId !== (previous as any)?.activeWorkspaceId) {
@@ -264,6 +279,7 @@ function AppShell() {
         }
       },
       onUnauthorized: () => {
+        activeWorkspaceCacheId = null;
         userRef.current = null;
         setUser(null);
         qc.clear();
@@ -362,22 +378,26 @@ function AppShell() {
       const workspaceId = Number(event.newValue);
       if (!Number.isInteger(workspaceId) || workspaceId < 1) return;
       activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
+      activeWorkspaceCacheId = workspaceId;
       qc.clear();
       void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
         .then(async (response) => {
           if (!response.ok) throw new Error("Workspace access changed");
           const freshUser = await response.json();
+          activeWorkspaceCacheId = (freshUser as any).activeWorkspaceId ?? freshUser.organizationId ?? null;
           userRef.current = freshUser;
           setUser(freshUser);
           setLocation("/");
         })
         .catch(() => {
           activeWorkspaceHeader = null;
+          activeWorkspaceCacheId = (user as any).billingOrganizationId ?? user.organizationId;
           try { localStorage.removeItem(key); } catch {}
           void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
             .then(async (response) => {
               if (!response.ok) return;
               const homeUser = await response.json();
+              activeWorkspaceCacheId = (homeUser as any).activeWorkspaceId ?? homeUser.organizationId ?? null;
               userRef.current = homeUser;
               setUser(homeUser);
               setLocation("/");
@@ -431,17 +451,24 @@ function AppShell() {
     qc.clear();
     activeWorkspaceHeader = null;
     let loggedInUser = body.user;
+    activeWorkspaceCacheId = (body.user as any).activeWorkspaceId ?? body.user.organizationId ?? null;
     try {
       const savedWorkspace = Number(localStorage.getItem(workspaceStorageKey(body.user.id)));
       if (Number.isInteger(savedWorkspace) && savedWorkspace > 0 && savedWorkspace !== body.user.organizationId) {
         activeWorkspaceHeader = savedWorkspace;
+        activeWorkspaceCacheId = savedWorkspace;
         const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
         if (response.ok) loggedInUser = await response.json();
-        else activeWorkspaceHeader = null;
+        else {
+          activeWorkspaceHeader = null;
+          activeWorkspaceCacheId = body.user.organizationId ?? null;
+        }
       }
     } catch {
       activeWorkspaceHeader = null;
+      activeWorkspaceCacheId = body.user.organizationId ?? null;
     }
+    activeWorkspaceCacheId = (loggedInUser as any).activeWorkspaceId ?? loggedInUser.organizationId ?? null;
     setUser(loggedInUser);
     trackEvent("login_succeeded", { method: "password" });
     setLocation("/");
@@ -453,26 +480,35 @@ function AppShell() {
     try { sessionStorage.removeItem('td_bot_open'); } catch { /* ignore */ }
     setUser(null);
     activeWorkspaceHeader = null;
+    activeWorkspaceCacheId = null;
     qc.clear();
     setLocation("/login");
   };
 
-  const updateUser = (updated: User) => setUser((prev) => prev ? { ...prev, ...updated } : updated);
+  const updateUser = (updated: User) => setUser((prev) => {
+    if (!prev) return updated;
+    const next = { ...prev, ...updated };
+    activeWorkspaceCacheId = (next as any).activeWorkspaceId ?? next.organizationId ?? null;
+    return next;
+  });
   const switchWorkspace = async (workspaceId: number) => {
     if (!user) return;
     const previousWorkspaceId = (user as any).activeWorkspaceId ?? user.organizationId;
     activeWorkspaceHeader = workspaceId === (user as any).billingOrganizationId ? null : workspaceId;
+    activeWorkspaceCacheId = workspaceId;
     try { localStorage.setItem(workspaceStorageKey(user.id), String(workspaceId)); } catch {}
     qc.clear();
     setLocation("/");
     const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
     if (!response.ok) {
       activeWorkspaceHeader = null;
+      activeWorkspaceCacheId = (user as any).billingOrganizationId ?? user.organizationId;
       try { localStorage.removeItem(workspaceStorageKey(user.id)); } catch {}
       qc.clear();
       const homeResponse = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
       if (homeResponse.ok) {
         const homeUser = await homeResponse.json();
+        activeWorkspaceCacheId = (homeUser as any).activeWorkspaceId ?? homeUser.organizationId ?? null;
         userRef.current = homeUser;
         setUser(homeUser);
         setLocation("/");
@@ -480,6 +516,7 @@ function AppShell() {
       throw new Error("Non hai accesso a questo spazio.");
     }
     const freshUser = await response.json();
+    activeWorkspaceCacheId = (freshUser as any).activeWorkspaceId ?? freshUser.organizationId ?? null;
     userRef.current = freshUser;
     setUser(freshUser);
   };

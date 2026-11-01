@@ -9,8 +9,8 @@ Targeted workspace invitations are emailed to the address saved on the selected 
 
 Resending a pending invitation must reuse its existing token and expiration without changing either; the email should state the actual saved expiration rather than imply a fresh seven-day period.
 
-Responses whose contents depend on the active workspace header, and private attachment downloads authorized against the active workspace, must not be cached by URL alone. The browser can otherwise reuse prior workspace data without asking the server to recheck access.
+Responses whose contents depend on the active workspace header, and private attachment downloads authorized against the active workspace, must not be cached by URL alone. React Query cache identities must also include the active workspace so late responses cannot be reused after switching.
 
-**Why:** The user requested external collaboration for additional organizations while keeping workspace switching distinct from workspace administration and preserving billing ownership.
+**Why:** Shared workspaces let one account see different data at the same endpoint URL; URL-only caching can reuse data without asking the server to recheck access.
 
-**How to apply:** Keep the workspace/tenant identity separate from the external-sharing setting. New workspaces can start private, and explicit invitations or links enable collaboration without moving accounts or billing seats. Use the billing owner organization for invitation email configuration because a newly created workspace may not have its own SMTP channel.
+**How to apply:** Keep the workspace/tenant identity separate from the external-sharing setting. Partition client query caches by active workspace and avoid URL-only caching for protected workspace responses and private attachment downloads. New workspaces can start private, and explicit invitations or links enable collaboration without moving accounts or billing seats. Use the billing owner organization for invitation email configuration because a newly created workspace may not have its own SMTP channel.
