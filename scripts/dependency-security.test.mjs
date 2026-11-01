@@ -29,6 +29,7 @@ function consumerRequire(name, version) {
 const micromatch = consumerRequire("micromatch", "4.0.8")(".");
 const braces = consumerRequire("micromatch", "4.0.8")("braces");
 const forge = consumerRequire("@expo/code-signing-certificates", "0.0.6")("node-forge");
+const deepmerge = consumerRequire("html-to-text", "9.0.5")("deepmerge");
 // Old virtual-store directories can survive upgrades. Only test legacy
 // consumers when they remain in the current dependency graph.
 const hasLegacySprintf = lockedVersions("sprintf-js").includes("1.0.3");
@@ -152,6 +153,16 @@ test("node-forge accepts valid RSA signatures but rejects malformed DigestAlgori
   }
 });
 
+test("deepmerge does not copy prototype-polluting keys into returned objects", () => {
+  for (const key of ["__proto__", "constructor", "prototype"]) {
+    const source = JSON.parse(`{"${key}":{"polluted":"yes"}}`);
+    const merged = deepmerge({}, source);
+    assert.equal(Object.prototype.polluted, undefined);
+    assert.equal(merged.polluted, undefined);
+    assert.equal(Object.getPrototypeOf(merged), Object.prototype);
+  }
+});
+
 test("Expo code signing still signs and verifies valid manifests", () => {
   const keyPair = forge.pki.rsa.generateKeyPair({ bits: 2048, e: 65537 });
   const certificate = expoCertificates.generateSelfSignedCodeSigningCertificate({
@@ -197,7 +208,7 @@ test("active Metro consumers can read image and non-image assets", async () => {
 
 test("security patches are tracked and all vulnerable consumers use patched snapshots", () => {
   const lock = readFileSync(path.join(root, "pnpm-lock.yaml"), "utf8");
-  for (const [name, version] of [["braces", "3.0.3"], ["node-forge", "1.4.0"], ["sprintf-js", "1.0.3"]]) {
+  for (const [name, version] of [["braces", "3.0.3"], ["deepmerge", "4.3.1"], ["sprintf-js", "1.0.3"]]) {
     assert.match(lock, new RegExp(`path: patches/${name}@${version.replaceAll(".", "\\.")}\\.patch`));
     const snapshots = lock.split("\nsnapshots:\n")[1];
     assert.ok(snapshots, "Lockfile must contain snapshots");

@@ -1,0 +1,15 @@
+diff --git a/index.js b/index.js
+index 0000000000000000000000000000000000000000..1111111111111111111111111111111111111111 100644
+--- a/index.js
++++ b/index.js
+@@ -49,6 +49,10 @@ function mergeObject(target, source, options) {
+   }
+   getKeys(source).forEach(function(key) {
++    // Never copy keys that can alter an object's prototype, even when the
++    // target has an own property with the same name.
++    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
++      return
++    }
+     if (propertyIsUnsafe(target, key)) {
+       return
+     }
