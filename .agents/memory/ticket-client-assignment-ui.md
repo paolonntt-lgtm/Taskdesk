@@ -3,8 +3,8 @@ name: Ticket client assignment UI
 description: Keep ordinary ticket-client changes in the edit form rather than an inline detail selector.
 ---
 
-Ticket details should display the associated client read-only. Users who need to add or change a client should use the ticket's Edit flow.
+Ticket details should display an assigned client read-only. Hide the client row for unassigned user-created tickets; users add or change a client through Edit.
 
-**Why:** The user explicitly prefers editing the ticket over seeing a client selector whenever they open its details.
+**Why:** The user prefers assigning clients through Edit and does not want “Client: Not assigned” shown on manually created tickets.
 
-**How to apply:** Keep ticket detail read-only for client assignment. Do not add inbound-email sender controls to the user-generated ticket flow; leave email matching to inbound-email processing.
+**How to apply:** Show a read-only client name when assigned. Hide the row when no client is set and the ticket has no inbound-email metadata. Do not add inbound-email sender controls to the user-generated ticket flow.

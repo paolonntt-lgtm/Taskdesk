@@ -1197,7 +1197,7 @@ export default function TicketDetail() {
             </Alert>
           )}
 
-          {clientsEnabled && (
+          {clientsEnabled && (selectedTicketClient || hasInboundEmailMetadata) && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minHeight: 32 }}>
                 <Typography variant="body2" color="text.secondary">
