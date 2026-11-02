@@ -231,6 +231,17 @@ describe("shared workspaces", () => {
     expect(inviteResponse.status).toBe(201);
     expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true, emailSent: true });
     expect(inviteResponse.body.inviteUrl).toBeUndefined();
+    const inviteNotificationText =
+      `Hai ricevuto un invito da Workspace Billing Admin a collaborare nello spazio condiviso Shared workspace ${runId}. Apri l'email per accettare l'invito.`;
+    const inviteeNotifications = await request("/api/notifications", externalUserSessionId);
+    expect(inviteeNotifications.status).toBe(200);
+    expect(inviteeNotifications.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        organizationId: externalOrganizationId,
+        notificationText: inviteNotificationText,
+        isRead: false,
+      }),
+    ]));
     const pendingInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
     expect(pendingInviteAssignees.cacheControl).toBe("no-store");
     expect(pendingInviteAssignees.body.map((user: { id: number }) => user.id)).toEqual([billingAdminId]);

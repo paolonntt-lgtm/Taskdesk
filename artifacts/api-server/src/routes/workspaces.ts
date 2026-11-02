@@ -223,6 +223,17 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       res.status(502).json({ error: "The invitation email could not be sent. No active invitation was created." });
       return;
     }
+    try {
+      await createNotificationForUser(
+        target.id,
+        null,
+        `Hai ricevuto un invito da ${user.name ?? "un amministratore"} a collaborare nello spazio condiviso ${workspace.name}. Apri l'email per accettare l'invito.`,
+        "system",
+        target.organizationId,
+      );
+    } catch (error) {
+      req.log.warn({ workspaceId, inviteeUserId: target.id, err: error }, "Workspace invite notification could not be created");
+    }
     res.status(201).json({
       expiresAt,
       pendingAcceptance: true,
