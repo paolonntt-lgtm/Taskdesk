@@ -5,6 +5,9 @@ interface NotificationItem {
   isRead: boolean;
   notificationText: string;
   ticketId?: number | null;
+  dailyReportId?: number | null;
+  organizationId?: number | null;
+  workspaceName?: string | null;
   type?: string | null;
 }
 
@@ -57,9 +60,9 @@ function buildNotificationTitle(type: string | null | undefined, ticketId?: numb
   return `${meta.emoji} ${label}${ticketPart}`;
 }
 
-function showBrowserNotification(item: NotificationItem) {
+function showBrowserNotification(item: NotificationItem, onClick?: () => void) {
   if (Notification.permission !== "granted") return;
-  const { notificationText, ticketId, type } = item;
+  const { notificationText, ticketId, type, workspaceName } = item;
 
   const title = buildNotificationTitle(type, ticketId);
   const meta = TYPE_META[type ?? "system"] ?? TYPE_META.system;
@@ -70,7 +73,7 @@ function showBrowserNotification(item: NotificationItem) {
     minute: "2-digit",
   });
 
-  const body = `${notificationText}\n${timeStr}`;
+  const body = `${workspaceName ? `${workspaceName}\n` : ""}${notificationText}\n${timeStr}`;
 
   const notif = new Notification(title, {
     body,
@@ -81,11 +84,15 @@ function showBrowserNotification(item: NotificationItem) {
     silent: false,
   });
 
-  if (ticketId) {
+  if (ticketId || item.dailyReportId) {
     notif.onclick = () => {
       window.focus();
+      if (onClick) {
+        onClick();
+        return;
+      }
       const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-      window.location.href = `${base}/tickets/${ticketId}`;
+      window.location.href = `${base}${ticketId ? `/tickets/${ticketId}` : `/daily-reports/${item.dailyReportId}`}`;
     };
   }
 }
@@ -101,10 +108,16 @@ function getPref(prefs: NotifPrefByType | undefined, type: string | null | undef
 export function useBrowserNotifications(
   notifications: NotificationItem[],
   enabled: boolean,
-  prefs?: NotifPrefByType
+  prefs?: NotifPrefByType,
+  onNotificationClick?: (notification: NotificationItem) => void | Promise<void>,
 ) {
   const seenIds = useRef<Set<number>>(new Set());
   const initialized = useRef(false);
+  const onNotificationClickRef = useRef(onNotificationClick);
+
+  useEffect(() => {
+    onNotificationClickRef.current = onNotificationClick;
+  }, [onNotificationClick]);
 
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return "denied";
@@ -132,7 +145,9 @@ export function useBrowserNotifications(
     newUnread.forEach((n) => {
       seenIds.current.add(n.id);
       if (getPref(prefs, n.type, "browser")) {
-        showBrowserNotification(n);
+        showBrowserNotification(n, () => {
+          void onNotificationClickRef.current?.(n);
+        });
       }
       if (getPref(prefs, n.type, "sound")) {
         anySound = true;

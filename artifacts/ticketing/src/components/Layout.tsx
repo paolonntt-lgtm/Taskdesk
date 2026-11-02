@@ -496,13 +496,6 @@ export default function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener('notif-prefs-updated', h);
   }, [loadPrefs]);
 
-  const { requestPermission: requestBrowserPermission } = useBrowserNotifications(notifications as any[], !!user, notifPrefs);
-
-  const handleRequestPermission = useCallback(async () => {
-    const result = await requestBrowserPermission();
-    setNotifPermission(result as NotificationPermission);
-  }, [requestBrowserPermission]);
-
   useEffect(() => {
     if (typeof Notification !== 'undefined') {
       setNotifPermission(Notification.permission);
@@ -537,6 +530,11 @@ export default function Layout({ children }: LayoutProps) {
   const workspaces = ((user as any)?.workspaces ?? []) as Array<{ id: number; name: string; role: string; isSharedWorkspace?: boolean }>;
   const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
   const billingOrganizationId = (user as any)?.billingOrganizationId ?? user?.organizationId;
+  const getNotificationWorkspaceName = (notification: any) =>
+    notification.workspaceName ??
+    workspaces.find((workspace) =>
+      workspace.id === (notification.organizationId ?? billingOrganizationId),
+    )?.name;
   const canCreateWorkspace =
     user?.role === 'admin' &&
     activeWorkspaceId === billingOrganizationId &&
@@ -585,8 +583,19 @@ export default function Layout({ children }: LayoutProps) {
     handleMenuClose();
   };
   const handleNotificationClick = async (notification: any) => {
-    if (notification.organizationId && notification.organizationId !== activeWorkspaceId) {
-      await switchWorkspace(notification.organizationId);
+    const hasDestination = Boolean(notification.ticketId || notification.dailyReportId);
+    const destinationWorkspaceId = notification.organizationId ?? billingOrganizationId;
+    if (
+      hasDestination &&
+      destinationWorkspaceId != null &&
+      destinationWorkspaceId !== activeWorkspaceId
+    ) {
+      try {
+        await switchWorkspace(destinationWorkspaceId);
+      } catch {
+        handleMenuClose();
+        return;
+      }
     }
     if (!notification.isRead) {
       markNotificationRead.mutate({ id: notification.id }, {
@@ -602,6 +611,16 @@ export default function Layout({ children }: LayoutProps) {
     if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
+  const { requestPermission: requestBrowserPermission } = useBrowserNotifications(
+    notifications as any[],
+    !!user,
+    notifPrefs,
+    handleNotificationClick,
+  );
+  const handleRequestPermission = useCallback(async () => {
+    const result = await requestBrowserPermission();
+    setNotifPermission(result as NotificationPermission);
+  }, [requestBrowserPermission]);
   const handleAcceptWorkspaceInvite = async (notification: any) => {
     if (!notification.workspaceInviteToken || acceptingInviteNotificationId !== null || rejectingInviteNotificationId !== null) return;
     setAcceptingInviteNotificationId(notification.id);
@@ -1221,6 +1240,21 @@ export default function Layout({ children }: LayoutProps) {
                         >
                           {(t.nav.notifTypes as any)[ntype] ?? ntype}
                         </Typography>
+                        {getNotificationWorkspaceName(notification) && (
+                          <Chip
+                            icon={<Business sx={{ fontSize: '13px !important' }} />}
+                            label={getNotificationWorkspaceName(notification)}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              height: 21,
+                              maxWidth: '100%',
+                              mb: 0.65,
+                              '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+                              '& .MuiChip-icon': { ml: 0.65 },
+                            }}
+                          />
+                        )}
                         <Typography variant="body2" sx={{ lineHeight: 1.45, fontWeight: notification.isRead ? 500 : 700, overflowWrap: 'anywhere' }}>
                           {notification.notificationText}
                         </Typography>

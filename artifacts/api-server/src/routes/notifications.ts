@@ -6,10 +6,41 @@ import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
+function getNotificationWorkspaceAccess(currentUser: any) {
+  const workspaces = Array.isArray(currentUser.workspaces) ? currentUser.workspaces : [];
+  const workspaceIds = workspaces
+    .map((workspace: any) => Number(workspace.id))
+    .filter((id: number) => Number.isInteger(id) && id > 0);
+  const homeOrganizationId = currentUser.billingOrganizationId ?? currentUser.organizationId ?? null;
+  const workspaceRoles = new Map<number, string>(
+    workspaces.map((workspace: any) => [Number(workspace.id), workspace.role]),
+  );
+  const canSeeHomeWorkspace = homeOrganizationId != null && workspaceIds.includes(homeOrganizationId);
+  const scope = workspaceIds.length === 0
+    ? eq(notificationsTable.id, -1)
+    : canSeeHomeWorkspace
+      ? or(inArray(notificationsTable.organizationId, workspaceIds), isNull(notificationsTable.organizationId))
+      : inArray(notificationsTable.organizationId, workspaceIds);
+
+  return { workspaceIds, homeOrganizationId, workspaceRoles, workspaces, scope };
+}
+
+function canViewNotification(
+  notification: { organizationId: number | null; ticketId: number | null; ticketVisibility: string | null },
+  workspaceRoles: Map<number, string>,
+  homeOrganizationId: number | null,
+): boolean {
+  if (notification.ticketId == null || notification.ticketVisibility !== "admins") return true;
+  const workspaceId = notification.organizationId ?? homeOrganizationId;
+  return workspaceId != null && workspaceRoles.get(workspaceId) === "admin";
+}
+
 router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
+  const { workspaceIds, homeOrganizationId, workspaceRoles, workspaces, scope } =
+    getNotificationWorkspaceAccess(currentUser);
 
-  const notifications = await db
+  const rows = await db
     .select({
       id: notificationsTable.id,
       userId: notificationsTable.userId,
@@ -18,6 +49,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
       dailyReportId: notificationsTable.dailyReportId,
       workspaceInviteToken: workspaceInviteTokensTable.token,
       ticketNumber: ticketsTable.ticketNumber,
+      ticketVisibility: ticketsTable.visibility,
       type: notificationsTable.type,
       notificationText: notificationsTable.notificationText,
       isRead: notificationsTable.isRead,
@@ -34,20 +66,19 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     ))
     .where(and(
       eq(notificationsTable.userId, currentUser.id),
-      or(
-        eq(notificationsTable.organizationId, currentUser.organizationId),
-        currentUser.organizationId === currentUser.billingOrganizationId
-          ? isNull(notificationsTable.organizationId)
-          : undefined,
-      ),
-      currentUser.role === "admin"
-        ? undefined
-        : or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
+      scope,
     ))
     .orderBy(desc(notificationsTable.createdAt));
 
+  const notifications = rows.filter((notification) =>
+    canViewNotification(notification, workspaceRoles, homeOrganizationId),
+  );
+  const workspaceNameById = new Map<number, string>(
+    workspaces.map((workspace: any) => [Number(workspace.id), workspace.name]),
+  );
   const pendingInvites = await db.select({
     token: workspaceInviteTokensTable.token,
+    workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
     workspaceName: organizationsTable.name,
   }).from(workspaceInviteTokensTable)
     .innerJoin(organizationsTable, eq(organizationsTable.id, workspaceInviteTokensTable.workspaceOrganizationId))
@@ -58,25 +89,30 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
       gt(workspaceInviteTokensTable.expiresAt, new Date()),
     ))
     .orderBy(desc(workspaceInviteTokensTable.id));
-  const notificationsWithInvites = notifications.map((notification) => {
-    if (notification.workspaceInviteToken || notification.type !== "system" ||
-        !/\b(invito|invitation)\b/i.test(notification.notificationText)) {
-      return notification;
-    }
-    const matches = pendingInvites.filter(({ workspaceName }) => notification.notificationText.includes(workspaceName));
-    return matches.length > 0
-      ? { ...notification, workspaceInviteToken: matches[0].token }
-      : notification;
+  const notificationsWithWorkspaces = notifications.map((notification) => {
+    const invite = pendingInvites.find(({ token }) => token === notification.workspaceInviteToken) ??
+      (!notification.workspaceInviteToken && notification.type === "system" &&
+        /\b(invito|invitation)\b/i.test(notification.notificationText)
+        ? pendingInvites.find(({ workspaceName }) => notification.notificationText.includes(workspaceName))
+        : undefined);
+    const { ticketVisibility: _ticketVisibility, ...visibleNotification } = notification;
+    const workspaceId = invite?.workspaceId ?? notification.organizationId ?? homeOrganizationId;
+    return {
+      ...visibleNotification,
+      workspaceInviteToken: invite?.token ?? notification.workspaceInviteToken,
+      workspaceName: invite?.workspaceName ?? (workspaceId == null ? null : workspaceNameById.get(workspaceId) ?? null),
+    };
   });
 
   res.setHeader("Cache-Control", "no-cache, private");
-  res.json(notificationsWithInvites);
+  res.json(notificationsWithWorkspaces);
 });
 
 router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
+  const { homeOrganizationId, workspaceRoles, scope } = getNotificationWorkspaceAccess(currentUser);
 
   if (!Number.isInteger(id) || id < 1) {
     res.status(404).json({ error: "Notification not found" });
@@ -86,18 +122,18 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   const [ownedNotification] = await db
     .select({
       id: notificationsTable.id,
+      organizationId: notificationsTable.organizationId,
+      ticketId: notificationsTable.ticketId,
       ticketVisibility: ticketsTable.visibility,
     })
     .from(notificationsTable)
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
-      or(eq(notificationsTable.organizationId, currentUser.organizationId),
-        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id), scope))
     .limit(1);
 
   if (
     !ownedNotification ||
-    (currentUser.role !== "admin" && ownedNotification.ticketVisibility === "admins")
+    !canViewNotification(ownedNotification, workspaceRoles, homeOrganizationId)
   ) {
     res.status(404).json({ error: "Notification not found" });
     return;
@@ -106,9 +142,7 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   const [notification] = await db
     .update(notificationsTable)
     .set({ isRead: true })
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
-      or(eq(notificationsTable.organizationId, currentUser.organizationId),
-        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id), scope))
     .returning();
 
   if (!notification) {
@@ -123,6 +157,7 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const currentUser = (req as any).currentUser;
+  const { homeOrganizationId, workspaceRoles, scope } = getNotificationWorkspaceAccess(currentUser);
 
   if (!Number.isInteger(id) || id < 1) {
     res.status(404).json({ error: "Notification not found" });
@@ -132,18 +167,18 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
   const [ownedNotification] = await db
     .select({
       id: notificationsTable.id,
+      organizationId: notificationsTable.organizationId,
+      ticketId: notificationsTable.ticketId,
       ticketVisibility: ticketsTable.visibility,
     })
     .from(notificationsTable)
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
-      or(eq(notificationsTable.organizationId, currentUser.organizationId),
-        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id), scope))
     .limit(1);
 
   if (
     !ownedNotification ||
-    (currentUser.role !== "admin" && ownedNotification.ticketVisibility === "admins")
+    !canViewNotification(ownedNotification, workspaceRoles, homeOrganizationId)
   ) {
     res.status(404).json({ error: "Notification not found" });
     return;
@@ -152,9 +187,7 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
   const [notification] = await db
     .update(notificationsTable)
     .set({ isRead: false })
-    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id),
-      or(eq(notificationsTable.organizationId, currentUser.organizationId),
-        currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, currentUser.id), scope))
     .returning();
 
   if (!notification) {
@@ -167,35 +200,34 @@ router.patch("/notifications/:id/unread", requireAuth, async (req, res): Promise
 
 router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
+  const { homeOrganizationId, workspaceRoles, scope } = getNotificationWorkspaceAccess(currentUser);
+  const unreadNotifications = await db
+    .select({
+      id: notificationsTable.id,
+      organizationId: notificationsTable.organizationId,
+      ticketId: notificationsTable.ticketId,
+      ticketVisibility: ticketsTable.visibility,
+    })
+    .from(notificationsTable)
+    .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+    .where(and(
+      eq(notificationsTable.userId, currentUser.id),
+      eq(notificationsTable.isRead, false),
+      scope,
+    ));
+  const visibleIds = unreadNotifications
+    .filter((notification) => canViewNotification(notification, workspaceRoles, homeOrganizationId))
+    .map(({ id }) => id);
 
-  if (currentUser.role === "admin") {
+  if (visibleIds.length > 0) {
     await db
       .update(notificationsTable)
       .set({ isRead: true })
-      .where(and(eq(notificationsTable.userId, currentUser.id), eq(notificationsTable.isRead, false),
-        or(eq(notificationsTable.organizationId, currentUser.organizationId),
-          currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)));
-  } else {
-    const visibleNotifications = await db
-      .select({ id: notificationsTable.id })
-      .from(notificationsTable)
-      .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
       .where(and(
         eq(notificationsTable.userId, currentUser.id),
-        eq(notificationsTable.isRead, false),
-        or(eq(notificationsTable.organizationId, currentUser.organizationId),
-          currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined),
-        or(isNull(notificationsTable.ticketId), eq(ticketsTable.visibility, "organization")),
+        inArray(notificationsTable.id, visibleIds),
+        scope,
       ));
-
-    if (visibleNotifications.length > 0) {
-      await db
-        .update(notificationsTable)
-        .set({ isRead: true })
-        .where(and(inArray(notificationsTable.id, visibleNotifications.map(({ id }) => id)),
-          or(eq(notificationsTable.organizationId, currentUser.organizationId),
-            currentUser.organizationId === currentUser.billingOrganizationId ? isNull(notificationsTable.organizationId) : undefined)));
-    }
   }
 
   res.json({ success: true, message: "Tutte le notifiche marcate come lette" });

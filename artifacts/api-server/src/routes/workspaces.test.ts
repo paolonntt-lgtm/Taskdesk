@@ -457,6 +457,53 @@ describe("shared workspaces", () => {
       workspaceInviteToken: null,
       notificationText: `Hai accettato l'invito allo spazio condiviso Shared workspace ${runId}.`,
     });
+    const [sharedWorkspaceNotification] = await db.insert(notificationsTable).values({
+      userId: externalUserId,
+      organizationId: workspaceId,
+      type: "ticket_commented",
+      notificationText: `Shared workspace activity ${runId}`,
+      isRead: false,
+    }).returning({ id: notificationsTable.id });
+    const [inaccessibleWorkspaceNotification] = await db.insert(notificationsTable).values({
+      userId: externalUserId,
+      organizationId: billingOrganizationId,
+      type: "system",
+      notificationText: `Unrelated workspace activity ${runId}`,
+      isRead: false,
+    }).returning({ id: notificationsTable.id });
+    const aggregatedNotifications = await request("/api/notifications", externalUserSessionId);
+    expect(aggregatedNotifications.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: sharedWorkspaceNotification.id,
+        organizationId: workspaceId,
+        workspaceName: `Shared workspace ${runId}`,
+      }),
+    ]));
+    expect(aggregatedNotifications.body).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: inaccessibleWorkspaceNotification.id }),
+    ]));
+    expect((await request(
+      `/api/notifications/${sharedWorkspaceNotification.id}/read`,
+      externalUserSessionId,
+      undefined,
+      { method: "PATCH" },
+    )).status).toBe(200);
+    expect((await request(
+      `/api/notifications/${inaccessibleWorkspaceNotification.id}/read`,
+      externalUserSessionId,
+      undefined,
+      { method: "PATCH" },
+    )).status).toBe(404);
+    expect((await request(
+      "/api/notifications/read-all",
+      externalUserSessionId,
+      undefined,
+      { method: "PATCH" },
+    )).status).toBe(200);
+    const afterGlobalReadAll = await request("/api/notifications", externalUserSessionId);
+    expect(afterGlobalReadAll.body.find(
+      (notification: { id: number }) => notification.id === sharedWorkspaceNotification.id,
+    )?.isRead).toBe(true);
     await expect(adminPermissionEvent).resolves.toMatchObject({
       status: 200,
       body: {
