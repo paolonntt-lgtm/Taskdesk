@@ -60,7 +60,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     .orderBy(desc(workspaceInviteTokensTable.id));
   const notificationsWithInvites = notifications.map((notification) => {
     if (notification.workspaceInviteToken || notification.type !== "system" ||
-        !notification.notificationText.startsWith("Hai ricevuto un invito da ")) {
+        !/\b(invito|invitation)\b/i.test(notification.notificationText)) {
       return notification;
     }
     const matches = pendingInvites.filter(({ workspaceName }) => notification.notificationText.includes(workspaceName));

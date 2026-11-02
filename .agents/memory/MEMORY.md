@@ -68,3 +68,4 @@
 - [API workflow port conflicts](api-workflow-port-conflict.md) — A failed managed API restart may leave an older dev server listening on port 8080.
 - [Shared workspace billing](shared-workspace-billing.md) — Membership and workspace roles stay separate from the account’s home billing owner and seat count.
 - [Shared workspace collaboration](shared-workspace-collaboration.md) — Additional workspaces can be shared externally by invitation; the switcher only changes workspace.
+- [Workspace invite notification actions](workspace-invite-notification-actions.md) — Tie actions to active invite records; never detect invitations using one localized sentence.

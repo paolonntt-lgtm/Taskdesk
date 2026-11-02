@@ -15,6 +15,13 @@ import { buildWorkspaceInviteEmail, sendEmailForOrg } from "../lib/email";
 
 const router: IRouter = Router();
 
+function inviteNotificationForWorkspace(workspaceName: string) {
+  return or(
+    sql`${notificationsTable.notificationText} ILIKE ${`%invito%${workspaceName}%`}`,
+    sql`${notificationsTable.notificationText} ILIKE ${`%invitation%${workspaceName}%`}`,
+  );
+}
+
 async function notifyWorkspaceAdminsOfMemberChange(
   workspaceId: number,
   change: "added" | "removed" | "role_changed",
@@ -609,7 +616,6 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     return;
   }
   if (membership) {
-    const invitationTextPattern = `Hai ricevuto un invito da % a collaborare nello spazio condiviso ${workspace.name}.%`;
     await db.update(notificationsTable).set({
       isRead: true,
       notificationText: `Hai accettato l'invito allo spazio condiviso ${workspace.name}.`,
@@ -617,7 +623,7 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
       eq(notificationsTable.userId, user.id),
       or(
         eq(notificationsTable.workspaceInviteId, invite.id),
-        sql`${notificationsTable.notificationText} LIKE ${invitationTextPattern}`,
+        inviteNotificationForWorkspace(workspace.name),
       ),
     ));
     notifyPermissionChanged(user.id);
@@ -679,9 +685,6 @@ router.post("/workspace-invites/:token/reject", requireAuth, requireSameOrigin, 
     ));
   const [workspace] = await db.select({ name: organizationsTable.name }).from(organizationsTable)
     .where(eq(organizationsTable.id, invite.workspaceOrganizationId));
-  const invitationTextPattern = workspace
-    ? `Hai ricevuto un invito da % a collaborare nello spazio condiviso ${workspace.name}.%`
-    : undefined;
   await db.update(notificationsTable).set({
     isRead: true,
     notificationText: `Hai rifiutato l'invito allo spazio condiviso ${workspace?.name ?? ""}.`.trim(),
@@ -689,9 +692,7 @@ router.post("/workspace-invites/:token/reject", requireAuth, requireSameOrigin, 
     eq(notificationsTable.userId, user.id),
     or(
       eq(notificationsTable.workspaceInviteId, invite.id),
-      invitationTextPattern
-        ? sql`${notificationsTable.notificationText} LIKE ${invitationTextPattern}`
-        : undefined,
+      workspace ? inviteNotificationForWorkspace(workspace.name) : undefined,
     ),
   ));
   res.json({ rejected: true });

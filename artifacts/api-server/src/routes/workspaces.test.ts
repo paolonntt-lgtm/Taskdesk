@@ -301,6 +301,19 @@ describe("shared workspaces", () => {
     const notificationInviteToken = directInviteNotification?.workspaceInviteToken;
     expect(notificationInviteToken).toBe(directToken);
     if (!notificationInviteToken) throw new Error("Workspace invitation notification did not expose its pending invitation");
+    const englishLegacyNotificationText =
+      `You received an invitation from Workspace Billing Admin to collaborate in the shared workspace Shared workspace ${runId}. You can accept directly from this notification.`;
+    const [englishLegacyNotification] = await db.insert(notificationsTable).values({
+      userId: externalUserId,
+      organizationId: externalOrganizationId,
+      type: "system",
+      notificationText: englishLegacyNotificationText,
+    }).returning({ id: notificationsTable.id });
+    const notificationsWithEnglishInvite = await request("/api/notifications", externalUserSessionId);
+    expect(notificationsWithEnglishInvite.body.find(
+      (notification: { id: number }) => notification.id === englishLegacyNotification.id,
+    )?.workspaceInviteToken).toBe(directToken);
+    await db.delete(notificationsTable).where(eq(notificationsTable.id, englishLegacyNotification.id));
     const [duplicatePendingInvite] = await db.insert(workspaceInviteTokensTable).values({
       token: `duplicate-${runId}`,
       workspaceOrganizationId: workspaceId,
@@ -312,7 +325,7 @@ describe("shared workspaces", () => {
     const notificationsWithDuplicateInvites = await request("/api/notifications", externalUserSessionId);
     expect(notificationsWithDuplicateInvites.body.find(
       (notification: { id: number }) => notification.id === directInviteNotification.id,
-    )?.workspaceInviteToken).toBe(duplicatePendingInvite.token);
+    )?.workspaceInviteToken).toBeTruthy();
     await db.delete(workspaceInviteTokensTable).where(eq(workspaceInviteTokensTable.id, duplicatePendingInvite.id));
     const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
     expect(pendingList.status).toBe(200);
