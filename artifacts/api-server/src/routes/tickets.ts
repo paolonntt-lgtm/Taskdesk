@@ -2494,6 +2494,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   const activityLogs: Array<{ actionType: string; actionDescription: string }> = [];
 
   let statusChangeLabel: string | undefined;
+  let statusChangeLocalizedLabels: { it?: string | null; en?: string | null } | undefined;
 
   let newIsClosed = false;
 
@@ -2509,10 +2510,16 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     let newLabel = fallbackLabels[updates.status] ?? updates.status;
     newIsClosed = updates.status === "closed" || updates.status === "resolved";
 
-    let orgStatuses: { key: string; label: string; isClosed: boolean }[] = [];
+    let orgStatuses: { key: string; label: string; labelIt: string | null; labelEn: string | null; isClosed: boolean }[] = [];
     if (orgId != null) {
       orgStatuses = await db
-        .select({ key: ticketStatusesTable.key, label: ticketStatusesTable.label, isClosed: ticketStatusesTable.isClosed })
+        .select({
+          key: ticketStatusesTable.key,
+          label: ticketStatusesTable.label,
+          labelIt: ticketStatusesTable.labelIt,
+          labelEn: ticketStatusesTable.labelEn,
+          isClosed: ticketStatusesTable.isClosed,
+        })
         .from(ticketStatusesTable)
         .where(eq(ticketStatusesTable.organizationId, orgId));
       const statusMap = new Map(orgStatuses.map((s) => [s.key, s]));
@@ -2607,6 +2614,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
 ;
 
         newLabel = newStatusRow.label
+        statusChangeLocalizedLabels = { it: newStatusRow.labelIt, en: newStatusRow.labelEn }
 ;
 
         newIsClosed = newStatusRow.isClosed
@@ -3531,6 +3539,7 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
       actorName: currentUser.name,
       ticketNumber: displayNum,
       status: notifLabel,
+      statusLabels: statusChangeLocalizedLabels,
       ticketTitle: existing.title,
     }, currentUser.id, "ticket_status_changed", orgId)
 ;

@@ -403,6 +403,8 @@ function TicketStatusesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TicketStatus | null>(null);
   const [formLabel, setFormLabel] = useState('');
+  const [formLabelIt, setFormLabelIt] = useState('');
+  const [formLabelEn, setFormLabelEn] = useState('');
   const [formColor, setFormColor] = useState('#1976d2');
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formIsClosed, setFormIsClosed] = useState(false);
@@ -420,6 +422,8 @@ function TicketStatusesTab() {
   const openAdd = () => {
     setEditTarget(null);
     setFormLabel('');
+    setFormLabelIt('');
+    setFormLabelEn('');
     setFormColor('#1976d2');
     setFormIsDefault(false);
     setFormIsClosed(false);
@@ -430,6 +434,8 @@ function TicketStatusesTab() {
   const openEdit = (s: TicketStatus) => {
     setEditTarget(s);
     setFormLabel(s.label);
+    setFormLabelIt(s.labelIt ?? '');
+    setFormLabelEn(s.labelEn ?? '');
     setFormColor(s.color ?? '#1976d2');
     setFormIsDefault(s.isDefault);
     setFormIsClosed(s.isClosed);
@@ -442,7 +448,14 @@ function TicketStatusesTab() {
     setSaving(true);
     setFormError(null);
     try {
-      const body = { label: formLabel.trim(), color: formColor, isDefault: formIsDefault, isClosed: formIsClosed };
+      const body = {
+        label: formLabel.trim(),
+        labelIt: formLabelIt.trim() || null,
+        labelEn: formLabelEn.trim() || null,
+        color: formColor,
+        isDefault: formIsDefault,
+        isClosed: formIsClosed,
+      };
       const url = editTarget ? `/api/settings/ticket-statuses/${editTarget.id}` : '/api/settings/ticket-statuses';
       const method = editTarget ? 'PUT' : 'POST';
       const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -540,6 +553,18 @@ function TicketStatusesTab() {
               value={formLabel}
               onChange={(e) => setFormLabel(e.target.value)}
               size="small" fullWidth autoFocus
+            />
+            <TextField
+              label={ts.labelItField}
+              value={formLabelIt}
+              onChange={(e) => setFormLabelIt(e.target.value)}
+              size="small" fullWidth
+            />
+            <TextField
+              label={ts.labelEnField}
+              value={formLabelEn}
+              onChange={(e) => setFormLabelEn(e.target.value)}
+              size="small" fullWidth
             />
             <Box>
               <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>{ts.colorField}</Typography>

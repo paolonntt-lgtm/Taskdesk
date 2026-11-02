@@ -5,6 +5,8 @@ export interface TicketStatus {
   organizationId: number;
   key: string;
   label: string;
+  labelIt: string | null;
+  labelEn: string | null;
   color: string | null;
   sortOrder: number;
   isDefault: boolean;

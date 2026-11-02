@@ -19,6 +19,17 @@ function slugify(label: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function normalizeLocalizedLabel(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  return value.trim() || null;
+}
+
+function hasInvalidLocalizedLabel(value: unknown): boolean {
+  return value !== undefined && value !== null && typeof value !== "string";
+}
+
 router.get("/settings/ticket-statuses", requireAuth, async (req, res): Promise<void> => {
   const currentUser = (req as any).currentUser;
   const orgId = currentUser.organizationId;
@@ -88,9 +99,13 @@ router.post("/settings/ticket-statuses", requireAuth, requireAdmin, async (req, 
     return;
   }
 
-  const { label, color, isDefault, isClosed } = req.body ?? {};
+  const { label, color, isDefault, isClosed, labelIt, labelEn } = req.body ?? {};
   if (!label || typeof label !== "string" || !label.trim()) {
     res.status(400).json({ error: "Label is required" });
+    return;
+  }
+  if (hasInvalidLocalizedLabel(labelIt) || hasInvalidLocalizedLabel(labelEn)) {
+    res.status(400).json({ error: "Localized labels must be strings or null" });
     return;
   }
 
@@ -121,6 +136,8 @@ router.post("/settings/ticket-statuses", requireAuth, requireAdmin, async (req, 
     organizationId: orgId,
     key,
     label: label.trim(),
+    labelIt: normalizeLocalizedLabel(labelIt) ?? null,
+    labelEn: normalizeLocalizedLabel(labelEn) ?? null,
     color: color ?? null,
     sortOrder: nextOrder,
     isDefault: isDefault === true,
@@ -150,13 +167,19 @@ router.put("/settings/ticket-statuses/:id", requireAuth, requireAdmin, async (re
     return;
   }
 
-  const { label, color, isDefault, isClosed, sortOrder } = req.body ?? {};
+  const { label, color, isDefault, isClosed, sortOrder, labelIt, labelEn } = req.body ?? {};
+  if (hasInvalidLocalizedLabel(labelIt) || hasInvalidLocalizedLabel(labelEn)) {
+    res.status(400).json({ error: "Localized labels must be strings or null" });
+    return;
+  }
 
   const updates: Record<string, unknown> = {};
   if (label !== undefined && typeof label === "string" && label.trim()) {
     updates.label = label.trim();
   }
   if (color !== undefined) updates.color = color ?? null;
+  if (labelIt !== undefined) updates.labelIt = normalizeLocalizedLabel(labelIt);
+  if (labelEn !== undefined) updates.labelEn = normalizeLocalizedLabel(labelEn);
   if (sortOrder !== undefined && typeof sortOrder === "number") updates.sortOrder = sortOrder;
   if (isClosed !== undefined) updates.isClosed = isClosed === true;
 

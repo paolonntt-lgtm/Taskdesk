@@ -4,6 +4,13 @@ import { logger } from "./logger";
 export async function runAppMigrations(): Promise<void> {
   const client = await pool.connect();
   try {
+    // Optional localized labels for custom ticket statuses.
+    await client.query(`
+      ALTER TABLE ticket_statuses
+        ADD COLUMN IF NOT EXISTS label_it TEXT,
+        ADD COLUMN IF NOT EXISTS label_en TEXT;
+    `);
+
     // Add ticket_number column if it doesn't exist
     await client.query(`
       ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_number INTEGER;

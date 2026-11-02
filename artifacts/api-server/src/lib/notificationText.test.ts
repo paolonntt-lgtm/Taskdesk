@@ -35,6 +35,26 @@ describe("renderNotificationText", () => {
     }, "en")).toBe('Alex changed the priority of ticket #42 to "Urgent": "Printer offline"');
   });
 
+  it("uses custom status labels for each recipient and falls back to the configured label", () => {
+    const content: NotificationContent = {
+      key: "ticket_status_changed",
+      actorName: "Alex",
+      ticketNumber: 42,
+      status: "In revisione",
+      statusLabels: { it: "Da verificare", en: "Under review" },
+      ticketTitle: "Printer offline",
+    };
+
+    expect(renderNotificationText(content, "it"))
+      .toBe('Alex ha cambiato lo stato del ticket #42 in "Da verificare": "Printer offline"');
+    expect(renderNotificationText(content, "en"))
+      .toBe('Alex changed the status of ticket #42 to "Under review": "Printer offline"');
+
+    const withoutEnglishLabel = { ...content, statusLabels: { it: "Da verificare" } };
+    expect(renderNotificationText(withoutEnglishLabel, "en"))
+      .toBe('Alex changed the status of ticket #42 to "In revisione": "Printer offline"');
+  });
+
   it.each([
     [
       { key: "ticket_assigned_to_group", actorName: "Alex", ticketNumber: 42, groupName: "Support", ticketTitle: "Printer offline" },

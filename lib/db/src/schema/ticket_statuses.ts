@@ -6,6 +6,8 @@ export const ticketStatusesTable = pgTable("ticket_statuses", {
   organizationId: integer("organization_id").notNull().references(() => organizationsTable.id),
   key: text("key").notNull(),
   label: text("label").notNull(),
+  labelIt: text("label_it"),
+  labelEn: text("label_en"),
   color: text("color"),
   sortOrder: integer("sort_order").notNull().default(0),
   isDefault: boolean("is_default").notNull().default(false),

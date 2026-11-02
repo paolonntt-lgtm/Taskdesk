@@ -117,17 +117,19 @@ describe("push notification localization", () => {
     mocks.fetch.mockResolvedValue({ ok: true });
   });
 
-  it("sends each recipient their language in one Expo broadcast, matching the in-app text", async () => {
+  it("renders a custom status in each recipient language for push and in-app notifications", async () => {
     await createNotificationsForOrg(
       5,
       99,
       {
-        key: "ticket_assigned",
+        key: "ticket_status_changed",
         actorName: "Alex",
         ticketNumber: 42,
+        status: "In revisione",
+        statusLabels: { it: "Da verificare", en: "Under review" },
         ticketTitle: "Printer offline",
       },
-      "ticket_assigned",
+      "ticket_status_changed",
       42,
     );
 
@@ -144,14 +146,14 @@ describe("push notification localization", () => {
         to: "expo-token-it",
         sound: "default",
         title: "TaskDesk",
-        body: 'Alex ti ha assegnato il ticket #42: "Printer offline"',
+        body: 'Alex ha cambiato lo stato del ticket #42 in "Da verificare": "Printer offline"',
         data: { ticketId: 42 },
       },
       {
         to: "expo-token-en",
         sound: "default",
         title: "TaskDesk",
-        body: 'Alex assigned you ticket #42: "Printer offline"',
+        body: 'Alex changed the status of ticket #42 to "Under review": "Printer offline"',
         data: { ticketId: 42 },
       },
     ]);

@@ -10,7 +10,7 @@ export type NotificationMessage =
   | { key: "ticket_email_reply"; actorName: string; ticketNumber: number | string; ticketTitle: string }
   | { key: "ticket_mentioned"; actorName: string; ticketNumber: number | string; ticketTitle: string }
   | { key: "group_mentioned"; actorName: string; groupName: string; ticketNumber: number | string; ticketTitle: string }
-  | { key: "ticket_status_changed"; actorName: string; ticketNumber: number | string; status: string; ticketTitle: string }
+  | { key: "ticket_status_changed"; actorName: string; ticketNumber: number | string; status: string; statusLabels?: { it?: string | null; en?: string | null }; ticketTitle: string }
   | { key: "ticket_priority_changed"; actorName: string; ticketNumber: number | string; priority: string; ticketTitle: string }
   | { key: "ticket_due"; ticketNumber: number | string; ticketTitle: string }
   | { key: "time_session_corrected"; ticketNumber: number | string; ticketTitle: string }
@@ -33,7 +33,13 @@ const englishDefaultStatusLabels: Record<string, string> = {
   Chiuso: "Closed",
 };
 
-function renderStatus(status: string, language: NotificationLanguage): string {
+function renderStatus(
+  status: string,
+  language: NotificationLanguage,
+  statusLabels?: { it?: string | null; en?: string | null },
+): string {
+  const localizedLabel = statusLabels?.[language]?.trim();
+  if (localizedLabel) return localizedLabel;
   const italianLabels: Record<string, string> = {
     open: "Aperto",
     in_progress: "In lavorazione",
@@ -76,7 +82,7 @@ export function renderNotificationText(
       case "group_mentioned":
         return `${content.actorName} ha menzionato il gruppo "${content.groupName}" nel ticket #${content.ticketNumber}: "${content.ticketTitle}"`;
       case "ticket_status_changed":
-        return `${content.actorName} ha cambiato lo stato del ticket #${content.ticketNumber} in "${content.status}": "${content.ticketTitle}"`;
+        return `${content.actorName} ha cambiato lo stato del ticket #${content.ticketNumber} in "${renderStatus(content.status, language, content.statusLabels)}": "${content.ticketTitle}"`;
       case "ticket_priority_changed": {
         const labels: Record<string, string> = { low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" };
         return `${content.actorName} ha cambiato la priorità del ticket #${content.ticketNumber} in "${labels[content.priority] ?? content.priority}": "${content.ticketTitle}"`;
@@ -114,7 +120,7 @@ export function renderNotificationText(
     case "group_mentioned":
       return `${content.actorName} mentioned the group "${content.groupName}" in ticket #${content.ticketNumber}: "${content.ticketTitle}"`;
     case "ticket_status_changed":
-      return `${content.actorName} changed the status of ticket #${content.ticketNumber} to "${renderStatus(content.status, language)}": "${content.ticketTitle}"`;
+      return `${content.actorName} changed the status of ticket #${content.ticketNumber} to "${renderStatus(content.status, language, content.statusLabels)}": "${content.ticketTitle}"`;
     case "ticket_priority_changed": {
       const labels: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
       return `${content.actorName} changed the priority of ticket #${content.ticketNumber} to "${labels[content.priority] ?? content.priority}": "${content.ticketTitle}"`;
