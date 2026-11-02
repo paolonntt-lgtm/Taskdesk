@@ -7,6 +7,7 @@ import {
   sessionsTable,
   ticketsTable,
   usersTable,
+  workspaceMembershipsTable,
 } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import app from "../app";
@@ -63,6 +64,12 @@ describe("superadmin ticket creation statistics", () => {
     ]).returning({ id: usersTable.id });
     userIds = users.map(({ id }) => id);
     const [superadminId, orgAAdminId, systemUserId, orgBAdminId] = userIds;
+    await db.insert(workspaceMembershipsTable).values({
+      workspaceOrganizationId: orgB,
+      userId: orgAAdminId,
+      role: "admin",
+      sponsored: false,
+    });
     sessionId = await createSession(superadminId);
 
     server = createServer(app);
@@ -122,6 +129,10 @@ describe("superadmin ticket creation statistics", () => {
       });
     }
     if (ticketIds.length) await db.delete(ticketsTable).where(inArray(ticketsTable.id, ticketIds));
+    if (organizationIds.length) {
+      await db.delete(workspaceMembershipsTable)
+        .where(inArray(workspaceMembershipsTable.workspaceOrganizationId, organizationIds));
+    }
     if (sessionId) await db.delete(sessionsTable).where(eq(sessionsTable.sessionId, sessionId));
     if (userIds.length) await db.delete(usersTable).where(inArray(usersTable.id, userIds));
     if (organizationIds.length) {
@@ -154,11 +165,18 @@ describe("superadmin ticket creation statistics", () => {
       organizations: Array<{
         id: number;
         planExpiresAt: string | null;
+        adminUsers: Array<{ id: number; name: string; email: string }>;
         ticketCreationStats: { today: number; yesterday: number; last7Days: number; last30Days: number };
       }>;
       ticketCreationStats: typeof baselineTicketCreationStats;
     };
     const byId = new Map(allOrganizationsBody.organizations.map((organization) => [organization.id, organization]));
+    expect(byId.get(organizationIds[0])?.adminUsers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: userIds[1], email: `superadmin-open-stats-a-${runId}@example.test` }),
+    ]));
+    expect(byId.get(organizationIds[1])?.adminUsers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: userIds[1], email: `superadmin-open-stats-a-${runId}@example.test` }),
+    ]));
 
     expect(allOrganizationsBody.ticketCreationStats.today).toBeGreaterThanOrEqual(baselineTicketCreationStats.today + 3);
     expect(allOrganizationsBody.ticketCreationStats.yesterday).toBeGreaterThanOrEqual(baselineTicketCreationStats.yesterday + 1);

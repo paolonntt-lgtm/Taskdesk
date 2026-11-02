@@ -46,8 +46,49 @@ interface Organization {
   planExpiresAt: string | null;
   hiddenFromSuperadmin: boolean;
   totalTickets: number;
+  adminUsers: Array<{ id: number; name: string; email: string }>;
   ticketCreationStats: TicketCreationStats;
   users: OrgUser[];
+}
+
+interface OrganizationAdminGroup {
+  key: string;
+  organizations: Organization[];
+  admins: Array<{ id: number; name: string; email: string }>;
+}
+
+function groupOrganizationsByAdmin(organizations: Organization[]): OrganizationAdminGroup[] {
+  const remaining = new Map(organizations.map((organization) => [organization.id, organization]));
+  const groups: OrganizationAdminGroup[] = [];
+
+  while (remaining.size > 0) {
+    const first = remaining.values().next().value as Organization;
+    remaining.delete(first.id);
+    const members = [first];
+    const admins = new Map<number, { id: number; name: string; email: string }>();
+    for (const admin of first.adminUsers ?? []) admins.set(admin.id, admin);
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [id, candidate] of remaining) {
+        const candidateAdmins = candidate.adminUsers ?? [];
+        if (!candidateAdmins.some((admin) => admins.has(admin.id))) continue;
+        remaining.delete(id);
+        members.push(candidate);
+        for (const admin of candidateAdmins) admins.set(admin.id, admin);
+        changed = true;
+      }
+    }
+
+    groups.push({
+      key: members.map(({ id }) => id).sort((a, b) => a - b).join('-'),
+      organizations: members,
+      admins: Array.from(admins.values()),
+    });
+  }
+
+  return groups;
 }
 
 interface BugReport {
@@ -250,14 +291,17 @@ export default function SuperAdmin() {
     }
   };
 
-  const filtered = orgs.filter((org) => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    return (
-      org.name.toLowerCase().includes(q) ||
-      org.users.some(
-        (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-      )
+  const query = search.trim().toLowerCase();
+  const filteredGroups = groupOrganizationsByAdmin(orgs).filter((group) => {
+    if (!query) return true;
+    return group.organizations.some((org) =>
+      org.name.toLowerCase().includes(query) ||
+      org.users.some((user) =>
+        user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query),
+      ) ||
+      (org.adminUsers ?? []).some((admin) =>
+        admin.name.toLowerCase().includes(query) || admin.email.toLowerCase().includes(query),
+      ),
     );
   });
 
@@ -375,12 +419,25 @@ export default function SuperAdmin() {
 
           {visibilityError && <Alert severity="error" sx={{ mb: 2 }}>{visibilityError}</Alert>}
 
-          {filtered.length === 0 && (
+          {filteredGroups.length === 0 && (
             <Alert severity="info">{sa.noResults}</Alert>
           )}
 
           <Box display="flex" flexDirection="column" gap={2}>
-            {filtered.map((org) => (
+            {filteredGroups.map((group) => (
+              <Box key={group.key} display="flex" flexDirection="column" gap={1}>
+                {group.organizations.length > 1 && (
+                  <Box display="flex" alignItems="center" gap={1} px={0.5}>
+                    <AdminPanelSettings color="primary" fontSize="small" />
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {sa.organizationsManagedBy}{' '}
+                      {group.admins.map((admin) => `${admin.name} (${admin.email})`).join(', ')}
+                    </Typography>
+                    <Chip size="small" label={group.organizations.length} />
+                  </Box>
+                )}
+                <Box display="flex" flexDirection="column" gap={2}>
+                  {group.organizations.map((org) => (
               <Card
                 key={org.id}
                 data-testid={`organization-card-${org.id}`}
@@ -537,6 +594,9 @@ export default function SuperAdmin() {
                   </Box>
                 </CardContent>
               </Card>
+                  ))}
+                </Box>
+              </Box>
             ))}
           </Box>
         </Box>

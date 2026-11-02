@@ -1,5 +1,12 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, organizationsTable, ticketsTable, bugReportsTable } from "@workspace/db";
+import {
+  db,
+  usersTable,
+  organizationsTable,
+  ticketsTable,
+  bugReportsTable,
+  workspaceMembershipsTable,
+} from "@workspace/db";
 import { eq, desc, and, sql, asc, isNull, isNotNull, or } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
@@ -15,7 +22,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
   const localToday = sql`date_trunc('day', now() at time zone 'Europe/Rome')`;
   const localTodayStart = sql`${localToday} at time zone 'Europe/Rome'`;
   const localYesterdayStart = sql`(${localToday} - interval '1 day') at time zone 'Europe/Rome'`;
-  const [rows, ticketCounts, createdTicketCounts, hiddenCountRows, planExpiryRows] = await Promise.all([
+  const [rows, workspaceAdminRows, ticketCounts, createdTicketCounts, hiddenCountRows, planExpiryRows] = await Promise.all([
     db
       .select({
         orgId: organizationsTable.id,
@@ -43,6 +50,25 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       )
       .where(includeHidden ? undefined : eq(organizationsTable.hiddenFromSuperadmin, false))
       .orderBy(desc(organizationsTable.createdAt), desc(usersTable.createdAt)),
+
+    db
+      .select({
+        organizationId: workspaceMembershipsTable.workspaceOrganizationId,
+        userId: usersTable.id,
+        userName: usersTable.name,
+        userEmail: usersTable.email,
+      })
+      .from(workspaceMembershipsTable)
+      .innerJoin(usersTable, eq(usersTable.id, workspaceMembershipsTable.userId))
+      .innerJoin(organizationsTable, eq(
+        organizationsTable.id,
+        workspaceMembershipsTable.workspaceOrganizationId,
+      ))
+      .where(and(
+        eq(workspaceMembershipsTable.role, "admin"),
+        eq(usersTable.isActive, true),
+        includeHidden ? undefined : eq(organizationsTable.hiddenFromSuperadmin, false),
+      )),
 
     db
       .select({
@@ -145,6 +171,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
     planExpiresAt: string | null;
     hiddenFromSuperadmin: boolean;
     totalTickets: number;
+    adminUsers: Array<{ id: number; name: string; email: string }>;
     ticketCreationStats: {
       today: number;
       yesterday: number;
@@ -174,6 +201,7 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         planExpiresAt: planExpiryByOrg.get(row.orgId) ?? null,
         hiddenFromSuperadmin: row.hiddenFromSuperadmin,
         totalTickets: totalByOrg.get(row.orgId) ?? 0,
+        adminUsers: [],
         ticketCreationStats: createdByOrg.get(row.orgId) ?? {
           today: 0,
           yesterday: 0,
@@ -184,7 +212,8 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
       });
     }
     if (row.userId && row.userIsActive) {
-      orgMap.get(row.orgId)!.users.push({
+      const organization = orgMap.get(row.orgId)!;
+      organization.users.push({
         id: row.userId,
         name: row.userName!,
         email: row.userEmail!,
@@ -195,6 +224,27 @@ router.get("/superadmin", requireAuth, requireSuperAdmin, async (req, res): Prom
         lastOperationAt: row.lastOperationAt?.toISOString() ?? null,
         isOnline: !!row.lastSeenAt && Date.now() - row.lastSeenAt.getTime() <= ONLINE_WINDOW_MS,
         avatarUrl: row.avatarUrl ?? null,
+      });
+      if (row.userRole === "admin" && !organization.adminUsers.some(({ id }) => id === row.userId)) {
+        organization.adminUsers.push({
+          id: row.userId,
+          name: row.userName!,
+          email: row.userEmail!,
+        });
+      }
+    }
+  }
+
+  for (const row of workspaceAdminRows) {
+    const organization = orgMap.get(row.organizationId);
+    if (
+      organization &&
+      !organization.adminUsers.some(({ id }) => id === row.userId)
+    ) {
+      organization.adminUsers.push({
+        id: row.userId,
+        name: row.userName,
+        email: row.userEmail,
       });
     }
   }
