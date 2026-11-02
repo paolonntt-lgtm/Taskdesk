@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import ConsoleHistoryTab from './ConsoleHistoryTab';
 import OneDriveConnectionSettings from '../components/OneDriveConnectionSettings';
 import OneDriveLogo from '../components/OneDriveLogo';
+import WorkspaceManagement from './WorkspaceManagement';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -1165,6 +1166,7 @@ export default function Settings() {
     { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
     { id: 'messages', label: t.settings.navMessages, icon: <StarOutlined fontSize="small" /> },
     { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
+    { id: 'workspaces', label: t.settings.navWorkspaces, icon: <GroupIcon fontSize="small" /> },
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
@@ -1561,6 +1563,9 @@ export default function Settings() {
               <GroupsManagementTab />
             </>
           )}
+
+          {/* ── WORKSPACES (admin) ── */}
+          {isAdmin && activeSection === 'workspaces' && <WorkspaceManagement />}
 
           {/* ── TICKETS (admin) ── */}
           {isAdmin && activeSection === 'tickets' && (
