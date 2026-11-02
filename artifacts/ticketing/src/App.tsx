@@ -6,6 +6,7 @@ import { CssBaseline, CircularProgress, Box } from "@mui/material";
 import { createAppTheme } from "./theme";
 import { AuthContext, useAuth } from "./contexts/AuthContext";
 import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
+import { getLanguagePreferenceSyncAction } from "./contexts/languagePreferenceSync";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TicketList from "./pages/TicketList";
@@ -269,21 +270,19 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) {
-      languageSyncUserId.current = null;
-      return;
-    }
+    const action = getLanguagePreferenceSyncAction({
+      userId: user?.id,
+      preferredLanguage: (user as any)?.preferredLanguage,
+      currentLanguage: lang,
+      syncedUserId: languageSyncUserId.current,
+    });
+    languageSyncUserId.current = action.syncedUserId;
 
-    const preferredLanguage = (user as any).preferredLanguage;
-    if (languageSyncUserId.current !== user.id) {
-      languageSyncUserId.current = user.id;
-      if (preferredLanguage === "it" || preferredLanguage === "en") {
-        if (preferredLanguage !== lang) setLang(preferredLanguage);
-        return;
-      }
+    if (action.type === "apply") {
+      setLang(action.language);
+    } else if (action.type === "save") {
+      saveLanguagePreference(action.language);
     }
-
-    saveLanguagePreference(lang);
   }, [user?.id, (user as any)?.preferredLanguage, lang, setLang]);
 
   useEffect(() => {

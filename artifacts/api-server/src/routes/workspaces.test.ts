@@ -159,6 +159,10 @@ describe("shared workspaces", () => {
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
 
+    const userWithoutLanguagePreference = await request("/api/auth/me", externalUserSessionId);
+    expect(userWithoutLanguagePreference.status).toBe(200);
+    expect(userWithoutLanguagePreference.body.preferredLanguage).toBeNull();
+
     const savedEnglishPreference = await request("/api/auth/profile", externalUserSessionId, undefined, {
       method: "PATCH",
       body: JSON.stringify({ preferredLanguage: "en" }),
