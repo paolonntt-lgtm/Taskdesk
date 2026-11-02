@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   db, notificationsTable, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
@@ -583,9 +583,16 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     return;
   }
   if (membership) {
-    await db.update(notificationsTable).set({ isRead: true }).where(and(
+    const invitationTextPattern = `Hai ricevuto un invito da % a collaborare nello spazio condiviso ${workspace.name}.%`;
+    await db.update(notificationsTable).set({
+      isRead: true,
+      notificationText: `Hai accettato l'invito allo spazio condiviso ${workspace.name}.`,
+    }).where(and(
       eq(notificationsTable.userId, user.id),
-      eq(notificationsTable.workspaceInviteId, invite.id),
+      or(
+        eq(notificationsTable.workspaceInviteId, invite.id),
+        sql`${notificationsTable.notificationText} LIKE ${invitationTextPattern}`,
+      ),
     ));
     notifyPermissionChanged(user.id);
     await notifyWorkspaceAdminsOfMemberChange(workspace.id, "added");
@@ -602,6 +609,58 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     alreadyMember: !membership,
     workspace: { id: workspace.id, name: workspace.name },
   });
+});
+
+router.post("/workspace-invites/:token/reject", requireAuth, requireSameOrigin, async (req, res): Promise<void> => {
+  const user = (req as any).currentUser;
+  const token = String(req.params.token);
+  const [invite] = await db.select({
+    id: workspaceInviteTokensTable.id,
+    workspaceOrganizationId: workspaceInviteTokensTable.workspaceOrganizationId,
+    inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
+    expiresAt: workspaceInviteTokensTable.expiresAt,
+    revokedAt: workspaceInviteTokensTable.revokedAt,
+    acceptedAt: workspaceInviteTokensTable.acceptedAt,
+  }).from(workspaceInviteTokensTable)
+    .where(eq(workspaceInviteTokensTable.token, token));
+  if (!invite || invite.inviteeUserId !== user.id || invite.revokedAt || invite.acceptedAt) {
+    res.status(404).json({ error: "Invito non disponibile" });
+    return;
+  }
+  if (invite.expiresAt.getTime() <= Date.now()) {
+    res.status(410).json({ error: "Invito scaduto" });
+    return;
+  }
+  const [revoked] = await db.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+    .where(and(
+      eq(workspaceInviteTokensTable.id, invite.id),
+      eq(workspaceInviteTokensTable.inviteeUserId, user.id),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+    ))
+    .returning({ id: workspaceInviteTokensTable.id });
+  if (!revoked) {
+    res.status(409).json({ error: "L'invito è già stato gestito" });
+    return;
+  }
+  const [workspace] = await db.select({ name: organizationsTable.name }).from(organizationsTable)
+    .where(eq(organizationsTable.id, invite.workspaceOrganizationId));
+  const invitationTextPattern = workspace
+    ? `Hai ricevuto un invito da % a collaborare nello spazio condiviso ${workspace.name}.%`
+    : undefined;
+  await db.update(notificationsTable).set({
+    isRead: true,
+    notificationText: `Hai rifiutato l'invito allo spazio condiviso ${workspace?.name ?? ""}.`.trim(),
+  }).where(and(
+    eq(notificationsTable.userId, user.id),
+    or(
+      eq(notificationsTable.workspaceInviteId, invite.id),
+      invitationTextPattern
+        ? sql`${notificationsTable.notificationText} LIKE ${invitationTextPattern}`
+        : undefined,
+    ),
+  ));
+  res.json({ rejected: true });
 });
 
 router.patch("/workspaces/:id/members/:userId", requireAuth, requireAdmin, async (req, res): Promise<void> => {

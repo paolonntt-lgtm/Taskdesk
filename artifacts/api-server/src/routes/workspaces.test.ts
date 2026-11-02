@@ -236,6 +236,15 @@ describe("shared workspaces", () => {
     expect(inviteResponse.body.inviteUrl).toBeUndefined();
     const inviteNotificationText =
       `Hai ricevuto un invito da Workspace Billing Admin a collaborare nello spazio condiviso Shared workspace ${runId}. Puoi accettare direttamente da questa notifica.`;
+    const [legacyInviteNotification] = await db.select({ id: notificationsTable.id })
+      .from(notificationsTable)
+      .where(and(
+        eq(notificationsTable.userId, externalUserId),
+        eq(notificationsTable.notificationText, inviteNotificationText),
+      ));
+    expect(legacyInviteNotification).toBeDefined();
+    await db.update(notificationsTable).set({ workspaceInviteId: null })
+      .where(eq(notificationsTable.id, legacyInviteNotification.id));
     const inviteeNotifications = await request("/api/notifications", externalUserSessionId);
     expect(inviteeNotifications.status).toBe(200);
     expect(inviteeNotifications.body).toEqual(expect.arrayContaining([
@@ -245,6 +254,10 @@ describe("shared workspaces", () => {
         isRead: false,
       }),
     ]));
+    const directInviteNotification = inviteeNotifications.body.find(
+      (notification: { notificationText: string }) => notification.notificationText === inviteNotificationText,
+    );
+    expect(directInviteNotification?.workspaceInviteToken).toBeTruthy();
     const pendingInviteAssignees = await request("/api/users", billingAdminSessionId, workspaceId);
     expect(pendingInviteAssignees.cacheControl).toBe("no-store");
     expect(pendingInviteAssignees.body.map((user: { id: number }) => user.id)).toEqual([billingAdminId]);
@@ -259,9 +272,7 @@ describe("shared workspaces", () => {
     const directToken = sentMail.text?.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
     expect(directToken).toBeTruthy();
     if (!directToken) throw new Error("Workspace invite email did not include a tokenized link");
-    const notificationInviteToken = inviteeNotifications.body.find(
-      (notification: { notificationText: string }) => notification.notificationText === inviteNotificationText,
-    )?.workspaceInviteToken;
+    const notificationInviteToken = directInviteNotification?.workspaceInviteToken;
     expect(notificationInviteToken).toBe(directToken);
     if (!notificationInviteToken) throw new Error("Workspace invitation notification did not expose its pending invitation");
     const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
@@ -365,10 +376,11 @@ describe("shared workspaces", () => {
     expect(acceptDirectInvite.status).toBe(201);
     const notificationsAfterAccept = await request("/api/notifications", externalUserSessionId);
     expect(notificationsAfterAccept.body.find(
-      (notification: { notificationText: string }) => notification.notificationText === inviteNotificationText,
+      (notification: { id: number }) => notification.id === directInviteNotification.id,
     )).toMatchObject({
       isRead: true,
       workspaceInviteToken: null,
+      notificationText: `Hai accettato l'invito allo spazio condiviso Shared workspace ${runId}.`,
     });
     await expect(adminPermissionEvent).resolves.toMatchObject({
       status: 200,
@@ -386,6 +398,27 @@ describe("shared workspaces", () => {
     ]);
     expect((await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId)).body.invitations).toEqual([]);
     expect(acceptDirectInvite.body).toMatchObject({ joined: true, workspace: { id: workspaceId } });
+    const rejectInviteResponse = await invite(`workspace-outsider-${runId}@example.test`);
+    expect(rejectInviteResponse.status).toBe(201);
+    const outsiderInviteNotifications = await request("/api/notifications", outsiderSessionId);
+    const rejectNotification = outsiderInviteNotifications.body.find(
+      (notification: { notificationText: string }) => notification.notificationText.startsWith("Hai ricevuto un invito da "),
+    );
+    expect(rejectNotification?.workspaceInviteToken).toBeTruthy();
+    const rejectInvite = await request(
+      `/api/workspace-invites/${rejectNotification.workspaceInviteToken}/reject`,
+      outsiderSessionId,
+      undefined,
+      { method: "POST" },
+    );
+    expect(rejectInvite.status).toBe(200);
+    const notificationsAfterReject = await request("/api/notifications", outsiderSessionId);
+    expect(notificationsAfterReject.body.find(
+      (notification: { id: number }) => notification.id === rejectNotification.id,
+    )).toMatchObject({
+      isRead: true,
+      workspaceInviteToken: null,
+    });
     const inviteAcceptanceText =
       `Workspace External User ha accettato l'invito allo spazio condiviso Shared workspace ${runId}.`;
     const acceptanceNotifications = () => db.select().from(notificationsTable).where(and(

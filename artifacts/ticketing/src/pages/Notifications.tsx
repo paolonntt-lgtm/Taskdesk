@@ -111,6 +111,7 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [markingId, setMarkingId] = useState<number | null>(null);
   const [acceptingInviteId, setAcceptingInviteId] = useState<number | null>(null);
+  const [rejectingInviteId, setRejectingInviteId] = useState<number | null>(null);
   const [inviteActionError, setInviteActionError] = useState('');
 
   const notificationsQuery = useListNotifications({
@@ -180,7 +181,7 @@ export default function NotificationsPage() {
   };
 
   const handleAcceptWorkspaceInvite = async (notification: NotificationItem) => {
-    if (!notification.workspaceInviteToken || acceptingInviteId !== null) return;
+    if (!notification.workspaceInviteToken || acceptingInviteId !== null || rejectingInviteId !== null) return;
     setAcceptingInviteId(notification.id);
     setInviteActionError('');
     try {
@@ -206,6 +207,34 @@ export default function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
     } finally {
       setAcceptingInviteId(null);
+    }
+  };
+
+  const handleRejectWorkspaceInvite = async (notification: NotificationItem) => {
+    if (!notification.workspaceInviteToken || acceptingInviteId !== null || rejectingInviteId !== null) return;
+    setRejectingInviteId(notification.id);
+    setInviteActionError('');
+    try {
+      const response = await fetch(
+        `/api/workspace-invites/${encodeURIComponent(notification.workspaceInviteToken)}/reject`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || (lang === 'it' ? 'Impossibile rifiutare l’invito.' : 'Could not decline the invitation.'));
+      }
+      await fetch(`/api/notifications/${notification.id}/read`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      await queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    } catch (error) {
+      setInviteActionError(error instanceof Error
+        ? error.message
+        : (lang === 'it' ? 'Impossibile rifiutare l’invito.' : 'Could not decline the invitation.'));
+      void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    } finally {
+      setRejectingInviteId(null);
     }
   };
 
@@ -449,21 +478,39 @@ export default function NotificationsPage() {
                           </Typography>
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25, flexWrap: 'wrap', rowGap: 0.8 }}>
                             {notification.workspaceInviteToken ? (
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleAcceptWorkspaceInvite(notification);
-                                }}
-                                disabled={acceptingInviteId !== null}
-                                data-testid={`button-accept-workspace-invite-${notification.id}`}
-                                sx={{ px: 1.2, minWidth: 0, fontSize: '0.76rem' }}
-                              >
-                                {acceptingInviteId === notification.id
-                                  ? <CircularProgress size={16} color="inherit" />
-                                  : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
-                              </Button>
+                              <Stack direction="row" spacing={1}>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleAcceptWorkspaceInvite(notification);
+                                  }}
+                                  disabled={acceptingInviteId !== null || rejectingInviteId !== null}
+                                  data-testid={`button-accept-workspace-invite-${notification.id}`}
+                                  sx={{ px: 1.2, minWidth: 0, fontSize: '0.76rem' }}
+                                >
+                                  {acceptingInviteId === notification.id
+                                    ? <CircularProgress size={16} color="inherit" />
+                                    : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
+                                </Button>
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  variant="outlined"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleRejectWorkspaceInvite(notification);
+                                  }}
+                                  disabled={acceptingInviteId !== null || rejectingInviteId !== null}
+                                  data-testid={`button-reject-workspace-invite-${notification.id}`}
+                                  sx={{ px: 1.2, minWidth: 0, fontSize: '0.76rem' }}
+                                >
+                                  {rejectingInviteId === notification.id
+                                    ? <CircularProgress size={16} />
+                                    : (lang === 'it' ? 'Rifiuta' : 'Decline')}
+                                </Button>
+                              </Stack>
                             ) : notification.dailyReportId ? (
                               <Button
                                 size="small"

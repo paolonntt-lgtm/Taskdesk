@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, gt, isNull, or, inArray } from "drizzle-orm";
-import { db, notificationsTable, ticketsTable, usersTable, workspaceInviteTokensTable } from "@workspace/db";
+import { db, notificationsTable, organizationsTable, ticketsTable, usersTable, workspaceInviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
 
@@ -46,8 +46,30 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     ))
     .orderBy(desc(notificationsTable.createdAt));
 
+  const pendingInvites = await db.select({
+    token: workspaceInviteTokensTable.token,
+    workspaceName: organizationsTable.name,
+  }).from(workspaceInviteTokensTable)
+    .innerJoin(organizationsTable, eq(organizationsTable.id, workspaceInviteTokensTable.workspaceOrganizationId))
+    .where(and(
+      eq(workspaceInviteTokensTable.inviteeUserId, currentUser.id),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+      gt(workspaceInviteTokensTable.expiresAt, new Date()),
+    ));
+  const notificationsWithInvites = notifications.map((notification) => {
+    if (notification.workspaceInviteToken || notification.type !== "system" ||
+        !notification.notificationText.startsWith("Hai ricevuto un invito da ")) {
+      return notification;
+    }
+    const matches = pendingInvites.filter(({ workspaceName }) => notification.notificationText.includes(workspaceName));
+    return matches.length === 1
+      ? { ...notification, workspaceInviteToken: matches[0].token }
+      : notification;
+  });
+
   res.setHeader("Cache-Control", "no-cache, private");
-  res.json(notifications);
+  res.json(notificationsWithInvites);
 });
 
 router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<void> => {

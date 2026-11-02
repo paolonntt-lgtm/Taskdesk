@@ -341,6 +341,7 @@ export default function Layout({ children }: LayoutProps) {
   const [workspaceCreateBusy, setWorkspaceCreateBusy] = useState(false);
   const [workspaceCreateError, setWorkspaceCreateError] = useState('');
   const [acceptingInviteNotificationId, setAcceptingInviteNotificationId] = useState<number | null>(null);
+  const [rejectingInviteNotificationId, setRejectingInviteNotificationId] = useState<number | null>(null);
   const [workspaceInviteActionError, setWorkspaceInviteActionError] = useState('');
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
@@ -602,7 +603,7 @@ export default function Layout({ children }: LayoutProps) {
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
   };
   const handleAcceptWorkspaceInvite = async (notification: any) => {
-    if (!notification.workspaceInviteToken || acceptingInviteNotificationId !== null) return;
+    if (!notification.workspaceInviteToken || acceptingInviteNotificationId !== null || rejectingInviteNotificationId !== null) return;
     setAcceptingInviteNotificationId(notification.id);
     setWorkspaceInviteActionError('');
     try {
@@ -629,6 +630,34 @@ export default function Layout({ children }: LayoutProps) {
       void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
     } finally {
       setAcceptingInviteNotificationId(null);
+    }
+  };
+  const handleRejectWorkspaceInvite = async (notification: any) => {
+    if (!notification.workspaceInviteToken || acceptingInviteNotificationId !== null || rejectingInviteNotificationId !== null) return;
+    setRejectingInviteNotificationId(notification.id);
+    setWorkspaceInviteActionError('');
+    try {
+      const response = await fetch(
+        `/api/workspace-invites/${encodeURIComponent(notification.workspaceInviteToken)}/reject`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || (lang === 'it' ? 'Impossibile rifiutare l’invito.' : 'Could not decline the invitation.'));
+      }
+      await fetch(`/api/notifications/${notification.id}/read`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      await queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      handleMenuClose();
+    } catch (error) {
+      setWorkspaceInviteActionError(error instanceof Error
+        ? error.message
+        : (lang === 'it' ? 'Impossibile rifiutare l’invito.' : 'Could not decline the invitation.'));
+      void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    } finally {
+      setRejectingInviteNotificationId(null);
     }
   };
   const handleMarkNotificationUnread = (event: React.MouseEvent, notification: any) => {
@@ -1196,20 +1225,37 @@ export default function Layout({ children }: LayoutProps) {
                           {notification.notificationText}
                         </Typography>
                         {notification.workspaceInviteToken && (
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleAcceptWorkspaceInvite(notification);
-                            }}
-                            disabled={acceptingInviteNotificationId !== null}
-                            sx={{ mt: 1, minWidth: 0, px: 1.25, py: 0.4 }}
-                          >
-                            {acceptingInviteNotificationId === notification.id
-                              ? <CircularProgress size={15} color="inherit" />
-                              : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
-                          </Button>
+                          <Box sx={{ display: 'flex', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleAcceptWorkspaceInvite(notification);
+                              }}
+                              disabled={acceptingInviteNotificationId !== null || rejectingInviteNotificationId !== null}
+                              sx={{ minWidth: 0, px: 1.25, py: 0.4 }}
+                            >
+                              {acceptingInviteNotificationId === notification.id
+                                ? <CircularProgress size={15} color="inherit" />
+                                : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleRejectWorkspaceInvite(notification);
+                              }}
+                              disabled={acceptingInviteNotificationId !== null || rejectingInviteNotificationId !== null}
+                              sx={{ minWidth: 0, px: 1.25, py: 0.4 }}
+                            >
+                              {rejectingInviteNotificationId === notification.id
+                                ? <CircularProgress size={15} />
+                                : (lang === 'it' ? 'Rifiuta' : 'Decline')}
+                            </Button>
+                          </Box>
                         )}
                         {notification.dailyReportId && (
                           <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700, mt: 0.65, display: 'block' }}>
