@@ -1516,7 +1516,12 @@ router.post("/tickets", requireAuth, async (req, res): Promise<void> =>
 
   const displayNum = ticket.ticketNumber ?? ticket.id;
   if (assignedTo && assignedTo !== currentUser.id) {
-    await createNotificationForUser(assignedTo, ticket.id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${title}"`, "ticket_assigned", currentUser.organizationId);
+    await createNotificationForUser(assignedTo, ticket.id, {
+      key: "ticket_assigned",
+      actorName: currentUser.name,
+      ticketNumber: displayNum,
+      ticketTitle: title,
+    }, "ticket_assigned", currentUser.organizationId);
   }
   if (assignedTo && currentUser.organizationId != null) {
     await subscribeUserToTicket(assignedTo, ticket.id, currentUser.organizationId);
@@ -3521,7 +3526,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
     const notifLabel = statusChangeLabel ?? updates.status!
 ;
 
-    await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato lo stato del ticket #${displayNum} in "${notifLabel}": "${existing.title}"`, currentUser.id, "ticket_status_changed", orgId)
+    await createNotificationsForSubscribers(id, {
+      key: "ticket_status_changed",
+      actorName: currentUser.name,
+      ticketNumber: displayNum,
+      status: notifLabel,
+      ticketTitle: existing.title,
+    }, currentUser.id, "ticket_status_changed", orgId)
 ;
 
 
@@ -3703,16 +3714,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (activityLogs.some((l) => l.actionType === "priority_changed")) 
 {
 
-    const priorityLabels: Record<string, string> = 
-{
- low: "Bassa", medium: "Media", high: "Alta", urgent: "Urgente" 
-}
-;
-
-    const priorityLabel = priorityLabels[updates.priority!] ?? updates.priority!
-;
-
-    await createNotificationsForSubscribers(id, `${currentUser.name} ha cambiato la priorità del ticket #${displayNum} in "${priorityLabel}": "${existing.title}"`, currentUser.id, "ticket_priority_changed", orgId)
+    await createNotificationsForSubscribers(id, {
+      key: "ticket_priority_changed",
+      actorName: currentUser.name,
+      ticketNumber: displayNum,
+      priority: updates.priority!,
+      ticketTitle: existing.title,
+    }, currentUser.id, "ticket_priority_changed", orgId)
 ;
 
   
@@ -3721,7 +3729,12 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
   if (activityLogs.some((l) => l.actionType === "assigned" || l.actionType === "reassigned") && updates.assignedTo && updates.assignedTo !== currentUser.id) 
 {
 
-    await createNotificationForUser(updates.assignedTo, id, `${currentUser.name} ti ha assegnato il ticket #${displayNum}: "${existing.title}"`, "ticket_assigned", orgId)
+    await createNotificationForUser(updates.assignedTo, id, {
+      key: "ticket_assigned",
+      actorName: currentUser.name,
+      ticketNumber: displayNum,
+      ticketTitle: existing.title,
+    }, "ticket_assigned", orgId)
 ;
 
   
@@ -3784,7 +3797,13 @@ router.patch("/tickets/:id", requireAuth, async (req, res): Promise<void> => {
         for (const member of activeMembers) 
 {
 
-          await createNotificationForUser(member.id, id, `${currentUser.name} ha assegnato il ticket #${displayNum} al tuo gruppo "${groupName}": "${existing.title}"`, "ticket_assigned", orgId)
+          await createNotificationForUser(member.id, id, {
+            key: "ticket_assigned_to_group",
+            actorName: currentUser.name,
+            ticketNumber: displayNum,
+            groupName,
+            ticketTitle: existing.title,
+          }, "ticket_assigned", orgId)
 ;
 
           if (orgId != null) await subscribeUserToTicket(member.id, id, orgId)
@@ -4452,7 +4471,11 @@ router.patch("/tickets/:id/recurrence", requireAuth, requireAdmin, async (req, r
     await createNotificationForUser(
       existing.assignedTo,
       firstChild.id,
-      `Nuova pratica ricorrente #${firstChild.ticketNumber ?? firstChild.id}: "${firstChild.title}"`,
+      {
+        key: "recurring_ticket_assigned",
+        ticketNumber: firstChild.ticketNumber ?? firstChild.id,
+        ticketTitle: firstChild.title,
+      },
       "ticket_assigned",
       existing.organizationId
     )

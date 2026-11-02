@@ -92,6 +92,7 @@ describe("ticket time tracking", () => {
         role: "user",
         organizationId,
         hourlyCompensated: true,
+        preferredLanguage: "it",
       })
       .returning({ id: usersTable.id });
     collaboratorId = collaborator.id;

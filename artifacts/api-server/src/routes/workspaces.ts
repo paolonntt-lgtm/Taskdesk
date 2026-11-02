@@ -239,7 +239,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       await createNotificationForUser(
         target.id,
         null,
-        email.notificationText,
+        { key: "legacy", text: email.notificationText },
         "system",
         target.organizationId,
         invite.id,
@@ -265,7 +265,11 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
   await createNotificationForUser(
     target.id,
     null,
-    `${user.name} added you to the shared workspace ${user.organizationName}.`,
+    {
+      key: "workspace_member_added",
+      actorName: user.name,
+      workspaceName: user.organizationName,
+    },
     "system",
     workspaceId,
   );
@@ -631,7 +635,11 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     await createNotificationForUser(
       invite.createdByUserId,
       null,
-      `${account.name ?? account.email ?? "Un utente"} ha accettato l'invito allo spazio condiviso ${workspace.name}.`,
+      {
+        key: "workspace_invite_accepted",
+        actorName: account.name ?? account.email ?? "Un utente",
+        workspaceName: workspace.name,
+      },
       "system",
       workspace.id,
     );

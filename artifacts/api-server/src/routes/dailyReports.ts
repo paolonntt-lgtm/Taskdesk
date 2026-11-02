@@ -141,7 +141,11 @@ router.post("/daily-reports", requireAuth, async (req, res): Promise<void> => {
     notificationCount = await createInAppNotificationsForOrg(
       currentUser.organizationId,
       currentUser.id,
-      `${currentUser.name} ha pubblicato il report di oggi${sanitizedLocation ? ` — Sede: ${sanitizedLocation}` : ""}`,
+      {
+        key: "daily_report_submitted",
+        actorName: currentUser.name,
+        ...(sanitizedLocation ? { location: sanitizedLocation } : {}),
+      },
       "daily_report_submitted",
       null,
       report.id,

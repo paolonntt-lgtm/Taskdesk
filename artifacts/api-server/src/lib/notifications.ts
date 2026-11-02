@@ -13,6 +13,19 @@ import {
 import { sendEmailForOrg, buildNotificationEmail } from "./email";
 import { appBaseUrl } from "./appUrl";
 import { logger } from "./logger";
+import { renderNotificationText, type NotificationContent, type NotificationLanguage } from "./notificationText";
+
+type NotificationRecipient = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  expoPushToken?: string | null;
+  preferredLanguage?: string | null;
+};
+
+function languageForRecipient(language: string | null | undefined): NotificationLanguage {
+  return language === "it" ? "it" : "en";
+}
 
 async function getOrgRecipients(organizationId: number): Promise<Array<{ id: number; role: string }>> {
   const [organization] = await db.select({ shared: organizationsTable.isSharedWorkspace })
@@ -28,14 +41,13 @@ async function getOrgRecipients(organizationId: number): Promise<Array<{ id: num
 }
 
 async function sendExpoPushNotifications(
-  tokens: string[],
+  notifications: Array<{ token: string; body: string }>,
   title: string,
-  body: string,
   ticketId: number | null
 ): Promise<void> {
-  if (tokens.length === 0) return;
-  const messages = tokens.map((to) => ({
-    to,
+  if (notifications.length === 0) return;
+  const messages = notifications.map(({ token, body }) => ({
+    to: token,
     sound: "default" as const,
     title,
     body,
@@ -96,9 +108,9 @@ async function getChannelPrefs(
 }
 
 async function dispatchEmails(
-  recipients: Array<{ id: number; name: string | null; email: string | null }>,
+  recipients: NotificationRecipient[],
   prefs: Map<number, PrefForUser>,
-  text: string,
+  content: NotificationContent,
   ticketId: number | null,
   orgId?: number | null
 ): Promise<void> {
@@ -111,11 +123,14 @@ async function dispatchEmails(
 
   await Promise.allSettled(
     targets.map((u) => {
+      const language = languageForRecipient(u.preferredLanguage);
+      const text = renderNotificationText(content, language);
       const { subject, html, text: body } = buildNotificationEmail({
         recipientName: u.name ?? u.email ?? "",
         text,
         ticketId,
         appBaseUrl: baseUrl,
+        language,
       });
       return sendEmailForOrg(orgId, { to: u.email!, subject, html, text: body }).then((r) => {
         if (!r.ok) logger.warn({ userId: u.id, orgId, err: r.error }, "notification email failed");
@@ -137,7 +152,7 @@ export async function subscribeUserToTicket(
 
 export async function createNotificationsForSubscribers(
   ticketId: number,
-  text: string,
+  content: NotificationContent,
   excludeUserId: number,
   type: NotificationType = "system",
   organizationId?: number | null,
@@ -165,7 +180,13 @@ export async function createNotificationsForSubscribers(
   const workspaceRecipients = organizationId == null ? [] : await getOrgRecipients(organizationId);
   const allowedRecipientIds = new Set(workspaceRecipients.map((recipient) => recipient.id));
   const candidates = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      expoPushToken: usersTable.expoPushToken,
+      preferredLanguage: usersTable.preferredLanguage,
+    })
     .from(usersTable)
     .where(and(
       inArray(usersTable.id, candidateIds),
@@ -178,6 +199,10 @@ export async function createNotificationsForSubscribers(
   if (allowedCandidates.length === 0) return;
 
   const prefs = await getChannelPrefs(allowedCandidates.map((u) => u.id), type);
+  const textByUserId = new Map(allowedCandidates.map((user) => [
+    user.id,
+    renderNotificationText(content, languageForRecipient(user.preferredLanguage)),
+  ]));
 
   const inAppTargets = allowedCandidates.filter((u) => prefs.get(u.id)?.inApp !== false).map((u) => u.id);
   if (inAppTargets.length > 0) {
@@ -187,23 +212,23 @@ export async function createNotificationsForSubscribers(
         organizationId: organizationId ?? undefined,
         ticketId,
         type,
-        notificationText: text,
+        notificationText: textByUserId.get(id)!,
         isRead: false,
       }))
     );
   }
 
-  const pushTokens = allowedCandidates
+  const pushNotifications = allowedCandidates
     .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
-    .map((u) => u.expoPushToken!);
-  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
+    .map((u) => ({ token: u.expoPushToken!, body: textByUserId.get(u.id)! }));
+  void sendExpoPushNotifications(pushNotifications, "TaskDesk", ticketId);
 
-  void dispatchEmails(allowedCandidates, prefs, text, ticketId, organizationId);
+  void dispatchEmails(allowedCandidates, prefs, content, ticketId, organizationId);
 }
 
 export async function createNotificationsForTicket(
   ticketId: number,
-  text: string,
+  content: NotificationContent,
   excludeUserId: number,
   type: NotificationType = "system",
   organizationId?: number | null
@@ -219,12 +244,22 @@ export async function createNotificationsForTicket(
   ).map((recipient) => recipient.id));
   if (allowedRecipientIds.size === 0) return;
   const candidates = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      expoPushToken: usersTable.expoPushToken,
+      preferredLanguage: usersTable.preferredLanguage,
+    })
     .from(usersTable)
     .where(and(...conditions, inArray(usersTable.id, [...allowedRecipientIds])));
   if (candidates.length === 0) return;
 
   const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
+  const textByUserId = new Map(candidates.map((user) => [
+    user.id,
+    renderNotificationText(content, languageForRecipient(user.preferredLanguage)),
+  ]));
 
   // In-app inserts
   const inAppTargets = candidates.filter((u) => prefs.get(u.id)?.inApp !== false).map((u) => u.id);
@@ -235,20 +270,20 @@ export async function createNotificationsForTicket(
         organizationId,
         ticketId,
         type,
-        notificationText: text,
+        notificationText: textByUserId.get(id)!,
         isRead: false,
       }))
     );
   }
 
   // Push notifications
-  const pushTokens = candidates
+  const pushNotifications = candidates
     .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
-    .map((u) => u.expoPushToken!);
-  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
+    .map((u) => ({ token: u.expoPushToken!, body: textByUserId.get(u.id)! }));
+  void sendExpoPushNotifications(pushNotifications, "TaskDesk", ticketId);
 
   // Email dispatch (independent of in-app)
-  void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
+  void dispatchEmails(candidates, prefs, content, ticketId, organizationId);
 }
 
 /**
@@ -258,7 +293,7 @@ export async function createNotificationsForTicket(
 export async function createNotificationsForOrg(
   organizationId: number,
   excludeUserId: number,
-  text: string,
+  content: NotificationContent,
   type: NotificationType = "system",
   ticketId: number | null = null,
 ): Promise<void> {
@@ -272,7 +307,13 @@ export async function createNotificationsForOrg(
   ).map((recipient) => recipient.id));
   if (allowedRecipientIds.size === 0) return;
   const candidates = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken })
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      expoPushToken: usersTable.expoPushToken,
+      preferredLanguage: usersTable.preferredLanguage,
+    })
     .from(usersTable)
     .where(and(
       inArray(usersTable.id, [...allowedRecipientIds]),
@@ -282,6 +323,10 @@ export async function createNotificationsForOrg(
   if (candidates.length === 0) return;
 
   const prefs = await getChannelPrefs(candidates.map((u) => u.id), type);
+  const textByUserId = new Map(candidates.map((user) => [
+    user.id,
+    renderNotificationText(content, languageForRecipient(user.preferredLanguage)),
+  ]));
 
   const inAppTargets = candidates.filter((u) => prefs.get(u.id)?.inApp !== false).map((u) => u.id);
   if (inAppTargets.length > 0) {
@@ -291,17 +336,17 @@ export async function createNotificationsForOrg(
         organizationId,
         ticketId: ticketId ?? undefined,
         type,
-        notificationText: text,
+        notificationText: textByUserId.get(id)!,
         isRead: false,
       }))
     );
   }
 
-  const pushTokens = candidates
+  const pushNotifications = candidates
     .filter((u) => prefs.get(u.id)?.inApp !== false && u.expoPushToken)
-    .map((u) => u.expoPushToken!);
-  void sendExpoPushNotifications(pushTokens, "TaskDesk", text, ticketId);
-  void dispatchEmails(candidates, prefs, text, ticketId, organizationId);
+    .map((u) => ({ token: u.expoPushToken!, body: textByUserId.get(u.id)! }));
+  void sendExpoPushNotifications(pushNotifications, "TaskDesk", ticketId);
+  void dispatchEmails(candidates, prefs, content, ticketId, organizationId);
 }
 
 /**
@@ -311,14 +356,14 @@ export async function createNotificationsForOrg(
 export async function createInAppNotificationsForOrg(
   organizationId: number,
   excludeUserId: number,
-  text: string,
+  content: NotificationContent,
   type: NotificationType,
   ticketId: number | null = null,
   dailyReportId: number | null = null,
 ): Promise<number> {
   const workspaceRecipients = await getOrgRecipients(organizationId);
   const candidates = await db
-    .select({ id: usersTable.id })
+    .select({ id: usersTable.id, preferredLanguage: usersTable.preferredLanguage })
     .from(usersTable)
     .where(and(
       inArray(usersTable.id, workspaceRecipients.map((recipient) => recipient.id)),
@@ -340,7 +385,10 @@ export async function createInAppNotificationsForOrg(
       ticketId: ticketId ?? undefined,
       dailyReportId: dailyReportId ?? undefined,
       type,
-      notificationText: text,
+      notificationText: renderNotificationText(
+        content,
+        languageForRecipient(candidates.find((candidate) => candidate.id === userId)?.preferredLanguage),
+      ),
       isRead: false,
     }))
   );
@@ -350,7 +398,7 @@ export async function createInAppNotificationsForOrg(
 export async function createNotificationForUser(
   userId: number,
   ticketId: number | null,
-  text: string,
+  content: NotificationContent,
   type: NotificationType = "system",
   organizationId?: number | null,
   workspaceInviteId?: number | null,
@@ -358,7 +406,14 @@ export async function createNotificationForUser(
   const conditions = [eq(usersTable.id, userId)];
 
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, expoPushToken: usersTable.expoPushToken, role: usersTable.role })
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      expoPushToken: usersTable.expoPushToken,
+      role: usersTable.role,
+      preferredLanguage: usersTable.preferredLanguage,
+    })
     .from(usersTable)
     .where(and(...conditions));
   if (!user) return;
@@ -376,6 +431,7 @@ export async function createNotificationForUser(
 
   const prefs = await getChannelPrefs([userId], type);
   const p = prefs.get(userId);
+  const text = renderNotificationText(content, languageForRecipient(user.preferredLanguage));
 
   if (p?.inApp !== false) {
     await db.insert(notificationsTable).values({
@@ -388,9 +444,9 @@ export async function createNotificationForUser(
       isRead: false,
     });
     if (user.expoPushToken) {
-      void sendExpoPushNotifications([user.expoPushToken], "TaskDesk", text, ticketId);
+      void sendExpoPushNotifications([{ token: user.expoPushToken, body: text }], "TaskDesk", ticketId);
     }
   }
 
-  void dispatchEmails([user], prefs, text, ticketId, organizationId);
+  void dispatchEmails([user], prefs, content, ticketId, organizationId);
 }

@@ -46,11 +46,10 @@ async function checkDueTickets(): Promise<void> {
       const key = `${ticket.id}:${ticket.assignedTo}`;
       if (alreadySentSet.has(key)) continue;
 
-      const text = `Il ticket #${ticket.id} "${ticket.title}" è scaduto e non è ancora stato risolto.`;
       await createNotificationForUser(
         ticket.assignedTo,
         ticket.id,
-        text,
+        { key: "ticket_due", ticketNumber: ticket.id, ticketTitle: ticket.title },
         "ticket_due",
         ticket.organizationId
       );

@@ -5,6 +5,7 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { AddTicketCommentBody, UpdateTicketCommentBody } from "@workspace/api-zod";
 import { createNotificationsForSubscribers, createNotificationForUser, subscribeUserToTicket } from "../lib/notifications";
+import type { NotificationContent } from "../lib/notificationText";
 import { sendEmailForOrg, buildTicketReplyEmail } from "../lib/email";
 import { appBaseUrl } from "../lib/appUrl";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -324,13 +325,18 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
         )),
     ]);
 
-    const notificationTextByUser = new Map<number, string>();
+    const notificationTextByUser = new Map<number, NotificationContent>();
     for (const mentionedName of mentionedNames) {
       for (const mentioned of orgUsers.filter((user) => user.name === mentionedName)) {
         if (mentioned.id !== currentUser.id) {
           notificationTextByUser.set(
             mentioned.id,
-            `${currentUser.name} ti ha menzionato nel ticket #${ticketNumber}: "${ticket.title}"`,
+            {
+              key: "ticket_mentioned",
+              actorName: currentUser.name,
+              ticketNumber,
+              ticketTitle: ticket.title,
+            },
           );
         }
       }
@@ -343,7 +349,13 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
         ) {
           notificationTextByUser.set(
             member.userId,
-            `${currentUser.name} ha menzionato il gruppo "${mentionedName}" nel ticket #${ticketNumber}: "${ticket.title}"`,
+            {
+              key: "group_mentioned",
+              actorName: currentUser.name,
+              groupName: mentionedName,
+              ticketNumber,
+              ticketTitle: ticket.title,
+            },
           );
         }
       }
@@ -365,7 +377,12 @@ router.post("/tickets/:id/comments", requireAuth, async (req, res): Promise<void
   // Persist in-app notifications before returning the new comment.
   await createNotificationsForSubscribers(
     id,
-    `${currentUser.name} ha commentato il ticket #${ticketNumber}: "${ticket.title}"`,
+    {
+      key: "ticket_commented",
+      actorName: currentUser.name,
+      ticketNumber,
+      ticketTitle: ticket.title,
+    },
     currentUser.id,
     "ticket_commented",
     organizationId,

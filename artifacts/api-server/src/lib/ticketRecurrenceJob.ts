@@ -168,7 +168,11 @@ async function checkTicketRecurrences(): Promise<void> {
           await createNotificationForUser(
             ticket.assignedTo,
             newTicket.id,
-            `Nuova pratica ricorrente #${newTicket.ticketNumber ?? newTicket.id}: "${newTicket.title}"`,
+            {
+              key: "recurring_ticket_assigned",
+              ticketNumber: newTicket.ticketNumber ?? newTicket.id,
+              ticketTitle: newTicket.title,
+            },
             "ticket_assigned",
             ticket.organizationId
           );

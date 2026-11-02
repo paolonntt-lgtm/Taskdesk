@@ -173,21 +173,29 @@ export function buildNotificationEmail(args: {
   text: string;
   ticketId: number | null;
   appBaseUrl: string;
+  language?: "it" | "en";
 }): { subject: string; html: string; text: string } {
+  const isItalian = args.language !== "en";
   const ticketLink = args.ticketId
     ? `${args.appBaseUrl}/app/tickets/${args.ticketId}`
     : `${args.appBaseUrl}/app/`;
   const subject = `TaskDesk — ${args.text.slice(0, 90)}`;
-  const text = `Ciao ${args.recipientName},\n\n${args.text}\n\nApri TaskDesk: ${ticketLink}\n\n— TaskDesk`;
+  const greeting = isItalian ? "Ciao" : "Hi";
+  const openLabel = isItalian ? "Apri in TaskDesk →" : "Open in TaskDesk →";
+  const plainOpenLabel = isItalian ? "Apri TaskDesk" : "Open TaskDesk";
+  const preferenceNote = isItalian
+    ? "Ricevi questa email perché hai abilitato le notifiche email. Puoi modificare le preferenze nelle impostazioni del tuo account."
+    : "You received this email because email notifications are enabled. You can change your preferences in your account settings.";
+  const text = `${greeting} ${args.recipientName},\n\n${args.text}\n\n${plainOpenLabel}: ${ticketLink}\n\n— TaskDesk`;
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
       <div style="margin-bottom:24px">
         <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
       </div>
-      <p style="font-size:15px;line-height:1.5;margin:0 0 16px">Ciao <strong>${escapeHtml(args.recipientName)}</strong>,</p>
+      <p style="font-size:15px;line-height:1.5;margin:0 0 16px">${greeting} <strong>${escapeHtml(args.recipientName)}</strong>,</p>
       <p style="font-size:15px;line-height:1.5;margin:0 0 24px">${escapeHtml(args.text)}</p>
-      <a href="${ticketLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px">Apri in TaskDesk →</a>
-      <p style="margin-top:32px;font-size:12px;color:#9ca3af">Ricevi questa email perché hai abilitato le notifiche email. Puoi modificare le preferenze nelle impostazioni del tuo account.</p>
+      <a href="${ticketLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px">${openLabel}</a>
+      <p style="margin-top:32px;font-size:12px;color:#9ca3af">${preferenceNote}</p>
     </div>
   `;
   return { subject, html, text };

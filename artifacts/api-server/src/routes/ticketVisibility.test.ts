@@ -91,6 +91,7 @@ describe("manual ticket visibility", () => {
         passwordHash: "not-used-in-test",
         role: "admin",
         organizationId,
+        preferredLanguage: "it",
       })
       .returning({ id: usersTable.id });
     adminId = admin.id;
@@ -103,6 +104,7 @@ describe("manual ticket visibility", () => {
         passwordHash: "not-used-in-test",
         role: "user",
         organizationId,
+        preferredLanguage: "en",
       })
       .returning({ id: usersTable.id });
     mentionUserId = mentionUser.id;
@@ -115,6 +117,7 @@ describe("manual ticket visibility", () => {
         passwordHash: "not-used-in-test",
         role: "user",
         organizationId,
+        preferredLanguage: "it",
       })
       .returning({ id: usersTable.id });
     userId = user.id;
@@ -1030,7 +1033,7 @@ describe("manual ticket visibility", () => {
     expect(mentionNotifications.filter((notification) =>
       notification.userId === mentionUserId &&
       notification.type === "ticket_commented" &&
-      notification.notificationText.includes("ha menzionato")
+      notification.notificationText.includes("mentioned you")
     )).toHaveLength(1);
 
     const groupTicketResponse = await request("/api/tickets", adminSessionId, {
@@ -1056,12 +1059,15 @@ describe("manual ticket visibility", () => {
       .select()
       .from(notificationsTable)
       .where(eq(notificationsTable.ticketId, groupTicketId));
-    for (const recipientId of [adminId, mentionUserId]) {
-      expect(groupNotifications.filter((notification) =>
-        notification.userId === recipientId &&
-        notification.type === "ticket_commented" &&
-        notification.notificationText.includes("menzionato il gruppo")
-      )).toHaveLength(1);
-    }
+    expect(groupNotifications.filter((notification) =>
+      notification.userId === adminId &&
+      notification.type === "ticket_commented" &&
+      notification.notificationText.includes("menzionato il gruppo")
+    )).toHaveLength(1);
+    expect(groupNotifications.filter((notification) =>
+      notification.userId === mentionUserId &&
+      notification.type === "ticket_commented" &&
+      notification.notificationText.includes("mentioned the group")
+    )).toHaveLength(1);
   }, 60_000);
 });

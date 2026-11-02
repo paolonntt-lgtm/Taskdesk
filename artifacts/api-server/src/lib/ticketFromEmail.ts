@@ -497,7 +497,7 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
     await createNotificationForUser(
       notificationTarget.userId,
       ticket.id,
-      `Ti è stato assegnato il ticket #${nextTicketNumber}: "${title}"`,
+      { key: "ticket_assigned_to_you", ticketNumber: nextTicketNumber, ticketTitle: title },
       "ticket_assigned",
       orgId
     );
@@ -505,7 +505,12 @@ export async function createTicketFromEmail(input: EmailTicketInput): Promise<Em
   } else if (!isAdminOnly) {
     await createNotificationsForTicket(
       ticket.id,
-      `Nuova richiesta via email da ${fromName}: "${title}" (ticket #${nextTicketNumber})`,
+      {
+        key: "ticket_created_from_email",
+        senderName: fromName,
+        ticketTitle: title,
+        ticketNumber: nextTicketNumber,
+      },
       systemUser.id,
       "ticket_created",
       orgId
@@ -578,8 +583,12 @@ async function threadReplyAsComment(
     actionDescription: `Risposta del cliente ricevuta via email da ${fromName} <${fromEmail}>`,
   });
 
-  const notificationText =
-    `${fromName} ha risposto via email al ticket #${ticket.ticketNumber ?? ticket.id}: "${ticket.title}"`;
+  const notificationText = {
+    key: "ticket_email_reply" as const,
+    actorName: fromName,
+    ticketNumber: ticket.ticketNumber ?? ticket.id,
+    ticketTitle: ticket.title,
+  };
   const notificationTarget = getInboundEmailNotificationTarget(ticket.assignedTo);
   if (notificationTarget.kind === "assignee") {
     void createNotificationForUser(

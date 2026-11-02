@@ -93,7 +93,11 @@ router.patch("/tickets/:id/time-sessions/:sessionId", requireAuth, requireAdmin,
   await createNotificationForUser(
     result.collaboratorId,
     ticketId,
-    `L'amministratore ha aggiornato le tue ore registrate sul ticket #${result.ticket.ticketNumber ?? ticketId}: "${result.ticket.title}".`,
+    {
+      key: "time_session_corrected",
+      ticketNumber: result.ticket.ticketNumber ?? ticketId,
+      ticketTitle: result.ticket.title,
+    },
     "time_session_corrected",
     orgId,
   );
