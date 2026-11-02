@@ -4,7 +4,7 @@ import {
   TextField, MenuItem, CircularProgress, Avatar, ToggleButton, ToggleButtonGroup,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip,
   IconButton, Popover, Snackbar, Menu, ListItemIcon, ListItemText,
-  FormControlLabel, FormHelperText, Checkbox, Autocomplete, Link as MuiLink,
+  FormControlLabel, FormHelperText, Checkbox, Link as MuiLink,
   useTheme, useMediaQuery,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -15,7 +15,6 @@ import {
   useDeleteTicket,
   useListTicketNotes, useAddTicketNote,
   useUpdateTicketComment, useDeleteTicketComment,
-  useListClients,
   useSetTicketRecurrence, useDeleteTicketRecurrence,
   useGetTicketTimeSessionEdits, getGetTicketTimeSessionEditsQueryKey,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
@@ -192,12 +191,10 @@ export default function TicketDetail() {
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
   const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
   const [clientAssociationError, setClientAssociationError] = useState<string | null>(null);
-  const [clientAssociationDraftId, setClientAssociationDraftId] = useState<number | null>(null);
   const [clientAssociationSaved, setClientAssociationSaved] = useState(false);
   const [clientEmailPromptOpen, setClientEmailPromptOpen] = useState(false);
 
   useEffect(() => {
-    setClientAssociationDraftId(null);
     setClientAssociationSaved(false);
     setClientAssociationError(null);
     setClientEmailPromptOpen(false);
@@ -256,12 +253,6 @@ export default function TicketDetail() {
     activeWorkspaceId,
     currentUser?.role === 'admin',
   );
-  const { data: clientsList = [] } = useListClients(undefined, {
-    query: {
-      enabled: Boolean(currentUser) && (currentUser as any)?.clientsEnabled !== false,
-      staleTime: 5 * 60_000,
-    } as any,
-  });
   const { data: organizationSettings } = useQuery<{ workedTimeEnabled?: boolean; timeTrackingModuleEnabled?: boolean }>({
     queryKey: ['organization-settings'],
     queryFn: async () => {
@@ -930,28 +921,8 @@ export default function TicketDetail() {
   const hasInboundEmailMetadata = Boolean(
     ticket.inboundChannelId || (ticket as any).emailMessageId || (ticket as any).emailConversationId,
   );
-  const selectedTicketClient =
-    clientsList.find((client: any) => client.id === ticketClientId) ?? ticketClient;
-  const clientTitlePrefix = selectedTicketClient ? `${selectedTicketClient.name} — ` : '';
-  const clientTitlePrefixApplied = Boolean(
-    selectedTicketClient && typeof ticket.title === 'string' && ticket.title.startsWith(clientTitlePrefix),
-  );
-  const hideAssociatedInboundClientSelector = Boolean(
-    hasInboundEmailMetadata && selectedTicketClient && clientTitlePrefixApplied,
-  );
-  const clientAssociationTargetId = clientAssociationDraftId ?? ticketClientId;
-  const clientAssociationNeedsSave = Boolean(
-    clientAssociationTargetId != null &&
-    (
-      (clientAssociationDraftId !== null && clientAssociationDraftId !== ticketClientId) ||
-      (hasInboundEmailMetadata && selectedTicketClient && !clientTitlePrefixApplied)
-    ),
-  );
-  const canEditClientAssociation = isAdmin || ticketClientId == null;
-  const clientOptions =
-    selectedTicketClient && !clientsList.some((client: any) => client.id === selectedTicketClient.id)
-      ? [selectedTicketClient, ...clientsList]
-      : clientsList;
+  const selectedTicketClient = ticketClient;
+  const clientAssociationTargetId = ticketClientId;
   const emailAssociationReason = (ticket as any).emailClientAssociationReason as string | undefined;
   const emailAssociationSource = (ticket as any).emailClientAssociationSource as string | null | undefined;
   const emailAssociationForwarded = (ticket as any).emailClientAssociationForwarded as boolean | null | undefined;
@@ -968,7 +939,7 @@ export default function TicketDetail() {
   const clientEmailAssociationAddressNotice = canAddSenderEmailToClient
     ? t.ticketDetail.clientEmailAssociationAddressNotice(
         ticketSenderEmail!,
-        clientOptions.find((client: any) => client.id === clientAssociationTargetId)?.name ?? '',
+        selectedTicketClient?.name ?? '',
       )
     : undefined;
   const emailAssociationExplanationKey = getEmailClientAssociationExplanationKey({
@@ -994,7 +965,6 @@ export default function TicketDetail() {
           ? [queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() })]
           : []),
       ]);
-      setClientAssociationDraftId(null);
       setClientAssociationSaved(true);
       setClientEmailPromptOpen(false);
     } catch (error) {
@@ -1007,22 +977,6 @@ export default function TicketDetail() {
     } finally {
       setClientAssociationBusy(false);
     }
-  };
-
-  const requestClientAssociationChange = (clientId: number) => {
-    const targetClient = clientOptions.find((client: any) => client.id === clientId);
-    if (
-      isAdmin &&
-      hasInboundEmailMetadata &&
-      ticketSenderEmail &&
-      targetClient &&
-      !clientProfileContainsSender(targetClient, ticketSenderEmail)
-    ) {
-      setClientAssociationError(null);
-      setClientEmailPromptOpen(true);
-      return;
-    }
-    void handleClientAssociationChange(clientId);
   };
 
   const openDueAtEditor = (anchor: HTMLElement) => {
@@ -1319,71 +1273,36 @@ export default function TicketDetail() {
             </Alert>
           )}
 
-          {clientsEnabled && (!isAdmin || !hideAssociatedInboundClientSelector) && (
+          {clientsEnabled && (
             <Box sx={{ mb: 2, maxWidth: 420 }}>
-              {canEditClientAssociation && !hideAssociatedInboundClientSelector ? (
-                <Autocomplete
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minHeight: 32 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {t.clients.clientField}:
+                </Typography>
+                <Chip
                   size="small"
-                  options={clientOptions}
-                  value={
-                    clientAssociationDraftId === null
-                      ? selectedTicketClient
-                      : clientOptions.find((client: any) => client.id === clientAssociationDraftId) ?? null
-                  }
-                  getOptionLabel={(client: any) =>
-                    client.alias ? `${client.name} (${client.alias})` : client.name
-                  }
-                  isOptionEqualToValue={(option: any, value: any) => option.id === value.id}
-                  onChange={(_, client: any) => {
-                    setClientAssociationError(null);
-                    setClientAssociationSaved(false);
-                    setClientAssociationDraftId(client?.id ?? null);
-                  }}
-                  disabled={clientAssociationBusy}
-                  disableClearable
-                  noOptionsText={t.newTicket.noClientFound}
-                  renderInput={(params) => (
-                    <TextField {...params} label={t.clients.clientField} />
-                  )}
+                  variant={selectedTicketClient ? 'filled' : 'outlined'}
+                  label={selectedTicketClient?.name ?? (lang === 'it' ? 'Non associato' : 'Not assigned')}
                 />
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minHeight: 32 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t.clients.clientField}:
-                  </Typography>
-                  <Chip
-                    size="small"
-                    variant={selectedTicketClient ? 'filled' : 'outlined'}
-                    label={selectedTicketClient?.name ?? (lang === 'it' ? 'Non associato' : 'Not assigned')}
-                  />
-                </Box>
-              )}
-              {canEditClientAssociation && !hideAssociatedInboundClientSelector && (
-                <Box sx={{ mt: 1 }}>
+              </Box>
+              {hasInboundEmailMetadata &&
+                selectedTicketClient &&
+                canAddSenderEmailToClient &&
+                ticketSenderEmail &&
+                !clientProfileContainsSender(selectedTicketClient, ticketSenderEmail) && (
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="outlined"
                     onClick={() => {
-                      if (clientAssociationTargetId !== null) {
-                        requestClientAssociationChange(clientAssociationTargetId);
-                      }
+                      setClientAssociationError(null);
+                      setClientEmailPromptOpen(true);
                     }}
-                    disabled={
-                      clientAssociationBusy ||
-                      !clientAssociationNeedsSave
-                    }
+                    disabled={clientAssociationBusy}
+                    sx={{ mt: 1 }}
                   >
-                    {clientAssociationBusy
-                      ? t.ticketDetail.clientAssociationSaving
-                      : t.ticketDetail.clientAssociationSave}
+                    {t.ticketDetail.clientEmailAssociationAction}
                   </Button>
-                  <FormHelperText>
-                    {clientAssociationNeedsSave
-                      ? t.ticketDetail.clientAssociationSaveHint
-                      : t.ticketDetail.clientAssociationChooseHint}
-                  </FormHelperText>
-                </Box>
-              )}
+                )}
               {clientAssociationSaved && (
                 <FormHelperText sx={{ color: 'success.main' }}>
                   {isAdmin

@@ -4,6 +4,7 @@
 - [Canvas API action formats](canvas-api-actions.md) — Only specific action formats work; create-auto/update/delete use different field shapes (singular vs plural IDs).
 - [Private ticket visibility](private-ticket-visibility.md) — Admin-only tickets require the same access check across all derived resources and notifications.
 - [Ticket edit authorization](ticket-edit-authorization.md) — Require actor permission for every ticket update; a narrow status-only payload cannot grant access.
+- [Ticket client assignment UI](ticket-client-assignment-ui.md) — Show the assigned client read-only in ticket details; change it through the ticket edit form.
 - [Client sharing by organization](client-visibility.md) — Collaborators should see all client records in their organization; visibility is not per-user.
 - [Mobile client note history](mobile-client-notes.md) — The mobile client detail should expose the separate note history, not just the client's basic Notes field.
 - [Mobile build security boundaries](mobile-build-security-boundaries.md) — Firebase client config is public-but-restricted; keep provider-side restrictions and credential scans.
