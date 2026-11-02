@@ -7,4 +7,4 @@ Ticket details should display the associated client read-only. Users who need to
 
 **Why:** The user explicitly prefers editing the ticket over seeing a client selector whenever they open its details.
 
-**How to apply:** Keep the detail view free of the general client selector and association-save controls. Preserve specialized inbound-email sender actions separately from ordinary client assignment.
+**How to apply:** Keep ticket detail read-only for client assignment. Do not add inbound-email sender controls to the user-generated ticket flow; leave email matching to inbound-email processing.

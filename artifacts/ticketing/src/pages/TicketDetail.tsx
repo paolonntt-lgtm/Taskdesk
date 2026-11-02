@@ -18,7 +18,7 @@ import {
   useSetTicketRecurrence, useDeleteTicketRecurrence,
   useGetTicketTimeSessionEdits, getGetTicketTimeSessionEditsQueryKey,
   getGetTicketQueryKey, getListTicketCommentsQueryKey, getListTicketAttachmentsQueryKey,
-  getListTicketsQueryKey, getListClientsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
+  getListTicketsQueryKey, getListTicketNotesQueryKey, getListNotificationsQueryKey,
 } from '@workspace/api-client-react';
 import { useParams, useLocation, useSearch } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,7 +36,6 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import { UserLink } from '../components/UserLink';
 import ChecklistSection from '../components/ChecklistSection';
 import PermissionGateButton from '../components/PermissionGateButton';
-import ClientEmailAssociationDialog from '../components/ClientEmailAssociationDialog';
 import { trackEvent } from '../lib/analytics';
 
 import { getEmailClientAssociationExplanationKey } from '../lib/emailClientAssociationDisplay';
@@ -107,23 +106,6 @@ function parseCustomerReply(text: string): { name: string; email: string; body: 
   return { name: m[1].trim(), email: m[2].trim(), body: m[3].trim() };
 }
 
-function extractTicketSenderEmail(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const address = value.match(/<([^<>]+)>/)?.[1] ?? value;
-  const normalized = address.trim().replace(/^mailto:/i, '').toLowerCase();
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(normalized) ? normalized : null;
-}
-
-function clientProfileContainsSender(client: any, senderEmail: string): boolean {
-  const exactContacts = (client.pec ?? '').split(/[;,\s]+/).map((value: string) => value.trim().toLowerCase());
-  const emailContacts = (client.email ?? '').split(/[;,\s]+/).map((value: string) => value.trim().toLowerCase());
-  const senderDomain = senderEmail.split('@')[1];
-  return exactContacts.includes(senderEmail) || emailContacts.some((contact: string) =>
-    contact === senderEmail || (contact.startsWith('*@') && contact.slice(2) === senderDomain),
-  );
-}
-
-
 export default function TicketDetail() {
   const { id } = useParams();
   const ticketId = parseInt(id || '0');
@@ -189,16 +171,6 @@ export default function TicketDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [ticketUpdateError, setTicketUpdateError] = useState<string | null>(null);
-  const [clientAssociationBusy, setClientAssociationBusy] = useState(false);
-  const [clientAssociationError, setClientAssociationError] = useState<string | null>(null);
-  const [clientAssociationSaved, setClientAssociationSaved] = useState(false);
-  const [clientEmailPromptOpen, setClientEmailPromptOpen] = useState(false);
-
-  useEffect(() => {
-    setClientAssociationSaved(false);
-    setClientAssociationError(null);
-    setClientEmailPromptOpen(false);
-  }, [ticketId]);
   const [sendToCustomer, setSendToCustomer] = useState(false);
   const [emailReplyOpen, setEmailReplyOpen] = useState(false);
   const [emailReplyBody, setEmailReplyBody] = useState('');
@@ -917,67 +889,19 @@ export default function TicketDetail() {
     : isAdmin || (!assignedGroup && (!(ticket as any).assignedTo || isAssignee));
   const clientsEnabled = (currentUser as any)?.clientsEnabled !== false;
   const ticketClient = (ticket as any).client ?? null;
-  const ticketClientId = ticketClient?.id ?? (ticket as any).clientId ?? null;
   const hasInboundEmailMetadata = Boolean(
     ticket.inboundChannelId || (ticket as any).emailMessageId || (ticket as any).emailConversationId,
   );
   const selectedTicketClient = ticketClient;
-  const clientAssociationTargetId = ticketClientId;
   const emailAssociationReason = (ticket as any).emailClientAssociationReason as string | undefined;
   const emailAssociationSource = (ticket as any).emailClientAssociationSource as string | null | undefined;
   const emailAssociationForwarded = (ticket as any).emailClientAssociationForwarded as boolean | null | undefined;
-  const emailOriginalSender = (ticket as any).emailOriginalSender as string | null | undefined;
-  const ticketSenderEmail = extractTicketSenderEmail(
-    emailAssociationForwarded ? emailOriginalSender : (ticket as any).resource,
-  );
-  const canAddSenderEmailToClient = isAdmin && Boolean(ticketSenderEmail);
-  const clientAssociationPrompt = emailAssociationForwarded && !ticketSenderEmail
-    ? t.ticketDetail.clientEmailAssociationForwardedSenderUnavailable
-    : canAddSenderEmailToClient
-      ? t.ticketDetail.clientEmailAssociationPromptBody
-      : t.ticketDetail.clientEmailAssociationLinkOnlyPrompt;
-  const clientEmailAssociationAddressNotice = canAddSenderEmailToClient
-    ? t.ticketDetail.clientEmailAssociationAddressNotice(
-        ticketSenderEmail!,
-        selectedTicketClient?.name ?? '',
-      )
-    : undefined;
   const emailAssociationExplanationKey = getEmailClientAssociationExplanationKey({
     reason: emailAssociationReason,
     source: emailAssociationSource,
     forwarded: emailAssociationForwarded,
     hasCurrentConflict: Boolean((ticket as any).clientAssociationIssue),
   });
-
-  const handleClientAssociationChange = async (clientId: number, addSenderEmailToClient = false) => {
-    setClientAssociationBusy(true);
-    setClientAssociationError(null);
-    setClientAssociationSaved(false);
-    try {
-      await updateTicket.mutateAsync({
-        id: ticketId,
-        data: { clientId, ...(addSenderEmailToClient ? { addSenderEmailToClient: true } : {}) },
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getGetTicketQueryKey(ticketId) }),
-        queryClient.invalidateQueries({ queryKey: getListTicketsQueryKey() }),
-        ...(addSenderEmailToClient
-          ? [queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() })]
-          : []),
-      ]);
-      setClientAssociationSaved(true);
-      setClientEmailPromptOpen(false);
-    } catch (error) {
-      const status = (error as any)?.status;
-      setClientAssociationError(
-        status === 409
-          ? t.ticketDetail.clientEmailAssociationConflict
-          : t.ticketDetail.clientAssociationUpdateError,
-      );
-    } finally {
-      setClientAssociationBusy(false);
-    }
-  };
 
   const openDueAtEditor = (anchor: HTMLElement) => {
     const dueAt = (ticket as any).dueAt;
@@ -1285,66 +1209,11 @@ export default function TicketDetail() {
                   label={selectedTicketClient?.name ?? (lang === 'it' ? 'Non associato' : 'Not assigned')}
                 />
               </Box>
-              {hasInboundEmailMetadata &&
-                selectedTicketClient &&
-                canAddSenderEmailToClient &&
-                ticketSenderEmail &&
-                !clientProfileContainsSender(selectedTicketClient, ticketSenderEmail) && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => {
-                      setClientAssociationError(null);
-                      setClientEmailPromptOpen(true);
-                    }}
-                    disabled={clientAssociationBusy}
-                    sx={{ mt: 1 }}
-                  >
-                    {t.ticketDetail.clientEmailAssociationAction}
-                  </Button>
-                )}
-              {clientAssociationSaved && (
-                <FormHelperText sx={{ color: 'success.main' }}>
-                  {isAdmin
-                    ? t.ticketDetail.clientAssociationSaved
-                    : t.ticketDetail.clientAssociationSavedByCollaborator}
-                </FormHelperText>
-              )}
-              {!clientAssociationSaved && ticket.inboundChannelId && selectedTicketClient && (
+              {ticket.inboundChannelId && selectedTicketClient && (
                 <FormHelperText>{t.ticketDetail.clientEmailAssociationHint}</FormHelperText>
-              )}
-              {clientAssociationError && (
-                <FormHelperText error>{clientAssociationError}</FormHelperText>
               )}
             </Box>
           )}
-
-          <ClientEmailAssociationDialog
-            open={clientEmailPromptOpen}
-            busy={clientAssociationBusy}
-            title={t.ticketDetail.clientEmailAssociationPromptTitle}
-            prompt={clientAssociationPrompt}
-            addressNotice={clientEmailAssociationAddressNotice}
-            cancelLabel={t.ticketDetail.clientEmailAssociationCancel}
-            linkOnlyLabel={t.ticketDetail.clientEmailAssociationLinkOnly}
-            addAndLinkLabel={t.ticketDetail.clientEmailAssociationAddAndLink}
-            allowAddSender={canAddSenderEmailToClient}
-            error={clientAssociationError}
-            onClose={() => {
-              setClientEmailPromptOpen(false);
-              setClientAssociationError(null);
-            }}
-            onLinkOnly={() => {
-              if (clientAssociationTargetId != null) {
-                void handleClientAssociationChange(clientAssociationTargetId, false);
-              }
-            }}
-            onAddAndLink={() => {
-              if (clientAssociationTargetId != null) {
-                void handleClientAssociationChange(clientAssociationTargetId, true);
-              }
-            }}
-          />
 
           {/* Description block — flat, no card border */}
           <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
