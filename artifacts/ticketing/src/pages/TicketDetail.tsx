@@ -1106,11 +1106,6 @@ export default function TicketDetail() {
                     <>
                       <Avatar src={creator.avatarUrl ?? undefined} sx={{ width: 16, height: 16, fontSize: 8, bgcolor: 'primary.main' }}>{creator.name.charAt(0)}</Avatar>
                       <Box component="span" sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: 'text.secondary' }}>{creator.name}</Box>
-                      {(creator as any).organizationName && (
-                        <Box component="span" sx={{ fontSize: 11, color: 'text.disabled', ml: 0.25 }}>
-                          · {(creator as any).organizationName}
-                        </Box>
-                      )}
                     </>
                   )}
                   {creator?.name && (assignee || assignedGroup) && (
