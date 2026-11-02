@@ -546,42 +546,56 @@ export function buildWorkspaceInviteEmail(args: {
   workspaceName: string;
   inviteUrl: string;
   expiresAt: Date;
-}): { subject: string; html: string; text: string } {
-  const subject = `${args.inviterName} ti ha invitato nello spazio ${args.workspaceName} su TaskDesk`;
-  const expiresAtLabel = args.expiresAt.toLocaleString("it-IT", {
+  language?: "it" | "en";
+}): { subject: string; html: string; text: string; notificationText: string } {
+  const language = args.language ?? "en";
+  const isItalian = language === "it";
+  const subject = isItalian
+    ? `${args.inviterName} ti ha invitato nello spazio ${args.workspaceName} su TaskDesk`
+    : `${args.inviterName} invited you to the ${args.workspaceName} workspace on TaskDesk`;
+  const expiresAtLabel = args.expiresAt.toLocaleString(isItalian ? "it-IT" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Europe/Rome",
   });
+  const notificationText = isItalian
+    ? `Hai ricevuto un invito da ${args.inviterName} a collaborare nello spazio condiviso ${args.workspaceName}. Puoi accettare direttamente da questa notifica.`
+    : `You received an invitation from ${args.inviterName} to collaborate in the shared workspace ${args.workspaceName}. You can accept directly from this notification.`;
   const text = [
-    `Ciao,`,
+    isItalian ? "Ciao," : "Hello,",
     "",
-    `${args.inviterName} ti ha invitato a collaborare nello spazio "${args.workspaceName}" su TaskDesk.`,
+    isItalian
+      ? `${args.inviterName} ti ha invitato a collaborare nello spazio "${args.workspaceName}" su TaskDesk.`
+      : `${args.inviterName} invited you to collaborate in the shared workspace "${args.workspaceName}" on TaskDesk.`,
     "",
-    `Accetta l'invito entro il ${expiresAtLabel} (ora italiana) da questo link:`,
+    isItalian
+      ? `Accetta l'invito entro il ${expiresAtLabel} (ora italiana) da questo link:`
+      : `Accept the invitation by ${expiresAtLabel} (Italy time) using this link:`,
     "",
     args.inviteUrl,
     "",
-    "Se non ti aspettavi questo invito, puoi ignorare questa email.",
+    isItalian
+      ? "Se non ti aspettavi questo invito, puoi ignorare questa email."
+      : "If you weren't expecting this invitation, you can ignore this email.",
     "",
-    "— Il team di TaskDesk",
+    isItalian ? "— Il team di TaskDesk" : "— The TaskDesk team",
   ].join("\n");
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
       <div style="margin-bottom:24px">
         <img src="https://www.taskdesk.it/taskdesk-logo.png" alt="TaskDesk" width="130" height="auto" style="display:block;height:auto" />
       </div>
-      <h2 style="font-size:20px;font-weight:700;margin:0 0 12px">Invito a uno spazio condiviso</h2>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 12px">${isItalian ? "Invito a uno spazio condiviso" : "Invitation to a shared workspace"}</h2>
       <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#374151">
-        <strong>${escapeHtml(args.inviterName)}</strong> ti ha invitato a collaborare nello spazio
-        <strong>"${escapeHtml(args.workspaceName)}"</strong> su TaskDesk.
+        <strong>${escapeHtml(args.inviterName)}</strong> ${isItalian ? "ti ha invitato a collaborare nello spazio" : "invited you to collaborate in the workspace"}
+        <strong>"${escapeHtml(args.workspaceName)}"</strong> ${isItalian ? "su TaskDesk." : "on TaskDesk."}
       </p>
-      <a href="${escapeHtml(args.inviteUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">Accetta invito →</a>
-      <p style="margin-top:24px;font-size:13px;color:#6b7280">Il link scade il ${escapeHtml(expiresAtLabel)} (ora italiana). Se il pulsante non funziona, copia e incolla questo link nel browser:<br/><a href="${escapeHtml(args.inviteUrl)}" style="color:#2563eb;word-break:break-all">${escapeHtml(args.inviteUrl)}</a></p>
-      <p style="margin-top:24px;font-size:12px;color:#9ca3af">Se non ti aspettavi questo invito, puoi ignorare questa email.</p>
+      <a href="${escapeHtml(args.inviteUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px">${isItalian ? "Accetta invito" : "Accept invitation"} →</a>
+      <p style="margin-top:24px;font-size:13px;color:#6b7280">${isItalian ? "Il link scade il" : "The link expires on"} ${escapeHtml(expiresAtLabel)} (${isItalian ? "ora italiana" : "Italy time"}). ${isItalian ? "Se il pulsante non funziona, copia e incolla questo link nel browser:" : "If the button does not work, copy and paste this link into your browser:"}<br/><a href="${escapeHtml(args.inviteUrl)}" style="color:#2563eb;word-break:break-all">${escapeHtml(args.inviteUrl)}</a></p>
+      <p style="margin-top:24px;font-size:12px;color:#9ca3af">${isItalian ? "Se non ti aspettavi questo invito, puoi ignorare questa email." : "If you weren't expecting this invitation, you can ignore this email."}</p>
     </div>
   `;
-  return { subject, html, text };
+  return { subject, html, text, notificationText };
 }
 
 function suggestPlanHtml(usersCount: number): string {

@@ -209,6 +209,7 @@ export * from './userEffectivePermissionsItem';
 export * from './userGroupPermissionsItem';
 export * from './userInheritedGroupPermissionsItem';
 export * from './userPermissionOverrides';
+export * from './userPreferredLanguage';
 export * from './userRole';
 export * from './userTrialStatus';
 export * from './waitForPermissionChanges200';

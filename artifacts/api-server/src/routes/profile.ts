@@ -15,13 +15,14 @@ const safeFields = {
   mainLocation: usersTable.mainLocation,
   phone: usersTable.phone,
   avatarUrl: usersTable.avatarUrl,
+  preferredLanguage: usersTable.preferredLanguage,
   isActive: usersTable.isActive,
   createdAt: usersTable.createdAt,
 };
 
 router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
   const current = (req as any).currentUser;
-  const { name, email, mainLocation, phone, avatarUrl, currentPassword, newPassword } = req.body ?? {};
+  const { name, email, mainLocation, phone, avatarUrl, preferredLanguage, currentPassword, newPassword } = req.body ?? {};
 
   const updates: Record<string, unknown> = {};
 
@@ -66,6 +67,14 @@ router.patch("/auth/profile", requireAuth, async (req, res): Promise<void> => {
       return;
     }
     updates.avatarUrl = avatarUrl || null;
+  }
+
+  if (preferredLanguage !== undefined) {
+    if (preferredLanguage !== "it" && preferredLanguage !== "en") {
+      res.status(400).json({ message: "Lingua non valida" });
+      return;
+    }
+    updates.preferredLanguage = preferredLanguage;
   }
 
   if (newPassword !== undefined) {

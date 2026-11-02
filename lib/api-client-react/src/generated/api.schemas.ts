@@ -260,6 +260,14 @@ export const UserRole = {
   user: 'user',
 } as const;
 
+export type UserPreferredLanguage = typeof UserPreferredLanguage[keyof typeof UserPreferredLanguage] | null;
+
+
+export const UserPreferredLanguage = {
+  it: 'it',
+  en: 'en',
+} as const;
+
 export type UserGroupPermissionsItem = typeof UserGroupPermissionsItem[keyof typeof UserGroupPermissionsItem];
 
 
@@ -321,6 +329,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  preferredLanguage?: UserPreferredLanguage;
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;

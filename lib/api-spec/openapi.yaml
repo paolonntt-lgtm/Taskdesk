@@ -4258,6 +4258,10 @@ components:
         role:
           type: string
           enum: [admin, user]
+        preferredLanguage:
+          type: string
+          enum: [it, en]
+          nullable: true
         mainLocation:
           type: string
           nullable: true

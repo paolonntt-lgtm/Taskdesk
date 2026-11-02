@@ -9,6 +9,7 @@ import type { UserEffectivePermissionsItem } from './userEffectivePermissionsIte
 import type { UserGroupPermissionsItem } from './userGroupPermissionsItem';
 import type { UserInheritedGroupPermissionsItem } from './userInheritedGroupPermissionsItem';
 import type { UserPermissionOverrides } from './userPermissionOverrides';
+import type { UserPreferredLanguage } from './userPreferredLanguage';
 import type { UserRole } from './userRole';
 import type { UserTrialStatus } from './userTrialStatus';
 
@@ -17,6 +18,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  preferredLanguage?: UserPreferredLanguage;
   mainLocation?: string | null;
   group?: string | null;
   groups?: string[] | null;

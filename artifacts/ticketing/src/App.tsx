@@ -5,7 +5,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, CircularProgress, Box } from "@mui/material";
 import { createAppTheme } from "./theme";
 import { AuthContext, useAuth } from "./contexts/AuthContext";
-import { LanguageProvider } from "./contexts/LanguageContext";
+import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TicketList from "./pages/TicketList";
@@ -182,7 +182,24 @@ function AppShell() {
   const [error, setError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
+  const { lang, setLang } = useLanguage();
+  const languageSyncUserId = useRef<number | null>(null);
+  const languageSaveQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => { userRef.current = user; }, [user]);
+
+  const saveLanguagePreference = (language: "it" | "en") => {
+    const save = languageSaveQueue.current.catch(() => undefined).then(async () => {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferredLanguage: language }),
+      });
+      if (!response.ok) throw new Error("Could not save language preference");
+    });
+    languageSaveQueue.current = save;
+    void save.catch(() => undefined);
+  };
 
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
     try {
@@ -250,6 +267,24 @@ function AppShell() {
     void loadUser();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      languageSyncUserId.current = null;
+      return;
+    }
+
+    const preferredLanguage = (user as any).preferredLanguage;
+    if (languageSyncUserId.current !== user.id) {
+      languageSyncUserId.current = user.id;
+      if (preferredLanguage === "it" || preferredLanguage === "en") {
+        if (preferredLanguage !== lang) setLang(preferredLanguage);
+        return;
+      }
+    }
+
+    saveLanguagePreference(lang);
+  }, [user?.id, (user as any)?.preferredLanguage, lang, setLang]);
 
   useEffect(() => {
     if (isLoading || !user?.id || (user as any).trialStatus?.isExpired) return;

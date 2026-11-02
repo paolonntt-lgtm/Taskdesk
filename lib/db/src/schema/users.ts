@@ -21,6 +21,7 @@ export const usersTable = pgTable("users", {
   hourlyCompensated: boolean("hourly_compensated").notNull().default(false),
   isSuperAdmin: boolean("is_superadmin").notNull().default(false),
   isSystem: boolean("is_system").notNull().default(false),
+  preferredLanguage: text("preferred_language"),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   lastOperationAt: timestamp("last_operation_at", { withTimezone: true }),

@@ -146,6 +146,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
     email: usersTable.email,
     isActive: usersTable.isActive,
     organizationId: usersTable.organizationId,
+    preferredLanguage: usersTable.preferredLanguage,
   }).from(usersTable).where(eq(usersTable.email, email));
   if (!target || !target.organizationId || !target.isActive) {
     res.status(404).json({ error: "This email must belong to an active account with a billing organization before it can be invited" });
@@ -204,6 +205,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       workspaceName: workspace.name,
       inviteUrl,
       expiresAt,
+      language: target.preferredLanguage === "it" ? "it" : "en",
     });
     let emailSent = false;
     try {
@@ -230,7 +232,7 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       await createNotificationForUser(
         target.id,
         null,
-        `Hai ricevuto un invito da ${user.name ?? "un amministratore"} a collaborare nello spazio condiviso ${workspace.name}. Puoi accettare direttamente da questa notifica.`,
+        email.notificationText,
         "system",
         target.organizationId,
         invite.id,
@@ -417,6 +419,7 @@ router.post("/workspaces/:id/invitations/:invitationId/resend", requireAuth, req
     expiresAt: workspaceInviteTokensTable.expiresAt,
     email: usersTable.email,
     isActive: usersTable.isActive,
+    preferredLanguage: usersTable.preferredLanguage,
   }).from(workspaceInviteTokensTable)
     .innerJoin(usersTable, eq(usersTable.id, workspaceInviteTokensTable.inviteeUserId))
     .where(and(
@@ -437,6 +440,7 @@ router.post("/workspaces/:id/invitations/:invitationId/resend", requireAuth, req
     workspaceName: workspace.name,
     inviteUrl: `${appBaseUrl()}/app/workspace-invite/${invitation.token}`,
     expiresAt: invitation.expiresAt,
+    language: invitation.preferredLanguage === "it" ? "it" : "en",
   });
   try {
     const result = await sendEmailForOrg(workspace.billingOwnerOrganizationId, {
@@ -453,6 +457,20 @@ router.post("/workspaces/:id/invitations/:invitationId/resend", requireAuth, req
     req.log.warn({ workspaceId, invitationId, inviteeUserId: invitation.inviteeUserId, err: error }, "Workspace invitation email could not be resent");
     res.status(502).json({ error: "The invitation email could not be sent. The existing invitation remains valid." });
     return;
+  }
+
+  if (invitation.inviteeUserId != null) {
+    try {
+      await db.update(notificationsTable)
+        .set({ notificationText: email.notificationText })
+        .where(and(
+          eq(notificationsTable.workspaceInviteId, invitationId),
+          eq(notificationsTable.userId, invitation.inviteeUserId),
+        ));
+    } catch (error) {
+      req.log.warn({ workspaceId, invitationId, inviteeUserId: invitation.inviteeUserId, err: error },
+        "Workspace invitation notification could not be updated after resend");
+    }
   }
 
   res.json({ emailSent: true, email: invitation.email });
