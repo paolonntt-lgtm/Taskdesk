@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import {
   db, notificationsTable, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
@@ -570,6 +570,14 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
           eq(workspaceInviteTokensTable.token, token),
           isNull(workspaceInviteTokensTable.acceptedAt),
         ));
+      await tx.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+        .where(and(
+          eq(workspaceInviteTokensTable.workspaceOrganizationId, workspace.id),
+          eq(workspaceInviteTokensTable.inviteeUserId, user.id),
+          ne(workspaceInviteTokensTable.token, token),
+          isNull(workspaceInviteTokensTable.revokedAt),
+          isNull(workspaceInviteTokensTable.acceptedAt),
+        ));
     }
     return { sharingDisabled: false, membership: created };
   });
@@ -643,6 +651,14 @@ router.post("/workspace-invites/:token/reject", requireAuth, requireSameOrigin, 
     res.status(409).json({ error: "L'invito è già stato gestito" });
     return;
   }
+  await db.update(workspaceInviteTokensTable).set({ revokedAt: new Date() })
+    .where(and(
+      eq(workspaceInviteTokensTable.workspaceOrganizationId, invite.workspaceOrganizationId),
+      eq(workspaceInviteTokensTable.inviteeUserId, user.id),
+      ne(workspaceInviteTokensTable.id, invite.id),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+    ));
   const [workspace] = await db.select({ name: organizationsTable.name }).from(organizationsTable)
     .where(eq(organizationsTable.id, invite.workspaceOrganizationId));
   const invitationTextPattern = workspace

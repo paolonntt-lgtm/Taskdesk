@@ -56,14 +56,15 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
       isNull(workspaceInviteTokensTable.revokedAt),
       isNull(workspaceInviteTokensTable.acceptedAt),
       gt(workspaceInviteTokensTable.expiresAt, new Date()),
-    ));
+    ))
+    .orderBy(desc(workspaceInviteTokensTable.id));
   const notificationsWithInvites = notifications.map((notification) => {
     if (notification.workspaceInviteToken || notification.type !== "system" ||
         !notification.notificationText.startsWith("Hai ricevuto un invito da ")) {
       return notification;
     }
     const matches = pendingInvites.filter(({ workspaceName }) => notification.notificationText.includes(workspaceName));
-    return matches.length === 1
+    return matches.length > 0
       ? { ...notification, workspaceInviteToken: matches[0].token }
       : notification;
   });
