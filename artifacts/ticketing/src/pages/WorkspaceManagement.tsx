@@ -33,15 +33,12 @@ export default function WorkspaceManagement() {
   const billingOrganizationId = (user as any)?.billingOrganizationId;
   const isSharedWorkspace = (user as any)?.isSharedWorkspace === true;
   const sharingEnabled = (user as any)?.externalSharingEnabled === true;
-  const canCreateWorkspace = user?.role === 'admin' && activeWorkspaceId === billingOrganizationId && !isSharedWorkspace;
-  const workspaces = ((user as any)?.workspaces ?? []) as Array<{ id: number; name: string }>;
 
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [loading, setLoading] = useState(isSharedWorkspace);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [workspaceName, setWorkspaceName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
   const [shareUrl, setShareUrl] = useState('');
@@ -98,25 +95,6 @@ export default function WorkspaceManagement() {
       setError((invitationsQuery.error as Error).message || (it ? 'Impossibile caricare gli inviti.' : 'Could not load invitations.'));
     }
   }, [invitationsQuery.error, it]);
-
-  const createWorkspace = async () => {
-    setBusy(true); setError(''); setNotice('');
-    try {
-      const response = await fetch('/api/workspaces', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: workspaceName }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || data.message || (it ? 'Impossibile creare lo spazio.' : 'Could not create workspace.'));
-      trackEvent('workspace_created', { kind: 'shared' });
-      setWorkspaceName('');
-      await switchWorkspace(data.workspace.id);
-      setNotice(it ? 'Spazio creato. Puoi invitare collaboratori esterni da qui.' : 'Workspace created. You can invite external collaborators here.');
-    } catch (reason: any) {
-      setError(reason?.message || (it ? 'Operazione non riuscita.' : 'The action could not be completed.'));
-    } finally { setBusy(false); }
-  };
 
   const inviteAccount = async () => {
     setBusy(true); setError(''); setNotice('');
@@ -262,30 +240,9 @@ export default function WorkspaceManagement() {
   };
 
   return (
-    <Box maxWidth={900} mx="auto">
-      <Typography variant="h4" fontWeight={800} gutterBottom>
-        {it ? 'Gestione spazi di lavoro' : 'Workspace management'}
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        {it ? `Spazio attivo: ${(user as any)?.organizationName ?? ''}. Per gestirne un altro, selezionalo dal menu in basso a sinistra.` : `Active workspace: ${(user as any)?.organizationName ?? ''}. Select another from the bottom-left menu to manage it.`}
-      </Typography>
+    <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {notice && <Alert severity="success" sx={{ mb: 2 }}>{notice}</Alert>}
-
-      {canCreateWorkspace && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" fontWeight={700}>{it ? 'Crea uno spazio aggiuntivo' : 'Create an additional workspace'}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>
-              {it ? 'Lo spazio avrà dati e permessi separati. Potrai condividerlo invitando account TaskDesk attivi di altre organizzazioni.' : 'The workspace has separate data and permissions. You can share it by inviting active TaskDesk accounts from other organizations.'}
-            </Typography>
-            <Box display="flex" gap={1}>
-              <TextField fullWidth size="small" label={it ? 'Nome dello spazio' : 'Workspace name'} value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} />
-              <Button variant="contained" disabled={busy || workspaceName.trim().length < 2} onClick={() => void createWorkspace()}>{it ? 'Crea' : 'Create'}</Button>
-            </Box>
-          </CardContent>
-        </Card>
-      )}
 
       {isSharedWorkspace && user?.role === 'admin' && (
         <Card>
@@ -372,12 +329,6 @@ export default function WorkspaceManagement() {
             ))}
           </CardContent>
         </Card>
-      )}
-      {!isSharedWorkspace && !canCreateWorkspace && (
-        <Alert severity="info">{it ? 'Non hai permessi per gestire spazi in questa organizzazione.' : 'You do not have permission to manage workspaces in this organization.'}</Alert>
-      )}
-      {workspaces.length === 0 && !canCreateWorkspace && !isSharedWorkspace && (
-        <Alert severity="info">{it ? 'Non sono disponibili spazi aggiuntivi.' : 'No additional workspaces are available.'}</Alert>
       )}
       {busy && <CircularProgress size={22} sx={{ position: 'fixed', bottom: 24, right: 24 }} />}
     </Box>

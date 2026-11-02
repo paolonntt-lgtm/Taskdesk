@@ -21,6 +21,7 @@ import {
   useTheme,
   useMediaQuery,
   Button,
+  Alert,
   Chip,
   Tooltip,
   Dialog,
@@ -335,6 +336,10 @@ export default function Layout({ children }: LayoutProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [workspaceAnchorEl, setWorkspaceAnchorEl] = useState<null | HTMLElement>(null);
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [workspaceCreateBusy, setWorkspaceCreateBusy] = useState(false);
+  const [workspaceCreateError, setWorkspaceCreateError] = useState('');
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const taskTrackStorageKey = user ? getTaskTrackAnnouncementStorageKey(String(user.id)) : '';
@@ -528,6 +533,43 @@ export default function Layout({ children }: LayoutProps) {
   const handleLogout = () => { handleMenuClose(); logout(); };
   const workspaces = ((user as any)?.workspaces ?? []) as Array<{ id: number; name: string; role: string; isSharedWorkspace?: boolean }>;
   const activeWorkspaceId = (user as any)?.activeWorkspaceId ?? user?.organizationId;
+  const billingOrganizationId = (user as any)?.billingOrganizationId ?? user?.organizationId;
+  const canCreateWorkspace =
+    user?.role === 'admin' &&
+    activeWorkspaceId === billingOrganizationId &&
+    (user as any)?.isSharedWorkspace !== true;
+  const createWorkspace = async () => {
+    const name = newWorkspaceName.trim();
+    if (name.length < 2) {
+      setWorkspaceCreateError(lang === 'it' ? 'Inserisci un nome di almeno 2 caratteri.' : 'Enter a name with at least 2 characters.');
+      return;
+    }
+    setWorkspaceCreateBusy(true);
+    setWorkspaceCreateError('');
+    try {
+      const response = await fetch('/api/workspaces', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || (lang === 'it' ? 'Impossibile creare lo spazio.' : 'Could not create workspace.'));
+      }
+      trackEvent('workspace_created', { kind: 'shared' });
+      setCreateWorkspaceOpen(false);
+      setWorkspaceAnchorEl(null);
+      setNewWorkspaceName('');
+      await switchWorkspace(data.workspace.id);
+    } catch (error) {
+      setWorkspaceCreateError(error instanceof Error
+        ? error.message
+        : (lang === 'it' ? 'Impossibile creare lo spazio.' : 'Could not create workspace.'));
+    } finally {
+      setWorkspaceCreateBusy(false);
+    }
+  };
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
       onSuccess: () => {
@@ -801,7 +843,64 @@ export default function Layout({ children }: LayoutProps) {
               <Typography variant="body2">{workspace.name}</Typography>
             </MenuItem>
           ))}
+          {canCreateWorkspace && (
+            <>
+              {workspaces.length > 0 && <Divider />}
+              <MenuItem
+                onClick={() => {
+                  setWorkspaceAnchorEl(null);
+                  setWorkspaceCreateError('');
+                  setCreateWorkspaceOpen(true);
+                }}
+              >
+                <ListItemIcon><AddBox fontSize="small" /></ListItemIcon>
+                <Typography variant="body2">{lang === 'it' ? 'Crea nuovo spazio' : 'Create new workspace'}</Typography>
+              </MenuItem>
+            </>
+          )}
         </Menu>
+        <Dialog
+          open={createWorkspaceOpen}
+          onClose={() => !workspaceCreateBusy && setCreateWorkspaceOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>{lang === 'it' ? 'Crea un nuovo spazio' : 'Create a new workspace'}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {lang === 'it'
+                ? 'Lo spazio avrà utenti, dati e permessi separati.'
+                : 'The workspace will have separate users, data, and permissions.'}
+            </Typography>
+            {workspaceCreateError && <Alert severity="error" sx={{ mb: 2 }}>{workspaceCreateError}</Alert>}
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              label={lang === 'it' ? 'Nome dello spazio' : 'Workspace name'}
+              value={newWorkspaceName}
+              onChange={(event) => setNewWorkspaceName(event.target.value)}
+              disabled={workspaceCreateBusy}
+              inputProps={{ maxLength: 100 }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !workspaceCreateBusy) void createWorkspace();
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateWorkspaceOpen(false)} disabled={workspaceCreateBusy}>
+              {lang === 'it' ? 'Annulla' : 'Cancel'}
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => void createWorkspace()}
+              disabled={workspaceCreateBusy || newWorkspaceName.trim().length < 2}
+              startIcon={workspaceCreateBusy ? <CircularProgress size={16} color="inherit" /> : <AddBox />}
+            >
+              {lang === 'it' ? 'Crea' : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

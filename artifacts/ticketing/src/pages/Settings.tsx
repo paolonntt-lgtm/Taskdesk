@@ -1166,7 +1166,6 @@ export default function Settings() {
     { id: 'general', label: t.settings.navGeneral, icon: <Business fontSize="small" /> },
     { id: 'messages', label: t.settings.navMessages, icon: <StarOutlined fontSize="small" /> },
     { id: 'users', label: t.settings.navUsers, icon: <People fontSize="small" /> },
-    { id: 'workspaces', label: t.settings.navWorkspaces, icon: <GroupIcon fontSize="small" /> },
     { id: 'tickets', label: t.settings.navTickets, icon: <Category fontSize="small" /> },
     { id: 'knowledge', label: t.settings.navKnowledge, icon: <SmartToy fontSize="small" /> },
     { id: 'billing', label: t.settings.navBilling, icon: <Receipt fontSize="small" /> },
@@ -1545,27 +1544,28 @@ export default function Settings() {
 
           {/* ── USERS & GROUPS (admin) ── */}
           {isAdmin && activeSection === 'users' && (
-            <>
-              <Section title={t.settings.manageUsersLink} icon={<People color="primary" />}>
-                <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageUsersLinkHint}</Typography>
-                <Link href="/users" style={{ textDecoration: 'none' }}>
-                  <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageUsersLink}</Button>
-                </Link>
-              </Section>
-              {((user as any)?.clientsEnabled !== false) && (
-                <Section title={t.settings.manageClientsLink} icon={<Business color="primary" />}>
-                  <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageClientsLinkHint}</Typography>
-                  <Link href="/clients" style={{ textDecoration: 'none' }}>
-                    <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageClientsLink}</Button>
+            (user as any)?.isSharedWorkspace === true ? (
+              <WorkspaceManagement />
+            ) : (
+              <>
+                <Section title={t.settings.manageUsersLink} icon={<People color="primary" />}>
+                  <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageUsersLinkHint}</Typography>
+                  <Link href="/users" style={{ textDecoration: 'none' }}>
+                    <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageUsersLink}</Button>
                   </Link>
                 </Section>
-              )}
-              <GroupsManagementTab />
-            </>
+                {((user as any)?.clientsEnabled !== false) && (
+                  <Section title={t.settings.manageClientsLink} icon={<Business color="primary" />}>
+                    <Typography variant="body2" color="text.secondary" mb={2}>{t.settings.manageClientsLinkHint}</Typography>
+                    <Link href="/clients" style={{ textDecoration: 'none' }}>
+                      <Button variant="outlined" startIcon={<OpenInNew fontSize="small" />}>{t.settings.manageClientsLink}</Button>
+                    </Link>
+                  </Section>
+                )}
+                <GroupsManagementTab />
+              </>
+            )
           )}
-
-          {/* ── WORKSPACES (admin) ── */}
-          {isAdmin && activeSection === 'workspaces' && <WorkspaceManagement />}
 
           {/* ── TICKETS (admin) ── */}
           {isAdmin && activeSection === 'tickets' && (
