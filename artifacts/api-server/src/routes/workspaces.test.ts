@@ -275,6 +275,19 @@ describe("shared workspaces", () => {
     const notificationInviteToken = directInviteNotification?.workspaceInviteToken;
     expect(notificationInviteToken).toBe(directToken);
     if (!notificationInviteToken) throw new Error("Workspace invitation notification did not expose its pending invitation");
+    const [duplicatePendingInvite] = await db.insert(workspaceInviteTokensTable).values({
+      token: `duplicate-${runId}`,
+      workspaceOrganizationId: workspaceId,
+      createdByUserId: billingAdminId,
+      inviteeUserId: externalUserId,
+      inviteeRole: "user",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    }).returning({ id: workspaceInviteTokensTable.id, token: workspaceInviteTokensTable.token });
+    const notificationsWithDuplicateInvites = await request("/api/notifications", externalUserSessionId);
+    expect(notificationsWithDuplicateInvites.body.find(
+      (notification: { id: number }) => notification.id === directInviteNotification.id,
+    )?.workspaceInviteToken).toBe(duplicatePendingInvite.token);
+    await db.delete(workspaceInviteTokensTable).where(eq(workspaceInviteTokensTable.id, duplicatePendingInvite.id));
     const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
     expect(pendingList.status).toBe(200);
     expect(pendingList.body.invitations).toEqual([
