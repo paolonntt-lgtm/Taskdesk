@@ -94,6 +94,9 @@ describe("shared workspaces", () => {
         ADD COLUMN IF NOT EXISTS invitee_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         ADD COLUMN IF NOT EXISTS invitee_role TEXT NOT NULL DEFAULT 'user',
         ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+      ALTER TABLE notifications
+        ADD COLUMN IF NOT EXISTS workspace_invite_id INTEGER
+          REFERENCES workspace_invite_tokens(id) ON DELETE SET NULL;
     `);
     const [billingOrganization] = await db.insert(organizationsTable)
       .values({ name: `Workspace billing ${runId}` })
@@ -232,7 +235,7 @@ describe("shared workspaces", () => {
     expect(inviteResponse.body).toMatchObject({ pendingAcceptance: true, emailSent: true });
     expect(inviteResponse.body.inviteUrl).toBeUndefined();
     const inviteNotificationText =
-      `Hai ricevuto un invito da Workspace Billing Admin a collaborare nello spazio condiviso Shared workspace ${runId}. Apri l'email per accettare l'invito.`;
+      `Hai ricevuto un invito da Workspace Billing Admin a collaborare nello spazio condiviso Shared workspace ${runId}. Puoi accettare direttamente da questa notifica.`;
     const inviteeNotifications = await request("/api/notifications", externalUserSessionId);
     expect(inviteeNotifications.status).toBe(200);
     expect(inviteeNotifications.body).toEqual(expect.arrayContaining([
@@ -256,6 +259,11 @@ describe("shared workspaces", () => {
     const directToken = sentMail.text?.match(/\/app\/workspace-invite\/([^\s]+)/)?.[1];
     expect(directToken).toBeTruthy();
     if (!directToken) throw new Error("Workspace invite email did not include a tokenized link");
+    const notificationInviteToken = inviteeNotifications.body.find(
+      (notification: { notificationText: string }) => notification.notificationText === inviteNotificationText,
+    )?.workspaceInviteToken;
+    expect(notificationInviteToken).toBe(directToken);
+    if (!notificationInviteToken) throw new Error("Workspace invitation notification did not expose its pending invitation");
     const pendingList = await request(`/api/workspaces/${workspaceId}/invitations`, billingAdminSessionId, workspaceId);
     expect(pendingList.status).toBe(200);
     expect(pendingList.body.invitations).toEqual([
@@ -342,7 +350,7 @@ describe("shared workspaces", () => {
     expect((await invite(`workspace-external-${runId}@example.test`)).status).toBe(409);
     expect((await invite(`workspace-unbilled-${runId}@example.test`)).status).toBe(404);
 
-    const rejectWrongInvitee = await request(`/api/workspace-invites/${directToken}/accept`, outsiderSessionId, undefined, {
+    const rejectWrongInvitee = await request(`/api/workspace-invites/${notificationInviteToken}/accept`, outsiderSessionId, undefined, {
       method: "POST",
     });
     expect(rejectWrongInvitee.status).toBe(403);
@@ -351,10 +359,17 @@ describe("shared workspaces", () => {
       billingAdminSessionId,
       workspaceId,
     );
-    const acceptDirectInvite = await request(`/api/workspace-invites/${directToken}/accept`, externalUserSessionId, undefined, {
+    const acceptDirectInvite = await request(`/api/workspace-invites/${notificationInviteToken}/accept`, externalUserSessionId, undefined, {
       method: "POST",
     });
     expect(acceptDirectInvite.status).toBe(201);
+    const notificationsAfterAccept = await request("/api/notifications", externalUserSessionId);
+    expect(notificationsAfterAccept.body.find(
+      (notification: { notificationText: string }) => notification.notificationText === inviteNotificationText,
+    )).toMatchObject({
+      isRead: true,
+      workspaceInviteToken: null,
+    });
     await expect(adminPermissionEvent).resolves.toMatchObject({
       status: 200,
       body: {
@@ -380,7 +395,7 @@ describe("shared workspaces", () => {
     ));
     expect(await acceptanceNotifications()).toHaveLength(1);
     const retryAcceptedInvite = await request(
-      `/api/workspace-invites/${directToken}/accept`,
+      `/api/workspace-invites/${notificationInviteToken}/accept`,
       externalUserSessionId,
       undefined,
       { method: "POST" },

@@ -340,6 +340,8 @@ export default function Layout({ children }: LayoutProps) {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [workspaceCreateBusy, setWorkspaceCreateBusy] = useState(false);
   const [workspaceCreateError, setWorkspaceCreateError] = useState('');
+  const [acceptingInviteNotificationId, setAcceptingInviteNotificationId] = useState<number | null>(null);
+  const [workspaceInviteActionError, setWorkspaceInviteActionError] = useState('');
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const taskTrackStorageKey = user ? getTaskTrackAnnouncementStorageKey(String(user.id)) : '';
@@ -598,6 +600,36 @@ export default function Layout({ children }: LayoutProps) {
     handleMenuClose();
     if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+  };
+  const handleAcceptWorkspaceInvite = async (notification: any) => {
+    if (!notification.workspaceInviteToken || acceptingInviteNotificationId !== null) return;
+    setAcceptingInviteNotificationId(notification.id);
+    setWorkspaceInviteActionError('');
+    try {
+      const response = await fetch(
+        `/api/workspace-invites/${encodeURIComponent(notification.workspaceInviteToken)}/accept`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || (lang === 'it' ? 'Impossibile accettare l’invito.' : 'Could not accept the invitation.'));
+      }
+      await fetch(`/api/notifications/${notification.id}/read`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      await queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      handleMenuClose();
+      await switchWorkspace(data.workspace.id);
+      setLocation('/');
+    } catch (error) {
+      setWorkspaceInviteActionError(error instanceof Error
+        ? error.message
+        : (lang === 'it' ? 'Impossibile accettare l’invito.' : 'Could not accept the invitation.'));
+      void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    } finally {
+      setAcceptingInviteNotificationId(null);
+    }
   };
   const handleMarkNotificationUnread = (event: React.MouseEvent, notification: any) => {
     event.stopPropagation();
@@ -1110,6 +1142,9 @@ export default function Layout({ children }: LayoutProps) {
             )}
 
             <Divider />
+            {workspaceInviteActionError && (
+              <Alert severity="error" sx={{ mx: 2, my: 1 }}>{workspaceInviteActionError}</Alert>
+            )}
             <Box sx={{ maxHeight: { xs: '48vh', sm: 420 }, overflowY: 'auto', py: 0.5 }}>
               {notifications.length === 0 ? (
                 <MenuItem disabled sx={{ justifyContent: 'center', py: 5 }}>
@@ -1160,6 +1195,22 @@ export default function Layout({ children }: LayoutProps) {
                         <Typography variant="body2" sx={{ lineHeight: 1.45, fontWeight: notification.isRead ? 500 : 700, overflowWrap: 'anywhere' }}>
                           {notification.notificationText}
                         </Typography>
+                        {notification.workspaceInviteToken && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleAcceptWorkspaceInvite(notification);
+                            }}
+                            disabled={acceptingInviteNotificationId !== null}
+                            sx={{ mt: 1, minWidth: 0, px: 1.25, py: 0.4 }}
+                          >
+                            {acceptingInviteNotificationId === notification.id
+                              ? <CircularProgress size={15} color="inherit" />
+                              : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
+                          </Button>
+                        )}
                         {notification.dailyReportId && (
                           <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700, mt: 0.65, display: 'block' }}>
                             {lang === 'it' ? 'Apri report' : 'Open report'} →

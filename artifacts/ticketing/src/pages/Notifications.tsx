@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   IconButton,
   Skeleton,
@@ -37,6 +38,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 type Filter = 'all' | 'unread' | 'read';
 
@@ -45,6 +47,7 @@ interface NotificationItem {
   ticketId?: number | null;
   ticketNumber?: number | null;
   dailyReportId?: number | null;
+  workspaceInviteToken?: string | null;
   notificationText: string;
   isRead: boolean;
   createdAt: string;
@@ -101,11 +104,14 @@ function NotificationSkeleton() {
 
 export default function NotificationsPage() {
   const { t, lang } = useLanguage();
+  const { switchWorkspace } = useAuth();
   const theme = useTheme();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
   const [markingId, setMarkingId] = useState<number | null>(null);
+  const [acceptingInviteId, setAcceptingInviteId] = useState<number | null>(null);
+  const [inviteActionError, setInviteActionError] = useState('');
 
   const notificationsQuery = useListNotifications({
     query: {
@@ -171,6 +177,36 @@ export default function NotificationsPage() {
     if (!notification.isRead) handleMarkRead(notification);
     if (notification.dailyReportId) setLocation(`/daily-reports/${notification.dailyReportId}`);
     else if (notification.ticketId) setLocation(`/tickets/${notification.ticketId}`);
+  };
+
+  const handleAcceptWorkspaceInvite = async (notification: NotificationItem) => {
+    if (!notification.workspaceInviteToken || acceptingInviteId !== null) return;
+    setAcceptingInviteId(notification.id);
+    setInviteActionError('');
+    try {
+      const response = await fetch(
+        `/api/workspace-invites/${encodeURIComponent(notification.workspaceInviteToken)}/accept`,
+        { method: 'POST', credentials: 'include' },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || (lang === 'it' ? 'Impossibile accettare l’invito.' : 'Could not accept the invitation.'));
+      }
+      await fetch(`/api/notifications/${notification.id}/read`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      await queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      await switchWorkspace(data.workspace.id);
+      setLocation('/');
+    } catch (error) {
+      setInviteActionError(error instanceof Error
+        ? error.message
+        : (lang === 'it' ? 'Impossibile accettare l’invito.' : 'Could not accept the invitation.'));
+      void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    } finally {
+      setAcceptingInviteId(null);
+    }
   };
 
   const emptyCopy = filter === 'unread'
@@ -309,6 +345,7 @@ export default function NotificationsPage() {
         </Box>
 
         <Box sx={{ p: { xs: 1.25, sm: 2 } }}>
+          {inviteActionError && <Alert severity="error" sx={{ mb: 2 }}>{inviteActionError}</Alert>}
           {notificationsQuery.isLoading ? (
             <NotificationSkeleton />
           ) : notificationsQuery.isError ? (
@@ -411,7 +448,23 @@ export default function NotificationsPage() {
                             {notification.notificationText}
                           </Typography>
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25, flexWrap: 'wrap', rowGap: 0.8 }}>
-                            {notification.dailyReportId ? (
+                            {notification.workspaceInviteToken ? (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleAcceptWorkspaceInvite(notification);
+                                }}
+                                disabled={acceptingInviteId !== null}
+                                data-testid={`button-accept-workspace-invite-${notification.id}`}
+                                sx={{ px: 1.2, minWidth: 0, fontSize: '0.76rem' }}
+                              >
+                                {acceptingInviteId === notification.id
+                                  ? <CircularProgress size={16} color="inherit" />
+                                  : (lang === 'it' ? 'Accetta invito' : 'Accept invitation')}
+                              </Button>
+                            ) : notification.dailyReportId ? (
                               <Button
                                 size="small"
                                 endIcon={<ArrowForward sx={{ fontSize: '16px !important' }} />}

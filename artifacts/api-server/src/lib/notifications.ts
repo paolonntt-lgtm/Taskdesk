@@ -352,7 +352,8 @@ export async function createNotificationForUser(
   ticketId: number | null,
   text: string,
   type: NotificationType = "system",
-  organizationId?: number | null
+  organizationId?: number | null,
+  workspaceInviteId?: number | null,
 ): Promise<void> {
   const conditions = [eq(usersTable.id, userId)];
 
@@ -381,6 +382,7 @@ export async function createNotificationForUser(
       userId,
       organizationId: organizationId ?? undefined,
       ticketId: ticketId ?? undefined,
+      workspaceInviteId: workspaceInviteId ?? undefined,
       type,
       notificationText: text,
       isRead: false,

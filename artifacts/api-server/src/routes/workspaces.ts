@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import {
-  db, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
+  db, notificationsTable, organizationsTable, settingsTable, usersTable, workspaceInviteTokensTable, workspaceMembershipsTable,
 } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { isWorkspaceMember } from "../lib/workspaceContext";
@@ -193,7 +193,10 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
         inviteeUserId: target.id,
         inviteeRole: role,
         expiresAt,
-      }).returning({ token: workspaceInviteTokensTable.token });
+      }).returning({
+        id: workspaceInviteTokensTable.id,
+        token: workspaceInviteTokensTable.token,
+      });
     });
     const inviteUrl = `${appBaseUrl()}/app/workspace-invite/${invite.token}`;
     const email = buildWorkspaceInviteEmail({
@@ -227,9 +230,10 @@ router.post("/workspaces/:id/members", requireAuth, requireAdmin, async (req, re
       await createNotificationForUser(
         target.id,
         null,
-        `Hai ricevuto un invito da ${user.name ?? "un amministratore"} a collaborare nello spazio condiviso ${workspace.name}. Apri l'email per accettare l'invito.`,
+        `Hai ricevuto un invito da ${user.name ?? "un amministratore"} a collaborare nello spazio condiviso ${workspace.name}. Puoi accettare direttamente da questa notifica.`,
         "system",
         target.organizationId,
+        invite.id,
       );
     } catch (error) {
       req.log.warn({ workspaceId, inviteeUserId: target.id, err: error }, "Workspace invite notification could not be created");
@@ -499,6 +503,7 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
   const user = (req as any).currentUser;
   const token = String(req.params.token);
   const [invite] = await db.select({
+    id: workspaceInviteTokensTable.id,
     workspaceId: workspaceInviteTokensTable.workspaceOrganizationId,
     createdByUserId: workspaceInviteTokensTable.createdByUserId,
     inviteeUserId: workspaceInviteTokensTable.inviteeUserId,
@@ -578,6 +583,10 @@ router.post("/workspace-invites/:token/accept", requireAuth, requireSameOrigin, 
     return;
   }
   if (membership) {
+    await db.update(notificationsTable).set({ isRead: true }).where(and(
+      eq(notificationsTable.userId, user.id),
+      eq(notificationsTable.workspaceInviteId, invite.id),
+    ));
     notifyPermissionChanged(user.id);
     await notifyWorkspaceAdminsOfMemberChange(workspace.id, "added");
     await createNotificationForUser(

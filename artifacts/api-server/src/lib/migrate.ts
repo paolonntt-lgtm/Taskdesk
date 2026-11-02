@@ -190,6 +190,61 @@ export async function runAppMigrations(): Promise<void> {
         ON workspace_invite_tokens (workspace_organization_id);
       CREATE INDEX IF NOT EXISTS workspace_invite_tokens_invitee_idx
         ON workspace_invite_tokens (invitee_user_id);
+      ALTER TABLE notifications
+        ADD COLUMN IF NOT EXISTS workspace_invite_id INTEGER
+          REFERENCES workspace_invite_tokens(id) ON DELETE SET NULL;
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_migrations
+          WHERE key = 'workspace_invite_notification_links_v1'
+        ) THEN
+          UPDATE notifications n
+          SET workspace_invite_id = invite.id
+          FROM workspace_invite_tokens invite
+          JOIN organizations workspace ON workspace.id = invite.workspace_organization_id
+          JOIN users inviter ON inviter.id = invite.created_by_user_id
+          WHERE n.user_id = invite.invitee_user_id
+            AND n.workspace_invite_id IS NULL
+            AND invite.revoked_at IS NULL
+            AND invite.accepted_at IS NULL
+            AND invite.expires_at > NOW()
+            AND (
+              n.notification_text = 'Hai ricevuto un invito da '
+                || COALESCE(inviter.name, 'un amministratore')
+                || ' a collaborare nello spazio condiviso '
+                || workspace.name
+                || '. Apri l''email per accettare l''invito.'
+              OR n.notification_text = 'Hai ricevuto un invito da '
+                || COALESCE(inviter.name, 'un amministratore')
+                || ' a collaborare nello spazio condiviso '
+                || workspace.name
+                || '. Puoi accettare direttamente da questa notifica.'
+            );
+          INSERT INTO app_migrations (key) VALUES ('workspace_invite_notification_links_v1');
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_migrations
+          WHERE key = 'workspace_invite_notification_action_copy_v1'
+        ) THEN
+          UPDATE notifications
+          SET notification_text = replace(
+            notification_text,
+            'Apri l''email per accettare l''invito.',
+            'Puoi accettare direttamente da questa notifica.'
+          )
+          WHERE workspace_invite_id IS NOT NULL
+            AND notification_text LIKE '%Apri l''email per accettare l''invito.';
+          INSERT INTO app_migrations (key) VALUES ('workspace_invite_notification_action_copy_v1');
+        END IF;
+      END $$;
     `);
     await client.query(`
       DO $$

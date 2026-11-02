@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, isNull, or, inArray } from "drizzle-orm";
-import { db, notificationsTable, ticketsTable, usersTable } from "@workspace/db";
+import { eq, and, desc, gt, isNull, or, inArray } from "drizzle-orm";
+import { db, notificationsTable, ticketsTable, usersTable, workspaceInviteTokensTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { z } from "zod/v4";
 
@@ -16,6 +16,7 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
       organizationId: notificationsTable.organizationId,
       ticketId: notificationsTable.ticketId,
       dailyReportId: notificationsTable.dailyReportId,
+      workspaceInviteToken: workspaceInviteTokensTable.token,
       ticketNumber: ticketsTable.ticketNumber,
       type: notificationsTable.type,
       notificationText: notificationsTable.notificationText,
@@ -24,6 +25,13 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
     })
     .from(notificationsTable)
     .leftJoin(ticketsTable, eq(notificationsTable.ticketId, ticketsTable.id))
+    .leftJoin(workspaceInviteTokensTable, and(
+      eq(notificationsTable.workspaceInviteId, workspaceInviteTokensTable.id),
+      eq(workspaceInviteTokensTable.inviteeUserId, currentUser.id),
+      isNull(workspaceInviteTokensTable.revokedAt),
+      isNull(workspaceInviteTokensTable.acceptedAt),
+      gt(workspaceInviteTokensTable.expiresAt, new Date()),
+    ))
     .where(and(
       eq(notificationsTable.userId, currentUser.id),
       or(

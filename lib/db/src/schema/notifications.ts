@@ -5,6 +5,7 @@ import { usersTable } from "./users";
 import { ticketsTable } from "./tickets";
 import { dailyReportsTable } from "./daily_reports";
 import { organizationsTable } from "./organizations";
+import { workspaceInviteTokensTable } from "./workspace_invite_tokens";
 
 export const NOTIFICATION_TYPES = [
   "ticket_created",
@@ -25,6 +26,7 @@ export const notificationsTable = pgTable("notifications", {
   organizationId: integer("organization_id").references(() => organizationsTable.id, { onDelete: "cascade" }),
   ticketId: integer("ticket_id").references(() => ticketsTable.id, { onDelete: "cascade" }),
   dailyReportId: integer("daily_report_id").references(() => dailyReportsTable.id, { onDelete: "cascade" }),
+  workspaceInviteId: integer("workspace_invite_id").references(() => workspaceInviteTokensTable.id, { onDelete: "set null" }),
   type: text("type").notNull().default("system"),
   notificationText: text("notification_text").notNull(),
   isRead: boolean("is_read").notNull().default(false),
