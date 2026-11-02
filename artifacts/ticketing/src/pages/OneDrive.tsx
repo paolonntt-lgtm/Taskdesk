@@ -79,6 +79,7 @@ export default function OneDrivePage() {
   const [shares, setShares] = useState<OrganizationShare[]>([]);
   const [sharedFolders, setSharedFolders] = useState<OneDriveSharedFolder[]>([]);
   const [connected, setConnected] = useState(false);
+  const [reconnectRequired, setReconnectRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
@@ -134,21 +135,33 @@ export default function OneDrivePage() {
       setLoading(true);
       setError("");
       try {
-        const [shareResponse, connectionResponse, sharedFoldersData] = await Promise.all([
+        const [shareResponse, connectionResponse] = await Promise.all([
           fetch("/api/onedrive/organization-shares", { credentials: "include", cache: "no-store" }),
           fetch("/api/onedrive/connection", { credentials: "include", cache: "no-store" }),
-          listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
         ]);
-        if (!shareResponse.ok) throw new Error(copy.loadSharesError);
         if (!connectionResponse.ok) throw new Error(copy.checkConnectionError);
-        const [shareData, connection] = await Promise.all([
+        const connection = await connectionResponse.json() as {
+          connected: boolean;
+          reconnectRequired?: boolean;
+        };
+        if (connection.reconnectRequired) {
+          if (!active) return;
+          setConnected(true);
+          setReconnectRequired(true);
+          setShares([]);
+          setSharedFolders([]);
+          return;
+        }
+        if (!shareResponse.ok) throw new Error(copy.loadSharesError);
+        const [shareData, sharedFoldersData] = await Promise.all([
           shareResponse.json() as Promise<OrganizationShare[]>,
-          connectionResponse.json() as Promise<{ connected: boolean }>,
+          listOneDriveSharedWithMe({ credentials: "include", cache: "no-store" }),
         ]);
         if (!active) return;
         setShares(shareData);
         setSharedFolders(sharedFoldersData);
         setConnected(connection.connected);
+        setReconnectRequired(false);
       } catch (failure) {
         if (active) setError(failure instanceof Error ? failure.message : copy.checkConnectionError);
       } finally {
@@ -273,6 +286,15 @@ export default function OneDrivePage() {
       )}
       {loading && <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {!loading && reconnectRequired && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={<Button color="inherit" onClick={connect}>{copy.reconnect}</Button>}
+        >
+          {copy.reconnectRequired}
+        </Alert>
+      )}
       {!loading && !error && !connected && (
         <Alert
           severity="info"
@@ -282,7 +304,7 @@ export default function OneDrivePage() {
           {copy.connectPrompt}
         </Alert>
       )}
-      {!loading && !error && shares.length === 0 && sharedFolders.length === 0 && (
+      {!loading && !error && !reconnectRequired && shares.length === 0 && sharedFolders.length === 0 && (
         <Card variant="outlined">
           <CardContent>
             <Typography fontWeight={600} mb={1}>

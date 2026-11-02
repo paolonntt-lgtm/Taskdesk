@@ -57,6 +57,7 @@
 - [Stripe referral retry consistency](referral-stripe-idempotency.md) — Store referral reward details from Stripe's returned transaction so a retry records the accepted credit, not a newly calculated plan.
 - [Hidden organizations in superadmin](superadmin-hidden-organizations.md) — Hiding is reversible and affects only the superadmin list; preserve organization data and user access.
 - [Cloud-drive account scope](google-drive-account-scope.md) — Use each signed-in user's account; keep collaborator OneDrive folders read-only and uploads on the owner's folder.
+- [OneDrive authorization status](onedrive-reauthorization-status.md) — Distinguish a saved OneDrive connection from a valid Microsoft authorization and show a same-account reconnect path.
 - [Mobile production-domain 403](mobile-production-domain-403.md) — Compare the custom domain with the direct Replit URL on-device before changing API origin protections.
 - [Expo web login origin](expo-web-login-origin.md) — Allow only the exact Expo preview host for mobile web login; do not widen session-origin checks to all Replit subdomains.
 - [React Query context in Vite workspaces](react-query-context-dedupe.md) — Dedupe React Query when workspace packages resolve it with different React peer versions.

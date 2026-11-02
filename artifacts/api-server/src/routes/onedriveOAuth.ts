@@ -26,6 +26,7 @@ import {
   exchangeMicrosoftCode,
   getMicrosoftUser,
   invalidateOneDriveAccessToken,
+  refreshConnection,
   listSharedOneDriveFolderItems,
   listOneDriveItemsSharedWithMe,
   revokeOrganizationRootInvitations,
@@ -245,14 +246,34 @@ router.get("/onedrive/connection", requireAuth, async (req, res): Promise<void> 
     res.json({ connected: false });
     return;
   }
-  const [connection] = await db.select({
-    microsoftEmail: oneDriveConnectionsTable.microsoftEmail,
-    organizationShareUrl: oneDriveConnectionsTable.organizationShareUrl,
-  }).from(oneDriveConnectionsTable).where(and(
+  const [connection] = await db.select().from(oneDriveConnectionsTable).where(and(
     eq(oneDriveConnectionsTable.userId, user.id),
     eq(oneDriveConnectionsTable.organizationId, user.organizationId),
   )).limit(1);
-  res.json({ connected: Boolean(connection), ...connection });
+  if (!connection) {
+    res.json({ connected: false });
+    return;
+  }
+  try {
+    await refreshConnection(connection);
+    res.json({
+      connected: true,
+      microsoftEmail: connection.microsoftEmail,
+      organizationShareUrl: connection.organizationShareUrl,
+      reconnectRequired: false,
+    });
+  } catch (error) {
+    if (error instanceof OneDriveBrowseError && error.statusCode === 401) {
+      res.json({
+        connected: true,
+        microsoftEmail: connection.microsoftEmail,
+        organizationShareUrl: connection.organizationShareUrl,
+        reconnectRequired: true,
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/onedrive/organization-shares", requireAuth, async (req, res): Promise<void> => {

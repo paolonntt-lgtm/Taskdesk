@@ -17,7 +17,7 @@ import { CloudSync, LinkOff } from "@mui/icons-material";
 import { useLanguage } from "../contexts/LanguageContext";
 import OneDriveLogo from "./OneDriveLogo";
 
-type Connection = { connected: boolean; microsoftEmail?: string };
+type Connection = { connected: boolean; microsoftEmail?: string; reconnectRequired?: boolean };
 type Notice = { severity: "success" | "error" | "info"; text: string } | null;
 
 export default function OneDriveConnectionSettings() {
@@ -41,6 +41,7 @@ export default function OneDriveConnectionSettings() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || copy.oneDriveLoadError);
       setConnection(data as Connection);
+      setReconnectRequired(Boolean((data as Connection).reconnectRequired));
     } catch (error) {
       setNotice({
         severity: "error",
@@ -156,6 +157,11 @@ export default function OneDriveConnectionSettings() {
             <CircularProgress size={22} />
           ) : (
             <>
+              {connection?.connected && reconnectRequired && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  {copy.oneDriveReconnectRequired}
+                </Alert>
+              )}
               <Typography variant="body2" color="text.secondary" mb={2}>
                 {connection?.connected
                   ? `${copy.oneDriveCurrentlyConnected}: ${connection.microsoftEmail ?? ""}`
@@ -168,10 +174,18 @@ export default function OneDriveConnectionSettings() {
                 <Button
                   variant="contained"
                   startIcon={<CloudSync />}
-                  onClick={() => connection?.connected ? setSwitchDialogOpen(true) : startConnect()}
+                  onClick={() => reconnectRequired
+                    ? startConnect()
+                    : connection?.connected
+                      ? setSwitchDialogOpen(true)
+                      : startConnect()}
                   disabled={saving}
                 >
-                  {connection?.connected ? copy.oneDriveSwitchAccount : copy.oneDriveConnect}
+                  {reconnectRequired
+                    ? copy.oneDriveReconnectSameAccount
+                    : connection?.connected
+                      ? copy.oneDriveSwitchAccount
+                      : copy.oneDriveConnect}
                 </Button>
                 {connection?.connected && (
                   <Button
@@ -182,15 +196,6 @@ export default function OneDriveConnectionSettings() {
                     disabled={saving}
                   >
                     {copy.oneDriveDisconnect}
-                  </Button>
-                )}
-                {connection?.connected && reconnectRequired && (
-                  <Button
-                    variant="outlined"
-                    onClick={startConnect}
-                    disabled={saving}
-                  >
-                    {copy.oneDriveReconnectSameAccount}
                   </Button>
                 )}
               </Stack>

@@ -1,5 +1,5 @@
 import express from "express";
-import { OneDriveAccessRevocationError } from "../lib/onedriveGraph";
+import { OneDriveAccessRevocationError, OneDriveBrowseError } from "../lib/onedriveGraph";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
     db: { select: vi.fn(), insert: vi.fn() },
     previousConnection: null as null | Record<string, unknown>,
     exchangeMicrosoftCode: vi.fn(),
+    refreshConnection: vi.fn(),
     getMicrosoftUser: vi.fn(),
     createDefaultFolders: vi.fn(),
     listOneDriveItemsSharedWithMe: vi.fn(),
@@ -59,6 +60,7 @@ vi.mock("../lib/onedriveGraph", () => ({
   canConnectMicrosoftTenant: () => true,
   encryptRefreshToken: () => "encrypted-refresh-token",
   exchangeMicrosoftCode: mocks.exchangeMicrosoftCode,
+  refreshConnection: mocks.refreshConnection,
   getMicrosoftUser: mocks.getMicrosoftUser,
   listOneDriveItemsSharedWithMe: mocks.listOneDriveItemsSharedWithMe,
   revokeOrganizationRootInvitations: mocks.revokeOrganizationRootInvitations,
@@ -125,6 +127,7 @@ describe("Microsoft OneDrive OAuth callback", () => {
       tenantId: "tenant-1",
       email: "person@example.test",
     });
+    mocks.refreshConnection.mockResolvedValue("access-token");
     mocks.getMicrosoftUser.mockResolvedValue({
       displayName: "Test Person",
       mail: "person@example.test",
@@ -156,7 +159,9 @@ describe("Microsoft OneDrive OAuth callback", () => {
       query.where = vi.fn(() => Object.assign(
         Promise.resolve(table === mocks.usersTable
           ? [{ id: 7, name: "Test Person", role: "admin", organizationId: 11 }]
-          : []),
+          : table === mocks.oneDriveConnectionsTable && mocks.previousConnection
+            ? [mocks.previousConnection]
+            : []),
         { limit: query.limit },
       ));
       return query;
@@ -276,6 +281,52 @@ describe("Microsoft OneDrive OAuth callback", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({
       error: "You can browse only your own OneDrive here.",
+    });
+  });
+
+  it("checks stored authorization before reporting OneDrive as connected", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
+
+    const response = await fetch(`${baseUrl}/api/onedrive/connection`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      reconnectRequired: false,
+    });
+    expect(mocks.refreshConnection).toHaveBeenCalledWith(mocks.previousConnection);
+  });
+
+  it("keeps the saved connection visible but marks Microsoft reauthorization as required", async () => {
+    mocks.previousConnection = {
+      id: 31,
+      userId: 7,
+      organizationId: 11,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      encryptedRefreshToken: "encrypted-token",
+    };
+    mocks.refreshConnection.mockRejectedValue(
+      new OneDriveBrowseError("Reconnect your OneDrive account to continue.", 401),
+    );
+
+    const response = await fetch(`${baseUrl}/api/onedrive/connection`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      connected: true,
+      microsoftEmail: "person@example.test",
+      organizationShareUrl: "https://onedrive.example.test/folder",
+      reconnectRequired: true,
     });
   });
 
