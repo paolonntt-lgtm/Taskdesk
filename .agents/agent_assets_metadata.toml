@@ -114,3 +114,31 @@ mtime_ms = 1792911324389
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/000d40f9-6f78-4790-abc1-63038fbcd265/35f500e7-c5d0-4f76-a391-f1e80cd64eb6"
 storage_version_token = "1792911410046578"
 content_type = "image/png"
+
+[[outputs]]
+id = "rdN1m8KS469NtdNRsw9of"
+uri = "file://.local/outputs/analytics-weekly-pageviews.chart.html"
+type = "text"
+title = "The landing page peaked at 38 pageviews on Nov 2"
+description = "Weekly landing-page pageviews by recorded date."
+logical_id = "6c02f036-39a0-4da6-8d12-0a91067659c1"
+content_hash = "sha256:e5d6da2deb53d89badddc1e38fb45ddfc0e3070f9d8b3720a4cf418d448bd481"
+size = 3252
+mtime_ms = 1793694402687
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/6c02f036-39a0-4da6-8d12-0a91067659c1/7e906eeb-5cd6-4c74-9f77-faf425d8f62b"
+storage_version_token = "1793694404190384"
+content_type = "text/html;profile=replit-chart"
+
+[[outputs]]
+id = "a1zj_VNaESjM21ehYrADk"
+uri = "file://.local/outputs/analytics-weekly-sources.chart.html"
+type = "text"
+title = "Direct traffic led the recorded sources"
+description = "Approximate visitors by traffic source."
+logical_id = "1f07fd0e-29f4-4325-98a2-641f2d336b80"
+content_hash = "sha256:b81578b131c3a443ae1c4bb5b616fd8dd2a19643505122678d1873c6d1e54023"
+size = 3169
+mtime_ms = 1793694406151
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:4a1856fa-6903-4237-b73c-7ebbcebc75f6/1f07fd0e-29f4-4325-98a2-641f2d336b80/722a15e2-9231-4d44-b90e-e7dba20a6686"
+storage_version_token = "1793694406355288"
+content_type = "text/html;profile=replit-chart"

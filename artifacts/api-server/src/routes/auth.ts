@@ -29,6 +29,7 @@ import { resolveWorkspaceUser } from "../lib/workspaceContext";
 const router: IRouter = Router();
 
 const BCRYPT_ROUNDS = 12;
+const PERMISSION_EVENT_POLL_TIMEOUT_MS = 2_000;
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -251,7 +252,7 @@ router.get("/auth/permission-events", requireAuth, async (req, res): Promise<voi
   };
 
   unsubscribe = subscribeToPermissionChanges(userId, (event) => finish(event));
-  timeout = setTimeout(() => finish(null), 25_000);
+  timeout = setTimeout(() => finish(null), PERMISSION_EVENT_POLL_TIMEOUT_MS);
   res.once("close", () => {
     settled = true;
     cleanup();
